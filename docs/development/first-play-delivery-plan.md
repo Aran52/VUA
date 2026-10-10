@@ -1,6 +1,6 @@
 # First play release: implementation checkpoint and remaining work
 
-> Document version: 1.19.0
+> Document version: 1.20.0
 > Status: Accepted
 > Updated: 2026-10-11
 > Scope: Desktop play, PICO 4 Pro USB/Wi-Fi, optional eye tracking and three guidance contexts
@@ -208,8 +208,10 @@ is available without importing credentials or sessions. N5 merge is not an N5 st
 
 The author accepts geographic reference timing for Ibis and defers the precise Photon/VRChat
 room adapter. Play now exposes an explicit four-origin test: San José, Ashburn near Washington,
-Tokyo and Amsterdam. The tile marks successful observations as approximate; expanded details
-explain HTTPS overhead, name the references and allow individual retries. Website observations,
+Tokyo and Amsterdam. The tile marks successful observations as approximate. The subsequent
+2026-10-11 correction discards the first connection's timing and uses a three-response median;
+incomplete sampling remains a failure. Expanded details explain remaining service/route overhead,
+name the references and allow individual retries. Website observations,
 including Steam and GitHub, retain separate state. The [network owner](../architecture/network-onboarding.md)
 records origins, HTTP classifications, redirect policy and evidence limits. No country lookup,
 connection help, accelerator recommendation or automatic probe is added.
@@ -270,11 +272,16 @@ This does not replace pending physical installation, PICO or material acceptance
 Knowledge encyclopedia now offers `wiki.vrchat.com` independently of AMF. AMF adds Browse assets,
 opening `booth.pm` with the eight requested discovery-site shortcuts. The Candidate
 [desktop-browser face](../protocols/desktop-browser-v0.1.md) keeps the header/sidebar visible
-for these and retained login/import views, with website history, Settings return and honest load
-failure/retry. Wider browsing origins do not widen BOOTH session reads, downloads or local intake.
+for these and retained login/import views. Wiki/material browsing now retains current pages across
+shell navigation and supports up to eight tabs per purpose, including native history, scroll and
+form state, independent close and honest load failure/retry. Tabs are held for the current run;
+application exit and AMF shutdown retain their defined disposal scope. Wider browsing origins
+do not widen BOOTH session reads, downloads or local intake.
 
 Controlled checks use real Main/preload/Renderer/providers, isolated synthetic websites and
-four-language/zoom layouts. Public-site observations do not establish third-party availability
+four-language/zoom layouts, eight-tab limits, popup/shortcut opens and return to the same native
+page. Regional adapter tests separately verify excluded warm-up and complete-sample/error rules.
+Public-site observations do not establish third-party availability
 for other networks, account/material acceptance, physical play or language human review.
 This is an implementation checkpoint, not N1/N5 completion, and produces no new ZIP.
 
@@ -430,6 +437,7 @@ installation, PICO connection, real-material production and four-language human 
 
 ## Document changelog
 
+- 1.20.0 (2026-10-11): record warm regional-reference sampling and retained bounded Wiki/material browser sessions with independent page state; preserve physical/material/human acceptance and the development-only no-ZIP checkpoint.
 - 1.19.0 (2026-10-11): record host Wiki and AMF website shortcuts with shell-sized browser controls, preserved BOOTH boundaries and controlled UI evidence, without declaring N1/N5 or packaging complete.
 - 1.18.0 (2026-10-11): record approximate geographic references and restored topbar Help while deferring exact room measurement and retaining physical/human acceptance.
 - 1.17.0 (2026-10-10): record the Candidate VRCFT connection and device/module guidance, supersede its earlier placeholder and retain vendor-installation and physical-tracking acceptance without another ZIP.
@@ -439,6 +447,5 @@ installation, PICO connection, real-material production and four-language human 
 - 1.13.0 (2026-10-10): record unified card toggles, Help history, Avatar-editing AMF setup and consolidated Settings; align scenario-stage ownership while retaining pending physical acceptance and no new ZIP.
 - 1.12.0 (2026-10-10): record environment Tools/Help, embedded hardware/knowledge reading and compact Play checks without claiming new tool integrations, hardware acceptance or another ZIP.
 - 1.11.0 (2026-10-10): keep AMF installed with VUA but require explicit first activation, retain saved choices/data and defer external Avatar-editing module integration from Ibis.
-- 1.10.0 (2026-10-09): record optional AMF startup and core task/guidance independence without replacing pending physical release acceptance.
 
 Earlier entries remain in Git history.

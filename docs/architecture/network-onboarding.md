@@ -1,8 +1,8 @@
 # First-play network observations
 
-> Document version: 2.1.0
+> Document version: 2.2.0
 > Status: Accepted
-> Last conformance review: 2026-10-11 (four-language controlled UI and public reference-origin responses; VRChat/Photon room measurement deferred)
+> Last conformance review: 2026-10-11 (four-language controlled UI, public reference-origin responses and warm-connection sampling; VRChat/Photon room measurement deferred)
 > Scope: N1 first desktop/PICO play release
 
 ## User outcome and approximate regional references
@@ -33,7 +33,11 @@ no body. That expected response is usable for timing without an account, cloud p
 file download; it does not establish successful API access. Other HTTP errors, rate limits,
 redirects and transport failures remain errors rather than latency numbers.
 
-The metric is time to HTTPS response headers, including connection setup and service overhead.
+The four references first perform one HEAD to establish a connection and discard its timing,
+then report the median of three subsequent HEAD response-header timings on the pooled connection.
+This excludes the initial DNS/TCP/TLS setup; service handling and the selected network route still
+contribute. An incomplete sample set, explicit connection closure, redirect or unexpected HTTP response
+produces a failure rather than a cold-request fallback or a partial median.
 Geographic proximity permits only a rough comparison of the user's routes. It is not ICMP/UDP
 round-trip time, VRChat room Ping, PICO streaming delay, packet loss or bandwidth. Provider/OS
 network routing, including a configured proxy, can differ from the game's route. The tile title
@@ -84,8 +88,11 @@ source or assets are bundled.
 
 Website tests run concurrently with a six-second per-site/eight-second batch budget. The four
 fixed reference origins never follow redirects, so timing cannot silently move to a different
-destination. Ordinary website redirects remain limited to three credential-free HTTPS destinations.
-HEAD 405/501 retries GET to response
+destination. Each uses a fresh client and one idle pooled connection for the warm-up plus three
+samples within the batch budget. A server's explicit `Connection: close` is not accepted as warm
+timing. Ordinary website tests retain their single-request timing, including connection setup,
+and redirects limited to three credential-free HTTPS destinations.
+Ordinary HEAD 405/501 retries GET to response
 headers and immediately drops the response. Other HTTP errors remain visible; no browser
 challenge is automated. Requests use the Provider's network route, not a chosen proxy node or
 the game's connection. Fresh clients send no account credentials or browser cookies. No page
@@ -108,7 +115,9 @@ VRChat instance-region latency.
 ## Verification
 
 Shared schema vectors and Gateway tests validate requested destinations and result shapes.
-Adapter tests cover HTTP classifications and redirect boundaries. Controlled Chromium checks
+Adapter tests cover HTTP classifications and redirect boundaries, one connection for the
+discarded warm-up and all three samples, and timeout/partial/error/closed-connection rejection.
+Controlled Chromium checks
 exercise four-language independent results, editing/removal, no request on page opening,
 no region detection/help/recommendation entry, and the split between expanded website results
 and approximate regional references. Controlled cases cover the expected root 404, independent
@@ -120,6 +129,7 @@ acceptance remain separate physical observations. Raw machine reports stay in
 
 ## Document changelog
 
+- 2.2.0 (2026-10-11): exclude initial connection setup from fixed regional references with a discarded warm-up and three-response median; preserve ordinary website timing, geographic scope and incomplete-sample failure reporting.
 - 2.1.0 (2026-10-11): accept four geographic Oracle reference origins for explicitly approximate, user-triggered HTTPS timing; retain precise room measurement as deferred and preserve independent expanded website tests.
 - 2.0.0 (2026-10-09): retire Connection help, usage-region identification and accelerator recommendations; move website tests into details and report regional Ping unavailable pending verified targets.
 - 1.1.0 (2026-10-07): replace the large network form with editable VRChat/Steam/GitHub test cards and fold regional advice into help.

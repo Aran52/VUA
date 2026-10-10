@@ -1,6 +1,6 @@
 # Website tests v0.1
 
-> Document version: 0.2
+> Document version: 0.3
 > Status: Candidate
 > Family: website-tests
 
@@ -26,6 +26,11 @@ Local website preferences are UI state; no results or account data are persisted
 
 The four fixed Oracle regional reference origins named by [network onboarding](../architecture/network-onboarding.md)
 never follow redirects. Their observations use the same unchanged v0.1 wire/schema vocabulary.
+For these exact four URLs only, a discarded HEAD establishes the connection and `elapsedMs`
+reports the median of three subsequent HEAD response-header timings on the pooled connection.
+An incomplete sample set or explicit connection closure cannot supply a latency result.
+Ordinary website URLs retain their existing timing, including initial connection setup and
+the bounded HEAD/GET fallback; this exception introduces no new method or request field.
 The regional UI may present an expected anonymous root 404 as an approximate response time;
 the raw observation remains `http_error`, and ordinary website cards still show HTTP 404.
 Unexpected HTTP errors, redirects, rate limits and transport failures are not regional latency.
@@ -37,5 +42,6 @@ Implementation: [types and guards](../../packages/contracts/src/website-test.ts)
 
 ## Document changelog
 
+- 0.3 (2026-10-11): specify discarded warm-up and three-response median for the four fixed regional roots, preserving ordinary website behavior and the Candidate v0.1 wire/schema shape.
 - 0.2 (2026-10-11): document origin-pinned geographic references and UI treatment of their expected root response, retaining the Candidate v0.1 request/result vocabulary.
 - 0.1 (2026-10-07): introduce selected/custom website tests for the compact play-environment cards.

@@ -1,11 +1,11 @@
-# VUA design standard v0.21.0
+# VUA design standard v0.22.0
 
 
-> Document version: 0.21.0
+> Document version: 0.22.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (regional reference, topbar Help and inset browser layouts in four-language zoom fixtures, retaining compact cards, history and appearance; author game/device and human-language review pending)
+> Last conformance review: 2026-10-11 (regional reference, topbar Help and retained eight-tab browser sessions in four-language zoom fixtures, retaining compact cards, history and appearance; author game/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -137,9 +137,14 @@ form or a scrape/search integration. Existing BOOTH acquisition and account beha
 
 Every embedded browser, including login/import, occupies the main content region below its
 local controls. Keep the topbar and sidebar visible and usable. Shortcuts wrap in narrow windows;
-native bounds follow the measured region and page zoom. Settings temporarily hides page browsers
-and restores them on return; leaving an import browser dismisses its modal. Close controls,
-website history and retry remain reachable. Local confirmation cards take precedence over native
+native bounds follow the measured region and page zoom. Settings and other page changes hide
+site-browser tabs and restore their current pages on return, including native history, scroll
+and form state. A compact tab row above navigation shows page titles, active domain colour,
+per-tab close and a new-tab action; overflow scrolls without covering VUA navigation. Up to eight
+tabs per knowledge/material session are held in memory. Allowlisted web popups open local tabs;
+Ctrl/middle-click website shortcuts open another tab while ordinary clicks reuse the active tab.
+Leaving an import browser still dismisses its modal. Close controls, website history and retry
+remain reachable. Local confirmation cards take precedence over native
 content. Respect the current domain colour, appearance, glass, matrix and resource-saving settings.
 All four Help cards open main-window child pages. Each child supports mouse-side-button
 Back/Forward; encyclopedia chapter choices and replay-wizard choices also participate in
@@ -444,8 +449,9 @@ changelog history already uses.
   `desktop.remoteBrowser` capability is two-state — it flips only when
   embedded browsing works end to end, and unwired entries stay permanently
   labeled unavailable (a plain unavailable note with no alternative action —
-  under the U9 four-way split, http/https popups open in the current embedded
-  view, so no "hand off to the system browser" degradation path exists).
+  under the U9 four-way split, import http/https popups open in the current
+  embedded view; the separate site-browser tab behavior is owned by §3, with
+  no "hand off to the system browser" degradation path).
 - **Recipe:** the composing draft is a content dialog inside the recipe page
   (0.7.12, user ruling 2026-09-20; previously a standalone page): the
   project-independent drafting starting point mounts the former "Composing
@@ -822,6 +828,7 @@ direction.
 
 ## 12. Document changelog
 
+- 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
 - 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.
 - **0.19.0 (2026-10-11)**: restore Help's topbar parallelogram and define explicit approximate regional reference states without changing card height, history or independent website tests.
@@ -831,7 +838,6 @@ direction.
 - 0.15.0 (2026-10-10): replace the AMF Home Inspection card with Finished Avatars and Package Manager in both modes, retaining inspection reports and aligning the finished-output title across navigation.
 - 0.14.0 (2026-10-10): standardize collapsible Play/Tools/editor details and compact tool widths, distinguish navigable Help child pages with Back/Forward, and place AMF activation and consolidated Settings controls in their accepted locations.
 - **0.13.0 (2026-10-10)**: move Tools/Help into Environment, embed knowledge and hardware reading, halve Play card heights and remove the resource sampling-time label while preserving themes, glass and resource saving.
-- **0.12.1 (2026-10-09)**: align normal-exit Close semantics, background-only guide transparency/drag memory and the regional-placeholder/expanded-website split with the author's corrections.
 
 
 Earlier entries remain in Git history.

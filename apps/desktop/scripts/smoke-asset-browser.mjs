@@ -46,7 +46,7 @@ async function main() {
       const url = new URL(request.url);
       if (url.hostname === "vrc-style.com") return Response.error();
       const label = url.hostname.replace(/[^\w.-]/g, "");
-      return new Response(`<!doctype html><html><head><title>${label}</title><style>body{font:20px system-ui;padding:24px;background:#fafafa;color:#17142e}a{display:block;margin:20px 0}</style></head><body><h1>${label}</h1><a id="next" href="/second">Next page</a><a id="outside" href="https://example.test/">Outside shortcut list</a><p>Isolated browser smoke fixture; no real account or material data.</p></body></html>`, { headers: { "content-type": "text/html; charset=utf-8" } });
+      return new Response(`<!doctype html><html><head><title>${label} ${url.pathname}</title><style>body{font:20px system-ui;padding:24px;min-height:2400px;background:#fafafa;color:#17142e}a{display:block;margin:20px 0}</style></head><body><h1>${label}</h1><a id="next" href="/second">Next page</a><a id="new-tab" href="/child" target="_blank">New tab</a><a id="outside" href="https://example.test/">Outside shortcut list</a><textarea id="note"></textarea><p>Isolated browser smoke fixture; no real account or material data.</p></body></html>`, { headers: { "content-type": "text/html; charset=utf-8" } });
     });
     await waitFor(() => {
       window = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith("file:") && !candidate.webContents.getURL().includes("surface="));
@@ -88,9 +88,16 @@ async function main() {
     await waitFor(() => remoteViews().every(view => !view.getVisible()), "Wiki hidden under Settings");
     assert(true, "Settings temporarily hides Wiki without leaving an uncontrollable native view");
     await click("shell-back"); await waitFor(frameFits, "Wiki returns from Settings");
+    const wikiContents = activeView().webContents.id;
+    await activeView().webContents.executeJavaScript('document.querySelector("#next").click()', true);
+    await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "Wiki child page");
+    await click("shell-help"); await waitFor(() => remoteViews().every(view => !view.getVisible()), "Wiki hidden after leaving knowledge");
+    assert(remoteViews().length === 1, "Leaving knowledge retains its hidden native page");
+    await click("help-encyclopedia"); await click("knowledge-wiki"); await waitFor(frameFits, "Wiki session return");
+    assert(activeView().webContents.id === wikiContents && activeView().webContents.getURL().endsWith("/second"), "Wiki returns to the same page and native history");
     const closedWikiId = await js('document.body.dataset.vuaBrowserView');
-    await click("shell-help"); await waitFor(() => remoteViews().length === 0, "Wiki teardown");
-    assert(true, "Leaving knowledge closes its native browser");
+    await js('document.querySelector(".vua-browser-frame__bar button:last-child").click()');
+    await waitFor(() => remoteViews().length === 0, "explicit Wiki close");
     await js(`window.vua.desktopBrowser.setViewport(${JSON.stringify(closedWikiId)},{x:180,y:100,width:800,height:600})`);
     assert(remoteViews().length === 0, "Late layout receipts do not revive a disposed browser");
     const reject = await js(`Promise.all([window.vua.desktopBrowser.open('booth'),window.vua.desktopBrowser.open('https://booth.pm/')].map(p=>p.then(()=>false,()=>true)))`);
@@ -127,6 +134,44 @@ async function main() {
     assert(true, "Failed site shows a reachable retry instead of a blank native page");
     await js('document.querySelector("[data-browser-site=booth]").click()');
     await waitFor(() => activeView()?.webContents.getURL() === "https://booth.pm/", "recover using another site");
+    await activeView().webContents.executeJavaScript('document.querySelector("#next").click()', true);
+    await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "material child page");
+    const originalContents = activeView().webContents.id;
+    const originalTab = await js('document.querySelector("[role=tab][aria-selected=true]").dataset.browserTab');
+    await activeView().webContents.executeJavaScript('document.querySelector("#note").value="retained draft";window.scrollTo(0,420);true', true);
+    await click("nav-env-play"); await waitFor(() => remoteViews().every(view => !view.getVisible()), "material browser hidden on another route");
+    assert(remoteViews().length === 1, "Another shell route retains the material native view");
+    await click("nav-asset-browser"); await waitFor(frameFits, "material route return");
+    const remembered = await activeView().webContents.executeJavaScript('({note:document.querySelector("#note").value,scroll:window.scrollY})');
+    assert(activeView().webContents.id === originalContents && activeView().webContents.getURL().endsWith("/second") && remembered.note === "retained draft" && remembered.scroll === 420,
+      "Returning retains URL, history, form draft and scroll without reloading BOOTH");
+    await js('document.querySelector("[data-browser-new-tab]").click()');
+    await waitFor(() => remoteViews().length === 2 && activeView()?.webContents.getURL() === "https://booth.pm/", "new material tab");
+    await waitFor(frameFits, "new tab geometry");
+    assert(activeView().webContents.id !== originalContents && remoteViews().filter(view => view.getVisible()).length === 1, "Each tab has an independent native page and only one is visible");
+    await activeView().webContents.executeJavaScript('document.querySelector("#new-tab").click()', true);
+    await waitFor(() => remoteViews().length === 3 && activeView()?.webContents.getURL().endsWith("/child"), "website link opens local child tab");
+    assert(await js('document.querySelectorAll("[role=tab]").length===3'), "Allowed website popup becomes a VUA tab");
+    await js('document.querySelector("[data-browser-site=vrcfinder]").dispatchEvent(new MouseEvent("click",{bubbles:true,ctrlKey:true}))');
+    await waitFor(() => remoteViews().length === 4 && activeView()?.webContents.getURL() === "https://vrcfinder.net/", "shortcut opens new tab");
+    assert(true, "Ctrl shortcut opens a separate tab without replacing the previous page");
+    await js(`document.querySelector('[data-browser-tab="${originalTab}"]').click()`);
+    await waitFor(() => activeView()?.webContents.id === originalContents, "original tab activation");
+    assert((await activeView().webContents.executeJavaScript('document.querySelector("#note").value')) === "retained draft", "Tab switching preserves the original form");
+    while (await js('document.querySelectorAll("[role=tab]").length<8')) {
+      const count = remoteViews().length;
+      await js('document.querySelector("[data-browser-new-tab]").click()');
+      await waitFor(() => remoteViews().length === count + 1 && activeView()?.webContents.getURL() === "https://booth.pm/", "tab limit preparation");
+    }
+    await waitFor(() => js('document.querySelector("[data-browser-new-tab]").disabled'), "tab limit visible");
+    await waitFor(frameFits, "eight tabs geometry");
+    await activeView().webContents.executeJavaScript('document.querySelector("#new-tab").click()', true);
+    await delay(150);
+    assert(remoteViews().length === 8 && (await js('document.querySelectorAll("[role=tab]").length')) === 8, "Both Main and Renderer cap retained tabs at eight");
+    const extraTabs = await js(`[...document.querySelectorAll('[data-browser-close-tab]')].map(button=>button.dataset.browserCloseTab).filter(id=>id!==${JSON.stringify(originalTab)})`);
+    for (const id of extraTabs) await js(`document.querySelector('[data-browser-close-tab="${id}"]').click()`);
+    await waitFor(() => remoteViews().length === 1 && activeView()?.webContents.id === originalContents, "extra tabs closed");
+    assert(true, "Closing other tabs leaves the original page and history intact");
     for (const locale of ["en", "zh-CN", "ja", "ko"]) {
       await js(`localStorage.setItem('vua-locale','${locale}');location.reload()`);
       await waitFor(() => js(`document.documentElement.lang==='${locale}' && !!document.querySelector('[data-nav-id=nav-asset-browser]') && !document.querySelector('.vua-boot-splash')`), locale);

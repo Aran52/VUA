@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.22.0
+> Document version: 1.23.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (regional reference UI, topbar Help and inset Wiki/material/login/import browsers, retaining child/history and Settings behavior; physical game/device and human-language review pending)
+> Last conformance review: 2026-10-11 (regional reference UI and inset Wiki/material browser sessions with bounded tabs, page/history/form/scroll return and four-language zoom layouts; physical game/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -266,10 +266,15 @@ reads, cookie persistence or strict download admission.
 The Candidate [desktop-browser face](../protocols/desktop-browser-v0.1.md) leaves the header and
 sidebar exposed for all presentations, including retained login/import. Trusted HTML measures
 the main content below controls and wrapping shortcuts; Main converts page zoom to DIP and
-clamps bounds. Settings hides retained page browsers until return; leaving a page or reloading
-Main closes native views. Global login closes on shell navigation; leaving import also dismisses
-its modal. Native views yield to local navigation confirmation cards. Failed sites offer retry
-or another shortcut without claiming installation or material import.
+clamps bounds. The session controller keeps up to eight site-browser tabs per knowledge/material
+purpose in Renderer memory; Main retains their separate native histories and page state. Settings
+and other page changes hide these tabs until return, without reopening the initial site. Only
+the active tab receives visible geometry. Allowlisted web popups and Ctrl/middle-click shortcuts
+can open another local tab; explicit close disposes only that tab. Full Main reload/window exit
+disposes native views, and AMF shutdown disposes its material views. Global login closes on shell
+navigation; leaving import also dismisses its modal. Native views yield to local navigation
+confirmation cards. Failed sites offer retry or another shortcut without claiming installation
+or material import. Tab metadata and browsing history are not written to application storage.
 
 ## Overlay always-on-top window
 
@@ -387,6 +392,7 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
 - 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.
 - 1.20.0 (2026-10-10): enable AMF for fresh profiles, add qualified CPU/GPU/RAM/VRAM headroom through desktop resource v0.2, and apply a reduced-motion-aware 120° Home-logo colour wipe.
@@ -396,6 +402,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.16.0 (2026-10-10): unify collapsible scenario/tool/editor details, add native Help/chapter/wizard history and Avatar-editing AMF activation, and consolidate Settings language/version controls without changing vendor/device evidence.
 - 1.15.0 (2026-10-10): add environment Tools/Help, embed the knowledge encyclopedia through desktop-window v0.2, halve Play card heights and remove the resource-panel sampling-time label.
 - 1.14.0 (2026-10-10): clarify AMF's bundled installation and separate activation for fresh/legacy profiles; retain saved choices and omit external editing placeholders from Ibis.
-- 1.13.0 (2026-10-09): scope optional AMF frontend/BOOTH services to module readiness and document the two-provider payload; retain host task-window independence and legacy data paths.
 
 Earlier entries remain in Git history.

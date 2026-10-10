@@ -3,6 +3,16 @@
 .vua-browser-frame[hidden] { display: none; }
 .vua-browser-frame__viewport { flex: 1; min-height: 0; display: grid; place-content: center; text-align: center; padding: 0; }
 .vua-browser-frame__bar { min-height: 44px; display: flex; align-items: center; gap: var(--vua-space-1); padding: 4px 8px; border-bottom: 1px solid var(--vua-border); }
+.vua-browser-frame__tabs { display: flex; flex: 0 0 auto; gap: 4px; padding: 6px 8px 0; overflow-x: auto; border-bottom: 1px solid var(--vua-border); scrollbar-width: thin; }
+.vua-browser-frame__tab { display: flex; flex: 0 0 auto; max-width: 200px; border: 1px solid transparent; border-radius: 8px 8px 0 0; }
+.vua-browser-frame__tab[data-active] { border-color: var(--vua-border); border-bottom-color: transparent; background: var(--vua-accent-tint); }
+.vua-browser-frame__tab button, .vua-browser-frame__new-tab { color: var(--vua-text-strong); background: transparent; border: 0; cursor: pointer; font: var(--vua-font-caption); }
+.vua-browser-frame__tab [role="tab"] { display: flex; align-items: center; gap: 6px; min-width: 70px; max-width: 164px; padding: 8px 10px; }
+.vua-browser-frame__tab [role="tab"] span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.vua-browser-frame__tab-close { padding: 5px 7px; }
+.vua-browser-frame__tab-close:hover, .vua-browser-frame__new-tab:hover { background: var(--vua-accent-tint); }
+.vua-browser-frame__new-tab { flex: 0 0 32px; border-radius: 6px; }
+.vua-browser-frame__new-tab:disabled { opacity: 0.45; cursor: default; }
 .vua-browser-frame__shortcuts { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--vua-border); }
 .vua-browser-frame__shortcuts button { padding: 5px 10px; border: 1px solid var(--vua-border); border-radius: 6px; color: var(--vua-text-strong); background: transparent; cursor: pointer; font: var(--vua-font-caption); }
 .vua-browser-frame__shortcuts button:hover, .vua-browser-frame__shortcuts button[aria-current="true"] { background: var(--vua-accent-tint); border-color: var(--vua-accent); }

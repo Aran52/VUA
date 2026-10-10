@@ -32,7 +32,7 @@ export const strings: Strings = {
     europe: "유럽", america: "미국", japan: "일본", west: "서부", east: "동부", regionUnavailable: "지역 테스트를 사용할 수 없음",
     regionTitle: "지역별 참고 지연", testRegions: "지역 테스트", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "산호세 · 미국 서부", use: "애슈번 · 워싱턴 인근", jp: "도쿄 · 일본", eu: "암스테르담 · 유럽" },
-    regionScope: "게임 지역과 가까운 Oracle Cloud 접속점을 사용하며 계정은 필요 없어요. 연결 준비와 서버 처리를 포함한 HTTPS 응답 시간으로 지역별 경로를 대략 비교합니다. 게임의 실제 경로는 다를 수 있으며 방의 Ping이나 다운로드 속도가 아니에요.",
+    regionScope: "게임 지역과 가까운 Oracle Cloud 접속점을 사용하며 계정은 필요 없어요. 연결 후 HTTPS 응답을 세 번 측정해 중앙값을 표시하고, 처음 연결하는 시간은 제외해요. 경로와 서버 처리의 영향은 남아 있어요. 지역별 참고값이며 게임 방의 Ping이나 다운로드 속도는 아니에요.",
     scope: "웹사이트 응답 시간이며 게임 지연이나 다운로드 속도가 아닙니다. 클릭할 때만 계정 쿠키 없이 테스트합니다.",
     statuses: { timeout: "시간 초과", connection_failed: "실패", probe_error: "사용 불가", http_error: "HTTP 오류", redirected: "리디렉션", reachable: "연결됨" },
   },

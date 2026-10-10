@@ -38,7 +38,7 @@ export const strings = {
     europe: "Europe", america: "USA", japan: "Japan", west: "West", east: "East", regionUnavailable: "Regional test unavailable",
     regionTitle: "Regional reference latency", testRegions: "Test regions", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "San José · US West", use: "Ashburn · near Washington, D.C.", jp: "Tokyo · Japan", eu: "Amsterdam · Europe" },
-    regionScope: "Reference points are Oracle Cloud regions near the game regions. This measures HTTPS response time, including connection setup and service overhead, not VRChat room ping or download speed. No account is needed. Compare the regions roughly; the game's route may differ.",
+    regionScope: "Reference points are Oracle Cloud regions near the game regions. After connecting, VUA takes the median of three HTTPS responses, excluding the initial connection setup. Server handling and routing still affect the result. This is a regional reference, not VRChat room ping or download speed; the game's route may differ.",
     scope: "Time to website response headers, not game ping or download speed. Tests run only when clicked, without account cookies.",
     statuses: { timeout: "Timed out", connection_failed: "Failed", probe_error: "Unavailable", http_error: "HTTP error", redirected: "Redirect", reachable: "Connected" },
   },

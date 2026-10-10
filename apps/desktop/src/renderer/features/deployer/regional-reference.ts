@@ -2,7 +2,8 @@ import type { WebsiteObservation } from "@vua/contracts";
 
 /** Public regional service origins, not VRChat/Photon room endpoints.
  * Region locations and API origins checked against Oracle's docs on 2026-10-11.
- * The native adapter pins these origins and does not follow their redirects. */
+ * The native adapter pins these origins, warms one connection, then reports the
+ * median of three header responses; redirects are never followed. */
 export const REGIONAL_REFERENCES = [
   { id: "usw", url: "https://objectstorage.us-sanjose-1.oraclecloud.com/" },
   { id: "use", url: "https://objectstorage.us-ashburn-1.oraclecloud.com/" },

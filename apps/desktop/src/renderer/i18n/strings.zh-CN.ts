@@ -36,7 +36,7 @@ export const strings: Strings = {
     europe: "欧洲", america: "美国", japan: "日本", west: "西部", east: "东部", regionUnavailable: "区域测试暂不可用",
     regionTitle: "区域参考延迟", testRegions: "测试各区", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "圣何塞 · 美西", use: "Ashburn · 华盛顿附近", jp: "东京 · 日本", eu: "阿姆斯特丹 · 欧洲" },
-    regionScope: "参考点使用游戏区域附近的 Oracle Cloud 节点，无需账号。测的是 HTTPS 响应耗时，包含连接建立和服务处理时间，可大致比较各区线路；游戏实际线路可能不同，这不是房间 Ping，也不是下载速度。",
+    regionScope: "参考点使用游戏区域附近的 Oracle Cloud 节点，无需账号。建立连接后测三次 HTTPS 响应，取中位数，排除首次建连耗时。结果仍受线路和服务器处理影响，可大致比较各区；游戏实际线路可能不同，这不是房间 Ping，也不是下载速度。",
     scope: "显示网站响应时间，不是游戏延迟或下载速度。仅在点击后测试，不携带账号 Cookie。",
     statuses: { timeout: "超时", connection_failed: "失败", probe_error: "不可用", http_error: "HTTP 错误", redirected: "重定向", reachable: "已连接" },
   },

@@ -45,7 +45,12 @@ export function isDesktopBrowserViewportV1(value: unknown): value is DesktopBrow
 export type DesktopBrowserLoadEventV1 =
   | { readonly kind: "loading"; readonly viewId: string; readonly loading: boolean }
   | { readonly kind: "load-failed"; readonly viewId: string; readonly code: number };
-export type DesktopBrowserEventV1 = RemoteContentEventV1 | DesktopBrowserLoadEventV1;
+export const DESKTOP_BROWSER_TAB_LIMIT = 8;
+export type DesktopBrowserTabEventV1 =
+  | { readonly kind: "tab-opened"; readonly viewId: string; readonly parentViewId: string; readonly url: string }
+  | { readonly kind: "title-updated"; readonly viewId: string; readonly title: string }
+  | { readonly kind: "tab-limit"; readonly viewId: string };
+export type DesktopBrowserEventV1 = RemoteContentEventV1 | DesktopBrowserLoadEventV1 | DesktopBrowserTabEventV1;
 export interface DesktopBrowserApiV1 {
   open(site: DesktopBrowserSiteIdV1): Promise<RemoteContentViewStateV1>;
   navigate(viewId: string, site: DesktopBrowserSiteIdV1): Promise<RemoteContentViewStateV1>;

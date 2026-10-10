@@ -150,6 +150,20 @@ describe("remote content navigation policy (F4-2 + U9 four-way)", () => {
     expect(confirm).toHaveBeenCalledWith("https://example.test/search", "origin_not_allowed");
   });
 
+  it("opens allowed popup URLs in a local tab without widening origin or protocol rules", () => {
+    const harness = fakeWebContents(), openAllowedTab = vi.fn(), openExternal = vi.fn();
+    installRemoteContentNavigationPolicy(harness.webContents as never, {
+      allowedOrigins: ["https://booth.pm"], openAllowedTab, openExternal,
+    });
+    expect(harness.open("https://booth.pm/items/9")).toEqual({ action: "deny" });
+    expect(openAllowedTab).toHaveBeenCalledWith("https://booth.pm/items/9");
+    for (const url of ["https://booth.pm.evil.test/", "javascript:alert(1)", "data:text/html,x", "vscode://open/file"]) {
+      expect(harness.open(url)).toEqual({ action: "deny" });
+    }
+    expect(openAllowedTab).toHaveBeenCalledTimes(1);
+    expect(harness.loadURL).not.toHaveBeenCalled(); expect(openExternal).not.toHaveBeenCalled();
+  });
+
   it("keeps pseudo-protocol and unknown-scheme popup targets unconditionally denied", () => {
     const harness = fakeWebContents();
     const openExternal = vi.fn();

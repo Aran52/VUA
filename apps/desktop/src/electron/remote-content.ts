@@ -1,5 +1,5 @@
 import { WebContentsView, session, type BrowserWindow, type Rectangle, type Session } from "electron";
-import type { DesktopBrowserLoadEventV1, DesktopBrowserViewportV1, RemoteContentEventV1, RemoteContentViewStateV1 } from "@vua/contracts";
+import { DESKTOP_BROWSER_TAB_LIMIT, type DesktopBrowserLoadEventV1, type DesktopBrowserTabEventV1, type DesktopBrowserViewportV1, type RemoteContentEventV1, type RemoteContentViewStateV1 } from "@vua/contracts";
 import { browserViewportBounds } from "./browser-viewport.js";
 import {
   installCookiePersistencePolicy,
@@ -38,6 +38,7 @@ export interface RemoteContentManagerOptions {
   readonly browsingOrigins?: readonly string[];
   readonly persistSessionCookies?: boolean;
   readonly onLoad?: (event: DesktopBrowserLoadEventV1) => void;
+  readonly onTab?: (event: DesktopBrowserTabEventV1) => void;
   readonly openExternal: ExternalUrlOpener;
   readonly broadcast: (event: RemoteContentEventV1) => void;
   /** U9(1)/U9(3) 确认层注入(存在时透传给每视图导航策略);缺失=清单外
@@ -54,6 +55,7 @@ export interface RemoteContentManagerOptions {
 interface ManagedView {
   readonly view: WebContentsView;
   readonly viewId: string;
+  readonly siteBrowser: boolean;
   visible: boolean;
   viewport?: DesktopBrowserViewportV1;
 }
@@ -97,7 +99,8 @@ export class RemoteContentManager {
   openSite(url: string): RemoteContentViewStateV1 {
     this.#assertUsable();
     if (!isAllowedRemoteOrigin(url, this.#options.browsingOrigins ?? this.#options.allowedOrigins)) throw new Error("origin_not_allowed");
-    return this.#createView(url);
+    if (this.#siteTabCount() >= DESKTOP_BROWSER_TAB_LIMIT) throw new Error("browser_tab_limit");
+    return this.#createView(url, true);
   }
 
   hasView(viewId: string): boolean { return this.#views.has(viewId); }
@@ -123,7 +126,9 @@ export class RemoteContentManager {
     return this.#createView(url);
   }
 
-  #createView(url: string): RemoteContentViewStateV1 {
+  #siteTabCount(): number { return [...this.#views.values()].filter(view => view.siteBrowser).length; }
+
+  #createView(url: string, siteBrowser = false): RemoteContentViewStateV1 {
     this.#sequence += 1;
     const viewId = `rc-${this.#sequence}-${crypto.randomUUID()}`;
     const view = new WebContentsView({
@@ -137,7 +142,9 @@ export class RemoteContentManager {
         partition: this.#options.partition,
       },
     });
-    const managed: ManagedView = { view, viewId, visible: true };
+    // A pending/background tab has no owner geometry yet and must never cover
+    // another route. The local BrowserFrame makes only the active tab visible.
+    const managed: ManagedView = { view, viewId, siteBrowser, visible: !siteBrowser };
     this.#views.set(viewId, managed);
     const onViolation: RemoteContentViolationObserver = (violationUrl, reason) => {
       this.#broadcast({ kind: "blocked", viewId, url: violationUrl, reason });
@@ -146,12 +153,23 @@ export class RemoteContentManager {
       allowedOrigins: this.#options.browsingOrigins ?? this.#options.allowedOrigins,
       openExternal: this.#options.openExternal,
       onViolation,
+      ...(siteBrowser && this.#options.onTab ? { openAllowedTab: (target: string) => {
+        if (!managed.visible || this.#suspended) return;
+        if (this.#siteTabCount() >= DESKTOP_BROWSER_TAB_LIMIT) {
+          this.#options.onTab?.({ kind: "tab-limit", viewId }); return;
+        }
+        const state = this.#createView(target, true);
+        this.#options.onTab?.({ kind: "tab-opened", viewId: state.viewId, parentViewId: viewId, url: target });
+      } } : {}),
       ...(this.#options.confirmNavigation === undefined
         ? {}
         : { confirmNavigation: this.#options.confirmNavigation }),
     });
     view.webContents.on("did-navigate", () => this.#broadcastNavigated(managed));
     view.webContents.on("did-navigate-in-page", () => this.#broadcastNavigated(managed));
+    if (siteBrowser) view.webContents.on("page-title-updated", (_event, title) => {
+      this.#options.onTab?.({ kind: "title-updated", viewId, title: title.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120) });
+    });
     view.webContents.on("did-start-loading", () => this.#options.onLoad?.({ kind: "loading", viewId, loading: true }));
     view.webContents.on("did-stop-loading", () => this.#options.onLoad?.({ kind: "loading", viewId, loading: false }));
     view.webContents.on("did-fail-load", (_event, code, _description, _url, isMainFrame) => {

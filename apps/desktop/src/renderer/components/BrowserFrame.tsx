@@ -7,7 +7,7 @@ const empty: Frame = { x: 0, y: 0, width: 0, height: 0, visible: false };
 
 /** Only the local shell measures layout; the native view receives bounded geometry. */
 export function BrowserFrame({ viewId, children, modalOwner, status, hideContent = false }: {
-  viewId: string; children: ReactNode; modalOwner?: string | undefined; status?: ReactNode; hideContent?: boolean;
+  viewId: string | null; children: ReactNode; modalOwner?: string | undefined; status?: ReactNode; hideContent?: boolean;
 }) {
   const owner = useRef<HTMLSpanElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
@@ -38,6 +38,7 @@ export function BrowserFrame({ viewId, children, modalOwner, status, hideContent
   }, []);
 
   useLayoutEffect(() => {
+    if (viewId === null) return;
     const browser = window.vua?.desktopBrowser;
     let previous = "";
     const measure = () => {

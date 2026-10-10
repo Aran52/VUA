@@ -215,6 +215,8 @@ export interface RemoteContentPolicyOptions {
   readonly allowedOrigins: readonly string[];
   readonly openExternal: ExternalUrlOpener;
   readonly onViolation?: RemoteContentViolationObserver;
+  /** Optional local tab host. Only already-allowed web targets reach this hook. */
+  readonly openAllowedTab?: (url: string) => void;
   /** U9(1)/U9(3) 确认层注入;缺失=清单外与外部协议一律不放行(保守降级) */
   readonly confirmNavigation?: NavigationConfirmLayer;
 }
@@ -231,8 +233,8 @@ export function installRemoteContentNavigationPolicy(
   webContents.setWindowOpenHandler(({ url }) => {
     const target = classifyNavigationTarget(url, options.allowedOrigins);
     if (target.kind === "web" && target.allowed) {
-      // 清单内直行:弹窗不创建,目标转当前内嵌视图(U9(1))
-      void loadRemoteUrl(webContents, url);
+      if (options.openAllowedTab) options.openAllowedTab(url);
+      else void loadRemoteUrl(webContents, url);
       return { action: "deny" };
     }
     if (target.kind === "web") {

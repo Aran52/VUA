@@ -241,6 +241,7 @@ function ensureKnowledgeBrowser(): RemoteContentManager {
       partition: "vua-knowledge", allowedOrigins: ["https://wiki.vrchat.com"], persistSessionCookies: false,
       openExternal: url => void shell.openExternal(url), broadcast: broadcastDesktopBrowserEvent,
       onLoad: broadcastDesktopBrowserEvent, confirmNavigation,
+      onTab: broadcastDesktopBrowserEvent,
     });
     knowledgeBrowser.setHostWindow(mainWindow);
     knowledgeBrowser.setSuspended(pendingNavConfirms.size > 0);
@@ -1592,6 +1593,7 @@ async function ensureAmfShell(): Promise<void> {
       browsingOrigins: [...DESKTOP_BROWSER_SITES_V1.filter(site => site.purpose === "assets").map(site => new URL(site.url).origin),
         "https://accounts.booth.pm", "https://oauth.secure.pixiv.net", "https://accounts.pixiv.net"],
       onLoad: broadcastDesktopBrowserEvent,
+      onTab: broadcastDesktopBrowserEvent,
       openExternal: (url) => void shell.openExternal(url),
       broadcast: (event) => broadcastRemoteContentEvent(rendererUrl, event),
       confirmNavigation,

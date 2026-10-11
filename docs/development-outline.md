@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Document version: 3.22.0
+> Document version: 3.23.0
 > Status: Accepted
 > Updated: 2026-10-11
 > Authority: User rulings of 2026-09-28 through 2026-10-11, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
@@ -453,6 +453,11 @@ updates to current distribution work. Existing ZIP evidence is retained; full la
 coverage remains separate. The [Windows distribution plan](development/windows-distribution-plan.md)
 proposes the slices without declaring any acceptance complete.
 
+The later 2026-10-11 user ruling publishes the current state as **v0.6.6 Ibis** with the existing
+standalone Windows x64 ZIP before those distribution slices. The published notes record tested
+package behavior and the uncompleted physical/material/human rows; publication does not close
+N1 or N5, or count a ZIP as an NSIS/independent-update pass.
+
 | Deliverable | Required behavior and observable acceptance |
 | --- | --- |
 | Installer | One Windows x64 NSIS entry installs host and AMF, automatically obtains the exact verified Electron runtime from usable mirrors and launches without developer files/commands. Exercise GitHub-unavailable and offline/retry paths |
@@ -514,6 +519,7 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.23.0 (2026-10-11): record current-state v0.6.6 Ibis ZIP publication before the NSIS/AMF-update slices without closing N1/N5 or their pending real-machine/human outcomes.
 - 3.22.0 (2026-10-11): add NSIS/mirrored-runtime distribution and independent incremental AMF update/recovery acceptance under the new user ruling; retain ZIP evidence and separate pending N-stage outcomes.
 - 3.21.1 (2026-10-11): clarify that public material-browser shortcuts and the host Wiki do not expand catalog/search integration or replace independent N5 acquisition acceptance; stage outcomes are unchanged.
 - 3.21.0 (2026-10-11): accept approximate regional references for Ibis and defer exact Photon/room measurement, retaining independent website observations and physical play acceptance.
@@ -523,6 +529,3 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.17.0 (2026-10-10): retain bundled AMF with explicit activation and defer external Avatar-editing modules beyond Ibis without changing existing gate outcomes.
 - 3.16.0 (2026-10-09): place host/AMF separation before scenario integrations, preserving N3–N5 as AMF acceptance and all existing gate outcomes.
 - 3.15.0 (2026-10-09): integrate Ibis publication and current network/guide acceptance with the reduced N5 scope, retaining real-run evidence and pending optional outcomes, background-only guide opacity and remembered relative placement.
-- 3.14.0 (2026-10-09): include managed ZIP extraction in first N5 intake acceptance, preserving original bytes and truthful extraction outcomes.
-
-Earlier entries remain in Git history.

@@ -47,14 +47,15 @@ Project and package management prepares the required Unity environment and depen
 
 ## Development progress
 
-v0.6.0 is the latest source tag; no installable artifact is published yet (the only GitHub Release, v0.5.0, carries no assets). Development follows the [N1–N7 sequence](docs/development-outline.md): deployment, selected external gameplay tools, complex Avatar production, Recipe reproduction, audited material-management rework, recovery, and a Beta installer with an illustrated user guide.
+[v0.6.6 Ibis (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) provides the current Windows x64 desktop application as a complete ZIP, with AMF bundled. Development follows the [N1–N7 sequence](docs/development-outline.md); NSIS installation, verified mirrored runtime acquisition and independent AMF incremental updates follow this release.
 
-The project is expected to remain in Beta for a long time. These descriptions express the product direction; implemented pieces and automated tests do not establish complete real-machine workflows. Read the [sequence](docs/development-outline.md) and the [release notes](docs/release/) for actual acceptance status.
+The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.6.6 scope, checks and limitations (Chinese)](docs/release/v0.6.6.md).
 
 ### Current delivery and starting points
 
-- For players: no installable artifact is published yet; the [v0.6.0 evidence and limitations (Chinese)](docs/release/v0.6.0.md) record the latest tagged state. The features described above are product direction; N1–N7 outcomes are not declared accepted by this README.
-- The illustrated user guide and tested Beta installer are N7 deliverables, not current onboarding instructions. Use [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) for usage questions.
+- Download the **Windows x64 ZIP** from the [Ibis release page](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6), extract the entire archive, and run **VUA.exe**. Keep its companion files together; Node, pnpm, Rust and a source checkout are not needed. This build is unsigned; Windows may display an unfamiliar-publisher warning.
+- Start with the first-use tour and guide, or open Play, Tools or Avatar editing directly. AMF is enabled for new users and can be disabled in Settings → Modules. Steam/PICO/Unity/account actions remain with their official applications.
+- To update this ZIP edition, exit VUA and extract the new ZIP into a separate folder. Application data remains in `%APPDATA%\VUA`; back it up before experimenting with Beta builds. The release notes name remaining tests and manual handoffs. Use [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) for problems.
 - For developers: [install dependencies, launch the desktop app and select checks](apps/desktop/README.md#development-commands), then follow [Contributing](CONTRIBUTING.md).
 
 ## Documentation
@@ -62,7 +63,7 @@ The project is expected to remain in Beta for a long time. These descriptions ex
 - [Documentation guide](docs/README.md) — the smallest route for every task
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
-- [v0.6.0 release notes (Chinese)](docs/release/v0.6.0.md)
+- [v0.6.6 release notes (Chinese)](docs/release/v0.6.6.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ## License

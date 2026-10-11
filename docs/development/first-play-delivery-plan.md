@@ -1,6 +1,6 @@
 # First play release: implementation checkpoint and remaining work
 
-> Document version: 1.21.0
+> Document version: 1.22.0
 > Status: Accepted
 > Updated: 2026-10-11
 > Scope: Desktop play, PICO 4 Pro USB/Wi-Fi, optional eye tracking, three guidance contexts and Windows delivery
@@ -389,6 +389,13 @@ play session. A closed guide must never become a cancelled deployment task.
 
 Finish the release with these bounded tasks:
 
+**Publication ruling, 2026-10-11:** the author requests the current implementation as
+**v0.6.6 Ibis** first. Package and verify the existing standalone Windows x64 ZIP, include exact
+build notices and Chinese release notes, and disclose the unsigned build and remaining physical,
+material and human review. The NSIS/mirrored-runtime and independent AMF-update work below follows
+this release; it is not a prerequisite for this authorized current-state publication. N1/N5
+acceptance remains pending until its recorded real-machine/material cases pass.
+
 1. Run the selected-software-absent and reuse paths on the recorded Windows machine. Preserve
    user data during already-authorized uninstall/reinstall; describe the resulting baseline
    accurately. Exercise the core desktop, USB and Wi-Fi journeys. Optional-eye-tracking
@@ -441,6 +448,7 @@ installation, PICO connection, real-material production and four-language human 
 
 ## Document changelog
 
+- 1.22.0 (2026-10-11): prioritize the authorized current-state v0.6.6 Ibis ZIP publication and exact-build evidence/notices; retain subsequent installer/update work and pending acceptance.
 - 1.21.0 (2026-10-11): route release installation/update work to the new NSIS/mirror and independent incremental AMF plan, retaining prior ZIP/UI evidence and pending physical/material/human acceptance.
 - 1.20.0 (2026-10-11): record warm regional-reference sampling and retained bounded Wiki/material browser sessions with independent page state; preserve physical/material/human acceptance and the development-only no-ZIP checkpoint.
 - 1.19.0 (2026-10-11): record host Wiki and AMF website shortcuts with shell-sized browser controls, preserved BOOTH boundaries and controlled UI evidence, without declaring N1/N5 or packaging complete.
@@ -450,6 +458,3 @@ installation, PICO connection, real-material production and four-language human 
 - 1.15.0 (2026-10-10): record the approved small native opening, Windows language handoff and first-use welcome/tour continuity, with controlled UI evidence and unchanged physical/human release acceptance.
 - 1.14.0 (2026-10-10): record per-card detail placement, separated compact language/Search controls, goal-link migration and full big-screen retirement while retaining pending device/install/material acceptance and no local ZIP.
 - 1.13.0 (2026-10-10): record unified card toggles, Help history, Avatar-editing AMF setup and consolidated Settings; align scenario-stage ownership while retaining pending physical acceptance and no new ZIP.
-- 1.12.0 (2026-10-10): record environment Tools/Help, embedded hardware/knowledge reading and compact Play checks without claiming new tool integrations, hardware acceptance or another ZIP.
-
-Earlier entries remain in Git history.

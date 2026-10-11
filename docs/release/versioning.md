@@ -1,7 +1,7 @@
 # Versioning policy
 
 
-> Document version: 3.1.0
+> Document version: 3.2.0
 > Status: Accepted
 > Scope: VUA product releases, tags, packages, and public contracts
 > Updated: 2026-10-11
@@ -44,6 +44,11 @@ recorded scenarios, not production safety or all Windows versions. Non-UI accept
 agent-driven; human acceptance is required for UI usability. Private real-run artifacts stay local.
 
 ## Selecting a release version
+
+The author explicitly selected **v0.6.6 Ibis** for current-state publication on 2026-10-11.
+That number overrides the automatic minor/patch selection convention for this release only.
+It remains a continuing-Beta release; publication does not pass pending N stages. NSIS and
+independent AMF incremental updates follow this current ZIP release.
 
 Compare the release candidate with the last published release, not with an N-stage number.
 Identify the public application behavior/contracts and any stored-format compatibility changes;
@@ -144,6 +149,7 @@ entry points. Upstream distributions retain their own licenses; follow
 
 ## Document changelog
 
+- 3.2.0 (2026-10-11): record the explicit v0.6.6 Ibis numbering/current-ZIP ruling, preserving continuing Beta and subsequent installer/module-update work.
 - 3.1.0 (2026-10-11): add independent AMF payload identity/compatibility and exact runtime inventory, keeping host numbering, immutable mirrored artifacts and historical publication evidence separate.
 - 3.0.1 (2026-10-01): define tag versus published release/artifact, record the current publication
   state (`v0.6.0` tag without a GitHub Release; the only Release, `v0.5.0`, carries no assets),

@@ -45,22 +45,23 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 
 ## 개발 진행 상황
 
-v0.6.0은 최신 소스 태그이며 아직 설치 가능한 결과물은 공개되지 않았습니다(유일한 GitHub Release인 v0.5.0에는 에셋이 없습니다). [N1–N7 개발 순서](docs/development-outline.md)에 따라 환경 설치, 선정된 외부 플레이 보조 도구, 복합 Avatar 제작, Recipe 재현, 소재 관리 점검과 재작업, 복구 및 스크린샷 사용자 가이드가 포함된 Beta 설치 프로그램을 개발합니다.
+[v0.6.6 Ibis(Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)는 AMF를 포함한 현재 Windows x64 앱의 전체 ZIP을 제공합니다. [N1–N7 개발 순서](docs/development-outline.md)는 계속되며 NSIS, 검증된 미러 런타임 다운로드·재사용, AMF의 독립적인 증분 업데이트는 이번 출시 이후 구현합니다.
 
-프로젝트는 앞으로도 오랫동안 Beta 상태를 유지할 것으로 예상합니다. 소개는 제품의 방향이며, 구현과 자동 테스트만으로 전체 실제 기기 흐름의 검증을 의미하지 않습니다. 실제 검증 상태는 [개발 순서](docs/development-outline.md)와 [릴리스 노트](docs/release/)에서 확인해 주세요.
+Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·소재·사람의 검토가 통과했음을 뜻하지 않습니다. [v0.6.6 범위, 검사 및 제한 사항(중국어)](docs/release/v0.6.6.md)을 확인해 주세요.
 
 ### 현재 제공 상태와 시작 방법
 
-- 아직 설치 가능한 배포물은 공개되지 않았습니다. [v0.6.0 검증 기록 및 제한 사항(중국어)](docs/release/v0.6.0.md)에 최신 태그 상태가 기록되어 있습니다. 위 설명은 제품 방향이며 N1–N7의 검증 완료를 뜻하지 않습니다.
-- 스크린샷 사용자 가이드와 검증된 Beta 설치 프로그램은 N7 산출물이며 현재 제공되는 사용 설명서가 아닙니다. 사용 질문은 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose)로 남길 수 있습니다.
-- 개발자는 [의존성 설치, 데스크톱 앱 실행 및 검사 선택](apps/desktop/README.md#development-commands)부터 시작하고 [기여 가이드](CONTRIBUTING.md)를 따르면 됩니다.
+- [Ibis 릴리스 페이지](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)에서 **Windows x64 ZIP**을 내려받고 전체를 압축 해제한 뒤 **VUA.exe**를 실행합니다. 함께 제공되는 파일을 유지해 주세요. Node, pnpm, Rust나 소스는 필요하지 않습니다. 서명되지 않은 빌드이므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
+- 첫 실행 기능 안내와 가이드로 시작하거나 플레이, 도구, Avatar 편집을 바로 엽니다. 새 사용자는 AMF가 활성화되며 설정 → 모듈에서 끌 수 있습니다. Steam/PICO/Unity 및 계정 작업은 공식 앱에서 완료합니다.
+- ZIP 버전을 업데이트할 때는 VUA를 종료하고 새 ZIP을 다른 폴더에 압축 해제합니다. 데이터는 %APPDATA%\VUA에 유지됩니다. Beta 시험 전에 백업해 주세요. 미검증 과정과 수동 인계는 릴리스 노트에 기록하며 문제는 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose)에 남길 수 있습니다.
+- 개발자는 [의존성 설치, 앱 실행 및 검사](apps/desktop/README.md#development-commands)와 [기여 가이드](CONTRIBUTING.md)를 따릅니다.
 
 ## 문서
 
 - [문서 가이드](docs/README.md)——작업별 최소 경로
 - [제품 경계](docs/product-boundary.md)
 - [아키텍처](docs/architecture/system.md)
-- [v0.6.0 릴리스 노트(중국어)](docs/release/v0.6.0.md)
+- [v0.6.6 릴리스 노트(중국어)](docs/release/v0.6.6.md)
 - [기여 가이드](CONTRIBUTING.md) · [보안 정책](SECURITY.md)
 
 ## 라이선스

@@ -78,6 +78,6 @@ describe("checkLatestRelease (honest three-state detection)", () => {
   });
 
   it("queries the repository releases endpoint kept in sync with app-meta", () => {
-    assert.match(LATEST_RELEASE_URL, /^https:\/\/api\.github\.com\/repos\/VUA-PHR\/VUA\/releases\/latest$/);
+    assert.match(LATEST_RELEASE_URL, /^https:\/\/api\.github\.com\/repos\/VUA-Project\/VUA\/releases\/latest$/);
   });
 });

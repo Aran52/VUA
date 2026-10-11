@@ -45,6 +45,10 @@ async function run() {
       return window && !window.webContents.isLoading();
     }, "production renderer");
     const js = source => window.webContents.executeJavaScript(source);
+    // The hosted Windows runner may disable decorative motion. Exercise the
+    // normal-motion case explicitly, then check reduced motion separately.
+    await window.webContents.debugger.attach("1.3");
+    await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "no-preference" }] });
     const click = id => js(`document.querySelector('[data-nav-id="${id}"]').click()`);
     const capture = async filename => {
       await js('document.getAnimations().filter(animation=>Number.isFinite(animation.effect?.getComputedTiming().endTime) && !animation.effect?.target?.classList?.contains("vua-brand-switch__current--wiping")).forEach(animation=>animation.finish()); new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
@@ -93,13 +97,19 @@ async function run() {
     await waitFor(() => js('document.querySelector("[data-brand-domain]")?.dataset.brandDomain==="env"'), "purple jurisdiction");
     await delay(450);
     await click("nav-warehouse");
-    const mid = await js(`(() => {
+    let mid;
+    // A click may return before React commits and Chromium creates the CSS
+    // animation. Capture and pause it together after that actual boundary.
+    await waitFor(async () => {
+      mid = await js(`(() => {
       const target=document.querySelector('.vua-brand-switch__current--wiping');
       const animation=document.getAnimations().find(item=>item.effect?.target===target);
       if (!animation) return null;
       animation.pause(); animation.currentTime=160;
       return {previous:!!document.querySelector('.vua-brand-switch__previous'),duration:animation.effect.getTiming().duration,domain:target.dataset.brandDomain};
-    })()`);
+      })()`);
+      return mid !== null;
+    }, "logo wipe animation");
     assert(mid?.previous && mid.duration === 380 && mid.domain === "production", "Logo replacement keeps both jurisdictions during its 120-degree wipe");
     await delay(500);
     assert(await js('!document.querySelector(".vua-brand-switch__previous") && document.querySelector("[data-brand-domain]").dataset.brandDomain==="production"'), "Old decorative layer is removed after the wipe");
@@ -112,7 +122,6 @@ async function run() {
     await click("nav-env-play");
     assert(await js('getComputedStyle(document.querySelector("[data-brand-domain]")).animationName==="none" && getComputedStyle(document.querySelector(".vua-brand-switch__previous")).display==="none"'), "Resource saving switches colours without decorative motion");
     await js('delete document.documentElement.dataset.effects');
-    await window.webContents.debugger.attach("1.3");
     await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
     await click("nav-warehouse");
     assert(await js('getComputedStyle(document.querySelector("[data-brand-domain]")).animationName==="none"'), "Reduced motion flattens logo replacement");

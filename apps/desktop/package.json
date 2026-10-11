@@ -1,6 +1,6 @@
 {
   "name": "@vua/desktop",
-  "version": "0.6.0",
+  "version": "0.6.6",
   "private": true,
   "description": "A local-first desktop assistant for VRChat play and avatar workflows.",
   "author": "VUA Project contributors",
@@ -22,7 +22,7 @@
     "check:forest-leak": "node scripts/check-forest-leak.mjs",
     "dev": "node scripts/dev.mjs",
     "start": "pnpm build && electron .",
-    "package:win": "pnpm --filter @vua/orchestrator-provider build && node scripts/build-windows-provider.mjs && tsc -p tsconfig.electron.json --noEmit && node scripts/build-electron.mjs && vite build && install-electron && node scripts/package-windows.mjs",
+    "package:win": "pnpm --filter @vua/orchestrator-provider build && node scripts/build-windows-provider.mjs && tsc -p tsconfig.electron.json --noEmit && node scripts/build-electron.mjs && vite build && install-electron && node scripts/generate-release-notices.mjs && node scripts/package-windows.mjs",
     "smoke:packaged": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-packaged.ps1",
     "smoke:remote-permissions": "pnpm build && electron scripts/smoke-remote-permissions.mjs",
     "smoke:m2-deliverables": "pnpm build && electron scripts/smoke-m2-deliverables.mjs",

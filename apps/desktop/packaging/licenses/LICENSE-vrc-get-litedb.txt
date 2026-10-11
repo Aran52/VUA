@@ -1,0 +1,31 @@
+vrc-get-litedb 0.3.0-beta.8
+
+Upstream manifest declares MIT and these authors:
+anatawa12 <anatawa12@icloud.com>
+Mauricio David <mauricio.david@gmail.com>
+
+The published archive does not contain a standalone license text. Its unmodified
+source and original Cargo.toml are supplied alongside this notice. This reproduces
+the MIT permission text; it does not invent or replace an upstream copyright notice.
+Source: https://github.com/anatawa12/litedb-rs/commit/51d608aa11c2fd90a70bf59a19beafd9b214ec81
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+

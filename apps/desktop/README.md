@@ -126,7 +126,10 @@ Extract the entire archive and launch `VUA.exe`. The end-user machine needs neit
 Rust nor this checkout. Keep all runtime files together. Packaged app data lives in
 `%APPDATA%\VUA`, so replacing/moving the extracted folder does not remove settings or tasks.
 Close VUA before updating or deleting its program folder; remove data separately only when wanted.
-The ZIP's `resources/README.txt` includes these instructions and the unsigned-preview status.
+The ZIP's `resources/README.txt` includes these instructions and the unsigned Beta status.
+Packaging generates `resources/notices/build/dependency-inventory.json` with lockfile/runtime
+versions, public source URLs, native executable hashes and dependency/license texts, including
+MPL source packages. The package smoke checks both Provider hashes against that inventory.
 
 The smoke harness extracts the actual ZIP to a new temporary directory containing spaces and
 non-ASCII characters, uses an isolated profile and a hidden window, and queries the real bundled
@@ -137,8 +140,11 @@ is used. `out/packaged-smoke.json` records the archive SHA-256 and result; raw d
 profiles stay in the named temporary directory for investigation. They are not committed.
 
 This bootstrap check complements the [first-play acceptance](../../docs/development-outline.md#first-play-release-acceptance).
-Physical PICO USB/Wi-Fi tests and human UI review are separate. Before publication, finish the
-exact-build license inventory, signing decision, illustrated guide and remaining play rows.
+Physical PICO USB/Wi-Fi tests and human UI review are separate. The author selected current-state
+v0.6.6 Ibis ZIP publication with these remaining rows explicit; see its
+[release notes](../../docs/release/v0.6.6.md). NSIS/runtime reuse and independent AMF updates follow
+this release. The published ZIP may omit the local `-preview` filename suffix without changing
+its verified bytes; release source identity and archive digest must match the actual tested build.
 The [Windows ZIP workflow](../../.github/workflows/windows-zip.yml) runs on relevant packaging
 PR changes or manual dispatch and keeps unsigned preview artifacts for seven days. It does
 not create a GitHub release; documentation-only edits do not trigger that workflow.

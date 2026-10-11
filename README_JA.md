@@ -47,22 +47,23 @@ AMF が管理し、無効にしてもデータは残ります。
 
 ## 開発状況
 
-v0.6.0 は最新のソースタグであり、インストール可能な成果物はまだ公開されていません（唯一の GitHub Release である v0.5.0 にはアセットがありません）。[N1–N7](docs/development-outline.md) に沿って環境構築、選定した外部プレイ支援ツール、複雑な Avatar 制作、Recipe 再現、素材管理の監査と再実装、復旧、画像付きユーザーガイドを備えた Beta インストーラーを進めます。
+[v0.6.6 Ibis（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) は AMF を同梱する Windows x64 アプリの完全な ZIP を提供します。[N1–N7](docs/development-outline.md) の開発は継続し、NSIS、ミラーからの検証済みランタイム取得・再利用、AMF の独立した差分更新はこのリリースの後に実装します。
 
-プロジェクトは今後も長期間 Beta の状態が続く見込みです。説明は製品の方向性であり、実装や自動テストだけで実機の一連の動作が検証済みになるわけではありません。実際の受け入れ状況は[開発シーケンス](docs/development-outline.md)と[リリースノート](docs/release/)を参照してください。
+Beta は継続します。公開は N1/N5 や未完了の実機・素材・人によるレビューの受入完了を意味しません。[v0.6.6 の範囲・検証・制限事項（中国語）](docs/release/v0.6.6.md)を参照してください。
 
 ### 現在の提供状況と開始方法
 
-- インストール可能な成果物はまだ公開されていません。[v0.6.0 の検証記録・制限事項（中国語）](docs/release/v0.6.0.md)に最新のタグの状態を記録しています。上記は製品の方向性であり、N1–N7 の受入完了を意味しません。
-- 画像付きユーザーガイドと検証済み Beta インストーラーは N7 の成果物です。現在利用できる操作手順ではありません。利用上の質問は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose)へお願いします。
-- 開発者は[依存関係の準備・デスクトップ起動・チェックの選択](apps/desktop/README.md#development-commands)から始め、[貢献ガイド](CONTRIBUTING.md)に従ってください。
+- [Ibis リリースページ](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)から **Windows x64 ZIP** をダウンロードし、全体を展開して **VUA.exe** を起動します。付属ファイルを一緒に保持してください。Node、pnpm、Rust、ソースは不要です。未署名のため、Windows が不明な発行元の警告を表示する場合があります。
+- 初回の機能ツアーとガイドから始めるか、プレイ・ツール・Avatar 編集を直接開きます。新規ユーザーの AMF は有効で、設定 → モジュールから無効にできます。Steam/PICO/Unity とアカウント操作は公式アプリで行います。
+- 更新時は VUA を終了し、新しい ZIP を別のフォルダーへ展開します。データは %APPDATA%\VUA に保持されます。Beta を試す前にバックアップしてください。未検証の手順や手動の引き継ぎはリリースノートに記載し、問題は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) で受け付けます。
+- 開発者は[依存関係の導入・アプリ起動・検査](apps/desktop/README.md#development-commands)と[コントリビューション](CONTRIBUTING.md)を参照してください。
 
 ## ドキュメント
 
 - [ドキュメントガイド](docs/README.md)——タスクごとの最小ルート
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
-- [v0.6.0 リリースノート（中国語）](docs/release/v0.6.0.md)
+- [v0.6.6 リリースノート（中国語）](docs/release/v0.6.6.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 
 ## ライセンス

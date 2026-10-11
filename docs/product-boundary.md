@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Document version: 2.24.0
+> Document version: 2.25.0
 > Status: Accepted
 > Scope: Entire VUA product
 > Updated: 2026-10-11
@@ -342,8 +342,11 @@ streaming tools, creator accounts, Unity/AMF and the remaining N2 tools follow i
 Existing code and the wider N-stage scope are retained; this release does not close all of N1.
 
 Windows distribution follows the [2026-10-11 delivery ruling](#windows-delivery-and-amf-updates-user-ruling-2026-10-11),
-which supersedes ZIP-first distribution and the earlier NSIS/update deferral. Existing ZIP
-previews and their recorded evidence remain unchanged. Advance the relevant N7 work and guide.
+which defines the subsequent NSIS/runtime and AMF-update work. Under the author's later
+2026-10-11 ruling, publish the current implementation first as **v0.6.6 Ibis**, using the existing
+standalone Windows x64 ZIP. This publication does not wait for NSIS or independent AMF updates,
+does not declare pending physical/material/human acceptance complete, and does not rewrite
+earlier preview evidence. Advance the subsequent N7 work and guide separately.
 Prepare exact-build third-party notices and SignPath Foundation application/integration alongside
 development. Local unsigned previews are explicitly labeled; public signing status and remaining
 limitations are recorded at publication. No certificate application blocks implementation.
@@ -626,6 +629,7 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.25.0 (2026-10-11): authorize current-state v0.6.6 Ibis ZIP publication before subsequent NSIS/runtime and AMF-update work, retaining continuing Beta and pending acceptance.
 - 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
 - 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
 - 2.22.0 (2026-10-10): align scenario-host/AMF/BDL stage ownership, selected N2 module/software sources and separate release acceptance with the author's revised N sequence; preserve open N1/N5 outcomes.
@@ -635,4 +639,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.19.0 (2026-10-09): accept VUA as a scenario host with optional AMF＋BDL, independent fresh startup/navigation and retained module data.
 - 2.18.0 (2026-10-09): integrate the author's Ibis newcomer core-journey criterion and current regional-Ping/website presentation with the N5 scope, retaining pending optional outcomes and retiring usage-region identification and accelerator recommendations.
 - 2.17.0 (2026-10-09): require managed ZIP extraction for local imports and BOOTH downloads while preserving original archives and separate production qualification.
-- 2.16.0 (2026-10-09): bound N5 closure to intact local-file retention, UnityPackage production intake, official lookup/minimal manual metadata and optional dependency clues; defer third-party search.

@@ -1,6 +1,6 @@
 # Documentation guide
 
-> Document version: 1.4.0
+> Document version: 1.4.1
 > Status: Accepted
 > Updated: 2026-10-11
 > Scope: Current documentation routes for ordinary single-line N-sequence development
@@ -42,7 +42,7 @@ AGENTS.md and CONTRIBUTING; then follow one route below instead of reading the e
 
 | Reader | Read in order | Ready to act when |
 | --- | --- | --- |
-| Player / end user | [Current delivery and limits](../README.md#current-delivery-and-starting-points) → [release evidence](release/v0.6.0.md) (Chinese) → [questions and bugs](../CONTRIBUTING.md#reporting-and-assets) | The available artifact and its limits are clear; planned N features are not assumed usable |
+| Player / end user | [Current delivery and limits](../README.md#current-delivery-and-starting-points) → [release evidence](release/v0.6.6.md) (Chinese) → [questions and bugs](../CONTRIBUTING.md#reporting-and-assets) | The available artifact and its limits are clear; planned N features are not assumed usable |
 | Human developer | [Contributor workflow](../CONTRIBUTING.md#develop-one-useful-slice) → [local setup and launch](../apps/desktop/README.md#development-commands) → the relevant task below | The app can be started and the checks relevant to the change are identified |
 | Frontend UI/UX Agent | [Product scope](product-boundary.md) + [N acceptance](development-outline.md#new-sequence) → [Desktop](architecture/desktop.md) → [interaction rules](design/design-standard.md#6-interaction-and-feedback) and [i18n/accessibility](design/design-standard.md#9-accessibility-internationalization-and-performance) | Required states, real Gateway data and human UI acceptance are identified; new account flows also read [account-guide browser](architecture/desktop.md#account-guide-browser) |
 | Environment business-logic Agent | [N1](development-outline.md#n1-purpose-driven-deployment) / [N2](development-outline.md#n2-external-gameplay-tools) → [deployment flow and code placement](architecture/evolution.md#deployment-architecture-first-slice) → [standalone Unity deployment](architecture/unity-deployment.md) → [external integrations](architecture/integrations-and-overlays.md#external-integration-modes) → [contract status](protocols/README.md#delivery-status-and-implementation-entry-points) | Detection, installation handoff, mutation ownership and missing contracts are distinguished |
@@ -95,6 +95,8 @@ document; navigation links to it instead of copying detailed rules. Raw real-mac
 remain local. Registry and document changes ride with the feature, not a separate paperwork cycle.
 
 ## Document changelog
+
+- 1.4.1 (2026-10-11): route players to current Ibis release notes while retaining subsequent distribution work.
 
 - 1.4.0 (2026-10-11): route NSIS/mirrored-runtime and bundled AMF independent incremental-update work to its draft delivery plan and owning scope/acceptance documents.
 - 1.3.0 (2026-10-09): route scenario/module ownership, optional AMF activation and legacy data preservation.

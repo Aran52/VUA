@@ -10,6 +10,14 @@ The desktop runtime uses Electron (MIT, with separate Chromium/Node notices), Re
 license/notice summary. The lockfile pins their exact versions; a public build needs the complete
 transitive inventory under the distribution rule below.
 
+The v0.6.6 Ibis ZIP includes `resources/notices/build/dependency-inventory.json`, generated
+from its lockfiles, Windows provider graph and runtime dependencies. It records source/build
+identity and executable hashes, and includes original dependency notices, the matching Rust
+standard-library notices and unmodified MPL source packages. Build-only Cargo dependencies
+are identified in the inventory's scope rather than presented as separate runtime programs.
+Electron's shipped Chromium/Node notices remain alongside the runtime. Supplemental texts and
+their exact source treatment are documented in [packaging license provenance](apps/desktop/packaging/licenses/README.md).
+
 `electron-builder` 26.15.3 (MIT) is a build-only dependency owned by the desktop packaging scripts.
 It packages the compiled app and Provider into a Windows ZIP and does not run on user machines.
 It can be removed by replacing those scripts while preserving the standalone bootstrap checks.

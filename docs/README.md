@@ -1,8 +1,8 @@
 # Documentation guide
 
-> Document version: 1.3.0
+> Document version: 1.4.0
 > Status: Accepted
-> Updated: 2026-10-09
+> Updated: 2026-10-11
 > Scope: Current documentation routes for ordinary single-line N-sequence development
 
 ## Choose your reading context
@@ -53,7 +53,7 @@ AGENTS.md and CONTRIBUTING; then follow one route below instead of reading the e
 
 | Task | Read next | Add only when needed |
 | --- | --- | --- |
-| First desktop/PICO play release | [Accepted scope](product-boundary.md#first-play-release-user-ruling-2026-10-03), [release acceptance](development-outline.md#first-play-release-acceptance), [completed slices and remaining work](development/first-play-delivery-plan.md) | Three guidance presentations are implemented; automatic game following, desktop/PICO and eye-tracking completion, recovery and ZIP release remain; N5 is reviewed separately |
+| First desktop/PICO play release | [Accepted scope](product-boundary.md#first-play-release-user-ruling-2026-10-03), [release acceptance](development-outline.md#first-play-release-acceptance), [completed slices and remaining work](development/first-play-delivery-plan.md) | Preserve delivered guidance and ZIP evidence; NSIS/runtime and AMF update work, actual desktop/PICO completion, recovery and human review remain; N5 is reviewed separately |
 | App tour / preparation reader / game guide | [Guidance architecture](architecture/guidance.md), [next implementation slices](development/first-play-delivery-plan.md#2-next-focus-deliver-the-three-guidance-contexts), [Desktop](architecture/desktop.md) | A/B reuse, context routing, independent state, VRChat-window following and transparency; UI rules remain in the design standard |
 | N1 deployment / N2 tools | [N1 delivery plan](development/n1-delivery-plan.md), [network checks and regional guidance](architecture/network-onboarding.md), [system map](architecture/system.md), [integration boundaries](architecture/integrations-and-overlays.md), [incremental evolution](architecture/evolution.md) | Device/model routes, installation activity, account/activation/network guide, Editor compatibility and relevant Gateway contract |
 | N3 production / N4 Recipe | [AMF and Unity](architecture/amf-unity.md), [Orchestrator](architecture/orchestrator.md) | Production/material/Recipe/SDK handoff contracts and real-run evidence |
@@ -61,7 +61,7 @@ AGENTS.md and CONTRIBUTING; then follow one route below instead of reading the e
 | Library storage (backlog) | [Library storage plan](development/library-storage-plan.md) | Steam-style multi-library rulings; deferred behind N5 closure |
 | UI changes | [Desktop](architecture/desktop.md), [design standard](design/design-standard.md) | [Guidance contexts](architecture/guidance.md) when changing guides; relevant feature and human UI acceptance |
 | Recovery | [Orchestrator](architecture/orchestrator.md) | Task store, operation-specific failure/retry format and tests |
-| Versions / N7 distribution | [Version policy](release/versioning.md), [N7 acceptance](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide) | Installer, actual-build screenshots and user-provided guide reference |
+| Versions / N7 distribution | [Version policy](release/versioning.md), [N7 acceptance](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide), [Windows distribution plan](development/windows-distribution-plan.md) | NSIS, mirrored verified Electron reuse, bundled AMF incremental updates, actual-build screenshots and user-provided guide reference |
 | Contract change | [Protocol guide](protocols/README.md) | Specific schema and consumer tests; do not assume highest version replaces all older faces |
 | Document cleanup | [Governance](meta/documentation-governance.md) (standing authority); [2026-09-28 audit/disposition](meta/document-audit-2026-09-28.md) (historical reference) | [Registry](REGISTRY.md) and [archive index](archive/README.md) |
 
@@ -96,6 +96,7 @@ remain local. Registry and document changes ride with the feature, not a separat
 
 ## Document changelog
 
+- 1.4.0 (2026-10-11): route NSIS/mirrored-runtime and bundled AMF independent incremental-update work to its draft delivery plan and owning scope/acceptance documents.
 - 1.3.0 (2026-10-09): route scenario/module ownership, optional AMF activation and legacy data preservation.
 - 1.2.1 (2026-10-07): route subsequent work from the delivered guidance checkpoint.
 - 1.2.0 (2026-10-05): add direct routes to the three-context guidance architecture and first-play delivery checkpoint, with N5 reviewed separately.

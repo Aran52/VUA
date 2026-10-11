@@ -1,10 +1,10 @@
 # VUA product boundary
 
 
-> Document version: 2.23.0
+> Document version: 2.24.0
 > Status: Accepted
 > Scope: Entire VUA product
-> Updated: 2026-10-10
+> Updated: 2026-10-11
 > Normative effect: Yes
 
 ## Product definition
@@ -341,8 +341,9 @@ release does not depend on resolving Quest's initial activation path. Other bran
 streaming tools, creator accounts, Unity/AMF and the remaining N2 tools follow in later deliveries.
 Existing code and the wider N-stage scope are retained; this release does not close all of N1.
 
-Distribute a self-contained Windows x64 ZIP first. Advance the shared N7 packaging work and
-the relevant illustrated guide; NSIS, automatic updating and the rest of N7 follow separately.
+Windows distribution follows the [2026-10-11 delivery ruling](#windows-delivery-and-amf-updates-user-ruling-2026-10-11),
+which supersedes ZIP-first distribution and the earlier NSIS/update deferral. Existing ZIP
+previews and their recorded evidence remain unchanged. Advance the relevant N7 work and guide.
 Prepare exact-build third-party notices and SignPath Foundation application/integration alongside
 development. Local unsigned previews are explicitly labeled; public signing status and remaining
 limitations are recorded at publication. No certificate application blocks implementation.
@@ -350,6 +351,25 @@ Acceptance belongs to [the first play release rows](development-outline.md#first
 The [delivery plan](development/first-play-delivery-plan.md) records completed slices and the
 remaining work. N5 is reviewed separately when complete and can accompany this release after
 that review; its work is not part of the current first-play checklist or a play prerequisite.
+
+### Windows delivery and AMF updates (user ruling, 2026-10-11)
+
+Use NSIS for the Windows VUA installer. Automatically detect usable mirrors and acquire the
+exact compatible Electron runtime, including Chromium and its supporting files. Reuse a complete
+verified VUA-owned runtime when its version is unchanged; ordinary host/module updates must not
+download it again. Provide an offline installation/recovery path for unavailable download sources.
+
+AMF installs with VUA and retains the accepted fresh-enabled default and existing saved choices.
+It supports independent incremental updates inside VUA within explicit host/protocol/data
+compatibility. Keep its full UI/backend payload boundary separate from user data and private BDL;
+an update failure must leave host/play usable. Preserve active-work admission, interruption,
+explicit retry and supported migration/recovery rather than replacing running work or data.
+
+Download sources distribute verified release content; they do not choose compatibility or
+collect user credentials/materials. Exact-build notices, version/source and signing disclosures
+remain required. The [Windows distribution plan](development/windows-distribution-plan.md)
+proposes the sequential slices; [N7](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide)
+owns acceptance. This is a delivery decision, not installer/update evidence or N-stage completion.
 
 ### Play network presentation (user ruling, 2026-10-09)
 
@@ -606,6 +626,7 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
 - 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
 - 2.22.0 (2026-10-10): align scenario-host/AMF/BDL stage ownership, selected N2 module/software sources and separate release acceptance with the author's revised N sequence; preserve open N1/N5 outcomes.
 - 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
@@ -615,4 +636,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.18.0 (2026-10-09): integrate the author's Ibis newcomer core-journey criterion and current regional-Ping/website presentation with the N5 scope, retaining pending optional outcomes and retiring usage-region identification and accelerator recommendations.
 - 2.17.0 (2026-10-09): require managed ZIP extraction for local imports and BOOTH downloads while preserving original archives and separate production qualification.
 - 2.16.0 (2026-10-09): bound N5 closure to intact local-file retention, UnityPackage production intake, official lookup/minimal manual metadata and optional dependency clues; defer third-party search.
-- 2.15.0 (2026-10-08): add content-based migration reconciliation and narrow N5 to local record removal and persisted link clues; defer final Recipe/VPM and production-loop work.

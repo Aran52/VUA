@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Document version: 3.21.1
+> Document version: 3.22.0
 > Status: Accepted
 > Updated: 2026-10-11
 > Authority: User rulings of 2026-09-28 through 2026-10-11, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
@@ -168,7 +168,7 @@ afterward; it does not add material-management prerequisites to these play cases
 | VRChat game guide | With following enabled by default and background opacity initially 50%, use a readable guide over the Windows VRChat game window. Adjust the matrix/background without fading text. It follows movement/resize, remembers a dragged relative position, hides on minimize or switching apps, restores without taking focus, stays usable when clicked and respects manual hide. Persist changed preferences. Follow controls/microphone and suggested Personal Space/Allow Untrusted URLs steps by confirmation or skip; use checked tutorial-world entries by learning language when available and local guidance otherwise |
 | Guidance separation | App-tour completion, preparation reading and game-guide progress do not overwrite one another. Shared four-language text/media remain consistent. Exercise absent-game, exit/relaunch, keyboard access and monitor/DPI changes; task-status access remains available during the migration |
 | Headset guide access | On the PICO test path, open SteamVR's desktop view, read/operate Help's encyclopedia and return to play. Record this as desktop-view guidance, not a native VUA VR overlay |
-| Distribution | Include exact-build license notices, version/source identification, ZIP update/removal instructions, actual screenshots and known issues. Record signature status. Human UI review covers the guide and handoffs; remote build/smoke checks and physical headset tests retain their separate evidence |
+| Distribution | Deliver the NSIS/runtime and bundled-AMF paths under the 2026-10-11 ruling, with exact-build notices, version/source identification, install/update/removal instructions, actual screenshots and known issues. Record signature status. Human UI review, controlled packaged checks and physical play tests retain separate evidence |
 
 Use local uninstall/reinstall for the absent-software cases with the existing authorization and
 data-preservation rules. Record the baseline and actual software versions; this is not a factory
@@ -446,12 +446,18 @@ N6 consolidates recovery; every delivered path carries its own applicable failur
 Record host and module publication, compatibility and regression separately. Ibis accepts the
 scenarios actually advertised and delivered in its exact build, under the newcomer-journey
 criterion; it does not require unrelated AMF complex-production or Recipe acceptance. A bundled
-module still needs regression for the behavior the release exposes. NSIS and full later scenario
-coverage remain separate from the first ZIP release.
+module still needs regression for the behavior the release exposes. The
+[2026-10-11 delivery ruling](product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
+adds NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental
+updates to current distribution work. Existing ZIP evidence is retained; full later scenario
+coverage remains separate. The [Windows distribution plan](development/windows-distribution-plan.md)
+proposes the slices without declaring any acceptance complete.
 
 | Deliverable | Required behavior and observable acceptance |
 | --- | --- |
-| Installer | Launch without a development checkout, developer commands, or hidden development-machine files |
+| Installer | One Windows x64 NSIS entry installs host and AMF, automatically obtains the exact verified Electron runtime from usable mirrors and launches without developer files/commands. Exercise GitHub-unavailable and offline/retry paths |
+| Runtime reuse | A host/module upgrade with unchanged runtime version transfers zero runtime payload bytes; detect and repair incomplete/corrupt owned installations |
+| AMF incremental update | On an unchanged compatible host, update AMF UI/backend inside VUA by downloading changed/missing files and retaining verified unchanged files. Exercise compatibility rejection, busy-work admission, interrupted staging/activation and recovery; preserve data and saved enable choices |
 | Release/compatibility scope | Name the host build, bundled/optional module versions, supported scenario/software combinations and known incompatibilities; payload presence is not a passed workflow |
 | Regression | Use the packaged build for advertised host scenarios and each enabled module's delivered behavior. Record host, external-software, AMF material/production and Recipe results separately; later N3–N5 coverage does not become an unrelated host publication prerequisite |
 | Upgrade | Preserve or explicitly migrate material records, Recipes, settings and run history from a named earlier Beta |
@@ -508,6 +514,7 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.22.0 (2026-10-11): add NSIS/mirrored-runtime distribution and independent incremental AMF update/recovery acceptance under the new user ruling; retain ZIP evidence and separate pending N-stage outcomes.
 - 3.21.1 (2026-10-11): clarify that public material-browser shortcuts and the host Wiki do not expand catalog/search integration or replace independent N5 acquisition acceptance; stage outcomes are unchanged.
 - 3.21.0 (2026-10-11): accept approximate regional references for Ibis and defer exact Photon/room measurement, retaining independent website observations and physical play acceptance.
 - 3.20.0 (2026-10-10): record the Candidate VRCFT Steam/device-guidance connection, add connection-dependent module selection and retain source-specific real-installation/tracking acceptance and other planned tools.
@@ -517,6 +524,5 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.16.0 (2026-10-09): place host/AMF separation before scenario integrations, preserving N3–N5 as AMF acceptance and all existing gate outcomes.
 - 3.15.0 (2026-10-09): integrate Ibis publication and current network/guide acceptance with the reduced N5 scope, retaining real-run evidence and pending optional outcomes, background-only guide opacity and remembered relative placement.
 - 3.14.0 (2026-10-09): include managed ZIP extraction in first N5 intake acceptance, preserving original bytes and truthful extraction outcomes.
-- 3.13.0 (2026-10-09): narrow N5 closure to intact local-file retention, official/minimal manual provenance and optional bounded dependency presentation; defer third-party search.
 
 Earlier entries remain in Git history.

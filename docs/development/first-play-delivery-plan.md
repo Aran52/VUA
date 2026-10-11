@@ -1,9 +1,9 @@
 # First play release: implementation checkpoint and remaining work
 
-> Document version: 1.20.0
+> Document version: 1.21.0
 > Status: Accepted
 > Updated: 2026-10-11
-> Scope: Desktop play, PICO 4 Pro USB/Wi-Fi, optional eye tracking and three guidance contexts
+> Scope: Desktop play, PICO 4 Pro USB/Wi-Fi, optional eye tracking, three guidance contexts and Windows delivery
 
 For people: this release takes a player from missing play software to playing VRChat, with
 instructions in the place where each activity happens. VUA's own tour, the knowledge encyclopedia
@@ -22,8 +22,10 @@ Apply the [Ibis newcomer-journey criterion](../product-boundary.md#ibis-release-
 The detailed work below is a delivery backlog, not a list of independent publication gates.
 Prioritize these concrete checks on the same candidate build:
 
-1. The download page offers the actual Windows x64 ZIP, with understandable extraction/start
-   instructions, version and signature status. Source archives are not a player download.
+1. The download page offers the actual Windows x64 NSIS installer under the
+   [2026-10-11 delivery ruling](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11),
+   with understandable installation/start instructions, runtime-source fallback, offline recovery,
+   version and signature status. Source archives are not a player download.
 2. A newcomer can choose desktop or PICO, understand the relevant network/software findings,
    complete acquisition or its official-client handoff, return, log in and start the selected
    route. Verify missing-software installation and actual desktop/PICO USB/Wi-Fi play; installed
@@ -395,15 +397,17 @@ Finish the release with these bounded tasks:
    keyboard/focus, guide transparency and real external handoffs. Replace stale instructions
    found during the headset run. Create the user-facing illustrated guide from the actual build;
    distinguish screenshots from A's diagrams.
-3. Build the final standalone ZIP and rerun the relevant packaged smoke, including guide media
-   under `file://`, fresh isolated data and retained settings after moving/updating the app.
-   Run the affected checks on the integrated revision and the Windows artifact workflow.
-4. Prepare exact-build dependency/license notices, version/source identification, ZIP update/
+3. Deliver and exercise NSIS installation, mirrored verified runtime acquisition/reuse and
+   independent AMF incremental updating through the [Windows distribution plan](windows-distribution-plan.md).
+   Rerun relevant packaged smoke for guide media, fresh isolated data and retained settings/data
+   after installation/update. Existing ZIP previews remain historical evidence, not NSIS passes.
+   Run affected checks on the integrated revision and artifact workflow; packaging work is pending.
+4. Prepare exact-build dependency/license notices, host/module/runtime identification, installation/update/
    removal instructions, known issues and Chinese release notes. Choose the product version
    under the [version policy](../release/versioning.md); N stage numbers do not prescribe it.
 5. Prepare the signing application/integration alongside development, then record the actual
-   signature status of the published ZIP. Preview artifacts remain clearly labeled until that
-   path is ready. Publishing and any external identity/legal attestations follow the author's
+   signature status of the published installer/module artifacts. Preview artifacts remain clearly
+   labeled until that path is ready. Publishing and any external identity/legal attestations follow the author's
    release decision; they do not hold up local feature implementation.
 
 The author's direct participation is needed for account verification/agreements, wearing and
@@ -437,6 +441,7 @@ installation, PICO connection, real-material production and four-language human 
 
 ## Document changelog
 
+- 1.21.0 (2026-10-11): route release installation/update work to the new NSIS/mirror and independent incremental AMF plan, retaining prior ZIP/UI evidence and pending physical/material/human acceptance.
 - 1.20.0 (2026-10-11): record warm regional-reference sampling and retained bounded Wiki/material browser sessions with independent page state; preserve physical/material/human acceptance and the development-only no-ZIP checkpoint.
 - 1.19.0 (2026-10-11): record host Wiki and AMF website shortcuts with shell-sized browser controls, preserved BOOTH boundaries and controlled UI evidence, without declaring N1/N5 or packaging complete.
 - 1.18.0 (2026-10-11): record approximate geographic references and restored topbar Help while deferring exact room measurement and retaining physical/human acceptance.
@@ -446,6 +451,5 @@ installation, PICO connection, real-material production and four-language human 
 - 1.14.0 (2026-10-10): record per-card detail placement, separated compact language/Search controls, goal-link migration and full big-screen retirement while retaining pending device/install/material acceptance and no local ZIP.
 - 1.13.0 (2026-10-10): record unified card toggles, Help history, Avatar-editing AMF setup and consolidated Settings; align scenario-stage ownership while retaining pending physical acceptance and no new ZIP.
 - 1.12.0 (2026-10-10): record environment Tools/Help, embedded hardware/knowledge reading and compact Play checks without claiming new tool integrations, hardware acceptance or another ZIP.
-- 1.11.0 (2026-10-10): keep AMF installed with VUA but require explicit first activation, retain saved choices/data and defer external Avatar-editing module integration from Ibis.
 
 Earlier entries remain in Git history.

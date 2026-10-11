@@ -1,10 +1,10 @@
 # Versioning policy
 
 
-> Document version: 3.0.1
+> Document version: 3.1.0
 > Status: Accepted
 > Scope: VUA product releases, tags, packages, and public contracts
-> Updated: 2026-10-01
+> Updated: 2026-10-11
 > Normative effect: Yes
 
 ## Product version
@@ -21,7 +21,10 @@ VUA product releases follow [Semantic Versioning 2.0.0](https://semver.org/spec/
   request from the author can change the continuing-Beta policy.
 - A published tag and artifact are immutable. Any change is a new version.
 - A git tag marks a revision; a tag alone is not a publication. A *published release* is a GitHub
-  Release, and a *published artifact* is an installable asset attached to one. Current state
+  Release, and a *published artifact* is an installable asset attached to one. Verified mirrors
+  may serve the same immutable artifacts with the same version/build/digest; they do not create
+  a second release identity. The independent AMF payload rule below also applies to module
+  release records. Recorded state
   (2026-10-01): `v0.6.0` is a tag without a GitHub Release, and the only published Release,
   `v0.5.0`, carries no assets — no installable artifact has been published yet.
 
@@ -75,6 +78,8 @@ Product SemVer does not replace protocol or storage versions:
 | Desktop product and installer | One product SemVer and one release source of truth |
 | Git tag | `v` plus the exact product SemVer |
 | Orchestrator Provider | Built and distributed with the matching desktop release; reports transport, build, protocol, and product compatibility |
+| First-party AMF payload | Independent SemVer/build and immutable release manifest; explicit host, protocol, Bridge and stored-format compatibility. Installing with VUA does not require future AMF updates to increment the host version |
+| Electron runtime | Exact upstream version/platform/architecture/digest; reused only when the required compatible runtime identity matches |
 | Unity Bridge | Own machine-readable protocol/package version; compatibility declared explicitly |
 | Gateway and community plugin protocol | Own machine-readable contract version; compatibility cannot be inferred from product SemVer alone |
 | Recipe, Build Record, persistent schema | Own format/schema version and migration or rejection behavior |
@@ -84,6 +89,19 @@ Product SemVer does not replace protocol or storage versions:
 The release pipeline generates or verifies the product version across the desktop manifest, Provider
 metadata, installer, diagnostic output, and release artifact. Manually maintained duplicate
 version strings are not authoritative.
+
+Under the [2026-10-11 delivery ruling](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11),
+each installer records its compatible host/AMF/runtime baseline, and an independent AMF release
+records its own version, source/build identity, compatibility, notices and complete verified
+payload. The product version remains the host/desktop version; UI and diagnostics identify the
+currently installed AMF separately. Module release records/manifests are immutable and mirrors
+preserve their identity. Define the concrete manifest and any namespaced module tags before the
+first independent publication; this decision does not assign a new product or AMF version.
+
+Payload version does not authorize rewriting frozen protocol or BDL formats. Every relevant
+compatibility change follows its owning version/migration rules. Independent payload publication
+does not declare N3-N5 or N7 accepted. The [distribution plan](../development/windows-distribution-plan.md)
+records pending implementation and validation work.
 
 ## Compatibility and communication
 
@@ -126,6 +144,7 @@ entry points. Upstream distributions retain their own licenses; follow
 
 ## Document changelog
 
+- 3.1.0 (2026-10-11): add independent AMF payload identity/compatibility and exact runtime inventory, keeping host numbering, immutable mirrored artifacts and historical publication evidence separate.
 - 3.0.1 (2026-10-01): define tag versus published release/artifact, record the current publication
   state (`v0.6.0` tag without a GitHub Release; the only Release, `v0.5.0`, carries no assets),
   note the `v0.4.0` release-notes gap, and qualify the notes rule as forward-going.

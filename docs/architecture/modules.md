@@ -1,9 +1,9 @@
 # VUA host and optional AMF module
 
-> Document version: 1.4.0
+> Document version: 1.5.0
 > Status: Accepted
 > Scope: First-party module composition, lifecycle and data ownership
-> Updated: 2026-10-10
+> Updated: 2026-10-11
 
 The user-defined unit is a **scenario** (the author's term: “情景”): a goal with a SOP list,
 prerequisites, preparation, launch and recovery. A module supplies capabilities to scenarios.
@@ -62,6 +62,20 @@ The native protocol dispatch and task/domain types still share `provider-host` a
 libraries. This extraction creates separate executable composition and runtime authorities; it
 does not claim mutually independent Rust libraries or independently updatable AMF releases.
 
+## Accepted independent-update direction
+
+The [2026-10-11 delivery ruling](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
+requires AMF to remain installed with VUA while supporting independent incremental updates
+inside the host. This is the next delivery boundary, not a claim about the extraction above.
+
+Separate module UI/assets and native payload from the host release, give the payload its own
+version and explicit host/protocol/data compatibility, and keep host-owned services behind a
+narrow first-party interface. User data and private BDL remain in their current ownership/layout.
+Activation respects existing admission gates and saved module choices; failed updates cannot
+revoke host/play capabilities. Shared build-time Rust libraries need not become independent
+runtime modules. The [distribution plan](../development/windows-distribution-plan.md) proposes
+packaging, verified staging and incremental activation; new contracts require their own versions.
+
 ## Data and migration
 
 | Owner | Fresh-profile location below userData | Legacy behavior |
@@ -103,6 +117,7 @@ owned by the [N sequence](../development-outline.md) and [Ibis plan](../developm
 
 ## Document changelog
 
+- 1.5.0 (2026-10-11): distinguish current process isolation from the accepted next independent UI/backend payload and incremental-update boundary, retaining bundled defaults, lifecycle admission and private data ownership.
 - 1.4.0 (2026-10-10): retain the fresh enabled default before provider initialization, preserve existing opt-outs and old-profile defaults, and keep independent module lifecycle/data ownership.
 - 1.3.0 (2026-10-10): expose the bundled AMF activation switch and explanation in Avatar editing, with a disabled-sidebar setup entry; retain host-owned Unity preparation and the existing lifecycle contract.
 - 1.2.0 (2026-10-10): record the author's external-module deferral rationale and route the retained AI idea to future external-Agent tool access.

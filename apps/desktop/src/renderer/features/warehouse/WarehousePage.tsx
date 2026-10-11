@@ -179,6 +179,7 @@ function WarehouseListRow({
       className="vua-warehouse-list-row"
       data-selected={selected || undefined}
       data-product-id={item.productId}
+      data-selection-id={item.productId}
       role="listitem"
       tabIndex={0}
       onClick={onSelect}
@@ -226,6 +227,7 @@ function WarehouseCard({
       className="vua-warehouse-card"
       data-selected={selected || undefined}
       data-product-id={item.productId}
+      data-selection-id={item.productId}
       onClick={onSelect}
       onDoubleClick={onOpen}
       onContextMenu={onMenu}
@@ -303,7 +305,9 @@ function DetailContent({
   // 缺描述且缺变体 = 未富化 → 经分区会话抓商品页,provider 全量观察后
   // 上层重取详情即得画廊/描述/变体/上架日期。失败静默保留现状
   // (详情仍可用,只是未增强)。
-  const [enriching, setEnriching] = useState(false);
+  // One request per opened product. Reuse its promise across effect re-runs,
+  // while discarding results after this detail closes or switches products.
+  const enrichmentRequest = useRef<Promise<boolean> | null>(null);
   // onEnriched 固定到 ref:内联箭头每次渲染产生新引用,旧实现的 effect
   // 依赖数组含它 → 父组件渲染即重跑 effect → 清理函数置 active=false →
   // 在途 fetch 的回调被丢弃 → 首开抽屉收不到重取通知(真机 2026-10-03
@@ -312,18 +316,17 @@ function DetailContent({
   onEnrichedRef.current = onEnriched;
   useEffect(() => {
     const unenriched = product.description === null && product.variations.length === 0;
-    if (!unenriched || enriching) return;
+    if (!unenriched) return;
     const face = window.vua?.catalogSync;
     if (face === undefined || !("fetchProduct" in face)) return;
-    setEnriching(true);
-    void face
-      .fetchProduct(product.productId)
-      .then((result) => {
-        if (result.ok) onEnrichedRef.current?.();
-      })
-      .catch(() => {})
-      .finally(() => setEnriching(false));
-  }, [product.productId, product.description, product.variations.length, enriching]);
+    enrichmentRequest.current ??= face.fetchProduct(product.productId)
+      .then(result => result.ok).catch(() => false);
+    let active = true;
+    void enrichmentRequest.current.then(ok => {
+      if (active && ok) onEnrichedRef.current?.();
+    });
+    return () => { active = false; };
+  }, [product.productId, product.description, product.variations.length]);
   return (
     <div className="vua-warehouse-detail__content">
       {/* 相册:详情媒体数组;详情缺媒体时回落主图单张(列表兜底场景) */}
@@ -577,7 +580,8 @@ export function WarehousePage({
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
   const [contextSelection, setContextSelection] = useState<readonly RecipeAssetRef[]>([]);
-  const [dependencyCluesOn] = useDependencyClues();
+  const [dependencyCluesOn, setDependencyCluesOn] = useDependencyClues();
+  const pageRef = useRef<HTMLDivElement | null>(null);
   const [lookupName, setLookupName] = useState<string | null>(null);
   // Optional, unconfirmed dependency observations.
   const [compatibleQuery, setCompatibleQuery] = useState<{
@@ -864,8 +868,8 @@ export function WarehousePage({
     const hit = (r: DOMRect) =>
       r.left < rect.left + rect.width && r.right > rect.left
       && r.top < rect.top + rect.height && r.bottom > rect.top;
-    for (const card of el.querySelectorAll<HTMLElement>("[data-product-id]")) {
-      if (hit(card.getBoundingClientRect())) ids.add(card.dataset.productId ?? "");
+    for (const card of el.querySelectorAll<HTMLElement>("[data-selection-id]")) {
+      if (hit(card.getBoundingClientRect())) ids.add(card.dataset.selectionId ?? "");
     }
     setSelectedIds(ids);
   };
@@ -919,7 +923,7 @@ export function WarehousePage({
       return;
     }
     const target = event.target as HTMLElement;
-    if (target.closest("[data-product-id], button, a, select, input, textarea") === null) {
+    if (target.closest("[data-selection-id], button, a, select, input, textarea") === null) {
       clearSelection();
     }
   };
@@ -930,9 +934,12 @@ export function WarehousePage({
       event.preventDefault();
       return;
     }
-    // 空白右键无菜单:抑制原生菜单;卡/行上的右键由其 onContextMenu 处理
+    // The wall also offers page-scoped selection without a card under the pointer.
     const target = event.target as HTMLElement;
-    if (target.closest("[data-product-id]") === null) event.preventDefault();
+    if (target.closest("[data-selection-id], input, textarea, select, [contenteditable='true']") === null) {
+      event.preventDefault();
+      openSelectionMenu(event.clientX, event.clientY);
+    }
   };
 
   // 单击选中(替换选区)——框选落定后的尾随单击经抑制标记吞掉,不塌缩选区
@@ -1009,6 +1016,33 @@ export function WarehousePage({
   const resultsView =
     listState.kind === "loaded" && listState.view.kind === "results" ? listState.view : null;
 
+  const visibleLocalCards = dataSource === "live" || source !== "gifts" && source !== "bought" && source !== "free" ? localCards : [];
+  const selectAll = () => setSelectedIds(new Set([
+    ...(resultsView?.items ?? []).map(item => item.productId),
+    ...visibleLocalCards.map(card => card.key),
+  ]));
+  const selectAllMenuItem = {
+    id: "selectAll", label: copy.selectBar.selectAll, shortcut: "Ctrl+A",
+    disabled: (resultsView?.items.length ?? 0) + visibleLocalCards.length === 0,
+    onSelect: selectAll,
+  };
+  // Select the displayed page, retaining normal text and dialog shortcuts.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.key.toLowerCase() !== "a") return;
+      const target = event.target instanceof Element ? event.target : document.activeElement;
+      if (target?.closest("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox'], [role='dialog'], .vua-warehouse__drawer")
+        || document.querySelector('[aria-modal="true"]')) return;
+      if (target !== document.body && target !== document.documentElement && !pageRef.current?.contains(target)
+        && !(cardMenu !== null && target?.closest(".vua-context-menu"))) return;
+      event.preventDefault();
+      selectAll();
+      setCardMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [resultsView, visibleLocalCards, cardMenu]);
+
   /** Search/filter emptiness remains distinct from an empty account library. */
   const emptyCard = catalogEmptyCard({
     remoteBrowser,
@@ -1054,9 +1088,9 @@ export function WarehousePage({
     }
   };
 
-  /** 选区 → Recipe 引用(云端卡;本地条目不进选区模型) */
+  /** Selected visible cards only; local content retains its own entry identity. */
   const recipeRefsOfSelection = (): RecipeAssetRef[] =>
-    (resultsView?.items ?? [])
+    [...(resultsView?.items ?? [])
       .filter((selected) => selectedIds.has(selected.productId))
       .map((selected) => ({
         identity: selected.productId,
@@ -1064,15 +1098,27 @@ export function WarehousePage({
         source: "cloud" as const,
         variantName: selected.variantName,
         shopName: selected.shopName,
-      }));
+      })), ...visibleLocalCards.filter(card => selectedIds.has(card.key)).map(card => ({
+        identity: card.artifact.artifactSha256,
+        displayName: `${card.entry.displayName} / ${card.artifact.relativePath}`,
+        source: "local" as const,
+        warehouseItemId: card.entry.warehouseItemId,
+      }))];
 
-  /** 选区菜单(框选右键落点/多选右键):作用于整个选区 */
-  const openSelectionMenu = (x: number, y: number) => {
+  const compatibilityMenuItem = (product: { productId: string; title: string | null }) => ({
+    id: "showCompatible", label: copy.cardMenu.showCompatible,
+    onSelect: () => setCompatibleQuery({ productId: product.productId, title: product.title ?? product.productId }),
+  });
+
+  /** Bulk actions retain the selection; product clues apply to the clicked card. */
+  const openSelectionMenu = (x: number, y: number, product?: { productId: string; title: string | null }) => {
     const refs = recipeRefsOfSelection();
     setCardMenu({
       x,
       y,
       items: [
+        selectAllMenuItem,
+        ...(product ? [compatibilityMenuItem(product)] : []),
         ...(refs.length > 0
           ? [{
               id: "addToRecipe",
@@ -1099,12 +1145,13 @@ export function WarehousePage({
   const openCardMenu = (event: ReactMouseEvent<HTMLElement>, item: CatalogProductSummary) => {
     event.preventDefault();
     if (selectedIds.has(item.productId) && selectedIds.size > 1) {
-      openSelectionMenu(event.clientX, event.clientY);
+      openSelectionMenu(event.clientX, event.clientY, item);
       return;
     }
     setSelectedIds(new Set([item.productId]));
     const menuItems: ContextMenuState["items"] = [
       { id: "open", label: copy.card.detailsCta, onSelect: () => setSelectedId(item.productId) },
+      selectAllMenuItem,
       ...(dataSource === "live" && (libraryPage?.facts.get(item.productId)?.localEntries?.length ?? 0) > 0 ? [{
         id: "editLocalSource", label: copy.editSource.title,
         onSelect: () => setMetadataEntries(libraryPage!.facts.get(item.productId)!.localEntries!),
@@ -1150,20 +1197,14 @@ export function WarehousePage({
               },
             }]
           : []),
-        ...(dependencyCluesOn ? [{
-          id: "showCompatible",
-          label: copy.cardMenu.showCompatible,
-          onSelect: () => {
-            setCompatibleQuery({ productId: item.productId, title: item.title ?? item.productId });
-          },
-        }] : []),
+        compatibilityMenuItem(item),
     ];
     const anchor = event.currentTarget.getBoundingClientRect();
     setCardMenu({ x: event.detail === 0 ? anchor.left : event.clientX, y: event.detail === 0 ? anchor.bottom : event.clientY, items: menuItems });
   };
 
   return (
-    <div className="vua-page vua-warehouse">
+    <div ref={pageRef} className="vua-page vua-warehouse">
       <section className="vua-page__hero">
         <h1 className="vua-title">{termLabel("warehouse")}</h1>
         {/* 选区动作位(Explorer 语义,2026-10-05):选区存在才出现;选区本身
@@ -1444,8 +1485,7 @@ export function WarehousePage({
                         )
                       )
                   }
-                  {dataSource === "live" || source !== "gifts" && source !== "bought" && source !== "free"
-                    ? localCards.map((card) => (
+                  {visibleLocalCards.map((card) => (
                         <div key={card.key}>
                         <LibraryBadges facts={libraryPage?.facts.get(card.entry.warehouseItemId)} />
                         <ArtifactCard
@@ -1453,18 +1493,27 @@ export function WarehousePage({
                           card={card}
                           source={libraryPage?.facts.get(card.entry.warehouseItemId)?.sourceMatch?.product}
                           metadata={libraryPage?.facts.get(card.entry.warehouseItemId)?.metadata}
-                          selected={selectedLocalId === card.entry.warehouseItemId}
+                          selected={selectedIds.has(card.key)}
+                          onSelect={() => selectSingle(card.key)}
                           onOpen={() => {
                             setSelectedId(null);
                             setSelectedLocalId(card.entry.warehouseItemId);
                           }}
                           onMenu={(event) => {
                             event.preventDefault();
+                            const sourceProduct = libraryPage?.facts.get(card.entry.warehouseItemId)?.sourceMatch?.product;
+                            if (selectedIds.has(card.key) && selectedIds.size > 1) {
+                              openSelectionMenu(event.clientX, event.clientY, sourceProduct);
+                              return;
+                            }
+                            setSelectedIds(new Set([card.key]));
                             const anchor = event.currentTarget.getBoundingClientRect();
                             setCardMenu({
                               x: event.detail === 0 ? anchor.left : event.clientX,
                               y: event.detail === 0 ? anchor.bottom : event.clientY,
                               items: [
+                                selectAllMenuItem,
+                                ...(sourceProduct ? [compatibilityMenuItem(sourceProduct)] : []),
                                 {
                                   id: "open",
                                   label: copy.card.detailsCta,
@@ -1499,8 +1548,7 @@ export function WarehousePage({
                             });
                           }}
                         /></div>
-                      ))
-                    : null}
+                    ))}
                 </div>
               ) : null}
             </div>
@@ -1664,6 +1712,7 @@ export function WarehousePage({
       />
       <CompatibleItemsDialog
         enabled={dependencyCluesOn}
+        onEnable={() => setDependencyCluesOn(true)}
         query={compatibleQuery}
         onClose={() => setCompatibleQuery(null)}
         onSelectProduct={(productId) => {

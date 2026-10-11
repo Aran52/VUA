@@ -31,7 +31,7 @@ import {
   type CatalogSyncRun,
 } from "./catalog-sync.js";
 import { probeBoothAuthentication } from "./booth-auth.js";
-import { deactivateImageCache, importLocalThumbnail, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
+import { deactivateImageCache, importLocalThumbnail, installImageCacheProtocol, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
 import { RemoteContentManager } from "./remote-content.js";
 import { createDesktopOrchestratorProvider, type DesktopProviderEndpoint } from "./provider-bootstrap.js";
 import { AmfRegistry } from "./amf-registry.js";
@@ -1623,6 +1623,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {
     startupWindow = await createStartupWindow({

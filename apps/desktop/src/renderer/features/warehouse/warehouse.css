@@ -370,14 +370,22 @@
   position: sticky;
   top: calc(-1 * var(--vua-space-3));
   z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--vua-space-2);
   margin: calc(-1 * var(--vua-space-3)) calc(-1 * var(--vua-space-3)) var(--vua-space-3);
   padding: var(--vua-space-3);
   background: color-mix(in srgb, var(--vua-bg-elevated) 96%, transparent);
   border-bottom: 1px solid var(--vua-border);
+}
+
+.vua-warehouse__drawer-header > .vua-button {
+  grid-row: 1;
+  justify-self: end;
+}
+
+.vua-warehouse__drawer-header > :not(.vua-button) {
+  grid-row: 2;
 }
 
 /* 窄窗降级:详情面板退为全宽堆叠(主列在上,面板在下) */

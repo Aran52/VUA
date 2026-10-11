@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.24.0
+> Document version: 1.25.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (controlled BOOTH session/login-close/sync and local-folder handoff, four-language/theme/zoom filters, and retained Wiki/material browser sessions; real account/material, physical game/device and human-language review pending)
+> Last conformance review: 2026-10-11 (controlled BOOTH session/login-close/sync, startup image loading and cache/module gates, library selection/context menus and detail rows, plus four-language/theme/zoom filters; real account/material, physical game/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -197,6 +197,20 @@ resolves `warehouse` from the module's data root; Renderer supplies no path. The
 source and download-state controls share one responsive filter row. Retired availability,
 entity-type and relation controls are absent from the presentation, while Provider contracts
 retain their existing query fields for other consumers.
+
+Main installs the dormant `vua-img` dispatcher before creating any renderer, including the
+splash: late installation leaves existing Chromium renderers unable to use the scheme even
+when Main can fetch it. Installation creates no AMF storage. Activation supplies the module
+data root and enables bounded, allowlisted image caching; inactive AMF denies reads, including
+previously cached images. Existing image addresses and disk-cache keys remain valid. Product
+detail enrichment attempts its optional page read once per opened product, ignores late replies
+after closure and preserves the synchronized image when description enrichment fails.
+
+The library's displayed cloud and local cards share page-scoped selection and context-menu
+shortcuts. Product adaptation opens the optional read-only dependency observation surface;
+disabled clues require explicit enablement and make no observation query beforehand. The
+[design standard](../design/design-standard.md#8-module-visual-language) owns these interaction and
+detail-header rules; source clues do not establish production compatibility.
 
 Main owns a VUA system tray icon throughout normal application execution. Double-click restores
 and focuses the existing main window. The localized menu exposes update checking
@@ -406,6 +420,7 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.25.0 (2026-10-11): install the dormant image loader before renderer creation while retaining AMF cache gates, bound detail enrichment to one attempt, and connect mixed-card selection and discoverable product-clue dialogs.
 - 1.24.0 (2026-10-11): restore BOOTH account reads through tracked session redirects, refresh account status on login close, align library filters and add the bounded active-AMF folder action.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
@@ -415,6 +430,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.18.0 (2026-10-10): place each scenario/editor/manager's collapsible details directly beneath its own card, separate compact language and Search controls, migrate retired goal links to Help and retire big-screen layout/navigation/tray actions while retaining the legacy event shape.
 - 1.17.0 (2026-10-10): verify BOOTH account access before offering library sync with direct login/retry handoffs, discover Editors through the host and inspect fresh Unity 2022 entry before CLI acquisition, and replace the AMF Home Inspection card with Finished Avatars and Package Manager.
 - 1.16.0 (2026-10-10): unify collapsible scenario/tool/editor details, add native Help/chapter/wizard history and Avatar-editing AMF activation, and consolidate Settings language/version controls without changing vendor/device evidence.
-- 1.15.0 (2026-10-10): add environment Tools/Help, embed the knowledge encyclopedia through desktop-window v0.2, halve Play card heights and remove the resource-panel sampling-time label.
 
 Earlier entries remain in Git history.

@@ -1,6 +1,6 @@
 // Actual Main/preload/renderer/providers with synthetic BOOTH pages and an isolated
 // Chromium profile. No real account, product, download or Explorer window is used.
-import { app, BrowserWindow, dialog, session, shell } from "electron";
+import { app, BrowserWindow, dialog, nativeImage, net, session, shell } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -33,13 +33,25 @@ async function run(){try{
   await app.whenReady();
   const remote=session.fromPartition("persist:vua-remote");
   let libraryRequests=0;
+  let imageRequests=0, productRequests=0;
+  const bitmap=Buffer.alloc(128*128*4);
+  for(let pixel=0;pixel<128*128;pixel++){const x=pixel%128,y=Math.floor(pixel/128);bitmap.set([160+x/2,80+y/2,100+x/2,255],pixel*4);}
+  const thumbnail=nativeImage.createFromBitmap(bitmap,{width:128,height:128}).toPNG();
+  await session.defaultSession.protocol.handle("https", request=>{
+    if(new URL(request.url).hostname!=="booth.pximg.net")return new Response("Synthetic unsupported origin",{status:404});
+    imageRequests++;
+    return new Response(thumbnail,{headers:{"content-type":"image/png"}});
+  });
   await remote.protocol.handle("https",async request=>{
     const url=new URL(request.url);
     // Intercepted protocol Requests omit Chromium's Cookie header. The fixture
     // models its server session from this isolated jar; it is not a wire-cookie test.
     const authenticated=(await remote.cookies.get({url:request.url})).some(cookie=>cookie.name==="vua_test_session"&&cookie.value==="synthetic");
     requests.push({path:url.pathname,authenticated});
-    if(url.hostname!=="accounts.booth.pm")return new Response("Synthetic unsupported origin",{status:404});
+    if(url.hostname!=="accounts.booth.pm"){
+      if(url.hostname==="booth.pm"&&url.pathname.includes("/items/"))productRequests++;
+      return new Response("Synthetic unsupported origin",{status:404});
+    }
     if(url.pathname==="/session-complete"){
       await remote.cookies.set({url:"https://booth.pm/",domain:".booth.pm",name:"vua_test_session",value:"synthetic",path:"/",secure:true,httpOnly:true});
       return Response.redirect("https://accounts.booth.pm/library?page=1",302);
@@ -47,7 +59,8 @@ async function run(){try{
     if(url.pathname.startsWith("/library")){
       libraryRequests++;
       if(!authenticated)return Response.redirect("https://accounts.booth.pm/users/sign_in",302);
-      return new Response('<html><body><header data-user-name="Synthetic account"></header><h1>Synthetic account library</h1><div id="js-library-search-header"></div></body></html>',{headers:{"content-type":"text/html; charset=utf-8"}});
+      const rows=url.pathname==="/library" ? [9001,9002].map(id=>`<div class="border-b"><a href="https://booth.pm/items/${id}"><img src="https://booth.pximg.net/synthetic-${id}.png"></a><a href="https://booth.pm/items/${id}">Synthetic item ${id}</a></div>`).join("") : "";
+      return new Response(`<html><body><header data-user-name="Synthetic account"></header><h1>Synthetic account library</h1><div id="js-library-search-header"></div>${rows}</body></html>`,{headers:{"content-type":"text/html; charset=utf-8"}});
     }
     return new Response('<html><body><form action="/users/auth/pixiv"></form><a id="finish" href="/session-complete">Finish synthetic sign-in</a></body></html>',{headers:{"content-type":"text/html; charset=utf-8"}});
   });
@@ -81,7 +94,26 @@ async function run(){try{
   assert(true,"Returning to the asset library offers sync instead of another login");
   await click("warehouse-sync");
   await waitFor(()=>js('document.querySelector(".vua-warehouse")?.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);
-  assert(true,"Three synthetic empty account libraries sync through the real AMF provider");
+  assert(true,"Three synthetic account libraries sync through the real AMF provider");
+  await waitFor(()=>js('document.querySelectorAll(".vua-warehouse-card img").length===2&&[...document.querySelectorAll(".vua-warehouse-card img")].every(i=>i.naturalWidth===128&&!i.dataset.pending)'),"native cached card images");
+  assert(true,"A renderer created during host startup displays later-synced images through the real AMF cache loader");
+  await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
+  await waitFor(()=>js('!!document.querySelector(".vua-warehouse__drawer .vua-media-slot img")'),"detail media");
+  await js('document.querySelector(".vua-warehouse__drawer .vua-media-slot").scrollIntoView({block:"nearest"})');
+  await waitFor(()=>js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img")?.naturalWidth===128'),"detail image");
+  const header=await js('(()=>{const h=document.querySelector(".vua-warehouse__drawer-header"),t=h.querySelector("h2").getBoundingClientRect(),c=h.querySelector("button").getBoundingClientRect();return {below:t.top>=c.bottom,titleFits:t.right<=h.getBoundingClientRect().right};})()');
+  assert(header.below&&header.titleFits,"Product detail puts its title below a separate close-button row");
+  await waitFor(()=>productRequests>0,"optional description lookup");await delay(250);
+  assert(productRequests===1,"An unavailable description lookup is attempted once per opened detail, without a retry loop");
+  const loadedImages=imageRequests;
+  await js(`document.querySelector('.vua-warehouse__drawer-header button').click()`);
+  await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
+  await waitFor(()=>js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img")?.naturalWidth===128'),"cached detail reopen");
+  assert(imageRequests===loadedImages,"Reopening detail reuses an already loaded product image");
+  await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true});await delay(80);
+  fs.writeFileSync(path.join(output,"library-detail.png"),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());
+  const cachedImage=await js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img").src');
+  await js(`document.querySelector('.vua-warehouse__drawer-header button').click()`);
   await click("warehouse-open-folder");
   await waitFor(()=>folderRequests.length===1,"Explorer handoff");
   assert(folderRequests[0]===path.join(profile,"modules","amf","data","warehouse"),"Explorer action resolves the active AMF material root in Main");
@@ -119,6 +151,7 @@ async function run(){try{
   assert((await js('window.vua.remoteContent.authProbe()')).authOk===false,"Sign-out clears the same browser session used by account reads");
   await js('window.vua.amfModule.setEnabled(false)');
   assert(await js('window.vua.library.openFolder().then(()=>false,()=>true)'),"Disabled AMF denies the folder action");
+  assert((await net.fetch(cachedImage)).status===503,"The early-installed image loader denies reads after AMF is disabled");
   fs.writeFileSync(path.join(output,"checks.json"),JSON.stringify({scope:"Actual Electron/Main/preload/renderer/providers with synthetic BOOTH and stubbed Explorer; no real account/material acceptance",checks},null,2));
   console.log(JSON.stringify({passed:checks.length,output}));exitCode=0;clearTimeout(deadline);app.quit();
 }catch(error){console.error(error.stack??String(error));console.error(JSON.stringify({output,checks,requests,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}

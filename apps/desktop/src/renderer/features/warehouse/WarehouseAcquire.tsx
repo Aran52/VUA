@@ -79,6 +79,7 @@ function stateTone(state: WarehouseArtifactState) {
 export function ArtifactCard({
   card,
   selected,
+  onSelect,
   onOpen,
   onMenu,
   source,
@@ -86,6 +87,7 @@ export function ArtifactCard({
 }: {
   card: AcquireArtifactCard;
   selected: boolean;
+  onSelect?: (() => void) | undefined;
   onOpen: () => void;
   onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   source?: CatalogProductSummary | undefined;
@@ -98,8 +100,10 @@ export function ArtifactCard({
     <article
       className="vua-warehouse-card"
       data-selected={selected || undefined}
+      data-selection-id={card.key}
       data-verdict={artifact.state}
-      onClick={onOpen}
+      onClick={onSelect ?? onOpen}
+      onDoubleClick={onSelect === undefined ? undefined : onOpen}
       onContextMenu={onMenu}
       role="listitem"
       tabIndex={0}

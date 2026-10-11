@@ -1,11 +1,11 @@
-# VUA design standard v0.23.0
+# VUA design standard v0.24.0
 
 
-> Document version: 0.23.0
+> Document version: 0.24.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (aligned library controls and folder action in four-language/theme/zoom fixtures, retaining regional reference, topbar Help and eight-tab browser sessions; author account/material/game/device and human-language review pending)
+> Last conformance review: 2026-10-11 (mixed library selection/context menus, experimental clue enablement, native card/detail images and separate close/title rows, plus four-language/theme/zoom filters; author account/material/game/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -350,7 +350,7 @@ semantically distinct from the dismiss/close ✕ (e.g. a circled exclamation mar
 
 ### 6.2 Experimental feature presentation (v0.6.3)
 
-Experimental features live on the "Settings - Experimental" page (the W15 walkthrough rework form
+Experimental features live on the "Settings - Experimental" page (the walkthrough rework form
 of 2026-09-08: one card =
 title + subtitle + warning strip + toggle rows). Rules:
 
@@ -425,9 +425,19 @@ changelog history already uses.
   relation filters are retired from this UI. The action area includes an explicit "Open local
   asset library in File Explorer" action for the active AMF material root, with pending/failed
   handoff states; it does not ask the user to enter or select a path.
-  Layout (v0.6.2, W13 window of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
+  Single click selects a cloud or local card; double click opens its details. `Ctrl+A` selects
+  the displayed page in the current filter/view, including local cards. Card and blank-wall
+  context menus offer "Select all" with its shortcut; the shortcut also works while that menu
+  has focus. Text editing, dialogs and the detail panel retain their own keyboard behavior.
+  Each known product's menu offers "此商品的适配" even when dependency clues are disabled;
+  opening it in that state explains and offers explicit enablement without sending a query.
+  Clues remain optional, experimental and off by default. Known source links or dependency
+  statements are evidence to inspect, never a guarantee of fit or production compatibility.
+  Layout (v0.6.2, ruling of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
-  narrow windows stack it below. Artifact-mode semantics (v0.6.3, the W15 walkthrough ruling of
+  the close button occupies its own top row, with the full-width title beneath it, for both
+  product and local-entry details. Narrow windows stack the panel below the wall.
+  Artifact-mode semantics (v0.6.3, the walkthrough ruling of
   2026-09-08; novice-first): the original UnityPackage is the default; the global behavior is written by the
   "Generate VPM replacement" toggle on the Settings-Experimental page (frozen
   warehouse.setGlobalDefaultMode, §6.2), with the effective mode always read back from the
@@ -468,7 +478,7 @@ changelog history already uses.
 - Recipe page as the production hub (0.7.15, first desktop slice consuming the
   U16 user ruling of 2026-09-21; archived
   [proposal 029](../archive/2026-09-29/collab/proposals/029-recipe-driven-workshop-and-project-export.md)
-  facets A4/A5): the library selection is the preview subject —
+  facets 029-A4/029-A5): the library selection is the preview subject —
   selecting a library document loads the three views through the document
   mapping, and the chain identity becomes ready with the selection. The
   selection is a production-chain fact-source action: the chain identity keys
@@ -498,7 +508,7 @@ changelog history already uses.
   the AMF Assembly stage semantics (stage names, pipeline stage diagrams, and
   stage-event copy do not migrate).
 - Create and add assets (0.7.17, third desktop slice consuming the U16 user
-  ruling of 2026-09-21; archived proposal 029 facets A1/A2/A3 local segment): the recipe page hero main path offers a
+  ruling of 2026-09-21; archived proposal 029 facets 029-A1/029-A2/029-A3 local segment): the recipe page hero main path offers a
   "Create" entry (worded 创建 per the U16 ruling text; never mixed with
   "add assets"/"assemble"), opening the composing-draft dialog — the draft
   dialog remains one of the creation starting points and the two-UIs-one-save-
@@ -525,7 +535,7 @@ changelog history already uses.
   cloud entry; read face absent / empty warehouse / no match render as honest
   empty states.
 - Export a draft from a project (0.7.18, desktop consumption of B-face loop 4
-  under the U16 user ruling of 2026-09-21; archived proposal 029 facet B4): the recipe page hero action row gains
+  under the U16 user ruling of 2026-09-21; archived proposal 029 facet 029-B4): the recipe page hero action row gains
   an "export draft from project" entry (recipe-export v0.1 frozen word-table
   consumption; reverse direction project -> recipe). The pick stage is limited
   to the VUA-registered project set (project.listProjects 013 aggregate
@@ -583,7 +593,7 @@ changelog history already uses.
   locking, node illumination, missing-dependency confusion, and rollback reversal are driven by real
   task events. Increase spectacle after flow logic stabilizes; scheduling does not delete the direction.
   Workshop as the execution status face (0.7.16, second desktop slice consuming
-  the U16 user ruling of 2026-09-21; archived proposal 029 facet A6): the workshop only displays status — the resolve →
+  the U16 user ruling of 2026-09-21; archived proposal 029 facet 029-A6): the workshop only displays status — the resolve →
   plan → assembly → record cards of the current chain (consuming the same
   container-layer store, Gateway port, and task-center authoritative snapshots as
   the recipe-page initiation face; plan approval and assembly start happen in the
@@ -643,7 +653,7 @@ changelog history already uses.
   before install/update/remove; no third-party branding that implies embedding. Project compatibility
   no longer holds a standalone second-level page (archived
   [proposal 026](../archive/2026-09-29/collab/proposals/026-packages-write-face-and-tab-merge.md)
-  facet B, user ruling 2026-09-18): its read
+  facet 026-B, user ruling 2026-09-18): its read
   faces (project detection, note, lock status, environment status, copy-import confirmation chain)
   render as a "Project compatibility" section at the end of the package manager page; the section is
   not gated on the package engine capability. Write-operation handover stays guidance-only: no
@@ -659,7 +669,7 @@ changelog history already uses.
 
   Template enumeration presentation (archived
   [proposal 027](../archive/2026-09-29/collab/proposals/027-packages-discovery-and-usability.md)
-  facet F5 desktop consumption, user ruling 2026-09-19): the create block mounts the
+  facet 027-F5 desktop consumption, user ruling 2026-09-19): the create block mounts the
   template enumeration gated on the packages.templatesOps capability fact row
   (packages.listTemplates is an environment-level configuration face, page-locally carried, never
   entering the snapshot) — once the enumeration is ready a template dropdown replaces the manual
@@ -719,7 +729,7 @@ changelog history already uses.
   capability fact row (one row serving the three methods; honestly absent until the
   environment override flips it = controls not rendered while the subscription rows keep
   rendering — degradation is not an error, no fact no render). Honest enable-wording ruling
-  (the W25 read-only real-machine evidence ruling (c) of 2026-09-20: VCC carries no enable/disable state anywhere): the
+  (the read-only real-machine evidence ruling (c) of 2026-09-20: VCC carries no enable/disable state anywhere): the
   enable bit is VUA-owned state, distinguished from the §8.7 settings-face shared-semantics
   copy discipline — the disabled wording honestly states "a disabled repository stays
   listed while its packages leave browsing and install resolution; the shared VCC/ALCOM
@@ -769,7 +779,7 @@ changelog history already uses.
   panel itself stays unblurred (the compositing ghosting lesson). Opening moves focus into the
   panel; closing returns it to the bell (not stolen when the user has focused elsewhere);
   outside click / Escape / scrolling outside the panel (scrolling inside the panel's list does
-  not close it — W25 real-machine correction of 2026-09-20) / blur close it; flattened motion skips the exit
+  not close it — real-machine correction of 2026-09-20) / blur close it; flattened motion skips the exit
   animation window.
   Notification-entry discipline: active tasks show by default; terminal tasks appear only with
   "show completed" enabled and not dismissed. Dismissal is offered only for terminal
@@ -834,6 +844,7 @@ direction.
 
 ## 12. Document changelog
 
+- 0.24.0 (2026-10-11): add displayed-page selection for cloud/local cards and menus, keep product adaptation discoverable behind explicit clue enablement, and give detail close/title controls separate rows; normalize retired body references.
 - 0.23.0 (2026-10-11): unify the library's search/source/download-state controls, retire the three legacy selectors and add an explicit local-material folder action with narrow-window scroll recovery.
 - 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
@@ -843,7 +854,6 @@ direction.
 - 0.17.0 (2026-10-10): accept the small monochrome ray/white-logo startup and first-use welcome/tour, preserving normal shell themes, matrix/glass and resource-saving preferences.
 - 0.16.0 (2026-10-10): anchor collapsible details beneath each individual card, separate translation/compact-language and Search rows, route retired goal links to Help and retire big-screen mode while preserving native control semantics and visual/resource preferences.
 - 0.15.0 (2026-10-10): replace the AMF Home Inspection card with Finished Avatars and Package Manager in both modes, retaining inspection reports and aligning the finished-output title across navigation.
-- 0.14.0 (2026-10-10): standardize collapsible Play/Tools/editor details and compact tool widths, distinguish navigable Help child pages with Back/Forward, and place AMF activation and consolidated Settings controls in their accepted locations.
 
 
 Earlier entries remain in Git history.

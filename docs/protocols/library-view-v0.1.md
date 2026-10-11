@@ -1,8 +1,8 @@
 # Unified library view v0.1
 
-> Document version: 0.5
+> Document version: 0.6
 > Status: Implementation baseline
-> Updated: 2026-10-09
+> Updated: 2026-10-12
 > Maintainer: AMF
 
 This acquisition read face joins account products, source memberships, current physical copies
@@ -27,11 +27,18 @@ output and the need to regenerate when no current generated copy is present.
 | `library.productFiles` | query | Captured selectable file IDs, current managed binding and eligible legacy replacement candidates |
 
 Both requests require `schemaVersion: "0.1"` and reject unknown fields. A list has optional
-`source`, `state`, `text`, `availabilityStatus`, `limit` and `offset`. Defaults are all sources,
+`source`, `state`, `text`, `availabilityStatus`, `sourceCategory`, `limit` and `offset`. Defaults are all sources,
 all states, empty text, no availability filter, limit 50 and offset zero. Limits are 1–200;
 offset is a nonnegative safe integer. Text is at most 1000 Unicode characters. Filtered `total`
 counts library rows before pagination: one product or one local warehouse entry. An entry can
 contain multiple files. Product file inventory requires a `booth:` numeric product identity.
+
+Native categories are recorded BOOTH labels, preserved verbatim on optional row `sourceCategory`.
+Omitting the filter selects all categories; explicit null selects unrecorded categories. A category
+label has 1–200 Unicode characters. Optional `sourceCategories` lists distinct sorted labels from
+the entire source/state/text/availability-filtered library, before category filtering and pagination.
+Local rows may inherit an explicitly identified source category, but a name-only source hint does
+not establish the category. Unknown categories are not inferred from titles or product keywords.
 
 Source filters are `all`, `local`, `bought`, `gifts` and `free_downloads`. Local means a
 registered physical copy, including missing files and copies associated with an account product.
@@ -128,6 +135,8 @@ idempotency and restart proof reuse. Real-account, real-material and human UI ac
 remain `not_run` for this takeover baseline and are owned by N5.
 
 ## Document changelog
+
+- 0.6 (2026-10-12): add recorded BOOTH category filters/facets before pagination without widening frozen catalog faces.
 
 - 0.5 (2026-10-09): exclude explicitly removed local imports while retaining account products, files and reference identities.
 

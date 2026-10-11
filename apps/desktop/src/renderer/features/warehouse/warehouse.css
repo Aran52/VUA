@@ -123,10 +123,18 @@
 
 .vua-warehouse__filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(160px, 200px));
+  grid-template-columns: minmax(200px, 1fr) repeat(3, minmax(130px, 180px));
   align-items: end;
   gap: var(--vua-space-3);
 }
+
+.vua-bulk-files__product {
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  padding: var(--vua-space-3);
+}
+.vua-bulk-files__product h3 { margin: 0 0 var(--vua-space-2); overflow-wrap: anywhere; }
+.vua-bulk-files__product ul { margin: var(--vua-space-2) 0; padding-left: var(--vua-space-5); }
 
 .vua-warehouse__field {
   display: flex;
@@ -153,7 +161,7 @@
 @media (max-width: 1000px) {
   /* At narrow widths/large zoom the header and controls need ordinary page scroll. */
   .vua-warehouse { overflow-y: auto; }
-  .vua-warehouse__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vua-warehouse__filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .vua-warehouse__field:first-child { grid-column: 1 / -1; }
 }
 

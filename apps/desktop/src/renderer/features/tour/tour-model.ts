@@ -46,7 +46,7 @@ export const TOUR_STEPS: readonly TourStepDef[] = [
   { id: "plan", page: "env-play", anchor: '[data-nav-id="route-desktop-action"]' },
   { id: "tools", page: "tools-discover", anchor: '[data-nav-id="nav-tools-discover"]' },
   { id: "creator", page: "env-create", anchor: '[data-nav-id="nav-env-create"]' },
-  { id: "tasks", page: "home", anchor: '[data-nav-id="home-tasks"]' },
+  { id: "tasks", page: "home", anchor: '[data-nav-id="shell-notifications"]' },
   { id: "guide", page: "help", anchor: '[data-nav-id="help-encyclopedia"]' },
   { id: "settings", page: "settings-theme", anchor: '[data-nav-id="settings-language-select"]' },
 ];

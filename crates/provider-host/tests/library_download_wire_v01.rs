@@ -617,19 +617,20 @@ fn library_view_schema_vectors_and_real_queries_agree() {
     };
     let request = jsonschema::validator_for(&read("request.schema.json")).unwrap();
     let response = jsonschema::validator_for(&read("response.schema.json")).unwrap();
-    for name in ["list.request", "files.request"] {
+    for name in ["list.request", "files.request", "category.request", "unknown-category.request"] {
         assert!(request.is_valid(&read(&format!("examples/{name}.json"))));
     }
     for name in ["invalid-session.request", "invalid-limit.request"] {
         assert!(!request.is_valid(&read(&format!("examples/{name}.json"))));
     }
-    for name in ["list.response", "files.response", "local-source.response"] {
+    for name in ["list.response", "files.response", "local-source.response", "category.response"] {
         assert!(
             response.is_valid(&read(&format!("examples/{name}.json"))),
             "{name}"
         );
     }
     assert!(!response.is_valid(&read("examples/invalid-path.response.json")));
+    assert!(!request.is_valid(&read("examples/invalid-category.request.json")));
     let world = World::new();
     let mut host = Host::new(&world.base, world.bdl.clone());
     let list = host.call("library.list", json!({"schemaVersion":"0.1"}));

@@ -13,6 +13,14 @@ pub struct LibraryCopyEvidence {
 }
 
 impl BdlStore {
+    /// Original BOOTH category observations, without widening the frozen catalog face.
+    pub fn library_product_categories(&self) -> Result<std::collections::HashMap<String, Option<String>>, BdlStoreError> {
+        let conn = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = conn.prepare("SELECT product_id, source_category FROM products ORDER BY product_id")?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     pub fn library_product_summaries(
         &self,
     ) -> Result<Vec<crate::bdl_queries::CatalogProductSummary>, BdlStoreError> {

@@ -1,11 +1,11 @@
-# VUA design standard v0.24.0
+# VUA design standard v0.25.0
 
 
-> Document version: 0.24.0
+> Document version: 0.25.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
-> Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (mixed library selection/context menus, experimental clue enablement, native card/detail images and separate close/title rows, plus four-language/theme/zoom filters; author account/material/game/device and human-language review pending)
+> Updated: 2026-10-12
+> Last conformance review: 2026-10-12 (four-language controlled category/bulk/removal/notification checks; author account/material/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -419,12 +419,18 @@ changelog history already uses.
   directly exposed. Unchecked `LocalArtifact` values are pending/quarantined; executables are listed,
   never offered a run action. Animated mode may add a restrained pointer spotlight and tilt to cards;
   all other modes retain stable cards with identical selection, detail, and keyboard behavior.
-  The visible filter strip groups labeled search, library source and download state with matching
-  control height, padding, border and theme colors. Narrow windows stack search above the two
+  The visible filter strip groups labeled search, library source, download state and original BOOTH category with matching
+  control height, padding, border and theme colors. Narrow windows stack search above the three
   aligned selectors and permit page scrolling at large zoom. Availability, entity-type and
   relation filters are retired from this UI. The action area includes an explicit "Open local
   asset library in File Explorer" action for the active AMF material root, with pending/failed
   handoff states; it does not ask the user to enter or select a path.
+  Multiselection menus expose Download (missing files), Re-download (explicitly selected captured
+  files including existing copies) and Delete local files. The removal dialog lists the exact scoped
+  files and affected references before a "Delete local files of X products" confirmation. Receipt
+  loss offers the same request again; changed/busy files require a fresh preview. Product records,
+  source evidence and Recipe references remain. Unknown local BOOTH sources are explicitly skipped
+  for download. The category control uses recorded labels and an unrecorded-category option.
   Single click selects a cloud or local card; double click opens its details. `Ctrl+A` selects
   the displayed page in the current filter/view, including local cards. Card and blank-wall
   context menus offer "Select all" with its shortcut; the shortcut also works while that menu
@@ -785,13 +791,19 @@ changelog history already uses.
   "show completed" enabled and not dismissed. Dismissal is offered only for terminal
   notifications — what is cleared is the notification, not the fact; task authority remains
   queryable through the task surfaces (§6.1). Task-row titles project honestly: registered task
-  identities use their registered title, unregistered tasks get the honest type word
+  identities use their registered title; transfer events may supply the public filename. Unregistered
+  tasks without such facts get the honest type word
   "background task", and a bare taskId never serves as a description (facts the projection
   cannot reach are not invented). Clicking the row's main area returns to the task's origin page,
   identical for active and terminal states, never a silent no-response. The in-row status glyph
   and status word carry success/failure facts, action buttons (retry/clear) each do one job, and
   the panel close ✕ only closes the panel — never conflated with dismissing a notification or
   presenting a failure.
+  Download rows use jurisdiction-tinted surfaces, a measured byte bar, transferred/total sizes and
+  speed from real observations; unknown totals show an indeterminate bar and expired speed returns
+  to measuring. File-saving counts are separate from transfer facts. All active batch notifications
+  remain visible. The raw Tasks window belongs under Settings → Experimental as Task diagnostics;
+  Home does not expose it. Demo-data and UI-variant switching panels are removed.
 
 ## 9. Accessibility, internationalization, and performance
 

@@ -192,6 +192,39 @@ fn library_keeps_multiple_memberships_and_paginates_after_all_filters() {
 }
 
 #[test]
+fn library_native_category_filters_before_pagination_and_preserves_unknown() {
+    let w = World::new();
+    let fixture: Value = serde_json::from_slice(&std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap()).unwrap();
+    let page = crate::library_page::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+    for (id, category) in [("90", Some("3D衣装")), ("91", None), ("92", Some("3Dモデル"))] {
+        let mut observation = crate::library_page::library_item_to_observation(&page.items[0], &format!("sha256:{}", "0".repeat(64)), "2026-10-11T00:00:00Z", None, Some("bought"));
+        observation.product_id = format!("booth:{id}");
+        observation.native_product_id = id.into();
+        observation.source_url = format!("https://booth.pm/items/{id}");
+        observation.source_category = category.map(str::to_owned);
+        w.bdl.record_product_observation(&observation).unwrap();
+    }
+    let selected = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1}));
+    assert_eq!(selected["total"], 1);
+    assert_eq!(selected["items"][0]["product"]["productId"], "booth:90");
+    assert_eq!(selected["items"][0]["sourceCategory"], "3D衣装");
+    assert_eq!(selected["sourceCategories"], json!(["3Dモデル", "3D衣装"]));
+    let after = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1, "offset":1}));
+    assert_eq!(after["total"], 1);
+    assert!(after["items"].as_array().unwrap().is_empty());
+    assert_eq!(after["sourceCategories"], selected["sourceCategories"]);
+    let unknown = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":null}));
+    assert_eq!(unknown["total"], 1);
+    assert_eq!(unknown["items"][0]["product"]["productId"], "booth:91");
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1"}))["total"], 3);
+    for category in [json!(""), json!(3), json!("a".repeat(201))] {
+        assert!(crate::library_view::list(&w.bdl, &w.base.join("warehouse"), ArtifactMode::UseOriginalUnitypackage, &w.service,
+            json!({"schemaVersion":"0.1", "sourceCategory":category})).is_err());
+    }
+}
+
+#[test]
 fn library_source_mapping_without_reference_bytes_keeps_local_card_unverified() {
     let w = World::new();
     let staged = w.delivery(901, "dl-local", b"manual local file", "notes.pdf");

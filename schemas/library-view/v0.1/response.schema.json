@@ -38,6 +38,15 @@
           "items": {
             "$ref": "#/$defs/row"
           }
+        },
+        "sourceCategories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
         }
       }
     },
@@ -585,6 +594,14 @@
                   }
                 }
               }
+            },
+            "sourceCategory": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 200
             }
           }
         },
@@ -655,6 +672,14 @@
             },
             "metadata": {
               "$ref": "#/$defs/entryMetadata"
+            },
+            "sourceCategory": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 200
             }
           }
         }

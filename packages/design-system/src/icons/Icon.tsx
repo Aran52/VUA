@@ -14,6 +14,7 @@ export type IconName =
   | "flask"
   | "arrow-left"
   | "arrow-up"
+  | "download"
   | "edit"
   | "clock"
   | "minimize"
@@ -34,6 +35,7 @@ export type IconName =
   | "add";
 
 const paths: Record<IconName, string> = {
+  download: "M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4",
   check: "M5 12.5l4.5 4.5L19 7.5",
   warning: "M12 4 L21 20 H3 Z M12 10v4 M12 17v.5",
   close: "M6 6l12 12M18 6L6 18",

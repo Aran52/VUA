@@ -9491,6 +9491,17 @@ fn download_ingest(
     ))
 }
 
+/// Public transfer facts in the frozen task-progress envelope; no paths or URLs.
+fn download_task_progress(event: &DownloadEventV01) -> Value {
+    let mut params = json!({ "operation": "download.transfer", "downloadId": event.download_id, "attempt": event.attempt });
+    if let Some(bytes) = event.received_bytes { params["receivedBytes"] = json!(bytes); }
+    if let Some(total) = event.expected_bytes.filter(|bytes| *bytes > 0) { params["expectedBytes"] = json!(total); }
+    if let Some(name) = &event.suggested_file_name { params["fileName"] = json!(name); }
+    let mut payload = json!({"completed": event.received_bytes.unwrap_or(0), "messageKey": "tasks.download.transfer", "params": params});
+    if let Some(total) = event.expected_bytes.filter(|bytes| *bytes > 0) { payload["total"] = json!(total); }
+    payload
+}
+
 /// The download task exists per ATTEMPT (`dl-<downloadId>-a<attempt>`): the
 /// nine-state task records one run, and a fresh retry attempt is a new
 /// record — the B3 attempt discipline. Folding is idempotent: a redelivered
@@ -9524,31 +9535,25 @@ fn fold_download_task(
             }
         }
     }
-    match event.kind {
-        vua_bdl_store::download_events::DownloadEventKind::Started => {
-        }
-        vua_bdl_store::download_events::DownloadEventKind::Progress => {
-            if let Some(task) = state.store.task(&task_id)? {
-                if task.state == TaskState::Running {
-                    let latest = state.store.events_after(&task_id, 0)?.into_iter().last();
-                    if latest.is_some_and(|stored| stored.payload["receivedBytes"] == json!(event.received_bytes) && stored.payload["expectedBytes"] == json!(event.expected_bytes)) {
-                        return Ok(());
-                    }
-                    let event = state.store.mutate_task(
+    if matches!(event.kind, DownloadEventKind::Started | DownloadEventKind::Progress | DownloadEventKind::Completed) {
+        if let Some(task) = state.store.task(&task_id)? {
+            if task.state == TaskState::Running {
+                let payload = download_task_progress(event);
+                let latest = state.store.events_after(&task_id, 0)?.into_iter().last();
+                if !latest.is_some_and(|stored| stored.kind == TaskEventKind::Progress && stored.payload == payload) {
+                    let changed = state.store.mutate_task(
                         &task_id,
                         task.revision,
                         occurred_at,
-                        TaskMutation::Progress {
-                            payload: json!({
-                                "receivedBytes": event.received_bytes,
-                                "expectedBytes": event.expected_bytes,
-                            }),
-                        },
+                        TaskMutation::Progress { payload },
                     )?;
-                    publish_task_event(state, event);
+                    publish_task_event(state, changed);
                 }
             }
         }
+    }
+    match event.kind {
+        DownloadEventKind::Started | DownloadEventKind::Progress => {}
         // interrupted returns to downloading: no task-side transition (the
         // same-attempt progress proves the resume).
         vua_bdl_store::download_events::DownloadEventKind::Interrupted => {}

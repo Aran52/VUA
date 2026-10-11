@@ -138,13 +138,20 @@ async function run(){try{
         await js(`document.querySelector('.vua-warehouse').scrollTop=0`);
         await js(`document.querySelector('.vua-warehouse__filters').scrollIntoView({block:'nearest'})`);
         await delay(100);
-        const layout=await js(`(()=>{const f=document.querySelector('.vua-warehouse__filters'),controls=[...f.querySelectorAll('input,select')],r=controls.map(c=>c.getBoundingClientRect()),s=r.slice(1);return {onlyTwo:controls.filter(c=>c.tagName==='SELECT').length===2,aligned:Math.abs(s[0].top-s[1].top)<1&&Math.abs(s[0].height-s[1].height)<1,responsive:innerWidth>1000?Math.abs(r[0].top-s[0].top)<1:r[0].bottom<s[0].top,height:r.every(x=>Math.abs(x.height-r[0].height)<1),fits:r.every(x=>x.left>=0&&x.right<=innerWidth+1&&x.bottom<=innerHeight+1),noOverflow:document.documentElement.scrollWidth<=innerWidth+1};})()`);
+        const layout=await js(`(()=>{const f=document.querySelector('.vua-warehouse__filters'),controls=[...f.querySelectorAll('input,select')],r=controls.map(c=>c.getBoundingClientRect()),s=r.slice(1);return {nativeCategory:controls.filter(c=>c.tagName==='SELECT').length===3,aligned:s.every(x=>Math.abs(x.top-s[0].top)<1&&Math.abs(x.height-s[0].height)<1),responsive:innerWidth>1000?Math.abs(r[0].top-s[0].top)<1:r[0].bottom<s[0].top,height:r.every(x=>Math.abs(x.height-r[0].height)<1),fits:r.every(x=>x.left>=0&&x.right<=innerWidth+1&&x.bottom<=innerHeight+1),noOverflow:document.documentElement.scrollWidth<=innerWidth+1};})()`);
         if(!Object.values(layout).every(Boolean)){console.error(JSON.stringify({locale,theme,width,height,zoom,layout,geometry:await js(`({width:innerWidth,height:innerHeight,rects:[...document.querySelectorAll('.vua-warehouse__filters input,.vua-warehouse__filters select')].map(x=>x.getBoundingClientRect().toJSON())})`)}));fs.writeFileSync(path.join(output,"layout-failure.png"),(await window.webContents.capturePage()).toPNG());}
-        assert(Object.values(layout).every(Boolean),`${locale} ${theme}: aligned search/source/state controls at ${width}×${height}, zoom ${zoom}`);
+        assert(Object.values(layout).every(Boolean),`${locale} ${theme}: aligned search/source/state/native-category controls at ${width}×${height}, zoom ${zoom}`);
         if(width===1400){await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true});await delay(80);fs.writeFileSync(path.join(output,`library-${locale}-${theme}.png`),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());}
       }
     }
   }
+  await click("logo-home");
+  assert(await js('document.querySelector("[data-nav-id=home-tasks]")===null'),"Home no longer advertises the raw task queue");
+  await click("shell-settings");
+  await click("nav-settings-experimental");
+  await waitFor(async()=>await js('document.querySelector("[data-nav-id=experimental-task-diagnostics]")!==null'),"Experimental task diagnostics entry");
+  assert(await js('!document.querySelector("[data-nav-id=experimental-task-diagnostics]").disabled'),"Raw task diagnostics are reachable from Settings Experimental");
+  await click("shell-back");
   await remote.cookies.set({url:"https://booth.pm/",domain:".booth.pm",name:"vua_test_session",value:"expired",path:"/",secure:true,httpOnly:true});
   assert((await js('window.vua.remoteContent.authProbe()')).authOk===false,"Stored but expired session redirects to sign-in and is never reported authenticated");
   await js('window.vua.remoteContent.signOut()');

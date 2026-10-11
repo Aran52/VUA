@@ -11,7 +11,6 @@ export function HomePage({ page, navigate, amfInstalled = false }: {
   navigate: (page: PageId) => void; amfInstalled?: boolean;
 }) {
   const global = <div className="vua-route-grid vua-home__global">
-    <RouteTile title={copy.tasks} icon="clock" onClick={() => void window.vua?.window.showOverlay("status")} id="home-tasks" />
     <RouteTile title={strings.amfModule.title} icon="folder" onClick={() => navigate("settings-modules")} id="home-modules" />
     <RouteTile title={copy.help} icon="question" onClick={() => navigate("help")} id="home-help" />
     <RouteTile title={strings.nav.tabs.settings} icon="edit" onClick={() => navigate("settings-theme")} id="home-settings" />

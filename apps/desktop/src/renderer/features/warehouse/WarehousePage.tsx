@@ -64,6 +64,9 @@ import { useDownloadChecklist } from "../../app/download-checklist-flag.ts";
 import { useDependencyClues } from "../../app/dependency-clues-flag.ts";
 import { DownloadChecklistDialog } from "./DownloadChecklistDialog.tsx";
 import { RemoveFilesDialog, type RemovalDialogTarget } from "./RemoveFilesDialog.tsx";
+import { BulkDownloadDialog } from "./BulkDownloadDialog.tsx";
+import { BulkRemoveFilesDialog } from "./BulkRemoveFilesDialog.tsx";
+import { removalScopes, type BulkProduct, type BulkDownloadMode } from "./bulk-file-model.ts";
 import "./warehouse.css";
 
 const copy = strings.warehouse;
@@ -595,6 +598,8 @@ export function WarehousePage({
     setCardMenu(null);
   }, [dependencyCluesOn]);
   const [removalTarget, setRemovalTarget] = useState<RemovalDialogTarget | null>(null);
+  const [bulkRemovalTargets, setBulkRemovalTargets] = useState<readonly RemovalDialogTarget[] | null>(null);
+  const [bulkDownload, setBulkDownload] = useState<{ readonly products: readonly BulkProduct[]; readonly mode: BulkDownloadMode; readonly skippedLocal: number } | null>(null);
   const [metadataEntries, setMetadataEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
   const [removedEntries, setRemovedEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
@@ -627,6 +632,7 @@ export function WarehousePage({
     "all" | "bought" | "gifts" | "free" | "local"
   >("all");
   const [downloadState, setDownloadState] = useState<"all" | "downloaded" | "not-downloaded" | "missing" | "in_progress" | "attention">("all");
+  const [sourceCategory, setSourceCategory] = useState("all");
   const [libraryPage, setLibraryPage] = useState<LibraryPageView | null>(null);
   const [pageOffset, setPageOffset] = useState(0);
 
@@ -960,6 +966,7 @@ export function WarehousePage({
       ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
       : libraryBrowser.list({ schemaVersion: "0.1", source: source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
+        ...(sourceCategory === "all" ? {} : { sourceCategory: sourceCategory === "unknown" ? null : sourceCategory.slice(9) }),
         limit: 50, offset: pageOffset });
     read.then(
       (page) => {
@@ -977,9 +984,9 @@ export function WarehousePage({
     return () => {
       active = false;
     };
-  }, [query, connected, reloadKey, source, downloadState, pageOffset, dataSource]);
+  }, [query, connected, reloadKey, source, downloadState, sourceCategory, pageOffset, dataSource]);
 
-  useEffect(() => { setPageOffset(0); setSelectedIds(new Set()); }, [query, source, downloadState]);
+  useEffect(() => { setPageOffset(0); setSelectedIds(new Set()); }, [query, source, downloadState, sourceCategory]);
   useEffect(() => { setSelectedIds(new Set()); }, [pageOffset]);
   useEffect(() => {
     const refresh = () => setReloadKey((key) => key + 1);
@@ -1080,7 +1087,7 @@ export function WarehousePage({
         return;
       }
       setDownloadNotice(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }));
-      registerTaskIdentity(outcome.taskId, { title: copy.cardMenu.download, originPage: "warehouse", notifyOnComplete: true });
+      registerTaskIdentity(outcome.taskId, { title: `${copy.cardMenu.download} · ${resultsView?.items.find((item) => item.productId === productId)?.title ?? productId}`, originPage: "warehouse", notifyOnComplete: true });
       setDownloadWatchBatch(outcome.batchId);
       setReloadKey((key) => key + 1);
     } catch {
@@ -1113,11 +1120,35 @@ export function WarehousePage({
   /** Bulk actions retain the selection; product clues apply to the clicked card. */
   const openSelectionMenu = (x: number, y: number, product?: { productId: string; title: string | null }) => {
     const refs = recipeRefsOfSelection();
+    const products = new Map<string, BulkProduct>();
+    const removals: RemovalDialogTarget[] = [];
+    const localEntries = new Set<string>();
+    let skippedLocal = 0;
+    for (const selected of resultsView?.items ?? []) {
+      if (!selectedIds.has(selected.productId)) continue;
+      products.set(selected.productId, { productId: selected.productId, title: selected.title ?? selected.productId });
+      const copyIds = libraryPage?.facts.get(selected.productId)?.copyIds;
+      if (copyIds?.length) removals.push({ target: { kind: "product", id: selected.productId }, title: selected.title ?? selected.productId, copyIds });
+    }
+    for (const selected of visibleLocalCards) {
+      if (!selectedIds.has(selected.key) || localEntries.has(selected.entry.warehouseItemId)) continue;
+      localEntries.add(selected.entry.warehouseItemId);
+      const facts = libraryPage?.facts.get(selected.entry.warehouseItemId);
+      const source = facts?.sourceMatch;
+      if (source !== undefined && source.basis !== "name") products.set(source.product.productId, { productId: source.product.productId, title: source.product.title ?? source.product.productId });
+      else skippedLocal += 1;
+      if (facts?.copyIds?.length) removals.push({ target: { kind: "entry", id: selected.entry.warehouseItemId }, title: selected.entry.displayName, copyIds: facts.copyIds });
+    }
+    const scopes = removalScopes(removals);
+    const downloadAvailable = dataSource === "live" && window.vua?.silentDownload !== undefined && (products.size > 0 || skippedLocal > 0);
     setCardMenu({
       x,
       y,
       items: [
         selectAllMenuItem,
+        { id: "bulkDownload", label: copy.cardMenu.download, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "download", skippedLocal }) },
+        { id: "bulkReDownload", label: copy.cardMenu.reDownload, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "redownload", skippedLocal }) },
+        { id: "bulkDeleteLocal", label: copy.cardMenu.deleteLocal, disabled: dataSource !== "live" || scopes.length === 0, onSelect: () => setBulkRemovalTargets(scopes) },
         ...(product ? [compatibilityMenuItem(product)] : []),
         ...(refs.length > 0
           ? [{
@@ -1307,6 +1338,17 @@ export function WarehousePage({
               <option value="missing">{copy.libraryState.missing}</option>
               <option value="in_progress">{copy.libraryState.downloading}</option>
               <option value="attention">{copy.libraryState.attention}</option>
+            </select>
+            <Icon name="chevron-down" size={16} />
+          </div>
+        </label>
+        <label className="vua-warehouse__field">
+          <span>{copy.filters.category}</span>
+          <div className="vua-warehouse__select">
+            <select className="vua-warehouse__filter" aria-label={copy.filters.category} value={sourceCategory} onChange={event => setSourceCategory(event.target.value)} disabled={dataSource !== "live"}>
+              <option value="all">{copy.filters.categoryAll}</option>
+              <option value="unknown">{copy.filters.categoryUnknown}</option>
+              {[...new Set([...(libraryPage?.sourceCategories ?? []), ...(sourceCategory.startsWith("category:") ? [sourceCategory.slice(9)] : [])])].map(category => <option key={category} value={`category:${category}`}>{category}</option>)}
             </select>
             <Icon name="chevron-down" size={16} />
           </div>
@@ -1696,6 +1738,8 @@ export function WarehousePage({
         onClose={() => setRecipeDialogOpen(false)}
         selections={contextSelection}
       />
+      {bulkDownload !== null ? <BulkDownloadDialog {...bulkDownload} onClose={() => setBulkDownload(null)} onChanged={() => setReloadKey(key => key + 1)} /> : null}
+      {bulkRemovalTargets !== null ? <BulkRemoveFilesDialog items={bulkRemovalTargets} onClose={() => setBulkRemovalTargets(null)} onChanged={() => setReloadKey(key => key + 1)} onInspect={item => { setBulkRemovalTargets(null); setRemovalTarget(item); }} /> : null}
       {removalTarget !== null ? <RemoveFilesDialog key={`${removalTarget.target.kind}:${removalTarget.target.id}`} item={removalTarget}
         onClose={() => setRemovalTarget(null)} onChanged={() => { setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
       {metadataEntries !== null ? <EditSourceDialog key={metadataEntries.map((entry) => entry.entryId).join(",")} entries={metadataEntries}

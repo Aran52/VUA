@@ -148,11 +148,13 @@
 .vua-taskbar__task-title {
   font: var(--vua-font-body);
   color: var(--vua-text-strong);
+  overflow-wrap: anywhere;
 }
 
 .vua-taskbar__task-meta {
   display: flex;
   gap: var(--vua-space-3);
+  flex-wrap: wrap;
 }
 
 .vua-taskbar__task-status {
@@ -181,6 +183,36 @@
   display: flex;
   gap: var(--vua-space-2);
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.vua-notify-panel .vua-taskbar__task {
+  background: color-mix(in srgb, var(--vua-accent) 5%, var(--vua-bg-panel));
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  padding: var(--vua-space-3);
+  align-items: flex-start;
+}
+.vua-notify-panel .vua-taskbar__task-glyph {
+  display: grid; place-items: center;
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: var(--vua-radius-control);
+  background: color-mix(in srgb, var(--vua-accent) 12%, transparent);
+}
+.vua-notify-panel .vua-taskbar__task-actions { flex-direction: column; }
+.vua-taskbar__transfer { display: flex; justify-content: space-between; gap: var(--vua-space-2); flex-wrap: wrap; color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }
+.vua-taskbar__download-progress {
+  appearance: none; display: block; border: 0; width: 100%; height: 5px;
+  margin: var(--vua-space-1) 0; border-radius: 3px; overflow: hidden;
+  background: var(--vua-border); accent-color: var(--vua-accent);
+}
+.vua-taskbar__download-progress::-webkit-progress-bar { background: var(--vua-border); border-radius: 3px; }
+.vua-taskbar__download-progress::-webkit-progress-value { background: var(--vua-accent); border-radius: 3px; }
+.vua-taskbar__download-progress:indeterminate { background: repeating-linear-gradient(120deg, var(--vua-border) 0 12px, color-mix(in srgb, var(--vua-accent) 35%, var(--vua-border)) 12px 24px); }
+.vua-taskbar__download-progress:indeterminate::-webkit-progress-bar { background: repeating-linear-gradient(120deg, var(--vua-border) 0 12px, color-mix(in srgb, var(--vua-accent) 35%, var(--vua-border)) 12px 24px); }
+@media (max-width: 420px) {
+  .vua-notify-panel .vua-taskbar__task { flex-wrap: wrap; }
+  .vua-notify-panel .vua-taskbar__task-actions { flex-direction: row; margin-left: 42px; }
 }
 
 .vua-taskbar__devtools {

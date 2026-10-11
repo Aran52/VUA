@@ -15,6 +15,7 @@ export interface LibraryStorageFacts {
   readonly unexpandedArchives?: number;
 }
 export interface LibraryCardFacts {
+  readonly sourceCategory?: string | null;
   readonly storage: LibraryStorageFacts;
   readonly sources: readonly ("bought" | "gifts" | "free_downloads")[];
   readonly operation: { readonly taskId: string; readonly state: string; readonly inspectRequired: boolean } | null;
@@ -24,6 +25,7 @@ export interface LibraryCardFacts {
   readonly sourceMatch?: { readonly product: CatalogProductSummary; readonly basis: "mapping" | "product_id" | "name"; readonly content: "unverified" | "different" };
 }
 export interface LibraryPageView {
+  readonly sourceCategories?: readonly string[];
   readonly catalog: CatalogListView;
   readonly localEntries: readonly WarehouseEntry[];
   readonly facts: ReadonlyMap<string, LibraryCardFacts>;
@@ -50,7 +52,7 @@ export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrow
           const product = projectSummary(row.product);
           if (product === null) throw new Error("library_product_invalid");
           items.push(product);
-          facts.set(product.productId, { storage: row.storage, sources: row.sources, ...(row.copyIds === undefined ? {} : { copyIds: row.copyIds }), operation: row.operation === null ? null : {
+          facts.set(product.productId, { sourceCategory: row.sourceCategory ?? null, storage: row.storage, sources: row.sources, ...(row.copyIds === undefined ? {} : { copyIds: row.copyIds }), operation: row.operation === null ? null : {
             taskId: row.operation.taskId, state: row.operation.state, inspectRequired: row.operation.recoveryDisposition === "inspect_required",
           }, ...(row.localEntries === undefined ? {} : { localEntries: row.localEntries }) });
         } else {
@@ -58,7 +60,7 @@ export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrow
           if (entry === null) throw new Error("library_entry_invalid");
           const sourceProduct = row.sourceMatch === undefined ? undefined : projectSummary(row.sourceMatch.product);
           if (sourceProduct === null) throw new Error("library_source_invalid");
-          localEntries.push(entry); facts.set(entry.warehouseItemId, { storage: row.storage, sources: row.sourceMatch?.sources ?? [], operation: null,
+          localEntries.push(entry); facts.set(entry.warehouseItemId, { sourceCategory: row.sourceCategory ?? null, storage: row.storage, sources: row.sourceMatch?.sources ?? [], operation: null,
             ...(row.metadata === undefined ? {} : { metadata: row.metadata }),
             ...(row.copyIds === undefined ? {} : { copyIds: row.copyIds }),
             ...(row.sourceMatch === undefined || sourceProduct === undefined ? {} : { sourceMatch: { product: sourceProduct, basis: row.sourceMatch.basis, content: row.sourceMatch.content } }),
@@ -67,7 +69,7 @@ export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrow
       }
       return { catalog: { schemaVersion: 1, kind: "results", items, total: response.value.total,
         vocabulary: { availabilities: ["available", "unavailable", "unknown"], entityTypes: [], relationKinds: [] } },
-      localEntries, facts, total: response.value.total, offset: response.value.offset, limit: response.value.limit };
+      localEntries, facts, sourceCategories: response.value.sourceCategories ?? [], total: response.value.total, offset: response.value.offset, limit: response.value.limit };
     },
     async productFiles(productId) {
       const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "library.productFiles", params: { schemaVersion: "0.1", productId } });

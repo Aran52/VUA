@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.25.0
+> Document version: 1.26.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (controlled BOOTH session/login-close/sync, startup image loading and cache/module gates, library selection/context menus and detail rows, plus four-language/theme/zoom filters; real account/material, physical game/device and human-language review pending)
+> Updated: 2026-10-12
+> Last conformance review: 2026-10-12 (controlled bulk/category/notification interactions, scoped provider and recovery checks; real account/material/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -205,6 +205,19 @@ data root and enables bounded, allowlisted image caching; inactive AMF denies re
 previously cached images. Existing image addresses and disk-cache keys remain valid. Product
 detail enrichment attempts its optional page read once per opened product, ignores late replies
 after closure and preserves the synchronized image when description enrichment fails.
+
+The library reads original BOOTH categories through the unfrozen AMF library face, with provider
+filtering/facets before pagination. Multiselection captures the displayed product/entry copy scopes
+for preview and count-bearing removal confirmation; unknown local source identities do not gain
+BOOTH download access. Per-product removal receipts retain their request ID and preview on explicit
+retry; closing a dialog does not authorize additional files or restart interrupted operations.
+
+The live task adapter caches progress events for display only and re-reads task.list for authoritative
+states. Native transfers publish the frozen progress envelope with public filename/byte metadata,
+without local paths or URLs. Speed derives from observed byte/time deltas and expires when stale;
+unknown totals remain indeterminate. File storage counts come from AMF batch checkpoints, distinct
+from transport completion. Raw task diagnostics are reached from Settings → Experimental; Home no
+longer advertises the raw queue. Experimental demo and UI-variant controls are retired.
 
 The library's displayed cloud and local cards share page-scoped selection and context-menu
 shortcuts. Product adaptation opens the optional read-only dependency observation surface;
@@ -420,6 +433,8 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.26.0 (2026-10-12): add scoped bulk local-file actions, native category filtering and measured download notifications; move raw task diagnostics into Experimental and retire demo/variant panels.
+
 - 1.25.0 (2026-10-11): install the dormant image loader before renderer creation while retaining AMF cache gates, bound detail enrichment to one attempt, and connect mixed-card selection and discoverable product-clue dialogs.
 - 1.24.0 (2026-10-11): restore BOOTH account reads through tracked session redirects, refresh account status on login close, align library filters and add the bounded active-AMF folder action.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
@@ -429,6 +444,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.19.0 (2026-10-10): implement the approved small monochrome native splash, independent desktop-startup v0.1 face, Windows language selection and first-use welcome/tour handoff while preserving saved profiles.
 - 1.18.0 (2026-10-10): place each scenario/editor/manager's collapsible details directly beneath its own card, separate compact language and Search controls, migrate retired goal links to Help and retire big-screen layout/navigation/tray actions while retaining the legacy event shape.
 - 1.17.0 (2026-10-10): verify BOOTH account access before offering library sync with direct login/retry handoffs, discover Editors through the host and inspect fresh Unity 2022 entry before CLI acquisition, and replace the AMF Home Inspection card with Finished Avatars and Package Manager.
-- 1.16.0 (2026-10-10): unify collapsible scenario/tool/editor details, add native Help/chapter/wizard history and Avatar-editing AMF activation, and consolidate Settings language/version controls without changing vendor/device evidence.
 
 Earlier entries remain in Git history.

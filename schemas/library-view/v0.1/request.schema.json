@@ -65,6 +65,14 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 9007199254740991
+            },
+            "sourceCategory": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 200
             }
           }
         }

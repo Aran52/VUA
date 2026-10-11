@@ -6,7 +6,7 @@ import { isDesktopGatewayRequestV1, DESKTOP_GATEWAY_METHOD_KINDS } from "./deskt
 import { isLibraryListV01, isLibraryProductFilesV01, isLibraryViewParamsV01 } from "./library-view-v01.js";
 const vector = (name: string): Record<string, unknown> => JSON.parse(readFileSync(fileURLToPath(new URL(`../../../schemas/library-view/v0.1/examples/${name}.json`, import.meta.url)), "utf8")) as Record<string, unknown>;
 describe("library-view v0.1 consumers", () => {
-  for (const name of ["list.request", "files.request", "invalid-session.request", "invalid-limit.request"]) {
+  for (const name of ["list.request", "files.request", "category.request", "unknown-category.request", "invalid-category.request", "invalid-session.request", "invalid-limit.request"]) {
     it(name, () => {
       const request = vector(name); const valid = !name.startsWith("invalid");
       expect(isLibraryViewParamsV01(String(request.method), request.params)).toBe(valid);
@@ -17,6 +17,7 @@ describe("library-view v0.1 consumers", () => {
   }
   it("accepts actual multi-source and physical-copy evidence without paths", () => {
     expect(isLibraryListV01(vector("list.response"))).toBe(true);
+    expect(isLibraryListV01(vector("category.response"))).toBe(true);
     expect(isLibraryListV01(vector("local-source.response"))).toBe(true);
     expect(isLibraryProductFilesV01(vector("files.response"))).toBe(true);
     expect(isLibraryProductFilesV01(vector("invalid-path.response"))).toBe(false);
@@ -43,5 +44,17 @@ describe("library-view v0.1 consumers", () => {
     expect(isLibraryListV01(misleading)).toBe(false);
     const files = vector("files.response"); (files.items as Record<string, unknown>[])[0]!.managedCopyId = "cpy-not-listed";
     expect(isLibraryProductFilesV01(files)).toBe(false);
+  });
+  it("accepts native category facets and explicit unknown filters, rejecting guesses of other types", () => {
+    for (const sourceCategory of [null, "3D衣装", "カテゴリー名", "a".repeat(200)]) expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", sourceCategory })).toBe(true);
+    for (const sourceCategory of ["", 3, [], "a".repeat(201)]) expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", sourceCategory })).toBe(false);
+    const response = vector("list.response");
+    response.sourceCategories = ["3D衣装"];
+    (response.items as Record<string, unknown>[])[0]!.sourceCategory = "3D衣装";
+    expect(isLibraryListV01(response)).toBe(true);
+    response.sourceCategories = ["3D衣装", "3D衣装"];
+    expect(isLibraryListV01(response)).toBe(false);
+    response.sourceCategories = [3];
+    expect(isLibraryListV01(response)).toBe(false);
   });
 });

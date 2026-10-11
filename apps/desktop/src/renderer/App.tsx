@@ -33,19 +33,10 @@ import {
   type ThemePreference,
 } from "./app/theme-preference.ts";
 import {
-  isUiRootAvailable,
   readUiRootSelection,
-  writeUiRootSelection,
   type UiRootId,
 } from "./app/ui-registry.ts";
-import {
-  ForestAvailabilityBadge,
-  ForestVariantRoot,
-} from "./app/ForestVariantRoot.tsx";
-import {
-  forestVariantEntries,
-  resolveForestVariant,
-} from "./app/ui-variant-discovery.ts";
+import { ForestVariantRoot } from "./app/ForestVariantRoot.tsx";
 import { Button } from "./components/primitives/Button.tsx";
 import { BrandMark } from "./components/BrandMark.tsx";
 import { Card } from "./components/primitives/Card.tsx";
@@ -74,7 +65,6 @@ import {
   downloadDiagnostics,
 } from "./features/settings/diagnostics.ts";
 import { ExperimentalCommands } from "./features/settings/experimental-commands.tsx";
-import { DevModeSection } from "./features/settings/dev-mode-section.tsx";
 import { AccountSettingsPage } from "./features/settings/AccountSettingsPage.tsx";
 import { EnvironmentSettingsPage } from "./features/settings/environment-page.tsx";
 import { useAutoDeleteOriginals } from "./app/delete-originals-auto.ts";
@@ -195,69 +185,19 @@ function pageLabel(page: SidebarPage): string {
 
 function AmfExperimentalCommands() {
   const amf = useAmfModule();
-  return amf.state === "ready" ? <ExperimentalCommands /> : null;
+  return amf.state === "ready" ? <Card><ExperimentalCommands /></Card> : null;
 }
 
-function ExperimentalSettingsPage({
-  uiRoot,
-  onUiRootChange,
-}: {
-  uiRoot: UiRootId;
-  onUiRootChange: (root: UiRootId) => void;
-}) {
-  const forestAvailable = isUiRootAvailable(
-    "forest-green",
-    resolveForestVariant(forestVariantEntries).status === "present",
-  );
-  return (
-    <div className="vua-page">
-      <section className="vua-page__hero">
-        <h1 className="vua-title">{strings.nav.pages.settingsExperimental}</h1>
-      </section>
-      <Card>
-        <AmfExperimentalCommands />
-      </Card>
-      {/* 开发模式区(018 批 1,裁决 13 备稿授权):仅 DEV 构建渲染,
-          生产构建零存在(leak 指纹扩展覆盖 per-port 选择键) */}
-      {import.meta.env.DEV ? (
-        <>
-          <Card>
-            <DevModeSection />
-          </Card>
-          <Card>
-            <div className="vua-page__stack">
-              <h3 className="vua-warehouse-detail__section-title">
-                {strings.dev.uiSwitchTitle}
-              </h3>
-              <p className="vua-caption vua-text-secondary">{strings.dev.uiSwitchDesc}</p>
-              <ul className="vua-project-compat__specs">
-                <li>
-                  <Button
-                    variant={uiRoot === "current" ? "primary" : "default"}
-                    onClick={() => onUiRootChange("current")}
-                  >
-                    {strings.dev.uiCurrentLabel}
-                  </Button>
-                </li>
-                <li>
-                  <Button
-                    variant={uiRoot === "forest-green" ? "primary" : "default"}
-                    disabled={!forestAvailable}
-                    onClick={() => onUiRootChange("forest-green")}
-                  >
-                    {strings.dev.uiForestLabel}
-                  </Button>{' '}
-                  {!forestAvailable ? (
-                    <ForestAvailabilityBadge available={false} />
-                  ) : null}
-                </li>
-              </ul>
-            </div>
-          </Card>
-        </>
-      ) : null}
-    </div>
-  );
+function ExperimentalSettingsPage() {
+  const copy = strings.settings.experimental;
+  return <div className="vua-page">
+    <section className="vua-page__hero"><h1 className="vua-title">{strings.nav.pages.settingsExperimental}</h1></section>
+    <AmfExperimentalCommands />
+    <Card><div className="vua-page__stack">
+      <h3>{copy.taskDiagnosticsTitle}</h3><p className="vua-text-secondary">{copy.taskDiagnosticsDesc}</p>
+      <Button disabled={window.vua?.window === undefined} onClick={() => void window.vua?.window.showOverlay("status")} data-nav-id="experimental-task-diagnostics">{copy.taskDiagnosticsOpen}</Button>
+    </div></Card>
+  </div>;
 }
 
 function ThemeSettingsPage({
@@ -579,8 +519,6 @@ function renderPage(
   creatorReady: boolean,
   actions: PageActions,
   prefs: PagePrefs,
-  uiRoot: UiRootId,
-  onUiRootChange: (root: UiRootId) => void,
   amf: import("@vua/contracts").AmfModuleSnapshotV01,
   encyclopedia: { request: GuideRequest | null; acknowledge: (nonce: number) => void },
 ) {
@@ -610,10 +548,7 @@ function renderPage(
       return <ThemeSettingsPage {...prefs} />;
     case "settings-experimental":
       return (
-        <ExperimentalSettingsPage
-          uiRoot={uiRoot}
-          onUiRootChange={onUiRootChange}
-        />
+        <ExperimentalSettingsPage />
       );
     case "settings-about":
       return <AboutPage />;
@@ -633,8 +568,6 @@ function AppShell({
   onTourFinish,
   onOnboardingComplete,
   actions,
-  uiRoot,
-  onUiRootChange,
 }: {
   page: PageId;
   navigate: (target: PageId) => void;
@@ -645,9 +578,6 @@ function AppShell({
   onOnboardingComplete: (result: OnboardingResult) => void;
   /** 壳层注入的动作(openPalette/navigate 由 AppShell 内部补齐,见 pageActions) */
   actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour">;
-  /** 多套 UI 根(019 批 A):共享容器持有,切换不重建 Gateway */
-  uiRoot: UiRootId;
-  onUiRootChange: (root: UiRootId) => void;
 }) {
   // 008 路径 a 桌面接线(W19):删除偏好开启时,生成完成即逐条目发起独立删除任务
   const amf = useAmfModule();
@@ -1047,10 +977,10 @@ function AppShell({
         </aside>
         <main className="vua-shell__main">
           {contentPage !== null ? <div hidden={showOnboarding || settingsOpen} key={contentPage} className="vua-page-enter">
-            {renderPage(contentPage, creatorReady, pageActions, pagePrefs, uiRoot, onUiRootChange, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}
+            {renderPage(contentPage, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}
           </div> : null}
           {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={onOnboardingComplete} onAccounts={pageActions.openAccounts} /></div> : null}
-          {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, uiRoot, onUiRootChange, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}</div> : null}
+          {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}</div> : null}
         </main>
       </div>
       {/* 导航确认卡(015 §12,批 B-3):U9(1)/(3) 确认层的渲染层载体,全局一次挂载 */}
@@ -1203,8 +1133,6 @@ export function App() {
           onTourFinish={finishFirstTour}
           onOnboardingComplete={handleOnboardingComplete}
           actions={actions}
-          uiRoot={uiRoot}
-          onUiRootChange={setUiRoot}
         />
       )}
     </GatewayProvider>

@@ -211,6 +211,8 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: "catalog.list", params: request.params };
     case "catalog.librarySyncStatus":
       return { ...base, kind: "query", method: request.method, params: request.params };
+    case "catalog.searchProducts":
+      return { ...base, kind: "query", method: request.method, params: request.params };
     case "library.downloadStatus":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "library.list":

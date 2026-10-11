@@ -7,6 +7,7 @@ import path from "node:path";
 import os from "node:os";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const corners = process.argv.includes("--corners");
 let server, window;
 app.on("window-all-closed", () => {});
 async function main() {
@@ -14,13 +15,13 @@ async function main() {
     const output = await mkdtemp(path.join(os.tmpdir(), "vua-library-bulk-"));
     const profile = path.join(output, "isolated-profile"); await mkdir(profile); app.setPath("userData", profile);
     await app.whenReady();
-    server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()], server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
+    server = await createServer({ configFile: false, appType: "custom", root, cacheDir: path.join(output, "vite-cache"), plugins: [react()], server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
     server.middlewares.use(async (req, res, next) => {
       if (!req.url?.startsWith("/__library-bulk")) return next();
       const locale = new URL(req.url, "http://localhost").searchParams.get("locale") ?? "en";
       if (!["en", "zh-CN", "ja", "ko"].includes(locale)) return next();
       res.setHeader("Content-Type", "text/html");
-      res.end(await server.transformIndexHtml(req.url, `<html><body><div id="root"></div><script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script><script type="module" src="/scripts/fixtures/library-bulk.tsx"></script></body></html>`));
+      res.end(await server.transformIndexHtml(req.url, `<html><body><div id="root"></div><script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script><script type="module" src="/scripts/fixtures/${corners ? "library-corners" : "library-bulk"}.tsx"></script></body></html>`));
     });
     await server.listen();
     window = new BrowserWindow({ show: false, width: 1200, height: 900, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
@@ -35,7 +36,7 @@ async function main() {
       for (const theme of ["dark", "light"]) {
         await window.webContents.executeJavaScript(`document.documentElement.dataset.theme=${JSON.stringify(theme)}`);
         await window.webContents.capturePage({}, { stayHidden: true, stayAwake: true }); await new Promise(resolve => setTimeout(resolve, 350));
-        await writeFile(path.join(output, `notifications-${locale}-${theme}.png`), (await window.webContents.capturePage({}, { stayHidden: true, stayAwake: true })).toPNG());
+        await writeFile(path.join(output, `${corners ? "corners" : "notifications"}-${locale}-${theme}.png`), (await window.webContents.capturePage({}, { stayHidden: true, stayAwake: true })).toPNG());
       }
     }
     if (errors.length > 0) throw Error(errors.join("\n"));

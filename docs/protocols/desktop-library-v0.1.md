@@ -1,8 +1,8 @@
-# Desktop-library v0.1: open the active local material folder
+# Desktop-library v0.1: local library handoffs
 
-> Document version: 1.0.0
+> Document version: 1.1.0
 > Status: Candidate
-> Updated: 2026-10-11
+> Updated: 2026-10-12
 > Scope: Local Electron preload/Main action; no Provider or task-frame change
 
 For people: Asset library offers an explicit action to open its local material folder in
@@ -18,6 +18,7 @@ the [design standard](../design/design-standard.md#8-module-visual-language) own
 | Member | Input/output | Behavior |
 | --- | --- | --- |
 | `openFolder()` | No arguments → `Promise<{ opened: boolean }>` | Open the `warehouse` directory inside the active AMF data root through the system folder handler |
+| `openBoothProduct(productId)` | `booth:<digits>` → `Promise<{ opened: boolean }>` | Open the canonical `https://booth.pm/items/<digits>` page in the system browser |
 
 Preload invokes `vua:library:open-folder` with no payload. Main requires the local main window's
 own main frame and a ready AMF runtime. It resolves the root from the module registry, including
@@ -30,6 +31,11 @@ requests, and reports a failed handoff without displaying private system error t
 This explicit local action does not enumerate files, download or import materials, change
 module ownership, or expose credentials, file paths or an arbitrary process-launch command to
 Renderer. Remote pages have no preload and cannot access the face.
+
+The product action invokes `vua:library:open-booth-product`, with the same local main-frame and
+ready-AMF guards. Main constructs the fixed official URL; Renderer cannot supply an arbitrary
+URL, command or local path. Malformed IDs reject; system-browser failures return `opened: false`.
+The handoff does not transfer the embedded account session, download files or infer ownership.
 
 ## Compatibility and evidence
 
@@ -45,4 +51,5 @@ Raw screenshots and session artifacts remain local.
 
 ## Document changelog
 
+- 1.1.0 (2026-10-12): add the bounded canonical BOOTH product-page handoff for menus, details and source candidates.
 - 1.0.0 (2026-10-11): define the independent, main-frame-only local material-folder action with active AMF ownership and explicit handoff/failure results.

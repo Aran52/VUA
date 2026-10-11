@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { LibraryEntryMetadataV01 } from "@vua/contracts";
 import { catalogBrowser } from "../../app/catalog-browser-instance.ts";
 import { Badge } from "../../components/primitives/Badge.tsx";
@@ -84,6 +84,8 @@ export function ArtifactCard({
   onMenu,
   source,
   metadata,
+  corner,
+  badges,
 }: {
   card: AcquireArtifactCard;
   selected: boolean;
@@ -92,6 +94,8 @@ export function ArtifactCard({
   onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   source?: CatalogProductSummary | undefined;
   metadata?: LibraryEntryMetadataV01 | undefined;
+  corner?: ReactNode;
+  badges?: ReactNode;
 }) {
   const { entry, artifact } = card;
   const title = metadata?.displayName ?? source?.title ?? entry.displayName;
@@ -116,6 +120,7 @@ export function ArtifactCard({
       }}
     >
       <div className="vua-warehouse-card__media">
+        {corner}
         {image ? <img src={image} alt={title} loading="lazy" /> : <div className="vua-warehouse-card__no-image">
           <span className="vua-caption vua-text-secondary">{copy.previewEmpty}</span>
         </div>}
@@ -130,10 +135,11 @@ export function ArtifactCard({
           <span className="vua-caption vua-text-secondary">{copy.kind[entry.kind]}</span>
         </div>
         <div className="vua-warehouse-card__badges">
+          {badges}
           <Badge tone={stateTone(artifact.state)}>{copy.verdict[artifact.state]}</Badge>
           <Badge tone="neutral">{copy.role[artifact.role]}</Badge>
         </div>
-        <Button variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
+        <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
       </div>
     </article>
   );

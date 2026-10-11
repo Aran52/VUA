@@ -1,10 +1,10 @@
 # VUA product boundary
 
 
-> Document version: 2.25.0
+> Document version: 2.26.0
 > Status: Accepted
 > Scope: Entire VUA product
-> Updated: 2026-10-11
+> Updated: 2026-10-12
 > Normative effect: Yes
 
 ## Product definition
@@ -172,6 +172,15 @@ manual supplementation exposes only a display name and thumbnail. Keep the origi
 information and remember the user's association; supplementation establishes neither account
 entitlement nor production compatibility. Local import still does not require an ID. Third-party
 metadata search is deferred by the 2026-10-09 ruling.
+
+**Public BOOTH source lookup (user ruling, 2026-10-12).** A local entry may request a bounded
+keyword search of BOOTH's public products, independently of account membership. Send only the
+visible leaf name or a user-edited keyword; never upload files or local paths. A unique exact
+title on a complete result page may be associated automatically; ambiguous/incomplete results
+require candidate confirmation. Reuse the official product-page reader and local metadata write.
+This records a source statement, not ownership, equal content or production qualification, and
+does not create an account-library product. No site crawl or third-party search integration is
+added. The previous deferral remains for those other sources.
 
 **Migration reconciliation and N5 scope (user ruling, 2026-10-08).** Synchronizing the BOOTH
 library also attempts to match already imported local material, including a batch migrated from
@@ -629,6 +638,7 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.26.0 (2026-10-12): authorize bounded public BOOTH keyword lookup for local provenance independently of account membership; preserve content, ambiguity and entitlement boundaries.
 - 2.25.0 (2026-10-11): authorize current-state v0.6.6 Ibis ZIP publication before subsequent NSIS/runtime and AMF-update work, retaining continuing Beta and pending acceptance.
 - 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
 - 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
@@ -638,4 +648,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.20.0 (2026-10-10): bundle AMF with Ibis while requiring explicit first activation, retain saved choices and legacy data, and defer external Avatar-editing modules.
 - 2.19.0 (2026-10-09): accept VUA as a scenario host with optional AMF＋BDL, independent fresh startup/navigation and retained module data.
 - 2.18.0 (2026-10-09): integrate the author's Ibis newcomer core-journey criterion and current regional-Ping/website presentation with the N5 scope, retaining pending optional outcomes and retiring usage-region identification and accelerator recommendations.
-- 2.17.0 (2026-10-09): require managed ZIP extraction for local imports and BOOTH downloads while preserving original archives and separate production qualification.

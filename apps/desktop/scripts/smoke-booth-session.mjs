@@ -21,6 +21,8 @@ BrowserWindow.prototype.show=function(){}; BrowserWindow.prototype.focus=functio
 dialog.showErrorBox=()=>console.error("Desktop bootstrap failed (native dialog suppressed in this smoke)");
 const folderRequests=[];
 shell.openPath=async folder=>{folderRequests.push(folder);return "";};
+const sourceRequests=[];
+shell.openExternal=async url=>{sourceRequests.push(url);};
 const checks=[];
 const requests=[];
 let window, exitCode=1;
@@ -48,6 +50,9 @@ async function run(){try{
     // models its server session from this isolated jar; it is not a wire-cookie test.
     const authenticated=(await remote.cookies.get({url:request.url})).some(cookie=>cookie.name==="vua_test_session"&&cookie.value==="synthetic");
     requests.push({path:url.pathname,authenticated});
+    if(url.hostname==="booth.pm"&&url.pathname.startsWith("/ja/search/")) return new Response("<ul class='market-items'><li class='item-card' data-product-id='90999999' data-product-name='Synthetic public coat' data-product-category='3D衣装'></li></ul>",{headers:{"content-type":"text/html"}});
+    if(url.hostname==="booth.pm"&&url.pathname==="/zh-cn/items/9003")return Response.redirect("https://booth.pm/zh-cn/items/90999999",302);
+    if(url.hostname==="booth.pm"&&url.pathname==="/zh-cn/items/90999999")return new Response('<div id="items" data-product-id="90999999" data-product-name="Synthetic public coat" data-shop-tracking-product-category="3D衣装"><h2 class="item-name">Synthetic public coat</h2></div>',{headers:{"content-type":"text/html"}});
     if(url.hostname!=="accounts.booth.pm"){
       if(url.hostname==="booth.pm"&&url.pathname.includes("/items/"))productRequests++;
       return new Response("Synthetic unsupported origin",{status:404});
@@ -123,6 +128,13 @@ async function run(){try{
   shell.openPath=async()=>{throw new Error("Synthetic private system error");};
   assert((await js('window.vua.library.openFolder()')).opened===false,"Folder handler errors produce a bounded failure result without private error text");
   shell.openPath=openFolder;
+  assert((await js('window.vua.library.openBoothProduct("booth:90")')).opened===true&&sourceRequests.at(-1)==="https://booth.pm/items/90","Main derives a canonical BOOTH URL from the product ID");
+  assert(await js('window.vua.library.openBoothProduct("https://outside.example/").then(()=>false,()=>true)'),"Source handoff rejects arbitrary URLs");
+  const search=await js('window.vua.catalogSync.searchProducts("Synthetic public coat")');
+  assert(search.items[0]?.productId==="booth:90999999"&&!search.truncated,"Keyword-only IPC fetches public BOOTH candidates through the real AMF parser");
+  assert(!requests.at(-1)?.path.includes("/library"),"Public provenance search reads the public search page rather than the account library");
+  assert((await js('window.vua.catalogSync.fetchProduct("booth:9003")')).ok===false,"Product association refuses a redirect to a different BOOTH product");
+  assert((await js('window.vua.catalogSync.fetchProduct("booth:90999999")')).ok===true,"The official public candidate is read through the existing real AMF product reader");
   for(const locale of ["en","zh-CN","ja","ko"]){
     await js(`localStorage.setItem('vua-locale','${locale}');location.reload()`);
     await waitFor(()=>js(`document.documentElement.lang==='${locale}'&&!!document.querySelector('[data-nav-id=nav-warehouse]')&&!document.querySelector('.vua-boot-splash')`),locale);
@@ -158,6 +170,7 @@ async function run(){try{
   assert((await js('window.vua.remoteContent.authProbe()')).authOk===false,"Sign-out clears the same browser session used by account reads");
   await js('window.vua.amfModule.setEnabled(false)');
   assert(await js('window.vua.library.openFolder().then(()=>false,()=>true)'),"Disabled AMF denies the folder action");
+  assert(await js('window.vua.library.openBoothProduct("booth:90").then(()=>false,()=>true)'),"Disabled AMF denies the source handoff");
   assert((await net.fetch(cachedImage)).status===503,"The early-installed image loader denies reads after AMF is disabled");
   fs.writeFileSync(path.join(output,"checks.json"),JSON.stringify({scope:"Actual Electron/Main/preload/renderer/providers with synthetic BOOTH and stubbed Explorer; no real account/material acceptance",checks},null,2));
   console.log(JSON.stringify({passed:checks.length,output}));exitCode=0;clearTimeout(deadline);app.quit();

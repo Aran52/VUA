@@ -249,6 +249,7 @@ demoTaskTitle: "演示任务",
   /** 素材导入页(M6 IMP-2 批 A,proposal 015 对账):两段诚实呈现——云端
    *  (内嵌浏览,能力两态门控)与本地(W18 提交流原样迁移,零新增词表)。 */
   importPage: {
+    addFolders: "添加更多文件夹",
   vpmImportOption: "导入时制成 VPM 包（实验性）",
     title: '素材导入',
     subtitle: '云端下载与本地导入,同一条连续获取路径',
@@ -1375,6 +1376,30 @@ rolled_back: "已回滚",
   },
   /** Warehouse 目录浏览(G8):卡片墙、搜索筛选、详情抽屉与三态文案 */
   warehouse: {
+    corner: {
+      cloud: "账户云端库中的商品。点击下载到本地。",
+      local: "本地导入的素材。点击用名称在 BOOTH 查找商品。",
+      linked: "本地有文件，已关联 BOOTH 商品。",
+      downloading: "正在下载。点击暂停传输。",
+      paused: "已暂停。点击继续下载。",
+      searching: "正在 BOOTH 查找对应商品…",
+      uncertain: "未找到明确的对应商品。点击查看候选或重新搜索。",
+      error: "本地文件缺失或下载失败。",
+    },
+    sourceSearch: {
+      title: "查找 BOOTH 商品",
+      description: "在 BOOTH 的公开商品中查找“{name}”。关联只记录商品来源，不表示账号已拥有该商品。",
+      keyword: "搜索关键词",
+      search: "搜索 BOOTH",
+      truncated: "还有更多搜索结果，请缩小关键词范围后选择。",
+      empty: "没有找到对应商品，可以换个关键词试试。",
+      openBooth: "打开 BOOTH 页面",
+      openFailed: "未能打开 BOOTH 页面。",
+      confirm: "关联此商品",
+      failed: "暂时无法完成搜索，请重试，也可以在“编辑来源”中填写 BOOTH ID。",
+      saveFailed: "商品关联尚未确认，请重试或查看“编辑来源”。",
+      controlFailed: "下载控制尚未确认，请查看通知后重试。",
+    },
     importedBadge: "已入库",
     removeEntries: {
       "title": "移除导入记录",

@@ -1,11 +1,11 @@
-# VUA design standard v0.25.0
+# VUA design standard v0.26.0
 
 
-> Document version: 0.25.0
+> Document version: 0.26.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-12
-> Last conformance review: 2026-10-12 (four-language controlled category/bulk/removal/notification checks; author account/material/device and human-language review pending)
+> Last conformance review: 2026-10-12 (four-language controlled corners/source association/category/bulk/removal/notification and direct-intake checks; author account/material/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -439,6 +439,16 @@ changelog history already uses.
   opening it in that state explains and offers explicit enablement without sending a query.
   Clues remain optional, experimental and off by default. Known source links or dependency
   statements are evidence to inspect, never a guarantee of fit or production compatibility.
+  Card media's upper-left corner replaces cloud/local text badges: purple computer for local
+  import, green cloud for cloud-only content, orange computer for linked local files, red cross
+  for missing/failed content. Hover shows a short explanation; green cloud becomes a download
+  arrow. During actual transfer, click pauses; yellow pause continues the same transfer. Local
+  purple hover becomes a refresh arrow and requests public BOOTH keyword lookup. The arrow spins
+  only while searching. An uncertain result remains a yellow question until the next library
+  entry; a saved source association persists. Ambiguous candidates require confirmation.
+  Actions stop card selection/double-click; card context menus remain accessible on the corner.
+  The menu button sits at the card bottom regardless of title length. Known source menus/details
+  offer "Open BOOTH page". The old qualification explanation is absent from the detail.
   Layout (v0.6.2, ruling of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
   the close button occupies its own top row, with the full-width title beneath it, for both
@@ -450,16 +460,11 @@ changelog history already uses.
   server; per-entry mode editing and generate/delete entries inside the warehouse entry details
   mirror the entry facts and carry the experimental badge; "Delete originals after generation"
   is an unwired preference (proposal 008), permanently labeled unwired.
-- Material import is a content dialog inside the warehouse page (0.7.12, user
-  ruling 2026-09-20; dedicated import tab since v0.7.0, proposal 015
-  reconciliation accepted; IMP-1): the "one continuous acquisition path" keeps
-  its two sections — a cloud section (embedded browsing and catalog mode as
-  parallel discovery entries, plus a per-batch adopt-into-warehouse entry for
-  completed downloads) above a local section (system folder pick →
-  confirmation list → single command → task center), both landing in the same
-  warehouse entry model; what changes is the hosting: instead of a dedicated
-  "Import" page, a wide content dialog (internal scroll, Esc/backdrop close,
-  title bar + close button) opens from the warehouse page hero — closing the
+- Material import is a content dialog inside the warehouse page. The 2026-10-12 ruling labels
+  the entry "Local import" and opens the folder picker immediately, without a source-choice
+  or a second import button. Folder selection leads to the existing confirmation and command;
+  canceling the initial picker dismisses the import. Explicit legacy cloud/browser handoffs
+  retain their isolated lifecycle and do not appear as a choice in ordinary intake. Closing the
   dialog unmounts the component and closes any in-flight embedded view, so the
   "component is the view's only control surface" lifecycle semantics stay
   unchanged; the sidebar drops the warehouse/workshop/packages group labels,
@@ -856,6 +861,8 @@ direction.
 
 ## 12. Document changelog
 
+- 0.26.0 (2026-10-12): define triangular media corners and actual pause/source actions, card-bottom menus, canonical BOOTH links and direct local folder intake.
+- 0.25.0 (2026-10-12): add scoped bulk-file confirmation, recorded native categories and measured download notifications; place raw task diagnostics in Experimental and retire obsolete demo/variant panels.
 - 0.24.0 (2026-10-11): add displayed-page selection for cloud/local cards and menus, keep product adaptation discoverable behind explicit clue enablement, and give detail close/title controls separate rows; normalize retired body references.
 - 0.23.0 (2026-10-11): unify the library's search/source/download-state controls, retire the three legacy selectors and add an explicit local-material folder action with narrow-window scroll recovery.
 - 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
@@ -864,8 +871,6 @@ direction.
 - **0.19.0 (2026-10-11)**: restore Help's topbar parallelogram and define explicit approximate regional reference states without changing card height, history or independent website tests.
 - 0.18.0 (2026-10-10): define the fresh enabled AMF entry, resource-headroom/saturation presentation and 120° jurisdiction-logo replacement with flattened-motion fallbacks.
 - 0.17.0 (2026-10-10): accept the small monochrome ray/white-logo startup and first-use welcome/tour, preserving normal shell themes, matrix/glass and resource-saving preferences.
-- 0.16.0 (2026-10-10): anchor collapsible details beneath each individual card, separate translation/compact-language and Search rows, route retired goal links to Help and retire big-screen mode while preserving native control semantics and visual/resource preferences.
-- 0.15.0 (2026-10-10): replace the AMF Home Inspection card with Finished Avatars and Package Manager in both modes, retaining inspection reports and aligning the finished-output title across navigation.
 
 
 Earlier entries remain in Git history.

@@ -7,12 +7,15 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import os from "node:os";
+import { mkdtempSync } from "node:fs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const isolated = mkdtempSync(path.join(os.tmpdir(), "vua-import-profile-"));
+app.setPath("userData", isolated);
 let server, window;
 async function main() {
   try {
     await app.whenReady();
-    server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()],
+    server = await createServer({ configFile: false, appType: "custom", root, cacheDir: path.join(isolated, "vite-cache"), plugins: [react()],
       server: { host: "127.0.0.1", port: 0, strictPort: false },
       optimizeDeps: { include: ["react", "react-dom/client", "@vua/contracts"] } });
     server.middlewares.use(async (req, res, next) => {

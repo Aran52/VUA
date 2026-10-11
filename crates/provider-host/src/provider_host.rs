@@ -1762,6 +1762,7 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "library.observeDownload", "availability": if state.warehouse.is_some() && state.downloads.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.downloadStatus", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.list", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "catalog.searchProducts", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.importFolders", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.entryMetadata", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.updateEntryMetadata", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
@@ -5577,6 +5578,14 @@ fn catalog_request(
             catalog_ingest_library_page(state, warehouse, request, request_id, correlation_id)
         }
         "catalog.list" => catalog_list(warehouse, request, request_id, correlation_id),
+        "catalog.searchProducts" => FrameOutcome::Response(if request["kind"] != "query" {
+            application_error(request_id, correlation_id, "vua.catalog.invalid_params", "errors.catalog.invalidParams", "validation")
+        } else {
+            match vua_acquisition::booth_search::search(request["params"].clone()) {
+                Ok(value) => application_success(request_id, value),
+                Err(error) => application_error(request_id, correlation_id, &format!("vua.catalog.{}", error.0), "errors.catalog.unavailable", "validation"),
+            }
+        }),
         "catalog.detail" => catalog_detail(warehouse, request, request_id, correlation_id),
         "catalog.status" => catalog_status(warehouse, request, request_id, correlation_id),
         // bdl-queries v0.7(N5 静默下载):单商品已捕获文件清单,弹清单与

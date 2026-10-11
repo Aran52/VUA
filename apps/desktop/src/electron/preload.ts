@@ -85,6 +85,7 @@ const api: VuaDesktopApiV2 = Object.freeze({
   }),
   library: Object.freeze({
     openFolder: () => ipcRenderer.invoke("vua:library:open-folder"),
+    openBoothProduct: (productId: string) => ipcRenderer.invoke("vua:library:open-booth-product", productId),
   }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
@@ -292,10 +293,13 @@ const api: VuaDesktopApiV2 = Object.freeze({
     // 并以全量观察(变体/画廊/描述/品牌)更新该行;无网络外泄面
     fetchProduct: (productId: string) =>
       ipcRenderer.invoke("vua:catalog-sync:fetch-product", productId),
+    searchProducts: (query: string) => ipcRenderer.invoke("vua:catalog-sync:search-products", query),
   }),
   // 静默下载(N5,2026-10-05 用户裁决):文件 id 批入队即受理;进度与终态
   // 走下载任务面(通知中心),本面不返回过程
   silentDownload: Object.freeze({
+    control: (batchId: string, paused: boolean) => ipcRenderer.invoke("vua:silent-download:control", batchId, paused),
+    transfers: () => ipcRenderer.invoke("vua:silent-download:transfers"),
     start: (productId: string, downloadableIds: readonly number[], replacementTargets?: readonly { readonly downloadableId: number; readonly copyId: string }[]) =>
       ipcRenderer.invoke("vua:silent-download:start", productId, downloadableIds, replacementTargets),
   }),

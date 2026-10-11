@@ -384,6 +384,7 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
           false,
         ));
       case "catalog.ingestLibraryPage":
+      case "catalog.searchProducts":
         // 模拟 Provider 无 catalog-sync 投递域:诚实不可用(同 download.* 纪律,
         // 绝不伪造落账回执)
         return this.#failure(request, this.#error(

@@ -249,6 +249,7 @@ demoTaskTitle: "Demo task",
    *  two honest sections - cloud (embedded browse, capability-gated) and
    *  local (W18 submission flow migrated verbatim, zero new vocabulary). */
   importPage: {
+    addFolders: "Add more folders",
   vpmImportOption: "Convert to VPM packages on import (experimental)",
     title: "Import assets",
     subtitle: "Download assets or import files already on this PC.",
@@ -1387,6 +1388,30 @@ demoTaskTitle: "Demo task",
     },
   },
   warehouse: {
+    corner: {
+      cloud: "In your BOOTH library. Click to download.",
+      local: "Imported locally. Click to find this product on BOOTH.",
+      linked: "Local files with a BOOTH product association.",
+      downloading: "Downloading. Click to pause the transfer.",
+      paused: "Paused. Click to continue downloading.",
+      searching: "Searching BOOTH for this product…",
+      uncertain: "No clear match. Click to review candidates or search again.",
+      error: "Local files are missing or the download failed.",
+    },
+    sourceSearch: {
+      title: "Find BOOTH product",
+      description: "Search public BOOTH products for “{name}”. Associating a product records its source; it does not mean your account owns it.",
+      keyword: "Search keywords",
+      search: "Search BOOTH",
+      truncated: "More results are available. Narrow the keywords before choosing.",
+      empty: "No matching products found. Try different keywords.",
+      openBooth: "Open BOOTH page",
+      openFailed: "Could not open the BOOTH page.",
+      confirm: "Associate this product",
+      failed: "The search could not be completed. Retry or enter a BOOTH ID in Edit source.",
+      saveFailed: "The product association could not be confirmed. Retry or review Edit source.",
+      controlFailed: "The download control could not be confirmed. Check notifications and try again.",
+    },
     importedBadge: "Imported",
     removeEntries: {
       "title": "Remove imported entries",

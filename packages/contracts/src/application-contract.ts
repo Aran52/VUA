@@ -18,6 +18,7 @@ import { isLibraryMaintenanceParamsV01, type LibraryRemovalPreviewParamsV01, typ
 import type { LibraryPendingRemovalsParamsV01, LibraryPendingRemovalsV01, LibraryResolveRemovalParamsV01 } from "./library-maintenance-v01.js";
 import type { RecipeDraftSelectionStatusV01 } from "./recipe-selection-draft-v01.js";
 
+import { isBoothSearchParamsV01, type BoothSearchParamsV01, type BoothSearchResultV01 } from "./booth-search-v01.js";
 export const APPLICATION_CONTRACT_VERSION = "0.1" as const;
 
 export type ApplicationContractVersion = typeof APPLICATION_CONTRACT_VERSION;
@@ -1994,6 +1995,8 @@ export interface CatalogSyncStatusQueryV03 extends ApplicationRequestBaseV01 {
   readonly method: "catalog.librarySyncStatus";
   readonly params: CatalogSyncStatusV03;
 }
+// Public-search parsing is a separate, read-only face, with no account membership write.
+export interface BoothSearchQueryV01 extends ApplicationRequestBaseV01 { readonly kind: "query"; readonly method: "catalog.searchProducts"; readonly params: BoothSearchParamsV01 }
 export type LibraryDownloadCommandV01 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "library.beginDownload"; readonly params: LibraryDownloadBeginV01 }
   | { readonly method: "library.observeDownload"; readonly params: LibraryDownloadObservationV01 }
@@ -2857,6 +2860,7 @@ export type ApplicationRequestV01 =
   | CatalogIngestLibraryPageCommandV01
   | CatalogSyncControlCommandV03
   | CatalogSyncStatusQueryV03
+  | BoothSearchQueryV01
   | LibraryDownloadCommandV01
   | LibraryDownloadQueryV01
   | LibraryViewQueryV01
@@ -3024,6 +3028,7 @@ export type ApplicationSuccessValueV01 =
   | CatalogListResultV03
   | CatalogDetailResultV03
   | CatalogStatusResultV03
+  | BoothSearchResultV01
   | WarehouseListEntriesResultV03
   | WarehouseEntryDetailResultV03
   | DownloadsListCompletedResultV04
@@ -3734,6 +3739,10 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (value.method === "library.list" || value.method === "library.productFiles") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
       && isLibraryViewParamsV01(value.method, value.params);
+  }
+  if (value.method === "catalog.searchProducts") {
+    return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
+      && isBoothSearchParamsV01(value.params);
   }
   if (value.method === "library.beginDownload" || value.method === "library.observeDownload" || value.method === "library.downloadStatus") {
     const query = value.method === "library.downloadStatus";

@@ -1,9 +1,9 @@
 # VUA development sequence
 
-> Document version: 3.23.0
+> Document version: 3.24.0
 > Status: Accepted
-> Updated: 2026-10-11
-> Authority: User rulings of 2026-09-28 through 2026-10-11, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
+> Updated: 2026-10-12
+> Authority: User rulings of 2026-09-28 through 2026-10-12, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
 > Scope: N1-N7, real-machine deployment and real-material workflows, continuing Beta
 > Normative effect: Schedules accepted product work; product scope belongs to product-boundary.md
 
@@ -358,6 +358,12 @@ shortcuts; it does not add a third-party catalog/search adapter or substitute fo
 acquisition workflow below. The host Wiki stays independent of AMF. Browser UI implementation
 and public-page observations do not change the N5 acceptance outcome.
 
+The 2026-10-12 ruling adds bounded public BOOTH keyword lookup for local entries, separate
+from browser shortcuts and both account-acquisition workflows. Exercise matching, ambiguity,
+unavailable search, persisted association and no account-membership inference. Library corner
+controls reflect actual file/download facts, including native pause/resume; local import opens
+the folder picker directly. These refinements do not close real-material or human review outcomes.
+
 ### Mandatory first step: capability audit
 
 Before rework, inspect existing implementation, reachable UI/Gateway paths, tests, and local run
@@ -400,7 +406,7 @@ Do not assume an upstream API or scraping approach before capability investigati
 | Understand intake | Retain ordinary local files and their relative layout, including original ZIPs and companion files; automatically extract ZIPs from local imports and BOOTH downloads with member directories preserved. Distinguish archive storage from expansion success, duplicate, unsupported production input and failed items; partial success is visible. First production intake accepts UnityPackage only; companion-file editing is outside N5 |
 | Find material | Search by name and supported filters; sync attempts to reconcile migrated local entries with account products, merges only verified equal content, and keeps different or unverified content in separate cards even with identical names/images |
 | Maintain files | Show associated local files and missing status; restore missing BOOTH-managed files through explicit re-download and report unavailable upstream content; a dedicated relink feature is not required under the 2026-10-08 ruling |
-| Maintain provenance | Local use need not start with a BOOTH ID; reuse official metadata retrieval from a user-supplied ID/page, expose only name and thumbnail for manual supplementation, and retain source associations under the product boundary. Third-party search is deferred |
+| Maintain provenance | Local use need not start with a BOOTH ID; reuse official metadata retrieval from an ID/page or bounded public BOOTH keyword candidates, expose only name and thumbnail for manual supplementation, and retain source associations under the product boundary. Public discovery is independent of account entitlement; ambiguous/incomplete results require confirmation. Other third-party search is deferred |
 | Distinguish content | Same-name different-content material is distinguishable and never silently overwritten; Recipe/VPM revision selection and regeneration are deferred |
 | Manage relationships | Persist author-description link clues with their source evidence; gate dependency display/reverse lookup in settings and explain accuracy limits when enabled. Distinguish unconfirmed clues from confirmations and empty evidence from an absence of dependencies; exhaustive inference and missing-link corner cases are later work |
 | Remove/clean | Allow local-import record removal separately from file deletion, with reference effects explained; account-product hiding is later work |
@@ -519,6 +525,7 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.24.0 (2026-10-12): incorporate public BOOTH provenance lookup, fact-based corner controls and direct local intake into N5 without changing pending account/material and human acceptance.
 - 3.23.0 (2026-10-11): record current-state v0.6.6 Ibis ZIP publication before the NSIS/AMF-update slices without closing N1/N5 or their pending real-machine/human outcomes.
 - 3.22.0 (2026-10-11): add NSIS/mirrored-runtime distribution and independent incremental AMF update/recovery acceptance under the new user ruling; retain ZIP evidence and separate pending N-stage outcomes.
 - 3.21.1 (2026-10-11): clarify that public material-browser shortcuts and the host Wiki do not expand catalog/search integration or replace independent N5 acquisition acceptance; stage outcomes are unchanged.
@@ -528,4 +535,3 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.18.0 (2026-10-10): apply the seven-stage scenario-host/AMF/BDL sequence, expand N2 sources and selected tools, place N6 with each path and split N7 release scope; preserve N1/N5 evidence and pending formal acceptance.
 - 3.17.0 (2026-10-10): retain bundled AMF with explicit activation and defer external Avatar-editing modules beyond Ibis without changing existing gate outcomes.
 - 3.16.0 (2026-10-09): place host/AMF separation before scenario integrations, preserving N3–N5 as AMF acceptance and all existing gate outcomes.
-- 3.15.0 (2026-10-09): integrate Ibis publication and current network/guide acceptance with the reduced N5 scope, retaining real-run evidence and pending optional outcomes, background-only guide opacity and remembered relative placement.

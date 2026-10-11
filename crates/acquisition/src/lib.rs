@@ -10,6 +10,7 @@ pub mod artifact_inspection;
 pub mod catalog_sync;
 pub mod description_dependencies;
 pub mod library_page;
+pub mod booth_search;
 pub mod library_download;
 pub mod library_view;
 mod library_reconcile;

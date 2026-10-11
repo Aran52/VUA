@@ -31,6 +31,7 @@ import {
   type CatalogSyncRun,
 } from "./catalog-sync.js";
 import { probeBoothAuthentication } from "./booth-auth.js";
+import { searchPublicBoothProducts } from "./booth-search-port.js";
 import { deactivateImageCache, importLocalThumbnail, installImageCacheProtocol, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
 import { RemoteContentManager } from "./remote-content.js";
 import { createDesktopOrchestratorProvider, type DesktopProviderEndpoint } from "./provider-bootstrap.js";
@@ -731,6 +732,12 @@ function registerIpc(provider: ModuleProvider): void {
     try { return { opened: await shell.openPath(path.join(amfDataRoot(), "warehouse")) === "" }; }
     catch { return { opened: false }; }
   });
+  ipcMain.handle("vua:library:open-booth-product", async (event, productId: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    if (typeof productId !== "string" || !/^booth:[0-9]+$/.test(productId) || /\s/.test(productId)) throw new Error("invalid BOOTH product");
+    try { await shell.openExternal(`https://booth.pm/items/${productId.slice(6)}`); return { opened: true }; }
+    catch { return { opened: false }; }
+  });
   ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
     assertBrowserSender(event);
     const site = desktopBrowserSite(siteId);
@@ -997,8 +1004,11 @@ function registerIpc(provider: ModuleProvider): void {
       const providerRef = provider;
       if (providerRef === null) return { ok: false };
       try {
-        const outcome = await remoteContent.fetchWithSession(url);
-        if (outcome.status !== 200) return { ok: false };
+        const outcome = await remoteContent.fetchWithSession(url, AbortSignal.timeout(30_000));
+        const finalPage = new URL(outcome.finalUrl);
+        if (outcome.status !== 200 || finalPage.protocol !== "https:"
+          || !(finalPage.hostname === "booth.pm" || finalPage.hostname.endsWith(".booth.pm"))
+          || /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/([0-9]+)\/?$/i.exec(finalPage.pathname)?.[1] !== nativeId) return { ok: false };
         const result = await providerRef
           .invoke({
             contractVersion: APPLICATION_CONTRACT_VERSION,
@@ -1021,6 +1031,33 @@ function registerIpc(provider: ModuleProvider): void {
       }
     },
   );
+
+  let searchRunning = false;
+  let lastSearchAt = 0;
+  ipcMain.handle("vua:catalog-sync:search-products", async (event, query: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    const remote = remoteContent; const current = provider;
+    if (remote === null || current === null || searchRunning) throw new Error("search_unavailable");
+    searchRunning = true;
+    try {
+      const wait = 1500 - (Date.now() - lastSearchAt);
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      assertAmfReady(); lastSearchAt = Date.now();
+      return await searchPublicBoothProducts(query, {
+        fetch: url => remote.fetchWithSession(url, AbortSignal.timeout(30_000)),
+        parse: params => current.invoke({ contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: crypto.randomUUID(), kind: "query", method: "catalog.searchProducts", params }),
+      });
+    } finally { searchRunning = false; }
+  });
+  ipcMain.handle("vua:silent-download:control", (event, batchId: unknown, paused: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    if (typeof batchId !== "string" || !/^library-download-[A-Za-z0-9_.:-]{1,100}$/.test(batchId) || typeof paused !== "boolean") throw new Error("invalid_download_control");
+    return silentDownloadQueue?.setPaused(batchId, paused) ?? { ok: false, paused: false };
+  });
+  ipcMain.handle("vua:silent-download:transfers", event => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    return silentDownloadQueue?.transfers() ?? [];
+  });
 
   // 导航确认作答(015 §12):只受理本地来源;未知 confirmId/重复作答忽略
   // (渲染层不能伪造未发出的确认);作答后 pending 移除,确认 Promise 落定
@@ -1568,6 +1605,7 @@ async function ensureAmfShell(): Promise<void> {
     silentDownloadQueue = createSilentDownloadQueue({
       partitionSession: session.fromPartition("persist:vua-remote"),
       abandon: (downloadId) => downloadPort?.applyIntent(downloadId, "abandon"),
+      setPaused: (downloadId, paused) => downloadPort?.setPaused(downloadId, paused) === true,
       observe: async (params) => {
         if (provider === null) throw new Error("provider unavailable");
         const response = await provider.invoke({

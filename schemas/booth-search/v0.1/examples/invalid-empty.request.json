@@ -1,0 +1,5 @@
+{
+  "contractVersion": "0.1", "requestId": "synthetic-search", "correlationId": "synthetic-search",
+  "kind": "query", "method": "catalog.searchProducts",
+  "params": { "schemaVersion": "0.1", "query": "", "sourceUrl": "https://booth.pm/ja/search/", "html": "<div class='market-items'></div>" }
+}

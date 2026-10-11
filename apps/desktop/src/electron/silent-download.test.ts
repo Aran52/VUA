@@ -23,6 +23,31 @@ describe("silent library transport", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it("pauses bound transfers and holds later files without cancelling or restarting them", async () => {
+    let release!: () => void;
+    const setPaused = vi.fn().mockReturnValue(true);
+    const { queue, downloadURL, abandon } = setup({ setPaused, minIntervalMs: 6_000, sleep: () => new Promise(resolve => { release = resolve; }) });
+    queue.enqueue(batch()); queue.notifyTransport(event("download.started"));
+    expect(queue.setPaused(batch().batchId, true)).toEqual({ ok: true, paused: true });
+    expect(setPaused).toHaveBeenCalledWith("dl-synthetic-901", true);
+    release(); await vi.advanceTimersByTimeAsync(0);
+    expect(downloadURL).toHaveBeenCalledTimes(1);
+    expect(queue.transfers()).toEqual([{ batchId: batch().batchId, productId: "booth:90", paused: true }]);
+    expect(queue.setPaused(batch().batchId, false)).toEqual({ ok: true, paused: false });
+    release(); await vi.advanceTimersByTimeAsync(0);
+    expect(downloadURL).toHaveBeenCalledTimes(2);
+    expect(abandon).not.toHaveBeenCalled(); queue.dispose();
+  });
+  it("pauses an item arriving after the control receipt, but refuses unsupported live control", () => {
+    const setPaused = vi.fn().mockReturnValue(true);
+    const { queue } = setup({ setPaused }); queue.enqueue(batch([901]));
+    expect(queue.setPaused(batch().batchId, true).ok).toBe(true);
+    queue.notifyTransport(event("download.started")); expect(setPaused).toHaveBeenCalledWith("dl-synthetic-901", true);
+    setPaused.mockReturnValue(false);
+    expect(queue.setPaused(batch().batchId, false)).toEqual({ ok: false, paused: true });
+    queue.cancel(batch().batchId); expect(queue.setPaused(batch().batchId, false).ok).toBe(false); queue.dispose();
+  });
+
   it("keeps all selected files registered when the first completes during pacing", async () => {
     let release!: () => void;
     const { queue, downloadURL, observe } = setup({ minIntervalMs: 6_000, sleep: () => new Promise((resolve) => { release = resolve; }) });

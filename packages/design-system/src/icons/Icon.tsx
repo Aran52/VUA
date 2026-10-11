@@ -22,6 +22,8 @@ export type IconName =
   | "pin"
   | "chevron-down"
   | "cloud"
+  | "computer"
+  | "pause"
   | "folder"
   | "avatar"
   | "outfit"
@@ -53,6 +55,8 @@ const paths: Record<IconName, string> = {
   pin: "M15.5 3.5l5 5-2.5 1L13.5 14l-1 4-3-3-5 5-1-1 5-5-3-3 4-1 4.5-4.5 1-2.5z",
   "chevron-down": "M6 9.5l6 6 6-6",
   cloud: "M7 18.5a4.5 4.5 0 1 1 .42-8.98 5.5 5.5 0 0 1 10.66 1.6A3.75 3.75 0 0 1 17.5 18.5Z",
+  computer: "M3 4h18v13H3ZM12 17v4M8 21h8",
+  pause: "M8 5v14M16 5v14",
   folder: "M3.5 7a2 2 0 0 1 2-2h3.6l2 2.2h7.4a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z",
   // S-X-3 径向图谱角色图标(Fluent 风格描边)
   avatar: "M12 11.5a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5ZM4.75 20c.6-3.8 3.7-6 7.25-6s6.65 2.2 7.25 6",

@@ -239,6 +239,7 @@ demoTaskTitle: "데모 작업",
    *  정직한 섹션 — 클라우드(내장 브라우징, 능력 이중 상태 게이트)와
    *  로컬(W18 제출 흐름 그대로 이전, 어휘 추가 없음). */
   importPage: {
+    addFolders: "폴더 더 추가",
   vpmImportOption: "가져올 때 VPM 패키지로 변환(실험적)",
     title: "에셋 가져오기",
     subtitle: "에셋을 다운로드하거나 PC에 있는 파일을 가져오세요.",
@@ -1343,6 +1344,30 @@ rolled_back: "롤백됨",
     },
   },
   warehouse: {
+    corner: {
+      cloud: "BOOTH 계정 라이브러리의 상품입니다. 클릭하면 다운로드합니다.",
+      local: "로컬에서 가져온 소재입니다. 클릭하면 BOOTH에서 상품을 찾습니다.",
+      linked: "로컬 파일이 있으며 BOOTH 상품과 연결되어 있습니다.",
+      downloading: "다운로드 중입니다. 클릭하면 전송을 일시 정지합니다.",
+      paused: "일시 정지되었습니다. 클릭하면 다운로드를 계속합니다.",
+      searching: "BOOTH에서 해당 상품을 찾는 중…",
+      uncertain: "확실한 상품을 찾지 못했습니다. 클릭하여 후보를 보거나 다시 검색하세요.",
+      error: "로컬 파일이 없거나 다운로드에 실패했습니다.",
+    },
+    sourceSearch: {
+      title: "BOOTH 상품 찾기",
+      description: "BOOTH 공개 상품에서 “{name}”을 검색합니다. 상품 연결은 출처를 기록하며 계정의 상품 소유를 뜻하지 않습니다.",
+      keyword: "검색어",
+      search: "BOOTH 검색",
+      truncated: "검색 결과가 더 있습니다. 검색어를 좁힌 후 선택하세요.",
+      empty: "해당 상품을 찾지 못했습니다. 다른 검색어를 사용해 보세요.",
+      openBooth: "BOOTH 상품 페이지 열기",
+      openFailed: "BOOTH 상품 페이지를 열지 못했습니다.",
+      confirm: "이 상품 연결",
+      failed: "검색을 완료하지 못했습니다. 다시 시도하거나 ‘출처 편집’에서 BOOTH ID를 입력하세요.",
+      saveFailed: "상품 연결을 확인하지 못했습니다. 다시 시도하거나 ‘출처 편집’을 확인하세요.",
+      controlFailed: "다운로드 제어를 확인하지 못했습니다. 알림을 확인한 후 다시 시도하세요.",
+    },
     importedBadge: "가져옴",
     removeEntries: {
       "title": "가져오기 기록 제거",

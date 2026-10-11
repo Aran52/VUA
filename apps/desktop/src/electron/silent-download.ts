@@ -8,6 +8,7 @@ export interface SilentDownloadQueueOptions {
   readonly partitionSession: Pick<Session, "downloadURL">;
   readonly observe: (observation: LibraryDownloadObservationV01) => Promise<void>;
   readonly abandon: (downloadId: string) => void;
+  readonly setPaused?: (downloadId: string, paused: boolean) => boolean;
   readonly minIntervalMs?: number;
   readonly initiationTimeoutMs?: number;
   readonly log?: (line: string) => void;
@@ -24,6 +25,8 @@ export interface SilentDownloadQueue {
   notifyPersisted(event: DownloadEventV01): void;
   notifyUnconfirmed(event: DownloadEventV01): void;
   cancel(batchId: string): void;
+  setPaused(batchId: string, paused: boolean): { readonly ok: boolean; readonly paused: boolean };
+  transfers(): readonly { readonly batchId: string; readonly productId: string; readonly paused: boolean }[];
   dispose(): void;
 }
 
@@ -38,10 +41,12 @@ export function createSilentDownloadQueue(options: SilentDownloadQueueOptions): 
   interface Entry {
     readonly batchId: string; readonly downloadableId: number;
     initiated: boolean; settled: boolean; downloadId: string | null;
+    nativeTerminal: boolean;
     cancellationRequested: boolean; timer: ReturnType<typeof setTimeout> | null;
   }
   const entries: Entry[] = [];
   const batches = new Map<string, readonly Entry[]>();
+  const controls = new Map<string, { productId: string; paused: boolean }>();
   const inFlight = new Map<string, Entry>();
   const reports: LibraryDownloadObservationV01[] = [];
   let disposed = false; let draining = false; let reporting = false;
@@ -67,7 +72,7 @@ export function createSilentDownloadQueue(options: SilentDownloadQueueOptions): 
         }
       }
       for (const [batchId, group] of batches) {
-        if (group.every((entry) => entry.settled) && !reports.some((report) => report.batchId === batchId)) batches.delete(batchId);
+        if (group.every((entry) => entry.settled) && !reports.some((report) => report.batchId === batchId)) { batches.delete(batchId); controls.delete(batchId); }
       }
     } finally { reporting = false; }
   };
@@ -99,13 +104,16 @@ export function createSilentDownloadQueue(options: SilentDownloadQueueOptions): 
     draining = true;
     try {
       while (entries.length > 0 && !disposed) {
-        const entry = entries.shift()!;
+        const index = entries.findIndex(entry => !entry.settled && !controls.get(entry.batchId)?.paused);
+        if (index < 0) break;
+        const entry = entries.splice(index, 1)[0]!;
         if (entry.settled) continue;
         if (lastInitiatedAt !== null) {
           const wait = minIntervalMs - (now() - lastInitiatedAt);
           if (wait > 0) await sleep(wait);
         }
         if (disposed || entry.settled) continue;
+        if (controls.get(entry.batchId)?.paused) { entries.unshift(entry); continue; }
         const url = urlOf(entry);
         // Server admission prevents concurrent acquisition of the same file;
         // refuse local collisions too, rather than overwriting correlation.
@@ -124,8 +132,8 @@ export function createSilentDownloadQueue(options: SilentDownloadQueueOptions): 
         || new Set(batch.downloadableIds).size !== batch.downloadableIds.length
         || batch.downloadableIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) return 0;
       // Register ALL selected files before the first downloadURL call.
-      const group = batch.downloadableIds.map((downloadableId): Entry => ({ batchId: batch.batchId, downloadableId, initiated: false, settled: false, downloadId: null, cancellationRequested: false, timer: null }));
-      batches.set(batch.batchId, group); entries.push(...group); void drain(); return group.length;
+      const group = batch.downloadableIds.map((downloadableId): Entry => ({ batchId: batch.batchId, downloadableId, initiated: false, settled: false, nativeTerminal: false, downloadId: null, cancellationRequested: false, timer: null }));
+      batches.set(batch.batchId, group); controls.set(batch.batchId, { productId: batch.productId, paused: false }); entries.push(...group); void drain(); return group.length;
     },
     pending: () => entries.filter((entry) => !entry.settled).length,
     isAwaitingNative(originalUrl) {
@@ -136,8 +144,14 @@ export function createSilentDownloadQueue(options: SilentDownloadQueueOptions): 
     notifyTransport(event) {
       const entry = matching(event); if (entry === undefined) return;
       if (event.kind === "download.started" || terminal(event)) {
+        entry.nativeTerminal = terminal(event);
         clearTimer(entry); entry.downloadId = event.downloadId;
         if (entry.cancellationRequested && !terminal(event)) options.abandon(event.downloadId);
+        else if (!terminal(event) && controls.get(entry.batchId)?.paused && options.setPaused?.(event.downloadId, true) !== true) {
+          controls.get(entry.batchId)!.paused = false;
+          for (const bound of batches.get(entry.batchId) ?? []) if (!bound.nativeTerminal && bound.downloadId !== null) options.setPaused?.(bound.downloadId, false);
+          void drain();
+        }
       }
     },
     notifyPersisted(event) {
@@ -156,11 +170,31 @@ export function createSilentDownloadQueue(options: SilentDownloadQueueOptions): 
         else if (entry.downloadId !== null) options.abandon(entry.downloadId);
       }
     },
+    setPaused(batchId, paused) {
+      const control = controls.get(batchId);
+      const group = batches.get(batchId);
+      if (disposed || control === undefined || group === undefined || !group.some(e => !e.settled && !e.cancellationRequested)) return { ok: false, paused: false };
+      const previous = control.paused;
+      control.paused = paused;
+      const applied: string[] = [];
+      for (const entry of group) {
+        if (entry.settled || entry.nativeTerminal || entry.cancellationRequested || entry.downloadId === null) continue;
+        if (options.setPaused?.(entry.downloadId, paused) !== true) {
+          for (const id of applied) options.setPaused?.(id, previous);
+          control.paused = previous;
+          return { ok: false, paused: previous };
+        }
+        applied.push(entry.downloadId);
+      }
+      if (!paused) void drain();
+      return { ok: true, paused };
+    },
+    transfers: () => [...controls].filter(([id]) => batches.get(id)?.some(e => !e.settled && !e.cancellationRequested)).map(([batchId, control]) => ({ batchId, ...control })),
     dispose() {
       disposed = true;
       if (retryTimer !== null) clearTimeout(retryTimer);
       for (const group of batches.values()) for (const entry of group) clearTimer(entry);
-      entries.length = 0; reports.length = 0; batches.clear(); inFlight.clear();
+      entries.length = 0; reports.length = 0; batches.clear(); controls.clear(); inFlight.clear();
     },
   };
 }

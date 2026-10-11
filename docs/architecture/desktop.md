@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.26.0
+> Document version: 1.27.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-12
-> Last conformance review: 2026-10-12 (controlled bulk/category/notification interactions, scoped provider and recovery checks; real account/material/device and human-language review pending)
+> Last conformance review: 2026-10-12 (controlled library corners, public search, native pause and intake checks; real account/material/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -205,12 +205,31 @@ data root and enables bounded, allowlisted image caching; inactive AMF denies re
 previously cached images. Existing image addresses and disk-cache keys remain valid. Product
 detail enrichment attempts its optional page read once per opened product, ignores late replies
 after closure and preserves the synchronized image when description enrichment fails.
+Missing categories also trigger this read when description/variations are already present;
+successful completion refreshes the joined library and category facets, not only the detail.
+Account-library HTML does not supply native categories. Unvisited product records may remain
+uncategorized; the UI must not infer category from names or report a complete backfill.
 
 The library reads original BOOTH categories through the unfrozen AMF library face, with provider
 filtering/facets before pagination. Multiselection captures the displayed product/entry copy scopes
 for preview and count-bearing removal confirmation; unknown local source identities do not gain
 BOOTH download access. Per-product removal receipts retain their request ID and preview on explicit
 retry; closing a dialog does not authorize additional files or restart interrupted operations.
+
+Card media carries a triangular corner with file/source/transfer facts. Menus and details open
+canonical BOOTH product pages; menu buttons align to the card bottom. Local intake opens the
+folder picker directly, retaining confirmation and cancellation. The bounded public lookup
+face is [booth-search v0.1](../protocols/booth-search-v0.1.md): Main owns keyword-only IPC,
+partition transport, pacing and size/time bounds; acquisition parses closed candidates.
+Renderer saves observed sources through entry-metadata commands. No account membership or
+content fingerprint is minted by searching or confirming a product.
+
+Native `silentDownload.control(batchId, paused)` and `transfers()` expose current in-process
+batch identities and manual pause facts. Pausing holds queued files and calls DownloadItem.pause
+for bound active items; continuing resumes the same attempts/partial files. Failed native
+control reports failure instead of fabricated pause. User pause takes priority over automatic
+task resume. Frozen download/task vocabularies are unchanged; pause is not cancellation,
+restart persistence or authorization for additional files.
 
 The live task adapter caches progress events for display only and re-reads task.list for authoritative
 states. Native transfers publish the frozen progress envelope with public filename/byte metadata,
@@ -433,6 +452,7 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.27.0 (2026-10-12): add public source discovery, fact-based library corners, native pause/resume, direct folder intake and category-enrichment refresh.
 - 1.26.0 (2026-10-12): add scoped bulk local-file actions, native category filtering and measured download notifications; move raw task diagnostics into Experimental and retire demo/variant panels.
 
 - 1.25.0 (2026-10-11): install the dormant image loader before renderer creation while retaining AMF cache gates, bound detail enrichment to one attempt, and connect mixed-card selection and discoverable product-clue dialogs.
@@ -443,6 +463,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.20.0 (2026-10-10): enable AMF for fresh profiles, add qualified CPU/GPU/RAM/VRAM headroom through desktop resource v0.2, and apply a reduced-motion-aware 120° Home-logo colour wipe.
 - 1.19.0 (2026-10-10): implement the approved small monochrome native splash, independent desktop-startup v0.1 face, Windows language selection and first-use welcome/tour handoff while preserving saved profiles.
 - 1.18.0 (2026-10-10): place each scenario/editor/manager's collapsible details directly beneath its own card, separate compact language and Search controls, migrate retired goal links to Help and retire big-screen layout/navigation/tray actions while retaining the legacy event shape.
-- 1.17.0 (2026-10-10): verify BOOTH account access before offering library sync with direct login/retry handoffs, discover Editors through the host and inspect fresh Unity 2022 entry before CLI acquisition, and replace the AMF Home Inspection card with Finished Avatars and Package Manager.
 
 Earlier entries remain in Git history.

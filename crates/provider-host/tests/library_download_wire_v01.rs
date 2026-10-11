@@ -22,6 +22,28 @@ fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
 }
 
 #[test]
+fn public_booth_search_vectors_cross_the_wire_without_mutating_the_account_library() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/booth-search/v0.1");
+    let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(root.join(name)).unwrap()).unwrap() };
+    let request_schema = jsonschema::validator_for(&read("request.schema.json")).unwrap();
+    let response_schema = jsonschema::validator_for(&read("response.schema.json")).unwrap();
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let before = host.call("library.list", json!({"schemaVersion":"0.1"}));
+    for name in ["public", "invalid-source", "invalid-empty"] {
+        let request = read(&format!("examples/{name}.request.json"));
+        let valid = name == "public";
+        assert_eq!(request_schema.is_valid(&request), valid, "{name}");
+        let response = host.call("catalog.searchProducts", request["params"].clone());
+        assert_eq!(response["ok"], valid, "{response}");
+        if valid { assert!(response_schema.is_valid(&response["value"])); assert_eq!(response["value"], read("examples/public.response.json")); }
+    }
+    let mut mismatch = read("examples/public.request.json")["params"].clone();
+    mismatch["query"] = json!("Different");
+    assert_eq!(host.call("catalog.searchProducts", mismatch)["ok"], false);
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1"}))["value"], before["value"]);
+}
+
+#[test]
 fn library_intake_wire_keeps_files_expands_zip_and_replays_without_duplicate_entries() {
     let world = World::new();
     let source = world.base.join("migrated-source");
@@ -122,6 +144,29 @@ fn interrupted_removal_wire_discovers_and_resolves_without_deleting_the_file() {
     assert!(host.call("library.pendingRemovals", json!({"schemaVersion":"0.1","target":target}))["value"]["items"].as_array().unwrap().is_empty());
     assert_eq!(host.batch("unblocked", &[901])["ok"], true);
     assert_eq!(host.call("library.observeDownload", json!({"schemaVersion":"0.1","batchId":"library-download-unblocked","downloadableId":901,"outcome":"initiation_failed"}))["ok"], true);
+}
+
+#[test]
+fn public_provenance_association_persists_without_account_membership_or_extra_cloud_card() {
+    let world = World::new();
+    let html = "<ul><li class='item-card' data-product-id='99' data-product-name='Public synthetic product'><h2 class='item-card__title'>Public synthetic product</h2></li></ul>";
+    let page = vua_acquisition::extract_library_page(html).unwrap();
+    world.bdl.record_product_observation(&vua_acquisition::library_item_to_observation(
+        &page.items[0], &format!("sha256:{}", "1".repeat(64)), "t", None, None,
+    )).unwrap();
+    let entry = world.bdl.create_warehouse_item("Local folder", "imported_material", "t").unwrap();
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    let result = host.call_command("library.updateEntryMetadata", json!({"schemaVersion":"0.1","entryId":entry.warehouse_item_id,"expectedRevision":0,"displayName":"Local folder","productId":"booth:99","thumbnailRef":null}), Some("public-source-only"));
+    assert_eq!(result["ok"], true, "{result}");
+    assert!(world.bdl.product_library_memberships("booth:99").unwrap().is_empty());
+    let view = host.call("library.list", json!({"schemaVersion":"0.1"}));
+    let rows = view["value"]["items"].as_array().unwrap();
+    let local = rows.iter().find(|row| row["entry"]["warehouseItemId"] == entry.warehouse_item_id).unwrap();
+    assert_eq!(local["sourceMatch"]["basis"], "mapping"); assert_eq!(local["sourceMatch"]["sources"], json!([]));
+    assert!(!rows.iter().any(|row| row["kind"] == "product" && row["product"]["productId"] == "booth:99"));
+    drop(host);
+    let reopened = BdlStore::open(world.base.join("bdl.db")).unwrap();
+    assert_eq!(reopened.library_entry_metadata(&entry.warehouse_item_id).unwrap().product_id.as_deref(), Some("booth:99"));
 }
 
 #[test]
@@ -261,6 +306,7 @@ impl Host {
         let query = matches!(
             method,
             "library.downloadStatus"
+                | "catalog.searchProducts"
                 | "library.entryMetadata"
                 | "library.list"
                 | "library.productFiles"

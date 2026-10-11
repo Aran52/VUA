@@ -88,6 +88,7 @@ function createEmptyWarehouseCommands(): WarehouseCommandsPort {
     deleteOriginalsByProduct: () => Promise.resolve(unavailableOutcome),
     setGlobalDefaultMode: () => Promise.resolve(unavailableOutcome),
     importFolders: () => Promise.resolve(unavailableOutcome),
+    importPaths: () => Promise.resolve(unavailableOutcome),
     importDownloads: () => Promise.resolve(unavailableOutcome),
     capability: () => Promise.resolve(unavailable),
   };

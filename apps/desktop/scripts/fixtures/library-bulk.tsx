@@ -143,6 +143,7 @@ async function run() {
   await pause();
   check(document.querySelectorAll("progress").length === 2 && document.querySelectorAll("progress:indeterminate").length === 1, "known size renders measured progress; unknown size remains indeterminate");
   check(text().includes("MiB/s") && text().includes(strings.taskCenter.speedUnavailable), "notification rows show transfer speed and an honest measuring state");
+  check([...document.querySelectorAll(".vua-taskbar__task")].every(row => getComputedStyle(row).backgroundColor === "rgba(0, 0, 0, 0)"), "download notifications have transparent row backgrounds");
   return [...checks];
 }
 (window as any).libraryBulkReview = { run, showLibrary };

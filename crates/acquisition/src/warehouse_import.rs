@@ -153,14 +153,27 @@ impl<'a> WarehouseImporter<'a> {
     /// acceptable file in at its relative path, inspect the copies, and
     /// record the physical copy rows. Originals stay untouched.
     pub fn import_folder(&self, source_folder: &Path) -> Result<WarehouseImportReport, ImportError> {
-        self.import_folder_inner(source_folder, false, &|| false, &|_, _| {})
+        self.import_folder_inner(source_folder, false, false, &|| false, &|_, _| {})
     }
 
     pub fn import_folder_all(&self, source_folder: &Path, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
-        self.import_folder_inner(source_folder, true, cancelled, progress)
+        self.import_folder_inner(source_folder, true, false, cancelled, progress)
     }
 
-    fn import_folder_inner(&self, source_folder: &Path, retain_all: bool, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+    /// A file makes one entry containing that file only; a folder keeps its tree.
+    pub fn import_path_all(&self, source: &Path, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+        self.import_folder_inner(source, true, true, cancelled, progress)
+    }
+
+    fn import_folder_inner(&self, source_folder: &Path, retain_all: bool, allow_file: bool, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+        if cancelled() { return Err(ImportError::Cancelled); }
+        let source_is_file = if allow_file {
+            let metadata = std::fs::symlink_metadata(source_folder)?;
+            if crate::zip_intake::is_reparse(&metadata) || (!metadata.is_file() && !metadata.is_dir()) {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "intake requires an ordinary file or folder").into());
+            }
+            metadata.is_file()
+        } else { false };
         let display_name = source_folder
             .file_name()
             .and_then(|name| name.to_str())
@@ -169,7 +182,7 @@ impl<'a> WarehouseImporter<'a> {
         let canonical_source = std::fs::canonicalize(source_folder)?;
         std::fs::create_dir_all(&self.warehouse_root)?;
         let canonical_root = std::fs::canonicalize(&self.warehouse_root)?;
-        if canonical_source.starts_with(&canonical_root) {
+        if canonical_source.starts_with(&canonical_root) || (allow_file && !source_is_file && canonical_root.starts_with(&canonical_source)) {
             return Err(ImportError::SourceInsideWarehouse(source_folder.to_path_buf()));
         }
 
@@ -182,7 +195,11 @@ impl<'a> WarehouseImporter<'a> {
 
         let mut sources = Vec::new();
         let mut skipped = Vec::new();
-        collect_files(source_folder, source_folder, &mut sources, &mut skipped, cancelled)?;
+        if source_is_file {
+            sources.push((display_name, source_folder.to_path_buf()));
+        } else {
+            collect_files(source_folder, source_folder, &mut sources, &mut skipped, cancelled)?;
+        }
         sources.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut imported = Vec::new();
@@ -424,12 +441,12 @@ pub fn warehouse_import_job(
     spec: WarehouseImportTaskSpec,
     auto_generate: Option<AutoGenerateSpec>,
 ) -> TaskJob {
-    import_job(runtime, store, clock, spec, auto_generate, false)
+    import_job(runtime, store, clock, spec, auto_generate, false, false)
 }
 
 fn import_job(
     runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
-    spec: WarehouseImportTaskSpec, auto_generate: Option<AutoGenerateSpec>, retain_all: bool,
+    spec: WarehouseImportTaskSpec, auto_generate: Option<AutoGenerateSpec>, retain_all: bool, allow_files: bool,
 ) -> TaskJob {
     Box::new(move |ctx| {
         let mut reports = Vec::new();
@@ -443,7 +460,9 @@ fn import_job(
                 return Ok(TaskExit::Cancelled);
             }
             let importer = WarehouseImporter::new(&store, &*clock, spec.warehouse_root.clone());
-            let result = if retain_all {
+            let result = if allow_files {
+                importer.import_path_all(folder, &|| ctx.check_cancel(), &|files, bytes| ctx.emit_progress(serde_json::json!({"operation":"library.importPaths","files":files,"bytes":bytes})))
+            } else if retain_all {
                 importer.import_folder_all(folder, &|| ctx.check_cancel(), &|files, bytes| ctx.emit_progress(serde_json::json!({"operation":"library.importFolders","files":files,"bytes":bytes})))
             } else { importer.import_folder(folder) };
             match result {
@@ -546,8 +565,19 @@ pub fn submit_library_import(
 ) -> Result<vua_orchestrator::CommandAcceptedV1, vua_orchestrator::AppErrorV1> {
     let fingerprint = serde_json::json!({"sourceFolders":spec.source_folders,"autoGenerate":auto_generate.is_some()}).to_string();
     let correlation_id = spec.correlation_id.clone();
-    let job = import_job(runtime.clone(), store, clock, spec, auto_generate, true);
+    let job = import_job(runtime.clone(), store, clock, spec, auto_generate, true, false);
     runtime.submit_idempotent(SubmitRequest { correlation_id: Some(correlation_id), timeout: None, job }, "library.importFolders", command_id, &fingerprint)
+}
+
+/// Mixed v0.2 intake has a separate idempotency namespace from folder-only v0.1.
+pub fn submit_library_import_paths(
+    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
+    spec: WarehouseImportTaskSpec, auto_generate: Option<AutoGenerateSpec>, command_id: &str,
+) -> Result<vua_orchestrator::CommandAcceptedV1, vua_orchestrator::AppErrorV1> {
+    let fingerprint = serde_json::json!({"sourcePaths":spec.source_folders,"autoGenerate":auto_generate.is_some()}).to_string();
+    let correlation_id = spec.correlation_id.clone();
+    let job = import_job(runtime.clone(), store, clock, spec, auto_generate, true, true);
+    runtime.submit_idempotent(SubmitRequest { correlation_id: Some(correlation_id), timeout: None, job }, "library.importPaths", command_id, &fingerprint)
 }
 
 /// Convenience submission: the correlation id binds the whole batch.

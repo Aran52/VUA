@@ -79,6 +79,65 @@ fn library_intake_wire_keeps_files_expands_zip_and_replays_without_duplicate_ent
 }
 
 #[test]
+fn mixed_file_folder_intake_v02_is_scoped_idempotent_and_consumes_schema_vectors() {
+    let world = World::new();
+    let folder = world.base.join("drop-folder"); std::fs::create_dir(&folder).unwrap();
+    std::fs::write(folder.join("texture.psd"), b"synthetic texture").unwrap();
+    let file = world.base.join("single.txt"); std::fs::write(&file, b"only this file").unwrap();
+    std::fs::write(world.base.join("unselected.txt"), b"must not import this sibling").unwrap();
+    let zip = world.base.join("single.zip");
+    let archive = zip_bytes(&[("sub/avatar.unitypackage", b"synthetic package"), ("instructions.txt", b"synthetic instructions")]);
+    std::fs::write(&zip, &archive).unwrap();
+    let params = json!({"schemaVersion":"0.2","sourcePaths":[folder,file,zip]});
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    let accepted = host.call_command("library.importPaths", params.clone(), Some("mixed-once"));
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let again = host.call_command("library.importPaths", params, Some("mixed-once"));
+    assert_eq!(accepted["value"]["taskId"], again["value"]["taskId"]);
+    let task_id = accepted["value"]["taskId"].as_str().unwrap(); let start = Instant::now();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded); break; }
+        assert!(start.elapsed() < Duration::from_secs(10)); std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 3);
+    let copies = world.bdl.library_copy_evidence().unwrap();
+    assert_eq!(copies.len(), 5);
+    assert!(!copies.iter().any(|c| c.copy.relative_path.contains("unselected.txt")));
+    assert!(copies.iter().any(|c| c.copy.relative_path.ends_with("sub/avatar.unitypackage")));
+    assert_eq!(std::fs::read(&file).unwrap(), b"only this file"); assert_eq!(std::fs::read(&zip).unwrap(), archive);
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/library-intake/v0.2");
+    let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(root.join(name)).unwrap()).unwrap() };
+    assert!(jsonschema::validator_for(&read("response.schema.json")).unwrap().is_valid(&accepted["value"]));
+    let request_schema = jsonschema::validator_for(&read("request.schema.json")).unwrap();
+    for name in ["import", "invalid-relative", "invalid-empty", "invalid-null", "invalid-unknown", "invalid-duplicate"] {
+        let request = read(&format!("examples/{name}.request.json"));
+        assert_eq!(request_schema.is_valid(&request), name == "import", "{name}");
+        if name != "import" { assert_eq!(host.call_command("library.importPaths", request["params"].clone(), Some(name))["ok"], false, "{name}"); }
+    }
+    // Versioned faces stay distinct; replay with a different selection is a conflict.
+    for invalid in [json!({"schemaVersion":"0.1","sourcePaths":[file]}), json!({"schemaVersion":"0.2","sourceFolders":[folder]})] {
+        assert_eq!(host.call_command("library.importPaths", invalid, Some("bad-face"))["ok"], false);
+    }
+    assert_eq!(host.call_command("library.importPaths", json!({"schemaVersion":"0.2","sourcePaths":[file]}), Some("mixed-once"))["ok"], false);
+    assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 3);
+}
+
+#[test]
+fn mixed_intake_refuses_warehouse_recursion_before_creating_an_entry() {
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let accepted = host.call_command("library.importPaths", json!({"schemaVersion":"0.2","sourcePaths":[world.base]}), Some("recursive-drop"));
+    assert_eq!(accepted["ok"], true);
+    let start = Instant::now(); let task_id = accepted["value"]["taskId"].as_str().unwrap();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Failed); break; }
+        assert!(start.elapsed() < Duration::from_secs(10)); std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().is_empty());
+}
+
+#[test]
 fn managed_zip_download_wire_exposes_members_and_original_separately() {
     let world = World::new();
     let mut host = Host::new(&world.base, world.bdl.clone());

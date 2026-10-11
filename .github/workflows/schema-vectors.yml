@@ -70,7 +70,7 @@ jobs:
       #                       external_tool_wire              (external-tool v0.1 Candidate)
       #                       catalog_sync_wire_v01           (catalog-sync v0.1/v0.3)
       #                       product_downloadables_wire_v07  (bdl-queries v0.7)
-      #                       library_download_wire_v01       (download/view/maintenance/draft/search baselines)
+      #                       library_download_wire_v01       (download/view/maintenance/draft/search + intake v0.1/v0.2 baselines)
       # - vua-unity-bridge:   material_intake                 (material-intake v0.1)
       #                       bridge_v2_vectors               (unity-bridge v2 frozen)
       #                       inspection_evidence_vectors     (inspection-evidence v0.1 DRAFT —

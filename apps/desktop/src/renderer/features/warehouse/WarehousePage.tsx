@@ -25,6 +25,7 @@ import { Icon } from "@vua/design-system";
 import {
   useAcquireView,
   useGateway,
+  useTaskCenter,
   useDataSource,
   type LibraryPageView,
   type LibraryCardFacts,
@@ -204,10 +205,10 @@ function WarehouseListRow({
       }}
     >
       <span className="vua-warehouse-list-row__title">{item.title ?? item.productId}</span>
+      <span className="vua-warehouse-list-row__shop">{item.shopName ?? copy.card.unknownShop}</span>
       {item.variantName !== null ? (
         <span className="vua-warehouse-list-row__variant">{item.variantName}</span>
       ) : null}
-      <span className="vua-warehouse-list-row__shop">{item.shopName ?? copy.card.unknownShop}</span>
       {facts !== undefined ? <LibraryBadges facts={facts} /> : item.importedArtifacts > 0 ? (
         <span className="vua-caption">{copy.importedBadge}</span>
       ) : null}
@@ -270,14 +271,14 @@ function WarehouseCard({
         <p className="vua-warehouse-card__title" title={item.title ?? item.productId}>
           {item.title ?? item.productId}
         </p>
-        {item.variantName !== null ? (
-          <p className="vua-warehouse-card__variant" title={item.variantName}>
-            {item.variantName}
-          </p>
-        ) : null}
         {item.shopName !== null ? (
           <p className="vua-caption vua-text-secondary vua-warehouse-card__shop">
             {item.shopName}
+          </p>
+        ) : null}
+        {item.variantName !== null ? (
+          <p className="vua-warehouse-card__variant" title={item.variantName}>
+            {item.variantName}
           </p>
         ) : null}
         <div className="vua-warehouse-card__badges">
@@ -729,7 +730,10 @@ export function WarehousePage({
         const value = await face.transfers();
         if (!active) return;
         const key = JSON.stringify(value);
-        if (key !== previous) { const initial = previous === ""; previous = key; setTransfers(value); if (!initial) setReloadKey(k => k + 1); }
+        // Reconcile even an unchanged native snapshot: an optimistic start can finish
+        // between two empty queue reads. Comparing only poll snapshots leaves it stuck.
+        setTransfers(current => JSON.stringify(current) === key ? current : value);
+        if (key !== previous) { const initial = previous === ""; previous = key; if (!initial) setReloadKey(k => k + 1); }
         else if ([...(latestLibraryPage.current?.facts.values() ?? [])].some(f => f.operation?.state === "running" && !f.operation.inspectRequired)) setReloadKey(k => k + 1);
       } catch { /* Durable provider facts remain visible if native control is unavailable. */ }
       finally { reading = false; }
@@ -742,6 +746,16 @@ export function WarehousePage({
   const [query, setQuery] = useState<WarehouseQueryState>(emptyWarehouseQuery);
   const [listState, setListState] = useState<ListState>({ kind: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
+  // Drops can start outside this page, without the old import dialog's close
+  // callback. Refresh durable cards when their normal warehouse tasks finish.
+  const terminalTasks = useTaskCenter().tasks.filter(task => task.originPage === "warehouse"
+    && ["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)).map(task => `${task.id}:${task.status}`).sort().join("|");
+  const previousTerminalTasks = useRef(terminalTasks);
+  useEffect(() => {
+    if (previousTerminalTasks.current === terminalTasks) return;
+    previousTerminalTasks.current = terminalTasks;
+    setReloadKey(key => key + 1);
+  }, [terminalTasks]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const currentDetailId = useRef(selectedId); currentDetailId.current = selectedId;
   const [detailState, setDetailState] = useState<DetailState>({ kind: "loading" });
@@ -924,8 +938,10 @@ export function WarehousePage({
           total: snapshot.files.length,
         };
         if (snapshot.recoveryDisposition === "inspect_required") {
+          setTransfers(current => current.filter(transfer => transfer.batchId !== snapshot.batchId));
           setDownloadNotice(copy.cardMenu.downloadInspectHint); setDownloadWatchBatch(null);
         } else if (snapshot.state !== "running") {
+          setTransfers(current => current.filter(transfer => transfer.batchId !== snapshot.batchId));
           setDownloadNotice(format(copy.cardMenu.downloadTerminalHint, counts));
           setDownloadWatchBatch(null); setReloadKey((key) => key + 1);
         } else setDownloadNotice(format(copy.cardMenu.downloadProgressHint, counts));

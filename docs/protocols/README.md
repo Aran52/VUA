@@ -1,8 +1,8 @@
 # Protocol reading guide
 
-> Document version: 1.10.0
+> Document version: 1.10.1
 > Status: Accepted
-> Updated: 2026-10-11
+> Updated: 2026-10-12
 > Scope: Navigation and retention guidance; no wire-format changes
 
 **For people:** use this index when a contribution affects an API or stored format; read only
@@ -27,7 +27,7 @@ separate concurrently served operations, and some newer documents extend an earl
 | Materials/production | [Material v0.2](material-intake-v0.2.md), [production v0.2](production-use-case-v0.2.md), [evidence](production-evidence-v0.1.md), [inspection queries](inspection-queries-v0.1.md), [inspection evidence](inspection-evidence-v0.1.md) | Earlier baselines may be needed for incremental definitions and tests; not archived by date |
 | Recipe/SDK | [Recipe export](recipe-export-v0.1.md), [handoff v0.2](release-handoff-v0.2.md) | Check stored-format and consumer compatibility before retiring the earlier handoff face |
 | BDL/acquisition | [Queries v0.6](bdl-queries-v0.6.md), [v0.5](bdl-queries-v0.5.md), [commands v0.4](bdl-commands-v0.4.md), [observations](bdl-dependency-observations-v0.2.md), [downloads](download-events-v0.1.md) | Follow actual schema/route versions; N5 audit is still required |
-| Managed library | [Whole-run sync v0.3](catalog-sync-v0.3.md), [download v0.1](library-download-v0.1.md), [joined view v0.1](library-view-v0.1.md), [file maintenance v0.1](library-maintenance-v0.1.md), [selection drafts v0.1](recipe-selection-draft-v0.1.md) | New implementation baselines coexist with frozen catalog, copy-in and production Recipe faces; N5 acceptance is separate |
+| Managed library | [Whole-run sync v0.3](catalog-sync-v0.3.md), [download v0.1](library-download-v0.1.md), [joined view v0.1](library-view-v0.1.md), [file maintenance v0.1](library-maintenance-v0.1.md), [mixed native intake v0.2](library-intake-v0.2.md), [selection drafts v0.1](recipe-selection-draft-v0.1.md) | New implementation baselines coexist with folder intake v0.1, frozen catalog/copy-in and production Recipe faces; N5 acceptance is separate |
 | Unity | [v4](unity-bridge-v4.md), [v3](unity-bridge-v3.md), [v2](unity-bridge-v2.md), [v1](unity-bridge-v1.md) | Newest frozen operation set does not prove every production path migrated; inspect actual command consumers |
 | Previously superseded | [superseded/](superseded/) | Historical version lookup only; retaining these files does not reactivate their implementation |
 
@@ -78,6 +78,7 @@ owns routing and legacy-data migration.
 
 ## Document changelog
 
+- 1.10.1 (2026-10-12): route mixed native file/folder intake v0.2 alongside retained folder-only and frozen material faces.
 - 1.10.0 (2026-10-11): index the Candidate fixed-site desktop browser and bounded shell geometry, independent of retained account/catalog/download and Provider faces.
 - 1.9.0 (2026-10-10): index the Candidate external-tool face and VRCFT producer/consumer routes, separating hardware/module guidance from pending real acceptance.
 - 1.8.0 (2026-10-10): index Candidate desktop-window v0.2 for main Help navigation while retaining the V1 window face.

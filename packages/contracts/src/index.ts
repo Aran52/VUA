@@ -6,6 +6,7 @@ export * from "./booth-search-v01.js";
 export * from "./library-view-v01.js";
 export * from "./library-maintenance-v01.js";
 export * from "./library-intake-v01.js";
+export * from "./library-intake-v02.js";
 export * from "./library-entry-metadata-v01.js";
 export * from "./library-records-v01.js";
 export * from "./recipe-selection-draft-v01.js";

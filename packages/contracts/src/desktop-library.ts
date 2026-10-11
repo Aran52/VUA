@@ -2,4 +2,6 @@
 export interface DesktopLibraryApiV01 {
   openFolder(): Promise<{ readonly opened: boolean }>;
   openBoothProduct(productId: string): Promise<{ readonly opened: boolean }>;
+  /** Preload extracts native File paths; Main validates them, only for active AMF. */
+  resolveDroppedFiles(files: readonly File[]): Promise<readonly string[]>;
 }

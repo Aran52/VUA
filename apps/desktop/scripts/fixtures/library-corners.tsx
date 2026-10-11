@@ -10,6 +10,7 @@ import "../../src/renderer/app-shell.css";
 const copy = strings.warehouse;
 const library = structuredClone(original) as any;
 const cloud = library.items[0]; cloud.sourceCategory = null;
+cloud.product.variantName = "Synthetic purchased variant";
 const local = library.items[1]; delete local.sourceMatch; local.sourceCategory = null;
 local.entry.displayName = "Synthetic Coat_v1.2.zip";
 const ambiguous = structuredClone(local); ambiguous.entry.warehouseItemId = "wh-ambiguous";
@@ -29,6 +30,7 @@ const controls: { batchId: string; paused: boolean }[] = [];
 let transfers: { batchId: string; productId: string; paused: boolean }[] = [];
 let releaseSearch: (() => void) | undefined;
 let holdSearch = false; let libraryReads = 0;
+let fastDownload = false; let transferReads = 0;
 const publicSummary = (id: string) => ({ ...cloud.product, productId: id, title: "Synthetic Coat", libraryType: null });
 const ok = (value: unknown) => ({ ok: true, value });
 const invoke = async (request: any) => {
@@ -36,6 +38,14 @@ const invoke = async (request: any) => {
   if (request.method === "library.list") { libraryReads++; return ok({ ...structuredClone(library), sourceCategories: cloud.sourceCategory ? [cloud.sourceCategory] : [] }); }
   if (request.method === "library.entryMetadata") return ok(structuredClone(records.get(request.params.entryId)));
   if (request.method === "library.productFiles") return ok({ schemaVersion: "0.1", productId: request.params.productId, items: [{ downloadableId: 901, fileName: "synthetic.zip", managedCopyId: null, copies: [] }] });
+  if (request.method === "library.downloadStatus") {
+    // The fast regression keeps status unreadable to exercise queue reconciliation
+    // on its own: both native polls are empty, with no remount or terminal shortcut.
+    if (fastDownload) return { ok: false, error: { kind: "unavailable" } };
+    const stored = cloud.storage.state === "present";
+    return ok({ schemaVersion: "0.1", batchId: request.params.batchId, taskId: request.params.batchId, productId: "booth:90", revision: stored ? 2 : 1,
+      state: stored ? "succeeded" : "running", cancellationRequested: false, recoveryDisposition: "none", files: [{ downloadableId: 901, fileName: "synthetic.zip", phase: stored ? "stored" : "downloading", downloadId: "dl-synthetic", errorCode: null, entryId: stored ? "wh-completed" : null, copyId: stored ? "cpy-completed" : null, artifactSha256: stored ? `sha256:${"a".repeat(64)}` : null, replaced: false }] });
+  }
   if (request.method === "library.updateEntryMetadata") {
     const p = request.params; const record = records.get(p.entryId)!;
     if (p.expectedRevision !== record.revision) throw Error("unexpected stale source write");
@@ -69,8 +79,12 @@ Object.defineProperty(window, "vua", { configurable: true, value: {
     },
   },
   silentDownload: {
-    start: async (productId: string) => { transfers.push({ productId, batchId: "library-download-corner", paused: false }); return { batchId: "library-download-corner", taskId: "task-corner", accepted: 1 }; },
-    transfers: async () => structuredClone(transfers),
+    start: async (productId: string) => {
+      if (fastDownload) { Object.assign(cloud.storage, { state: "present", presentCopies: 1, storedCopies: 1 }); cloud.copyIds = ["cpy-completed"]; cloud.product.importedArtifacts = 1; }
+      else transfers.push({ productId, batchId: "library-download-corner", paused: false });
+      return { batchId: "library-download-corner", taskId: "task-corner", accepted: 1 };
+    },
+    transfers: async () => { transferReads++; return structuredClone(transfers); },
     control: async (batchId: string, paused: boolean) => { controls.push({ batchId, paused }); transfers = transfers.map(item => item.batchId === batchId ? { ...item, paused } : item); return { ok: true }; },
   },
 } });
@@ -85,13 +99,15 @@ const text = () => document.body.textContent ?? "";
 const check = (value: unknown, label: string) => { if (!value) throw Error(label); checks.push(label); };
 const until = async (test: () => boolean, label: string) => { const end = performance.now() + 7000; while (!test()) { if (performance.now() > end) throw Error(`${label}: ${text()}`); await wait(); } };
 const card = (id: string) => [...document.querySelectorAll<HTMLElement>("[data-selection-id]")].find(node => node.dataset.selectionId!.includes(id))!;
-const corner = (id: string) => card(id).querySelector<HTMLButtonElement>(".vua-library-corner")!;
+const corner = (id: string) => card(id)?.querySelector<HTMLButtonElement>(".vua-library-corner")!;
 const button = (label: string, within: ParentNode = document) => { const found = [...within.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
 let generation = 0;
 async function showLibrary() { root.render(<StrictMode><GatewayProvider gateway={gateway}><WarehousePage key={++generation} /></GatewayProvider></StrictMode>); await until(() => document.querySelectorAll("[data-selection-id]").length === 5, "five library cards"); await wait(); }
 async function closeDialog() { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await until(() => !document.querySelector('[role="dialog"]'), "match dialog closed"); }
 async function run() {
   await showLibrary();
+  const bodyRows = card("booth:90").querySelector(".vua-warehouse-card__body")!;
+  check([...bodyRows.children].slice(0, 3).map(node => node.className).join("|").includes("__title|vua-caption vua-text-secondary vua-warehouse-card__shop|vua-warehouse-card__variant"), "card text order is title, shop, then variant");
   check(corner("booth:90").dataset.cornerState === "cloud" && corner("wh-imported").dataset.cornerState === "local", "cloud/local facts use green cloud and purple computer corners");
   check(corner("booth:91").dataset.cornerState === "error" && corner("booth:92").dataset.cornerState === "linked", "missing files use red cross; stored linked files use orange computer");
   for (const node of document.querySelectorAll<HTMLElement>("[data-selection-id]")) {
@@ -100,13 +116,20 @@ async function run() {
   }
   corner("booth:90").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await until(() => !!document.querySelector('[role="tooltip"]'), "corner explanation");
   check(document.querySelector('[role="tooltip"]')!.textContent === copy.corner.cloud, "corner has localized tooltip");
-  corner("booth:90").click(); await until(() => corner("booth:90").dataset.cornerState === "downloading", "download begins");
+  corner("booth:90").click(); await until(() => corner("booth:90")?.dataset.cornerState === "downloading", "download begins");
   check(!card("booth:90").getAttribute("aria-selected") || card("booth:90").getAttribute("aria-selected") === "false", "corner action does not select the card or open details");
-  corner("booth:90").click(); await until(() => corner("booth:90").dataset.cornerState === "paused", "native pause receipt");
-  corner("booth:90").click(); await until(() => corner("booth:90").dataset.cornerState === "downloading", "native continuation");
+  corner("booth:90").click(); await until(() => corner("booth:90")?.dataset.cornerState === "paused", "native pause receipt");
+  corner("booth:90").click(); await until(() => corner("booth:90")?.dataset.cornerState === "downloading", "native continuation");
   check(controls.map(c => c.paused).join() === "true,false" && new Set(controls.map(c => c.batchId)).size === 1, "pause/resume controls the same batch rather than cancellation or a new start");
-  transfers = []; Object.assign(cloud.storage, { state: "present", presentCopies: 1, storedCopies: 1 }); cloud.copyIds = ["cpy-completed"]; cloud.product.importedArtifacts = 1; await showLibrary();
+  transfers = []; Object.assign(cloud.storage, { state: "present", presentCopies: 1, storedCopies: 1 }); cloud.copyIds = ["cpy-completed"]; cloud.product.importedArtifacts = 1;
+  await until(() => corner("booth:90")?.dataset.cornerState === "linked", "terminal status clears the in-page optimistic transfer without remounting");
   check(corner("booth:90").dataset.cornerState === "linked", "actual completion is shown as orange stored files");
+  Object.assign(cloud.storage, { state: "cloud_only", presentCopies: 0, storedCopies: 0 }); cloud.copyIds = []; cloud.product.importedArtifacts = 0;
+  fastDownload = true; await showLibrary(); const readsBeforeFast = transferReads;
+  corner("booth:90").click(); await until(() => corner("booth:90")?.dataset.cornerState === "downloading", "optimistic fast start");
+  await until(() => corner("booth:90")?.dataset.cornerState === "linked", "unchanged empty native queue reconciles a fast completion without remounting");
+  check(transferReads > readsBeforeFast && transfers.length === 0, "empty-before/empty-after queue never leaves a completed card offering pause");
+  fastDownload = false;
   card("booth:90").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 200, clientY: 200 })); await wait();
   button(copy.sourceSearch.openBooth).click(); await until(() => opened.length > 0, "menu opens source");
   check(opened.at(-1) === "https://booth.pm/items/90", "context menu opens a canonical BOOTH page");

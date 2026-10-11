@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Document version: 3.24.0
+> Document version: 3.24.1
 > Status: Accepted
 > Updated: 2026-10-12
 > Authority: User rulings of 2026-09-28 through 2026-10-12, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
@@ -362,7 +362,8 @@ The 2026-10-12 ruling adds bounded public BOOTH keyword lookup for local entries
 from browser shortcuts and both account-acquisition workflows. Exercise matching, ambiguity,
 unavailable search, persisted association and no account-membership inference. Library corner
 controls reflect actual file/download facts, including native pause/resume; local import opens
-the folder picker directly. These refinements do not close real-material or human review outcomes.
+the folder picker directly, and native file/folder drops use the same AMF task path with explicit
+enablement when required. These refinements do not close real-material or human review outcomes.
 
 ### Mandatory first step: capability audit
 
@@ -525,6 +526,7 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.24.1 (2026-10-12): clarify native file/folder drops and explicit AMF enablement alongside the existing local picker; pending N-stage outcomes stay unchanged.
 - 3.24.0 (2026-10-12): incorporate public BOOTH provenance lookup, fact-based corner controls and direct local intake into N5 without changing pending account/material and human acceptance.
 - 3.23.0 (2026-10-11): record current-state v0.6.6 Ibis ZIP publication before the NSIS/AMF-update slices without closing N1/N5 or their pending real-machine/human outcomes.
 - 3.22.0 (2026-10-11): add NSIS/mirrored-runtime distribution and independent incremental AMF update/recovery acceptance under the new user ruling; retain ZIP evidence and separate pending N-stage outcomes.
@@ -534,4 +536,3 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.19.0 (2026-10-10): enable bundled AMF for new profiles while retaining saved choices and old-profile defaults; link the small VRCFT connection plan without changing stage or tracking acceptance.
 - 3.18.0 (2026-10-10): apply the seven-stage scenario-host/AMF/BDL sequence, expand N2 sources and selected tools, place N6 with each path and split N7 release scope; preserve N1/N5 evidence and pending formal acceptance.
 - 3.17.0 (2026-10-10): retain bundled AMF with explicit activation and defer external Avatar-editing modules beyond Ibis without changing existing gate outcomes.
-- 3.16.0 (2026-10-09): place host/AMF separation before scenario integrations, preserving N3–N5 as AMF acceptance and all existing gate outcomes.

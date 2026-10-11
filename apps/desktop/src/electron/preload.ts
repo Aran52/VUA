@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
 import type {
   ApplicationEventV01,
   AmfModuleSnapshotV01,
@@ -86,6 +86,12 @@ const api: VuaDesktopApiV2 = Object.freeze({
   library: Object.freeze({
     openFolder: () => ipcRenderer.invoke("vua:library:open-folder"),
     openBoothProduct: (productId: string) => ipcRenderer.invoke("vua:library:open-booth-product", productId),
+    resolveDroppedFiles: (files: readonly File[]) => {
+      if (!Array.isArray(files) || files.length === 0 || files.length > 200) return Promise.reject(new Error("invalid native file drop"));
+      const paths = files.map(file => webUtils.getPathForFile(file));
+      if (paths.some(value => value === "")) return Promise.reject(new Error("drop requires native files"));
+      return ipcRenderer.invoke("vua:library:resolve-dropped-files", paths);
+    },
   }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,

@@ -94,6 +94,7 @@ import {
 } from "./gateway/index.ts";
 import { ModulesPage } from "./features/modules/ModulesPage.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
+import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
 const AmfPages = lazy(() => import("./features/amf/AmfPages.tsx"));
 import { HomePage, directory } from "./features/home/HomePage.tsx";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
@@ -985,6 +986,7 @@ function AppShell({
       </div>
       {/* 导航确认卡(015 §12,批 B-3):U9(1)/(3) 确认层的渲染层载体,全局一次挂载 */}
       <NavigationConfirmOverlay />
+      <FileDropImporter onOpenLibrary={() => navigate("warehouse")} />
       {/* 应用导览(三类引导裁决 2026-10-05):主窗口内有序高亮;从未运行自动
        *  开始,active 按步号恢复,重播经命令面板;状态独立于阅读器/安装 */}
       {!showOnboarding && startupComplete ? <AppTour page={page} navigate={navigate} startRequest={tourStartRequest} autoStart={autoStartTour} onFinish={onTourFinish} /> : null}

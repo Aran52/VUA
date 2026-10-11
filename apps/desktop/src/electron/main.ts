@@ -738,6 +738,27 @@ function registerIpc(provider: ModuleProvider): void {
     try { await shell.openExternal(`https://booth.pm/items/${productId.slice(6)}`); return { opened: true }; }
     catch { return { opened: false }; }
   });
+  ipcMain.handle("vua:library:resolve-dropped-files", async (event, values: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    if (!Array.isArray(values) || values.length === 0 || values.length > 200
+      || !values.every(value => typeof value === "string" && !value.includes("\0") && path.isAbsolute(value))) throw new Error("invalid native file drop");
+    const paths = [...new Map((values as string[]).map(value => {
+      const resolved = path.resolve(value);
+      return [resolved.toLowerCase(), resolved] as const;
+    })).values()];
+    const sources = await Promise.all(paths.map(async value => {
+      const info = await fs.promises.lstat(value);
+      if (info.isSymbolicLink() || (!info.isFile() && !info.isDirectory())) throw new Error("intake requires an ordinary file or folder");
+      return { value, directory: info.isDirectory() };
+    }));
+    assertAmfReady();
+    // A folder already contains its explicitly dropped descendants; copy them once.
+    return sources.filter(source => !sources.some(parent => {
+      if (!parent.directory || parent === source) return false;
+      const relative = path.relative(parent.value, source.value);
+      return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+    })).map(source => source.value);
+  });
   ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
     assertBrowserSender(event);
     const site = desktopBrowserSite(siteId);

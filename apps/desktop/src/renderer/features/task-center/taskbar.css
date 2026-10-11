@@ -187,8 +187,8 @@
 }
 
 .vua-notify-panel .vua-taskbar__task {
-  background: color-mix(in srgb, var(--vua-accent) 5%, var(--vua-bg-panel));
-  border: 1px solid var(--vua-border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--vua-radius-control);
   padding: var(--vua-space-3);
   align-items: flex-start;

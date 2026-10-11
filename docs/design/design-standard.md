@@ -1,7 +1,7 @@
 # VUA design standard v0.26.0
 
 
-> Document version: 0.26.0
+> Document version: 0.27.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-12
@@ -447,7 +447,8 @@ changelog history already uses.
   only while searching. An uncertain result remains a yellow question until the next library
   entry; a saved source association persists. Ambiguous candidates require confirmation.
   Actions stop card selection/double-click; card context menus remain accessible on the corner.
-  The menu button sits at the card bottom regardless of title length. Known source menus/details
+  Card text reads title, shop, then variant when present. The menu button sits at the card bottom
+  regardless of title length. Known source menus/details
   offer "Open BOOTH page". The old qualification explanation is absent from the detail.
   Layout (v0.6.2, ruling of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
@@ -463,7 +464,11 @@ changelog history already uses.
 - Material import is a content dialog inside the warehouse page. The 2026-10-12 ruling labels
   the entry "Local import" and opens the folder picker immediately, without a source-choice
   or a second import button. Folder selection leads to the existing confirmation and command;
-  canceling the initial picker dismisses the import. Explicit legacy cloud/browser handoffs
+  canceling the initial picker dismisses the import. Native file/folder drops into the host start
+  local intake directly, without copying unselected siblings. An inactive AMF prompts for explicit
+  enable/import or cancel. The retained selection is imported only after the module is ready, with
+  the normal progress/cancellation path and a visible retry on submission failure. Text/URL drags
+  are not material inputs. Explicit legacy cloud/browser handoffs
   retain their isolated lifecycle and do not appear as a choice in ordinary intake. Closing the
   dialog unmounts the component and closes any in-flight embedded view, so the
   "component is the view's only control surface" lifecycle semantics stay
@@ -804,7 +809,7 @@ changelog history already uses.
   and status word carry success/failure facts, action buttons (retry/clear) each do one job, and
   the panel close ✕ only closes the panel — never conflated with dismissing a notification or
   presenting a failure.
-  Download rows use jurisdiction-tinted surfaces, a measured byte bar, transferred/total sizes and
+  Download rows have transparent backgrounds, a measured byte bar, transferred/total sizes and
   speed from real observations; unknown totals show an indeterminate bar and expired speed returns
   to measuring. File-saving counts are separate from transfer facts. All active batch notifications
   remain visible. The raw Tasks window belongs under Settings → Experimental as Task diagnostics;
@@ -861,6 +866,7 @@ direction.
 
 ## 12. Document changelog
 
+- 0.27.0 (2026-10-12): add native file/folder drops and AMF prerequisite prompts, title/shop/variant ordering, transparent notification rows and in-place completion-corner recovery.
 - 0.26.0 (2026-10-12): define triangular media corners and actual pause/source actions, card-bottom menus, canonical BOOTH links and direct local folder intake.
 - 0.25.0 (2026-10-12): add scoped bulk-file confirmation, recorded native categories and measured download notifications; place raw task diagnostics in Experimental and retire obsolete demo/variant panels.
 - 0.24.0 (2026-10-11): add displayed-page selection for cloud/local cards and menus, keep product adaptation discoverable behind explicit clue enablement, and give detail close/title controls separate rows; normalize retired body references.
@@ -870,7 +876,6 @@ direction.
 - 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.
 - **0.19.0 (2026-10-11)**: restore Help's topbar parallelogram and define explicit approximate regional reference states without changing card height, history or independent website tests.
 - 0.18.0 (2026-10-10): define the fresh enabled AMF entry, resource-headroom/saturation presentation and 120° jurisdiction-logo replacement with flattened-motion fallbacks.
-- 0.17.0 (2026-10-10): accept the small monochrome ray/white-logo startup and first-use welcome/tour, preserving normal shell themes, matrix/glass and resource-saving preferences.
 
 
 Earlier entries remain in Git history.

@@ -443,6 +443,7 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
       case "library.downloadStatus":
       case "library.list":
       case "library.importFolders":
+      case "library.importPaths":
       case "library.entryMetadata": case "library.updateEntryMetadata": case "library.removeLocalEntries":
       case "library.productFiles":
       case "library.removalPreview": case "library.removeFiles": case "library.removalStatus": case "library.pendingRemovals": case "library.resolveRemoval":

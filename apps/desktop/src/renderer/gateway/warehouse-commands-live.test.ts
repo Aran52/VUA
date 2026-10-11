@@ -21,6 +21,19 @@ beforeEach(() => {
 });
 
 describe("live warehouse command port task identity registration", () => {
+  it("routes native file/folder intake through v0.2 and registers the normal import task", async () => {
+    let request: unknown;
+    const client = clientReplying({ schemaVersion: "0.2", operation: "library.importPaths", taskId: "task-drop-1", correlationId: "corr-drop" });
+    const invoke = client.invoke;
+    client.invoke = r => { request = r; return invoke(r); };
+    const port = createWarehouseCommands(client);
+    expect(await port.importPaths(["C:/Avatar.zip", "C:/Clothes"], { commandId: "drop-retained" })).toMatchObject({ ok: true, accepted: { taskId: "task-drop-1" } });
+    expect(request).toMatchObject({ method: "library.importPaths", params: { schemaVersion: "0.2", sourcePaths: ["C:/Avatar.zip", "C:/Clothes"], commandId: "drop-retained" } });
+    expect(taskIdentityOf("task-drop-1")).toEqual({ title: strings.taskTitles.importBatch, originPage: "warehouse" });
+    const oldReceipt = createWarehouseCommands(clientReplying({ schemaVersion: "0.1", operation: "library.importFolders", taskId: "old", correlationId: "old" }));
+    expect(await oldReceipt.importPaths(["C:/Avatar.zip"])).toMatchObject({ ok: false });
+    expect(taskIdentityOf("old")).toBeUndefined();
+  });
   it("registers the import identity when the library intake acceptance arrives", async () => {
     const port = createWarehouseCommands(
       clientReplying({ schemaVersion: "0.1", operation: "library.importFolders", taskId: "task-178984402495255500-0001", correlationId: "corr-task-1" }),

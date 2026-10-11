@@ -1718,7 +1718,7 @@ fn served_capabilities(state: &HostState) -> Value {
         Some(use_cases) if use_cases.runtime.is_some() => "available",
         _ => "unavailable",
     };
-    json!([
+    let mut capabilities = json!([
         {"operationId": "task.list", "availability": "available"},
         {"operationId": "environment.getSnapshot", "availability": "available"},
         {"operationId": "environment.checkNetwork", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
@@ -1812,7 +1812,11 @@ fn served_capabilities(state: &HostState) -> Value {
             "operationId": "packages.repoLifecycleOps",
             "availability": packages_repo_lifecycle_ops_availability,
         },
-    ])
+    ]);
+    capabilities.as_array_mut().expect("capabilities array").push(json!({
+        "operationId": "library.importPaths", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }
+    }));
+    capabilities
 }
 
 /// demo commandId -> deterministic task id: a repeated command hits the same
@@ -5512,11 +5516,12 @@ fn library_download_request(state: &HostState, method: &str, request: &Value, re
     if matches!(method, "library.entryMetadata" | "library.updateEntryMetadata" | "library.removeLocalEntries") {
         return library_entry_metadata_request(warehouse, method, request, request_id, correlation_id);
     }
-    if method == "library.importFolders" {
+    if matches!(method, "library.importFolders" | "library.importPaths") {
         if request["kind"] != "command" { return warehouse_invalid_params(request_id, correlation_id); }
         let Some(params) = request.get("params").and_then(Value::as_object) else { return warehouse_invalid_params(request_id, correlation_id); };
-        if params.get("schemaVersion").and_then(Value::as_str) != Some("0.1")
-            || !params.keys().all(|key| matches!(key.as_str(), "schemaVersion"|"sourceFolders"|"autoGenerate")) {
+        let (version, source_key) = if method == "library.importPaths" { ("0.2", "sourcePaths") } else { ("0.1", "sourceFolders") };
+        if params.get("schemaVersion").and_then(Value::as_str) != Some(version)
+            || !params.keys().all(|key| key == "schemaVersion" || key == "autoGenerate" || key == source_key) {
             return warehouse_invalid_params(request_id, correlation_id);
         }
         return library_import_submit(warehouse.clone(), request, request_id, correlation_id);
@@ -6677,13 +6682,15 @@ fn library_import_submit(warehouse: Arc<WarehouseServices>, request: &Value, req
 }
 
 fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str, retain_all: bool) -> FrameOutcome {
+    let allow_files = retain_all && request["method"] == "library.importPaths";
+    let source_key = if allow_files { "sourcePaths" } else { "sourceFolders" };
     let source_folders = match request.get("params") {
         Some(Value::Object(params))
             if params
                 .keys()
-                .all(|key| key == "sourceFolders" || key == "autoGenerate" || (retain_all && key == "schemaVersion")) =>
+                .all(|key| key == source_key || key == "autoGenerate" || (retain_all && key == "schemaVersion")) =>
         {
-            match params.get("sourceFolders") {
+            match params.get(source_key) {
                 Some(Value::Array(folders)) if !folders.is_empty() => folders
                     .iter()
                     .map(|value| {
@@ -6709,7 +6716,8 @@ fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id:
     // 文件夹后自动制成 VPM 包再入库。实验门控在渲染层(UI 只在设置-实验
     // 性开时显示该选项);此处在执行侧注入既有的 AutoGenerateSpec 管道。
     let auto_generate = match request.pointer("/params/autoGenerate") {
-        None | Some(Value::Null) | Some(Value::Bool(false)) => None,
+        None | Some(Value::Bool(false)) => None,
+        Some(Value::Null) if !retain_all => None,
         Some(Value::Bool(true)) => {
             let executor = warehouse.executor.clone();
             match executor {
@@ -6736,7 +6744,11 @@ fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id:
     };
     let accepted = if retain_all {
         let Some(command_id) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return warehouse_invalid_params(request_id, correlation_id); };
-        vua_acquisition::warehouse_import::submit_library_import(warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, auto_generate, command_id)
+        if allow_files {
+            vua_acquisition::warehouse_import::submit_library_import_paths(warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, auto_generate, command_id)
+        } else {
+            vua_acquisition::warehouse_import::submit_library_import(warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, auto_generate, command_id)
+        }
     } else { vua_acquisition::submit_warehouse_import_auto(
         warehouse.runtime.clone(),
         warehouse.bdl.clone(),
@@ -6749,8 +6761,8 @@ fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id:
         Ok(accepted) => FrameOutcome::Response(application_success(
             request_id,
             json!({
-                "schemaVersion": if retain_all { "0.1" } else { BDL_COMMANDS_SCHEMA_VERSION },
-                "operation": if retain_all { "library.importFolders" } else { "warehouse.import" },
+                "schemaVersion": if allow_files { "0.2" } else if retain_all { "0.1" } else { BDL_COMMANDS_SCHEMA_VERSION },
+                "operation": if allow_files { "library.importPaths" } else if retain_all { "library.importFolders" } else { "warehouse.import" },
                 "taskId": accepted.task_id,
                 "correlationId": correlation_id,
             }),

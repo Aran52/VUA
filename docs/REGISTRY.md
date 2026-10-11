@@ -27,13 +27,13 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | docs/architecture/system.md | 2.3.0 | Accepted | Integration | 2026-10-10 |
 | docs/architecture/orchestrator.md | 1.0.1 | Accepted | Core | 2026-10-01 |
-| docs/architecture/desktop.md | 1.27.0 | Accepted | Desktop | 2026-10-12 |
+| docs/architecture/desktop.md | 1.28.0 | Accepted | Desktop | 2026-10-12 |
 | docs/architecture/guidance.md | 1.10.0 | Accepted | Desktop | 2026-10-12 |
 | docs/protocols/desktop-resource-v0.2.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
 | docs/development/vrcft-integration-plan.md | 1.1.0 | Accepted | Environment | 2026-10-10 |
 | docs/protocols/desktop-window-v0.2.md | 1.0.2 | Candidate | Desktop | 2026-10-10 |
 | docs/protocols/desktop-startup-v0.1.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
-| docs/protocols/desktop-library-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-12 |
+| docs/protocols/desktop-library-v0.1.md | 1.2.0 | Candidate | Desktop | 2026-10-12 |
 | docs/architecture/bdl.md | 1.3.0 | Accepted | Data | 2026-10-09 |
 | docs/architecture/amf-unity.md | 1.3.0 | Accepted | Production | 2026-10-09 |
 | docs/architecture/integrations-and-overlays.md | 1.7.0 | Accepted | Integration | 2026-10-10 |
@@ -83,6 +83,8 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | schemas/bdl/v0.7 | 0.7 | Implementation baseline | Data | 2026-10-09 |
 | schemas/library-intake/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
+| schemas/library-intake/v0.2 | 0.2 | Implementation baseline | AMF | 2026-10-12 |
+| docs/protocols/library-intake-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | schemas/bdl/v0.6 | 0.6 | Implementation baseline | Data | 2026-10-09 |
 | schemas/library-maintenance/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-maintenance-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-10-09 |
@@ -140,13 +142,13 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | schemas/recipe-export/v0.1 | 0.1 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/release/versioning.md | 3.2.0 | Accepted | Integration | 2026-10-11 |
-| docs/design/design-standard.md | 0.26.0 | Accepted | Desktop | 2026-10-12 |
-| docs/development-outline.md | 3.24.0 | Accepted | Integration | 2026-10-12 |
+| docs/design/design-standard.md | 0.27.0 | Accepted | Desktop | 2026-10-12 |
+| docs/development-outline.md | 3.24.1 | Accepted | Integration | 2026-10-12 |
 | docs/meta/documentation-governance.md | 2.5.0 | Accepted | Integration | 2026-10-01 |
 | CONTRIBUTING.md | 2.1.0 | Accepted | Integration | 2026-09-28 |
 | docs/REGISTRY.md | event-driven | Accepted | Integration | 2026-10-01 |
 | docs/architecture/evolution.md | 1.8.0 | Accepted | Integration | 2026-10-10 |
-| docs/protocols/README.md | 1.10.0 | Accepted | Integration | 2026-10-11 |
+| docs/protocols/README.md | 1.10.1 | Accepted | Integration | 2026-10-12 |
 | docs/protocols/desktop-browser-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-11 |
 | docs/protocols/environment-deployment-v0.1.md | 0.1 | Candidate | Environment | 2026-09-30 |
 | docs/meta/document-audit-2026-09-28.md | 1.0.0 | Accepted | Integration | 2026-09-28 |

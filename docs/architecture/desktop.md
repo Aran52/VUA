@@ -1,7 +1,7 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.27.0
+> Document version: 1.28.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-12
@@ -218,7 +218,15 @@ retry; closing a dialog does not authorize additional files or restart interrupt
 
 Card media carries a triangular corner with file/source/transfer facts. Menus and details open
 canonical BOOTH product pages; menu buttons align to the card bottom. Local intake opens the
-folder picker directly, retaining confirmation and cancellation. The bounded public lookup
+folder picker directly, retaining confirmation and cancellation. Card text reads title, shop,
+then the purchased variant when present. Native files/folders dropped into the host enter the
+AMF [mixed intake command](../protocols/library-intake-v0.2.md); a single file never implies its
+parent folder. An inactive module prompts for explicit enablement before importing. Preload
+resolves Electron-backed File objects and Main guards the native face; browser-created Files
+cannot supply paths. Task completion refreshes library facts even when intake started elsewhere.
+Native transfer polling always reconciles temporary card state, including unchanged empty queues;
+durable batch terminal/inspection replies clear their temporary transfers without a page remount.
+The bounded public lookup
 face is [booth-search v0.1](../protocols/booth-search-v0.1.md): Main owns keyword-only IPC,
 partition transport, pacing and size/time bounds; acquisition parses closed candidates.
 Renderer saves observed sources through entry-metadata commands. No account membership or
@@ -452,6 +460,7 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.28.0 (2026-10-12): add host file/folder drops with explicit AMF activation, task-driven library refresh, title/shop/variant order and fast-download corner reconciliation.
 - 1.27.0 (2026-10-12): add public source discovery, fact-based library corners, native pause/resume, direct folder intake and category-enrichment refresh.
 - 1.26.0 (2026-10-12): add scoped bulk local-file actions, native category filtering and measured download notifications; move raw task diagnostics into Experimental and retire demo/variant panels.
 
@@ -462,6 +471,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.
 - 1.20.0 (2026-10-10): enable AMF for fresh profiles, add qualified CPU/GPU/RAM/VRAM headroom through desktop resource v0.2, and apply a reduced-motion-aware 120° Home-logo colour wipe.
 - 1.19.0 (2026-10-10): implement the approved small monochrome native splash, independent desktop-startup v0.1 face, Windows language selection and first-use welcome/tour handoff while preserving saved profiles.
-- 1.18.0 (2026-10-10): place each scenario/editor/manager's collapsible details directly beneath its own card, separate compact language and Search controls, migrate retired goal links to Help and retire big-screen layout/navigation/tray actions while retaining the legacy event shape.
 
 Earlier entries remain in Git history.

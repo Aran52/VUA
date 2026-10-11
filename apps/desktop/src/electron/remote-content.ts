@@ -1,6 +1,7 @@
 import { WebContentsView, session, type BrowserWindow, type Rectangle, type Session } from "electron";
 import { DESKTOP_BROWSER_TAB_LIMIT, type DesktopBrowserLoadEventV1, type DesktopBrowserTabEventV1, type DesktopBrowserViewportV1, type RemoteContentEventV1, type RemoteContentViewStateV1 } from "@vua/contracts";
 import { browserViewportBounds } from "./browser-viewport.js";
+import { readSessionPage } from "./session-page.js";
 import {
   installCookiePersistencePolicy,
   installRemoteContentNavigationPolicy,
@@ -238,8 +239,7 @@ export class RemoteContentManager {
 
   /**
    * BOOTH 登录态线索(W25 走查缺陷③b 最小实现,只读探测):检查本机分区
-   * Session 中账户域(accounts.booth.pm——登录/库/会话功能唯一子域,普通
-   * 浏览 booth.pm 主页不在此域种 Cookie)是否存在已存 Cookie。
+   * Session 中实际账号库 URL 可用的 Cookie 是否存在(含父域存储)。
    * - 诚实边界:会话 Cookie 具体键名无公开文档,不作键名猜测;「有 Cookie」
    *   只说明账户域有存储痕迹(登录过/访问过账户页),不是登录判定——返回
    *   线索三态,登录与否以站点实际呈现为准;
@@ -249,10 +249,9 @@ export class RemoteContentManager {
    */
   async signInHint(): Promise<"stored" | "none" | "unknown"> {
     try {
-      // 真机修正(2026-10-02):登录会话 Cookie 是 accounts.booth.pm 的
-      // host-only Cookie——按 booth.pm 查询再过滤永远取不到它们,已登录
-      // 也被误报 "none"。直接按账户域查询。
-      const accountCookies = await this.#session.cookies.get({ domain: "accounts.booth.pm" });
+      // Match the library's scheme, host and path, including applicable parent-domain
+      // cookies, instead of assuming login storage belongs only to the account host.
+      const accountCookies = await this.#session.cookies.get({ url: "https://accounts.booth.pm/library" });
       return accountCookies.length > 0 ? "stored" : "none";
     } catch {
       return "unknown";
@@ -289,16 +288,7 @@ export class RemoteContentManager {
     if (!isAllowedRemoteOrigin(url, this.#options.allowedOrigins)) {
       throw new Error("origin_not_allowed");
     }
-    const response = await this.#session.fetch(url, {
-      ...(signal === undefined ? {} : { signal }),
-      redirect: "follow",
-      headers: { accept: "text/html,application/xhtml+xml" },
-    });
-    return {
-      status: response.status,
-      body: await response.text(),
-      finalUrl: response.url,
-    };
+    return readSessionPage(this.#session, url, this.#options.allowedOrigins, signal);
   }
 
   /** Reapply bounds and local-confirmation visibility after a host/layout change. */

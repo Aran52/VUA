@@ -1507,6 +1507,8 @@ rolled_back: "롤백됨",
     },
     viewList: "목록",
     viewToggleAria: "카드/목록 전환",
+    openLocalLibrary: "파일 탐색기에서 로컬 에셋 라이브러리 열기",
+    openLocalLibraryFailed: "로컬 에셋 라이브러리를 열지 못했습니다. 다시 시도해 주세요.",
     catalogSync: {
       checking: "BOOTH 로그인 확인 중…",
       checkFailed: "BOOTH 로그인을 확인할 수 없습니다",

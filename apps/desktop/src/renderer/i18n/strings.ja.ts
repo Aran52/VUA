@@ -1514,6 +1514,8 @@ rolled_back: "ロールバック済み",
     },
     viewList: "リスト",
     viewToggleAria: "カード/リスト切替",
+    openLocalLibrary: "ローカル素材ライブラリをエクスプローラーで開く",
+    openLocalLibraryFailed: "ローカル素材ライブラリを開けませんでした。もう一度お試しください。",
     catalogSync: {
       checking: "BOOTHのログインを確認中…",
       checkFailed: "BOOTHのログインを確認できませんでした",

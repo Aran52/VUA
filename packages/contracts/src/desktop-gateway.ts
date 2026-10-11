@@ -1703,6 +1703,7 @@ export interface VuaDesktopApiV2 extends Omit<VuaDesktopApiV1, "window" | "syste
   readonly window: DesktopWindowApiV2;
   readonly system: DesktopSystemApiV2;
   readonly startup?: DesktopStartupApiV01;
+  readonly library?: import("./desktop-library.js").DesktopLibraryApiV01;
 }
 
 export interface VuaDesktopApiV1 {

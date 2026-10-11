@@ -27,13 +27,11 @@ import {
   useDataSource,
   type LibraryPageView,
   type LibraryCardFacts,
-  type CatalogAvailabilityStatus,
   type CatalogDetailView,
   type CatalogErrorKey,
   type CatalogListView,
   type CatalogProductDetail,
   type CatalogProductSummary,
-  type CatalogRelationKind,
 } from "../../gateway/index.ts";
 import { format, strings, termLabel } from "../../i18n/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -596,6 +594,17 @@ export function WarehousePage({
   const [metadataEntries, setMetadataEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
   const [removedEntries, setRemovedEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+  const [openingFolder, setOpeningFolder] = useState(false);
+  const [folderOpenFailed, setFolderOpenFailed] = useState(false);
+  const openLocalLibrary = async () => {
+    const library = window.vua?.library;
+    if (library === undefined || openingFolder) return;
+    setOpeningFolder(true);
+    setFolderOpenFailed(false);
+    try { setFolderOpenFailed(!(await library.openFolder()).opened); }
+    catch { setFolderOpenFailed(true); }
+    finally { setOpeningFolder(false); }
+  };
   // 静默下载观察(人审 E18 修复):受理后记住商品,下载任务静默 + 目录里
   // 该商品已入库(自动采纳完成写 mappings)即刷新卡片墙并提示——用户看
   // 得到"下到哪了"。不按采纳任务 id 判定:main 发起的采纳任务是时间戳
@@ -944,7 +953,7 @@ export function WarehousePage({
       ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
       : libraryBrowser.list({ schemaVersion: "0.1", source: source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
-        ...(query.availabilityStatus === "" ? {} : { availabilityStatus: query.availabilityStatus }), limit: 50, offset: pageOffset });
+        limit: 50, offset: pageOffset });
     read.then(
       (page) => {
         if (!active) return;
@@ -1159,63 +1168,14 @@ export function WarehousePage({
         <h1 className="vua-title">{termLabel("warehouse")}</h1>
         {/* 选区动作位(Explorer 语义,2026-10-05):选区存在才出现;选区本身
             由单击/框选建立,无独立"选择模式"开关 */}
-        {selectedIds.size > 0 ? (
-          <button
-            type="button"
-            className="vua-warehouse__filter"
-            onClick={() => {
-              setContextSelection(recipeRefsOfSelection());
-              setRecipeDialogOpen(true);
-            }}
-          >
-            {format(copy.selectBar.addToRecipe, { count: selectedIds.size })}
-          </button>
-        ) : null}
-        {/* 视图切换:卡片墙 / 纯文字列表;两态都保留商店名(用户裁决 2026-10-03) */}
-        <button
-          type="button"
-          className="vua-warehouse__filter"
-          aria-label={copy.viewToggleAria}
-          title={viewMode === "cards" ? copy.viewList : copy.viewCards}
-          onClick={() => setViewMode((mode) => (mode === "cards" ? "list" : "cards"))}
-        >
-          {viewMode === "cards" ? copy.viewList : copy.viewCards}
-        </button>
-        {/* 来源筛选(用户方向 2026-10-02):云端/本地合并为单库页,来源只作筛选 */}
-        {dependencyCluesOn && connected ? <Button variant="subtle" onClick={() => setLookupName("")}>{copy.dependencyLookup.open}</Button> : null}
-        <select
-          className="vua-warehouse__filter"
-          aria-label={copy.filters.source}
-          value={source}
-          onChange={(event) => setSource(event.target.value as typeof source)}
-        >
-          <option value="all">{copy.filters.sourceAll}</option>
-          <option value="bought">{copy.filters.sourceBought}</option>
-          <option value="gifts">{copy.filters.sourceGifts}</option>
-          <option value="free">{copy.filters.sourceFree}</option>
-          <option value="local">{copy.filters.sourceLocal}</option>
-        </select>
-        {/* 下载状态筛选(人审 2026-10-06):静默下载自动采纳后,"已下载"
-            = importedArtifacts > 0(与卡片"已导入"徽标同一事实);客户端
-            过滤——列表数据已在手,该事实随快照到达 */}
-        <select
-          className="vua-warehouse__filter"
-          aria-label={copy.filters.downloadState}
-          value={downloadState}
-          onChange={(event) => setDownloadState(event.target.value as typeof downloadState)}
-        >
-          <option value="all">{copy.filters.downloadAll}</option>
-          <option value="downloaded">{copy.filters.downloaded}</option>
-          <option value="not-downloaded">{copy.filters.notDownloaded}</option>
-          <option value="missing">{copy.libraryState.missing}</option>
-          <option value="in_progress">{copy.libraryState.downloading}</option>
-          <option value="attention">{copy.libraryState.attention}</option>
-        </select>
         <p className="vua-text-secondary">{copy.subtitle}</p>
         {/* 素材导入入口(2026-09-20 导航重构):原独立页(设计标准 §8.3)收敛为
             本页内弹窗——连续素材获取路径(云端内嵌浏览/已完成下载采纳/本地
             文件夹导入)仍在,只是不再占一个侧栏页位 */}
         <div className="vua-page__actions">
+          {selectedIds.size > 0 ? <Button onClick={() => {
+            setContextSelection(recipeRefsOfSelection()); setRecipeDialogOpen(true);
+          }}>{format(copy.selectBar.addToRecipe, { count: selectedIds.size })}</Button> : null}
           <Button
             variant="primary"
             data-nav-id="warehouse-import"
@@ -1226,11 +1186,19 @@ export function WarehousePage({
           >
             {strings.importPage.title}
           </Button>
+          <Button data-nav-id="warehouse-open-folder" disabled={!connected || window.vua?.library === undefined || openingFolder} onClick={() => void openLocalLibrary()}>
+            <Icon name="folder" size={16} />{copy.openLocalLibrary}
+          </Button>
+          <Button aria-label={copy.viewToggleAria} title={viewMode === "cards" ? copy.viewList : copy.viewCards} onClick={() => setViewMode(mode => mode === "cards" ? "list" : "cards")}>
+            {viewMode === "cards" ? copy.viewList : copy.viewCards}
+          </Button>
+          {dependencyCluesOn && connected ? <Button variant="subtle" onClick={() => setLookupName("")}>{copy.dependencyLookup.open}</Button> : null}
           {source !== "local" && remoteBrowser ? (
             <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
               {accountState === "checking" || syncStarting ? copy.catalogSync.checking : accountState === "sign-in" ? copy.catalogSync.signInAction : accountState === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
             </Button>
           ) : null}
+          {folderOpenFailed ? <span className="vua-caption vua-text-secondary" role="status">{copy.openLocalLibraryFailed}</span> : null}
           {syncNotice !== null ? (
             <span className="vua-caption vua-text-secondary" role="status">
               {syncNotice === "started"
@@ -1269,6 +1237,41 @@ export function WarehousePage({
         ) : null}
       </section>
 
+      <div className="vua-warehouse__filters" role="search" aria-label={copy.searchAria}>
+        <label className="vua-warehouse__field">
+          <span>{copy.searchAria}</span>
+          <input type="search" className="vua-warehouse__search" aria-label={copy.searchAria} placeholder={copy.searchPlaceholder}
+            value={query.text} onChange={event => setQuery({ text: event.target.value })} />
+        </label>
+        <label className="vua-warehouse__field">
+          <span>{copy.filters.source}</span>
+          <div className="vua-warehouse__select">
+            <select className="vua-warehouse__filter" aria-label={copy.filters.source} value={source} onChange={event => setSource(event.target.value as typeof source)}>
+              <option value="all">{copy.filters.sourceAll}</option>
+              <option value="bought">{copy.filters.sourceBought}</option>
+              <option value="gifts">{copy.filters.sourceGifts}</option>
+              <option value="free">{copy.filters.sourceFree}</option>
+              <option value="local">{copy.filters.sourceLocal}</option>
+            </select>
+            <Icon name="chevron-down" size={16} />
+          </div>
+        </label>
+        <label className="vua-warehouse__field">
+          <span>{copy.filters.downloadState}</span>
+          <div className="vua-warehouse__select">
+            <select className="vua-warehouse__filter" aria-label={copy.filters.downloadState} value={downloadState} onChange={event => setDownloadState(event.target.value as typeof downloadState)}>
+              <option value="all">{copy.filters.downloadAll}</option>
+              <option value="downloaded">{copy.filters.downloaded}</option>
+              <option value="not-downloaded">{copy.filters.notDownloaded}</option>
+              <option value="missing">{copy.libraryState.missing}</option>
+              <option value="in_progress">{copy.libraryState.downloading}</option>
+              <option value="attention">{copy.libraryState.attention}</option>
+            </select>
+            <Icon name="chevron-down" size={16} />
+          </div>
+        </label>
+      </div>
+
       {true ? (
         <>
           {!connected ||
@@ -1301,69 +1304,7 @@ export function WarehousePage({
       ) : (
         <div className="vua-warehouse__content" data-drawer-open={selectedId !== null || undefined}>
           <div className="vua-warehouse__main">
-            {/* 工具栏:词表随数据(vocabulary),不硬编码 */}
-            <div className="vua-warehouse__toolbar" role="search">
-              <input
-                type="search"
-                className="vua-warehouse__search"
-                placeholder={copy.searchPlaceholder}
-                aria-label={copy.searchAria}
-                value={query.text}
-                onChange={(event) =>
-                  setQuery((prev) => ({ ...prev, text: event.target.value }))
-                }
-              />
-              <select
-                className="vua-warehouse__filter"
-                aria-label={copy.filters.availability}
-                value={query.availabilityStatus}
-                onChange={(event) =>
-                  setQuery((prev) => ({
-                    ...prev,
-                    availabilityStatus: event.target.value as CatalogAvailabilityStatus | "",
-                  }))
-                }
-              >
-                <option value="">{copy.filters.allAvailability}</option>
-                {(resultsView?.vocabulary.availabilities ?? []).map((value) => (
-                  <option key={value} value={value}>
-                    {copy.availability[value]}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="vua-warehouse__filter"
-                aria-label={copy.filters.entityType}
-                value={query.entityType}
-                onChange={(event) =>
-                  setQuery((prev) => ({ ...prev, entityType: event.target.value }))
-                }
-              >
-                <option value="">{copy.filters.allEntityTypes}</option>
-                {(resultsView?.vocabulary.entityTypes ?? []).map((value) => (
-                  <option key={value} value={value}>
-                    {entityTypeLabel(value)}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="vua-warehouse__filter"
-                aria-label={copy.filters.relationKind}
-                value={query.relationKind}
-                onChange={(event) =>
-                  setQuery((prev) => ({
-                    ...prev,
-                    relationKind: event.target.value as CatalogRelationKind | "",
-                  }))
-                }
-              >
-                <option value="">{copy.filters.allRelationKinds}</option>
-                {(resultsView?.vocabulary.relationKinds ?? []).map((value) => (
-                  <option key={value} value={value}>
-                    {copy.relationKind[value]}
-                  </option>
-                ))}
-              </select>
+            <div className="vua-warehouse__toolbar">
               {resultsView !== null ? (
                 <span className="vua-caption vua-text-secondary">
                   {hasActiveFilter(query)

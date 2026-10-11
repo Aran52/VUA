@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "../../components/primitives/Badge.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
-import { openLoginBrowser } from "../../app/login-browser-store.ts";
+import { openLoginBrowser, useLoginBrowserRequest } from "../../app/login-browser-store.ts";
 import { BOOTH_SIGN_IN_URL } from "../import/import-model.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { AccountGuide } from "./AccountGuide.tsx";
@@ -26,6 +26,7 @@ export function AccountSettingsPage() {
   >(null);
   const [guide, setGuide] = useState<"steam" | "vrchat" | "unity" | "booth" | "linking" | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const loginBrowserOpen = useLoginBrowserRequest() !== null;
 
   const refreshAuth = () => {
     setAuth(null);
@@ -36,9 +37,15 @@ export function AccountSettingsPage() {
   };
 
   useEffect(() => {
-    if (amf.state === "ready") refreshAuth();
-    else setAuth(null);
-  }, [amf.state]);
+    if (amf.state !== "ready" || loginBrowserOpen) { setAuth(null); return; }
+    let active = true;
+    setAuth(null);
+    void window.vua?.remoteContent?.authProbe().then(
+      probe => { if (active) setAuth(probe); },
+      () => { if (active) setAuth({ authOk: false, accountName: null }); },
+    );
+    return () => { active = false; };
+  }, [amf.state, loginBrowserOpen]);
 
   const signOut = async () => {
     setSigningOut(true);

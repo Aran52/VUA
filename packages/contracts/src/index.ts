@@ -10,6 +10,7 @@ export * from "./library-records-v01.js";
 export * from "./recipe-selection-draft-v01.js";
 export * from "./desktop-gateway.js";
 export * from "./desktop-browser.js";
+export * from "./desktop-library.js";
 export * from "./download-events.js";
 
 export * from "./environment-deployment.js";

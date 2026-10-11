@@ -1539,6 +1539,8 @@ rolled_back: "已回滚",
     },
     viewList: "列表",
     viewToggleAria: "切换卡片/列表视图",
+    openLocalLibrary: "在资源管理器中打开本地素材库",
+    openLocalLibraryFailed: "未能打开本地素材库，请重试。",
     catalogSync: {
       checking: "正在检测 BOOTH 登录…",
       checkFailed: "暂时无法检测 BOOTH 登录",

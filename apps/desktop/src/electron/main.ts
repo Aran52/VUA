@@ -725,6 +725,12 @@ function registerIpc(provider: ModuleProvider): void {
     assertLocalSender(senderFrameUrl(event));
     if (mainWindow === null || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error("browser requires main frame");
   };
+  ipcMain.handle("vua:library:open-folder", async (event) => {
+    assertBrowserSender(event);
+    assertAmfReady();
+    try { return { opened: await shell.openPath(path.join(amfDataRoot(), "warehouse")) === "" }; }
+    catch { return { opened: false }; }
+  });
   ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
     assertBrowserSender(event);
     const site = desktopBrowserSite(siteId);

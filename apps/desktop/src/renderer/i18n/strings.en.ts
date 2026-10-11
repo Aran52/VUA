@@ -1551,6 +1551,8 @@ demoTaskTitle: "Demo task",
     },
     viewList: "List",
     viewToggleAria: "Toggle card/list view",
+    openLocalLibrary: "Open local asset library in File Explorer",
+    openLocalLibraryFailed: "The local asset library could not be opened. Try again.",
     catalogSync: {
       checking: "Checking BOOTH sign-in…",
       checkFailed: "BOOTH sign-in could not be checked",

@@ -20,32 +20,24 @@ test("toPortQuery: 文本去空白,空文本不下发", () => {
   });
 });
 
-test("toPortQuery: 筛选条件逐项透传", () => {
+test("retired filters cannot silently narrow the library", () => {
   assert.deepEqual(
     toPortQuery({
       text: "x",
       availabilityStatus: "unavailable",
       entityType: "outfit",
       relationKind: "requires",
-    }),
+    } as Parameters<typeof toPortQuery>[0]),
     {
       text: "x",
-      availabilityStatus: "unavailable",
-      entityType: "outfit",
-      relationKind: "requires",
     },
   );
 });
 
-test("hasActiveFilter: 任一条件生效即为真(区分搜索空与未接入)", () => {
+test("hasActiveFilter: only a nonblank search is active", () => {
   assert.equal(hasActiveFilter(emptyWarehouseQuery), false);
   assert.equal(hasActiveFilter({ ...emptyWarehouseQuery, text: "a" }), true);
-  assert.equal(
-    hasActiveFilter({ ...emptyWarehouseQuery, availabilityStatus: "available" }),
-    true,
-  );
-  assert.equal(hasActiveFilter({ ...emptyWarehouseQuery, entityType: "tool" }), true);
-  assert.equal(hasActiveFilter({ ...emptyWarehouseQuery, relationKind: "addon_for" }), true);
+  assert.equal(hasActiveFilter({ text: "  " }), false);
 });
 
 test("priceKind: 0 为免费,缺价格为 none,其余按定价", () => {

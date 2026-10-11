@@ -35,6 +35,7 @@
     "smoke:amf-module": "electron scripts/smoke-amf-module.mjs",
     "smoke:help-navigation": "electron scripts/smoke-help-navigation.mjs",
     "smoke:asset-browser": "electron scripts/smoke-asset-browser.mjs",
+    "smoke:booth-session": "electron scripts/smoke-booth-session.mjs",
     "smoke:startup": "electron scripts/smoke-startup.mjs",
     "smoke:system-tray": "electron scripts/smoke-system-tray.mjs",
     "smoke:library-maintenance": "electron scripts/smoke-library-maintenance.mjs",

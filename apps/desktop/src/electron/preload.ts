@@ -83,6 +83,9 @@ const api: VuaDesktopApiV2 = Object.freeze({
       return () => ipcRenderer.removeListener("vua:amf-module:changed", wrapped);
     },
   }),
+  library: Object.freeze({
+    openFolder: () => ipcRenderer.invoke("vua:library:open-folder"),
+  }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
     invoke: (request: DesktopGatewayRequestV1) => ipcRenderer.invoke("vua:gateway:invoke", request),

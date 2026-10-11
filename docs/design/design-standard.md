@@ -1,11 +1,11 @@
-# VUA design standard v0.22.0
+# VUA design standard v0.23.0
 
 
-> Document version: 0.22.0
+> Document version: 0.23.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (regional reference, topbar Help and retained eight-tab browser sessions in four-language zoom fixtures, retaining compact cards, history and appearance; author game/device and human-language review pending)
+> Last conformance review: 2026-10-11 (aligned library controls and folder action in four-language/theme/zoom fixtures, retaining regional reference, topbar Help and eight-tab browser sessions; author account/material/game/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -419,6 +419,12 @@ changelog history already uses.
   directly exposed. Unchecked `LocalArtifact` values are pending/quarantined; executables are listed,
   never offered a run action. Animated mode may add a restrained pointer spotlight and tilt to cards;
   all other modes retain stable cards with identical selection, detail, and keyboard behavior.
+  The visible filter strip groups labeled search, library source and download state with matching
+  control height, padding, border and theme colors. Narrow windows stack search above the two
+  aligned selectors and permit page scrolling at large zoom. Availability, entity-type and
+  relation filters are retired from this UI. The action area includes an explicit "Open local
+  asset library in File Explorer" action for the active AMF material root, with pending/failed
+  handoff states; it does not ask the user to enter or select a path.
   Layout (v0.6.2, W13 window of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
   narrow windows stack it below. Artifact-mode semantics (v0.6.3, the W15 walkthrough ruling of
@@ -828,6 +834,7 @@ direction.
 
 ## 12. Document changelog
 
+- 0.23.0 (2026-10-11): unify the library's search/source/download-state controls, retire the three legacy selectors and add an explicit local-material folder action with narrow-window scroll recovery.
 - 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
 - 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.
@@ -837,7 +844,6 @@ direction.
 - 0.16.0 (2026-10-10): anchor collapsible details beneath each individual card, separate translation/compact-language and Search rows, route retired goal links to Help and retire big-screen mode while preserving native control semantics and visual/resource preferences.
 - 0.15.0 (2026-10-10): replace the AMF Home Inspection card with Finished Avatars and Package Manager in both modes, retaining inspection reports and aligning the finished-output title across navigation.
 - 0.14.0 (2026-10-10): standardize collapsible Play/Tools/editor details and compact tool widths, distinguish navigable Help child pages with Back/Forward, and place AMF activation and consolidated Settings controls in their accepted locations.
-- **0.13.0 (2026-10-10)**: move Tools/Help into Environment, embed knowledge and hardware reading, halve Play card heights and remove the resource sampling-time label while preserving themes, glass and resource saving.
 
 
 Earlier entries remain in Git history.

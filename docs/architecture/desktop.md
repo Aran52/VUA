@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.23.0
+> Document version: 1.24.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (regional reference UI and inset Wiki/material browser sessions with bounded tabs, page/history/form/scroll return and four-language zoom layouts; physical game/device and human-language review pending)
+> Last conformance review: 2026-10-11 (controlled BOOTH session/login-close/sync and local-folder handoff, four-language/theme/zoom filters, and retained Wiki/material browser sessions; real account/material, physical game/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -180,9 +180,23 @@ ID to a fixed public URL; arbitrary URLs, page data and credentials do not cross
 Warehouse probes account-library access through the existing `authProbe` before offering
 sync; stored cookies alone are insufficient. Pending probes show a disabled checking entry;
 IPC failures offer a retry. A session that cannot be verified offers the BOOTH login flow.
-Closing login/import refreshes this fact, and an explicit sync request reprobes it. A rejected
-or expired session opens login directly. Main skips anonymous probes when account cookies are
-absent and bounds authenticated probes to eight seconds; no credentials or raw page bodies reach Renderer.
+Closing login/import refreshes this fact, and an explicit sync request reprobes it. Settings →
+Accounts also reprobes after its login view closes and discards replies from prior view lifetimes.
+A rejected or expired session opens login directly. Main matches stored cookies against the
+actual account-library URL, including applicable parent-domain storage, and skips anonymous
+probes when there is no matching storage. Authentication still requires a successful account
+page read, bounded to eight seconds; cookie presence never proves login. Electron's private HTML
+reader uses the same partition with explicit credentials, tracks each actual redirect, bounds
+the response size and rejects redirects outside the authenticated-read allowlist. This avoids
+the pinned Electron fetch response's empty URL without assuming a redirected request stayed at
+its starting URL. Neither credentials nor raw page bodies reach Renderer.
+
+The optional Candidate [desktop-library v0.1](../protocols/desktop-library-v0.1.md) face opens
+the active AMF material folder. Main accepts only the local main frame, requires ready AMF and
+resolves `warehouse` from the module's data root; Renderer supplies no path. The library's search,
+source and download-state controls share one responsive filter row. Retired availability,
+entity-type and relation controls are absent from the presentation, while Provider contracts
+retain their existing query fields for other consumers.
 
 Main owns a VUA system tray icon throughout normal application execution. Double-click restores
 and focuses the existing main window. The localized menu exposes update checking
@@ -392,6 +406,7 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.24.0 (2026-10-11): restore BOOTH account reads through tracked session redirects, refresh account status on login close, align library filters and add the bounded active-AMF folder action.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
 - 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.
@@ -401,6 +416,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.17.0 (2026-10-10): verify BOOTH account access before offering library sync with direct login/retry handoffs, discover Editors through the host and inspect fresh Unity 2022 entry before CLI acquisition, and replace the AMF Home Inspection card with Finished Avatars and Package Manager.
 - 1.16.0 (2026-10-10): unify collapsible scenario/tool/editor details, add native Help/chapter/wizard history and Avatar-editing AMF activation, and consolidate Settings language/version controls without changing vendor/device evidence.
 - 1.15.0 (2026-10-10): add environment Tools/Help, embed the knowledge encyclopedia through desktop-window v0.2, halve Play card heights and remove the resource-panel sampling-time label.
-- 1.14.0 (2026-10-10): clarify AMF's bundled installation and separate activation for fresh/legacy profiles; retain saved choices and omit external editing placeholders from Ibis.
 
 Earlier entries remain in Git history.

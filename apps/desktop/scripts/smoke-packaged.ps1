@@ -59,7 +59,12 @@ try {
     if ($inventory.executables.Count -ne 2) { throw 'Provider inventory is incomplete' }
     foreach ($entry in $inventory.executables) {
         if (-not $providerFiles.ContainsKey($entry.name)) { throw 'Unknown inventoried Provider' }
-        $actualHash = (Get-FileHash -LiteralPath (Join-Path $first $providerFiles[$entry.name]) -Algorithm SHA256).Hash
+        # Match the archive hash above: use .NET directly so this standalone
+        # harness also works when Get-FileHash is unavailable in PowerShell.
+        $providerStream = [IO.File]::OpenRead((Join-Path $first $providerFiles[$entry.name]))
+        $providerHash = [Security.Cryptography.SHA256]::Create()
+        try { $actualHash = [BitConverter]::ToString($providerHash.ComputeHash($providerStream)).Replace('-', '') }
+        finally { $providerStream.Dispose(); $providerHash.Dispose() }
         if ($actualHash -ne $entry.sha256) { throw 'Provider differs from exact-build inventory' }
     }
     $checks.Add('Exact-build notices: product/source identity and both packaged Provider SHA-256 values match')

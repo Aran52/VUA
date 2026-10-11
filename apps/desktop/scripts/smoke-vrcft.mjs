@@ -104,8 +104,18 @@ async function run() {
     unavailable = true; await refresh();
     assert(await js('document.querySelector("[data-card=tool-vrcft]").dataset.action==="unknown" && document.querySelector("#tool-vrcft-details").textContent.includes("无法检查")'), "Provider failure remains Unknown instead of installed/absent");
     unavailable = false; await refresh(); await js('document.documentElement.dataset.theme="light"');
-    await js('[...document.querySelectorAll("#tool-vrcft-details button")].find(b=>b.textContent==="更换设备").click()'); window.setSize(840, 620); await delay(200);
-    assert(await js('(()=>{const d=document.querySelector("[role=dialog]"),b=d.getBoundingClientRect(),body=d.querySelector(".vua-content-dialog__body");return b.top>=0&&b.bottom<=innerHeight&&body.scrollHeight>body.clientHeight&&d.scrollWidth<=d.clientWidth+2})()'), "Light picker fits a small window and scrolls inside the dialog");
+    await js('[...document.querySelectorAll("#tool-vrcft-details button")].find(b=>b.textContent==="更换设备").click()');
+    // The app's minimum window is 960x600. A smaller requested native size can
+    // be clamped differently by Windows/DPI; short fonts can also fit without
+    // overflow. Use a real 150% page scale to require scrolling deterministically.
+    window.setSize(960, 600); window.webContents.setZoomFactor(1.5);
+    await js('document.fonts.ready.then(()=>{document.getAnimations().filter(a=>Number.isFinite(a.effect?.getComputedTiming().endTime)).forEach(a=>a.finish()); return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))})');
+    let picker;
+    await waitFor(async () => {
+      picker = await js('(()=>{const d=document.querySelector("[role=dialog]"),b=d.getBoundingClientRect(),body=d.querySelector(".vua-content-dialog__body");return {top:b.top,bottom:b.bottom,height:innerHeight,scroll:body.scrollHeight,client:body.clientHeight,width:d.scrollWidth,available:d.clientWidth}})()');
+      return picker.top >= 0 && picker.bottom <= picker.height && picker.scroll > picker.client && picker.width <= picker.available + 2;
+    }, "light picker at minimum window and 150% page scale").catch(error => { throw new Error(`${error.message}: ${JSON.stringify(picker)}`, { cause: error }); });
+    assert(picker.client > 0, "Light picker fits minimum window at 150% scale and scrolls inside the dialog");
     await capture('devices-light-small'); await click('.vua-content-dialog__close'); await js('location.reload()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-tools-discover]")'), "restart"); await click('[data-nav-id=nav-tools-discover]'); await click('[data-nav-id=tool-vrcft]');
     assert(await js('document.querySelector("[data-tracking-device=quest-pro]")?.dataset.trackingMethod==="vd"'), "Device and connection resume after reload");

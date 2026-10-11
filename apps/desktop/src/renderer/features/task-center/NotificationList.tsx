@@ -7,6 +7,7 @@ import { format, strings } from "../../i18n/index.ts";
 import type { TaskItem } from "../../gateway/index.ts";
 import type { TaskStatus } from "../../app/task-status.ts";
 import { formatBytes, recentDownloadSpeed } from "../../gateway/index.ts";
+import "./taskbar.css";
 
 const copy = strings.taskCenter;
 const statusCopy = strings.taskStatus;

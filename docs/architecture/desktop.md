@@ -1,7 +1,7 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.28.0
+> Document version: 1.29.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-12
@@ -226,6 +226,10 @@ resolves Electron-backed File objects and Main guards the native face; browser-c
 cannot supply paths. Task completion refreshes library facts even when intake started elsewhere.
 Native transfer polling always reconciles temporary card state, including unchanged empty queues;
 durable batch terminal/inspection replies clear their temporary transfers without a page remount.
+The view toggle sits immediately left of search. Single-card menus open recorded local entry folders
+through the [desktop-library face](../protocols/desktop-library-v0.1.md), with provider lookup and
+native containment checks. Multiple product folders offer a choice; cloud-only cards disable the
+action and multiselection omits it. The whole-library toolbar action is retired.
 The bounded public lookup
 face is [booth-search v0.1](../protocols/booth-search-v0.1.md): Main owns keyword-only IPC,
 partition transport, pacing and size/time bounds; acquisition parses closed candidates.
@@ -245,6 +249,9 @@ without local paths or URLs. Speed derives from observed byte/time deltas and ex
 unknown totals remain indeterminate. File storage counts come from AMF batch checkpoints, distinct
 from transport completion. Raw task diagnostics are reached from Settings → Experimental; Home no
 longer advertises the raw queue. Experimental demo and UI-variant controls are retired.
+`NotificationList` owns its shared stylesheet import, so the bell never depends on the retired
+bottom taskbar to remove native button chrome. All task types/states keep row, main-button and
+glyph backgrounds transparent, including hover; normal focus feedback and the panel remain.
 
 The library's displayed cloud and local cards share page-scoped selection and context-menu
 shortcuts. Product adaptation opens the optional read-only dependency observation surface;
@@ -460,6 +467,7 @@ redistribution review authorizes each bundled binary before a public release.
 
 ## Document changelog
 
+- 1.29.0 (2026-10-12): load notification styles at their shared owner, remove state/hover row fills, add single-card scoped folder actions and put the view toggle beside search.
 - 1.28.0 (2026-10-12): add host file/folder drops with explicit AMF activation, task-driven library refresh, title/shop/variant order and fast-download corner reconciliation.
 - 1.27.0 (2026-10-12): add public source discovery, fact-based library corners, native pause/resume, direct folder intake and category-enrichment refresh.
 - 1.26.0 (2026-10-12): add scoped bulk local-file actions, native category filtering and measured download notifications; move raw task diagnostics into Experimental and retire demo/variant panels.
@@ -470,6 +478,5 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
 - 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.
 - 1.20.0 (2026-10-10): enable AMF for fresh profiles, add qualified CPU/GPU/RAM/VRAM headroom through desktop resource v0.2, and apply a reduced-motion-aware 120° Home-logo colour wipe.
-- 1.19.0 (2026-10-10): implement the approved small monochrome native splash, independent desktop-startup v0.1 face, Windows language selection and first-use welcome/tour handoff while preserving saved profiles.
 
 Earlier entries remain in Git history.

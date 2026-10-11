@@ -119,7 +119,8 @@ async function run(){try{
   fs.writeFileSync(path.join(output,"library-detail.png"),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());
   const cachedImage=await js('document.querySelector(".vua-warehouse__drawer .vua-media-slot img").src');
   await js(`document.querySelector('.vua-warehouse__drawer-header button').click()`);
-  await click("warehouse-open-folder");
+  assert(await js('!document.querySelector("[data-nav-id=warehouse-open-folder]")'), "The whole-library folder button is retired from the header");
+  await js('window.vua.library.openFolder()');
   await waitFor(()=>folderRequests.length===1,"Explorer handoff");
   assert(folderRequests[0]===path.join(profile,"modules","amf","data","warehouse"),"Explorer action resolves the active AMF material root in Main");
   await js('window.vua.library.openFolder("C:/ignored-renderer-path")');

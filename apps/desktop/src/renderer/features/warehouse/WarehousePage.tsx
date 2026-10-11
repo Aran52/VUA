@@ -689,13 +689,30 @@ export function WarehousePage({
   };
   const [openingFolder, setOpeningFolder] = useState(false);
   const [folderOpenFailed, setFolderOpenFailed] = useState(false);
-  const openLocalLibrary = async () => {
+  const [folderChoices, setFolderChoices] = useState<readonly { entryId: string; displayName: string }[] | null>(null);
+  const openEntryFolder = async (entryId: string) => {
     const library = window.vua?.library;
-    if (library === undefined || openingFolder) return;
+    if (typeof library?.openEntryFolder !== "function" || openingFolder) return;
     setOpeningFolder(true);
     setFolderOpenFailed(false);
-    try { setFolderOpenFailed(!(await library.openFolder()).opened); }
+    try { const result = await library.openEntryFolder(entryId); setFolderOpenFailed(!result.opened); if (result.opened) setFolderChoices(null); }
     catch { setFolderOpenFailed(true); }
+    finally { setOpeningFolder(false); }
+  };
+  const openProductFolder = async (productId: string) => {
+    if (openingFolder || typeof window.vua?.library?.openEntryFolder !== "function") return;
+    setOpeningFolder(true); setFolderOpenFailed(false);
+    try {
+      const entries = new Map((libraryPage?.facts.get(productId)?.localEntries ?? []).map(entry => [entry.entryId, entry]));
+      const files = await libraryBrowser.productFiles(productId);
+      for (const file of files.items) for (const copy of file.copies) {
+        if (!entries.has(copy.entryId)) entries.set(copy.entryId, { entryId: copy.entryId, displayName: file.fileName });
+      }
+      const choices = [...entries.values()];
+      if (choices.length === 1) setFolderOpenFailed(!(await window.vua.library.openEntryFolder(choices[0]!.entryId)).opened);
+      else if (choices.length > 1) setFolderChoices(choices);
+      else setFolderOpenFailed(true);
+    } catch { setFolderOpenFailed(true); }
     finally { setOpeningFolder(false); }
   };
   // 静默下载观察(人审 E18 修复):受理后记住商品,下载任务静默 + 目录里
@@ -1341,6 +1358,10 @@ export function WarehousePage({
     const menuItems: ContextMenuState["items"] = [
       { id: "open", label: copy.card.detailsCta, onSelect: () => setSelectedId(item.productId) },
       boothMenuItem(item.productId),
+      { id: "openFolder", label: copy.cardMenu.openFolder,
+        disabled: dataSource !== "live" || typeof window.vua?.library?.openEntryFolder !== "function" || openingFolder
+          || (libraryPage?.facts.get(item.productId)?.storage.storedCopies ?? item.importedArtifacts) === 0,
+        onSelect: () => void openProductFolder(item.productId) },
       selectAllMenuItem,
       ...(dataSource === "live" && (libraryPage?.facts.get(item.productId)?.localEntries?.length ?? 0) > 0 ? [{
         id: "editLocalSource", label: copy.editSource.title,
@@ -1415,19 +1436,13 @@ export function WarehousePage({
           >
             {strings.importPage.localTitle}
           </Button>
-          <Button data-nav-id="warehouse-open-folder" disabled={!connected || window.vua?.library === undefined || openingFolder} onClick={() => void openLocalLibrary()}>
-            <Icon name="folder" size={16} />{copy.openLocalLibrary}
-          </Button>
-          <Button aria-label={copy.viewToggleAria} title={viewMode === "cards" ? copy.viewList : copy.viewCards} onClick={() => setViewMode(mode => mode === "cards" ? "list" : "cards")}>
-            {viewMode === "cards" ? copy.viewList : copy.viewCards}
-          </Button>
           {dependencyCluesOn && connected ? <Button variant="subtle" onClick={() => setLookupName("")}>{copy.dependencyLookup.open}</Button> : null}
           {source !== "local" && remoteBrowser ? (
             <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
               {accountState === "checking" || syncStarting ? copy.catalogSync.checking : accountState === "sign-in" ? copy.catalogSync.signInAction : accountState === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
             </Button>
           ) : null}
-          {folderOpenFailed ? <span className="vua-caption vua-text-secondary" role="status">{copy.openLocalLibraryFailed}</span> : null}
+          {folderOpenFailed && folderChoices === null ? <span className="vua-caption vua-text-secondary" role="status">{copy.openFolderFailed}</span> : null}
           {syncNotice !== null ? (
             <span className="vua-caption vua-text-secondary" role="status">
               {syncNotice === "started"
@@ -1467,11 +1482,16 @@ export function WarehousePage({
       </section>
 
       <div className="vua-warehouse__filters" role="search" aria-label={copy.searchAria}>
-        <label className="vua-warehouse__field">
-          <span>{copy.searchAria}</span>
-          <input type="search" className="vua-warehouse__search" aria-label={copy.searchAria} placeholder={copy.searchPlaceholder}
-            value={query.text} onChange={event => setQuery({ text: event.target.value })} />
-        </label>
+        <div className="vua-warehouse__search-controls">
+          <Button aria-label={copy.viewToggleAria} title={viewMode === "cards" ? copy.viewList : copy.viewCards} onClick={() => setViewMode(mode => mode === "cards" ? "list" : "cards")}>
+            {viewMode === "cards" ? copy.viewList : copy.viewCards}
+          </Button>
+          <label className="vua-warehouse__field">
+            <span>{copy.searchAria}</span>
+            <input type="search" className="vua-warehouse__search" aria-label={copy.searchAria} placeholder={copy.searchPlaceholder}
+              value={query.text} onChange={event => setQuery({ text: event.target.value })} />
+          </label>
+        </div>
         <label className="vua-warehouse__field">
           <span>{copy.filters.source}</span>
           <div className="vua-warehouse__select">
@@ -1715,6 +1735,9 @@ export function WarehousePage({
                               items: [
                                 selectAllMenuItem,
                                 boothMenuItem(knownLocalProduct(card.entry.warehouseItemId)),
+                                { id: "openFolder", label: copy.cardMenu.openFolder,
+                                  disabled: dataSource !== "live" || typeof window.vua?.library?.openEntryFolder !== "function" || openingFolder,
+                                  onSelect: () => void openEntryFolder(card.entry.warehouseItemId) },
                                 { id: "searchBooth", label: copy.sourceSearch.title, disabled: dataSource !== "live" || cornerBusy.has(card.entry.warehouseItemId),
                                   onSelect: () => void searchBoothSource(card.entry.warehouseItemId, card.entry.displayName) },
                                 ...(sourceProduct ? [compatibilityMenuItem(sourceProduct)] : []),
@@ -1879,6 +1902,13 @@ export function WarehousePage({
       {cardMenu !== null ? (
         <ContextMenu menu={cardMenu} onClose={() => setCardMenu(null)} />
       ) : null}
+      <ContentDialog open={folderChoices !== null} title={copy.cardMenu.openFolder} closeLabel={strings.common.dialogClose} onClose={() => { if (!openingFolder) { setFolderChoices(null); setFolderOpenFailed(false); } }}>
+        <div className="vua-page__stack">
+          <p>{copy.cardMenu.chooseFolder}</p>
+          {folderChoices?.map(entry => <Button key={entry.entryId} disabled={openingFolder} onClick={() => void openEntryFolder(entry.entryId)}><Icon name="folder" size={16} />{entry.displayName}</Button>)}
+          {folderOpenFailed ? <p role="status">{copy.openFolderFailed}</p> : null}
+        </div>
+      </ContentDialog>
       <ContentDialog
         open={importDialogOpen}
         title={strings.importPage.localTitle}

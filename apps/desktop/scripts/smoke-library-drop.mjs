@@ -1,6 +1,6 @@
 // Actual Main/preload/providers plus Chromium's native File drag store. Every
 // source and profile is temporary and synthetic; no user material/account is used.
-import { app, BrowserWindow, dialog, session, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, session, ipcMain, shell } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -20,6 +20,8 @@ app.getPreferredSystemLanguages = () => ["zh-CN"];
 BrowserWindow.prototype.show = function () {}; BrowserWindow.prototype.focus = function () {};
 dialog.showErrorBox = () => console.error("Desktop bootstrap failed in isolated drop smoke");
 const checks = []; let window, exitCode = 1;
+const folderRequests = [];
+shell.openPath = async folder => { folderRequests.push(folder); return ""; };
 const intakeReceipts = [];
 const intakeCommandIds = []; let loseNextReceipt = false;
 const handle = ipcMain.handle.bind(ipcMain);
@@ -79,6 +81,10 @@ async function run() { try {
     await waitFor(() => js('document.querySelector("[data-nav-id=nav-warehouse]")?.getAttribute("aria-current") === "page" && !!document.querySelector(".vua-warehouse")'), `${locale} imported library`);
     assert(await js('document.querySelector("[data-nav-id=nav-warehouse]")?.getAttribute("aria-current") === "page"'), `${locale}: accepted import opens the library through the AMF route guard`);
     const result = await list();
+    const entry = result.value.items.find(item => item.entry.displayName === "folder").entry;
+    const opened = await js(`window.vua.library.openEntryFolder(${JSON.stringify(entry.warehouseItemId)})`);
+    assert(opened.opened === true && folderRequests.at(-1) === path.join(profile, "modules", "amf", "data", "warehouse", entry.folderName), `${locale}: actual provider lookup opens only the selected managed entry folder`);
+    assert((await js('window.vua.library.openEntryFolder("not-a-recorded-entry")')).opened === false, `${locale}: unknown entries never open the whole warehouse or another directory`);
     assert(result.value.items.filter(item => item.entry.displayName === "folder").length === folderCount, `${locale}: dropped folder descendants do not make duplicate entries`);
     assert(!result.value.items.some(item => item.entry.displayName === "unselected.txt" || item.entry.displayName === "sub"), `${locale}: single-file intake does not copy siblings or duplicate dropped descendants`);
     assert(fs.readFileSync(single, "utf8") === "synthetic selected file" && fs.readFileSync(path.join(folder, "sub", "companion.txt"), "utf8") === "synthetic companion", `${locale}: source bytes and folder layout stay intact`);

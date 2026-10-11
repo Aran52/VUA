@@ -85,6 +85,7 @@ const api: VuaDesktopApiV2 = Object.freeze({
   }),
   library: Object.freeze({
     openFolder: () => ipcRenderer.invoke("vua:library:open-folder"),
+    openEntryFolder: (entryId: string) => ipcRenderer.invoke("vua:library:open-entry-folder", entryId),
     openBoothProduct: (productId: string) => ipcRenderer.invoke("vua:library:open-booth-product", productId),
     resolveDroppedFiles: (files: readonly File[]) => {
       if (!Array.isArray(files) || files.length === 0 || files.length > 200) return Promise.reject(new Error("invalid native file drop"));

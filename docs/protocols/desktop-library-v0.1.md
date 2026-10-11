@@ -1,12 +1,14 @@
 # Desktop-library v0.1: local library handoffs
 
-> Document version: 1.2.0
+> Document version: 1.3.0
 > Status: Candidate
 > Updated: 2026-10-12
-> Scope: Local Electron preload/Main action; no Provider or task-frame change
+> Scope: Local Electron preload/Main action; no Provider contract or task-frame change
 
-For people: Asset library offers an explicit action to open its local material folder in
-Windows File Explorer. Search, library source and download state remain the visible filters.
+For people: Each single asset card offers Open folder for its local materials in Windows File
+Explorer. A product stored in several directories asks which one to open. Cloud-only cards cannot
+open a local folder, and the action is absent from multiselection. The whole-library toolbar button
+is retired. Search, library source and download state remain the visible filters.
 
 For Agents: `DesktopLibraryApiV01` is an independent optional `library` member of
 `VuaDesktopApiV2`. The retained V1 aggregate, Gateway methods and material contracts are unchanged.
@@ -17,7 +19,8 @@ the [design standard](../design/design-standard.md#8-module-visual-language) own
 
 | Member | Input/output | Behavior |
 | --- | --- | --- |
-| `openFolder()` | No arguments → `Promise<{ opened: boolean }>` | Open the `warehouse` directory inside the active AMF data root through the system folder handler |
+| `openFolder()` | No arguments → `Promise<{ opened: boolean }>` | Retained compatibility handoff for the active AMF warehouse; no current toolbar entry |
+| `openEntryFolder(entryId)` | Bounded entry ID → `Promise<{ opened: boolean }>` | Open only that entry's provider-resolved managed directory |
 | `openBoothProduct(productId)` | `booth:<digits>` → `Promise<{ opened: boolean }>` | Open the canonical `https://booth.pm/items/<digits>` page in the system browser |
 | `resolveDroppedFiles(files)` | Native `File[]` → `Promise<readonly string[]>` | Resolve explicit OS file/folder drops for the active AMF intake command |
 
@@ -29,7 +32,7 @@ failure returns `opened: false`. Sender/module guard failures reject the call. T
 the action when its native face is absent or AMF is unavailable, prevents duplicate pending
 requests, and reports a failed handoff without displaying private system error text.
 
-These two handoffs do not enumerate files, download or import materials, change
+These handoffs do not download or import materials, change
 module ownership, or expose credentials, file paths or an arbitrary process-launch command to
 Renderer. Remote pages have no preload and cannot access the face.
 
@@ -37,6 +40,16 @@ The product action invokes `vua:library:open-booth-product`, with the same local
 ready-AMF guards. Main constructs the fixed official URL; Renderer cannot supply an arbitrary
 URL, command or local path. Malformed IDs reject; system-browser failures return `opened: false`.
 The handoff does not transfer the embedded account session, download files or infer ownership.
+
+`openEntryFolder` invokes `vua:library:open-entry-folder` with the same main-frame and ready-AMF
+guards. Main reads the existing `warehouse.entryDetail` query, confirms the returned identity,
+and accepts only a single folder-name component beneath the active AMF warehouse. Ordinary-directory,
+link and canonical-containment checks precede the system handoff. Unknown entries, missing directories,
+links, invalid replies and native failures return `opened: false` without private error text; malformed
+IDs or sender/module guard failures reject. The module guard is rechecked before opening. Renderer
+supplies only an identity. Product cards collect recorded entry IDs from the existing file inventory
+and attached local entries; one directory opens directly, several offer an explicit choice. No root
+fallback or batch of Explorer windows is opened on a failed or ambiguous lookup.
 
 The drop resolver uses Electron `webUtils.getPathForFile` inside preload, never `File.path` or
 page-supplied URLs. JavaScript-created files without native backing reject. Preload bounds the
@@ -61,10 +74,13 @@ Raw screenshots and session artifacts remain local.
 
 The [native drop smoke](../../apps/desktop/scripts/smoke-library-drop.mjs) exercises the real
 Chromium native File store, mixed file/folder input, explicit enable/cancel, retained File handles,
-source preservation and text/URL exclusion in all four UI languages with a temporary profile.
+source preservation, text/URL exclusion and actual provider-resolved entry-folder handoffs in all
+four UI languages with a temporary profile. The system-folder handler is stubbed: no visible
+Explorer window or user files are used.
 
 ## Document changelog
 
+- 1.3.0 (2026-10-12): add provider-resolved single-entry folder handoffs and explicit multi-directory choice; retire the whole-library toolbar entry and retain its compatibility face.
 - 1.2.0 (2026-10-12): add the main-frame/active-AMF native drop resolver; JavaScript-created files and unselected sibling folders cannot become intake inputs.
 - 1.1.0 (2026-10-12): add the bounded canonical BOOTH product-page handoff for menus, details and source candidates.
 - 1.0.0 (2026-10-11): define the independent, main-frame-only local material-folder action with active AMF ownership and explicit handoff/failure results.

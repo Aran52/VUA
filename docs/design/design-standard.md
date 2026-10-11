@@ -1,7 +1,7 @@
 # VUA design standard v0.26.0
 
 
-> Document version: 0.27.0
+> Document version: 0.28.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-12
@@ -450,6 +450,9 @@ changelog history already uses.
   Card text reads title, shop, then variant when present. The menu button sits at the card bottom
   regardless of title length. Known source menus/details
   offer "Open BOOTH page". The old qualification explanation is absent from the detail.
+  The view toggle sits immediately left of the search input. Single-card menus offer "Open folder"
+  for recorded local files; cloud-only cards disable it. Several directories for one product require
+  an explicit choice, while multiselection omits the action. The whole-library toolbar button is retired.
   Layout (v0.6.2, ruling of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
   the close button occupies its own top row, with the full-width title beneath it, for both
@@ -809,7 +812,9 @@ changelog history already uses.
   and status word carry success/failure facts, action buttons (retry/clear) each do one job, and
   the panel close ✕ only closes the panel — never conflated with dismissing a notification or
   presenting a failure.
-  Download rows have transparent backgrounds, a measured byte bar, transferred/total sizes and
+  All notification rows, main buttons and glyphs keep transparent backgrounds for every task type,
+  state and hover; the list owns these styles independently of the retired taskbar. Downloads have
+  a measured byte bar, transferred/total sizes and
   speed from real observations; unknown totals show an indeterminate bar and expired speed returns
   to measuring. File-saving counts are separate from transfer facts. All active batch notifications
   remain visible. The raw Tasks window belongs under Settings → Experimental as Task diagnostics;
@@ -866,6 +871,7 @@ direction.
 
 ## 12. Document changelog
 
+- 0.28.0 (2026-10-12): remove all notification row/hover fills at the shared style owner, move folder access into single-card menus and place view switching immediately left of search.
 - 0.27.0 (2026-10-12): add native file/folder drops and AMF prerequisite prompts, title/shop/variant ordering, transparent notification rows and in-place completion-corner recovery.
 - 0.26.0 (2026-10-12): define triangular media corners and actual pause/source actions, card-bottom menus, canonical BOOTH links and direct local folder intake.
 - 0.25.0 (2026-10-12): add scoped bulk-file confirmation, recorded native categories and measured download notifications; place raw task diagnostics in Experimental and retire obsolete demo/variant panels.
@@ -875,7 +881,6 @@ direction.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
 - 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.
 - **0.19.0 (2026-10-11)**: restore Help's topbar parallelogram and define explicit approximate regional reference states without changing card height, history or independent website tests.
-- 0.18.0 (2026-10-10): define the fresh enabled AMF entry, resource-headroom/saturation presentation and 120° jurisdiction-logo replacement with flattened-motion fallbacks.
 
 
 Earlier entries remain in Git history.

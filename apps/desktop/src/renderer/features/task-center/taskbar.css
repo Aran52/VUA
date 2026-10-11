@@ -123,7 +123,7 @@
 
 /* 行主区是打开按钮(W25 走查 D2:活动/终态两态一致回来源页,不静默无响应):
  * 去按钮铬保留文本语义;焦点环走 base.css 全局 :focus-visible(不覆盖
- * box-shadow),hover 镜像折叠条同一底色令可点击性可见。 */
+ * box-shadow); rows keep transparent backgrounds in every interaction state. */
 .vua-taskbar__task-main {
   flex: 1;
   min-width: 0;
@@ -142,7 +142,7 @@
 }
 
 .vua-taskbar__task-main:hover {
-  background: color-mix(in srgb, var(--vua-text-strong) 6%, transparent);
+  color: var(--vua-text-strong);
 }
 
 .vua-taskbar__task-title {
@@ -197,7 +197,7 @@
   display: grid; place-items: center;
   width: 30px; height: 30px; flex-shrink: 0;
   border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-accent) 12%, transparent);
+  background: transparent;
 }
 .vua-notify-panel .vua-taskbar__task-actions { flex-direction: column; }
 .vua-taskbar__transfer { display: flex; justify-content: space-between; gap: var(--vua-space-2); flex-wrap: wrap; color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }

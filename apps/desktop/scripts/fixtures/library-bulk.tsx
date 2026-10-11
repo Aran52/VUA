@@ -7,7 +7,6 @@ import { strings, format, currentLocale } from "../../src/renderer/i18n/index.ts
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/app-shell.css";
-import "../../src/renderer/features/task-center/taskbar.css";
 import "../../src/renderer/features/task-center/notification-popover.css";
 
 const copy = strings.warehouse;
@@ -33,6 +32,7 @@ let deletionMode: "normal" | "lost" | "drift" | "previewFailure" | "interrupted"
 let lost = false;
 const error = (code: string) => ({ ok: false, error: { code: "application", application: { contractVersion: "0.1", code, category: "conflict", messageKey: "errors.library.removalFailed", recoverable: true, retryable: false, correlationId: "synthetic" } } });
 const ok = (value: unknown) => ({ ok: true, value });
+const openedFolders: string[] = [];
 const sha = `sha256:${"a".repeat(64)}`;
 const inventory = (id: string) => ({ schemaVersion: "0.1", productId: id, items: id === "booth:90" ? [
   { downloadableId: 901, fileName: "installed.zip", managedCopyId: "cpy-original", copies: [{ copyId: "cpy-original", entryId: "whi-synthetic", fileName: "installed.zip", artifactSha256: sha, presence: "present" }] },
@@ -68,6 +68,7 @@ const invoke = async (request: DesktopGatewayRequestV1): Promise<unknown> => {
   throw Error(`Unexpected synthetic method ${request.method}`);
 };
 Object.defineProperty(window, "vua", { configurable: true, value: { gateway: { invoke }, events: { subscribe: () => () => {} },
+  library: { openEntryFolder: async (entryId: string) => { openedFolders.push(entryId); return { opened: true }; } },
   silentDownload: { start: async (productId: string, ids: readonly number[], targets: unknown) => { downloads.push({ productId, ids: [...ids], targets: structuredClone(targets) }); return { batchId: `library-download-${downloads.length}`, taskId: `task-download-${downloads.length}`, accepted: ids.length }; } },
 } });
 const { GatewayProvider, emptyGateway } = await import("../../src/renderer/gateway/index.ts");
@@ -96,6 +97,23 @@ async function showLibrary() {
 }
 async function run() {
   checks.length = 0; await showLibrary();
+  const search = document.querySelector<HTMLInputElement>('input[type="search"]')!;
+  const toggle = document.querySelector<HTMLButtonElement>(`button[aria-label="${copy.viewToggleAria}"]`)!;
+  check(toggle.getBoundingClientRect().right <= search.getBoundingClientRect().left && !document.querySelector('[data-nav-id="warehouse-open-folder"]'), "view toggle sits left of search and the whole-library folder button is retired");
+  const localCard = cards().find(card => card.dataset.selectionId?.includes(local.entry.warehouseItemId))!;
+  localCard.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await click(copy.cardMenu.openFolder);
+  check(openedFolders.at(-1) === local.entry.warehouseItemId, "single local card opens only its entry directory");
+  cards().find(card => card.dataset.selectionId === "booth:91")!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  check(button(copy.cardMenu.openFolder).disabled, "cloud-only card keeps the folder action honestly unavailable");
+  cards()[0]!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await click(copy.cardMenu.openFolder); await until(() => !!document.querySelector('[role="dialog"]'), "product folder choice");
+  check(text().includes(copy.cardMenu.chooseFolder) && openedFolders.length === 1, "a product with multiple directories offers a choice instead of opening a guessed root");
+  await click("installed.zip");
+  check(openedFolders.at(-1) === "whi-synthetic" && !document.querySelector('[role="dialog"]'), "chosen product directory uses its recorded entry identity");
+  await menu();
+  check(![...document.querySelectorAll(".vua-context-menu button")].some(button => button.textContent?.trim() === copy.cardMenu.openFolder), "multi-card selection never exposes a folder action");
+  await showLibrary();
   const category = document.querySelector<HTMLSelectElement>(`select[aria-label="${copy.filters.category}"]`)!;
   category.value = "category:3D衣装"; category.dispatchEvent(new Event("change", { bubbles: true }));
   await until(() => cards().length === 1, "native category applies");
@@ -139,11 +157,12 @@ async function run() {
   root.render(<div className="vua-notify-panel" style={{ position: "relative", top: 0, right: 0 }}><NotificationList notifications={[
     { id: "transfer-known", title: "Download · synthetic-material-with-a-long-filename.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 5 * 1024 ** 2, expectedBytes: 20 * 1024 ** 2, bytesPerSecond: 2 * 1024 ** 2, sampledAt: Date.now() } },
     { id: "transfer-unknown", title: "Download · unknown-size.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 1024, expectedBytes: null, bytesPerSecond: null, sampledAt: Date.now() } },
+    ...(["queued", "preparing", "running", "waitingInput", "paused", "completed", "completedWithWarnings", "failed", "cancelled"] as const).map(status => ({ id: `sync-${status}`, title: `BOOTH library sync · ${status}`, status, originPage: "warehouse" as const, cancellable: status === "running" })),
   ]} rejectedId={null} showCompleted={false} onShowCompletedChange={() => {}} onCancel={() => {}} onRetry={() => {}} dismissible={() => undefined} onBackToOrigin={() => {}} emptyText={null} replay={null} /></div>);
   await pause();
   check(document.querySelectorAll("progress").length === 2 && document.querySelectorAll("progress:indeterminate").length === 1, "known size renders measured progress; unknown size remains indeterminate");
   check(text().includes("MiB/s") && text().includes(strings.taskCenter.speedUnavailable), "notification rows show transfer speed and an honest measuring state");
-  check([...document.querySelectorAll(".vua-taskbar__task")].every(row => getComputedStyle(row).backgroundColor === "rgba(0, 0, 0, 0)"), "download notifications have transparent row backgrounds");
+  check([...document.querySelectorAll(".vua-taskbar__task, .vua-taskbar__task-main, .vua-taskbar__task-glyph")].every(row => getComputedStyle(row).backgroundColor === "rgba(0, 0, 0, 0)"), "download and BOOTH sync rows stay transparent in every task state without a fixture stylesheet import");
   return [...checks];
 }
 (window as any).libraryBulkReview = { run, showLibrary };

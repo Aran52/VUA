@@ -32,6 +32,7 @@ import {
 } from "./catalog-sync.js";
 import { probeBoothAuthentication } from "./booth-auth.js";
 import { searchPublicBoothProducts } from "./booth-search-port.js";
+import { openLibraryEntryFolder } from "./library-folder.js";
 import { deactivateImageCache, importLocalThumbnail, installImageCacheProtocol, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
 import { RemoteContentManager } from "./remote-content.js";
 import { createDesktopOrchestratorProvider, type DesktopProviderEndpoint } from "./provider-bootstrap.js";
@@ -737,6 +738,12 @@ function registerIpc(provider: ModuleProvider): void {
     if (typeof productId !== "string" || !/^booth:[0-9]+$/.test(productId) || /\s/.test(productId)) throw new Error("invalid BOOTH product");
     try { await shell.openExternal(`https://booth.pm/items/${productId.slice(6)}`); return { opened: true }; }
     catch { return { opened: false }; }
+  });
+  ipcMain.handle("vua:library:open-entry-folder", async (event, entryId: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    return openLibraryEntryFolder(provider, path.join(amfDataRoot(), "warehouse"), entryId, folder => {
+      assertAmfReady(); return shell.openPath(folder);
+    });
   });
   ipcMain.handle("vua:library:resolve-dropped-files", async (event, values: unknown) => {
     assertBrowserSender(event); assertAmfReady();

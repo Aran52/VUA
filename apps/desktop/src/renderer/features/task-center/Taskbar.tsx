@@ -5,7 +5,6 @@ import type { TaskItem } from "../../gateway/index.ts";
 import { NotificationList } from "./NotificationList.tsx";
 import { isActiveStatus, taskRowOpenTarget } from "./notification-model.ts";
 import { useNotificationCenter } from "./use-notification-center.ts";
-import "./taskbar.css";
 
 const copy = strings.taskCenter;
 

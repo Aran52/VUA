@@ -127,6 +127,11 @@
   align-items: end;
   gap: var(--vua-space-3);
 }
+.vua-warehouse__search-controls {
+  display: flex; align-items: flex-end; gap: var(--vua-space-2); min-width: 0;
+}
+.vua-warehouse__search-controls > .vua-warehouse__field { flex: 1; }
+.vua-warehouse__search-controls > button { flex-shrink: 0; }
 
 .vua-bulk-files__product {
   border: 1px solid var(--vua-border);
@@ -162,7 +167,7 @@
   /* At narrow widths/large zoom the header and controls need ordinary page scroll. */
   .vua-warehouse { overflow-y: auto; }
   .vua-warehouse__filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .vua-warehouse__field:first-child { grid-column: 1 / -1; }
+  .vua-warehouse__search-controls { grid-column: 1 / -1; }
 }
 
 .vua-warehouse__toolbar {

@@ -47,9 +47,27 @@ function Invoke-PackagedApp([string]$ProgramDirectory, [string]$DataDirectory, [
 
 try {
     Expand-Archive -LiteralPath $zip -DestinationPath $first
-    foreach ($required in @('VUA.exe', 'resources/app.asar', 'resources/provider/vua-orchestrator-provider.exe', 'resources/notices/LICENSE-VUA.txt', 'resources/README.txt')) {
+    foreach ($required in @('VUA.exe', 'resources/app.asar', 'resources/provider/vua-orchestrator-provider.exe', 'resources/modules/amf/vua-amf-provider.exe', 'resources/notices/LICENSE-VUA.txt', 'resources/notices/NOTICE-VUA.txt', 'resources/notices/build/dependency-inventory.json', 'resources/notices/build/electron/LICENSES.chromium.html', 'resources/notices/build/rust-toolchain/COPYRIGHT-library.html', 'resources/README.txt')) {
         if (-not (Test-Path -LiteralPath (Join-Path $first $required) -PathType Leaf)) { throw "Missing package file: $required" }
     }
+    $inventory = Get-Content -LiteralPath (Join-Path $first 'resources/notices/build/dependency-inventory.json') -Raw | ConvertFrom-Json
+    if ($inventory.productVersion -ne $version -or $inventory.sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Invalid exact-build notice identity' }
+    $providerFiles = @{
+        'vua-orchestrator-provider.exe' = 'resources/provider/vua-orchestrator-provider.exe'
+        'vua-amf-provider.exe' = 'resources/modules/amf/vua-amf-provider.exe'
+    }
+    if ($inventory.executables.Count -ne 2) { throw 'Provider inventory is incomplete' }
+    foreach ($entry in $inventory.executables) {
+        if (-not $providerFiles.ContainsKey($entry.name)) { throw 'Unknown inventoried Provider' }
+        # Match the archive hash above: use .NET directly so this standalone
+        # harness also works when Get-FileHash is unavailable in PowerShell.
+        $providerStream = [IO.File]::OpenRead((Join-Path $first $providerFiles[$entry.name]))
+        $providerHash = [Security.Cryptography.SHA256]::Create()
+        try { $actualHash = [BitConverter]::ToString($providerHash.ComputeHash($providerStream)).Replace('-', '') }
+        finally { $providerStream.Dispose(); $providerHash.Dispose() }
+        if ($actualHash -ne $entry.sha256) { throw 'Provider differs from exact-build inventory' }
+    }
+    $checks.Add('Exact-build notices: product/source identity and both packaged Provider SHA-256 values match')
     $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
     $env:VUA_RENDERER_URL = 'http://127.0.0.1:1/should-not-load'
     $env:VUA_PROVIDER_EXECUTABLE = Join-Path $fixtureRoot 'should-not-exist.exe'
@@ -74,7 +92,7 @@ try {
 
     Rename-Item -LiteralPath (Join-Path $moved 'resources/provider/vua-orchestrator-provider.exe') -NewName 'provider.saved.exe'
     $failure = Invoke-PackagedApp $moved $failureProfile $false
-    if ($failure.error -notlike '*bundled VUA backend is missing*') { throw 'Missing Provider did not produce the expected startup failure' }
+    if ($failure.error -notlike '*Bundled host provider is missing*') { throw 'Missing Provider did not produce the expected startup failure' }
     $checks.Add('Missing bundled Provider: nonzero exit and explicit diagnostic, no checkout fallback')
     $summary = @{ status = 'passed'; testedAt = (Get-Date).ToUniversalTime().ToString('o'); version = $version; checks = $checks.ToArray(); zipSha256 = $zipHash; fixtureRoot = $fixtureRoot }
     $summary | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $summaryPath -Encoding UTF8

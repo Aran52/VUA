@@ -1,14 +1,18 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
   ApplicationEventV01,
+  AmfModuleSnapshotV01,
   DesktopGatewayRequestV1,
   DesktopShellCommandV1,
+  DesktopBrowserEventV1,
+  DesktopBrowserSiteIdV1,
+  DesktopBrowserViewportV1,
   EditorSettingsV1,
   GuideTargetV1,
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
-  VuaDesktopApiV1,
+  VuaDesktopApiV2,
 } from "@vua/contracts";
 
 // 沙箱 preload 只允许 require electron 白名单模块:@vua/contracts 在此仅做
@@ -25,6 +29,11 @@ const eventListeners = new WeakMap<
 const remoteContentListeners = new WeakMap<
   (event: RemoteContentEventV1) => void,
   (event: IpcRendererEvent, payload: RemoteContentEventV1) => void
+>();
+
+const desktopBrowserListeners = new WeakMap<
+  (event: DesktopBrowserEventV1) => void,
+  (event: IpcRendererEvent, payload: DesktopBrowserEventV1) => void
 >();
 
 const navConfirmListeners = new WeakMap<
@@ -46,13 +55,34 @@ const readerTargetListeners = new WeakMap<
   (target: GuideTargetV1 | null) => void,
   (event: IpcRendererEvent, payload: GuideTargetV1 | null) => void
 >();
+let encyclopediaSubscriberCount = 0;
 
 const shellCommandListeners = new WeakMap<
   (command: DesktopShellCommandV1) => void,
   (event: IpcRendererEvent, payload: unknown) => void
 >();
 
-const api: VuaDesktopApiV1 = Object.freeze({
+const languageArgument = process.argv.find(argument => argument.startsWith("--vua-system-languages="));
+let systemLanguages: readonly string[] = [];
+try {
+  const decoded: unknown = JSON.parse(decodeURIComponent(languageArgument?.slice("--vua-system-languages=".length) ?? "[]"));
+  if (Array.isArray(decoded) && decoded.length <= 32 && decoded.every(language => typeof language === "string" && language.length <= 64)) systemLanguages = decoded;
+} catch { /* Missing OS languages use the source-language fallback. */ }
+
+const api: VuaDesktopApiV2 = Object.freeze({
+  startup: Object.freeze({
+    systemLanguages: Object.freeze(systemLanguages),
+    complete: () => ipcRenderer.invoke("vua:startup:complete"),
+  }),
+  amfModule: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:amf-module:snapshot"),
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke("vua:amf-module:set-enabled", enabled),
+    subscribe: (listener: (snapshot: AmfModuleSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, payload: AmfModuleSnapshotV01) => listener(payload);
+      ipcRenderer.on("vua:amf-module:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:amf-module:changed", wrapped);
+    },
+  }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
     invoke: (request: DesktopGatewayRequestV1) => ipcRenderer.invoke("vua:gateway:invoke", request),
@@ -128,9 +158,24 @@ const api: VuaDesktopApiV1 = Object.freeze({
         };
       },
     }),
-    // 准备阅读器(三类引导裁决 additive):普通阅读窗口,打开允许夺焦点;
-    // 无定位参数 = 普通打开(渲染层恢复上次阅读位置);undefined 经 IPC
-    // 序列化为 null,Main 侧按 null=缺省收窄
+    // V2 knowledge navigation targets Main's Help page; null restores its bookmark.
+    showEncyclopedia: (target?: GuideTargetV1 | null) =>
+      ipcRenderer.invoke("vua:knowledge:show", target ?? null),
+    encyclopediaTargetEvents: Object.freeze({
+      subscribe: (listener: (target: GuideTargetV1 | null) => void) => {
+        const wrapped = (_event: IpcRendererEvent, target: GuideTargetV1 | null) => listener(target);
+        ipcRenderer.on("vua:knowledge:target", wrapped);
+        if (++encyclopediaSubscriberCount === 1) ipcRenderer.send("vua:knowledge:listening", true);
+        let subscribed = true;
+        return () => {
+          if (!subscribed) return;
+          subscribed = false;
+          ipcRenderer.removeListener("vua:knowledge:target", wrapped);
+          if (--encyclopediaSubscriberCount === 0) ipcRenderer.send("vua:knowledge:listening", false);
+        };
+      },
+    }),
+    // Retained V1 reader: an ordinary separate reading window with explicit focus.
     showReader: (target?: GuideTargetV1 | null) =>
       ipcRenderer.invoke("vua:reader:show", target ?? null),
     // 阅读器定位事件:additive;Main 只投递给阅读器窗口本身
@@ -178,6 +223,27 @@ const api: VuaDesktopApiV1 = Object.freeze({
     }),
   }),
   // 远程内容窄面(F4-2):只发语义动作;远程页面本身无 preload、无本面
+  desktopBrowser: Object.freeze({
+    open: (site: DesktopBrowserSiteIdV1) => ipcRenderer.invoke("vua:desktop-browser:open", site),
+    navigate: (viewId: string, site: DesktopBrowserSiteIdV1) => ipcRenderer.invoke("vua:desktop-browser:navigate", viewId, site),
+    goBack: (viewId: string) => ipcRenderer.invoke("vua:desktop-browser:go-back", viewId),
+    goForward: (viewId: string) => ipcRenderer.invoke("vua:desktop-browser:go-forward", viewId),
+    reload: (viewId: string) => ipcRenderer.invoke("vua:desktop-browser:reload", viewId),
+    close: (viewId: string) => ipcRenderer.invoke("vua:desktop-browser:close", viewId),
+    setViewport: (viewId: string, viewport: DesktopBrowserViewportV1 | null) => ipcRenderer.invoke("vua:desktop-browser:viewport", viewId, viewport),
+    events: Object.freeze({
+      subscribe: (listener: (event: DesktopBrowserEventV1) => void) => {
+        const wrapped = (_event: IpcRendererEvent, payload: DesktopBrowserEventV1) => listener(payload);
+        desktopBrowserListeners.set(listener, wrapped);
+        ipcRenderer.on("vua:desktop-browser:event", wrapped);
+        return () => {
+          const current = desktopBrowserListeners.get(listener);
+          if (current) ipcRenderer.removeListener("vua:desktop-browser:event", current);
+          desktopBrowserListeners.delete(listener);
+        };
+      },
+    }),
+  }),
   remoteContent: Object.freeze({
     openAccountGuideInBrowser: (guide: import("@vua/contracts").AccountGuideIdV1) =>
       ipcRenderer.invoke("vua:remote-content:open-account-guide-in-browser", guide),
@@ -246,6 +312,7 @@ const api: VuaDesktopApiV1 = Object.freeze({
     // 系统资源占用(2026-09-25 裁决:顶栏占用查看器):读 Main 侧缓存
     // 快照;VRAM 采集不可用时字段 null,渲染层如实呈现「不可用」
     readResourceUsage: () => ipcRenderer.invoke("vua:system:resource-usage"),
+    readResourceUsageV2: () => ipcRenderer.invoke("vua:system:resource-usage-v2"),
   }),
   // 文件系统窄面(2026-09-25 用户裁决:素材导入应用内文件夹选择器):
   // 只读列目录 + 单层新建;失败收信不抛,options 缺席经 null 透传(Main

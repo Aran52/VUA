@@ -2,9 +2,9 @@
 
 [English](README.md) | 简体中文 | [日本語](README_JA.md) | [한국어](README_KO.md)
 
-**VUA（VRC Ultra Assistant）** 是面向 VRChat 玩家的 Windows 优先、本地优先的桌面生产环境——尤其面向
-没接触过 Unity、甚至还不清楚自己需要什么的玩家。从目标和自有素材出发，由 VUA 引导
-完成环境准备、工程准备、Avatar 装配、检测与恢复。
+**VUA（VRC Ultra Assistant）** 是面向 VRChat 玩家的 Windows 优先、本地优先的「情景」安装、管理、启动器。
+一个情景包含目标、所需软件，以及准备、启动和恢复的步骤：用电脑屏幕游玩、用 PICO 串流，
+或选择一个模块改模。从想做的事出发，由 VUA 帮你理清下一步。
 
 ## VUA 的用途
 
@@ -21,6 +21,9 @@ VUA 帮助玩家部署游玩所需的软件与设置，并学习移动、菜单�
 ### 2. Avatar 生产
 
 > **Sugar, spice, and everything nice.**
+
+AMF 是随 VUA 一起安装的自建改模模块，对新用户默认启用；可在「改模」或「设置 → 功能模块」关闭。
+已有的启停选择会被记住。素材库与私有 BDL 一起归 AMF 管理，停用会保留数据。
 
 玩家搭配自己拥有的素材，把选择与设置记录为 Recipe，分享给同样自行取得素材的玩家复现。目标是自动制作 Avatar，并在检查与受控修改之后把成品交给官方 SDK；Recipe 分享来源引用与设置，不包含付费素材本体。
 
@@ -42,14 +45,15 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 
 ## 开发进度说明
 
-v0.6.0 是当前最新的源代码标签；尚未发布任何可安装产物（唯一的 GitHub Release v0.5.0 不附带任何文件）。开发按 [N1–N7 序列](docs/development-outline.md) 推进：环境部署、选定的外部游玩工具、复杂 Avatar 制作、Recipe 复现、经核查的素材管理重做、恢复，以及带截图的用户指南的 Beta 安装包。
+[v0.6.6 Ibis（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) 提供当前 Windows x64 应用的完整 ZIP，随包包含 AMF。开发仍按 [N1–N7 序列](docs/development-outline.md) 推进；NSIS 安装器、镜像下载与复用运行时、AMF 独立增量更新在本次发布之后继续开发。
 
-项目预期还将持续 Beta 状态很长一段时间。以上介绍表达产品方向，已有实现和自动化测试不代表完整真机流程已经通过；实际验收状态以[开发序列](docs/development-outline.md)和[发行记录](docs/release/)为准。
+项目保持 Beta。发布不代表 N1/N5 或尚未完成的真机、素材及人工审查已通过。实际范围、检查与限制见 [v0.6.6 发行说明](docs/release/v0.6.6.md)。
 
 ### 当前交付与开始入口
 
-- 目前尚未发布可安装产物；[v0.6.0 验证记录与限制](docs/release/v0.6.0.md)记录了最新标签的状态。上文介绍的是产品方向，本 README 不宣称 N1–N7 流程已通过验收。
-- 带截图的用户指南与经过验收的 Beta 安装包属于 N7 交付，目前不作为已有使用教程。使用问题可通过 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) 提出。
+- 从 [Ibis 发布页](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) 下载 **Windows x64 ZIP**，完整解压后运行 **VUA.exe**，保留所有配套文件。运行不需要 Node、pnpm、Rust 或源码。本包尚未签名，Windows 可能提示未知发布者。
+- 首次启动会播放功能导览；也可直接进入游玩、工具或改模。新用户默认启用 AMF，可在设置 → 模块关闭。Steam/PICO/Unity 和账号操作按官方应用的提示完成。
+- 更新 ZIP 版时先退出 VUA，把新版解压到另一个文件夹。数据保留在 %APPDATA%\VUA；试用 Beta 前建议备份。发行说明列出尚未实测的流程和人工交接。问题可通过 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) 提交。
 - 开发者可从[安装依赖、启动桌面应用与选择检查](apps/desktop/README.md#development-commands)开始，再阅读[贡献指南](CONTRIBUTING.md)。
 
 ## 文档
@@ -57,7 +61,7 @@ v0.6.0 是当前最新的源代码标签；尚未发布任何可安装产物（�
 - [文档指南](docs/README.md)——每项任务的最小阅读路径
 - [产品边界](docs/product-boundary.md)
 - [系统架构](docs/architecture/system.md)
-- [v0.6.0 发行说明](docs/release/v0.6.0.md)
+- [v0.6.6 发行说明](docs/release/v0.6.6.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
 
 ## 许可证

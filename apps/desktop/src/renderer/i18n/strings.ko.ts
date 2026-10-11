@@ -1,3 +1,8 @@
+import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { browserCopy } from "./browser-copy.ts";
+import { helpCopy } from "./help-copy.ts";
+import { moduleCopy } from "./module-copy.ts";
+import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 import type { Strings } from "./strings.en.ts";
@@ -10,6 +15,10 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} 이름은 소스 테이블과 정확히 일치해야 함.
  */
 export const strings: Strings = {
+  faceTracking: faceTrackingCopy["ko"],
+  browser: browserCopy["ko"],
+  helpUi: helpCopy["ko"],
+  amfModule: moduleCopy["ko"],
   environmentCards: environmentCopy["ko"],
   journey: journeyCopy["ko"],
   websiteTests: {
@@ -20,7 +29,10 @@ export const strings: Strings = {
     invalid: "이름과 중복되지 않는 HTTPS 주소를 입력하세요. 로그인 정보와 프래그먼트는 포함할 수 없습니다.",
     empty: "오른쪽 위 + 버튼으로 사이트를 추가하세요.", unavailable: "현재 사이트 테스트를 사용할 수 없습니다. 소프트웨어 설치는 계속할 수 있습니다.",
     storageFailed: "이번 세션에는 적용되지만 저장하지 못했습니다.",
-    europe: "유럽", america: "미국", japan: "일본", west: "서부", east: "동부", regionUnavailable: "지역별 Ping 미지원",
+    europe: "유럽", america: "미국", japan: "일본", west: "서부", east: "동부", regionUnavailable: "지역 테스트를 사용할 수 없음",
+    regionTitle: "지역별 참고 지연", testRegions: "지역 테스트", approximateMilliseconds: "≈ {ms} ms",
+    regionCities: { usw: "산호세 · 미국 서부", use: "애슈번 · 워싱턴 인근", jp: "도쿄 · 일본", eu: "암스테르담 · 유럽" },
+    regionScope: "게임 지역과 가까운 Oracle Cloud 접속점을 사용하며 계정은 필요 없어요. 연결 후 HTTPS 응답을 세 번 측정해 중앙값을 표시하고, 처음 연결하는 시간은 제외해요. 경로와 서버 처리의 영향은 남아 있어요. 지역별 참고값이며 게임 방의 Ping이나 다운로드 속도는 아니에요.",
     scope: "웹사이트 응답 시간이며 게임 지연이나 다운로드 속도가 아닙니다. 클릭할 때만 계정 쿠키 없이 테스트합니다.",
     statuses: { timeout: "시간 초과", connection_failed: "실패", probe_error: "사용 불가", http_error: "HTTP 오류", redirected: "리디렉션", reachable: "연결됨" },
   },
@@ -57,7 +69,6 @@ export const strings: Strings = {
   },
   common: {
     fixtureBadge: "데모 데이터",
-    mascotAria: "VUA 마스코트 로봇",
     /** 콘텐츠 대화상자 닫기 버튼(소재 가져오기/코디네이트 초안) */
     dialogClose: "닫기",
   },
@@ -157,14 +168,22 @@ demoTaskTitle: "데모 작업",
     waitingServices: "로컬 서비스 준비를 기다리는 중…",
     updateAvailable: "새 버전 {version} 사용 가능",
   },
-  /** 상단바 리소스 모니터(2026-09-25 사용자 결정): 표시값 = RAM/VRAM 중 높은 값 */
+  /** 리소스 여유는 측정 가능한 CPU/GPU/RAM/VRAM으로 계산한다(2026-10-10 결정). */
   resourceMonitor: {
-    indicatorAria: "시스템 리소스 사용률 {percent}% — 자세히 보기",
+    indicatorAria: "리소스 여유 {percent}%, 측정 가능한 {count}개 항목의 평균 — 자세히 보기",
+    headroom: "여유 {percent}%",
     title: "시스템 리소스",
+    cpu: "CPU",
+    gpu: "GPU",
     ram: "메모리 (RAM)",
     vram: "비디오 메모리 (VRAM)",
-    vramUnavailable: "사용할 수 없음(수집 미연결)",
-    sampledAt: "샘플링 시각 {time}",
+    ramShort: "메모리",
+    vramShort: "VRAM",
+    unavailable: "측정할 수 없음",
+    gpuKinds: {"discrete":"외장 GPU","integrated":"내장 GPU","unknown":"유형 확인 불가"},
+    sharedMemory: "이 GPU는 시스템 메모리를 공유하므로 전용 VRAM을 따로 계산하지 않습니다.",
+    summaryNote: "여유는 100%에서 측정 가능한 {count}/4개 항목의 평균을 뺀 값이며 프레임률 예측이 아닙니다. GPU가 여러 개면 가장 바쁜 외장 GPU를 사용합니다.",
+    constrained: "{resource} {percent}%",
     closeAria: "리소스 상세 닫기",
   },
   nav: {
@@ -180,18 +199,20 @@ demoTaskTitle: "데모 작업",
       tools: "도구",
     },
     pages: {
+      assetBrowser: browserCopy["ko"].assets,
       envPlay: "플레이",
       envCreate: "아바타 편집",
+      help: "도움말",
       guideStart: "시작하기",
       guideBasics: "기본 조작",
       guideSafety: "안전 설정",
       guideDevices: "디바이스 팁",
       guideTutorials: "데스크톱/VR 튜토리얼",
-      toolsDiscover: "도구 찾기",
+      toolsDiscover: "도구",
       toolsDevices: "디바이스와 트래킹",
       toolsCalibration: "캘리브레이션",
       toolsInstalled: "설치된 도구",
-      settingsGoals: "목표 다시 선택",
+      settingsModules: "기능 모듈",
       settingsEnvironment: "환경 및 경로",
       settingsAccounts: "계정 관리",
       settingsLanguage: "언어",
@@ -201,6 +222,7 @@ demoTaskTitle: "데모 작업",
       settingsAbout: "VUA 정보",
       settingsDonate: "후원",
       packages: "패키지 관리자",
+      release: "완성된 아바타",
       /** 워크숍 사이드바 레이블(2026-09-25 사용자 결정): 복합 용어 시퀀스는 퇴역, 직접 표기로 */
       workshop: "워크숍",
       /** 코디네이트 초안은 2026-09-20 내비게이션 재편 이후 레시피 페이지 내 대화상자. */
@@ -364,13 +386,29 @@ demoTaskTitle: "데모 작업",
     /** 단계별 부재 설명이 없을 때의 기본 문안 */
     absentDefault: "이 항목은 지금 표시되지 않습니다. 투어를 계속하고 나중에 다시 봐도 됩니다.",
     steps: {
+      welcome: {
+        title: "환영합니다, 현실에서 온 여행자여.",
+        body: "VUA는 플레이 준비, 유용한 도구 메뉴, 아바타 편집 준비를 한곳에 모아 줍니다. 먼저 주요 기능을 함께 살펴볼까요?",
+      },
+      tools: {
+        title: "추가 도구는 여기에서",
+        body: "페이스 트래킹, 번역 등 유용한 도구를 모아 놓았습니다. ‘개발 중’ 항목에서는 설명을 읽을 수 있으며, 설치와 실행은 아직 준비 중입니다.",
+      },
+      creator: {
+        title: "아바타를 편집하고 싶다면",
+        body: "Unity와 패키지 관리 도구를 확인하는 곳입니다. 새 사용자는 에셋 관리와 아바타 편집을 위한 {amf}가 기본으로 켜져 있습니다. 여기서 꺼도 플레이 준비는 독립적으로 이용할 수 있습니다.",
+      },
+      settings: {
+        title: "VUA를 내 취향에 맞게",
+        body: "설정에서 외관, 표시 언어, 계정 메뉴를 찾을 수 있습니다. 왼쪽 위의 뒤로 가기로 원래 페이지에 돌아갑니다. 이 사이드바 아래의 검색에서 투어를 다시 볼 수 있습니다.",
+      },
       route: {
         title: "목표를 고르는 곳",
-        body: "왼쪽 위 VUA 로고로 홈에 돌아갑니다. 플레이, 아바타 편집, Avatar 기능은 마법사 선택과 관계없이 사용할 수 있습니다.",
+        body: "왼쪽 위 VUA 로고로 홈에 돌아갑니다. 플레이, 도구, 아바타 편집은 마법사 선택과 관계없이 사이드바에 표시됩니다.",
       },
       network: {
         title: "네트워크 점검은 여기",
-        body: "상단 카드 오른쪽에서 저장된 모든 사이트를 테스트합니다. 왼쪽에서는 개별 테스트, 사이트 편집, 연결 도움말을 엽니다. 클릭할 때만 테스트합니다.",
+        body: "오른쪽에서 웹사이트 연결을 확인하고, 왼쪽에서 결과와 개별 테스트를 엽니다. 지역별 서버 Ping은 아직 제공되지 않습니다. 클릭할 때만 테스트합니다.",
         absent: "플레이로 돌아가면 네트워크 테스트가 있습니다.",
       },
       checks: {
@@ -390,7 +428,7 @@ demoTaskTitle: "데모 작업",
       },
       guide: {
         title: "가이드는 언제나 열립니다",
-        body: "도움말에서 준비 안내와 게임 가이드를 엽니다. 환경 상세에서도 관련 장으로 바로 이동할 수 있습니다. 기능 검색（Ctrl+P）에서 이 안내를 다시 볼 수 있습니다.",
+        body: "‘환경 → 도움말’에는 입문 안내, 지식 백과, 게임 내 도우미가 있습니다. 백과는 현재 창에서 읽으며 환경 상세에서도 관련 장을 열 수 있습니다. 기능 검색（Ctrl+P）에서 이 안내를 다시 볼 수 있습니다.",
       },
     },
   },
@@ -927,6 +965,7 @@ rolled_back: "롤백됨",
         "아이트래킹 데이터 흐름 도식: PICO 헤드셋에서 PC의 트래킹 소프트웨어를 거쳐 아바타의 눈으로",
     },
     pages: {
+      hardware: hardwareCopy["ko"],
       room: {
         title: "방과 플레이 공간",
         intro:
@@ -1469,6 +1508,10 @@ rolled_back: "롤백됨",
     viewList: "목록",
     viewToggleAria: "카드/목록 전환",
     catalogSync: {
+      checking: "BOOTH 로그인 확인 중…",
+      checkFailed: "BOOTH 로그인을 확인할 수 없습니다",
+      checkDescription: "라이브러리를 동기화하기 전에 BOOTH 로그인을 확인하세요.",
+      retryCheck: "로그인 다시 확인",
       warningHint: "동기화가 끝났지만 일부 항목을 처리하지 못했습니다. 작업 기록을 확인하세요.",
       cancelledHint: "동기화를 취소했습니다. 저장된 목록 항목은 유지됩니다.",
       inspectHint: "이전 동기화가 중단되었습니다. 작업을 확인한 후 다시 동기화하세요.",
@@ -2721,7 +2764,7 @@ rolled_back: "롤백됨",
     },
   },
   commandPalette: {
-    cta: "기능 검색",
+    cta: "검색",
     ctaHint: "Ctrl+P",
     aria: "명령 팔레트",
     placeholder: "페이지로 이동하거나 명령 실행…",
@@ -2904,7 +2947,6 @@ rolled_back: "롤백됨",
     about: {
       heading: "VRC Ultra Assistant",
       description: "VRChat 실행 환경 설정과 {amf}를 통한 아바타 제작을 돕는 도구입니다.",
-      bannerSlot: "헤더 이미지 슬롯: 마스코트가 확정되면 배너가 채워집니다.",
       contributorsHeading: "기여자와 소스 코드",
       contributorsDescription: "VUA는 오픈 소스입니다. 코드, 문서, 커뮤니티 스킨 기여를 환영합니다. 규약은 리포지토리의 CONTRIBUTING과 AGENTS를 참조하세요.",
       repoCta: "프로젝트 리포지토리 열기",
@@ -3116,7 +3158,6 @@ rolled_back: "롤백됨",
       texture: "컨트롤 질감(v0.4.0 §3.6)",
       statusLight: "StatusLight 상태 등",
       emptyState: "EmptyState 빈 상태",
-      mascot: "Mascot 마스코트",
       skeleton: "Skeleton 스켈레톤",
       mediaSlot: "MediaSlot 미디어 슬롯",
       navSelected: "내비게이션 선택 상태",
@@ -3193,6 +3234,7 @@ rolled_back: "롤백됨",
    *  실패를 not-connected/not-found로 처리하므로, 이 뷰에서의 투과
    *  표시는 후속 슬라이스. */
   errors: {
+    externalTool: { unavailable: faceTrackingCopy["ko"].unknown },
     playSession: { unavailable: environmentCopy["ko"].unknown },
     recipe: { draftFailed: "레시피 초안 작업을 완료하지 못했습니다." },
     library: { downloadFailed: "다운로드를 완료하지 못했습니다. 기존 파일은 유지됩니다.", removalFailed: "로컬 파일을 삭제하지 못했습니다. 상태를 새로고침하고 작업을 확인하세요.", reconciliationFailed: "에셋 내용 확인을 완료하지 못했습니다. 작업을 확인한 뒤 다시 동기화하세요." },

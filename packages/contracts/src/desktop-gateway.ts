@@ -1,5 +1,6 @@
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams } from "./environment-deployment.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute } from "./play-session.js";
+import { isExternalToolParams, type ExternalToolAction } from "./external-tool.js";
 import { isNetworkParams, type NetworkIntent } from "./environment-network.js";
 import { isWebsiteTestParams, type WebsiteTestParams } from "./website-test.js";
 import type {
@@ -983,6 +984,8 @@ export interface GatewayDeploymentExecuteRequest { readonly schemaVersion: 1; re
 export type DesktopGatewayRequestV1 =
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: "vrcft" } }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.actConnection"; readonly params: { readonly toolId: "vrcft"; readonly action: ExternalToolAction; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.startPlay" | "environment.stopPlay"; readonly params: { readonly route: PlayRoute; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.checkNetwork"; readonly params: { readonly intent: NetworkIntent } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.testWebsites"; readonly params: WebsiteTestParams }
@@ -1077,6 +1080,8 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "environment.testWebsites": "query",
   "environment.planDeployment": "query",
   "environment.observePlay": "query",
+  "tools.observeConnection": "query",
+  "tools.actConnection": "command",
   "environment.inspectManagerApps": "query",
   "environment.startPlay": "command",
   "environment.stopPlay": "command",
@@ -1666,7 +1671,43 @@ export interface SystemResourceUsageV1 {
   readonly sampledAt: string;
 }
 
+/** Desktop-window v0.2 adds main Help navigation without changing V1 window semantics. */
+export interface DesktopWindowApiV2 extends DesktopWindowApiV1 {
+  showEncyclopedia(target?: GuideTargetV1 | null): Promise<{ readonly visible: boolean }>;
+  encyclopediaTargetEvents: {
+    subscribe(listener: (target: GuideTargetV1 | null) => void): () => void;
+  };
+}
+
+/** Independent desktop-startup v0.1 face; no Provider or retained V1 behavior change. */
+export interface DesktopStartupApiV01 {
+  readonly systemLanguages: readonly string[];
+  complete(): Promise<void>;
+}
+
+/** Desktop resource v0.2 reports utilization, never a performance forecast.
+ * GPU and VRAM refer to one physical adapter; shared UMA memory is not VRAM. */
+export interface SystemResourceUsageV2 extends Omit<SystemResourceUsageV1, "schemaVersion"> {
+  readonly schemaVersion: 2;
+  readonly cpuUsagePercent: number | null;
+  readonly gpuUsagePercent: number | null;
+  readonly gpuName: string | null;
+  readonly gpuKind: "discrete" | "integrated" | "unknown" | null;
+}
+
+export interface DesktopSystemApiV2 extends DesktopSystemApiV1 {
+  readResourceUsageV2(): Promise<SystemResourceUsageV2>;
+}
+
+export interface VuaDesktopApiV2 extends Omit<VuaDesktopApiV1, "window" | "system"> {
+  readonly window: DesktopWindowApiV2;
+  readonly system: DesktopSystemApiV2;
+  readonly startup?: DesktopStartupApiV01;
+}
+
 export interface VuaDesktopApiV1 {
+  readonly desktopBrowser?: import("./desktop-browser.js").DesktopBrowserApiV1;
+  readonly amfModule?: import("./amf-module.js").AmfModuleApiV01;
   readonly gateway: DesktopGatewayApiV1;
   readonly events: DesktopGatewayEventsApiV1;
   readonly dialog: DesktopDialogApiV1;
@@ -1814,6 +1855,11 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
       return hasExactKeys(value, REQUEST_KEYS) && isDeploymentParams(value.params, false);
     case "environment.observePlay":
       return hasExactKeys(value, REQUEST_KEYS) && isPlayParams(value.params);
+    case "tools.observeConnection":
+      return hasExactKeys(value, REQUEST_KEYS) && isExternalToolParams(value.params, false);
+    case "tools.actConnection":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["toolId", "action", "commandId"])
+        && isPlayCommandId(value.params.commandId) && isExternalToolParams({ toolId: value.params.toolId, action: value.params.action }, true);
     case "environment.inspectManagerApps":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, []);
     case "environment.startPlay": case "environment.stopPlay":

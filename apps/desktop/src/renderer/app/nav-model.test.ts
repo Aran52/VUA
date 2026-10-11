@@ -67,7 +67,7 @@ test("no forced redirects: tab landing is unconditional, workshop stays workshop
   // v0.3.3 §2.1:不自动切页;车间阻断由页面内阻断态表达,导航层不再门控
   assert.equal(resolveTabLanding("production"), "warehouse");
   assert.equal(resolveTabLanding("env"), "env-play");
-  assert.equal(resolveTabLanding("settings"), "settings-goals");
+  assert.equal(resolveTabLanding("settings"), "settings-theme");
   assert.ok(isPageId("workshop"));
   assert.ok(clicksToReach("workshop") <= 2);
 });
@@ -86,9 +86,11 @@ test("every page belongs to exactly its own module", () => {
   assert.equal(moduleOf("tools-devices"), "env");
   assert.equal(moduleOf("tools-calibration"), "env");
   assert.equal(moduleOf("tools-installed"), "env");
-  assert.equal(moduleOf("settings-version"), "settings");
+  assert.equal(moduleOf("settings-about"), "settings");
+  for (const page of ["help-wizard", "help-tour", "help-game-assistant", "help-encyclopedia"] as const) assert.equal(moduleOf(page), "env");
+  for (const retired of ["settings-version", "settings-language", "settings-donate"]) assert.equal(isPageId(retired), false);
   assert.equal(moduleOf("settings-experimental"), "settings");
-  assert.equal(moduleOf("settings-goals"), "settings");
+  assert.equal(isPageId("settings-goals"), false);
 });
 
 test("environment module carries the merged tools group with labels, page ids unchanged", () => {
@@ -102,14 +104,20 @@ test("environment module carries the merged tools group with labels, page ids un
   );
   assert.deepEqual(
     env?.groups[0]?.pages.map((p) => p.id),
-    ["env-play", "env-create"],
+    ["env-play", "tools-discover", "env-create"],
   );
   assert.deepEqual(
     env?.groups[1]?.pages.map((p) => p.id),
-    ["tools-discover", "tools-devices", "tools-calibration", "tools-installed"],
+    ["tools-devices", "tools-calibration", "tools-installed"],
   );
   assert.equal(strings.nav.groups.env, "环境");
   assert.equal(strings.nav.groups.tools, "工具");
+});
+
+test("Help retains its deep link and is one click away outside the business sidebar", () => {
+  assert.equal(isPageId("help"), true);
+  assert.equal(clicksToReach("help", "warehouse"), 1);
+  assert.ok(!modules.some(module => module.groups.some(group => group.pages.some(page => page.id === "help"))));
 });
 
 test("production sidebar is one flat group without a group label, pages in flow order", () => {
@@ -120,7 +128,7 @@ test("production sidebar is one flat group without a group label, pages in flow 
   assert.equal(production?.groups[0]?.labelKey, undefined);
   assert.deepEqual(
     production?.groups[0]?.pages.map((p) => p.id),
-    ["warehouse", "recipe", "inspection", "release", "workshop", "packages"],
+    ["warehouse", "asset-browser", "recipe", "inspection", "release", "workshop", "packages"],
   );
 });
 

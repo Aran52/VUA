@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useAmfModule } from "../../gateway/index.ts";
+import { ModulesPage } from "../modules/ModulesPage.tsx";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { DeploymentPurpose } from "@vua/contracts";
 import type { EnvGoalId, GoalId } from "../../app/onboarding-model.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { storageKeys } from "../../app/storage-keys.ts";
-import { useRouteFocus } from "../../app/use-route-focus.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { RouteTile } from "../../components/RouteTile.tsx";
 import { strings } from "../../i18n/index.ts";
@@ -12,22 +13,37 @@ import { NetworkPanel } from "../deployer/NetworkPanel.tsx";
 import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS } from "../guide/guide-target.ts";
 import { PlayLaunch } from "../home/RouteEnvironmentPage.tsx";
-import { initialJourney, journeyBack, parseJourney, type JourneyStep } from "./journey-model.ts";
+import { initialJourney, journeyBack, journeyHash, parseJourney, readJourneyHash, type JourneyState, type JourneyStep } from "./journey-model.ts";
 import "./onboarding.css";
 const copy = strings.journey;
 export interface OnboardingResult {
   status: "completed" | "skipped"; goals: GoalId[]; environments: EnvGoalId[]; page?: PageId;
 }
-export function OnboardingPage({ onComplete, onAccounts }: {
-  onComplete: (result: OnboardingResult) => void; onAccounts: () => void;
+export function OnboardingPage({ onComplete, onAccounts, embedded = false }: {
+  onComplete: (result: OnboardingResult) => void; onAccounts: () => void; embedded?: boolean;
 }) {
-  const [state, setState] = useState(() => { try { return parseJourney(localStorage.getItem(storageKeys.firstRunJourney)); } catch { return initialJourney; } });
+  const amf = useAmfModule();
+  const [state, setState] = useState(() => { if (embedded) { const target = readJourneyHash(window.location.hash); if (target) return target; } try { return parseJourney(localStorage.getItem(storageKeys.firstRunJourney)); } catch { return initialJourney; } });
   const [ready, setReady] = useState(false);
-  const focus = useRouteFocus(state.step);
   useEffect(() => { try { localStorage.setItem(storageKeys.firstRunJourney, JSON.stringify(state)); } catch { /* Session progress remains usable. */ } }, [state]);
+  const onHistory = useEffectEvent(() => {
+    if (window.location.hash === journeyHash(state)) return;
+    const target = readJourneyHash(window.location.hash);
+    if (target) { setReady(false); setState(target); }
+  });
+  useEffect(() => {
+    if (!embedded) return;
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${journeyHash(state)}`);
+    window.addEventListener("hashchange", onHistory);
+    return () => window.removeEventListener("hashchange", onHistory);
+  }, [embedded]);
+  const updateState = (next: JourneyState) => {
+    setState(next);
+    if (embedded) window.location.hash = journeyHash(next);
+  };
   const move = (step: JourneyStep, purpose = state.purpose) => {
     setReady(false);
-    setState(s => ({ ...s, step, purpose, connection: purpose === "pico_pcvr" ? s.connection : null }));
+    updateState({ ...state, step, purpose, connection: purpose === "pico_pcvr" ? state.connection : null });
   };
   const done = (page?: PageId) => {
     try { localStorage.setItem(storageKeys.firstRunJourney, JSON.stringify(initialJourney)); } catch { /* Completion remains usable without storage. */ }
@@ -38,16 +54,17 @@ export function OnboardingPage({ onComplete, onAccounts }: {
     <RouteTile title={title} description={description} {...(kind ? { kind } : {})} onClick={() => move(step, purpose ?? null)} id={`wizard-${step}-${purpose ?? title}`} />;
   const steps = copy.steps;
   const phase = ["network", "prepare"].includes(state.step) ? 1 : ["connection", "launch", "creator-done", "library"].includes(state.step) ? 2 : 0;
-  const title = ({ goal: copy.goal, "play-mode": copy.playMode, headset: copy.headset, "creator-start": copy.creatorStart,
+  const title = ({ goal: copy.goal, "play-mode": copy.playMode, headset: copy.headset, "creator-start": amf.state === "ready" ? copy.creatorStart : strings.amfModule.choose,
     target: copy.target, editor: copy.editor, network: copy.network, prepare: copy.prepare, connection: copy.connection,
     launch: copy.launch, library: copy.assetsGoal, "creator-done": copy.creatorReady })[state.step];
   const hints: Partial<Record<JourneyStep, string>> = { goal: copy.goalHint, editor: copy.editorHint, network: copy.networkHint, prepare: copy.prepareHint, library: copy.assetsHint };
+  const QuestionHeading = embedded ? "h2" : "h1";
   return <div className="vua-onboarding" data-wizard-step={state.step}>
     <div className="vua-onboarding__panel">
-      <div className="vua-journey-top"><span>{copy.wizard}</span><Button variant="subtle" onClick={() => onComplete({ status: "skipped", goals: [], environments: [] })}>{copy.exit}</Button></div>
+      {!embedded ? <div className="vua-journey-top"><span>{copy.wizard}</span><Button variant="subtle" onClick={() => onComplete({ status: "skipped", goals: [], environments: [] })}>{copy.exit}</Button></div> : null}
       <nav aria-label={copy.wizard}><ol className="vua-journey-phases">{steps.map((label, index) => <li key={label} aria-current={phase === index ? "step" : undefined}><span>{index + 1}</span>{label}</li>)}</ol></nav>
-      <header className="vua-onboarding__header"><h1 className="vua-display">{title}</h1>{hints[state.step] ? <p className="vua-text-secondary">{hints[state.step]}</p> : null}</header>
-      <div key={state.step} ref={focus.root} onClickCapture={focus.remember} className="vua-journey-content vua-page-enter" data-focus-scope>
+      <header className="vua-onboarding__header"><QuestionHeading className="vua-display">{title}</QuestionHeading>{hints[state.step] ? <p className="vua-text-secondary">{hints[state.step]}</p> : null}</header>
+      <div key={state.step} className="vua-journey-content vua-page-enter" data-focus-scope>
         {state.step === "goal" ? <div className="vua-route-grid">
           {choose(copy.playGoal, copy.playHint, "play-mode", undefined, "screen")}
           {choose(copy.createGoal, copy.createHint, "creator-start", undefined, "unity")}
@@ -57,7 +74,8 @@ export function OnboardingPage({ onComplete, onAccounts }: {
           {choose(copy.vr, copy.vrHint, "headset", undefined, "headset")}
         </div> : null}
         {state.step === "headset" ? <HeadsetChoices onPico={() => move("network", "pico_pcvr")} /> : null}
-        {state.step === "creator-start" ? <div className="vua-route-grid">
+        {state.step === "creator-start" && amf.state !== "ready" ? <ModulesPage embedded onOpen={() => move("library")} /> : null}
+        {state.step === "creator-start" && amf.state === "ready" ? <div className="vua-route-grid">
           {choose(copy.assetsGoal, copy.assetsHint, "library")}{choose(copy.environmentGoal, copy.environmentHint, "target", undefined, "unity")}
         </div> : null}
         {state.step === "target" ? <div className="vua-route-grid">
@@ -69,23 +87,24 @@ export function OnboardingPage({ onComplete, onAccounts }: {
         </div> : null}
         {state.step === "network" ? <><NetworkPanel /><Button variant="primary" onClick={() => move("prepare")}>{copy.networkContinue}</Button></> : null}
         {state.step === "prepare" && state.purpose ? <>
-          <DeploymentPanel key={state.purpose} zone={state.purpose.includes("avatar") ? "create" : "play"} purpose={state.purpose} onReadyChange={setReady} />
+          <DeploymentPanel key={state.purpose} zone={state.purpose.includes("avatar") ? "create" : "play"} purpose={state.purpose} onReadyChange={setReady} autoPlan={state.purpose.includes("avatar")} />
           {ready ? <Button variant="primary" onClick={() => move(state.purpose === "pico_pcvr" ? "connection" : state.purpose === "desktop_play" ? "launch" : "creator-done")}>{copy.preparedNext}</Button> : null}
         </> : null}
         {state.step === "connection" ? <><div className="vua-route-grid">
-          <RouteTile title={copy.usb} description={copy.usbHint} kind="headset" selected={state.connection === "usb"} id="wizard-usb" onClick={() => setState(s => ({ ...s, connection: "usb" }))} />
-          <RouteTile title={copy.wifi} description={copy.wifiHint} icon="cloud" selected={state.connection === "wifi"} id="wizard-wifi" onClick={() => setState(s => ({ ...s, connection: "wifi" }))} />
+          <RouteTile title={copy.usb} description={copy.usbHint} kind="headset" selected={state.connection === "usb"} id="wizard-usb" onClick={() => updateState({ ...state, connection: "usb" })} />
+          <RouteTile title={copy.wifi} description={copy.wifiHint} icon="cloud" selected={state.connection === "wifi"} id="wizard-wifi" onClick={() => updateState({ ...state, connection: "wifi" })} />
         </div>{state.connection ? <div className="vua-journey-actions">
           <GuideEntryButton target={state.connection === "usb" ? GUIDE_TARGETS.picoUsb : GUIDE_TARGETS.picoWifi} label={copy.guide} />
           <p>{copy.declared}</p><Button variant="primary" onClick={() => move("launch")}>{copy.connectionConfirm}</Button>
         </div> : null}</> : null}
         {state.step === "launch" ? <><PlayLaunch onAccounts={onAccounts} /><Button variant="subtle" onClick={() => done("home")}>{copy.finish}</Button></> : null}
-        {state.step === "library" ? <Button variant="primary" onClick={() => done("warehouse")}>{copy.openLibrary}</Button> : null}
+        {state.step === "library" && amf.state !== "ready" ? <ModulesPage embedded onOpen={() => done("warehouse")} /> : null}
+        {state.step === "library" && amf.state === "ready" ? <Button variant="primary" onClick={() => done("warehouse")}>{copy.openLibrary}</Button> : null}
         {state.step === "creator-done" ? <Button variant="primary" onClick={() => done("home")}>{copy.finish}</Button> : null}
       </div>
       <footer className="vua-onboarding__footer">
         {state.step !== "goal" ? <Button variant="subtle" data-back onClick={() => move(journeyBack(state))}>{copy.back}</Button> : <span />}
-        {state.step !== "goal" ? <Button variant="subtle" onClick={() => { setReady(false); setState(initialJourney); }}>{copy.restart}</Button> : null}
+        {state.step !== "goal" ? <Button variant="subtle" onClick={() => { setReady(false); updateState(initialJourney); }}>{copy.restart}</Button> : null}
       </footer>
     </div>
   </div>;

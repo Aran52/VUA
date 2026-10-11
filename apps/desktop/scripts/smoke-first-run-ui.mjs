@@ -9,10 +9,13 @@ import { writeFile } from "node:fs/promises";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let server, window, taskWindow;
+let exitCode = 1;
+app.on("will-quit", () => { if (exitCode) app.exit(exitCode); });
 async function main() {
 try {
   await app.whenReady();
   server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()],
+    resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },
     cacheDir: path.join(os.tmpdir(), "vua-first-run-ui-vite"),
     define: { __VUA_BUILD_INFO__: JSON.stringify({ version: "synthetic-ui", commit: "synthetic", dirty: false }) },
     server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
@@ -34,12 +37,12 @@ try {
   await window.loadURL(`http://127.0.0.1:${server.httpServer.address().port}/__first-run-review`);
   window.webContents.debugger.attach("1.3");
   await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
-  const checks = await window.webContents.executeJavaScript("new Promise((resolve,reject)=>{const start=Date.now();const timer=setInterval(()=>{if(window.firstRunReview){clearInterval(timer);window.firstRunReview.run().then(resolve,reject);}else if(Date.now()-start>15000){clearInterval(timer);reject(new Error('fixture load timeout'));}},50);})");
+  const checks = await window.webContents.executeJavaScript("new Promise((resolve,reject)=>{const start=Date.now();const timer=setInterval(()=>{if(window.firstRunReview){clearInterval(timer);window.firstRunReview.run().then(resolve,error=>reject(new Error(error.stack ?? String(error))));}else if(Date.now()-start>15000){clearInterval(timer);reject(new Error('fixture load timeout'));}},50);})");
   console.log(`First-run controlled UI: ${checks.length} checks passed`);
   await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", { enabled: true });
-  for (const key of ["Enter", "Escape", "Escape", "ArrowRight"]) {
+  for (const key of ["Enter", "ArrowRight", "Home"]) {
     await window.webContents.executeJavaScript(`window.firstRunReview.beforeKey(${JSON.stringify(key)})`);
-    const code = key === "Enter" ? 13 : key === "Escape" ? 27 : 39;
+    const code = key === "Enter" ? 13 : key === "Home" ? 36 : 39;
     await window.webContents.debugger.sendCommand("Input.dispatchKeyEvent", { type: "keyDown", key, code: key, windowsVirtualKeyCode: code,
       ...(key === "Enter" ? { text: "\r", unmodifiedText: "\r" } : {}) });
     await window.webContents.debugger.sendCommand("Input.dispatchKeyEvent", { type: "keyUp", key, code: key, windowsVirtualKeyCode: code });
@@ -86,8 +89,6 @@ try {
   await writeFile(path.join(os.tmpdir(), "vua-play-overview-review.png"), (await window.webContents.capturePage()).toPNG());
   await window.webContents.executeJavaScript('window.firstRunReview.previewEnvironment("create")');
   await writeFile(path.join(os.tmpdir(), "vua-creator-overview-review.png"), (await window.webContents.capturePage()).toPNG());
-  await window.webContents.executeJavaScript('window.firstRunReview.previewEnvironment("play", "bigscreen")');
-  await writeFile(path.join(os.tmpdir(), "vua-play-bigscreen-review.png"), (await window.webContents.capturePage()).toPNG());
   await window.webContents.executeJavaScript('window.firstRunReview.previewEnvironment("play")');
   await window.webContents.executeJavaScript('window.firstRunReview.setThemePreference("light")');
   await window.webContents.executeJavaScript('document.querySelector("[data-nav-id=shell-settings]").click()');
@@ -99,6 +100,7 @@ try {
   const report = { testedAt: new Date().toISOString(), scope: "Actual Chromium UI with synthetic Gateway; no installation, authentication or VR acceptance", checks, passed: checks.length };
   await writeFile(path.join(os.tmpdir(), "vua-first-run-ui-dom.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
+  exitCode = 0;
   taskWindow.destroy(); window.destroy(); await server.close(); app.exit(0);
 } catch (error) {
   console.error(error); taskWindow?.destroy(); window?.destroy(); await server?.close(); app.exit(1);

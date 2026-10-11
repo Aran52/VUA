@@ -2,10 +2,10 @@
 
 [English](README.md) | [简体中文](README_ZH.md) | 日本語 | [한국어](README_KO.md)
 
-**VUA（VRC Ultra Assistant）** は、VRChat プレイヤーのための Windows 優先・ローカル優先の
-デスクトップ制作環境です——特に、Unity に触れたことがない、あるいは何が必要かまだ分からない
-プレイヤーのために。目標と自分の素材から出発し、環境構築・プロジェクト準備・
-Avatar の組み立て・検査・復旧まで、VUA がガイドします。
+**VUA（VRC Ultra Assistant）** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
+シナリオ導入・管理・起動アプリです。シナリオは目的、必要なソフト、準備・起動・復旧の手順を
+まとめたものです。PC 画面でのプレイ、PICO へのストリーミング、選んだモジュールでの Avatar 編集など、
+やりたいことから次の手順を案内します。
 
 ## VUA でできること
 
@@ -22,6 +22,10 @@ Avatar の組み立て・検査・復旧まで、VUA がガイドします。
 ### 2. Avatar 制作
 
 > **Sugar, spice, and everything nice.**
+
+AMF は VUA と一緒にインストールされる自作の編集モジュールで、新規ユーザーは初めから有効です。
+アバター編集または「設定 → 機能モジュール」で無効にでき、既存の選択は記憶されます。素材ライブラリと専用 BDL は
+AMF が管理し、無効にしてもデータは残ります。
 
 所有する素材を組み合わせ、選択と設定を Recipe に記録して共有し、各自で素材を入手した人が再現できるようにします。目標は、検査と制御された変更を伴う Avatar 制作の自動化と、公式 SDK への成果物の引き渡しです。Recipe に含めるのは参照と設定であり、有料素材そのものではありません。
 
@@ -43,22 +47,23 @@ Avatar の組み立て・検査・復旧まで、VUA がガイドします。
 
 ## 開発状況
 
-v0.6.0 は最新のソースタグであり、インストール可能な成果物はまだ公開されていません（唯一の GitHub Release である v0.5.0 にはアセットがありません）。[N1–N7](docs/development-outline.md) に沿って環境構築、選定した外部プレイ支援ツール、複雑な Avatar 制作、Recipe 再現、素材管理の監査と再実装、復旧、画像付きユーザーガイドを備えた Beta インストーラーを進めます。
+[v0.6.6 Ibis（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) は AMF を同梱する Windows x64 アプリの完全な ZIP を提供します。[N1–N7](docs/development-outline.md) の開発は継続し、NSIS、ミラーからの検証済みランタイム取得・再利用、AMF の独立した差分更新はこのリリースの後に実装します。
 
-プロジェクトは今後も長期間 Beta の状態が続く見込みです。説明は製品の方向性であり、実装や自動テストだけで実機の一連の動作が検証済みになるわけではありません。実際の受け入れ状況は[開発シーケンス](docs/development-outline.md)と[リリースノート](docs/release/)を参照してください。
+Beta は継続します。公開は N1/N5 や未完了の実機・素材・人によるレビューの受入完了を意味しません。[v0.6.6 の範囲・検証・制限事項（中国語）](docs/release/v0.6.6.md)を参照してください。
 
 ### 現在の提供状況と開始方法
 
-- インストール可能な成果物はまだ公開されていません。[v0.6.0 の検証記録・制限事項（中国語）](docs/release/v0.6.0.md)に最新のタグの状態を記録しています。上記は製品の方向性であり、N1–N7 の受入完了を意味しません。
-- 画像付きユーザーガイドと検証済み Beta インストーラーは N7 の成果物です。現在利用できる操作手順ではありません。利用上の質問は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose)へお願いします。
-- 開発者は[依存関係の準備・デスクトップ起動・チェックの選択](apps/desktop/README.md#development-commands)から始め、[貢献ガイド](CONTRIBUTING.md)に従ってください。
+- [Ibis リリースページ](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)から **Windows x64 ZIP** をダウンロードし、全体を展開して **VUA.exe** を起動します。付属ファイルを一緒に保持してください。Node、pnpm、Rust、ソースは不要です。未署名のため、Windows が不明な発行元の警告を表示する場合があります。
+- 初回の機能ツアーとガイドから始めるか、プレイ・ツール・Avatar 編集を直接開きます。新規ユーザーの AMF は有効で、設定 → モジュールから無効にできます。Steam/PICO/Unity とアカウント操作は公式アプリで行います。
+- 更新時は VUA を終了し、新しい ZIP を別のフォルダーへ展開します。データは %APPDATA%\VUA に保持されます。Beta を試す前にバックアップしてください。未検証の手順や手動の引き継ぎはリリースノートに記載し、問題は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) で受け付けます。
+- 開発者は[依存関係の導入・アプリ起動・検査](apps/desktop/README.md#development-commands)と[コントリビューション](CONTRIBUTING.md)を参照してください。
 
 ## ドキュメント
 
 - [ドキュメントガイド](docs/README.md)——タスクごとの最小ルート
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
-- [v0.6.0 リリースノート（中国語）](docs/release/v0.6.0.md)
+- [v0.6.6 リリースノート（中国語）](docs/release/v0.6.6.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 
 ## ライセンス

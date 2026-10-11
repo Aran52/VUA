@@ -224,6 +224,7 @@ pub struct EnvironmentConfig {
 struct EnvironmentServices {
     roots: EnvironmentRoots,
     play: vua_project_manager::play_session::PlayService,
+    tools: vua_orchestrator::external_tools::ToolService,
     network: vua_orchestrator::network::NetworkService,
     deployment: vua_orchestrator::deployment::DeploymentService,
     engine: EnvironmentEngine,
@@ -749,7 +750,7 @@ pub fn run_provider_host_with_services(
 #[allow(clippy::too_many_arguments)]
 pub fn run_provider_host_full(
     input: impl BufRead + Send + 'static,
-    mut output: impl Write,
+    output: impl Write,
     database_path: impl AsRef<Path>,
     production: Option<ProductionConfig>,
     downloads: Option<DownloadConfig>,
@@ -760,9 +761,33 @@ pub fn run_provider_host_full(
     editor_verifier: Option<EditorPathVerifier>,
     vpm: Option<Arc<dyn VpmBackend>>,
 ) -> Result<(), ProviderHostError> {
+    run_provider_host_with_legacy(input, output, database_path, production, downloads, warehouse,
+        use_cases, project_ops, environment, editor_verifier, vpm, None)
+}
+
+/// Separate process authorities import their legacy tasks once, under the
+/// destination's instance lock. The original database stays untouched.
+#[allow(clippy::too_many_arguments)]
+pub fn run_provider_host_with_legacy(
+    input: impl BufRead + Send + 'static,
+    mut output: impl Write,
+    database_path: impl AsRef<Path>,
+    production: Option<ProductionConfig>,
+    downloads: Option<DownloadConfig>,
+    warehouse: Option<WarehouseConfig>,
+    use_cases: Option<ProductionUseCaseConfig>,
+    project_ops: Option<ProjectOpsConfig>,
+    environment: Option<EnvironmentConfig>,
+    editor_verifier: Option<EditorPathVerifier>,
+    vpm: Option<Arc<dyn VpmBackend>>,
+    legacy: Option<(&Path, vua_orchestrator::LegacyTaskOwner)>,
+) -> Result<(), ProviderHostError> {
     let database_path = database_path.as_ref();
     let _instance_lock = ProviderInstanceLock::acquire(database_path)?;
     let store = Arc::new(SqliteTaskStore::open(database_path)?);
+    if let Some((source, owner)) = legacy {
+        store.import_legacy_tasks(source, owner)?;
+    }
     let provider_instance_id = provider_instance_id();
     let recovered_nonterminal_tasks: HashSet<String> = store
         .tasks()?
@@ -907,6 +932,7 @@ pub fn run_provider_host_full(
         Ok(Arc::new(EnvironmentServices {
             roots: config.roots.clone(),
             play: vua_project_manager::play_session::PlayService::windows(config.roots.clone()),
+            tools: vua_orchestrator::external_tools::ToolService::new(Arc::new(vua_project_manager::steam_tools::SteamToolPlatform::new(config.roots.clone())), Arc::new(SystemClock)),
             network: vua_orchestrator::network::NetworkService::new(
                 Arc::new(vua_project_manager::network_probe::HttpsNetworkProbe),
                 Arc::new(SystemClock),
@@ -1402,6 +1428,9 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     if matches!(method, "environment.observePlay" | "environment.startPlay" | "environment.stopPlay") {
         return crate::play_session_routes::request(state.environment.as_ref().map(|s| &s.play), request, request_id, correlation_id);
     }
+    if matches!(method, "tools.observeConnection" | "tools.actConnection") {
+        return crate::external_tool_routes::request(state.environment.as_ref().map(|s| &s.tools), request, request_id, correlation_id);
+    }
     if matches!(method, "environment.planDeployment" | "environment.executeDeployment") {
         return crate::deployment_routes::request(state.environment.as_ref().map(|s| &s.deployment), method, request, request_id, correlation_id);
     }
@@ -1697,6 +1726,8 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "environment.observeGameWindow", "availability": "available"},
         {"operationId": "environment.inspectManagerApps", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.observePlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "tools.observeConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "tools.actConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.startPlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.stopPlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         deployment_capability(state, "environment.planDeployment"),

@@ -1,3 +1,4 @@
+import { useAmfModule } from "../../gateway/index.ts";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/primitives/Badge.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -6,7 +7,6 @@ import { openLoginBrowser } from "../../app/login-browser-store.ts";
 import { BOOTH_SIGN_IN_URL } from "../import/import-model.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { AccountGuide } from "./AccountGuide.tsx";
-import { useRouteFocus } from "../../app/use-route-focus.ts";
 import { strings } from "../../i18n/index.ts";
 
 const copy = strings.settings.accounts;
@@ -20,11 +20,11 @@ const copy = strings.settings.accounts;
  * 按钮禁用不猜状态。
  */
 export function AccountSettingsPage() {
+  const amf = useAmfModule();
   const [auth, setAuth] = useState<
     { authOk: boolean; accountName: string | null } | null
   >(null);
   const [guide, setGuide] = useState<"steam" | "vrchat" | "unity" | "booth" | "linking" | null>(null);
-  const focus = useRouteFocus(guide ?? "accounts");
   const [signingOut, setSigningOut] = useState(false);
 
   const refreshAuth = () => {
@@ -36,8 +36,9 @@ export function AccountSettingsPage() {
   };
 
   useEffect(() => {
-    refreshAuth();
-  }, []);
+    if (amf.state === "ready") refreshAuth();
+    else setAuth(null);
+  }, [amf.state]);
 
   const signOut = async () => {
     setSigningOut(true);
@@ -54,13 +55,13 @@ export function AccountSettingsPage() {
   const signedIn = auth?.authOk === true;
 
   return (
-    <div className="vua-page" ref={focus.root} onClickCapture={focus.remember}>
+    <div className="vua-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">{strings.nav.pages.settingsAccounts}</h1>
       </section>
       {guide ? <AccountGuide account={guide} onBack={() => setGuide(null)} /> : null}
       <div className="vua-account-grid" hidden={guide !== null}>
-        <Card>
+        {amf.installed ? <Card>
           <div className="vua-settings-account">
             <div className="vua-settings-account__head">
               <h2 className="vua-title">{copy.boothTitle}</h2>
@@ -82,6 +83,8 @@ export function AccountSettingsPage() {
               {signedIn ? null : (
                 <Button
                   variant="default"
+                  data-nav-id="accounts-booth-login"
+                  disabled={amf.state !== "ready"}
                   onClick={() => openLoginBrowser(BOOTH_SIGN_IN_URL)}
                 >
                   {copy.signIn}
@@ -93,7 +96,7 @@ export function AccountSettingsPage() {
               </Button>
             </div>
           </div>
-        </Card>
+        </Card> : null}
         {([
           { id: "steam", title: copy.steamTitle, description: copy.steamDescription },
           { id: "vrchat", title: copy.vrchatTitle, description: copy.vrchatDescription },

@@ -9,6 +9,7 @@ import type {
   CatalogSyncPageV03,
   DownloadEventV01,
   DesktopShellCommandV1,
+  DesktopBrowserEventV1,
   EditorSettingsV1,
   GameGuideFollowStatusV1,
   GameWindowRectPhysicalV1,
@@ -16,8 +17,9 @@ import type {
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
+  RemoteContentViewStateV1,
 } from "@vua/contracts";
-import { APPLICATION_CONTRACT_VERSION, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01 } from "@vua/contracts";
+import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01 } from "@vua/contracts";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
 import { routeDesktopGatewayInvoke } from "./gateway-router.js";
 import { DownloadPort } from "./download-port.js";
@@ -25,13 +27,15 @@ import { createSilentDownloadQueue } from "./silent-download.js";
 import { createDownloadEventSink } from "./download-ingest.js";
 import {
   CATALOG_SYNC_DEFAULT_START_URL,
-  isSignInPage,
   startCatalogSync,
   type CatalogSyncRun,
 } from "./catalog-sync.js";
-import { importLocalThumbnail, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
+import { probeBoothAuthentication } from "./booth-auth.js";
+import { deactivateImageCache, importLocalThumbnail, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
 import { RemoteContentManager } from "./remote-content.js";
-import { createDesktopOrchestratorProvider } from "./provider-bootstrap.js";
+import { createDesktopOrchestratorProvider, type DesktopProviderEndpoint } from "./provider-bootstrap.js";
+import { AmfRegistry } from "./amf-registry.js";
+import { ModuleProvider } from "./module-provider.js";
 import {
   isEditorSettingsV1,
   readEditorSettingsFromFile,
@@ -87,7 +91,7 @@ import {
   installLocalContentNavigationPolicy,
   installPermissionDenyPolicy,
   isAllowedLocalSender,
-  localWindowWebPreferences,
+  localWindowWebPreferences as secureLocalWindowPreferences,
 } from "./security.js";
 import { checkLatestRelease } from "./update-check.js";
 import { SystemUsageCollector } from "./system-usage.js";
@@ -96,6 +100,14 @@ import { resolveDesktopRuntime } from "./runtime-paths.js";
 import { preparePackagedSmoke } from "./packaged-smoke.js";
 import { configureDesktopProfile, resolveDesktopProfile, tagDevelopmentWindow } from "./runtime-profile.js";
 import { createVuaTray } from "./system-tray.js";
+import { createStartupWindow } from "./startup-window.js";
+
+function localWindowWebPreferences(preload: string) {
+  return {
+    ...secureLocalWindowPreferences(preload),
+    additionalArguments: [`--vua-system-languages=${encodeURIComponent(JSON.stringify(app.getPreferredSystemLanguages()))}`],
+  };
+}
 
 registerImageCacheScheme();
 
@@ -125,15 +137,33 @@ if (desktopProfile.kind !== "release") {
 }
 const packagedSmoke = preparePackagedSmoke();
 let mainWindow: BrowserWindow | null = null;
+let startupWindow: BrowserWindow | null = null;
+let startupFallback: ReturnType<typeof setTimeout> | null = null;
+
+function completeStartup(): void {
+  if (startupWindow === null) return;
+  if (startupFallback !== null) clearTimeout(startupFallback);
+  startupFallback = null;
+  if (mainWindow !== null && !mainWindow.isDestroyed()) mainWindow.show();
+  if (!startupWindow.isDestroyed()) startupWindow.destroy();
+  startupWindow = null;
+}
 let systemTray: ReturnType<typeof createVuaTray> | null = null;
 let shellListening = false;
+let encyclopediaListening = false;
+let pendingEncyclopediaTarget: GuideTargetV1 | null | undefined;
 let shellLocale: string | null = null;
 let pendingShellCommand: DesktopShellCommandV1 | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let readerWindow: BrowserWindow | null = null;
 let gameGuideWindow: BrowserWindow | null = null;
-let provider: OrchestratorProviderV01 | null = null;
+let provider: ModuleProvider | null = null;
+let amfRegistry: AmfRegistry | null = null;
+let disposeAmfShell: (() => void) | null = null;
+let mountingAmfShell: Promise<void> | null = null;
+let amfIngestSink: ReturnType<typeof createDownloadEventSink> | null = null;
 let remoteContent: RemoteContentManager | null = null;
+let knowledgeBrowser: RemoteContentManager | null = null;
 let downloadPort: DownloadPort | null = null;
 let silentDownloadQueue: ReturnType<typeof createSilentDownloadQueue> | null = null;
 // 账号库同步当前运行(N5 S1):单并发守卫的持有位;结果落 provider 任务面
@@ -144,7 +174,6 @@ let catalogSyncRun: CatalogSyncRun | null = null;
 let catalogSyncLastTerminal: { runId: string; code: string | null } | null = null;
 // 系统资源占用采集器(顶栏占用查看器):whenReady 启动,退出前 stop
 const systemUsage = new SystemUsageCollector();
-let providerHandshake: Awaited<ReturnType<OrchestratorProviderV01["start"]>> | null = null;
 const lastAppliedIntentSeq = new Map<string, number>();
 let shutdownStarted = false;
 
@@ -190,8 +219,38 @@ let materialSourceSequence = 0;
 
 /** 素材登记落盘路径:userData 内,含用户本机路径不入 git(操作者红线,
  *  无脱敏设计) */
+function amfDataRoot(): string {
+  if (amfRegistry === null || amfRegistry.invalid) throw new Error("AMF registration unavailable");
+  return amfRegistry.dataRoot();
+}
+
+function assertAmfReady(): void {
+  if (!provider?.amfReady()) throw new Error("vua.amf.unavailable");
+}
+
+function browserManager(viewId: unknown, requireAmf = true): RemoteContentManager {
+  if (typeof viewId !== "string" || viewId.length > 128) throw new Error("invalid browser view");
+  if (knowledgeBrowser?.hasView(viewId)) return knowledgeBrowser;
+  if (remoteContent?.hasView(viewId)) { if (requireAmf) assertAmfReady(); return remoteContent; }
+  throw new Error("unknown_remote_view");
+}
+
+function ensureKnowledgeBrowser(): RemoteContentManager {
+  if (knowledgeBrowser === null) {
+    knowledgeBrowser = new RemoteContentManager({
+      partition: "vua-knowledge", allowedOrigins: ["https://wiki.vrchat.com"], persistSessionCookies: false,
+      openExternal: url => void shell.openExternal(url), broadcast: broadcastDesktopBrowserEvent,
+      onLoad: broadcastDesktopBrowserEvent, confirmNavigation,
+      onTab: broadcastDesktopBrowserEvent,
+    });
+    knowledgeBrowser.setHostWindow(mainWindow);
+    knowledgeBrowser.setSuspended(pendingNavConfirms.size > 0);
+  }
+  return knowledgeBrowser;
+}
+
 function materialSourcesPath(): string {
-  return path.join(app.getPath("userData"), "material-sources.json");
+  return path.join(amfDataRoot(), "material-sources.json");
 }
 
 /** 注册面写盘:内存为准落盘(全量覆写,原子写);写失败即本次拾取失败
@@ -201,7 +260,7 @@ function persistMaterialSources(): void {
   writeMaterialSourcesToFile(materialSourcesPath(), materialSources, new Date().toISOString());
 }
 
-/** 启动载入(进程 ready 后、IPC 注册前):落盘事实为准;损坏文件已由
+/** AMF 启用时载入(进程启动前):落盘事实为准;损坏文件已由
  *  读取侧归档并按空登记,诊断通道留痕(诚实可见,不静默) */
 function loadMaterialSourcesFromDisk(): void {
   const loaded = readMaterialSourcesFromFile(materialSourcesPath());
@@ -233,7 +292,7 @@ function resolveProductionContext(refId: string): {
 } | undefined {
   const source = materialSources.get(refId);
   if (source === undefined) return undefined;
-  const productionRoot = path.join(app.getPath("userData"), "production");
+  const productionRoot = path.join(amfDataRoot(), "production");
   return {
     sourceFolder: source.path,
     projectRoot: path.join(productionRoot, "synthetic-avatar-project"),
@@ -261,6 +320,7 @@ function broadcastGatewayEvent(rendererUrl: string | undefined, event: Applicati
 
 /** 远程内容事件 → 全部本地来源窗口(隔离基座 F4-2;违规透明上报) */
 function broadcastRemoteContentEvent(rendererUrl: string | undefined, event: RemoteContentEventV1): void {
+  broadcastDesktopBrowserEvent(event);
   for (const window of BrowserWindow.getAllWindows()) {
     if (isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) {
       window.webContents.send("vua:remote-content:event", event);
@@ -268,60 +328,63 @@ function broadcastRemoteContentEvent(rendererUrl: string | undefined, event: Rem
   }
 }
 
-/**
- * 受监督 Provider 端点解析(M2):
- * - 可执行文件:分发包取 resources/provider;开发环境允许覆盖或取仓库构建产物。
- *   文件缺失即启动失败——
- *   诚实失败优于静默回落 Mock;
- * - 任务库:用户数据目录,跨重启持久(重启恢复验收的权威来源);
- * - Provider 运行时根(用户实测缺口修复 2026-09-12):数据根=用户数据目录
- *   本身(BDL/记录/temp/生产用例文档按 bin 约定落 bdl/records/temp/production
- *   子目录,与壳内 resolveProductionContext 的 production 布局同源);仓储根
- *   与生产作业项目根为确定性路径。缺失即仓储/下载/生产用例面诚实不可用,
- *   Provider 正常运行(渲染层呈现诚实空态),此处保证服务面在场。
- */
+function broadcastDesktopBrowserEvent(event: DesktopBrowserEventV1): void {
+  if (mainWindow !== null && !mainWindow.isDestroyed() && isAllowedLocalSender(mainWindow.webContents.getURL(), rendererUrl)) {
+    mainWindow.webContents.send("vua:desktop-browser:event", "url" in event ? { ...event, url: desktopBrowserDisplayUrl(event.url) } : event);
+  }
+}
+
+function browserDisplayState(state: RemoteContentViewStateV1): RemoteContentViewStateV1 {
+  return { ...state, url: desktopBrowserDisplayUrl(state.url) };
+}
+
 /** 壳编辑器设置落盘路径(U10 门③留痕,机器级 settings) */
 function editorSettingsPath(): string {
   return path.join(app.getPath("userData"), "editor-settings.json");
 }
 
-function resolveProviderEndpoint(): {
-  executablePath: string;
-  databasePath: string;
-  providerDataRoot: string;
-  warehouseRoot: string;
-  projectRoot: string;
-  /** 门③已确认手选编辑器(null = 无手选):经 VUA_UNITY_EDITOR 注入消费;
-   *  读取于 provider 启动时刻,确认留痕后的注入生效时机 = 下次进程启动,
-   *  设置面如实标注(诚实纪律:不宣称即时生效) */
-  unityEditorPath: string | null;
-} {
+/** Host startup has no AMF roots. Legacy task rows are copied read-only. */
+function resolveProviderEndpoint(): DesktopProviderEndpoint {
   const executablePath = desktopRuntime.providerExecutable;
-  if (!fs.existsSync(executablePath) || !fs.statSync(executablePath).isFile()) {
-    throw new Error(
-      app.isPackaged
-        ? `The bundled VUA backend is missing. Extract the complete ZIP again: ${executablePath}`
-        : `Provider executable is missing: ${executablePath} (build it with: cargo build --release -p vua-provider-host --bin vua-orchestrator-provider)`,
-    );
-  }
+  if (!fs.existsSync(executablePath)) throw new Error("Bundled host provider is missing");
   const userData = app.getPath("userData");
-  const providerDataRoot = userData;
-  const warehouseRoot = path.join(userData, "warehouse");
-  const projectRoot = path.join(userData, "production", "synthetic-avatar-project");
-  // U10 手选注入:门③确认留痕在位才注入(无手选 = null,零配置直用策略
-  // 由核心组装面决策,壳只透传显式手选——021 核心表态 2)
-  const editorSettings = readEditorSettingsFromFile(editorSettingsPath());
-  const unityEditorPath = editorSettings.confirmedEditor?.path ?? null;
-  // 目录创建防首次运行失败:Provider 侧 SQLite/文档存储期望根已存在
-  // (mkdir recursive 对已存在目录是幂等 no-op)
-  for (const dir of [warehouseRoot, projectRoot]) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  const databasePath = path.join(userData, "orchestrator", "provider.db");
-  return { executablePath, databasePath, providerDataRoot, warehouseRoot, projectRoot, unityEditorPath };
+  return { role: "host", executablePath, databasePath: path.join(userData, "host", "tasks.db"), profileRoots: profileRoots(),
+    legacyDatabasePath: path.join(userData, "orchestrator", "provider.db") };
 }
 
-function registerIpc(provider: OrchestratorProviderV01): void {
+function profileRoots() {
+  const home = app.getPath("home");
+  const local = process.env.LOCALAPPDATA;
+  return { home, appData: app.getPath("appData"), localAppData: local && path.isAbsolute(local) ? local : path.join(home, "AppData", "Local") };
+}
+
+/** Material roots are resolved only after AMF is selected. */
+function resolveAmfEndpoint(): DesktopProviderEndpoint {
+  if (amfRegistry?.invalid) throw new Error("Invalid AMF registration; file retained");
+  const providerDataRoot = amfDataRoot();
+  const warehouseRoot = path.join(providerDataRoot, "warehouse");
+  const projectRoot = path.join(providerDataRoot, "production", "synthetic-avatar-project");
+  for (const directory of [warehouseRoot, projectRoot]) fs.mkdirSync(directory, { recursive: true });
+  loadMaterialSourcesFromDisk();
+  return { role: "amf", executablePath: desktopRuntime.amfExecutable, profileRoots: profileRoots(),
+    databasePath: path.join(app.getPath("userData"), "modules", "amf", "tasks.db"),
+    legacyDatabasePath: path.join(app.getPath("userData"), "orchestrator", "provider.db"),
+    providerDataRoot, warehouseRoot, projectRoot,
+    unityEditorPath: readEditorSettingsFromFile(editorSettingsPath()).confirmedEditor?.path ?? null };
+}
+
+function registerIpc(provider: ModuleProvider): void {
+  ipcMain.handle("vua:amf-module:snapshot", (event) => {
+    assertLocalSender(senderFrameUrl(event));
+    return provider.moduleSnapshot();
+  });
+  ipcMain.handle("vua:amf-module:set-enabled", async (event, enabled: unknown) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (typeof enabled !== "boolean") throw new Error("invalid AMF lifecycle request");
+    const result = await provider.setAmfEnabled(enabled);
+    if (result.snapshot.state === "ready") await ensureAmfShell();
+    return result;
+  });
   ipcMain.handle("vua:gateway:invoke", (event, request: unknown) => routeDesktopGatewayInvoke(
     {
       provider,
@@ -346,6 +409,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   // 随第四批四语表 pick 措辞取文件夹语义
   ipcMain.handle("vua:dialog:pick-material-source", async (event, intake: unknown, locale: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (intake !== "direct_unity_package" && intake !== "local_reusable_vpm") {
       throw new Error("invalid material intake");
     }
@@ -362,6 +426,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
         ? await dialog.showOpenDialog(options)
         : await dialog.showOpenDialog(mainWindow, options);
     if (result.canceled || result.filePaths.length !== 1) return null;
+    assertAmfReady();
     const pickedPath = result.filePaths[0]!;
     materialSourceSequence += 1;
     const refId = `mat-${materialSourceSequence}-${crypto.randomUUID()}`;
@@ -378,18 +443,22 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   // warehouse.import 提交(本进程不做任何文件操作)
   ipcMain.handle("vua:dialog:pick-warehouse-folders", async (event, locale: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     const result = await dialog.showOpenDialog({
       title: dialogStrings(locale).warehouse,
       properties: ["openDirectory", "multiSelections"] as ("openFile" | "openDirectory" | "multiSelections")[],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
+    assertAmfReady();
     return result.filePaths;
   });
   ipcMain.handle("vua:dialog:pick-library-thumbnail", async (event, locale: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     const result = await dialog.showOpenDialog({ title: dialogStrings(locale).libraryThumbnail,
       filters: [{ name: "PNG / JPEG / WebP", extensions: ["png", "jpg", "jpeg", "webp"] }], properties: ["openFile"] });
     if (result.canceled || result.filePaths.length === 0) return null;
+    assertAmfReady();
     return importLocalThumbnail(result.filePaths[0]!);
   });
 
@@ -452,6 +521,10 @@ function registerIpc(provider: OrchestratorProviderV01): void {
     assertLocalSender(senderFrameUrl(event));
     return systemUsage.snapshot();
   });
+  ipcMain.handle("vua:system:resource-usage-v2", (event) => {
+    assertLocalSender(senderFrameUrl(event));
+    return systemUsage.snapshotV2();
+  });
 
   // 文件系统窄面(2026-09-25 用户裁决:素材导入应用内文件夹选择器):
   // 只读列目录(仅子目录) + 单层新建;失败收信不抛,渲染层按 error
@@ -475,6 +548,11 @@ function registerIpc(provider: OrchestratorProviderV01): void {
     return createFsDirectory(parentPath, name);
   });
 
+  ipcMain.handle("vua:startup:complete", event => {
+    assertLocalSender(senderFrameUrl(event));
+    if (mainWindow === null || event.sender !== mainWindow.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error("startup completion requires the main frame");
+    completeStartup();
+  });
   ipcMain.handle("vua:window:minimize", (event) => {
     assertLocalSender(senderFrameUrl(event));
     BrowserWindow.fromWebContents(event.sender)?.minimize();
@@ -523,6 +601,30 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   ipcMain.handle("vua:reader:show", (event, target: unknown) => {
     assertLocalSender(senderFrameUrl(event));
     return showReaderWindow(parseGuideTargetPayload(target));
+  });
+
+  // V2 adds main-page knowledge navigation; legacy V1 reader behavior stays intact.
+  ipcMain.handle("vua:knowledge:show", (event, target: unknown) => {
+    assertLocalSender(senderFrameUrl(event));
+    const parsed = parseGuideTargetPayload(target);
+    if (mainWindow === null || mainWindow.isDestroyed()) return { visible: false };
+    pendingEncyclopediaTarget = parsed;
+    focusMainWindow();
+    if (encyclopediaListening) {
+      mainWindow.webContents.send("vua:knowledge:target", parsed);
+      pendingEncyclopediaTarget = undefined;
+    }
+    return { visible: true };
+  });
+  ipcMain.on("vua:knowledge:listening", (event, listening: unknown) => {
+    if (typeof listening !== "boolean" || mainWindow === null || mainWindow.isDestroyed()
+      || event.sender !== mainWindow.webContents || event.senderFrame !== event.sender.mainFrame
+      || !isAllowedLocalSender(event.senderFrame?.url ?? "", rendererUrl)) return;
+    encyclopediaListening = listening;
+    if (listening && pendingEncyclopediaTarget !== undefined) {
+      mainWindow.webContents.send("vua:knowledge:target", pendingEncyclopediaTarget);
+      pendingEncyclopediaTarget = undefined;
+    }
   });
 
   // 打开/聚焦游戏引导小窗(三类引导 §4 additive):只受理本地来源;
@@ -614,38 +716,88 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   });
   ipcMain.handle("vua:remote-content:open", (event, request: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     const url = (request as { url?: unknown } | null)?.url;
     if (typeof url !== "string") throw new Error("invalid remote content request");
     return remoteContent!.open(url);
   });
+  const assertBrowserSender = (event: import("electron").IpcMainInvokeEvent) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (mainWindow === null || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error("browser requires main frame");
+  };
+  ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
+    assertBrowserSender(event);
+    const site = desktopBrowserSite(siteId);
+    if (site === null) throw new Error("invalid browser site");
+    if (site.purpose === "knowledge") return browserDisplayState(ensureKnowledgeBrowser().openSite(site.url));
+    assertAmfReady();
+    await ensureAmfShell();
+    assertAmfReady();
+    if (remoteContent === null) throw new Error("browser unavailable");
+    return browserDisplayState(remoteContent.openSite(site.url));
+  });
+  ipcMain.handle("vua:desktop-browser:navigate", (event, viewId: unknown, siteId: unknown) => {
+    assertBrowserSender(event);
+    const site = desktopBrowserSite(siteId);
+    const manager = browserManager(viewId);
+    if (site === null || (site.purpose === "knowledge") !== (manager === knowledgeBrowser)) throw new Error("invalid browser site");
+    return browserDisplayState(manager.navigate(viewId as string, site.url));
+  });
+  for (const [channel, method] of [["go-back", "goBack"], ["go-forward", "goForward"], ["reload", "reload"]] as const) {
+    ipcMain.handle(`vua:desktop-browser:${channel}`, (event, viewId: unknown) => {
+      assertBrowserSender(event);
+      return browserDisplayState(browserManager(viewId)[method](viewId as string));
+    });
+  }
+  ipcMain.handle("vua:desktop-browser:close", (event, viewId: unknown) => {
+    assertBrowserSender(event);
+    if (typeof viewId !== "string" || viewId.length > 128) throw new Error("invalid browser view");
+    // Closing an already-disposed view is safe during AMF shutdown and navigation races.
+    if (knowledgeBrowser?.hasView(viewId)) knowledgeBrowser.close(viewId);
+    else if (remoteContent?.hasView(viewId)) remoteContent.close(viewId);
+  });
+  ipcMain.handle("vua:desktop-browser:viewport", (event, viewId: unknown, viewport: unknown) => {
+    assertBrowserSender(event);
+    if (viewport !== null && !isDesktopBrowserViewportV1(viewport)) throw new Error("invalid browser viewport");
+    if (typeof viewId !== "string" || viewId.length > 128) throw new Error("invalid browser view");
+    // A measured receipt can arrive after page/module teardown. It cannot revive a view.
+    if (!knowledgeBrowser?.hasView(viewId) && !remoteContent?.hasView(viewId)) return;
+    browserManager(viewId, false).setViewport(viewId, viewport);
+  });
   ipcMain.handle("vua:remote-content:navigate", (event, viewId: unknown, url: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (typeof viewId !== "string" || typeof url !== "string") throw new Error("invalid remote content request");
     return remoteContent!.navigate(viewId, url);
   });
   // 视图内导航历史(固定导航条动作面):身份守卫在管理器,本地来源守卫在此
   ipcMain.handle("vua:remote-content:go-back", (event, viewId: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (typeof viewId !== "string") throw new Error("invalid remote content request");
     return remoteContent!.goBack(viewId);
   });
   ipcMain.handle("vua:remote-content:go-forward", (event, viewId: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (typeof viewId !== "string") throw new Error("invalid remote content request");
     return remoteContent!.goForward(viewId);
   });
   ipcMain.handle("vua:remote-content:reload", (event, viewId: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (typeof viewId !== "string") throw new Error("invalid remote content request");
     return remoteContent!.reload(viewId);
   });
   ipcMain.handle("vua:remote-content:close", (event, viewId: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (typeof viewId !== "string") throw new Error("invalid remote content request");
     remoteContent!.close(viewId);
   });
   ipcMain.handle("vua:remote-content:set-visible", (event, viewId: unknown, visible: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (typeof viewId !== "string" || typeof visible !== "boolean") throw new Error("invalid remote content request");
     return remoteContent!.setVisible(viewId, visible);
   });
@@ -653,6 +805,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   // Cookie 值不过 IPC;探测失败在管理器内归并为 "unknown"(诚实未知)
   ipcMain.handle("vua:remote-content:sign-in-hint", (event) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     return remoteContent!.signInHint();
   });
   // 真实登录判定(2026-10-05,登录浏览器轮询用):抓一次已购库首页按内容
@@ -661,21 +814,14 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   // 提取失败 = null,不猜)
   ipcMain.handle("vua:remote-content:auth-probe", async (event) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (remoteContent === null) return { authOk: false, accountName: null };
-    try {
-      const probe = await remoteContent.fetchWithSession(CATALOG_SYNC_DEFAULT_START_URL);
-      const authOk = probe.status === 200 && !isSignInPage(probe.body);
-      const accountName = authOk
-        ? /data-user-name="([^"]{1,64})"/.exec(probe.body)?.[1] ?? null
-        : null;
-      return { authOk, accountName };
-    } catch {
-      return { authOk: false, accountName: null };
-    }
+    return probeBoothAuthentication(remoteContent);
   });
   // 登出(账号管理,2026-10-05):清空分区存储并关闭打开中的远程视图
   ipcMain.handle("vua:remote-content:sign-out", async (event) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (remoteContent === null) throw new Error("remote content is unavailable");
     await remoteContent.signOut();
   });
@@ -687,6 +833,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   // 全程留在 remoteContent 的分区会话内,IPC 面零 Cookie/令牌。
   ipcMain.handle("vua:catalog-sync:start", async (event, request: unknown) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     if (remoteContent === null) throw new Error("remote content is unavailable");
     if (catalogSyncRun !== null) {
       return { status: "already_running", runId: catalogSyncRun.runId };
@@ -776,6 +923,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   });
   ipcMain.handle("vua:catalog-sync:stop", (event) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     catalogSyncRun?.stop();
   });
   // 静默下载触发面(N5,2026-10-05 用户裁决:Steam 式,不打开页面):渲染层
@@ -784,7 +932,8 @@ function registerIpc(provider: OrchestratorProviderV01): void {
     "vua:silent-download:start",
     async (event, productId: unknown, downloadableIds: unknown, replacementTargets: unknown) => {
       assertLocalSender(senderFrameUrl(event));
-      if (silentDownloadQueue === null || provider === null || providerHandshake?.downloadIngest !== true) return { errorCode: "vua.library.unavailable" };
+      assertAmfReady();
+      if (silentDownloadQueue === null || provider === null || !provider.amfReady()) return { errorCode: "vua.library.unavailable" };
       const queue = silentDownloadQueue;
       const currentProvider = provider;
       const batchId = `library-download-${crypto.randomUUID()}`;
@@ -819,6 +968,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
   // 得知「运行已结束且从未产生任务」的终态事实,把卡住的“已开始”翻成失败
   ipcMain.handle("vua:catalog-sync:probe", (event) => {
     assertLocalSender(senderFrameUrl(event));
+    assertAmfReady();
     return {
       status: catalogSyncRun !== null ? ("running" as const) : ("idle" as const),
       runId: catalogSyncRun?.runId ?? catalogSyncLastTerminal?.runId ?? null,
@@ -831,6 +981,7 @@ function registerIpc(provider: OrchestratorProviderV01): void {
     "vua:catalog-sync:fetch-product",
     async (event, productId: unknown) => {
       assertLocalSender(senderFrameUrl(event));
+      assertAmfReady();
       if (remoteContent === null) throw new Error("remote content is unavailable");
       if (typeof productId !== "string" || !/^booth:[0-9]+$/.test(productId)) {
         throw new Error("invalid product id");
@@ -896,11 +1047,18 @@ function confirmNavigation(
   const confirmId = crypto.randomUUID();
   return new Promise<boolean>((resolve) => {
     pendingNavConfirms.set(confirmId, resolve);
+    remoteContent?.setSuspended(true);
+    knowledgeBrowser?.setSuspended(true);
     const request: NavigationConfirmRequestV1 = { confirmId, url, reason };
     for (const window of BrowserWindow.getAllWindows()) {
       if (isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) {
         window.webContents.send("vua:nav-confirm:request", request);
       }
+    }
+  }).finally(() => {
+    if (pendingNavConfirms.size === 0) {
+      remoteContent?.setSuspended(false);
+      knowledgeBrowser?.setSuspended(false);
     }
   });
 }
@@ -1279,7 +1437,16 @@ async function createWindow(): Promise<void> {
   });
 
   tagDevelopmentWindow(mainWindow, desktopProfile);
-  mainWindow.webContents.on("did-start-loading", () => { shellListening = false; });
+  // Native mouse side buttons use Chromium history, including same-document Help routes.
+  mainWindow.on("app-command", (_event, command) => {
+    const navigation = mainWindow?.webContents.navigationHistory;
+    if (command === "browser-backward" && navigation?.canGoBack()) navigation.goBack();
+    else if (command === "browser-forward" && navigation?.canGoForward()) navigation.goForward();
+  });
+  mainWindow.webContents.on("did-navigate", () => { shellListening = false; });
+  // Hash navigation can emit did-start-loading without remounting the shell listener.
+  mainWindow.webContents.on("did-navigate", () => { encyclopediaListening = false; });
+  mainWindow.webContents.on("did-navigate", () => { remoteContent?.closeAll(); knowledgeBrowser?.closeAll(); });
 
   // U9 四分法(本地壳窗口):http/https 弹窗不再交系统浏览器——清单内直行/
   // 清单外确认后转当前内嵌视图(RemoteContentManager);外部协议手势+确认后
@@ -1294,96 +1461,13 @@ async function createWindow(): Promise<void> {
     openExternal: (url) => void shell.openExternal(url),
     confirmNavigation,
   });
-  mainWindow.once("ready-to-show", () => { if (!packagedSmoke) mainWindow?.show(); });
+  mainWindow.once("ready-to-show", () => {
+    if (!packagedSmoke && startupWindow === null) mainWindow?.show();
+  });
+  if (startupWindow !== null) startupFallback = setTimeout(completeStartup, 8_000);
 
-  // 下载端口(F4-3/F4-4):will-download 接管 + 冻结词表事件规范化。事件汇
-  // 按传输定案批量投递 download.ingest(at-least-once:回执裁剪缓冲 + BDL
-  // 去重;投递失败按指数退避自主重试,不依赖后续新事件——抽至
-  // download-ingest.ts,行为有单测)。握手未声明下载域时诚实降级写诊断
-  // 通道。暂存根跟随用户数据目录布局,由注入决定,端口不自选策略
-  const ingestSink = createDownloadEventSink({
-    onPersisted: (event) => silentDownloadQueue?.notifyPersisted(event),
-    onRejected: (event) => silentDownloadQueue?.notifyUnconfirmed(event),
-    onDropped: (event) => silentDownloadQueue?.notifyUnconfirmed(event),
-    invoke: (params) => {
-      if (provider === null) {
-        return Promise.reject(new Error("provider is not running"));
-      }
-      return provider
-        .invoke({
-          contractVersion: APPLICATION_CONTRACT_VERSION,
-          requestId: crypto.randomUUID(),
-          correlationId: crypto.randomUUID(),
-          commandId: crypto.randomUUID(),
-          kind: "command",
-          method: "download.ingest",
-          params,
-        })
-        .then((response) =>
-          response.ok
-            ? { ok: true as const, value: response.value }
-            : Promise.reject(new Error(response.error.code)),
-        );
-    },
-  });
-  const downloadSink = {
-    emit: (event: DownloadEventV01): void => {
-      silentDownloadQueue?.notifyTransport(event);
-      if (providerHandshake?.downloadIngest === true) ingestSink.emit(event);
-      else {
-        silentDownloadQueue?.notifyUnconfirmed(event);
-        process.stderr.write(JSON.stringify({ channel: "download-events", kind: event.kind, downloadId: event.downloadId, persistenceUnavailable: true }) + "\n");
-      }
-    },
-  };
-  downloadPort = new DownloadPort({
-    stagingRoot: path.join(app.getPath("userData"), "downloads-staging"),
-    partitionSession: session.fromPartition("persist:vua-remote"),
-    allowedOrigins: ["https://booth.pm"],
-    sink: downloadSink,
-    isAwaitingLibraryRequest: (originalUrl) => silentDownloadQueue?.isAwaitingNative(originalUrl) === true,
-  });
-  // 静默下载编排(N5,2026-10-05 用户裁决):串行 + 6s 源站礼貌间隔,经
-  // downloadURL 走 will-download 管道(暂存/事件/九态任务/采纳全复用)
-  silentDownloadQueue = createSilentDownloadQueue({
-    partitionSession: session.fromPartition("persist:vua-remote"),
-    abandon: (downloadId) => downloadPort?.applyIntent(downloadId, "abandon"),
-    observe: async (params) => {
-      if (provider === null) throw new Error("provider unavailable");
-      const response = await provider.invoke({
-        contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: params.batchId,
-        kind: "command", method: "library.observeDownload", commandId: crypto.randomUUID(), params,
-      });
-      if (!response.ok || !isLibraryDownloadSnapshotV01(response.value)
-        || response.value.batchId !== params.batchId) throw new Error("library receipt unconfirmed");
-    },
-  });
-  mainWindow.on("closed", () => { ingestSink.dispose(); silentDownloadQueue?.dispose(); silentDownloadQueue = null; });
-
-  // 远程内容管理器(F4-2):独立 partition Session;目录浏览域为种子允许清单,
-  // 真实值随 catalog 契约冻结(F4-1②)调整;违规事件广播到本地来源窗口;
-  // 确认层注入使 U9(1) 清单外「提示后放行」与 U9(3) 外部协议确认在视图内生效。
-  // 登录链域(真机首验 2026-10-02 修正):BOOTH 登录实际走 pixiv SSO——
-  // accounts.booth.pm 起步 → oauth.secure.pixiv.net 授权 → accounts.pixiv.net
-  // 登录/选号 → 回跳 booth.pm。W25 走查缺陷③b 只认账户子域的假设不完整:
-  // 缺 pixiv 两域时 OAuth 跳转被导航策略无声拦截,「继续使用此账号」点击
-  // 无任何可见效果,登录永远无法完成。本清单只放行导航;下载域清单仍仅
-  // booth.pm(素材获取边界不变)。
-  remoteContent = new RemoteContentManager({
-    partition: "persist:vua-remote",
-    allowedOrigins: [
-      "https://booth.pm",
-      "https://accounts.booth.pm",
-      "https://oauth.secure.pixiv.net",
-      "https://accounts.pixiv.net",
-    ],
-    openExternal: (url) => void shell.openExternal(url),
-    broadcast: (event) => broadcastRemoteContentEvent(rendererUrl, event),
-    confirmNavigation,
-    willDownload: (event, item, webContents) => downloadPort?.handleWillDownload(event, item, webContents),
-  });
-  remoteContent.setHostWindow(mainWindow);
-  mainWindow.on("resize", () => remoteContent?.refreshBounds());
+  if (provider?.amfReady()) await ensureAmfShell();
+  mainWindow.on("resize", () => { remoteContent?.refreshBounds(); knowledgeBrowser?.refreshBounds(); });
   // #26 用户实测退出崩溃修复:内嵌视图清理前移到 close(窗口仍存活,
   // contentView 可安全操作);closed 在窗口销毁之后触发,原在此处 dispose
   // 会经 #destroyView 访问已销毁 hostWindow 抛「Object has been destroyed」。
@@ -1391,33 +1475,184 @@ async function createWindow(): Promise<void> {
   // close 无取消路径(壳内关闭不经 beforeinput 拦截),dispose 幂等,重复
   // 触发安全
   mainWindow.on("close", () => {
-    remoteContent?.dispose();
-    remoteContent = null;
+    for (const resolve of pendingNavConfirms.values()) resolve(false);
+    pendingNavConfirms.clear();
+    knowledgeBrowser?.dispose(); knowledgeBrowser = null;
+    disposeAmfShell?.();
+    disposeAmfShell = null;
   });
   mainWindow.on("closed", () => {
     mainWindow = null;
     shellListening = false;
+    encyclopediaListening = false;
+    pendingEncyclopediaTarget = undefined;
     pendingShellCommand = null;
     // 主窗口关闭＝应用退出语义:悬浮窗、阅读器与游戏引导窗都不拖住
     // window-all-closed(窗口随主窗口生命周期销毁,closed 处理器自行清引用)
     overlayWindow?.destroy();
     readerWindow?.destroy();
     gameGuideWindow?.destroy();
+    if (startupWindow !== null && !startupWindow.isDestroyed()) startupWindow.destroy();
+    startupWindow = null;
+    if (startupFallback !== null) clearTimeout(startupFallback);
+    startupFallback = null;
   });
 
   if (rendererUrl) await mainWindow.loadURL(rendererUrl);
   else await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 }
 
+async function ensureAmfShell(): Promise<void> {
+  if (mainWindow === null || !provider?.amfReady()) return;
+  if (disposeAmfShell !== null) { await registerImageCacheProtocol(amfDataRoot()); return; }
+  if (mountingAmfShell) return mountingAmfShell;
+  mountingAmfShell = (async () => {
+    await registerImageCacheProtocol(amfDataRoot());
+    if (mainWindow === null || !provider?.amfReady()) { deactivateImageCache(); return; }
+    // 下载端口(F4-3/F4-4):will-download 接管 + 冻结词表事件规范化。事件汇
+    // 按传输定案批量投递 download.ingest(at-least-once:回执裁剪缓冲 + BDL
+    // 去重;投递失败按指数退避自主重试,不依赖后续新事件——抽至
+    // download-ingest.ts,行为有单测)。握手未声明下载域时诚实降级写诊断
+    // 通道。暂存根跟随用户数据目录布局,由注入决定,端口不自选策略
+    const ingestSink = createDownloadEventSink({
+      onPersisted: (event) => silentDownloadQueue?.notifyPersisted(event),
+      onRejected: (event) => silentDownloadQueue?.notifyUnconfirmed(event),
+      onDropped: (event) => silentDownloadQueue?.notifyUnconfirmed(event),
+      invoke: (params) => {
+        if (provider === null) {
+          return Promise.reject(new Error("provider is not running"));
+        }
+        return provider
+          .invoke({
+            contractVersion: APPLICATION_CONTRACT_VERSION,
+            requestId: crypto.randomUUID(),
+            correlationId: crypto.randomUUID(),
+            commandId: crypto.randomUUID(),
+            kind: "command",
+            method: "download.ingest",
+            params,
+          })
+          .then((response) =>
+            response.ok
+              ? { ok: true as const, value: response.value }
+              : Promise.reject(new Error(response.error.code)),
+          );
+      },
+    });
+    amfIngestSink = ingestSink;
+    const downloadSink = {
+      emit: (event: DownloadEventV01): void => {
+        silentDownloadQueue?.notifyTransport(event);
+        if (provider?.amfReady() === true) ingestSink.emit(event);
+        else {
+          silentDownloadQueue?.notifyUnconfirmed(event);
+          process.stderr.write(JSON.stringify({ channel: "download-events", kind: event.kind, downloadId: event.downloadId, persistenceUnavailable: true }) + "\n");
+        }
+      },
+    };
+    downloadPort = new DownloadPort({
+      stagingRoot: path.join(amfDataRoot(), "downloads-staging"),
+      partitionSession: session.fromPartition("persist:vua-remote"),
+      allowedOrigins: ["https://booth.pm"],
+      sink: downloadSink,
+      isAwaitingLibraryRequest: (originalUrl) => silentDownloadQueue?.isAwaitingNative(originalUrl) === true,
+    });
+    // 静默下载编排(N5,2026-10-05 用户裁决):串行 + 6s 源站礼貌间隔,经
+    // downloadURL 走 will-download 管道(暂存/事件/九态任务/采纳全复用)
+    silentDownloadQueue = createSilentDownloadQueue({
+      partitionSession: session.fromPartition("persist:vua-remote"),
+      abandon: (downloadId) => downloadPort?.applyIntent(downloadId, "abandon"),
+      observe: async (params) => {
+        if (provider === null) throw new Error("provider unavailable");
+        const response = await provider.invoke({
+          contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: params.batchId,
+          kind: "command", method: "library.observeDownload", commandId: crypto.randomUUID(), params,
+        });
+        if (!response.ok || !isLibraryDownloadSnapshotV01(response.value)
+          || response.value.batchId !== params.batchId) throw new Error("library receipt unconfirmed");
+      },
+    });
+
+    // 远程内容管理器(F4-2):独立 partition Session;目录浏览域为种子允许清单,
+    // 真实值随 catalog 契约冻结(F4-1②)调整;违规事件广播到本地来源窗口;
+    // 确认层注入使 U9(1) 清单外「提示后放行」与 U9(3) 外部协议确认在视图内生效。
+    // 登录链域(真机首验 2026-10-02 修正):BOOTH 登录实际走 pixiv SSO——
+    // accounts.booth.pm 起步 → oauth.secure.pixiv.net 授权 → accounts.pixiv.net
+    // 登录/选号 → 回跳 booth.pm。W25 走查缺陷③b 只认账户子域的假设不完整:
+    // 缺 pixiv 两域时 OAuth 跳转被导航策略无声拦截,「继续使用此账号」点击
+    // 无任何可见效果,登录永远无法完成。本清单只放行导航;下载域清单仍仅
+    // booth.pm(素材获取边界不变)。
+    remoteContent = new RemoteContentManager({
+      partition: "persist:vua-remote",
+      allowedOrigins: [
+        "https://booth.pm",
+        "https://accounts.booth.pm",
+        "https://oauth.secure.pixiv.net",
+        "https://accounts.pixiv.net",
+      ],
+      browsingOrigins: [...DESKTOP_BROWSER_SITES_V1.filter(site => site.purpose === "assets").map(site => new URL(site.url).origin),
+        "https://accounts.booth.pm", "https://oauth.secure.pixiv.net", "https://accounts.pixiv.net"],
+      onLoad: broadcastDesktopBrowserEvent,
+      onTab: broadcastDesktopBrowserEvent,
+      openExternal: (url) => void shell.openExternal(url),
+      broadcast: (event) => broadcastRemoteContentEvent(rendererUrl, event),
+      confirmNavigation,
+      willDownload: (event, item, webContents) => {
+        if (!provider?.amfReady()) { event.preventDefault(); return; }
+        downloadPort?.handleWillDownload(event, item, webContents);
+      },
+    });
+    remoteContent.setHostWindow(mainWindow);
+    remoteContent.setSuspended(pendingNavConfirms.size > 0);
+    disposeAmfShell = () => {
+      catalogSyncRun?.stop(); catalogSyncRun = null;
+      remoteContent?.dispose(); remoteContent = null;
+      ingestSink.dispose(); amfIngestSink = null; silentDownloadQueue?.dispose(); silentDownloadQueue = null;
+      downloadPort = null;
+      materialSources.clear();
+      deactivateImageCache();
+    };
+  })();
+  try { await mountingAmfShell; } finally { mountingAmfShell = null; }
+}
+
 app.whenReady().then(async () => {
-  // 目录图片本地缓存(N5):vua-img 协议命中磁盘直回(scheme 已在启动前注册)
-  await registerImageCacheProtocol();
-  // 素材登记持久化(W25 易失缺陷修复):先载入落盘事实再开放 IPC 面,
-  // 保证首个渲染层请求可见的登记与上一次会话一致
-  loadMaterialSourcesFromDisk();
-  provider = createDesktopOrchestratorProvider(resolveProviderEndpoint());
+  installPermissionDenyPolicy(session.defaultSession);
+  if (!packagedSmoke) {
+    startupWindow = await createStartupWindow({
+      ...(rendererUrl ? { rendererUrl } : {}),
+      rendererFile: path.join(__dirname, "../renderer/index.html"),
+      preferences: localWindowWebPreferences(path.join(__dirname, "preload.js")),
+    });
+    startupWindow.on("close", () => app.quit());
+  }
+  amfRegistry = new AmfRegistry(app.getPath("userData"));
+  if (amfRegistry.needsRegistration) {
+    // Record the fresh-user default before either provider creates its DB.
+    // A later launch must retain this choice, including an explicit disable.
+    try { amfRegistry.save(amfRegistry.registration.enabled); }
+    catch { console.error("[vua] Could not retain the initial AMF preference"); }
+  }
+  provider = new ModuleProvider({
+    host: createDesktopOrchestratorProvider(resolveProviderEndpoint()),
+    enabled: amfRegistry.registration.enabled,
+    persist: enabled => amfRegistry!.save(enabled),
+    createAmf: () => createDesktopOrchestratorProvider(resolveAmfEndpoint()),
+    shellBusy: () => catalogSyncRun !== null || (silentDownloadQueue?.pending() ?? 0) > 0
+      || downloadPort?.hasActiveTransfers() === true || amfIngestSink?.pending() === true,
+  });
+  provider.subscribeModule(snapshot => {
+    void (async () => {
+      if (snapshot.state === "ready") await ensureAmfShell();
+      else if (snapshot.state === "absent") { disposeAmfShell?.(); disposeAmfShell = null; }
+      else deactivateImageCache();
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) window.webContents.send("vua:amf-module:changed", snapshot);
+      }
+    })().catch(error => console.error("[vua] AMF shell unavailable:", error));
+  });
   try {
-    providerHandshake = await provider.start();
+    await provider.start();
   } catch (error) {
     /* 启动韧性(2026-09-26):Provider 起不来(如端口被僵尸实例占用)不再
      * 带走主窗口——历史症状是"启动器打印版本号后永远无窗口"。窗口照常
@@ -1441,9 +1676,8 @@ app.whenReady().then(async () => {
     }
     broadcastGatewayEvent(rendererUrl, event);
   });
-  installPermissionDenyPolicy(session.defaultSession);
   registerIpc(provider);
-  systemUsage.start();
+  systemUsage.start(desktopRuntime.providerExecutable);
   await createWindow();
   if (packagedSmoke && mainWindow) {
     await packagedSmoke.verify(mainWindow, provider);

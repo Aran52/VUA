@@ -39,14 +39,18 @@ fn website_failure(url: &str, status: NetworkStatus, elapsed_ms: u64) -> Website
 /// are installed on this fresh client. A HEAD-only denial retries GET to headers,
 /// then drops the response without consuming the page body.
 async fn test_website(value: String) -> WebsiteObservation {
+    if regional_reference(&value) {
+        return test_regional_reference(value).await;
+    }
     let started = Instant::now();
+    let source = value.clone();
     let client = Client::builder()
         .https_only(true)
         .timeout(REQUEST_TIMEOUT)
         .connect_timeout(Duration::from_secs(4))
         .user_agent("VUA-Website-Test/0.1")
-        .redirect(Policy::custom(|a| {
-            if a.previous().len() <= 3 && valid_website_url(a.url().as_str()) {
+        .redirect(Policy::custom(move |a| {
+            if follow_website_redirect(&source, a.url().as_str(), a.previous().len()) {
                 a.follow()
             } else {
                 a.stop()
@@ -85,6 +89,97 @@ async fn test_website(value: String) -> WebsiteObservation {
         ),
         Err(_) => website_failure(&value, NetworkStatus::Timeout, elapsed_ms),
     }
+}
+
+fn regional_reference(source: &str) -> bool {
+    matches!(
+        source,
+        "https://objectstorage.us-sanjose-1.oraclecloud.com/"
+            | "https://objectstorage.us-ashburn-1.oraclecloud.com/"
+            | "https://objectstorage.ap-tokyo-1.oraclecloud.com/"
+            | "https://objectstorage.eu-amsterdam-1.oraclecloud.com/"
+    )
+}
+
+async fn test_regional_reference(value: String) -> WebsiteObservation {
+    let Ok(client) = Client::builder()
+        .https_only(true)
+        .timeout(REQUEST_TIMEOUT)
+        .connect_timeout(Duration::from_secs(4))
+        .pool_max_idle_per_host(1)
+        .user_agent("VUA-Regional-Reference/0.1")
+        .redirect(Policy::none())
+        .build()
+    else {
+        return website_failure(&value, NetworkStatus::ProbeError, 0);
+    };
+    warmed_reference(&client, &value).await
+}
+
+/// Discard one cold request, then report the median of three real responses on
+/// the pooled connection. This avoids DNS/TCP/TLS setup as well as fake-IP proxy
+/// TCP acknowledgements; it still includes server handling, never game room Ping.
+async fn warmed_reference(client: &Client, value: &str) -> WebsiteObservation {
+    let batch = Instant::now();
+    let mut samples = [0; 3];
+    let mut http_status = 404;
+    for request_index in 0..=3 {
+        let started = Instant::now();
+        let response = match client.head(value).send().await {
+            Ok(response) => response,
+            Err(error) => {
+                return website_failure(
+                    value,
+                    if error.is_timeout() {
+                        NetworkStatus::Timeout
+                    } else {
+                        NetworkStatus::ConnectionFailed
+                    },
+                    batch.elapsed().as_millis() as u64,
+                )
+            }
+        };
+        http_status = response.status().as_u16();
+        if !(response.status().is_success() || http_status == 404) {
+            return WebsiteObservation {
+                url: value.to_owned(),
+                status: classify_http(http_status),
+                elapsed_ms: batch.elapsed().as_millis() as u64,
+                http_status: Some(http_status),
+            };
+        }
+        // If the server refuses connection reuse, no cold value can masquerade
+        // as a warmed regional sample. HEAD has no body to download or retain.
+        if response
+            .headers()
+            .get(reqwest::header::CONNECTION)
+            .is_some_and(|header| {
+                header.to_str().is_ok_and(|s| {
+                    s.split(',')
+                        .any(|part| part.trim().eq_ignore_ascii_case("close"))
+                })
+            })
+        {
+            return website_failure(value, NetworkStatus::ProbeError, 0);
+        }
+        if request_index > 0 {
+            samples[request_index - 1] = started.elapsed().as_millis() as u64;
+        }
+        drop(response);
+    }
+    samples.sort_unstable();
+    WebsiteObservation {
+        url: value.to_owned(),
+        status: classify_http(http_status),
+        elapsed_ms: samples[1],
+        http_status: Some(http_status),
+    }
+}
+
+/// Approximate regional timing stays at the documented regional service origin.
+/// Ordinary user-selected website tests retain the existing HTTPS redirect limit.
+fn follow_website_redirect(source: &str, destination: &str, hops: usize) -> bool {
+    !regional_reference(source) && hops <= 3 && valid_website_url(destination)
 }
 
 fn endpoint(target: NetworkTarget) -> &'static str {
@@ -421,6 +516,110 @@ mod tests {
         assert_eq!(result.http_status, None);
         server.join().unwrap();
     }
+
+    fn serve_keepalive(
+        responses: Vec<(u16, Duration)>,
+    ) -> (String, std::thread::JoinHandle<Vec<String>>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let value = format!("http://{}/reference", listener.local_addr().unwrap());
+        let handle = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut requests = Vec::new();
+            for (status, delay) in responses {
+                let mut request = Vec::new();
+                while !request.ends_with(b"\r\n\r\n") {
+                    let mut byte = [0];
+                    if socket.read(&mut byte).unwrap_or(0) == 0 {
+                        return requests;
+                    }
+                    request.push(byte[0]);
+                }
+                requests.push(String::from_utf8(request).unwrap());
+                std::thread::sleep(delay);
+                let _ = write!(
+                    socket,
+                    "HTTP/1.1 {status} Test\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n"
+                );
+            }
+            requests
+        });
+        (value, handle)
+    }
+
+    #[test]
+    fn regional_measurement_excludes_warmup_and_uses_three_responses_on_one_connection() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let client = Client::builder()
+            .no_proxy()
+            .redirect(Policy::none())
+            .build()
+            .unwrap();
+        let (value, server) = serve_keepalive(vec![
+            (404, Duration::from_millis(700)),
+            (404, Duration::from_millis(15)),
+            (404, Duration::from_millis(30)),
+            (404, Duration::from_millis(5)),
+        ]);
+        let result = runtime.block_on(warmed_reference(&client, &value));
+        assert_eq!(result.status, NetworkStatus::HttpError);
+        assert_eq!(result.http_status, Some(404));
+        assert!(
+            result.elapsed_ms < 120,
+            "cold setup must not become a regional value: {result:?}"
+        );
+        let requests = server.join().unwrap();
+        assert_eq!(requests.len(), 4);
+        assert!(requests
+            .iter()
+            .all(|request| request.starts_with("HEAD /reference ")
+                && !request.to_ascii_lowercase().contains("cookie:")));
+    }
+
+    #[test]
+    fn regional_partial_sampling_never_turns_a_timeout_or_http_error_into_latency() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let client = Client::builder()
+            .no_proxy()
+            .redirect(Policy::none())
+            .timeout(Duration::from_millis(80))
+            .build()
+            .unwrap();
+        for (responses, status, code) in [
+            (
+                vec![(404, Duration::ZERO), (404, Duration::from_millis(200))],
+                NetworkStatus::Timeout,
+                None,
+            ),
+            (
+                vec![
+                    (404, Duration::ZERO),
+                    (404, Duration::ZERO),
+                    (429, Duration::ZERO),
+                ],
+                NetworkStatus::HttpError,
+                Some(429),
+            ),
+            (
+                vec![(302, Duration::ZERO)],
+                NetworkStatus::Redirected,
+                Some(302),
+            ),
+        ] {
+            let (value, server) = serve_keepalive(responses);
+            let result = runtime.block_on(warmed_reference(&client, &value));
+            assert_eq!(result.status, status);
+            assert_eq!(result.http_status, code);
+            server.join().unwrap();
+        }
+        let (value, server) = serve_once(404, Duration::ZERO);
+        let result = runtime.block_on(warmed_reference(&client, &value));
+        assert_eq!(result.status, NetworkStatus::ProbeError);
+        assert_eq!(result.http_status, None);
+        server.join().unwrap();
+    }
     #[test]
     fn http_errors_and_redirects_are_not_success() {
         assert_eq!(classify_http(200), NetworkStatus::Reachable);
@@ -428,6 +627,36 @@ mod tests {
         for code in [403, 404, 405, 429, 503] {
             assert_eq!(classify_http(code), NetworkStatus::HttpError);
         }
+    }
+    #[test]
+    fn regional_references_never_follow_a_redirect_out_of_their_region() {
+        for source in [
+            "https://objectstorage.us-sanjose-1.oraclecloud.com/",
+            "https://objectstorage.us-ashburn-1.oraclecloud.com/",
+            "https://objectstorage.ap-tokyo-1.oraclecloud.com/",
+            "https://objectstorage.eu-amsterdam-1.oraclecloud.com/",
+        ] {
+            assert!(!follow_website_redirect(
+                source,
+                "https://www.oracle.com/",
+                1
+            ));
+        }
+        assert!(follow_website_redirect(
+            "https://github.com/",
+            "https://github.com/login",
+            1
+        ));
+        assert!(!follow_website_redirect(
+            "https://github.com/",
+            "https://github.com/login",
+            4
+        ));
+        assert!(!follow_website_redirect(
+            "https://github.com/",
+            "http://github.com/",
+            1
+        ));
     }
     #[test]
     fn vendor_redirects_require_a_domain_boundary() {

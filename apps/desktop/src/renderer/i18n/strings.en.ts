@@ -1,3 +1,8 @@
+import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { browserCopy } from "./browser-copy.ts";
+import { helpCopy } from "./help-copy.ts";
+import { moduleCopy } from "./module-copy.ts";
+import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 /**
@@ -16,6 +21,10 @@ import { journeyCopy } from "./journey-copy.ts";
  *   (DEV-only, reachable only from gateway fixtures, tree-shaken in release).
  */
 export const strings = {
+  faceTracking: faceTrackingCopy["en"],
+  browser: browserCopy["en"],
+  helpUi: helpCopy["en"],
+  amfModule: moduleCopy["en"],
   environmentCards: environmentCopy["en"],
   journey: journeyCopy["en"],
   websiteTests: {
@@ -26,7 +35,10 @@ export const strings = {
     invalid: "Enter a name and a unique HTTPS URL without login information or a fragment.",
     empty: "Add a website with the + button.", unavailable: "Website testing is currently unavailable. Software setup can continue.",
     storageFailed: "Changes apply for this session but could not be saved.",
-    europe: "Europe", america: "USA", japan: "Japan", west: "West", east: "East", regionUnavailable: "Regional ping unavailable",
+    europe: "Europe", america: "USA", japan: "Japan", west: "West", east: "East", regionUnavailable: "Regional test unavailable",
+    regionTitle: "Regional reference latency", testRegions: "Test regions", approximateMilliseconds: "≈ {ms} ms",
+    regionCities: { usw: "San José · US West", use: "Ashburn · near Washington, D.C.", jp: "Tokyo · Japan", eu: "Amsterdam · Europe" },
+    regionScope: "Reference points are Oracle Cloud regions near the game regions. After connecting, VUA takes the median of three HTTPS responses, excluding the initial connection setup. Server handling and routing still affect the result. This is a regional reference, not VRChat room ping or download speed; the game's route may differ.",
     scope: "Time to website response headers, not game ping or download speed. Tests run only when clicked, without account cookies.",
     statuses: { timeout: "Timed out", connection_failed: "Failed", probe_error: "Unavailable", http_error: "HTTP error", redirected: "Redirect", reachable: "Connected" },
   },
@@ -63,7 +75,6 @@ export const strings = {
   },
   common: {
     fixtureBadge: "Demo data",
-    mascotAria: "VUA mascot robot",
     /** Content dialog chrome (material import / composing draft dialogs) */
     dialogClose: "Close",
   },
@@ -164,14 +175,22 @@ demoTaskTitle: "Demo task",
     waitingServices: "Waiting for local services…",
     updateAvailable: "New version {version} available",
   },
-  /** Top-bar resource monitor (2026-09-25 ruling): reading = max(RAM, VRAM) */
+  /** Resource headroom uses available CPU/GPU/RAM/VRAM readings (2026-10-10 ruling). */
   resourceMonitor: {
-    indicatorAria: "System resource usage {percent}% — open details",
+    indicatorAria: "Resource headroom {percent}%, average of {count} available readings — open details",
+    headroom: "Free {percent}%",
     title: "System resources",
+    cpu: "CPU",
+    gpu: "GPU",
     ram: "Memory (RAM)",
     vram: "Video memory (VRAM)",
-    vramUnavailable: "Unavailable (collection not connected)",
-    sampledAt: "Sampled at {time}",
+    ramShort: "RAM",
+    vramShort: "VRAM",
+    unavailable: "Not available",
+    gpuKinds: {"discrete":"Discrete GPU","integrated":"Integrated GPU","unknown":"Type unavailable"},
+    sharedMemory: "This GPU shares system memory. Its dedicated VRAM reading is not included.",
+    summaryNote: "Headroom is 100% minus the mean of {count}/4 available readings, not a prediction of frame rate. With multiple GPUs, the busiest discrete GPU is used.",
+    constrained: "{resource} {percent}%",
     closeAria: "Close resource details",
   },
   nav: {
@@ -188,18 +207,20 @@ demoTaskTitle: "Demo task",
       tools: "Tools",
     },
     pages: {
+      assetBrowser: browserCopy["en"].assets,
       envPlay: "Play",
       envCreate: "Avatar editing",
+      help: "Help",
       guideStart: "Getting Started",
       guideBasics: "Basic Controls",
       guideSafety: "Safety Settings",
       guideDevices: "Device Tips",
       guideTutorials: "Desktop/VR Tutorials",
-      toolsDiscover: "Discover Tools",
+      toolsDiscover: "Tools",
       toolsDevices: "Devices & Tracking",
       toolsCalibration: "Calibration",
       toolsInstalled: "Installed Tools",
-      settingsGoals: "Reset Goals",
+      settingsModules: "Modules",
       settingsEnvironment: "Environment & Paths",
       settingsAccounts: "Accounts",
       settingsLanguage: "Language",
@@ -209,6 +230,7 @@ demoTaskTitle: "Demo task",
       settingsAbout: "About VUA",
       settingsDonate: "Donate",
       packages: "Package Manager",
+      release: "Finished Avatars",
       /** 车间侧栏标签(2026-09-25 用户裁决):复合术语序列退役为直给词面 */
       workshop: "Workshop",
       /** Composing draft lives in a dialog inside the recipe page since the
@@ -376,13 +398,29 @@ demoTaskTitle: "Demo task",
     /** Fallback absent note when a step has no specific hint */
     absentDefault: "This entry is not shown right now. You can continue the tour and come back later.",
     steps: {
+      welcome: {
+        title: "Welcome, traveler from reality.",
+        body: "I'm VUA. I bring play setup, useful tool entries and Avatar preparation into one place. Let's take a quick look around.",
+      },
+      tools: {
+        title: "Extra tools live here",
+        body: "Face tracking, translation and other useful tools belong here. Entries marked In development offer a description while installation and launch are still being built.",
+      },
+      creator: {
+        title: "Avatar editing starts here",
+        body: "Check Unity and package managers here. {amf} comes enabled for new users and provides asset management and Avatar editing. You can turn it off here; play setup works independently.",
+      },
+      settings: {
+        title: "Make VUA feel like yours",
+        body: "Appearance, interface language and account entries are in Settings. Back returns to your previous page. Search at the bottom of this sidebar can replay the tour.",
+      },
       route: {
         title: "This is where you choose",
-        body: "The logo takes you Home. Play, Avatar editing and Avatar tools stay available regardless of your wizard choices.",
+        body: "The logo takes you Home. Play, Tools and Avatar editing stay in the sidebar regardless of your wizard choices.",
       },
       network: {
         title: "Network checks live here",
-        body: "The top card tests all saved websites from its right half. Open its left half to test or edit individual websites and read connection help. Testing starts only when you click.",
+        body: "The right half checks website connectivity; the left half shows results and individual tests. Regional server Ping is still being connected. Tests run only when you click.",
         absent: "Return to Play to find network tests.",
       },
       checks: {
@@ -402,7 +440,7 @@ demoTaskTitle: "Demo task",
       },
       guide: {
         title: "Guidance is always reachable",
-        body: "Help opens preparation and game guidance. Environment details link directly to relevant chapters. Replay this tour from feature search (Ctrl+P).",
+        body: "Environment → Help contains Getting started, the knowledge encyclopedia and the in-game assistant. Read the encyclopedia here or open a chapter from environment details. Replay this tour from feature search (Ctrl+P).",
       },
     },
   },
@@ -960,6 +998,7 @@ demoTaskTitle: "Demo task",
         "Diagram of eye-tracking data flowing from a PICO headset through tracking software on the PC to an avatar's eyes",
     },
     pages: {
+      hardware: hardwareCopy["en"],
       room: {
         title: "Room & Play Area",
         intro:
@@ -1513,6 +1552,10 @@ demoTaskTitle: "Demo task",
     viewList: "List",
     viewToggleAria: "Toggle card/list view",
     catalogSync: {
+      checking: "Checking BOOTH sign-in…",
+      checkFailed: "BOOTH sign-in could not be checked",
+      checkDescription: "Confirm your BOOTH sign-in before syncing the library.",
+      retryCheck: "Check sign-in again",
       warningHint: "Library sync finished with skipped items. See the task record.",
       cancelledHint: "Library sync cancelled. Saved catalog entries were kept.",
       inspectHint: "The previous sync was interrupted. Inspect the task before syncing again.",
@@ -2796,7 +2839,7 @@ demoTaskTitle: "Demo task",
     },
   },
   commandPalette: {
-    cta: "Feature search",
+    cta: "Search",
     ctaHint: "Ctrl+P",
     aria: "Command palette",
     placeholder: "Jump to a page or run a command…",
@@ -2987,7 +3030,6 @@ demoTaskTitle: "Demo task",
       heading: "VRC Ultra Assistant",
       description:
         "Tools for setting up VRChat and creating avatars with {amf}.",
-      bannerSlot: "Banner slot: the banner lands here once the mascot is finalized.",
       contributorsHeading: "Contributors & source",
       contributorsDescription:
         "VUA is open source — contributions of code, docs and community skins are welcome; see CONTRIBUTING and AGENTS in the repository.",
@@ -3200,7 +3242,6 @@ demoTaskTitle: "Demo task",
       texture: "Control texture (v0.4.0 §3.6)",
       statusLight: "StatusLight",
       emptyState: "EmptyState",
-      mascot: "Mascot",
       skeleton: "Skeleton",
       mediaSlot: "MediaSlot",
       navSelected: "Nav selected state",
@@ -3278,6 +3319,7 @@ demoTaskTitle: "Demo task",
    *  catalog browser currently degrades failures to not-connected/not-found;
    *  surfacing these keys in that view is a follow-up slice. */
   errors: {
+    externalTool: { unavailable: faceTrackingCopy["en"].unknown },
     playSession: { unavailable: environmentCopy["en"].unknown },
     recipe: { draftFailed: "The Recipe draft operation could not finish." },
     library: { downloadFailed: "The library download could not finish. Previously stored files are kept.", removalFailed: "Local files could not be deleted. Refresh their status and inspect the task.", reconciliationFailed: "Asset content verification could not finish. Inspect the task, then sync again." },

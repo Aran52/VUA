@@ -12,7 +12,7 @@ import type { UpdateCheckResultV1, UpdateCheckStateV1 } from "@vua/contracts";
  */
 
 /** 与 app/app-meta.ts repoUrl 同源(旧仓公开归档;迁仓后两边同步更新) */
-export const LATEST_RELEASE_URL = "https://api.github.com/repos/VUA-PHR/VUA/releases/latest";
+export const LATEST_RELEASE_URL = "https://api.github.com/repos/VUA-Project/VUA/releases/latest";
 
 /** 三段数字版本比较:a>b 正,a<b 负,相等 0;不可解析返回 null(不猜测) */
 export function compareVersions(a: string, b: string): number | null {

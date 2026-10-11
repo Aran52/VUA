@@ -21,6 +21,7 @@ mod editor_targets;
 mod editor_selection;
 mod environment;
 pub mod network;
+pub mod external_tools;
 mod filesystem;
 mod journal;
 mod material_types;
@@ -136,6 +137,7 @@ pub use runtime::{
     TaskRuntime, TaskSnapshot,
 };
 pub use sqlite_task_store::{
+    LegacyTaskOwner,
     IdempotentCancellation, IdempotentTaskAcceptance, NewTask, ProjectMutationLease,
     SqliteStoreError, SqliteTaskStore, StoredCancellationOutcome, StoredCancellationResult,
     StoredTask, StoredTaskEvent, TaskMutation,

@@ -1,5 +1,7 @@
 import { createLiveDeploymentPort } from "./live-deployment-port.ts";
+import { createAmfModulePort } from "./amf-module-port.ts";
 import { createLivePlayPort } from "./live-play-port.ts";
+import { createLiveToolPort } from "./live-tool-port.ts";
 import { createCreatorInventoryPort } from "./creator-inventory-port.ts";
 import { createLiveNetworkPort } from "./live-network-port.ts";
 import type { ApplicationEventV01, TaskEventV01 } from "@vua/contracts";
@@ -145,6 +147,7 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
   return {
     deployment: createLiveDeploymentPort(client),
     play: createLivePlayPort(client),
+    tools: createLiveToolPort(client),
     managers: createCreatorInventoryPort(client),
     network: createLiveNetworkPort(client),
     snapshot: fetchView,
@@ -181,6 +184,7 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
 
 /** Kernel 宿主完整面:gateway/events 供 client,dialog 供素材来源选取与仓储导入拾取 */
 export interface DesktopKernelHost extends DesktopGatewayHost {
+  readonly amfModule?: import("@vua/contracts").AmfModuleApiV01;
   dialog?: {
     pickMaterialSource(
       intake: "direct_unity_package" | "local_reusable_vpm",
@@ -206,6 +210,7 @@ export function createElectronGateway(
   // F4-9:warehouse 写命令面(bdl-commands v0.1)经 live 端口走 Kernel 路由
   const liveWarehouseCommands = createWarehouseCommands(client);
   return {
+    amfModule: createAmfModulePort(host?.amfModule),
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

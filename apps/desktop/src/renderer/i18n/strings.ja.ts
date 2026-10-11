@@ -1,3 +1,8 @@
+import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { browserCopy } from "./browser-copy.ts";
+import { helpCopy } from "./help-copy.ts";
+import { moduleCopy } from "./module-copy.ts";
+import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
 import type { Strings } from "./strings.en.ts";
@@ -10,6 +15,10 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} の名前はソース表と完全一致させること。
  */
 export const strings: Strings = {
+  faceTracking: faceTrackingCopy["ja"],
+  browser: browserCopy["ja"],
+  helpUi: helpCopy["ja"],
+  amfModule: moduleCopy["ja"],
   environmentCards: environmentCopy["ja"],
   journey: journeyCopy["ja"],
   websiteTests: {
@@ -20,7 +29,10 @@ export const strings: Strings = {
     invalid: "名前と重複しない HTTPS URL を入力してください。ログイン情報やフラグメントは使用できません。",
     empty: "右上の + からサイトを追加してください。", unavailable: "現在サイトテストを利用できません。ソフトのインストールは続けられます。",
     storageFailed: "変更は今回のみ有効です。保存できませんでした。",
-    europe: "ヨーロッパ", america: "米国", japan: "日本", west: "西部", east: "東部", regionUnavailable: "地域の Ping は未対応",
+    europe: "ヨーロッパ", america: "米国", japan: "日本", west: "西部", east: "東部", regionUnavailable: "地域テストを利用できません",
+    regionTitle: "地域別の参考遅延", testRegions: "各地域をテスト", approximateMilliseconds: "≈ {ms} ms",
+    regionCities: { usw: "サンノゼ · 米国西部", use: "アッシュバーン · ワシントン近郊", jp: "東京 · 日本", eu: "アムステルダム · 欧州" },
+    regionScope: "ゲーム地域に近い Oracle Cloud の接続先を使います。アカウントは不要です。接続後に HTTPS 応答を 3 回測り、中央値を表示します。初回の接続時間は除きますが、経路やサーバー処理の影響は残ります。地域の参考値であり、ルームの Ping やダウンロード速度ではありません。",
     scope: "サイトの応答時間です。ゲームの遅延やダウンロード速度ではありません。クリック時のみ、アカウントの Cookie を送らずにテストします。",
     statuses: { timeout: "タイムアウト", connection_failed: "失敗", probe_error: "利用不可", http_error: "HTTP エラー", redirected: "リダイレクト", reachable: "接続済み" },
   },
@@ -57,7 +69,6 @@ export const strings: Strings = {
   },
   common: {
     fixtureBadge: "デモデータ",
-    mascotAria: "VUA マスコットロボット",
     /** コンテンツダイアログの閉じるボタン(マテリアル取り込み/コーディネート下書き) */
     dialogClose: "閉じる",
   },
@@ -157,14 +168,22 @@ demoTaskTitle: "デモタスク",
     waitingServices: "ローカルサービスの起動を待っています…",
     updateAvailable: "新しいバージョン {version} があります",
   },
-  /** トップバー占用モニター(2026-09-25 ユーザー裁定):読み値 = RAM/VRAM の高い方 */
+  /** リソース余裕は取得可能な CPU/GPU/RAM/VRAM から算出する(2026-10-10 裁定)。 */
   resourceMonitor: {
-    indicatorAria: "システムリソース使用率 {percent}% — 詳細を開く",
+    indicatorAria: "リソース余裕 {percent}%、取得できた {count} 項目の平均 — 詳細を開く",
+    headroom: "余裕 {percent}%",
     title: "システムリソース",
-    ram: "メモリ (RAM)",
-    vram: "ビデオメモリ (VRAM)",
-    vramUnavailable: "利用できません(収集未接続)",
-    sampledAt: "サンプリング時刻 {time}",
+    cpu: "CPU",
+    gpu: "GPU",
+    ram: "メモリ（RAM）",
+    vram: "ビデオメモリ（VRAM）",
+    ramShort: "メモリ",
+    vramShort: "VRAM",
+    unavailable: "取得できません",
+    gpuKinds: {"discrete":"専用 GPU","integrated":"内蔵 GPU","unknown":"種類を確認できません"},
+    sharedMemory: "この GPU はシステムメモリを共有するため、専用 VRAM は別に計算しません。",
+    summaryNote: "余裕は 100% から取得できた {count}/4 項目の平均を引いた値で、フレームレートの予測ではありません。複数 GPU では最も使用中の専用 GPU を使います。",
+    constrained: "{resource} {percent}%",
     closeAria: "リソース詳細を閉じる",
   },
   nav: {
@@ -180,18 +199,20 @@ demoTaskTitle: "デモタスク",
       tools: "ツール",
     },
     pages: {
+      assetBrowser: browserCopy["ja"].assets,
       envPlay: "プレイ",
       envCreate: "アバター編集",
+      help: "ヘルプ",
       guideStart: "はじめに",
       guideBasics: "基本操作",
       guideSafety: "安全設定",
       guideDevices: "デバイスのコツ",
       guideTutorials: "デスクトップ/VR チュートリアル",
-      toolsDiscover: "ツールを探す",
+      toolsDiscover: "ツール",
       toolsDevices: "デバイスとトラッキング",
       toolsCalibration: "キャリブレーション",
       toolsInstalled: "インストール済みツール",
-      settingsGoals: "目標の再選択",
+      settingsModules: "機能モジュール",
       settingsEnvironment: "環境とパス",
       settingsAccounts: "アカウント管理",
       settingsLanguage: "言語",
@@ -201,6 +222,7 @@ demoTaskTitle: "デモタスク",
       settingsAbout: "VUA について",
       settingsDonate: "寄付",
       packages: "パッケージマネージャー",
+      release: "完成したアバター",
       /** ワークショップ側バーラベル(2026-09-25 ユーザー裁定):複合用語列は退役し直給の語面に */
       workshop: "ワークショップ",
       /** コーディネート下書きは 2026-09-20 のナビ再編以降、レシピページ内のダイアログ。 */
@@ -364,13 +386,29 @@ demoTaskTitle: "デモタスク",
     /** ステップ固有の欠席説明がない場合の既定文 */
     absentDefault: "この入口は現在表示されていません。ツアーを続けて、後でまた見に来てください。",
     steps: {
+      welcome: {
+        title: "ようこそ、現実からの旅人よ。",
+        body: "VUA は、プレイの準備、便利なツールの入口、アバター編集の準備を一か所にまとめます。まずは使い方を見ていきましょう。",
+      },
+      tools: {
+        title: "便利なツールはこちら",
+        body: "フェイストラッキングや翻訳などのツールをまとめています。「開発中」の項目では説明を読めます。インストールと起動はまだ利用できません。",
+      },
+      creator: {
+        title: "アバターを編集したくなったら",
+        body: "Unity とパッケージ管理ツールを確認する場所です。新規ユーザーは、素材管理やアバター編集の {amf} が初めから有効です。ここで無効にしても、プレイの準備は利用できます。",
+      },
+      settings: {
+        title: "VUA を自分好みに",
+        body: "設定には外観、表示言語、アカウントの入口があります。左上の戻るボタンで元のページへ戻れます。このサイドバー下部の検索からツアーを再生できます。",
+      },
       route: {
         title: "目標はここで選びます",
-        body: "左上の VUA ロゴでホームに戻れます。プレイ、アバター編集、Avatar の機能はウィザードの選択によらず利用できます。",
+        body: "左上の VUA ロゴでホームに戻れます。プレイ、ツール、アバター編集はウィザードの選択によらずサイドバーに表示されます。",
       },
       network: {
         title: "ネットワークチェックはここ",
-        body: "上のカードの右側で保存済みサイトをまとめて確認します。左側で個別のテスト、サイト編集、接続の説明を開けます。クリック時のみテストします。",
+        body: "右側でサイトの接続を確認し、左側で結果や個別テストを開きます。地域別サーバーの Ping はまだ利用できません。クリック時のみテストします。",
         absent: "プレイに戻るとネットワークテストがあります。",
       },
       checks: {
@@ -390,7 +428,7 @@ demoTaskTitle: "デモタスク",
       },
       guide: {
         title: "ガイドはいつでも開けます",
-        body: "ヘルプから準備の説明やゲームガイドを開けます。環境の詳細にも関連する章への入口があります。機能検索（Ctrl+P）からこのツアーを再生できます。",
+        body: "「環境 → ヘルプ」に入門ガイド、知識百科、ゲーム内アシスタントがあります。百科はこのウィンドウで読めます。環境の詳細から関連する章も開けます。機能検索（Ctrl+P）からこのツアーを再生できます。",
       },
     },
   },
@@ -928,6 +966,7 @@ rolled_back: "ロールバック済み",
         "アイトラッキングデータの流れ図: PICO ヘッドセットから PC のトラッキングソフトを経てアバターの目へ",
     },
     pages: {
+      hardware: hardwareCopy["ja"],
       room: {
         title: "部屋とプレイスペース",
         intro:
@@ -1476,6 +1515,10 @@ rolled_back: "ロールバック済み",
     viewList: "リスト",
     viewToggleAria: "カード/リスト切替",
     catalogSync: {
+      checking: "BOOTHのログインを確認中…",
+      checkFailed: "BOOTHのログインを確認できませんでした",
+      checkDescription: "ライブラリを同期する前にBOOTHのログインを確認します。",
+      retryCheck: "ログインを再確認",
       warningHint: "同期が終了しました。一部の項目は処理できませんでした。詳細はタスク記録をご確認ください。",
       cancelledHint: "同期をキャンセルしました。保存済みの項目は保持されています。",
       inspectHint: "前回の同期が中断されました。タスクを確認してから再同期してください。",
@@ -2733,7 +2776,7 @@ rolled_back: "ロールバック済み",
     },
   },
   commandPalette: {
-    cta: "機能検索",
+    cta: "検索",
     ctaHint: "Ctrl+P",
     aria: "コマンドパレット",
     placeholder: "ページへ移動またはコマンドを実行…",
@@ -2917,7 +2960,6 @@ rolled_back: "ロールバック済み",
     about: {
       heading: "VRC Ultra Assistant",
       description: "VRChat プレイヤーとクリエイターのためのオールインワンアシスタント: プレイ/制作環境デプロイヤと {amf} アバターパイプライン。",
-      bannerSlot: "ヘッダー画像スロット: マスコット確定後にバナーが入ります。",
       contributorsHeading: "貢献者とソースコード",
       contributorsDescription: "VUA はオープンソースです。コード・ドキュメント・コミュニティスキンの貢献を歓迎します。規約はリポジトリの CONTRIBUTING と AGENTS を参照してください。",
       repoCta: "プロジェクトリポジトリを開く",
@@ -3129,7 +3171,6 @@ rolled_back: "ロールバック済み",
       texture: "コントロール質感(v0.4.0 §3.6)",
       statusLight: "StatusLight 状態ランプ",
       emptyState: "EmptyState 空状態",
-      mascot: "Mascot マスコット",
       skeleton: "Skeleton スケルトン",
       mediaSlot: "MediaSlot メディアスロット",
       navSelected: "ナビ選択状態",
@@ -3206,6 +3247,7 @@ rolled_back: "ロールバック済み",
    *  ブラウザは現在、失敗を not-connected/not-found に落とすため、
    *  このビューでの透過表示は後続スライス。 */
   errors: {
+    externalTool: { unavailable: faceTrackingCopy["ja"].unknown },
     playSession: { unavailable: environmentCopy["ja"].unknown },
     recipe: { draftFailed: "レシピの下書きの操作を完了できませんでした。" },
     library: { downloadFailed: "ダウンロードを完了できませんでした。既存のファイルは保持されます。", removalFailed: "ローカルファイルを削除できませんでした。状態を更新してタスクを確認してください。", reconciliationFailed: "素材の内容を確認できませんでした。タスクを確認してから再同期してください。" },

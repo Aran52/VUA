@@ -1,22 +1,28 @@
 # VUA product boundary
 
 
-> Document version: 2.18.0
+> Document version: 2.25.0
 > Status: Accepted
 > Scope: Entire VUA product
-> Updated: 2026-10-09
+> Updated: 2026-10-11
 > Normative effect: Yes
 
 ## Product definition
 
-VUA is a Windows-first, local VRChat desktop production environment for players who want to move
-from asset discovery and environment preparation through Avatar production and runtime-tool setup.
-The core audience is VRChat players who are unfamiliar with Unity and may not even know what they
-need (user ruling, 2026-09-22). It is Recipe-first, local-first, capability-aware, and designed
-for recoverable execution: new users get a Wizard that selects a path by goal, device, and current
-state instead of everyone being marched through one fixed master flow (end-to-end flow coverage
-remains a valuable capability), while experienced users keep inspectable, reproducible production
-records.
+VUA is a Windows-first, local-first VRChat **scenario** host (the author's term: “情景”).
+It installs, manages and launches the capabilities a scenario needs, with a SOP list for preparation,
+use and recovery. The core audience includes players unfamiliar with Unity or the required software.
+PC screen play and PICO streaming are play scenarios; self-built AMF supplies the Avatar-editing
+scenario. Under the latest 2026-10-10 user ruling, Ibis installs AMF with VUA and enables it
+for new users. Existing enable/disable choices are remembered; existing profiles without a
+choice retain the old disabled default, and finding legacy BDL data alone does not enable AMF.
+External Avatar-editing modules are deferred beyond Ibis. BDL stays private inside AMF.
+
+Recipe-first production and reproducible production records belong to AMF. The VUA host remains
+usable without AMF/BDL, and the Wizard chooses a path by goal, device and current facts. Wizard goal
+preferences do not determine which installed modules appear in the main directory. Concrete
+ownership, local payload activation, migration and lifecycle are owned by
+[host/module architecture](architecture/modules.md).
 
 ## Accepted product areas
 
@@ -62,7 +68,7 @@ records.
    [Editor compatibility policy](compatibility/unity-editor.md). During development, global
    `2022.3.22f1` and China `2022.3.22f1c1` form the accepted pair; historical projects enter
    through the documented migration boundary. Existing frozen protocol migrations remain explicit.
-7. **Guidance and desktop presentation:** an in-app VUA tour, an ordinary preparation reader,
+7. **Guidance and desktop presentation:** an in-app VUA tour, a knowledge encyclopedia inside Help,
    and a guide associated with the VRChat game window; task/runtime status retains its own
    application authority. **VR overlay:** remains unscheduled outside the active
    [N acceptance sequence](development-outline.md).
@@ -131,6 +137,13 @@ UGC-content responsibility; VUA still reports parse failures honestly and owns i
 and application errors. A reproducer re-acquires assets through their own BOOTH entitlement. A
 provenance statement grants no purchase rights, and VUA is not required to prove the local package
 is identical to the store original.
+
+**Local material and acquisition sources (user ruling, 2026-10-10).** Ordinary user-provided local
+material workflows do not classify licensed versus pirated files or impose additional intake
+requirements on that distinction. VUA does not actively support piracy: do not add integrations,
+acquisition paths or guidance specifically for pirated-material platforms, or bypass purchase,
+authentication or access controls. This does not add a material-rights certification, source
+blacklist or scanning requirement. The provenance and sharing rules above remain authoritative.
 
 **Managed library re-download (user ruling, 2026-10-07).** An already-downloaded product shows
 Re-download; the action replaces its managed file rather than storing another copy. The exact
@@ -308,12 +321,13 @@ or PICO Connect streaming. It delivers the following bounded scope:
   Prefer supported silent installation with visible progress and explicit user handoffs.
   Reuse installed software and recover interrupted work through inspection and explicit retry.
 - Provide three guidance contexts (user ruling, 2026-10-05): a transparent, ordered tour over
-  VUA's own controls; a normal readable window for room/equipment preparation; and a transparent
+  VUA's own controls; readable room/equipment preparation; and a transparent
   guide over the Windows VRChat game window for controls/settings and available tutorial worlds.
   The game guide defaults to following VRChat and 50% transparency. Reuse shared instructions
   and illustrations, with independent progress for each context. Guidance works without AMF.
   The [guidance architecture](architecture/guidance.md) owns presentation and window behavior.
-  Test the preparation reader through SteamVR's desktop view on the headset; a native VUA
+  The 2026-10-10 presentation ruling places preparation and hardware reading in the main Help
+  encyclopedia. Test it through SteamVR's desktop view on the headset; a native VUA
   VR overlay remains later work.
 - Include optional PICO 4 Pro eye tracking through independently installed VRCFaceTracking.
   Guide Steam installation, the PICO hardware module, headset calibration and VRChat OSC;
@@ -327,8 +341,12 @@ release does not depend on resolving Quest's initial activation path. Other bran
 streaming tools, creator accounts, Unity/AMF and the remaining N2 tools follow in later deliveries.
 Existing code and the wider N-stage scope are retained; this release does not close all of N1.
 
-Distribute a self-contained Windows x64 ZIP first. Advance the shared N7 packaging work and
-the relevant illustrated guide; NSIS, automatic updating and the rest of N7 follow separately.
+Windows distribution follows the [2026-10-11 delivery ruling](#windows-delivery-and-amf-updates-user-ruling-2026-10-11),
+which defines the subsequent NSIS/runtime and AMF-update work. Under the author's later
+2026-10-11 ruling, publish the current implementation first as **v0.6.6 Ibis**, using the existing
+standalone Windows x64 ZIP. This publication does not wait for NSIS or independent AMF updates,
+does not declare pending physical/material/human acceptance complete, and does not rewrite
+earlier preview evidence. Advance the subsequent N7 work and guide separately.
 Prepare exact-build third-party notices and SignPath Foundation application/integration alongside
 development. Local unsigned previews are explicitly labeled; public signing status and remaining
 limitations are recorded at publication. No certificate application blocks implementation.
@@ -336,6 +354,25 @@ Acceptance belongs to [the first play release rows](development-outline.md#first
 The [delivery plan](development/first-play-delivery-plan.md) records completed slices and the
 remaining work. N5 is reviewed separately when complete and can accompany this release after
 that review; its work is not part of the current first-play checklist or a play prerequisite.
+
+### Windows delivery and AMF updates (user ruling, 2026-10-11)
+
+Use NSIS for the Windows VUA installer. Automatically detect usable mirrors and acquire the
+exact compatible Electron runtime, including Chromium and its supporting files. Reuse a complete
+verified VUA-owned runtime when its version is unchanged; ordinary host/module updates must not
+download it again. Provide an offline installation/recovery path for unavailable download sources.
+
+AMF installs with VUA and retains the accepted fresh-enabled default and existing saved choices.
+It supports independent incremental updates inside VUA within explicit host/protocol/data
+compatibility. Keep its full UI/backend payload boundary separate from user data and private BDL;
+an update failure must leave host/play usable. Preserve active-work admission, interruption,
+explicit retry and supported migration/recovery rather than replacing running work or data.
+
+Download sources distribute verified release content; they do not choose compatibility or
+collect user credentials/materials. Exact-build notices, version/source and signing disclosures
+remain required. The [Windows distribution plan](development/windows-distribution-plan.md)
+proposes the sequential slices; [N7](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide)
+owns acceptance. This is a delivery decision, not installer/update evidence or N-stage completion.
 
 ### Play network presentation (user ruling, 2026-10-09)
 
@@ -557,14 +594,21 @@ limitations.
 
 Scope rulings attached to the active sequence:
 
-- N2's external-tool scope is the seven applications listed in the
-  [outline](development-outline.md#n2-external-gameplay-tools). A common Steam connection provides
-  local installation inventory, official purchase/install handoff, launch and observed status.
-  VRCFT and Space Calibrator retain their specific setup and hardware acceptance; the five other
-  applications need no individual usage tutorial or automation of their internal features.
+- N1 isolates the scenario host before prerequisite checks, deployment and SOP delivery; Steam,
+  PICO and Unity detection/preparation are reusable host capabilities. N3/N4 belong to AMF and
+  N5 to AMF + BDL, retaining existing code, review and independent acceptance. N6 accompanies
+  each scenario's interruption/return/reinspection/retry; N7 records host/module release and
+  compatibility separately. This ownership change does not declare N1 or N5 complete.
+- N2 covers selected optional modules and external-software connections, including the original
+  seven Steam tools and VRCS in the [outline](development-outline.md#n2-external-gameplay-tools).
+  Use each upstream's supported Steam, official-installer or GitHub-release source for discovery,
+  acquisition/handoff, launch and observed status. VRCFT and Space Calibrator retain their setup
+  and hardware acceptance; other entries need no individual usage tutorial or automation of
+  their internal features.
   PICO eye tracking is advanced into the first play release; the remaining N2 work follows it.
   Official applications retain their upstream features, licenses and lifecycle. A native VUA
-  entry means a built-in connector to the external app, not a bundled copy or a VUA plugin.
+  connector does not imply a bundled upstream binary. Explicit optional-module selection is
+  separate from upstream application installation; it grants no arbitrary plugin-script authority.
   Internal Space Calibrator driver IPC is not a VUA integration contract. This grants no VRChat
   injection or generic plugin-host authority.
 - [N5](development-outline.md#n5-audit-and-redo-material-management) BOOTH acquisition does not
@@ -585,14 +629,13 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.25.0 (2026-10-11): authorize current-state v0.6.6 Ibis ZIP publication before subsequent NSIS/runtime and AMF-update work, retaining continuing Beta and pending acceptance.
+- 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
+- 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
+- 2.22.0 (2026-10-10): align scenario-host/AMF/BDL stage ownership, selected N2 module/software sources and separate release acceptance with the author's revised N sequence; preserve open N1/N5 outcomes.
+- 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
+- 2.21.0 (2026-10-10): distinguish ordinary local-material intake from active support for pirated acquisition sources, without introducing rights classification or new intake gates.
+- 2.20.0 (2026-10-10): bundle AMF with Ibis while requiring explicit first activation, retain saved choices and legacy data, and defer external Avatar-editing modules.
+- 2.19.0 (2026-10-09): accept VUA as a scenario host with optional AMF＋BDL, independent fresh startup/navigation and retained module data.
 - 2.18.0 (2026-10-09): integrate the author's Ibis newcomer core-journey criterion and current regional-Ping/website presentation with the N5 scope, retaining pending optional outcomes and retiring usage-region identification and accelerator recommendations.
 - 2.17.0 (2026-10-09): require managed ZIP extraction for local imports and BOOTH downloads while preserving original archives and separate production qualification.
-- 2.16.0 (2026-10-09): bound N5 closure to intact local-file retention, UnityPackage production intake, official lookup/minimal manual metadata and optional dependency clues; defer third-party search.
-- 2.15.0 (2026-10-08): add content-based migration reconciliation and narrow N5 to local record removal and persisted link clues; defer final Recipe/VPM and production-loop work.
-- 2.14.0 (2026-10-08): replace the missing-file relink requirement with explicit BOOTH re-download and record official-ID, third-party and manual source-supplementation routes.
-- 2.13.0 (2026-10-08): preserve records/references after local-file removal and retain superseded VPM output after changed managed originals; link the maintenance ruling.
-- 2.12.0 (2026-10-08): retain all downloaded formats with separate production qualification and allow provisional Recipe selection drafts without deciding the production format.
-- 2.11.0 (2026-10-07): record the user ruling that managed library re-downloads replace the existing selected file while preserving entry identity; link the owning replacement decision.
-- 2.10.0 (2026-10-05): separate app, preparation and game guidance in the first play scope and retain N5 as an independently reviewed co-release.
-- 2.9.0 (2026-10-03): add PICO eye tracking to the first play release and expand N2 to seven external tools with shared Steam inventory/install/launch acceptance.
-Earlier entries remain in Git history.

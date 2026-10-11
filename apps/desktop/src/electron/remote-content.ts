@@ -1,5 +1,6 @@
 import { WebContentsView, session, type BrowserWindow, type Rectangle, type Session } from "electron";
-import type { RemoteContentEventV1, RemoteContentViewStateV1 } from "@vua/contracts";
+import { DESKTOP_BROWSER_TAB_LIMIT, type DesktopBrowserLoadEventV1, type DesktopBrowserTabEventV1, type DesktopBrowserViewportV1, type RemoteContentEventV1, type RemoteContentViewStateV1 } from "@vua/contracts";
+import { browserViewportBounds } from "./browser-viewport.js";
 import {
   installCookiePersistencePolicy,
   installRemoteContentNavigationPolicy,
@@ -10,12 +11,7 @@ import {
   type RemoteContentViolationObserver,
 } from "./security.js";
 
-/**
- * 内嵌视图顶部预留条高度(px):视图不覆盖宿主窗口整窗,顶部留给渲染层
- * 固定导航条(后退/前进/刷新/回首页/URL/关闭——用户实测缺口修复,否则
- * 全屏视图盖死壳界面无法退出)。渲染层侧等高条在 ImportPage 浏览面板;
- * 两处以同一常量语义对齐,改动必须同批。
- */
+/** Fallback control-strip height; current clients submit measured shell-content bounds. */
 export const REMOTE_VIEW_NAV_STRIP_PX = 44;
 
 /**
@@ -30,14 +26,19 @@ export const REMOTE_VIEW_NAV_STRIP_PX = 44;
  * - 下载默认拒绝(F4-3 下载端口接管后替换 session 钩子);
  * - 登录会话存活:允许清单来源的会话 Cookie 补有界持久到期(安全.ts 策略),
  *   Cookie 数据只落本机分区,永不离开本机;
- * - 视图占满宿主窗口内容区并预留顶部导航条:导航条布局由表现层承载,本
- *   模块只负责让位(上缘 = REMOTE_VIEW_NAV_STRIP_PX)。
+ * - Native geometry follows local measured content, never covering the header/sidebar;
+ *   the fallback also reserves both navigation regions before the first receipt.
  */
 
 export interface RemoteContentManagerOptions {
   /** 独立 Session partition(persist: 前缀保存独立远程存储) */
   readonly partition: string;
   readonly allowedOrigins: readonly string[];
+  /** Public browsing entries never widen authenticated reads or cookie persistence. */
+  readonly browsingOrigins?: readonly string[];
+  readonly persistSessionCookies?: boolean;
+  readonly onLoad?: (event: DesktopBrowserLoadEventV1) => void;
+  readonly onTab?: (event: DesktopBrowserTabEventV1) => void;
   readonly openExternal: ExternalUrlOpener;
   readonly broadcast: (event: RemoteContentEventV1) => void;
   /** U9(1)/U9(3) 确认层注入(存在时透传给每视图导航策略);缺失=清单外
@@ -54,7 +55,9 @@ export interface RemoteContentManagerOptions {
 interface ManagedView {
   readonly view: WebContentsView;
   readonly viewId: string;
+  readonly siteBrowser: boolean;
   visible: boolean;
+  viewport?: DesktopBrowserViewportV1;
 }
 
 export class RemoteContentManager {
@@ -64,6 +67,7 @@ export class RemoteContentManager {
   #hostWindow: BrowserWindow | null = null;
   #sequence = 0;
   #disposed = false;
+  #suspended = false;
 
   constructor(options: RemoteContentManagerOptions) {
     this.#options = options;
@@ -77,7 +81,7 @@ export class RemoteContentManager {
     });
     // 登录会话存活(隔离边界内):允许清单来源的会话 Cookie 补持久到期,
     // 数据只落本机分区存储(见类注释红线节)
-    installCookiePersistencePolicy(this.#session, options.allowedOrigins);
+    if (options.persistSessionCookies !== false) installCookiePersistencePolicy(this.#session, options.allowedOrigins);
   }
 
   setHostWindow(window: BrowserWindow | null): void {
@@ -92,6 +96,28 @@ export class RemoteContentManager {
     return this.#createView(url);
   }
 
+  openSite(url: string): RemoteContentViewStateV1 {
+    this.#assertUsable();
+    if (!isAllowedRemoteOrigin(url, this.#options.browsingOrigins ?? this.#options.allowedOrigins)) throw new Error("origin_not_allowed");
+    if (this.#siteTabCount() >= DESKTOP_BROWSER_TAB_LIMIT) throw new Error("browser_tab_limit");
+    return this.#createView(url, true);
+  }
+
+  hasView(viewId: string): boolean { return this.#views.has(viewId); }
+
+  setViewport(viewId: string, viewport: DesktopBrowserViewportV1 | null): void {
+    const managed = this.#requireView(viewId);
+    managed.visible = viewport !== null && viewport.width > 0 && viewport.height > 0;
+    if (viewport !== null) managed.viewport = viewport;
+    this.#applyBounds(managed);
+  }
+
+  /** Native child views must yield to local confirmation cards. */
+  setSuspended(suspended: boolean): void {
+    this.#suspended = suspended;
+    this.refreshBounds();
+  }
+
   /** U9(1) 确认放行专用入口:导航策略确认层在 Main 侧放行清单外目标时经此
    *  入视图(用户显式确认是放行依据);渲染层窄面(vua:remote-content:open)
    *  仍只允许清单内——两个入口的守卫差异是刻意的,不对外收敛。 */
@@ -100,7 +126,9 @@ export class RemoteContentManager {
     return this.#createView(url);
   }
 
-  #createView(url: string): RemoteContentViewStateV1 {
+  #siteTabCount(): number { return [...this.#views.values()].filter(view => view.siteBrowser).length; }
+
+  #createView(url: string, siteBrowser = false): RemoteContentViewStateV1 {
     this.#sequence += 1;
     const viewId = `rc-${this.#sequence}-${crypto.randomUUID()}`;
     const view = new WebContentsView({
@@ -114,38 +142,56 @@ export class RemoteContentManager {
         partition: this.#options.partition,
       },
     });
-    const managed: ManagedView = { view, viewId, visible: true };
+    // A pending/background tab has no owner geometry yet and must never cover
+    // another route. The local BrowserFrame makes only the active tab visible.
+    const managed: ManagedView = { view, viewId, siteBrowser, visible: !siteBrowser };
     this.#views.set(viewId, managed);
     const onViolation: RemoteContentViolationObserver = (violationUrl, reason) => {
       this.#broadcast({ kind: "blocked", viewId, url: violationUrl, reason });
     };
     installRemoteContentNavigationPolicy(view.webContents, {
-      allowedOrigins: this.#options.allowedOrigins,
+      allowedOrigins: this.#options.browsingOrigins ?? this.#options.allowedOrigins,
       openExternal: this.#options.openExternal,
       onViolation,
+      ...(siteBrowser && this.#options.onTab ? { openAllowedTab: (target: string) => {
+        if (!managed.visible || this.#suspended) return;
+        if (this.#siteTabCount() >= DESKTOP_BROWSER_TAB_LIMIT) {
+          this.#options.onTab?.({ kind: "tab-limit", viewId }); return;
+        }
+        const state = this.#createView(target, true);
+        this.#options.onTab?.({ kind: "tab-opened", viewId: state.viewId, parentViewId: viewId, url: target });
+      } } : {}),
       ...(this.#options.confirmNavigation === undefined
         ? {}
         : { confirmNavigation: this.#options.confirmNavigation }),
     });
     view.webContents.on("did-navigate", () => this.#broadcastNavigated(managed));
     view.webContents.on("did-navigate-in-page", () => this.#broadcastNavigated(managed));
+    if (siteBrowser) view.webContents.on("page-title-updated", (_event, title) => {
+      this.#options.onTab?.({ kind: "title-updated", viewId, title: title.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120) });
+    });
+    view.webContents.on("did-start-loading", () => this.#options.onLoad?.({ kind: "loading", viewId, loading: true }));
+    view.webContents.on("did-stop-loading", () => this.#options.onLoad?.({ kind: "loading", viewId, loading: false }));
+    view.webContents.on("did-fail-load", (_event, code, _description, _url, isMainFrame) => {
+      if (isMainFrame && code !== -3) this.#options.onLoad?.({ kind: "load-failed", viewId, code });
+    });
     view.webContents.on("render-process-gone", () => {
       this.#broadcast({ kind: "view-closed", viewId });
       this.#destroyView(viewId);
     });
     this.#attach(managed);
     this.#broadcast({ kind: "view-opened", viewId, url });
-    void view.webContents.loadURL(url);
+    void view.webContents.loadURL(url).catch(() => { /* did-fail-load owns the visible failure. */ });
     return this.#stateOf(managed);
   }
 
   navigate(viewId: string, url: string): RemoteContentViewStateV1 {
     this.#assertUsable();
     const managed = this.#requireView(viewId);
-    if (!isAllowedRemoteOrigin(url, this.#options.allowedOrigins)) {
+    if (!isAllowedRemoteOrigin(url, this.#options.browsingOrigins ?? this.#options.allowedOrigins)) {
       throw new Error("origin_not_allowed");
     }
-    void managed.view.webContents.loadURL(url);
+    void managed.view.webContents.loadURL(url).catch(() => { /* did-fail-load owns the visible failure. */ });
     return this.#stateOf(managed);
   }
 
@@ -186,8 +232,7 @@ export class RemoteContentManager {
   setVisible(viewId: string, visible: boolean): RemoteContentViewStateV1 {
     const managed = this.#requireView(viewId);
     managed.visible = visible;
-    managed.view.setVisible(visible);
-    if (visible) this.#applyBounds(managed);
+    this.#applyBounds(managed);
     return this.#stateOf(managed);
   }
 
@@ -256,10 +301,10 @@ export class RemoteContentManager {
     };
   }
 
-  /** 宿主窗口尺寸变化时重排可见视图(骨架行为:占满内容区) */
+  /** Reapply bounds and local-confirmation visibility after a host/layout change. */
   refreshBounds(): void {
     for (const managed of this.#views.values()) {
-      if (managed.visible) this.#applyBounds(managed);
+      this.#applyBounds(managed);
     }
   }
 
@@ -279,15 +324,13 @@ export class RemoteContentManager {
   #applyBounds(managed: ManagedView): void {
     const window = this.#requireHost();
     const bounds: Rectangle = window.getContentBounds();
-    // 顶部让位给渲染层固定导航条(高度见 REMOTE_VIEW_NAV_STRIP_PX 注释);
-    // 窗口过矮时条高吃满则视图不显示(诚实让位,不产生负高度)
-    const height = Math.max(bounds.height - REMOTE_VIEW_NAV_STRIP_PX, 0);
-    managed.view.setBounds({
-      x: 0,
-      y: REMOTE_VIEW_NAV_STRIP_PX,
-      width: bounds.width,
-      height,
-    });
+    // The local renderer measures the shell content and wrapping browser controls.
+    // The fallback also leaves the shell visible before the first layout receipt.
+    const viewport = managed.viewport ?? { x: 176, y: 72 + REMOTE_VIEW_NAV_STRIP_PX,
+      width: Math.max(0, bounds.width - 176), height: Math.max(0, bounds.height - 72 - REMOTE_VIEW_NAV_STRIP_PX) };
+    const rectangle = browserViewportBounds(viewport, window.webContents.getZoomFactor(), bounds);
+    managed.view.setBounds(rectangle);
+    managed.view.setVisible(managed.visible && !this.#suspended && rectangle.width > 0 && rectangle.height > 0);
   }
 
   #requireHost(): BrowserWindow {

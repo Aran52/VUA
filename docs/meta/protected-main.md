@@ -1,6 +1,6 @@
 # Protected-main integration policy
 
-> Document version: 1.2.3
+> Document version: 1.3.0
 > Status: Accepted
 > Authority: user-approved repository foundation work, 2026-09-22
 > Effective: when this policy is merged. Server-side branch protection is configured in GitHub
@@ -43,8 +43,17 @@ This policy supersedes older local-main merge/direct-push instructions in collab
 The foundation assignment contains the full transfer invariants and cutover checklist:
 [historical execution context](../archive/2026-09-29/collab/assignments/2026-09-22-repository-foundation_EN.md).
 
+## Development and integration identities (user ruling, 2026-10-11)
+
+After publishing v0.6.6 Ibis, development commits, feature-branch pushes and PR creation use
+the author's personal GitHub account. Retain the existing organization publishing identity
+only for merge confirmation. Preserve repository identity, history, existing credentials and
+the branch/PR/check rules above. Account switching does not authorize direct main writes,
+repository recreation or silent use of the integration identity for development.
+
 ## Document changelog
 
+- 1.3.0 (2026-10-11): record personal-account development after v0.6.6, with the existing organization publishing identity retained only for merge confirmation; preserve branch/PR/check safeguards.
 - 1.2.3 (2026-10-01): mark the retired collab-era items 4–5 as historical; state where server-side branch protection lives (GitHub repository settings, operator-owned, no in-repo snapshot); reconstruct the missing 1.2.1/1.2.2 changelog entries from git history.
 - 1.2.2 (2026-09-29): record the user's release of the organizational-transfer review hold, subject to the requested README and Issue-template corrections.
 - 1.2.1 (2026-09-29): simplify item 1 to the ordinary feature-branch PR flow, hold the organizational transfer for user review, and repoint the foundation-assignment link to the collab archive.

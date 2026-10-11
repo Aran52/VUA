@@ -1,8 +1,8 @@
 # Protocol reading guide
 
-> Document version: 1.6.0
+> Document version: 1.10.0
 > Status: Accepted
-> Updated: 2026-10-08
+> Updated: 2026-10-11
 > Scope: Navigation and retention guidance; no wire-format changes
 
 **For people:** use this index when a contribution affects an API or stored format; read only
@@ -19,6 +19,8 @@ separate concurrently served operations, and some newer documents extend an earl
 | Area | Entry | Retention rule |
 | --- | --- | --- |
 | Gateway/tasks | [Application](application-contract-v0.1.md), [task store](task-store-v0.1.md), [Provider](provider-process-v0.1.md) | Current shared boundaries; document version and wire version may differ |
+| Desktop windows | [Main Help navigation v0.2](desktop-window-v0.2.md) | Additive Candidate preload face; retained V1 reader/game/task window behavior is unchanged |
+| Desktop browser | [Public entries and shell geometry v0.1](desktop-browser-v0.1.md) | Optional Candidate face for host Wiki and AMF browsing; preserves V1 account/catalog/download faces |
 | Environment/projects | [Inspection](project-inspection-v0.2.md), [project operations](project-ops-v0.2.md), [editor verification](editor-verify-v0.1.md) | Preserve current guards and external-project read-only policy |
 | Package reads | [listInstalled v0.2](packages-query-v0.2.md), [packageCatalog v0.2](packages-catalog-v0.2.md), [listRepos + packageCatalog v0.1 base spec](packages-repos-catalog-v0.1.md), [repoCatalog per-repository inventory](packages-repo-catalog-v0.1.md), [listRepos v0.2 increment](packages-repos-v0.2.md), [listTemplates](packages-templates-v0.1.md) | Check method consumers before retiring an older face |
 | Package writes | [v0.1](packages-ops-v0.1.md), [v0.2](packages-ops-v0.2.md), [v0.3](packages-ops-v0.3.md), [v0.4](packages-ops-v0.4.md), [v0.5](packages-ops-v0.5.md), [v0.6](packages-ops-v0.6.md) | Concurrent faces: provider constants and TS types use all six; v0.6 is not blanket replacement of v0.1-v0.5 |
@@ -44,7 +46,7 @@ from the existence of one method. This is a navigation aid, not a second complet
 | First-play network | [Network v0.1](environment-network-v0.1.md), `environment.checkNetwork` | [Use case](../../crates/orchestrator/src/network.rs) → [HTTPS adapter](../../crates/project-manager/src/network_probe.rs) → [consumer](../../apps/desktop/src/renderer/gateway/live-network-port.ts) | Candidate implementation: explicit per-service HTTPS checks and correctable region; separate from game/PICO LAN acceptance |
 | Purpose-driven deployment | [Deployment v0.1](environment-deployment-v0.1.md), `environment.planDeployment` / `environment.executeDeployment` | [Core policy/use case](../../crates/orchestrator/src/deployment.rs) → [Windows adapter](../../crates/project-manager/src/deployment_adapter.rs) → [consumer tests](../../apps/desktop/src/renderer/gateway/electron-gateway.test.ts) | Candidate executable slice with synthetic tests; real installer/project/device and UI acceptance pending |
 | Account guide | [Accepted minimal state](../architecture/evolution.md#account-guidance-alongside-deployment) | Reuse the existing isolated desktop browser; define exact guide methods and consumer tests with its implementation | Contract to design; deployment does not imply account registration/verification |
-| N2 external tools | [External-connection responsibilities](../architecture/integrations-and-overlays.md#external-integration-modes) | [Adapter ownership](../architecture/system.md#current-code-layout), then tool-specific discovery/launch code and tests in the implementation slice | Accepted scope; runtime support and any new contract remain to be established |
+| N2 external tools | [External-tool v0.1](external-tool-v0.1.md), `tools.observeConnection` / `tools.actConnection` | [VRCFT use case](../../crates/orchestrator/src/external_tools.rs) → [Steam adapter](../../crates/project-manager/src/steam_tools.rs) → [frontend port](../../apps/desktop/src/renderer/gateway/live-tool-port.ts) | Candidate fixed VRCFT connection and device/module guidance; real installation/launch/tracking acceptance pending; other N2 tools remain planned |
 | Material/Recipe production | [Intake](material-intake-v0.2.md), [production](production-use-case-v0.2.md), [Recipe export](recipe-export-v0.1.md), [SDK handoff](release-handoff-v0.2.md) | [Provider routes](../../crates/provider-host/src/provider_host.rs) → [frontend production adapter](../../apps/desktop/src/renderer/gateway/live-production-port.ts) and [tests](../../apps/desktop/src/renderer/gateway/live-production-port.test.ts); [Recipe export consumer](../../apps/desktop/src/renderer/gateway/recipe-export-port.test.ts) | Contracts and implementation entry points exist; inspect the exact operation/capability. N3/N4 real-flow acceptance remains separate |
 | BOOTH library/catalog/download | [BDL queries](bdl-queries-v0.5.md), [commands](bdl-commands-v0.4.md), [download events](download-events-v0.1.md) | [Acquisition](../../crates/acquisition/), [BDL store](../../crates/bdl-store/), [desktop session boundary](../architecture/desktop.md#remote-content-isolation) | Existing parts require the N5 capability audit; these contracts alone do not prove complete account-library retrieval |
 
@@ -67,7 +69,19 @@ retirement, then update the registry and links.
 
 For upstream-driven changes, follow the [third-party compatibility and licensing policy](../release/versioning.md#third-party-changes-and-compatibility).
 
+## Optional module lifecycle
+
+[AMF module lifecycle v0.1](../../schemas/amf-module/v0.1/README.md) is a separate Candidate desktop
+face for host-owned selection/readiness. It does not replace or edit frozen Provider frames, task
+rows, Recipe/BDL families or Unity Bridge contracts. [Module architecture](../architecture/modules.md)
+owns routing and legacy-data migration.
+
 ## Document changelog
+
+- 1.10.0 (2026-10-11): index the Candidate fixed-site desktop browser and bounded shell geometry, independent of retained account/catalog/download and Provider faces.
+- 1.9.0 (2026-10-10): index the Candidate external-tool face and VRCFT producer/consumer routes, separating hardware/module guidance from pending real acceptance.
+- 1.8.0 (2026-10-10): index Candidate desktop-window v0.2 for main Help navigation while retaining the V1 window face.
+- 1.7.0 (2026-10-09): index the Candidate host-owned AMF lifecycle face separately from frozen AMF/Provider contracts.
 
 - 1.6.0 (2026-10-08): index selected-file maintenance and reference-presence reads, retaining the merged N1 protocol routes.
 - 1.5.0 (2026-10-08): index the whole-run sync, managed download, unified library and separate selection-draft baselines.
@@ -78,7 +92,4 @@ For upstream-driven changes, follow the [third-party compatibility and licensing
 
 - 1.2.0 (2026-09-30): add direct family links, scoped delivery-status guidance and contract-to-code reading routes.
 
-- 1.1.0 (2026-09-29): distinguish human lookup from Agent contract-verification workflow.
-
-
-- 1.0.0 (2026-09-28): add task-based protocol navigation and explicit coexistence/retention guidance.
+Earlier entries remain in Git history.

@@ -1,9 +1,9 @@
 # VUA development sequence
 
-> Document version: 3.15.0
+> Document version: 3.23.0
 > Status: Accepted
-> Updated: 2026-10-09
-> Authority: User rulings of 2026-09-28 through 2026-10-09, including independent release numbering, three guidance contexts, the Ibis core-journey criterion, current network presentation and reduced N5 closure scope
+> Updated: 2026-10-11
+> Authority: User rulings of 2026-09-28 through 2026-10-11, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
 > Scope: N1-N7, real-machine deployment and real-material workflows, continuing Beta
 > Normative effect: Schedules accepted product work; product scope belongs to product-boundary.md
 
@@ -43,20 +43,34 @@ See [versioning](release/versioning.md).
 
 ## New sequence
 
+The host/AMF module boundary precedes new scenario integrations under the 2026-10-09 user ruling.
+VUA's host path must work with AMF absent or failed. N1/N2 prepare and connect scenario prerequisites;
+N3/N4/N5 retain their real-material, Recipe and acquisition acceptance inside optional AMF. N6 covers
+each installed scenario's interruption/removal boundary, and N7 verifies the actual selected release
+paths. This changes ownership and implementation order without marking a gate passed or requiring
+AMF production acceptance for the independent play release. See [module architecture](architecture/modules.md).
+
+Ibis installs the first-party AMF payload with VUA and enables it for new users. Saved enable/disable
+choices, existing-profile defaults and legacy data are retained. External Avatar-editing module integration
+and placeholder entries are deferred beyond this release under the 2026-10-10 user ruling.
+
 | Gate | User task | Status |
 | --- | --- | --- |
-| N1 | Deploy the software and settings needed to play or edit Avatars | Desktop/PICO play subset first; broader acceptance pending |
-| N2 | Connect seven external gameplay tools through shared Steam discovery/install/launch | Planned; PICO eye-tracking slice advances into the first play release |
-| N3 | Produce a complex real-material Avatar and hand it to VRC SDK | Planned |
-| N4 | Save, share, and reproduce Recipes across real workflows | Planned |
-| N5 | Audit and redo old M4 material management, including BOOTH acquisition | Planned; capability audit required before rework |
-| N6 | Recover interrupted work and maintain installed environments | Planned |
-| N7 | Distribute and regress a Beta installer with illustrated user instructions | Planned |
+| N1 | Isolate the host, then detect, deploy and guide each scenario's prerequisites and SOP | Desktop/PICO play subset first; complete real-machine acceptance pending |
+| N2 | Select optional modules and connect chosen external software from Steam, official installers or GitHub releases | VRCFT Candidate connection and device-guidance slice; real installation/tracking acceptance pending; other selected entries planned |
+| N3 | Accept AMF's complex real-material Avatar production and SDK handoff | Planned; independent of host-only publication |
+| N4 | Accept AMF's Recipe saving, sharing and reproduction | Planned; independent AMF scope |
+| N5 | Accept AMF + BDL material management and acquisition | Existing code, audit and review retained; independent acceptance remains open |
+| N6 | Complete interruption, return, reinspection and retry with each scenario; handle module disable/removal | Required with each delivered path; consolidated cross-boundary acceptance pending |
+| N7 | Record host and module release, compatibility and regression scopes separately | Ibis accepts the scenarios actually delivered; remaining release scope stays open |
 
 Gate order is delivery order, not a prohibition on useful independent work. Minimum material
 handling needed by N3 lands there; full material-management rework follows the N5 audit. No gate
 below is declared passed by this document. Every mandatory acceptance row must be exercised;
 non-blocking defects may remain documented, but an untested required outcome is not a pass.
+The 2026-10-10 sequence revision does not record N1 or N5 as complete. Their existing delivery
+and review evidence stays valid at its recorded scope; full real-machine/material acceptance
+and author UI review remain separate from implementation progress.
 
 ## Test environments and evidence
 
@@ -106,6 +120,23 @@ harness is in vua-unity-bridge and can use synthetic inputs or a
 
 ## N1: purpose-driven deployment
 
+### Host isolation before scenario delivery
+
+VUA is the scenario installation, management and launch host. Land its isolation slice first,
+then deliver each scenario's prerequisite checks, deployment and SOP (an ordered list of steps
+with expected results and the next action on failure). Steam, PICO and Unity discovery,
+installation and verification are reusable host capabilities; selecting or inspecting Unity
+does not require AMF or BDL. AMF owns Avatar/material behavior, not the host's environment facts.
+
+| Slice | Required boundary and acceptance |
+| --- | --- |
+| Host without active AMF | Fresh and legacy profiles can use host scenarios with AMF disabled or failed; no AMF/BDL queries are needed to inspect or prepare play/Unity prerequisites |
+| Module selection and lifecycle | The bundled Ibis AMF payload defaults to enabled for new profiles. Existing choices and old-profile defaults survive; the user can disable/re-enable it independently. Disabled navigation offers its explanation in Avatar editing; host startup, settings and scenario tasks remain usable |
+| One usable scenario | Connect choice → prerequisite check → plan/deployment → SOP → supported launch/handoff. Exercise return, reinspection and retry with that path under N6 before broadening it |
+
+This is an implementation order and ownership change, not a new generic plugin framework or
+evidence that a stage passed. Keep the existing physical and human acceptance rows below.
+
 ### First play release acceptance
 
 The first release prioritizes the [bounded play scope](product-boundary.md#first-play-release-user-ruling-2026-10-03).
@@ -124,7 +155,7 @@ afterward; it does not add material-management prerequisites to these play cases
 | --- | --- |
 | Standalone ZIP | On the recorded Windows x64 test environment, extract the complete ZIP to a path containing spaces and non-ASCII characters and launch VUA without a source checkout, Node, pnpm or Rust. Its real packaged Provider responds, local assets load, and settings/task data remain outside the program directory. Moving/replacing the program directory preserves that data |
 | Relevant checks | Desktop play needs Steam and VRChat only; missing SteamVR, PICO or Unity does not block it. PICO streaming adds SteamVR and PICO Connect. Windows, graphics/driver, storage and software findings explain the next action instead of a generic failure |
-| Network | Keep website observations in expanded details, separate from local headset discovery and game latency. Regional Ping covers Europe, United States East/West and Japan only when reliable targets exist; otherwise show unavailable without blocking preparation. No usage-region identification, Connection help or accelerator recommendations |
+| Network | Provide explicitly approximate geographic reference timing for Europe, United States East/West and Japan, with named destinations and no invented measurements after failure. Exact Photon/VRChat room Ping is deferred for Ibis. Keep website observations independent in expanded details, separate from headset discovery; no usage-region identification, Connection help or accelerator recommendations |
 | Account guide | A new player reaches official Steam registration and client login; an existing player skips registration. Continue through VRChat first login with Steam and explain optional full-account/linking steps. PICO account/headset actions use official UI. Closing a page or encountering unsupported embedding leaves a resume or system-browser route |
 | Missing software | Starting with the selected software absent, obtain/install it through official sources and return to VUA for inspection. Prefer supported unattended steps; show installation phase/activity and required interaction. Steam-owned downloads are clearly handed to Steam and checked afterward |
 | Desktop play | Launch VRChat in desktop mode, enter the game, and follow the guide for movement, menus, sound, microphone and basic safety settings. Installed files alone do not pass this row |
@@ -133,11 +164,11 @@ afterward; it does not add material-management prerequisites to these play cases
 | PICO eye tracking | On PICO 4 Pro, guide VRCFT Steam installation, its PICO module, headset eye-tracking calibration and VRChat OSC. Verify actual gaze and blinking on an existing suitable Avatar over both USB and Wi-Fi, including microphone use, reconnect and a later play session. Players may skip this option; unfinished delivery remains pending under N2 and does not independently block Ibis publication |
 | Return/recovery | Repeat deployment without reinstalling satisfied components. Interrupt one download/install or user handoff, restart VUA, inspect the result and explicitly continue/retry. A later play session has a direct start path |
 | VUA app tour | Inside VUA, follow ordered highlights on actual controls through route selection, checks, plan/progress and play/guide entries. Page changes, back/next, skip/exit and restart work; absent controls have an understandable next action. The transparent tour stays within VUA, keeps text readable and does not cancel a task when exited |
-| Preparation reader | Open a normal opaque, resizable window for room setup, equipment connection and reference instructions without requiring VRChat or AMF. It is not globally pinned. A help entry opens its section once; ordinary reopen restores reading. Manual scrolling wins over positioning, keyboard reading and illustrations work, and closing leaves tasks/game running |
+| Knowledge encyclopedia | Read preparation and hardware instructions inside Help, without requiring VRChat or AMF. Contextual entries locate a chapter/section; reopen restores reading. Mouse Back/Forward traverses Help child pages and chapter choices, manual scrolling wins over positioning, and leaving Help keeps tasks/game running |
 | VRChat game guide | With following enabled by default and background opacity initially 50%, use a readable guide over the Windows VRChat game window. Adjust the matrix/background without fading text. It follows movement/resize, remembers a dragged relative position, hides on minimize or switching apps, restores without taking focus, stays usable when clicked and respects manual hide. Persist changed preferences. Follow controls/microphone and suggested Personal Space/Allow Untrusted URLs steps by confirmation or skip; use checked tutorial-world entries by learning language when available and local guidance otherwise |
 | Guidance separation | App-tour completion, preparation reading and game-guide progress do not overwrite one another. Shared four-language text/media remain consistent. Exercise absent-game, exit/relaunch, keyboard access and monitor/DPI changes; task-status access remains available during the migration |
-| Headset guide access | On the PICO test path, open SteamVR's desktop view, read/operate the preparation reader and return to play. Record this as desktop-view guidance, not a native VUA VR overlay |
-| Distribution | Include exact-build license notices, version/source identification, ZIP update/removal instructions, actual screenshots and known issues. Record signature status. Human UI review covers the guide and handoffs; remote build/smoke checks and physical headset tests retain their separate evidence |
+| Headset guide access | On the PICO test path, open SteamVR's desktop view, read/operate Help's encyclopedia and return to play. Record this as desktop-view guidance, not a native VUA VR overlay |
+| Distribution | Deliver the NSIS/runtime and bundled-AMF paths under the 2026-10-11 ruling, with exact-build notices, version/source identification, install/update/removal instructions, actual screenshots and known issues. Record signature status. Human UI review, controlled packaged checks and physical play tests retain separate evidence |
 
 Use local uninstall/reinstall for the absent-software cases with the existing authorization and
 data-preservation rules. Record the baseline and actual software versions; this is not a factory
@@ -198,8 +229,14 @@ they are not first-round blockers. N5 BOOTH account-library acceptance remains u
 
 ## N2: external gameplay tools
 
-The accepted inventory contains these seven independent applications. All receive the shared
-connection below; only the two tracking tools have additional setup/hardware acceptance.
+N2 covers optional modules and external-software connections, extending the original seven
+Steam tools with the explicitly selected VRCS entry. Reuse N1's prerequisite capabilities;
+support each application's actual Steam, official-installer or GitHub-release source rather
+than forcing every entry through Steam. A module supplies a chosen scenario/SOP, not a second
+copy of host environment management. VRCFT now has a Candidate Steam connection and device picker;
+the other Tools cards expose descriptions with disabled development actions. Neither the guide
+nor the presence of a card establishes physical tracking or accepted integrations.
+MioVRC and a public Agent/MCP integration remain outside Ibis.
 
 | Application / official distribution | Steam App ID | Purpose | Additional acceptance / timing |
 | --- | --- | --- | --- |
@@ -210,6 +247,7 @@ connection below; only the two tracking tools have additional setup/hardware acc
 | [OVR Toolkit](https://store.steampowered.com/app/1068820/) | 1068820 | Desktop windows inside VR | Shared connection only; paid Steam application; after the first play release |
 | [OyasumiVR](https://store.steampowered.com/app/2538150/) | 2538150 | VR sleep utilities | Shared connection only; free Steam application; after the first play release |
 | [LIV](https://store.steampowered.com/app/755540/) | 755540 | VR capture and streaming tools | Shared connection only; free Steam base application; after the first play release |
+| [VRCS](https://github.com/Dreaminko/VRCS) | — | Speech transcription and translation | Selected addition; verify supported upstream release/acquisition and launch paths before claiming a working connection |
 
 Steam pricing/access descriptions are checked on 2026-10-03; show the current store offer rather
 than hardcoding a price. Required hardware modules are not extra top-level tools. Further additions
@@ -219,10 +257,11 @@ need an explicit scope decision. Record the actual installed release/source for 
 
 | Function | Natural-language pass condition for each application |
 | --- | --- |
-| Discover | Find the app in the user's configured local Steam libraries, including a second library. Distinguish absent, installed, incomplete installation and detection failure; verify installation evidence rather than accepting an empty directory |
-| Purchase/install | Open the correct official store or Steam installation route on request. Steam handles purchase, ownership checks, library addition and downloading. Returning to VUA and refreshing shows the observed installed state; a store visit or launch request alone is not success |
-| Launch/status | Launch the installed app through a supported Steam entry on request, then report observed running state or an explicit failure/unknown result. Explain an absent Steam/SteamVR prerequisite. Repeated clicks do not repeatedly dispatch while the first request is pending |
-| Update/remove/reuse | Steam/upstream owns update and removal. Refresh after those actions or a library relocation; reuse an existing installation without reinstalling it. Closing VUA or its guide leaves the external app and game running |
+| Select/enable | Show purpose, prerequisites and development status. Enable a selected module explicitly; expose only its available entries, while AMF remains independently selected |
+| Discover | Use the supported source-specific evidence: configured Steam libraries, official-installer locations or verified release executables. Distinguish absent, installed, incomplete and detection failure; an empty directory is not installation evidence |
+| Purchase/install | Obtain through the correct official Steam, installer or publisher GitHub release on request, retaining source/version and verifying the actual result. Steam/upstream owns purchase, entitlement and required interactions. Returning and refreshing reports observed installation; opening a page is not success |
+| Launch/status | Use the supported source-specific launch entry on request, then observe running state or report failure/unknown. Explain missing prerequisites. Repeated clicks do not dispatch repeatedly while pending |
+| Update/remove/reuse | Respect the source's actual update/removal support. Reinspect after changes or relocation and reuse satisfied installations. Module disable/removal is separate from uninstalling an upstream app or deleting user data; follow N6 |
 | Optional use | Explain the app's purpose and paid/free distribution, allow skipping it, and link to upstream help. Missing optional apps do not block ordinary play |
 
 Inventory means the **local installation inventory**, not a complete account-owned-games list.
@@ -230,15 +269,20 @@ An uninstalled paid application has unknown ownership until Steam handles the re
 extracts Steam login sessions nor purchases software for the user. A test key is handled in Steam,
 not stored in VUA or committed as evidence.
 
-The five shared-connection-only entries require a real discovery/install-handoff/launch smoke for
-each application. They do not require individual usage tutorials, translation/capture pipelines,
+Each selected shared-connection entry requires a real discovery/install-handoff/launch smoke
+against its recorded source. The tracking tools retain their additional hardware cases below.
+Other entries do not require individual usage tutorials, translation/capture pipelines,
 sleep automation, settings editors or exhaustive upstream feature tests. A running process means
 the app is running, not that its translation, recording or automation is configured successfully.
 LIV is classified under capture/streaming; this connection does not install a LIV SDK into VRChat.
 
 ### Tracking-specific acceptance
 
-- **VRCFT:** guide its hardware-module installation in the upstream UI, headset switches/calibration,
+The short [VRCFT connection plan](development/vrcft-integration-plan.md) records implementation
+order; it does not replace the following real tracking acceptance or mark N2 complete.
+
+- **VRCFT:** show supported device choices, then select the app/streamer where it determines the
+  module. Guide that module's installation in the upstream UI, headset switches/calibration,
   VRChat OSC (Open Sound Control) and a suitable Avatar. Completing the PICO slice exercises the
   eye-tracking row above. Native gaze/blinking can use a suitable existing Avatar; full facial
   expressions require a face-tracking-compatible Avatar. Verify actual tracking/OSC output,
@@ -256,6 +300,10 @@ review. Broader diagnostics/configuration automation follow a separately scoped 
 binary redistribution requires a separate review under [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 ## N3: complex real-material Avatar production
+
+Owner: **AMF**. This gate accepts complex Avatar editing, not host environment preparation;
+it is not a prerequisite for publishing a host-only scenario. Bundling or enabling AMF alone
+does not close N3 or broaden a release's advertised production scope.
 
 User task: combine owned materials in one project and hand the result to VRC SDK.
 Minimum successful case: **one real Avatar + at least two actively used dependencies/plugins +
@@ -279,6 +327,9 @@ for this gate and remains a user action. N5's complete library work does not blo
 
 ## N4: Recipe and multi-flow reproduction
 
+Owner: **AMF**. Save, share and reproduce Recipe declarations through AMF's production boundary;
+the host manages selection, prerequisites and lifecycle without taking over Recipe semantics.
+
 | User task | Required behavior and observable acceptance |
 | --- | --- |
 | Save/reopen | Preserve material references, dependencies, and supported modifications across restart |
@@ -294,6 +345,18 @@ not byte equality of all Unity-generated metadata. Exercise original-package int
 experimental local VPM (VRChat Package Manager) route separately; neither proves the other.
 
 ## N5: audit and redo material management
+
+Owners: **AMF + BDL**. AMF owns intake, acquisition and material-management use cases; BDL retains
+local catalog/provenance/file persistence. Host/module separation preserves the current code,
+[capability audit](development/n5-capability-audit.md), [rework plan](development/n5-rework-plan.md)
+and subsequent review evidence. Do not restart that audit or rewrite working capabilities merely
+because ownership moved. N5 keeps its independent real-account/material and human acceptance;
+neither host publication nor this sequence revision declares it complete.
+
+AMF's Browse assets entry opens BOOTH and public discovery websites as ordinary browser
+shortcuts; it does not add a third-party catalog/search adapter or substitute for either BOOTH
+acquisition workflow below. The host Wiki stays independent of AMF. Browser UI implementation
+and public-page observations do not change the N5 acceptance outcome.
 
 ### Mandatory first step: capability audit
 
@@ -358,37 +421,59 @@ and library outcomes exercised; remaining non-blocking limitations are named.
 
 ## N6: recovery and environment maintenance
 
+Implement N6 cases when each N1/N2 host scenario or N3–N5 AMF path lands. Interruption, returning
+from an official-app handoff, reinspection and retry belong to that path's usable delivery,
+not a final cleanup stage. Consolidation later checks interactions across installed scenarios.
+
 | User task | Required behavior and observable acceptance |
 | --- | --- |
 | Cancel | Explain whether cancellation took effect or is waiting on a non-interruptible operation |
 | Restart | Surface unfinished tasks for inspection and explicit choice, never silent continuation |
 | Retry | Use actual completed state rather than blindly repeat everything or reuse stale approval |
+| Return from a handoff | Preserve the selected scenario and current step; recheck observed facts after returning from account, installer, client or headset actions |
 | Handle drift | Reinspect relevant externally changed software, configuration, or projects before executing |
 | Restore settings | Restore supported VUA-owned changes; show conflicts with subsequent external edits |
 | Update/remove | Support each adapter's actual update, component-addition, and uninstall abilities, not universal downgrades |
+| Disable/remove a module | Explain active-task blockers and preserve local data. Disable/remove its navigation and executable capabilities without breaking host scenarios or removing shared software; explicitly handle retained records and any later re-enable |
 | Export inventory | Record versions/components/configuration for redeployment; do not describe it as a machine image |
 
 Inject interruption, cancellation, missing inputs, and external changes into both deployment and
 complex production. Show a workable next action even if it requires reinstall or manual repair.
-N6 consolidates recovery; basic failures/retry cannot all be deferred from earlier gates.
+N6 consolidates recovery; every delivered path carries its own applicable failure/return cases.
 
 ## N7: Beta installer, regression, and illustrated user guide
 
-The first play release advances the ZIP, targeted regression and illustrated play-guide subset
-under its acceptance rows above. NSIS and complete N7 acceptance remain separate later work.
+Record host and module publication, compatibility and regression separately. Ibis accepts the
+scenarios actually advertised and delivered in its exact build, under the newcomer-journey
+criterion; it does not require unrelated AMF complex-production or Recipe acceptance. A bundled
+module still needs regression for the behavior the release exposes. The
+[2026-10-11 delivery ruling](product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
+adds NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental
+updates to current distribution work. Existing ZIP evidence is retained; full later scenario
+coverage remains separate. The [Windows distribution plan](development/windows-distribution-plan.md)
+proposes the slices without declaring any acceptance complete.
+
+The later 2026-10-11 user ruling publishes the current state as **v0.6.6 Ibis** with the existing
+standalone Windows x64 ZIP before those distribution slices. The published notes record tested
+package behavior and the uncompleted physical/material/human rows; publication does not close
+N1 or N5, or count a ZIP as an NSIS/independent-update pass.
 
 | Deliverable | Required behavior and observable acceptance |
 | --- | --- |
-| Installer | Launch without a development checkout, developer commands, or hidden development-machine files |
-| Regression | Exercise supported deployment, the N2 shared connections and their tracking-specific cases, complex production, Recipe reproduction, and audited material workflows through the packaged build |
+| Installer | One Windows x64 NSIS entry installs host and AMF, automatically obtains the exact verified Electron runtime from usable mirrors and launches without developer files/commands. Exercise GitHub-unavailable and offline/retry paths |
+| Runtime reuse | A host/module upgrade with unchanged runtime version transfers zero runtime payload bytes; detect and repair incomplete/corrupt owned installations |
+| AMF incremental update | On an unchanged compatible host, update AMF UI/backend inside VUA by downloading changed/missing files and retaining verified unchanged files. Exercise compatibility rejection, busy-work admission, interrupted staging/activation and recovery; preserve data and saved enable choices |
+| Release/compatibility scope | Name the host build, bundled/optional module versions, supported scenario/software combinations and known incompatibilities; payload presence is not a passed workflow |
+| Regression | Use the packaged build for advertised host scenarios and each enabled module's delivered behavior. Record host, external-software, AMF material/production and Recipe results separately; later N3–N5 coverage does not become an unrelated host publication prerequisite |
 | Upgrade | Preserve or explicitly migrate material records, Recipes, settings and run history from a named earlier Beta |
 | UI review | A human can find the main entry points, understand states and complete tasks; fix misleading or stuck screens |
 | Known issues | List tested scope, remaining problems, workarounds, and next work; remain Beta with no production-safety promise |
 | Illustrated user guide | Deliver an end-user guide with screenshots of the actual tested release, using references the user will supply at N7 |
 
-The guide covers install/first launch, purpose-based deployment, both tools, BOOTH login/catalog/
-selective download/cloud import, local material management, complex Avatar production, Recipe
-reproduction, SDK handoff, and common failure/retry paths. Each procedure gives its starting state,
+The Ibis guide covers install/first launch and its actual delivered scenario SOPs, including
+the fresh AMF default and module enable/disable controls, official-app handoffs and common failure/return/retry paths. Add
+BOOTH/material, complex production, Recipe and SDK procedures with the corresponding module
+release scope, preserving their independent N3–N5 acceptance. Each procedure gives its starting state,
 numbered actions with readable screenshots, expected result, and what to do when it differs.
 Screenshots match the named build and actual labels, with credentials, account/order information,
 and private material removed or safely substituted. Do not use invented UI as acceptance evidence.
@@ -422,10 +507,10 @@ create roles, or replace their plans on their behalf. Once revised plans are ava
 
 - Every task maps to an N gate/version and a concrete user action/result, with prerequisites,
   evidence method, current code to reuse, and deferred gaps.
-- Neither old M closure nor old post-v1 scheduling overrides the new sequence. N5 starts with audit.
-- N1 accounts are guided registration/library/linking only; N2 uses the named Steam connections, with PICO eye tracking advanced into the first play release and individual setup guides limited to the tracking tools.
+- Neither old M closure nor old post-v1 scheduling overrides the new sequence. Preserve the existing N5 audit, implementation and review before further changes.
+- N1 host isolation precedes scenario prerequisites/deployment/SOP; Steam/PICO/Unity are reusable host capabilities. N2 covers selected modules and source-specific external connections; individual setup/hardware guides remain focused on tracking tools.
 - N3 has the full 1 + 2 + 6 simultaneous case, not a single outfit or simulated substitute.
-- N5 includes both BOOTH acquisition workflows; N7 includes the actual screenshot guide.
+- N3/N4 belong to AMF and N5 to AMF + BDL, with both BOOTH acquisition workflows retained. N6 accompanies each scenario; N7 records host/module compatibility and the actual release's screenshot guide separately.
 - Local reinstall permission, OS claim limits, human UI review and automated non-UI acceptance
   are preserved. Partial work is not presented as completed acceptance.
 
@@ -434,15 +519,13 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.23.0 (2026-10-11): record current-state v0.6.6 Ibis ZIP publication before the NSIS/AMF-update slices without closing N1/N5 or their pending real-machine/human outcomes.
+- 3.22.0 (2026-10-11): add NSIS/mirrored-runtime distribution and independent incremental AMF update/recovery acceptance under the new user ruling; retain ZIP evidence and separate pending N-stage outcomes.
+- 3.21.1 (2026-10-11): clarify that public material-browser shortcuts and the host Wiki do not expand catalog/search integration or replace independent N5 acquisition acceptance; stage outcomes are unchanged.
+- 3.21.0 (2026-10-11): accept approximate regional references for Ibis and defer exact Photon/room measurement, retaining independent website observations and physical play acceptance.
+- 3.20.0 (2026-10-10): record the Candidate VRCFT Steam/device-guidance connection, add connection-dependent module selection and retain source-specific real-installation/tracking acceptance and other planned tools.
+- 3.19.0 (2026-10-10): enable bundled AMF for new profiles while retaining saved choices and old-profile defaults; link the small VRCFT connection plan without changing stage or tracking acceptance.
+- 3.18.0 (2026-10-10): apply the seven-stage scenario-host/AMF/BDL sequence, expand N2 sources and selected tools, place N6 with each path and split N7 release scope; preserve N1/N5 evidence and pending formal acceptance.
+- 3.17.0 (2026-10-10): retain bundled AMF with explicit activation and defer external Avatar-editing modules beyond Ibis without changing existing gate outcomes.
+- 3.16.0 (2026-10-09): place host/AMF separation before scenario integrations, preserving N3–N5 as AMF acceptance and all existing gate outcomes.
 - 3.15.0 (2026-10-09): integrate Ibis publication and current network/guide acceptance with the reduced N5 scope, retaining real-run evidence and pending optional outcomes, background-only guide opacity and remembered relative placement.
-- 3.14.0 (2026-10-09): include managed ZIP extraction in first N5 intake acceptance, preserving original bytes and truthful extraction outcomes.
-- 3.13.0 (2026-10-09): narrow N5 closure to intact local-file retention, official/minimal manual provenance and optional bounded dependency presentation; defer third-party search.
-- 3.12.0 (2026-10-08): accept migration reconciliation, limit record removal to local imports and dependency discovery to persisted link clues, and move Recipe/VPM and production-loop acceptance after N5.
-- 3.11.0 (2026-10-08): apply the user's N5 missing-file/source refinements, clarify dependency evidence limits and retain production integration as linked pending acceptance.
-- 3.10.0 (2026-10-05): define observable acceptance for three guidance contexts, their independent state and the separate N5 co-release review.
-- 3.9.0 (2026-10-03): advance PICO eye tracking into first-play acceptance and define seven N2 Steam connections with shared inventory/install/launch acceptance and focused tracking guides.
-- 3.8.0 (2026-10-03): define first-play-release acceptance for desktop/PICO USB/Wi-Fi, guidance, recovery and standalone ZIP; move creator completion behind that release.
-- 3.7.0 (2026-10-02): admit the development f1/c1 pair for the first creator deployment path, with global preference and Hub fallback after both editions fail.
-- 3.6.0 (2026-10-02): expand N1 acceptance to model-first official routes, installation activity,
-  device/service accounts and regional activation/connectivity; record the WMR investigation exception.
-Earlier entries remain in Git history.

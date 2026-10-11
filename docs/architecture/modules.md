@@ -1,0 +1,125 @@
+# VUA host and optional AMF module
+
+> Document version: 1.5.0
+> Status: Accepted
+> Scope: First-party module composition, lifecycle and data ownership
+> Updated: 2026-10-11
+
+The user-defined unit is a **scenario** (the author's term: “情景”): a goal with a SOP list,
+prerequisites, preparation, launch and recovery. A module supplies capabilities to scenarios.
+VUA hosts these scenarios. AMF supplies the first-party Avatar-editing scenario. Ibis includes
+its local payload and enables it for new users; external Avatar-editing modules and
+their placeholder entries are deferred under the 2026-10-10 user ruling.
+
+## Deferred external editing module
+
+The initial MioVRC deferral is a product-fit decision based on the author's evaluation, rather
+than a claim that an integration license alone determines suitability. The author found a required
+material-folder selection and automatic synchronization on entry, with all contained folders treated
+as material folders. That assumes an already organized library, while VUA targets newcomers with
+mixed local files. The evaluation also found no support for the required C1 Unity build and too
+many form-based steps. These are the author's observations of the evaluated version, not a
+compatibility audit of every upstream release.
+
+The author also observed explicit import support for pirated-material platforms. VUA's own
+[local-material and acquisition-source boundary](../product-boundary.md) applies to any future
+integration. No external Avatar-editing placeholder is shipped in Ibis; reconsideration requires
+an actual usable scenario and further product review.
+
+AI assistance remains a useful idea independently of the module deferral. The screenshot supplied
+by the author shows model-service and vision configuration, not evidence of a completed production
+loop. VUA's accepted future direction is to expose reliable tools to an existing external Agent,
+as described in [architecture evolution](evolution.md#existing-agents-as-tool-consumers), without
+adding a model-service configuration page or Agent harness to this Ibis slice.
+
+## Implemented boundary
+
+- `vua-orchestrator-provider` starts the host's task authority and environment/play services. It
+  does not construct AMF services, open BDL, or require an AMF executable to start.
+- `crates/amf-provider` builds `vua-amf-provider`, a separate supervised process and Windows Job.
+  It composes Warehouse, Recipe, Assembly, inspection/release, acquisition, project/package work
+  and private BDL. Existing AMF and Unity Bridge contract bodies remain unchanged.
+- Electron's `ModuleProvider` routes AMF methods to this process and host methods to the host.
+  Task queries merge the reachable authorities; task lookup/cancellation is routed by owner.
+  Capabilities come from the serving owner. AMF failure cannot revoke host capabilities.
+- The first-party payload is installed with VUA at `resources/modules/amf/`. A fresh profile
+  defaults to enabled. Main records this choice before either provider creates its database.
+  Existing saved enable/disable choices win; a pre-existing host/legacy/module-data profile with
+  no registration retains the former disabled default. “Enable” starts this local payload,
+  not a network install. Registration read failure retains the file and fails only AMF.
+  Avatar editing explains the module and provides its enable/disable switch. When disabled,
+  the sidebar entry opens that setup section without changing selection; Settings → Modules
+  retains the existing controls. Installing/preparing Unity remains a host path.
+  No arbitrary module scripts, community plugin SDK or marketplace are introduced.
+- The renderer loads AMF pages on demand, inside a local error boundary. Host bootstrap does not
+  await AMF domain snapshots. Navigation, search, deep links, wizard material entry and BOOTH
+  account controls use installed/readiness facts, independently of onboarding goal preferences.
+- BOOTH browser/download transport, material-source references and image caching initialize only
+  for a ready AMF. Stopping the module closes its views and retains its local account profile.
+  Host task windows read `task.list`; optional AMF cards retain their original read contract.
+
+The native protocol dispatch and task/domain types still share `provider-host` and `orchestrator`
+libraries. This extraction creates separate executable composition and runtime authorities; it
+does not claim mutually independent Rust libraries or independently updatable AMF releases.
+
+## Accepted independent-update direction
+
+The [2026-10-11 delivery ruling](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
+requires AMF to remain installed with VUA while supporting independent incremental updates
+inside the host. This is the next delivery boundary, not a claim about the extraction above.
+
+Separate module UI/assets and native payload from the host release, give the payload its own
+version and explicit host/protocol/data compatibility, and keep host-owned services behind a
+narrow first-party interface. User data and private BDL remain in their current ownership/layout.
+Activation respects existing admission gates and saved module choices; failed updates cannot
+revoke host/play capabilities. Shared build-time Rust libraries need not become independent
+runtime modules. The [distribution plan](../development/windows-distribution-plan.md) proposes
+packaging, verified staging and incremental activation; new contracts require their own versions.
+
+## Data and migration
+
+| Owner | Fresh-profile location below userData | Legacy behavior |
+| --- | --- | --- |
+| Host module selection | `modules/amf.json` | Fresh defaults are retained; existing explicit choices win. A pre-existing `bdl/bdl.db` selects data layout only, not activation |
+| Host tasks | `host/tasks.db` | Transactionally imports legacy environment/demo tasks once |
+| AMF tasks | `modules/amf/tasks.db` | Transactionally imports remaining legacy tasks, production bindings and project lease generations once |
+| AMF BDL, warehouse, production documents, thumbnails and source references | `modules/amf/data/` | Existing AMF profiles retain the original userData-relative locations |
+| Shared prerequisite editor choice | `editor-settings.json` | Original location retained |
+| BOOTH session | Electron's existing `persist:vua-remote` partition | Original session retained; never merged with another application's login or library |
+
+The former `orchestrator/provider.db` is attached read-only for task migration and retained as a
+backup. Imports copy frozen task rows, events and idempotency receipts without changing identities,
+revisions or document bindings. Destination locking and one transaction prevent partial imports;
+unsupported formats/collisions are errors. The normal task recovery discipline then applies: an
+interrupted mutation is inspected, never automatically resumed. Material files are neither copied
+nor deleted by the module migration.
+
+Disabling stops AMF and removes its navigation, while retaining all module data. Admission blocks
+new AMF commands during a lifecycle change. Active tasks, in-flight mutations, catalog sync and
+pending downloads prevent disabling; the user must finish or cancel them first. Module disable
+never forces a job to stop. Application exit continues to use the existing Provider shutdown
+protocol. Invalid registration or corrupt BDL is an AMF failure; data is not silently replaced.
+
+Module selection is host-owned and never stored in BDL. [BDL](bdl.md) remains private to AMF;
+external integrations keep their upstream data/lifecycle under
+[integration modes](integrations-and-overlays.md#external-integration-modes).
+
+## Evidence boundary
+
+Automated tests cover owner routing/capabilities, active-task disable admission, legacy task and
+lease/idempotency preservation, rollback and source retention. The native isolation test uses an
+isolated profile and both real executables: host-only startup, deliberately corrupt BDL, retry,
+AMF queries and data-preserving disable. It launches no vendor application or Unity operation and
+is supplemented by a real Main/preload/production-renderer smoke for fresh entry, activation,
+asset-library navigation and data-preserving disable/Settings return. These tests are not
+real-material, PICO, installer or four-language human acceptance. Those outcomes remain
+owned by the [N sequence](../development-outline.md) and [Ibis plan](../development/first-play-delivery-plan.md).
+
+## Document changelog
+
+- 1.5.0 (2026-10-11): distinguish current process isolation from the accepted next independent UI/backend payload and incremental-update boundary, retaining bundled defaults, lifecycle admission and private data ownership.
+- 1.4.0 (2026-10-10): retain the fresh enabled default before provider initialization, preserve existing opt-outs and old-profile defaults, and keep independent module lifecycle/data ownership.
+- 1.3.0 (2026-10-10): expose the bundled AMF activation switch and explanation in Avatar editing, with a disabled-sidebar setup entry; retain host-owned Unity preparation and the existing lifecycle contract.
+- 1.2.0 (2026-10-10): record the author's external-module deferral rationale and route the retained AI idea to future external-Agent tool access.
+- 1.1.0 (2026-10-10): distinguish bundled installation from explicit activation, keep legacy data from implicitly enabling AMF, and remove external editing placeholders from Ibis.
+- 1.0.0 (2026-10-09): define the scenario/module distinction and implemented optional AMF＋BDL process, data, navigation and recovery boundaries; preserve legacy profiles and frozen contracts.

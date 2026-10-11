@@ -3,7 +3,7 @@
 
 > Status: Accepted
 > Scope: Electron Main / Preload / Renderer, package scripts, and quality gates
-> Updated: 2026-10-08
+> Updated: 2026-10-10
 > Authority: development entry point; product boundary and contracts live in `docs/`
 
 ## Development commands
@@ -30,6 +30,8 @@ The development launcher does not rebuild the Rust Provider; repeat the build af
 | `pnpm dev:desktop` | Joint Main + Renderer development launch |
 | `pnpm --filter @vua/desktop typecheck` | Strict type check for both renderer and electron tsconfigs |
 | `pnpm --filter @vua/desktop test` | vitest unit tests |
+| `pnpm --filter @vua/desktop smoke:help-navigation` | Controlled Main/preload/renderer navigation: embedded hardware/knowledge, reading return, compact Play cards and light/big-screen appearance; isolated profile, no vendor actions |
+| `pnpm --filter @vua/desktop smoke:vrcft` | Native read-only tool discovery and controlled device/connection selection, module guidance and recovery UI; isolated profile, synthetic actions, no vendor/module installation or hardware acceptance |
 | `pnpm --filter @vua/desktop build` | Builds `@vua/orchestrator-provider` first, then emits to `dist/` |
 | `pnpm --filter @vua/desktop check` | typecheck + test + build + boundary, i18n, contrast and leakage checks |
 | `pnpm --filter @vua/desktop smoke:remote-permissions` | Real remote permission smoke (evidence written to `_local_m1/<version>/`, not committed; the `_local_m*` directory names are historical M-line naming) |
@@ -58,8 +60,14 @@ identity; the current terminal directory, Git branch and commit do not. Moving a
 a different default profile. Native window titles (including taskbar/Alt+Tab) show its development
 label; the `desktop-profile` startup diagnostic prints the selected directories.
 
-The profile contains both BDL/task databases, settings, material associations, managed warehouse
-and production directories, download staging, guide reading state and browser storage/cache.
+The host profile contains its task database and module selection. AMF owns its separate task
+database, BDL, material associations, managed warehouse/production directories and download staging.
+AMF is installed with VUA and enabled for new profiles. Existing profiles without a saved choice
+retain the old disabled default; Avatar editing and Settings → Modules control the payload.
+Explicit choices survive restart, and
+disabling retains its data. Existing BDL profiles retain their original data locations.
+See [module ownership and migration](../../docs/architecture/modules.md) for paths and recovery.
+Shared settings, guide reading state and browser storage/cache remain in the selected profile.
 Electron userData and sessionData are configured together before initialization. Account
 persistence policy is unchanged. Steam/PICO installations, external client accounts and physical
 devices remain shared machine resources; coordinate installation and headset tests.
@@ -97,20 +105,31 @@ pnpm --filter @vua/desktop package:win
 pnpm --filter @vua/desktop smoke:packaged
 ```
 
-The first command compiles the existing application and real Rust Provider, then creates
+The first command compiles the application and both real Rust providers, then creates
 `apps/desktop/out/VUA-<package version>-windows-x64-preview.zip`. Version comes from the desktop
 package manifest; creating a preview does not select a new public release number. The ZIP is
-unsigned. It contains the current application, including creator code retained for later work;
+unsigned. It contains the host and optional AMF payload, including creator code retained for later work;
 it is not a declaration that the first desktop/PICO play guide is complete.
 The packaging-only Main/preload bundles are emitted to `dist/packaged-electron/`; normal
 `dist/electron/` modules remain available to the existing development and security-smoke scripts.
 The package excludes workspace sources, tests and development mocks.
 
+After building, `pnpm --filter @vua/desktop test:module-isolation` checks both native processes in an
+isolated profile, including damaged test BDL and data-preserving disable. It starts no vendor software
+or Unity operation. Ordinary unit tests skip this native test to avoid using stale build outputs.
+`pnpm --filter @vua/desktop smoke:amf-module` checks activation, library navigation, disable and
+Settings return through the real Main/preload and production renderer. First build those bundles
+with `node scripts/build-electron.mjs` and `pnpm exec vite build` from this directory. Its hidden
+window and data profile are isolated; screenshots/reports remain in the named temporary directory.
+
 Extract the entire archive and launch `VUA.exe`. The end-user machine needs neither Node nor
 Rust nor this checkout. Keep all runtime files together. Packaged app data lives in
 `%APPDATA%\VUA`, so replacing/moving the extracted folder does not remove settings or tasks.
 Close VUA before updating or deleting its program folder; remove data separately only when wanted.
-The ZIP's `resources/README.txt` includes these instructions and the unsigned-preview status.
+The ZIP's `resources/README.txt` includes these instructions and the unsigned Beta status.
+Packaging generates `resources/notices/build/dependency-inventory.json` with lockfile/runtime
+versions, public source URLs, native executable hashes and dependency/license texts, including
+MPL source packages. The package smoke checks both Provider hashes against that inventory.
 
 The smoke harness extracts the actual ZIP to a new temporary directory containing spaces and
 non-ASCII characters, uses an isolated profile and a hidden window, and queries the real bundled
@@ -121,8 +140,11 @@ is used. `out/packaged-smoke.json` records the archive SHA-256 and result; raw d
 profiles stay in the named temporary directory for investigation. They are not committed.
 
 This bootstrap check complements the [first-play acceptance](../../docs/development-outline.md#first-play-release-acceptance).
-Physical PICO USB/Wi-Fi tests and human UI review are separate. Before publication, finish the
-exact-build license inventory, signing decision, illustrated guide and remaining play rows.
+Physical PICO USB/Wi-Fi tests and human UI review are separate. The author selected current-state
+v0.6.6 Ibis ZIP publication with these remaining rows explicit; see its
+[release notes](../../docs/release/v0.6.6.md). NSIS/runtime reuse and independent AMF updates follow
+this release. The published ZIP may omit the local `-preview` filename suffix without changing
+its verified bytes; release source identity and archive digest must match the actual tested build.
 The [Windows ZIP workflow](../../.github/workflows/windows-zip.yml) runs on relevant packaging
 PR changes or manual dispatch and keeps unsigned preview artifacts for seven days. It does
 not create a GitHub release; documentation-only edits do not trigger that workflow.

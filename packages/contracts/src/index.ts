@@ -9,6 +9,7 @@ export * from "./library-entry-metadata-v01.js";
 export * from "./library-records-v01.js";
 export * from "./recipe-selection-draft-v01.js";
 export * from "./desktop-gateway.js";
+export * from "./desktop-browser.js";
 export * from "./download-events.js";
 
 export * from "./environment-deployment.js";
@@ -17,4 +18,6 @@ export * from "./game-window.js";
 export * from "./website-test.js";
 export * from "./account-guide.js";
 export * from "./play-session.js";
+export * from "./external-tool.js";
 export * from "./manager-apps.js";
+export * from "./amf-module.js";

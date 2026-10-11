@@ -16,9 +16,14 @@ export type PageId =
   | "environment-hub"
   | "avatar-hub"
   | "help"
+  | "help-wizard"
+  | "help-tour"
+  | "help-game-assistant"
+  | "help-encyclopedia"
   | "env-play"
   | "env-create"
   | "warehouse"
+  | "asset-browser"
   | "recipe"
   | "inspection"
   | "release"
@@ -28,15 +33,12 @@ export type PageId =
   | "tools-devices"
   | "tools-calibration"
   | "tools-installed"
-  | "settings-goals"
+  | "settings-modules"
   | "settings-environment"
   | "settings-accounts"
-  | "settings-language"
   | "settings-theme"
-  | "settings-version"
   | "settings-experimental"
-  | "settings-about"
-  | "settings-donate";
+  | "settings-about";
 
 type NavTabKey = keyof Strings["nav"]["tabs"];
 type NavGroupKey = keyof Strings["nav"]["groups"];
@@ -84,13 +86,13 @@ export const businessModules: readonly ModuleDef[] = [
         labelKey: "env",
         pages: [
           { id: "env-play", labelKey: "envPlay" },
+          { id: "tools-discover", labelKey: "toolsDiscover" },
           { id: "env-create", labelKey: "envCreate" },
         ],
       },
       {
         labelKey: "tools",
         pages: [
-          { id: "tools-discover", labelKey: "toolsDiscover" },
           { id: "tools-devices", labelKey: "toolsDevices" },
           { id: "tools-calibration", labelKey: "toolsCalibration" },
           { id: "tools-installed", labelKey: "toolsInstalled" },
@@ -111,9 +113,10 @@ export const businessModules: readonly ModuleDef[] = [
       {
         pages: [
           { id: "warehouse", labelKey: null, labelTerms: ["warehouse"] },
+          { id: "asset-browser", labelKey: "assetBrowser" },
           { id: "recipe", labelKey: null, labelTerms: ["recipe"] },
           { id: "inspection", labelKey: null, labelTerms: ["inspection"] },
-          { id: "release", labelKey: null, labelTerms: ["release"] },
+          { id: "release", labelKey: "release" },
           // 2026-09-25 用户裁决:复合术语序列(装配 → 生产 → 检测)退役为
           // 「车间」——术语行退化成自指缩写,直给词面更诚实
           { id: "workshop", labelKey: "workshop" },
@@ -124,23 +127,20 @@ export const businessModules: readonly ModuleDef[] = [
   },
 ];
 
-/** 设置区:固定顶部最右侧,承载目标重选、语言、主题、版本、关于与捐赠(§2.1) */
+/** Settings has a compact language selector; version/update details belong to About. */
 export const settingsModule: ModuleDef = {
   id: "settings",
   labelKey: "settings",
-  defaultPage: "settings-goals",
+  defaultPage: "settings-theme",
   groups: [
     {
       pages: [
-        { id: "settings-goals", labelKey: "settingsGoals" },
+        { id: "settings-modules", labelKey: "settingsModules" },
         { id: "settings-environment", labelKey: "settingsEnvironment" },
         { id: "settings-accounts", labelKey: "settingsAccounts" },
-        { id: "settings-language", labelKey: "settingsLanguage" },
         { id: "settings-theme", labelKey: "settingsTheme" },
-        { id: "settings-version", labelKey: "settingsVersion" },
         { id: "settings-experimental", labelKey: "settingsExperimental" },
         { id: "settings-about", labelKey: "settingsAbout" },
-        { id: "settings-donate", labelKey: "settingsDonate" },
       ],
     },
   ],
@@ -152,7 +152,7 @@ const pageModule = new Map<PageId, AppSectionId>(
   modules.flatMap((m) => m.groups.flatMap((g) => g.pages.map((p) => [p.id, m.id] as const))),
 );
 
-for (const [page, section] of [["home", "settings"], ["help", "settings"], ["environment-hub", "env"], ["avatar-hub", "production"]] as const) pageModule.set(page, section);
+for (const [page, section] of [["home", "settings"], ["help", "env"], ["help-wizard", "env"], ["help-tour", "env"], ["help-game-assistant", "env"], ["help-encyclopedia", "env"], ["environment-hub", "env"], ["avatar-hub", "production"]] as const) pageModule.set(page, section);
 
 const pageIds = new Set<string>(pageModule.keys());
 
@@ -179,6 +179,7 @@ export function moduleDef(id: AppSectionId): ModuleDef {
  */
 export function clicksToReach(page: PageId, from: PageId = defaultPage): number {
   if (page === from) return 0;
+  if (page === "help") return 1;
   if (moduleOf(page) === moduleOf(from)) return 1;
   return page === moduleDef(moduleOf(page)).defaultPage ? 1 : 2;
 }
@@ -242,3 +243,7 @@ export function navMeasureChanged(
     || prev.required !== next.required
     || prev.available !== next.available;
 }
+
+/** Installed module state, never onboarding goals, controls AMF navigation. */
+export function isAmfPage(page: PageId): boolean { return moduleOf(page) === "production"; }
+export function availablePage(page: PageId, amfInstalled: boolean): PageId { return !amfInstalled && isAmfPage(page) ? "settings-modules" : page; }

@@ -1,10 +1,10 @@
 # VUA product boundary
 
 
-> Document version: 2.28.0
+> Document version: 2.29.0
 > Status: Accepted
 > Scope: Entire VUA product
-> Updated: 2026-10-12
+> Updated: 2026-10-13
 > Normative effect: Yes
 
 ## Product definition
@@ -392,6 +392,11 @@ remain required. The [Windows distribution plan](development/windows-distributio
 proposes the sequential slices; [N7](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide)
 owns acceptance. This is a delivery decision, not installer/update evidence or N-stage completion.
 
+On 2026-10-13 the author required multiple built-in usable runtime mirrors, selected by actual
+reachability, primarily for mainland China. Current publication is GitHub first; PH-R.COM awaits
+the author's deployment details. The [implemented distribution boundary](architecture/windows-distribution.md)
+records the exact runtime, first-party module and controlled evidence separately from N7 acceptance.
+
 ### Play network presentation (user ruling, 2026-10-09)
 
 Play shows Europe, the United States (East and West together), and Japan as the intended VRChat
@@ -649,6 +654,8 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.29.0 (2026-10-13): require multiple automatically selected runtime mirrors for mainland-China availability and route the implemented NSIS/AMF boundary without declaring acceptance complete.
+
 - 2.28.0 (2026-10-12): Replace dependency-name dialogs with cancellable author-description link filtering and define resizable plain-source library columns.
 - 2.27.0 (2026-10-12): record origin-specific local imports, full card presentation removal and the author-selected single-item/migration intake split without changing acceptance.
 
@@ -659,4 +666,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.22.0 (2026-10-10): align scenario-host/AMF/BDL stage ownership, selected N2 module/software sources and separate release acceptance with the author's revised N sequence; preserve open N1/N5 outcomes.
 - 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
 - 2.21.0 (2026-10-10): distinguish ordinary local-material intake from active support for pirated acquisition sources, without introducing rights classification or new intake gates.
-- 2.20.0 (2026-10-10): bundle AMF with Ibis while requiring explicit first activation, retain saved choices and legacy data, and defer external Avatar-editing modules.

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
+import { installedContext } from "./installed-context.js";
 
 /** Explicit packaging diagnostic, used by scripts/smoke-packaged.ps1.
  * It uses a caller-selected isolated profile, the real preload and real Provider;
@@ -34,10 +35,12 @@ class PackagedSmoke {
   }
 
   async verify(window: BrowserWindow, provider: OrchestratorProviderV01): Promise<void> {
+    const rendererErrors: string[] = [];
+    window.webContents.on("console-message", (_event, level, message) => { if (level >= 2) rendererErrors.push(message.slice(0, 1200)); });
     if (provider.status().state !== "ready") throw new Error("Bundled Provider did not start");
     // Electron exposes ASAR through fs; the package needs no workspace node_modules.
     if (fs.existsSync(path.join(app.getAppPath(), "node_modules"))) throw new Error("Workspace dependencies leaked into the archive");
-    const modules = fs.readdirSync(path.join(app.getAppPath(), "dist", "electron")).sort();
+    const modules = fs.readdirSync(path.join(installedContext()?.hostRoot ?? app.getAppPath(), "dist", "electron")).sort();
     if (modules.join(",") !== "main.js,preload.js") throw new Error("Unexpected desktop modules in the archive");
     // React commits after loadFile resolves. Check the actual compiled shell, not a fixture.
     for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -56,6 +59,29 @@ class PackagedSmoke {
       localStorage.setItem('vua.packaged-smoke', 'persisted');
       return { previousMarker, version: snapshot.value.productVersion, capabilities: snapshot.value.capabilities.operations.length, nativeDriveNavigation: true };
     })()`) as { previousMarker: string | null; version: string; capabilities: number };
+    const installed = installedContext();
+    if (installed && installed.amfAvailable) {
+      // Only the explicit isolated diagnostic chooses UI preferences. No user
+      // profile, BOOTH synchronization, acquisition or production task is touched.
+      await window.webContents.executeJavaScript(`localStorage.setItem('vua-goals', JSON.stringify({version:1,onboarding:'completed',goals:['env','production'],environments:['play','create']})); localStorage.setItem('vua-tour-progress', JSON.stringify({v:2,status:'skipped',step:0})); localStorage.setItem('vua-last-page','warehouse');`);
+      await new Promise<void>((resolve, reject) => {
+        window.webContents.once("did-finish-load", () => resolve());
+        window.webContents.once("did-fail-load", () => reject(new Error("Installed AMF renderer reload failed")));
+        window.webContents.reload();
+      });
+      for (let attempt = 0; attempt < 150; attempt += 1) {
+        const view = await window.webContents.executeJavaScript("({version:document.documentElement.dataset.amfUiVersion,mounted:Boolean(document.querySelector('.vua-warehouse__filters'))})");
+        if (view.version === installed.amf.amf.version && view.mounted) break;
+        if (attempt === 149) {
+          const detail = await window.webContents.executeJavaScript("(async()=>({module:await window.vua.amfModule.snapshot(),text:document.body.innerText.slice(0,1200)}))()");
+          throw new Error(`The independent AMF UI did not load on the installed host: ${JSON.stringify(detail)} ${JSON.stringify(rendererErrors.slice(-3))}`);
+        }
+        await delay(100);
+      }
+      const module = await window.webContents.executeJavaScript("window.vua.amfModule.snapshot()");
+      if (module.state !== "ready") throw new Error("Installed AMF provider did not become ready");
+      Object.assign(result, { independentAmfUi: installed.amf.amf.version, amfPageMounted: true, packagedIdentity: app.isPackaged && !process.defaultApp });
+    }
     await window.webContents.session.flushStorageData();
     const database = path.join(this.directory, "host", "tasks.db");
     if (!fs.statSync(database).isFile()) throw new Error("Provider database was not created in the isolated profile");

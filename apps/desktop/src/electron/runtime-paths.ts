@@ -1,4 +1,5 @@
 import path from "node:path";
+import { installedContext } from "./installed-context.js";
 
 interface RuntimeLocation {
   readonly isPackaged: boolean;
@@ -19,6 +20,9 @@ export function resolveDesktopRuntime(location: RuntimeLocation): {
   const binary = `vua-orchestrator-provider${location.platform === "win32" ? ".exe" : ""}`;
   const amfBinary = `vua-amf-provider${location.platform === "win32" ? ".exe" : ""}`;
   if (location.isPackaged) {
+    const installed = installedContext();
+    if (installed) return { providerExecutable: path.join(installed.hostRoot, "provider", binary),
+      amfExecutable: path.join(installed.amfRoot, "provider", amfBinary), rendererUrl: undefined };
     return {
       providerExecutable: path.join(location.resourcesPath, "provider", binary),
       amfExecutable: path.join(location.resourcesPath, "modules", "amf", amfBinary),

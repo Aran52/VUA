@@ -2,6 +2,7 @@ import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
 import { fileDropCopy } from "./file-drop-copy.ts";
 import { helpCopy } from "./help-copy.ts";
+import { distributionCopy } from "./distribution-copy.ts";
 import { moduleCopy } from "./module-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
@@ -24,6 +25,7 @@ export const strings: Strings = {
   browser: browserCopy["zh-CN"],
   fileDrop: fileDropCopy["zh-CN"],
   helpUi: helpCopy["zh-CN"],
+  distribution: distributionCopy["zh-CN"],
   amfModule: moduleCopy["zh-CN"],
   environmentCards: environmentCopy["zh-CN"],
   journey: journeyCopy["zh-CN"],

@@ -12,6 +12,7 @@ const workspace = path.resolve(desktop, "../..");
 for (const entry of ["main", "preload"]) {
   await build({
     configFile: false,
+    publicDir: false,
     root: desktop,
     resolve: { alias: {
       "@vua/contracts": path.join(workspace, "packages/contracts/src/index.ts"),

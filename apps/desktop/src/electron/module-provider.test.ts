@@ -45,6 +45,16 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("admits update restart only after host/AMF work and shell transfers finish", async () => {
+    let busy = false; const { provider, host, amf, saved } = setup({ shellBusy: () => busy });
+    await provider.start(); await provider.setAmfEnabled(true);
+    host.tasks = [task("host-work", "running")]; expect(await provider.prepareForUpdate()).toBe(false);
+    host.tasks = []; amf.tasks = [task("amf-work", "running")]; expect(await provider.prepareForUpdate()).toBe(false);
+    amf.tasks = []; busy = true; expect(await provider.prepareForUpdate()).toBe(false);
+    expect(host.shutdownCalls).toBe(0); expect(amf.shutdownCalls).toBe(0);
+    busy = false; expect(await provider.prepareForUpdate()).toBe(true);
+    expect(host.shutdownCalls).toBe(1); expect(amf.shutdownCalls).toBe(1); expect(saved).toEqual([true]);
+  });
   it("keeps VRCFT queries and actions on the host while AMF is disabled", async () => {
     const { provider, host, amf, activations } = setup(); await provider.start();
     await provider.invoke({ contractVersion: "0.1", requestId: "tool-read", correlationId: "tool-read", kind: "query", method: "tools.observeConnection", params: { toolId: "vrcft" } });

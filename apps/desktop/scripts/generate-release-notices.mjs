@@ -24,8 +24,8 @@ function visit(id) {
   seen.add(id);
   for (const dependency of nodes.get(id).deps) if (dependency.dep_kinds.some(kind => kind.kind !== "dev")) visit(dependency.pkg);
 }
-const providers = metadata.packages.filter(item => ["vua-provider-host", "vua-amf-provider"].includes(item.name));
-if (providers.length !== 2) throw new Error("Provider metadata missing");
+const providers = metadata.packages.filter(item => ["vua-provider-host", "vua-amf-provider", "vua-distribution"].includes(item.name));
+if (providers.length !== 3) throw new Error("Provider/distribution metadata missing");
 providers.forEach(item => visit(item.id));
 fs.mkdirSync(output, { recursive: true });
 function copy(source, relative) {
@@ -103,7 +103,7 @@ const rustNotices = path.join(sysroot, "share/doc/rust");
 copy(path.join(rustNotices, "COPYRIGHT-library.html"), "rust-toolchain/COPYRIGHT-library.html");
 for (const file of filesIn(path.join(rustNotices, "licenses"))) copy(file, `rust-toolchain/licenses/${path.relative(path.join(rustNotices, "licenses"), file)}`);
 const nativeRoot = path.join(workspace, "target/x86_64-pc-windows-msvc/release");
-const executables = ["vua-orchestrator-provider.exe", "vua-amf-provider.exe"].map(name => ({ name, sha256: hash(path.join(nativeRoot, name)) }));
+const executables = ["vua-orchestrator-provider.exe", "vua-amf-provider.exe", "vua-distribution.exe"].map(name => ({ name, sha256: hash(path.join(nativeRoot, name)) }));
 const inventory = {
   productVersion: pkg.version, sourceCommit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain", "--untracked-files=no"]) !== "",
   platform: "win32", architecture: "x64", rustTarget: "x86_64-pc-windows-msvc",

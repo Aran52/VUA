@@ -7,7 +7,7 @@ export default defineConfig({
   base: "./",
   // 构建期事实注入(Phase A):开屏/设置页显示真实版本与提交号,
   // 生产构建同路径(check:leak 的临时生产构建也走这里)
-  define: { __VUA_BUILD_INFO__: JSON.stringify(buildInfo) },
+  define: { __VUA_BUILD_INFO__: JSON.stringify(buildInfo), __VUA_SPLIT_AMF__: "false" },
   // @vua/contracts 以 CJS dist 经 pnpm link 进入 workspace:vite 默认不预构建链接包,
   // 浏览器按 ESM 解析 CJS 时命名导出全部丢失(renderer 首帧崩溃、黑屏)。
   // 强制预构建做一次 CJS→ESM 互操作。production build 由 rolldown 处理,不受影响。

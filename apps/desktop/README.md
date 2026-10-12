@@ -3,7 +3,7 @@
 
 > Status: Accepted
 > Scope: Electron Main / Preload / Renderer, package scripts, and quality gates
-> Updated: 2026-10-10
+> Updated: 2026-10-13
 > Authority: development entry point; product boundary and contracts live in `docs/`
 
 ## Development commands
@@ -154,3 +154,7 @@ not create a GitHub release; documentation-only edits do not trigger that workfl
 - Presentation asset migration record: [MIGRATION_ASSETS.md](MIGRATION_ASSETS.md);
 - Legacy repository asset ledger: `docs/migration/asset-ledger.md`;
 - Release notes: `docs/release/`.
+
+## NSIS and independent AMF updates
+
+`pnpm --filter @vua/desktop package:nsis` builds the host, separate AMF UI/native payload, exact notices and online/offline NSIS artifacts. It requires Windows/MSVC and the private release key matching `distribution/trust.json`; private keys and build directories never enter Git. Release preparation rejects a dirty checkout unless explicitly labelled `--preview`. Installer/runtime/AMF design and evidence limits live in [Windows distribution architecture](../../docs/architecture/windows-distribution.md).

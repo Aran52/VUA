@@ -1,10 +1,10 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.31.0
+> Document version: 1.32.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-10-12
+> Updated: 2026-10-13
 > Last conformance review: 2026-10-12 (controlled library columns, inline link filtering, import popup, corners, public search and intake checks; real account/material/device and human-language review pending)
 > Normative effect: Yes
 
@@ -485,7 +485,13 @@ Observed multi-variant choices are supplied separately from the frozen product s
 
 The optional native `fs.navigation` face returns Electron's resolved Desktop/Documents/Downloads paths and logical drive names. Main queries drive names only, with a hidden bounded helper process; it does not poll drive readiness or sizes. The picker keeps a visible editable path field, four shortcuts and a virtual This PC list. Up at a drive root enters that list, which is not itself an importable directory.
 
+## Installed Windows distribution
+
+[Windows distribution architecture](windows-distribution.md) owns the signed bootstrap, complete mirrored Electron runtime, independent AMF UI/native entry, native helper, typed Desktop v3 updater and recovery. Development and legacy ZIP keep their existing resource paths. Folder-picker drive discovery uses the fixed host executable’s read-only `--list-drives` mode (`GetLogicalDrives` on Windows), rather than starting PowerShell or probing volumes.
+
 ## Document changelog
+
+- 1.32.0 (2026-10-13): route NSIS packaged bootstrap and complete AMF UI/native updates to the owning Windows distribution architecture; add fixed native drive discovery to avoid PowerShell cold-start I/O.
 
 - 1.31.0 (2026-10-12): Add shared resizable list columns, body-portal import menus and reversible inline product-link filtering.
 - 1.30.0 (2026-10-12): add imported-origin filtering, entry-level cards, scroll-anchored selection, persistent card removal, native picker locations/drives and the separate read-only migration preview.
@@ -498,4 +504,3 @@ The optional native `fs.navigation` face returns Electron's resolved Desktop/Doc
 - 1.25.0 (2026-10-11): install the dormant image loader before renderer creation while retaining AMF cache gates, bound detail enrichment to one attempt, and connect mixed-card selection and discoverable product-clue dialogs.
 - 1.24.0 (2026-10-11): restore BOOTH account reads through tracked session redirects, refresh account status on login close, align library filters and add the bounded active-AMF folder action.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
-- 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.

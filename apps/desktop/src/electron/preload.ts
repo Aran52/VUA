@@ -12,7 +12,7 @@ import type {
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
-  VuaDesktopApiV2,
+  VuaDesktopApiV3,
 } from "@vua/contracts";
 
 // 沙箱 preload 只允许 require electron 白名单模块:@vua/contracts 在此仅做
@@ -69,7 +69,20 @@ try {
   if (Array.isArray(decoded) && decoded.length <= 32 && decoded.every(language => typeof language === "string" && language.length <= 64)) systemLanguages = decoded;
 } catch { /* Missing OS languages use the source-language fallback. */ }
 
-const api: VuaDesktopApiV2 = Object.freeze({
+const api: VuaDesktopApiV3 = Object.freeze({
+  distribution: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:distribution:snapshot"),
+    check: () => ipcRenderer.invoke("vua:distribution:check"),
+    stage: (id: string) => ipcRenderer.invoke("vua:distribution:stage", id),
+    cancel: () => ipcRenderer.invoke("vua:distribution:cancel"),
+    apply: () => ipcRenderer.invoke("vua:distribution:apply"),
+    restore: () => ipcRenderer.invoke("vua:distribution:restore"),
+    subscribe: (listener: (value: import("@vua/contracts").DistributionSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: import("@vua/contracts").DistributionSnapshotV01) => listener(value);
+      ipcRenderer.on("vua:distribution:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:distribution:changed", wrapped);
+    },
+  }),
   startup: Object.freeze({
     systemLanguages: Object.freeze(systemLanguages),
     complete: () => ipcRenderer.invoke("vua:startup:complete"),

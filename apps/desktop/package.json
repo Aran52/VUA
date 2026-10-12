@@ -1,6 +1,6 @@
 {
   "name": "@vua/desktop",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "private": true,
   "description": "A local-first desktop assistant for VRChat play and avatar workflows.",
   "author": "VUA Project contributors",
@@ -47,7 +47,8 @@
     "smoke:import-dialog": "electron scripts/smoke-import-dialog.mjs",
     "smoke:resource-monitor": "electron scripts/smoke-resource-monitor.mjs",
     "smoke:resource-brand": "electron scripts/smoke-resource-brand.mjs",
-    "smoke:vrcft": "electron scripts/smoke-vrcft.mjs"
+    "smoke:vrcft": "electron scripts/smoke-vrcft.mjs",
+    "package:nsis": "pnpm --filter @vua/orchestrator-provider build && node scripts/build-windows-provider.mjs && tsc -p tsconfig.electron.json --noEmit && node scripts/build-electron.mjs && node --experimental-strip-types scripts/build-components.mjs && install-electron && node scripts/generate-release-notices.mjs && node scripts/prepare-distribution.mjs && node scripts/package-nsis.mjs"
   },
   "dependencies": {
     "@vua/contracts": "workspace:*",

@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--version") {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
     if let Err(error) = run() {
         eprintln!("VUA AMF module failed: {error}");
         std::process::exit(1);

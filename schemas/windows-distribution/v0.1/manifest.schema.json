@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VUA Windows release manifest v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "product",
+    "platform",
+    "arch",
+    "releaseVersion",
+    "releaseUrl",
+    "runtime",
+    "host",
+    "amf",
+    "compatibility"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1"
+    },
+    "product": {
+      "const": "VUA"
+    },
+    "platform": {
+      "const": "windows"
+    },
+    "arch": {
+      "const": "x64"
+    },
+    "releaseVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
+    },
+    "releaseUrl": {
+      "type": "string",
+      "pattern": "^https://"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "archive",
+        "files"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
+        },
+        "archive": {
+          "$ref": "#/$defs/pack"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20000,
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        }
+      }
+    },
+    "host": {
+      "$ref": "#/$defs/component"
+    },
+    "amf": {
+      "$ref": "#/$defs/component"
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host",
+        "uiAbi",
+        "react",
+        "application",
+        "bridge",
+        "bdlWrite",
+        "bdlRead"
+      ],
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uiAbi": {
+          "const": "amf-ui/0.1"
+        },
+        "react": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
+        },
+        "application": {
+          "const": "0.1"
+        },
+        "bridge": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bdlWrite": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bdlRead": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256",
+        "offset"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 536870912
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bytes",
+        "sha256",
+        "sources"
+      ],
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483648
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^https://[^\\s]+$"
+          }
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "build",
+        "files",
+        "pack"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
+        },
+        "build": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20000,
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        },
+        "pack": {
+          "$ref": "#/$defs/pack"
+        }
+      }
+    }
+  }
+}

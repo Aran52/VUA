@@ -9,6 +9,7 @@
 pub mod handoff_adapter;
 pub mod provider_host;
 pub mod runtime;
+pub mod fs_navigation;
 #[cfg(windows)]
 pub mod provider_job;
 

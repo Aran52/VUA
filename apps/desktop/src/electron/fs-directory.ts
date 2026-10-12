@@ -14,20 +14,26 @@ import type {
 const runFile = promisify(execFile);
 
 /** Names only: avoids probing offline/removable/network drives for readiness. */
-export async function listFsNavigation(known: Omit<DesktopFsNavigationV1, "drives">): Promise<DesktopFsResultV1<DesktopFsNavigationV1>> {
+export async function listFsNavigation(known: Omit<DesktopFsNavigationV1, "drives">, readDrives?: () => Promise<readonly string[]>): Promise<DesktopFsResultV1<DesktopFsNavigationV1>> {
   try {
     let roots: string[];
     if (process.platform === "win32") {
-      const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-      // Cold Windows PowerShell startup can exceed five seconds under load.
-      // The asynchronous request stays bounded and never tests volume readiness.
-      const { stdout } = await runFile(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "[System.IO.DriveInfo]::GetDrives().Name | ConvertTo-Json -Compress"], { windowsHide: true, timeout: 10000, maxBuffer: 16384 });
-      const value: unknown = JSON.parse(stdout.trim() || "[]");
-      roots = typeof value === "string" ? [value] : Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && /^[A-Za-z]:\\$/.test(v)) : [];
+      if (!readDrives) return { ok: false, error: "failed" };
+      roots = [...await readDrives()];
       if (roots.some(root => !/^[A-Za-z]:\\$/.test(root))) return { ok: false, error: "failed" };
     } else roots = ["/"];
     return { ok: true, value: { ...known, drives: [...new Set(roots)].sort().map(root => ({ name: root, path: root, hidden: false })) } };
   } catch { return { ok: false, error: "failed" }; }
+}
+/** Fixed trusted host executable, with a read-only native mode. No shell/.NET
+ * startup and no scans of removable or disconnected network volumes. */
+export async function readNativeDriveRoots(executable: string): Promise<readonly string[]> {
+  const { stdout } = await runFile(executable, ["--list-drives"], { windowsHide: true, timeout: 3000, maxBuffer: 16384 });
+  const value: unknown = JSON.parse(stdout);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw Error("invalid_native_drive_snapshot");
+  const v = value as Record<string, unknown>;
+  if (Object.keys(v).length !== 2 || v.schemaVersion !== "0.1" || !Array.isArray(v.drives) || v.drives.length > 26 || v.drives.some(drive => typeof drive !== "string" || !/^[A-Z]:\\$/.test(drive))) throw Error("invalid_native_drive_snapshot");
+  return v.drives as string[];
 }
 
 /**

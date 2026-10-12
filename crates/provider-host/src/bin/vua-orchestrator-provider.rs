@@ -7,6 +7,10 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().nth(1).as_deref() == Some("--list-drives") {
+        println!("{}", serde_json::json!({ "schemaVersion": "0.1", "drives": vua_provider_host::fs_navigation::drive_roots()? }));
+        return Ok(());
+    }
     if std::env::args().nth(1).as_deref() == Some("--observe-system-resources") {
         return observe_resources();
     }

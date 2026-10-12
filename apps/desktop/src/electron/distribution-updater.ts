@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
 import type { DesktopDistributionApiV01, DistributionProgressV01, DistributionSnapshotV01, DistributionTargetV01 } from "@vua/contracts";
 import type { InstalledContext } from "./installed-context.js";
+import { isDistributionReleaseUrl } from "./update-check.js";
 
 type Run = (command: string, args: readonly string[], report: (progress: DistributionProgressV01) => void, child: (process: ChildProcessWithoutNullStreams) => void) => Promise<Record<string, unknown>>;
 interface Options {
@@ -18,7 +19,7 @@ function validTarget(value: Record<string, unknown>): value is Record<string, un
   return typeof value.manifestId === "string" && /^[a-f0-9]{64}$/.test(value.manifestId)
     && typeof value.amfVersion === "string" && typeof value.hostVersion === "string" && typeof value.compatible === "boolean" && typeof value.newer === "boolean"
     && typeof value.downloadBytes === "number" && value.downloadBytes >= 0 && typeof value.releaseUrl === "string"
-    && /^https:\/\/github\.com\/VUA-Project\/VUA\/releases\/tag\/v[\d.]+$/.test(value.releaseUrl);
+    && isDistributionReleaseUrl(value.releaseUrl);
 }
 /** The release helper owns signature/path/content validation. Main owns the fixed
  * command/root, Renderer admission, lifecycle gates and progress projection. */

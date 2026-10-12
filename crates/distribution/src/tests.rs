@@ -112,6 +112,58 @@ fn signed(manifest: &Manifest) -> (Vec<u8>, [u8; 32]) {
 fn transfer() -> Transfer {
     Transfer::new(Arc::new(AtomicBool::new(false)), |_| {}).unwrap()
 }
+
+#[tokio::test]
+async fn mirrored_feeds_authenticate_both_and_select_the_newer_release_or_amf() {
+    use crate::feed::{latest_manifest, select_manifest};
+    use std::sync::atomic::Ordering;
+    let temp = tempfile::tempdir().unwrap();
+    let (mut manifest, old, key) = fixture(temp.path());
+    manifest.amf.version = "0.1.1".into();
+    let (module, _) = signed(&manifest);
+    assert_eq!(
+        select_manifest([Ok(old.clone()), Ok(module.clone())], &key).unwrap(),
+        module
+    );
+    manifest.release_version = "0.6.8".into();
+    manifest.host.version = "0.6.8".into();
+    let (new, _) = signed(&manifest);
+    assert_eq!(
+        select_manifest([Ok(module), Ok(new.clone())], &key).unwrap(),
+        new
+    );
+    assert_eq!(
+        select_manifest([Ok(new.clone()), Ok(old.clone())], &key).unwrap(),
+        new
+    );
+    let mut tampered = new.clone();
+    let position = tampered.iter().position(|byte| *byte == b'6').unwrap();
+    tampered[position] = b'9';
+    assert_eq!(
+        select_manifest([Ok(tampered.clone()), Ok(old.clone())], &key).unwrap(),
+        old
+    );
+    assert!(select_manifest([Ok(tampered), Err(crate::Error("offline".into()))], &key).is_err());
+    assert_eq!(
+        select_manifest([Err(crate::Error("offline".into())), Ok(new.clone())], &key).unwrap(),
+        new
+    );
+    let (first_url, _, first_stop, first_server) = server(old, false, false);
+    let (second_url, _, second_stop, second_server) = server(new.clone(), false, false);
+    let cancel = Arc::new(AtomicBool::new(false));
+    let transfer = Transfer::loopback(cancel.clone(), |_| {});
+    let selected = latest_manifest(&transfer, [&first_url, &second_url], &key)
+        .await
+        .unwrap();
+    cancel.store(true, Ordering::Relaxed);
+    let cancelled = latest_manifest(&transfer, [&first_url, &second_url], &key).await;
+    first_stop.store(true, Ordering::Relaxed);
+    second_stop.store(true, Ordering::Relaxed);
+    first_server.join().unwrap();
+    second_server.join().unwrap();
+    assert_eq!(selected, new);
+    assert_eq!(cancelled.unwrap_err().0, "cancelled");
+}
 fn server(
     data: Vec<u8>,
     ignore_range: bool,

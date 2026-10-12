@@ -29,7 +29,7 @@ export function DistributionPanel({ host = false }: { host?: boolean }) {
       {!busy && id && (view.state === "interrupted" || (view.target?.newer && view.target.compatible && view.state !== "staged")) ? <Button variant="primary" onClick={() => void update(() => port.stage(id))}>{view.state === "interrupted" ? copy.resume : copy.download}</Button> : null}
       {view.state === "downloading" ? <Button onClick={() => void update(() => port.cancel())}>{copy.cancel}</Button> : null}
       {view.state === "staged" ? <Button variant="primary" onClick={() => void update(() => port.apply())}>{copy.apply}</Button> : null}
-      <Button variant="subtle" onClick={() => openExternalUrl(view.target?.releaseUrl ?? "https://github.com/VUA-Project/VUA/releases/latest")}>{copy.host}</Button>
+      <Button variant="subtle" onClick={() => openExternalUrl(view.target?.releaseUrl ?? "https://ph-r.com/vua/downloads/")}>{copy.host}</Button>
       {view.rollbackAvailable && !busy && !restore ? <Button variant="subtle" onClick={() => setRestore(true)}>{copy.restore}</Button> : null}
       {restore ? <><Button onClick={() => void update(() => port.restore())}>{copy.restoreConfirm}</Button><Button variant="subtle" onClick={() => setRestore(false)}>{copy.keep}</Button></> : null}
     </div>

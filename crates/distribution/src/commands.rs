@@ -1,5 +1,6 @@
 use crate::{
-    layout::{Installation, FEED},
+    feed::{latest_manifest, FEEDS},
+    layout::Installation,
     manifest::verify,
     paths::owned_path,
     transfer::{Progress, Transfer},
@@ -49,7 +50,7 @@ pub async fn execute(
         }
         "snapshot" => Ok(serde_json::to_value(installation.snapshot()?)?),
         "check" => {
-            let raw = transfer.manifest(FEED).await?;
+            let raw = latest_manifest(&transfer, FEEDS, &crate::layout::PUBLIC_KEY).await?;
             let target = verify(&raw, &crate::layout::PUBLIC_KEY)?;
             let active = installation.active()?;
             let host = installation.manifest(&active.host_manifest)?;

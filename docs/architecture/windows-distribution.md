@@ -1,6 +1,6 @@
 # Component-based Windows distribution
 
-> Document version: 1.0.0
+> Document version: 1.1.0
 > Status: Implementation baseline
 > Updated: 2026-10-13
 > Scope: First-party Windows x64 installation, launch and AMF updates
@@ -63,6 +63,36 @@ remains private and outside the repository. Manifest authentication is distinct 
 Authenticode: the current VUA helper/NSIS artifacts remain unsigned Windows executables.
 [Windows distribution v0.1](../protocols/windows-distribution-v0.1.md) owns metadata and limits.
 
+## Official hosting and release discovery
+
+PH-R.COM serves immutable version directories under `https://ph-r.com/vua/releases/v<VERSION>/`.
+The current v0.6.7 mirror contains the same seven GitHub assets, without repacking or re-signing.
+`/vua/downloads/` and `/projects/vua/` expose installer choices and actual/planned capability copy.
+The publishing helper validates the existing signature, publication checksums and pack/build
+identity, exports only the known public assets, and writes the static informational `latest.json`.
+See the [hosting procedure](../release/official-hosting.md). Publishing keys and raw evidence
+never go to the web server.
+
+The new native helper queries the official `/vua/releases/latest/vua-release.json` and GitHub's
+latest-download manifest in parallel, with a ten-second total budget per source. Each candidate
+must pass the existing signature and complete-manifest validation. It chooses the highest release
+version, then AMF version, preferring the official source on a tie. An unavailable, malformed or
+unauthenticated source cannot replace a valid result; if neither works, checking fails without
+substituting a cached target. Existing cancellation and activation rules remain intact.
+Future signed component packs declare both official versioned URLs and GitHub URLs for identical
+bytes; the existing bounded range-source selection and digest enforcement apply to both.
+
+Legacy ZIP/development version notifications query the informational official `latest.json` and
+GitHub latest-release API in parallel, choosing the higher valid version. This read-only information
+does not authorize installation: installed payload updates still require the signed inventory.
+
+The already-published v0.6.7 helper knows only GitHub. Mirroring its bytes cannot retrofit a new
+feed URL; a subsequent host installer is required once. The server's current signed manifest also
+retains its original GitHub pack URLs. Do not silently rewrite it to claim website object fallback.
+Controlled checks verified the new helper against the live mirrored signature with GitHub denied
+only to its isolated test process, plus public full-installer digest and real pack-range delivery.
+This does not declare a released dual-source client or a newer public AMF update accepted.
+
 ## Independent AMF payload and updates
 
 The AMF UI is a separate ESM build with its own version, assets and native executable. It binds
@@ -111,4 +141,5 @@ human acceptance. The [delivery plan](../development/windows-distribution-plan.m
 
 ## Document changelog
 
+- 1.1.0 (2026-10-13): add immutable official hosting, authenticated dual-feed discovery, future signed pack sources and explicit v0.6.7 client migration limits.
 - 1.0.0 (2026-10-13): describe NSIS, complete mirrored runtime identity, independent AMF UI/native payloads, signed file updates, activation/rollback and controlled evidence limits.

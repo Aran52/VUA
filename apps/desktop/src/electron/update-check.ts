@@ -3,8 +3,7 @@ import type { UpdateCheckResultV1, UpdateCheckStateV1 } from "@vua/contracts";
 /**
  * 版本检测(2026-09-19 用户裁决:默认开启、设置可关;仅只读探测——
  * 下载/应用更新属 Phase C,单独立提案,本模块不承载):
- * - 比对源 = GitHub latest release;URL 与渲染层 app/app-meta.ts 的
- *   repoUrl 同源(electron 边界不可导入渲染层模块,此处常量须与其保持同步);
+ * - 官网与 GitHub 并行只读检查；取可用结果中的较新版本，避免镜像同步延迟。
  * - 诚实口径:网络异常/HTTP 非 2xx/负载不可解析/缺 tag_name 一律
  *   check-failed,绝不猜态、绝不回退缓存值;
  * - 版本比较是纯三段数字比较(去 v 前缀);不可解析的版本串比较结果
@@ -13,6 +12,14 @@ import type { UpdateCheckResultV1, UpdateCheckStateV1 } from "@vua/contracts";
 
 /** 与 app/app-meta.ts repoUrl 同源(旧仓公开归档;迁仓后两边同步更新) */
 export const LATEST_RELEASE_URL = "https://api.github.com/repos/VUA-Project/VUA/releases/latest";
+export const OFFICIAL_RELEASE_URL = "https://ph-r.com/vua/releases/latest/latest.json";
+export const RELEASE_INFORMATION_URLS = [OFFICIAL_RELEASE_URL, LATEST_RELEASE_URL] as const;
+
+/** Only first-party release pages can be projected from authenticated inventories. */
+export function isDistributionReleaseUrl(url: string): boolean {
+  return /^https:\/\/github\.com\/VUA-Project\/VUA\/releases\/tag\/v\d+\.\d+\.\d+$/.test(url)
+    || /^https:\/\/ph-r\.com\/vua\/releases\/v\d+\.\d+\.\d+\/$/.test(url);
+}
 
 /** 三段数字版本比较:a>b 正,a<b 负,相等 0;不可解析返回 null(不猜测) */
 export function compareVersions(a: string, b: string): number | null {
@@ -63,16 +70,18 @@ export async function checkLatestRelease(
     releaseUrl: null,
     checkedAt,
   });
-  let payload: unknown;
-  try {
-    payload = await fetchJson(LATEST_RELEASE_URL);
-  } catch {
-    return failed();
+  const results = await Promise.allSettled(RELEASE_INFORMATION_URLS.map(async url => fetchJson(url)));
+  let record: Record<string, unknown> | null = null;
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    const payload = result.value;
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) continue;
+    const candidate = payload as Record<string, unknown>;
+    if (typeof candidate.tag_name !== "string" || compareVersions(candidate.tag_name, currentVersion) === null) continue;
+    if (!record || (compareVersions(candidate.tag_name, record.tag_name as string) ?? 0) > 0) record = candidate;
   }
-  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return failed();
-  const record = payload as Record<string, unknown>;
-  if (typeof record.tag_name !== "string" || record.tag_name.length === 0) return failed();
-  const latestVersion = record.tag_name;
+  if (!record) return failed();
+  const latestVersion = record.tag_name as string;
   const releaseUrl = typeof record.html_url === "string" && record.html_url.length > 0
     ? record.html_url
     : null;

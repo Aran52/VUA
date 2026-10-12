@@ -1200,8 +1200,8 @@ rolled_back: "已回滚",
         ],
       },
       devices: {
-        title: "设备提示",
-        intro: "PICO 4 Pro 的 USB 与 Wi-Fi 串流、在头显里阅读本指南,以及可选眼追。",
+        title: "设备与 VR 运行时",
+        intro: "SteamVR 与 OpenXR 设置、PICO 的 USB / Wi-Fi 串流,以及可选眼追。",
         sections: [
           {
             id: "platforms",
@@ -1215,6 +1215,17 @@ rolled_back: "已回滚",
               "位置:PC 与头显。PC 上安装 SteamVR,并从 PICO 官网安装 PICO Connect。PICO 当前的要求是 Windows 10 22H2 或更高、8GB 内存、GTX 1060 6GB / RX 480 级别或更好的显卡。",
               "头显上把 PICO OS 更新到最新——当前 PICO Connect 要求 PICO OS 5.11.2 或更高,眼追要求 5.9.0 或更高——并从 PICO 商店装好头显里的 PICO Connect 应用。头显激活本身走 PICO 官方流程。",
               "若安装被拒:先查 Windows 版本与磁盘剩余空间,再从官网重新下载安装。",
+            ],
+          },
+          {
+            id: "steamvr-openxr",
+            title: "将 SteamVR 设为默认 OpenXR 运行时",
+            paragraphs: [
+              "用 SteamVR 运行 OpenXR 游戏时,可以先确认这一项。电脑屏幕模式不需要设置;如果你的串流方案明确要求其它运行时,跟随该方案的官方说明。",
+              "先退出正在运行的 VR 游戏,打开电脑上的 SteamVR 状态小窗。点菜单 → 设置 → OpenXR;看不到 OpenXR 时,先显示高级设置。部分旧版本将此项放在「开发者」页。",
+              "查看「当前 OpenXR 运行时」。如果已显示 SteamVR,无需重复设置。否则点击「将 SteamVR 设为 OpenXR 运行时」(Set SteamVR as OpenXR Runtime),并自行确认 Windows 权限提示。",
+              "设置后应看到当前运行时变为 SteamVR。重新启动 VR 游戏;安装了 SteamVR 并不代表这项设置已经完成,以设置页的显示为准。",
+              "若按钮没有出现或设置未生效,先确认你打开的是电脑桌面上的设置,再更新并重启 SteamVR。如果其它软件需要自己的 OpenXR 运行时,可在该软件的官方设置中改回。",
             ],
           },
           {

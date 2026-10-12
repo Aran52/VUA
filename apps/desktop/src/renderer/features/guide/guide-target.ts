@@ -99,6 +99,7 @@ export const GUIDE_TARGETS = {
   vrchatInstall: { topic: "guide-start", section: "install-vrchat" },
   vrchatFirstLaunch: { topic: "guide-start", section: "first-launch" },
   picoPrepare: { topic: "guide-devices", section: "pico-prepare" },
+  steamVrOpenXr: { topic: "guide-devices", section: "steamvr-openxr" },
   picoUsb: { topic: "guide-devices", section: "pico-usb" },
   picoWifi: { topic: "guide-devices", section: "pico-wifi" },
   eyeTracking: { topic: "guide-devices", section: "eye-tracking" },
@@ -114,7 +115,7 @@ export const GUIDE_TARGETS = {
 const DEPLOYMENT_GUIDE_TARGETS: Readonly<Record<string, GuideTarget>> = {
   steam: GUIDE_TARGETS.steamAccount,
   vrchat: GUIDE_TARGETS.vrchatInstall,
-  steamvr: GUIDE_TARGETS.picoPrepare,
+  steamvr: GUIDE_TARGETS.steamVrOpenXr,
   pico_runtime: GUIDE_TARGETS.picoPrepare,
 };
 

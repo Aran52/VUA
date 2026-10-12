@@ -1202,8 +1202,8 @@ demoTaskTitle: "Demo task",
         ],
       },
       devices: {
-        title: "Device Tips",
-        intro: "PICO 4 Pro streaming over USB or Wi-Fi, reading this guide inside the headset, and optional eye tracking.",
+        title: "Devices & VR runtimes",
+        intro: "SteamVR and OpenXR settings, PICO USB / Wi-Fi streaming, and optional eye tracking.",
         sections: [
           {
             id: "platforms",
@@ -1219,6 +1219,17 @@ demoTaskTitle: "Demo task",
               "Where: your PC and the headset. On the PC, install SteamVR and PICO Connect from the official PICO site. PICO's current requirements are Windows 10 22H2 or later, 8 GB of RAM, and a GTX 1060 6GB / RX 480 class GPU or better.",
               "On the headset, update PICO OS to the latest version — current PICO Connect needs PICO OS 5.11.2 or later, and eye tracking needs 5.9.0 or later — and install the PICO Connect app from the PICO Store. Headset activation itself follows PICO's official flow.",
               "If the installer refuses: check the Windows version and free disk space first, then reinstall from the official page.",
+            ],
+          },
+          {
+            id: "steamvr-openxr",
+            title: "Set SteamVR as the default OpenXR runtime",
+            paragraphs: [
+              "Check this when running OpenXR games through SteamVR. Desktop play does not need it. If your streaming setup specifically requires another runtime, follow that setup's official instructions.",
+              "Close running VR games, then open the SteamVR status window on your PC. Choose menu → Settings → OpenXR. Show advanced settings if OpenXR is hidden; some older versions place this control under Developer.",
+              "Check Current OpenXR Runtime. If it already says SteamVR, leave it as it is. Otherwise choose Set SteamVR as OpenXR Runtime and confirm any Windows permission prompt yourself.",
+              "The current runtime should now say SteamVR. Restart the VR game. Having SteamVR installed does not prove this setting is complete; check the settings page.",
+              "If the control is missing or the change does not apply, make sure you opened settings on the PC desktop, then update and restart SteamVR. Apps that require their own OpenXR runtime can restore it through their official settings.",
             ],
           },
           {

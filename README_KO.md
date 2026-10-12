@@ -51,7 +51,7 @@ Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·�
 
 ### 현재 제공 상태와 시작 방법
 
-- [Ibis 릴리스 페이지](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7)에서 **VUA-0.6.7-windows-x64-setup.exe**를 내려받습니다. 다운로드가 불안정하면 **VUA-0.6.7-windows-x64-offline.exe**를 선택해 주세요. 설치 후 시작 메뉴에서 VUA를 엽니다. Node, pnpm, Rust나 소스는 필요하지 않습니다. 서명되지 않은 빌드이므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
+- [공식 다운로드 페이지](https://ph-r.com/projects/vua/#download) 또는 [GitHub 릴리스](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7)에서 **VUA-0.6.7-windows-x64-setup.exe**를 내려받습니다. 다운로드가 불안정하면 **VUA-0.6.7-windows-x64-offline.exe**를 선택해 주세요. 두 곳 모두 같은 파일을 제공합니다. 설치 후 시작 메뉴에서 VUA를 엽니다. Node, pnpm, Rust나 소스는 필요하지 않습니다. 서명되지 않은 빌드이므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
 - 첫 실행 기능 안내와 가이드로 시작하거나 플레이, 도구, Avatar 편집을 바로 엽니다. 새 사용자는 AMF가 활성화되며 설정 → 모듈에서 끌 수 있습니다. Steam/PICO/Unity 및 계정 작업은 공식 앱에서 완료합니다.
 - VUA 업데이트 전 작업을 마치고 앱을 종료한 다음 새 설치 파일을 실행합니다. AMF는 설정 → 모듈 또는 정보에서 따로 업데이트한 뒤 명시적으로 다시 시작할 수 있습니다. 데이터는 %APPDATA%\VUA에 유지되며 ZIP 버전에서 설치 버전으로 옮겨도 같은 프로필을 사용합니다. 미검증 과정과 수동 인계는 릴리스 노트에 기록하며 문제는 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose)에 남길 수 있습니다.
 - 개발자는 [의존성 설치, 앱 실행 및 검사](apps/desktop/README.md#development-commands)와 [기여 가이드](CONTRIBUTING.md)를 따릅니다.

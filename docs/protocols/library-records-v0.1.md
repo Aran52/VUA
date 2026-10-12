@@ -17,8 +17,10 @@ copy/source records, change account ownership or retarget saved Recipe/draft ref
 frozen warehouse/reference read faces retain those identities. The confirmation lists the selected
 imports and explains this boundary. There is no automatic restoration during BOOTH sync.
 
-Only `imported_material` targets are permitted. Account hiding, restoration UI and physical cleanup
-are deferred. Re-importing a folder explicitly creates a new import with the existing intake rules.
+Only `imported_material` targets are permitted on this retained method. The separate
+[card-removal v0.2](library-records-v0.2.md) now covers account-product and downloaded-entry cards;
+restoration UI and physical cleanup remain separate. Re-importing a folder explicitly creates a
+new import with the existing intake rules.
 
 ## Document changelog
 

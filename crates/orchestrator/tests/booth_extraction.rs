@@ -68,6 +68,14 @@ const FULL_PAGE: &str = r#"<html><body>
 </body></html>"#;
 
 #[test]
+fn empty_category_attribute_falls_back_to_public_breadcrumbs() {
+    let page = FULL_PAGE.replace("data-shop-tracking-product-category=\"3D Characters\"", "data-shop-tracking-product-category=\" \"")
+        .replace("<main>", "<main><ul id='js-item-category-breadcrumbs'><li>3D Models</li><li>3D Clothing</li></ul>");
+    let result = extract_product_page(&page).unwrap();
+    assert_eq!(result.source_category.as_deref(), Some("3D Clothing"));
+}
+
+#[test]
 fn bdl_ext_001_full_page_extracts_every_spec_field() {
     let extracted: ExtractedProduct =
         extract_product_page(FULL_PAGE).expect("a well-formed page extracts");

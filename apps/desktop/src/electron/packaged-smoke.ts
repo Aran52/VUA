@@ -48,11 +48,13 @@ class PackagedSmoke {
     const result = await window.webContents.executeJavaScript(`(async () => {
       const snapshot = await window.vua.gateway.invoke({schemaVersion: 1, requestId: 'packaged-smoke-snapshot', method: 'app.snapshot', params: {}});
       const tasks = await window.vua.gateway.invoke({schemaVersion: 1, requestId: 'packaged-smoke-tasks', method: 'task.list', params: {}});
+      const navigation = await window.vua.fs.navigation();
+      if (!navigation.ok || navigation.value.drives.length === 0) throw new Error('Packaged native drive navigation failed');
       if (!snapshot.ok || !tasks.ok) throw new Error('Packaged Gateway query failed');
       if (snapshot.value.runtime !== 'electron' || snapshot.value.capabilities.operations.length === 0) throw new Error('Missing Provider capabilities');
       const previousMarker = localStorage.getItem('vua.packaged-smoke');
       localStorage.setItem('vua.packaged-smoke', 'persisted');
-      return { previousMarker, version: snapshot.value.productVersion, capabilities: snapshot.value.capabilities.operations.length };
+      return { previousMarker, version: snapshot.value.productVersion, capabilities: snapshot.value.capabilities.operations.length, nativeDriveNavigation: true };
     })()`) as { previousMarker: string | null; version: string; capabilities: number };
     await window.webContents.session.flushStorageData();
     const database = path.join(this.directory, "host", "tasks.db");

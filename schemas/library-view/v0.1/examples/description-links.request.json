@@ -1,0 +1,9 @@
+{
+  "method": "library.list",
+  "params": {
+    "schemaVersion": "0.1",
+    "descriptionLinksTo": "booth:902",
+    "limit": 50,
+    "offset": 0
+  }
+}

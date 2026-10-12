@@ -31,7 +31,9 @@ import {
   type CatalogSyncRun,
 } from "./catalog-sync.js";
 import { probeBoothAuthentication } from "./booth-auth.js";
-import { deactivateImageCache, importLocalThumbnail, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
+import { searchPublicBoothProducts } from "./booth-search-port.js";
+import { openLibraryEntryFolder } from "./library-folder.js";
+import { deactivateImageCache, importLocalThumbnail, installImageCacheProtocol, registerImageCacheProtocol, registerImageCacheScheme } from "./image-cache.js";
 import { RemoteContentManager } from "./remote-content.js";
 import { createDesktopOrchestratorProvider, type DesktopProviderEndpoint } from "./provider-bootstrap.js";
 import { AmfRegistry } from "./amf-registry.js";
@@ -95,7 +97,8 @@ import {
 } from "./security.js";
 import { checkLatestRelease } from "./update-check.js";
 import { SystemUsageCollector } from "./system-usage.js";
-import { createFsDirectory, listFsDirectory } from "./fs-directory.js";
+import { createFsDirectory, listFsDirectory, listFsNavigation, readNativeDriveRoots } from "./fs-directory.js";
+import { previewLibraryDirectory } from "./library-preview.js";
 import { resolveDesktopRuntime } from "./runtime-paths.js";
 import { preparePackagedSmoke } from "./packaged-smoke.js";
 import { configureDesktopProfile, resolveDesktopProfile, tagDevelopmentWindow } from "./runtime-profile.js";
@@ -540,6 +543,10 @@ function registerIpc(provider: ModuleProvider): void {
         : false;
     return listFsDirectory(target, { showHidden });
   });
+  ipcMain.handle("vua:fs:navigation", async event => {
+    assertLocalSender(senderFrameUrl(event));
+    return listFsNavigation({ desktop: app.getPath("desktop"), documents: app.getPath("documents"), downloads: app.getPath("downloads") }, () => readNativeDriveRoots(desktopRuntime.providerExecutable));
+  });
   ipcMain.handle("vua:fs:create-directory", async (event, parentPath: unknown, name: unknown) => {
     assertLocalSender(senderFrameUrl(event));
     if (typeof parentPath !== "string" || typeof name !== "string") {
@@ -725,6 +732,51 @@ function registerIpc(provider: ModuleProvider): void {
     assertLocalSender(senderFrameUrl(event));
     if (mainWindow === null || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error("browser requires main frame");
   };
+  ipcMain.handle("vua:library:open-folder", async (event) => {
+    assertBrowserSender(event);
+    assertAmfReady();
+    try { return { opened: await shell.openPath(path.join(amfDataRoot(), "warehouse")) === "" }; }
+    catch { return { opened: false }; }
+  });
+  ipcMain.handle("vua:library:open-booth-product", async (event, productId: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    if (typeof productId !== "string" || !/^booth:[0-9]+$/.test(productId) || /\s/.test(productId)) throw new Error("invalid BOOTH product");
+    try { await shell.openExternal(`https://booth.pm/items/${productId.slice(6)}`); return { opened: true }; }
+    catch { return { opened: false }; }
+  });
+  ipcMain.handle("vua:library:open-entry-folder", async (event, entryId: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    return openLibraryEntryFolder(provider, path.join(amfDataRoot(), "warehouse"), entryId, folder => {
+      assertAmfReady(); return shell.openPath(folder);
+    });
+  });
+  ipcMain.handle("vua:library:preview-directory", async (event, target: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    if (typeof target !== "string") throw new Error("invalid library preview target");
+    const result = await previewLibraryDirectory(target, path.join(amfDataRoot(), "warehouse"));
+    assertAmfReady(); return result;
+  });
+  ipcMain.handle("vua:library:resolve-dropped-files", async (event, values: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    if (!Array.isArray(values) || values.length === 0 || values.length > 200
+      || !values.every(value => typeof value === "string" && !value.includes("\0") && path.isAbsolute(value))) throw new Error("invalid native file drop");
+    const paths = [...new Map((values as string[]).map(value => {
+      const resolved = path.resolve(value);
+      return [resolved.toLowerCase(), resolved] as const;
+    })).values()];
+    const sources = await Promise.all(paths.map(async value => {
+      const info = await fs.promises.lstat(value);
+      if (info.isSymbolicLink() || (!info.isFile() && !info.isDirectory())) throw new Error("intake requires an ordinary file or folder");
+      return { value, directory: info.isDirectory() };
+    }));
+    assertAmfReady();
+    // A folder already contains its explicitly dropped descendants; copy them once.
+    return sources.filter(source => !sources.some(parent => {
+      if (!parent.directory || parent === source) return false;
+      const relative = path.relative(parent.value, source.value);
+      return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+    })).map(source => source.value);
+  });
   ipcMain.handle("vua:desktop-browser:open", async (event, siteId: unknown) => {
     assertBrowserSender(event);
     const site = desktopBrowserSite(siteId);
@@ -991,8 +1043,11 @@ function registerIpc(provider: ModuleProvider): void {
       const providerRef = provider;
       if (providerRef === null) return { ok: false };
       try {
-        const outcome = await remoteContent.fetchWithSession(url);
-        if (outcome.status !== 200) return { ok: false };
+        const outcome = await remoteContent.fetchWithSession(url, AbortSignal.timeout(30_000));
+        const finalPage = new URL(outcome.finalUrl);
+        if (outcome.status !== 200 || finalPage.protocol !== "https:"
+          || !(finalPage.hostname === "booth.pm" || finalPage.hostname.endsWith(".booth.pm"))
+          || /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/([0-9]+)\/?$/i.exec(finalPage.pathname)?.[1] !== nativeId) return { ok: false };
         const result = await providerRef
           .invoke({
             contractVersion: APPLICATION_CONTRACT_VERSION,
@@ -1015,6 +1070,33 @@ function registerIpc(provider: ModuleProvider): void {
       }
     },
   );
+
+  let searchRunning = false;
+  let lastSearchAt = 0;
+  ipcMain.handle("vua:catalog-sync:search-products", async (event, query: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    const remote = remoteContent; const current = provider;
+    if (remote === null || current === null || searchRunning) throw new Error("search_unavailable");
+    searchRunning = true;
+    try {
+      const wait = 1500 - (Date.now() - lastSearchAt);
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      assertAmfReady(); lastSearchAt = Date.now();
+      return await searchPublicBoothProducts(query, {
+        fetch: url => remote.fetchWithSession(url, AbortSignal.timeout(30_000)),
+        parse: params => current.invoke({ contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: crypto.randomUUID(), kind: "query", method: "catalog.searchProducts", params }),
+      });
+    } finally { searchRunning = false; }
+  });
+  ipcMain.handle("vua:silent-download:control", (event, batchId: unknown, paused: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    if (typeof batchId !== "string" || !/^library-download-[A-Za-z0-9_.:-]{1,100}$/.test(batchId) || typeof paused !== "boolean") throw new Error("invalid_download_control");
+    return silentDownloadQueue?.setPaused(batchId, paused) ?? { ok: false, paused: false };
+  });
+  ipcMain.handle("vua:silent-download:transfers", event => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    return silentDownloadQueue?.transfers() ?? [];
+  });
 
   // 导航确认作答(015 §12):只受理本地来源;未知 confirmId/重复作答忽略
   // (渲染层不能伪造未发出的确认);作答后 pending 移除,确认 Promise 落定
@@ -1562,6 +1644,7 @@ async function ensureAmfShell(): Promise<void> {
     silentDownloadQueue = createSilentDownloadQueue({
       partitionSession: session.fromPartition("persist:vua-remote"),
       abandon: (downloadId) => downloadPort?.applyIntent(downloadId, "abandon"),
+      setPaused: (downloadId, paused) => downloadPort?.setPaused(downloadId, paused) === true,
       observe: async (params) => {
         if (provider === null) throw new Error("provider unavailable");
         const response = await provider.invoke({
@@ -1617,6 +1700,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {
     startupWindow = await createStartupWindow({

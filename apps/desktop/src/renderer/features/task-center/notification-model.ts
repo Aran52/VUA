@@ -38,7 +38,7 @@ export function visibleNotifications(
   const latestPersistentId = persistent[0]?.id ?? null;
   return tasks.filter((task) => {
     if (dismissed.has(task.id)) return false;
-    if (task.notifyOnComplete === true) return task.id === latestPersistentId;
+    if (task.notifyOnComplete === true) return !isTerminalStatus(task.status) || task.id === latestPersistentId;
     if (isTerminalStatus(task.status)) {
       // 会话终态集(人审 2026-10-06):启动前已终态的历史任务即使开着
       // 「显示已完成」也不再堆在通知里;任务事实仍可经任务列表查询

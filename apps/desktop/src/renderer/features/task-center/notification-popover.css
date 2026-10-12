@@ -76,7 +76,7 @@
   top: 52px;
   right: 12px;
   z-index: 701;
-  width: min(380px, calc(100vw - 24px));
+  width: min(460px, calc(100vw - 24px));
   max-height: 70vh;
   overflow: auto;
   background: color-mix(in srgb, var(--vua-bg-elevated) 94%, transparent);

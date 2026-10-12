@@ -18,7 +18,10 @@
 }
 
 .vua-context-menu__item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vua-space-4);
   width: 100%;
   padding: var(--vua-space-1) var(--vua-space-3);
   border: none;
@@ -39,4 +42,9 @@
   color: var(--vua-text-secondary);
   opacity: 0.55;
   cursor: default;
+}
+
+.vua-context-menu__shortcut {
+  color: var(--vua-text-secondary);
+  font: var(--vua-font-caption);
 }

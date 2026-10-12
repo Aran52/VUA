@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua-project.github.io/schemas/booth-search/v0.1/request.schema.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["contractVersion", "requestId", "correlationId", "kind", "method", "params"],
+  "properties": {
+    "contractVersion": { "const": "0.1" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "kind": { "const": "query" }, "method": { "const": "catalog.searchProducts" },
+    "params": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "query", "sourceUrl", "html"],
+      "properties": {
+        "schemaVersion": { "const": "0.1" },
+        "query": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$" },
+        "sourceUrl": { "type": "string", "pattern": "^https://booth\\.pm/ja/search/[^/?#]+$" },
+        "html": { "type": "string", "maxLength": 5000000 }
+      }
+    }
+  }
+}

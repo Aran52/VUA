@@ -6,16 +6,18 @@
 // 3. 策略拒绝:允许清单外来源在文件创建前 failed/policy(storedPath 空);
 // 4. 弃件(abandon 意图):cancelled 事件 + 部分文件弃除;同 URL 重发起
 //    重绑原 downloadId 且 attempt 递增。
+// 5. 手动暂停与继续:部分字节稳定、自动续传不覆盖手动暂停,同一 attempt 完成。
 // 范围注记:interrupted(可续传中断)在 Chromium 中默认被静默自动续传,
 // 真实网络下的浮现时机不可控——该路径的状态机逻辑由单元测试覆盖
 // (假 DownloadItem 驱动),真实网络中断归 I-1 真机矩阵。
 // 每个事件都过 isDownloadEventV01 守卫(deny-unknown-fields 镜像)。
 // 证据写入 _local_m4/v<版本>/download-port-smoke.json(.gitignore 排除)。
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, mkdtempSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { app, session } from "electron";
 import { DownloadPort } from "../dist/electron/download-port.js";
@@ -29,6 +31,7 @@ const evidenceDirectory = path.join(repositoryRoot, "_local_m4", `v${productVers
 const evidencePath = path.join(evidenceDirectory, "download-port-smoke.json");
 const rawLogPath = path.join(evidenceDirectory, "download-port-smoke.log");
 const logLines = [];
+app.setPath("userData", mkdtempSync(path.join(os.tmpdir(), "vua-download-profile-")));
 
 function log(event, detail = {}) {
   const entry = { at: new Date().toISOString(), event, ...detail };
@@ -57,6 +60,13 @@ function closeServer(server) {
 /** unknown-size 路由不回 content-length(unknown size 语义) */
 function createServer() {
   return http.createServer((request, response) => {
+    if (request.url === "/paced.bin") {
+      response.writeHead(200, { "content-type": "application/octet-stream", "content-length": String(32 * 65536) });
+      let sent = 0;
+      const timer = setInterval(() => { response.write(Buffer.alloc(65536, 9)); if (++sent === 32) { clearInterval(timer); response.end(); } }, 60);
+      response.on("close", () => clearInterval(timer));
+      return;
+    }
     if (request.url === "/unknown-size.bin") {
       response.writeHead(200, { "content-type": "application/octet-stream" });
       response.end(Buffer.alloc(512, 5));
@@ -147,6 +157,26 @@ async function run() {
     const unknownStarted = events.find((event) => event.kind === "download.started");
     assert.equal(unknownStarted.expectedBytes, null);
     log("unknown.size.passed");
+
+    // Native pause retains the attempt and file; automatic resume must respect the user.
+    events.length = 0;
+    downloadSession.downloadURL(`${allowedOrigin}/paced.bin`);
+    await waitFor(() => events.some(event => event.kind === "download.progress" && event.receivedBytes > 0), "paced native transfer");
+    const paced = events.find(event => event.kind === "download.started");
+    assert.equal(port.setPaused(paced.downloadId, true), true);
+    await delay(250);
+    const count = events.length;
+    port.applyIntent(paced.downloadId, "resume");
+    await delay(600);
+    assert.equal(events.length, count, "user pause stops progress and survives automatic resume");
+    assert.equal(port.hasActiveTransfers(), true);
+    assert.equal(port.setPaused(paced.downloadId, false), true);
+    await waitFor(() => events.some(event => event.kind === "download.completed"), "resumed native transfer");
+    const resumed = events.find(event => event.kind === "download.completed");
+    assert.equal(resumed.downloadId, paced.downloadId); assert.equal(resumed.attempt, 1);
+    assert.equal(readFileSync(resumed.storedPath).length, 32 * 65536);
+    assert.equal(events.some(event => event.kind === "download.cancelled"), false);
+    log("user.pause.resume.passed");
 
     // 3. 策略拒绝:允许清单外来源,文件创建前 failed/policy
     events.length = 0;

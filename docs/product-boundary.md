@@ -1,10 +1,10 @@
 # VUA product boundary
 
 
-> Document version: 2.25.0
+> Document version: 2.28.0
 > Status: Accepted
 > Scope: Entire VUA product
-> Updated: 2026-10-11
+> Updated: 2026-10-12
 > Normative effect: Yes
 
 ## Product definition
@@ -173,6 +173,15 @@ information and remember the user's association; supplementation establishes nei
 entitlement nor production compatibility. Local import still does not require an ID. Third-party
 metadata search is deferred by the 2026-10-09 ruling.
 
+**Public BOOTH source lookup (user ruling, 2026-10-12).** A local entry may request a bounded
+keyword search of BOOTH's public products, independently of account membership. Send only the
+visible leaf name or a user-edited keyword; never upload files or local paths. A unique exact
+title on a complete result page may be associated automatically; ambiguous/incomplete results
+require candidate confirmation. Reuse the official product-page reader and local metadata write.
+This records a source statement, not ownership, equal content or production qualification, and
+does not create an account-library product. No site crawl or third-party search integration is
+added. The previous deferral remains for those other sources.
+
 **Migration reconciliation and N5 scope (user ruling, 2026-10-08).** Synchronizing the BOOTH
 library also attempts to match already imported local material, including a batch migrated from
 another manager. Product identity, name and image are not content identity: verified equal
@@ -182,7 +191,7 @@ local cards separate until verification. Names/IDs can suggest a source but neve
 equality or a user-confirmed association. Sync does not download the whole account for comparison.
 Physical copies and saved references are retained when presentation is combined.
 
-N5 record removal first covers local imports; hiding account products is later work. Dependency
+The initial 2026-10-09 record-removal face covers local imports; the later card-removal ruling below extends the visible scope. Dependency
 discovery may initially use author-description links, with persistence and honest unconfirmed
 evidence required; exhaustive classification and absent-link corner cases are not this pass.
 Final Recipe design, VPM revision/regeneration mechanisms and actual library-to-production
@@ -198,11 +207,20 @@ files stay in the library. The first production intake accepts UnityPackage only
 image editing and direct FBX/PSD integration are outside this N5 pass. Retention does not establish
 production qualification, and existing format/content checks still apply at production intake.
 
-Dependency display and reverse lookup are optional settings. Explain their accuracy limits when
-enabled: author-description links may describe demonstrations or unrelated products, authors may
-omit links, and available reverse lookup is limited by recorded evidence and its matching rules.
-Show unconfirmed clues honestly; a link, resolved product identity or empty result is not a
-compatibility or dependency verdict. Full dependency inference is not required for N5 closure.
+**Description-link filtering (user ruling, 2026-10-12).** The standalone dependency reverse-lookup
+button is retired. A single known product's menu offers "此商品的适配" and filters the material
+wall to other library products whose captured author-description HTML contains its BOOTH product
+link. No dependency-name matching, account ownership inference or whole-site crawl is involved.
+"Cancel filter" sits immediately after pagination and restores the prior filters, page, display
+mode, selection and scroll. This explicit read is available without an experimental enable prompt;
+the old dependency-display setting is retired. Recorded links may describe demonstrations or
+unrelated products, and unobserved/omitted links cannot match. A link or empty result is not a
+compatibility or dependency verdict. Full dependency inference remains outside N5 closure.
+
+Library list mode separates title, shop, variant and source into columns with draggable width
+dividers. Multiple recorded variant choices use a count; source is plain cloud/downloading/paused/
+downloaded/local-import/error text. Local imports use the same columns. The migration popup stays
+outside clipping ancestors and opens from the import group's left edge.
 
 **BDL.** The existing base storage, asset identity, source correlation, and catalog capabilities
 are retained. Automatic compatibility-evidence collection is an experimental feature, off by
@@ -627,8 +645,14 @@ Current development is continuing Beta under the N sequence. The historical v0.6
 unchanged; this ruling is not a new product release. Runtime-tool deployment is active. Community
 plugin execution and a marketplace still require their separately accepted security decisions.
 
+**Library presentation and intake (user ruling, 2026-10-12).** The visible local source means user-imported material, rather than every downloaded local file. The separate [card-removal face](protocols/library-records-v0.2.md) extends the initial local-record removal to complete entry and account-product card presentations, with files/references retained and no automatic restoration by sync. **Import a local item** keeps explicit per-path copy-in; its adjacent arrow opens **Import multiple items (library migration)**. Material boundaries must not be silently guessed. The current migration preview is read-only; its [grouping design](development/library-migration-design.md) is a draft and does not grant a new writer or declare N5 accepted.
+
 ## Document changelog
 
+- 2.28.0 (2026-10-12): Replace dependency-name dialogs with cancellable author-description link filtering and define resizable plain-source library columns.
+- 2.27.0 (2026-10-12): record origin-specific local imports, full card presentation removal and the author-selected single-item/migration intake split without changing acceptance.
+
+- 2.26.0 (2026-10-12): authorize bounded public BOOTH keyword lookup for local provenance independently of account membership; preserve content, ambiguity and entitlement boundaries.
 - 2.25.0 (2026-10-11): authorize current-state v0.6.6 Ibis ZIP publication before subsequent NSIS/runtime and AMF-update work, retaining continuing Beta and pending acceptance.
 - 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
 - 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
@@ -636,6 +660,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
 - 2.21.0 (2026-10-10): distinguish ordinary local-material intake from active support for pirated acquisition sources, without introducing rights classification or new intake gates.
 - 2.20.0 (2026-10-10): bundle AMF with Ibis while requiring explicit first activation, retain saved choices and legacy data, and defer external Avatar-editing modules.
-- 2.19.0 (2026-10-09): accept VUA as a scenario host with optional AMF＋BDL, independent fresh startup/navigation and retained module data.
-- 2.18.0 (2026-10-09): integrate the author's Ibis newcomer core-journey criterion and current regional-Ping/website presentation with the N5 scope, retaining pending optional outcomes and retiring usage-region identification and accelerator recommendations.
-- 2.17.0 (2026-10-09): require managed ZIP extraction for local imports and BOOTH downloads while preserving original archives and separate production qualification.

@@ -31,6 +31,33 @@ fn library_view(w: &World, query: Value) -> Value {
     .unwrap()
 }
 
+#[test]
+fn reverse_description_links_are_exact_latest_evidence_not_names_or_ownership() {
+    let w = World::new();
+    let capture = |body: &str| crate::description_dependencies::record_description_dependencies(&w.bdl,
+        &format!(r#"<div id="items"><article><div class="js-market-item-detail-description description">{body}</div></article><aside><a href="https://booth.pm/items/777">Recommendation</a></aside></div>"#),
+        "booth:90", "sha256:synthetic", "2026-10-12T00:00:00Z").unwrap();
+    capture(r#"<a href="https://shop.booth.pm/en/items/999?from=body"><img src="sample.png"></a>
+        <a href="/ja/items/999">Duplicate</a><a href="https://booth.pm/items/90">Self</a>
+        <a href="https://booth.pm.evil/items/888">Spoof</a> Plain https://booth.pm/items/666"#);
+    assert!(w.bdl.catalog_detail("booth:999").unwrap().is_none(), "target does not need to be owned or catalogued");
+    let result = library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","limit":1}));
+    assert_eq!(result["total"], 1); assert_eq!(result["items"][0]["product"]["productId"], "booth:90");
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","offset":1}))["total"], 1);
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","text":"nonexistent"}))["total"], 0);
+    for target in ["booth:99", "booth:90", "booth:777", "booth:888", "booth:666"] {
+        assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":target}))["total"], 0, "{target}");
+    }
+    let reopened = BdlStore::open(w.base.join("bdl.db")).unwrap();
+    assert_eq!(crate::description_dependencies::products_linking_to(&reopened,"booth:999").unwrap().len(), 1);
+    // Library rows and an unreadable/missing description preserve the last body.
+    crate::description_dependencies::record_description_dependencies(&w.bdl, "<h1>Incomplete page</h1>","booth:90","sha256:other","2026-10-12T01:00:00Z").unwrap();
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"}))["total"], 1);
+    capture("No remaining links");
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"}))["total"], 0, "empty snapshot overrides immutable historical clues");
+    assert!(!w.bdl.dependency_observations("booth:90").unwrap().is_empty(), "historical evidence survives");
+}
+
 fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
     use std::io::Write;
     let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -189,6 +216,39 @@ fn library_keeps_multiple_memberships_and_paginates_after_all_filters() {
     assert!(after["items"].as_array().unwrap().is_empty());
     let unmatched = library_view(&w, json!({"schemaVersion":"0.1","source":"free_downloads"}));
     assert_eq!(unmatched["total"], 0);
+}
+
+#[test]
+fn library_native_category_filters_before_pagination_and_preserves_unknown() {
+    let w = World::new();
+    let fixture: Value = serde_json::from_slice(&std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap()).unwrap();
+    let page = crate::library_page::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+    for (id, category) in [("90", Some("3D衣装")), ("91", None), ("92", Some("3Dモデル"))] {
+        let mut observation = crate::library_page::library_item_to_observation(&page.items[0], &format!("sha256:{}", "0".repeat(64)), "2026-10-11T00:00:00Z", None, Some("bought"));
+        observation.product_id = format!("booth:{id}");
+        observation.native_product_id = id.into();
+        observation.source_url = format!("https://booth.pm/items/{id}");
+        observation.source_category = category.map(str::to_owned);
+        w.bdl.record_product_observation(&observation).unwrap();
+    }
+    let selected = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1}));
+    assert_eq!(selected["total"], 1);
+    assert_eq!(selected["items"][0]["product"]["productId"], "booth:90");
+    assert_eq!(selected["items"][0]["sourceCategory"], "3D衣装");
+    assert_eq!(selected["sourceCategories"], json!(["3Dモデル", "3D衣装"]));
+    let after = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":"3D衣装", "limit":1, "offset":1}));
+    assert_eq!(after["total"], 1);
+    assert!(after["items"].as_array().unwrap().is_empty());
+    assert_eq!(after["sourceCategories"], selected["sourceCategories"]);
+    let unknown = library_view(&w, json!({"schemaVersion":"0.1", "sourceCategory":null}));
+    assert_eq!(unknown["total"], 1);
+    assert_eq!(unknown["items"][0]["product"]["productId"], "booth:91");
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1"}))["total"], 3);
+    for category in [json!(""), json!(3), json!("a".repeat(201))] {
+        assert!(crate::library_view::list(&w.bdl, &w.base.join("warehouse"), ArtifactMode::UseOriginalUnitypackage, &w.service,
+            json!({"schemaVersion":"0.1", "sourceCategory":category})).is_err());
+    }
 }
 
 #[test]

@@ -268,3 +268,4 @@ export type { CreatorManagers, CreatorEditor } from "./creator-inventory-port.ts
 export type { PlayPort } from "./environment-port.ts";
 
 export { useAmfModule } from "./GatewayProvider.tsx";
+export { formatBytes, recentDownloadSpeed } from "./task-progress.ts";

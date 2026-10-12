@@ -1,11 +1,11 @@
-# VUA design standard v0.22.0
+# VUA design standard v0.30.0
 
 
-> Document version: 0.22.0
+> Document version: 0.30.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
-> Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (regional reference, topbar Help and retained eight-tab browser sessions in four-language zoom fixtures, retaining compact cards, history and appearance; author game/device and human-language review pending)
+> Updated: 2026-10-12
+> Last conformance review: 2026-10-12 (four-language controlled columns/link filtering/popup, source association, bulk/removal/notification and intake checks; author account/material/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -350,7 +350,7 @@ semantically distinct from the dismiss/close ✕ (e.g. a circled exclamation mar
 
 ### 6.2 Experimental feature presentation (v0.6.3)
 
-Experimental features live on the "Settings - Experimental" page (the W15 walkthrough rework form
+Experimental features live on the "Settings - Experimental" page (the walkthrough rework form
 of 2026-09-08: one card =
 title + subtitle + warning strip + toggle rows). Rules:
 
@@ -419,25 +419,68 @@ changelog history already uses.
   directly exposed. Unchecked `LocalArtifact` values are pending/quarantined; executables are listed,
   never offered a run action. Animated mode may add a restrained pointer spotlight and tilt to cards;
   all other modes retain stable cards with identical selection, detail, and keyboard behavior.
-  Layout (v0.6.2, W13 window of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
+  The visible filter strip groups labeled search, library source, download state and original BOOTH category with matching
+  control height, padding, border and theme colors. Narrow windows stack search above the three
+  aligned selectors and permit page scrolling at large zoom. Availability, entity-type and
+  relation filters are retired from this UI. The "Open local asset library in File Explorer"
+  toolbar action is retired; a single card's folder action opens
+  its recorded directory without asking the player to type a path.
+  Multiselection menus expose Download (missing files), Re-download (explicitly selected captured
+  files including existing copies) and Delete local files. The removal dialog lists the exact scoped
+  files and affected references before a "Delete local files of X products" confirmation. Receipt
+  loss offers the same request again; changed/busy files require a fresh preview. Product records,
+  source evidence and Recipe references remain. Unknown local BOOTH sources are explicitly skipped
+  for download. The category control uses recorded labels and an unrecorded-category option.
+  Single click selects a cloud or local card; double click opens its details. `Ctrl+A` selects
+  the displayed page in the current filter/view, including local cards. Card and blank-wall
+  context menus offer "Select all" with its shortcut; the shortcut also works while that menu
+  has focus. Text editing, dialogs and the detail panel retain their own keyboard behavior.
+  A single known product's menu offers "此商品的适配". It filters the wall to other library
+  products containing that exact product link in recorded author-description HTML, with no
+  enable prompt or dependency-name dialog. "Cancel filter" immediately follows pagination and
+  restores the previous filters, page, mode, selection and scroll, including after an empty or
+  failed query. Recorded links are evidence, never a guarantee of production compatibility.
+  Card media's upper-left corner replaces cloud/local text badges: purple computer for local
+  import, green cloud for cloud-only content, orange computer for linked local files, red cross
+  for missing/failed content. Hover shows a short explanation; green cloud becomes a download
+  arrow. During actual transfer, click pauses; yellow pause continues the same transfer. Local
+  purple hover becomes a refresh arrow and requests public BOOTH keyword lookup. The arrow spins
+  only while searching. An uncertain result remains a yellow question until the next library
+  entry; a saved source association persists. Ambiguous candidates require confirmation.
+  Actions stop card selection/double-click; card context menus remain accessible on the corner.
+  Card text reads title, shop, then variant when present. The menu button sits at the card bottom
+  regardless of title length. Known source menus/details
+  offer "Open BOOTH page". The old qualification explanation is absent from the detail.
+  The view toggle sits immediately left of the search input. Single-card menus offer "Open folder"
+  for recorded local files; cloud-only cards disable it. Several directories for one product require
+  an explicit choice, while multiselection omits the action. The whole-library toolbar button is retired.
+  List mode uses title, shop, variant and source columns for both account products and local
+  imports. Header dividers drag horizontally to resize neighboring columns. Multiple recorded
+  variant choices show a count; source uses only plain Cloud, Downloading, Download paused,
+  Downloaded, Local import or Error text, replacing the old storage badges. The row menu lives
+  in the title cell so source stays at the right edge. Narrow lists may scroll horizontally.
+  The split import button's migration popup opens from its left edge in a viewport-clamped body
+  portal, avoiding the sidebar and clipping ancestors.
+  Layout (v0.6.2, ruling of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
-  narrow windows stack it below. Artifact-mode semantics (v0.6.3, the W15 walkthrough ruling of
+  the close button occupies its own top row, with the full-width title beneath it, for both
+  product and local-entry details. Narrow windows stack the panel below the wall.
+  Artifact-mode semantics (v0.6.3, the walkthrough ruling of
   2026-09-08; novice-first): the original UnityPackage is the default; the global behavior is written by the
   "Generate VPM replacement" toggle on the Settings-Experimental page (frozen
   warehouse.setGlobalDefaultMode, §6.2), with the effective mode always read back from the
   server; per-entry mode editing and generate/delete entries inside the warehouse entry details
   mirror the entry facts and carry the experimental badge; "Delete originals after generation"
   is an unwired preference (proposal 008), permanently labeled unwired.
-- Material import is a content dialog inside the warehouse page (0.7.12, user
-  ruling 2026-09-20; dedicated import tab since v0.7.0, proposal 015
-  reconciliation accepted; IMP-1): the "one continuous acquisition path" keeps
-  its two sections — a cloud section (embedded browsing and catalog mode as
-  parallel discovery entries, plus a per-batch adopt-into-warehouse entry for
-  completed downloads) above a local section (system folder pick →
-  confirmation list → single command → task center), both landing in the same
-  warehouse entry model; what changes is the hosting: instead of a dedicated
-  "Import" page, a wide content dialog (internal scroll, Esc/backdrop close,
-  title bar + close button) opens from the warehouse page hero — closing the
+- Material import is a content dialog inside the warehouse page. The 2026-10-12 ruling labels
+  the entry "Import a local item" and opens the folder picker immediately, without a source-choice
+  or a second import button. Folder selection leads to the existing confirmation and command;
+  canceling the initial picker dismisses the import. Native file/folder drops into the host start
+  local intake directly, without copying unselected siblings. An inactive AMF prompts for explicit
+  enable/import or cancel. The retained selection is imported only after the module is ready, with
+  the normal progress/cancellation path and a visible retry on submission failure. Text/URL drags
+  are not material inputs. Explicit legacy cloud/browser handoffs
+  retain their isolated lifecycle and do not appear as a choice in ordinary intake. Closing the
   dialog unmounts the component and closes any in-flight embedded view, so the
   "component is the view's only control surface" lifecycle semantics stay
   unchanged; the sidebar drops the warehouse/workshop/packages group labels,
@@ -462,7 +505,7 @@ changelog history already uses.
 - Recipe page as the production hub (0.7.15, first desktop slice consuming the
   U16 user ruling of 2026-09-21; archived
   [proposal 029](../archive/2026-09-29/collab/proposals/029-recipe-driven-workshop-and-project-export.md)
-  facets A4/A5): the library selection is the preview subject —
+  facets 029-A4/029-A5): the library selection is the preview subject —
   selecting a library document loads the three views through the document
   mapping, and the chain identity becomes ready with the selection. The
   selection is a production-chain fact-source action: the chain identity keys
@@ -492,7 +535,7 @@ changelog history already uses.
   the AMF Assembly stage semantics (stage names, pipeline stage diagrams, and
   stage-event copy do not migrate).
 - Create and add assets (0.7.17, third desktop slice consuming the U16 user
-  ruling of 2026-09-21; archived proposal 029 facets A1/A2/A3 local segment): the recipe page hero main path offers a
+  ruling of 2026-09-21; archived proposal 029 facets 029-A1/029-A2/029-A3 local segment): the recipe page hero main path offers a
   "Create" entry (worded 创建 per the U16 ruling text; never mixed with
   "add assets"/"assemble"), opening the composing-draft dialog — the draft
   dialog remains one of the creation starting points and the two-UIs-one-save-
@@ -519,7 +562,7 @@ changelog history already uses.
   cloud entry; read face absent / empty warehouse / no match render as honest
   empty states.
 - Export a draft from a project (0.7.18, desktop consumption of B-face loop 4
-  under the U16 user ruling of 2026-09-21; archived proposal 029 facet B4): the recipe page hero action row gains
+  under the U16 user ruling of 2026-09-21; archived proposal 029 facet 029-B4): the recipe page hero action row gains
   an "export draft from project" entry (recipe-export v0.1 frozen word-table
   consumption; reverse direction project -> recipe). The pick stage is limited
   to the VUA-registered project set (project.listProjects 013 aggregate
@@ -577,7 +620,7 @@ changelog history already uses.
   locking, node illumination, missing-dependency confusion, and rollback reversal are driven by real
   task events. Increase spectacle after flow logic stabilizes; scheduling does not delete the direction.
   Workshop as the execution status face (0.7.16, second desktop slice consuming
-  the U16 user ruling of 2026-09-21; archived proposal 029 facet A6): the workshop only displays status — the resolve →
+  the U16 user ruling of 2026-09-21; archived proposal 029 facet 029-A6): the workshop only displays status — the resolve →
   plan → assembly → record cards of the current chain (consuming the same
   container-layer store, Gateway port, and task-center authoritative snapshots as
   the recipe-page initiation face; plan approval and assembly start happen in the
@@ -637,7 +680,7 @@ changelog history already uses.
   before install/update/remove; no third-party branding that implies embedding. Project compatibility
   no longer holds a standalone second-level page (archived
   [proposal 026](../archive/2026-09-29/collab/proposals/026-packages-write-face-and-tab-merge.md)
-  facet B, user ruling 2026-09-18): its read
+  facet 026-B, user ruling 2026-09-18): its read
   faces (project detection, note, lock status, environment status, copy-import confirmation chain)
   render as a "Project compatibility" section at the end of the package manager page; the section is
   not gated on the package engine capability. Write-operation handover stays guidance-only: no
@@ -653,7 +696,7 @@ changelog history already uses.
 
   Template enumeration presentation (archived
   [proposal 027](../archive/2026-09-29/collab/proposals/027-packages-discovery-and-usability.md)
-  facet F5 desktop consumption, user ruling 2026-09-19): the create block mounts the
+  facet 027-F5 desktop consumption, user ruling 2026-09-19): the create block mounts the
   template enumeration gated on the packages.templatesOps capability fact row
   (packages.listTemplates is an environment-level configuration face, page-locally carried, never
   entering the snapshot) — once the enumeration is ready a template dropdown replaces the manual
@@ -713,7 +756,7 @@ changelog history already uses.
   capability fact row (one row serving the three methods; honestly absent until the
   environment override flips it = controls not rendered while the subscription rows keep
   rendering — degradation is not an error, no fact no render). Honest enable-wording ruling
-  (the W25 read-only real-machine evidence ruling (c) of 2026-09-20: VCC carries no enable/disable state anywhere): the
+  (the read-only real-machine evidence ruling (c) of 2026-09-20: VCC carries no enable/disable state anywhere): the
   enable bit is VUA-owned state, distinguished from the §8.7 settings-face shared-semantics
   copy discipline — the disabled wording honestly states "a disabled repository stays
   listed while its packages leave browsing and install resolution; the shared VCC/ALCOM
@@ -763,19 +806,27 @@ changelog history already uses.
   panel itself stays unblurred (the compositing ghosting lesson). Opening moves focus into the
   panel; closing returns it to the bell (not stolen when the user has focused elsewhere);
   outside click / Escape / scrolling outside the panel (scrolling inside the panel's list does
-  not close it — W25 real-machine correction of 2026-09-20) / blur close it; flattened motion skips the exit
+  not close it — real-machine correction of 2026-09-20) / blur close it; flattened motion skips the exit
   animation window.
   Notification-entry discipline: active tasks show by default; terminal tasks appear only with
   "show completed" enabled and not dismissed. Dismissal is offered only for terminal
   notifications — what is cleared is the notification, not the fact; task authority remains
   queryable through the task surfaces (§6.1). Task-row titles project honestly: registered task
-  identities use their registered title, unregistered tasks get the honest type word
+  identities use their registered title; transfer events may supply the public filename. Unregistered
+  tasks without such facts get the honest type word
   "background task", and a bare taskId never serves as a description (facts the projection
   cannot reach are not invented). Clicking the row's main area returns to the task's origin page,
   identical for active and terminal states, never a silent no-response. The in-row status glyph
   and status word carry success/failure facts, action buttons (retry/clear) each do one job, and
   the panel close ✕ only closes the panel — never conflated with dismissing a notification or
   presenting a failure.
+  All notification rows, main buttons and glyphs keep transparent backgrounds for every task type,
+  state and hover; the list owns these styles independently of the retired taskbar. Downloads have
+  a measured byte bar, transferred/total sizes and
+  speed from real observations; unknown totals show an indeterminate bar and expired speed returns
+  to measuring. File-saving counts are separate from transfer facts. All active batch notifications
+  remain visible. The raw Tasks window belongs under Settings → Experimental as Task diagnostics;
+  Home does not expose it. Demo-data and UI-variant switching panels are removed.
 
 ## 9. Accessibility, internationalization, and performance
 
@@ -826,18 +877,26 @@ The accepted VUA mark serves as the Home action, with jurisdiction and theme col
 schedule are reviewed separately; a schedule change does not automatically delete an approved design
 direction.
 
+### Material library navigation refinements (2026-10-12)
+
+**Local imports** filters the origin of intake, including missing imports. Local entry cards show one material entry with file count; companion files stay inside its details. **Delete cards** is available on local and account product cards, including missing files, and on selected groups. Its count-bearing confirmation preserves files and saved references; physical file deletion keeps its separate action.
+
+Scrolling while holding a marquee expands/shrinks selection from its original content position without requiring another pointer move. The rectangle stays clipped to the library wall.
+
+The main intake action reads **Import a local item**. A joined small arrow opens **Import multiple items (library migration)** below it on hover or click. The latter currently previews actual directory structure read-only and honestly marks boundaries unconfirmed; grouping proposals are owned by the [draft design](../development/library-migration-design.md).
+
+The in-app folder picker uses a permanently visible path text field and places Desktop, Documents, Downloads and This PC to the right of Up and Refresh. Up from a drive root returns to actual drive choices. Virtual This PC cannot itself be imported or receive a new directory.
+
 ## 12. Document changelog
 
+- 0.30.0 (2026-10-12): Define library column dividers and source text, unclipped migration popup and inline adaptation-filter cancellation.
+- 0.29.0 (2026-10-12): define entry-level local cards, imported-origin filtering, scroll-aware marquee, card-removal confirmation and separate single/migration intake with a native-location picker.
+
+- 0.28.0 (2026-10-12): remove all notification row/hover fills at the shared style owner, move folder access into single-card menus and place view switching immediately left of search.
+- 0.27.0 (2026-10-12): add native file/folder drops and AMF prerequisite prompts, title/shop/variant ordering, transparent notification rows and in-place completion-corner recovery.
+- 0.26.0 (2026-10-12): define triangular media corners and actual pause/source actions, card-bottom menus, canonical BOOTH links and direct local folder intake.
+- 0.25.0 (2026-10-12): add scoped bulk-file confirmation, recorded native categories and measured download notifications; place raw task diagnostics in Experimental and retire obsolete demo/variant panels.
+- 0.24.0 (2026-10-11): add displayed-page selection for cloud/local cards and menus, keep product adaptation discoverable behind explicit clue enablement, and give detail close/title controls separate rows; normalize retired body references.
+- 0.23.0 (2026-10-11): unify the library's search/source/download-state controls, retire the three legacy selectors and add an explicit local-material folder action with narrow-window scroll recovery.
 - 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
-- 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.
-- **0.19.0 (2026-10-11)**: restore Help's topbar parallelogram and define explicit approximate regional reference states without changing card height, history or independent website tests.
-- 0.18.0 (2026-10-10): define the fresh enabled AMF entry, resource-headroom/saturation presentation and 120° jurisdiction-logo replacement with flattened-motion fallbacks.
-- 0.17.0 (2026-10-10): accept the small monochrome ray/white-logo startup and first-use welcome/tour, preserving normal shell themes, matrix/glass and resource-saving preferences.
-- 0.16.0 (2026-10-10): anchor collapsible details beneath each individual card, separate translation/compact-language and Search rows, route retired goal links to Help and retire big-screen mode while preserving native control semantics and visual/resource preferences.
-- 0.15.0 (2026-10-10): replace the AMF Home Inspection card with Finished Avatars and Package Manager in both modes, retaining inspection reports and aligning the finished-output title across navigation.
-- 0.14.0 (2026-10-10): standardize collapsible Play/Tools/editor details and compact tool widths, distinguish navigable Help child pages with Back/Forward, and place AMF activation and consolidated Settings controls in their accepted locations.
-- **0.13.0 (2026-10-10)**: move Tools/Help into Environment, embed knowledge and hardware reading, halve Play card heights and remove the resource sampling-time label while preserving themes, glass and resource saving.
-
-
-Earlier entries remain in Git history.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@vua/design-system";
-import type { DesktopFsErrorV1, DesktopFsListV1 } from "@vua/contracts";
+import type { DesktopFsErrorV1, DesktopFsListV1, DesktopFsNavigationV1, DesktopFsEntryV1 } from "@vua/contracts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ModalOwnerContext, useModalLayer } from "../../components/primitives/modal-layer.tsx";
 import { strings } from "../../i18n/index.ts";
@@ -33,7 +33,8 @@ import "./folder-picker.css";
 type ListingState =
   | { readonly kind: "loading" }
   | { readonly kind: "error"; readonly error: DesktopFsErrorV1; readonly target: string | null }
-  | { readonly kind: "loaded"; readonly list: DesktopFsListV1 };
+  | { readonly kind: "loaded"; readonly list: DesktopFsListV1 }
+  | { readonly kind: "computer"; readonly drives: readonly DesktopFsEntryV1[] };
 
 export interface FolderPickerDialogProps {
   readonly open: boolean;
@@ -55,6 +56,7 @@ export function FolderPickerDialog({
   const copy = strings.folderPicker;
   const modal = useModalLayer(open, onClose);
   const [listing, setListing] = useState<ListingState>({ kind: "loading" });
+  const [navigation, setNavigation] = useState<DesktopFsNavigationV1 | null>(null);
   const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
   const [editingPath, setEditingPath] = useState(false);
@@ -85,6 +87,8 @@ export function FolderPickerDialog({
       if (seq !== requestSeqRef.current) return { ok: false, error: "failed" };
       if (result.ok) {
         setListing({ kind: "loaded", list: result.value });
+        setPathDraft(result.value.path);
+        setEditingPath(false);
         setSelection((current) => (current.size === 0 ? current : new Set()));
         return { ok: true };
       }
@@ -110,6 +114,7 @@ export function FolderPickerDialog({
     setNewFolderError(null);
     let active = true;
     void (async () => {
+      void window.vua?.fs.navigation?.().then(result => { if (active && result.ok) setNavigation(result.value); }).catch(() => {});
       const remembered = loadLastFolder();
       const first = await navigateTo(remembered);
       // 记忆目录失败回落主目录仅对「初始记忆」适用;手动导航错误就地呈现
@@ -122,6 +127,18 @@ export function FolderPickerDialog({
 
   const currentPath = listing.kind === "loaded" ? listing.list.path : null;
   const currentParent = listing.kind === "loaded" ? listing.list.parent : null;
+  const listedEntries = listing.kind === "loaded" ? listing.list.entries : listing.kind === "computer" ? listing.drives : [];
+
+  const showComputer = async () => {
+    const seq = ++requestSeqRef.current;
+    setListing({ kind: "loading" }); setSelection(new Set()); setNewFolderOpen(false); setPathError(null);
+    try {
+      const result = await window.vua?.fs.navigation?.();
+      if (seq !== requestSeqRef.current) return;
+      if (result?.ok) { setNavigation(result.value); setListing({ kind: "computer", drives: result.value.drives }); setPathDraft(""); setEditingPath(false); }
+      else setListing({ kind: "error", error: result?.error ?? "failed", target: null });
+    } catch { if (seq === requestSeqRef.current) setListing({ kind: "error", error: "failed", target: null }); }
+  };
 
   const toggleSelect = (path: string) => {
     setSelection((current) => {
@@ -146,7 +163,9 @@ export function FolderPickerDialog({
     }
     // 失败恢复旧列表:路径编辑的错误内联呈现,不霸占列表区
     const previous = listing;
+    const seq = requestSeqRef.current + 1;
     const result = await navigateTo(draft);
+    if (seq !== requestSeqRef.current) return;
     if (!result.ok) {
       setListing(previous);
       setPathError(copy[listErrorCopyKey(result.error)]);
@@ -160,6 +179,7 @@ export function FolderPickerDialog({
 
   const cancelPathEdit = () => {
     setPathError(null);
+    setPathDraft(currentPath ?? "");
     setEditingPath(false);
     editButtonRef.current?.focus();
   };
@@ -257,22 +277,22 @@ export function FolderPickerDialog({
           </div>
 
           <div className="vua-folder-picker__path-row">
-            {editingPath ? (
-              <div className="vua-folder-picker__path-edit" data-vua-esc-local="true">
+              <div className="vua-folder-picker__path-edit" data-vua-esc-local={editingPath ? "true" : undefined}>
                 <input
                   type="text"
                   value={pathDraft}
                   aria-label={copy.pathInputAria}
-                  autoFocus
+                  placeholder={listing.kind === "computer" ? copy.computer : copy.pathLabel}
                   onChange={(event) => {
                     setPathDraft(event.target.value);
+                    setEditingPath(true);
                     setPathError(null);
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
                       void submitPathDraft();
-                    } else if (event.key === "Escape") {
+                    } else if (event.key === "Escape" && editingPath) {
                       event.preventDefault();
                       event.stopPropagation();
                       cancelPathEdit();
@@ -285,35 +305,24 @@ export function FolderPickerDialog({
                   </p>
                 ) : null}
               </div>
-            ) : (
-              <>
-                <span className="vua-folder-picker__path" title={currentPath ?? undefined}>
-                  {currentPath ?? copy.pathLabel}
-                </span>
                 <button
                   type="button"
                   ref={editButtonRef}
                   className="vua-folder-picker__icon-button"
                   aria-label={copy.editPath}
                   title={copy.editPath}
-                  disabled={currentPath === null}
-                  onClick={() => {
-                    setPathDraft(currentPath ?? "");
-                    setPathError(null);
-                    setEditingPath(true);
-                  }}
+                  disabled={pathDraft.trim() === ""}
+                  onClick={() => void submitPathDraft()}
                 >
-                  <Icon name="edit" size={16} />
+                  <Icon name="arrow-right" size={16} />
                 </button>
-              </>
-            )}
           </div>
 
           <div className="vua-folder-picker__toolbar">
             <Button
               variant="subtle"
-              disabled={currentParent === null}
-              onClick={() => currentParent !== null && enterFolder(currentParent)}
+              disabled={listing.kind !== "loaded"}
+              onClick={() => currentParent !== null ? enterFolder(currentParent) : void showComputer()}
             >
               <Icon name="arrow-up" size={16} />
               {copy.up}
@@ -322,11 +331,13 @@ export function FolderPickerDialog({
               variant="subtle"
               aria-label={copy.refresh}
               title={copy.refresh}
-              disabled={currentPath === null}
-              onClick={() => currentPath !== null && void navigateTo(currentPath)}
+              disabled={listing.kind === "loading"}
+              onClick={() => listing.kind === "computer" ? void showComputer() : void navigateTo(currentPath)}
             >
               <Icon name="refresh" size={16} />
             </Button>
+            {(["desktop", "documents", "downloads"] as const).map(key => <Button key={key} variant="subtle" disabled={navigation === null} onClick={() => { if (navigation) enterFolder(navigation[key]); }}>{copy[key]}</Button>)}
+            <Button variant="subtle" onClick={() => void showComputer()}>{copy.computer}</Button>
           </div>
 
           {newFolderOpen ? (
@@ -380,11 +391,11 @@ export function FolderPickerDialog({
                 </Button>
               </div>
             ) : null}
-            {listing.kind === "loaded" && listing.list.entries.length === 0 ? (
+            {(listing.kind === "loaded" || listing.kind === "computer") && listedEntries.length === 0 ? (
               <p className="vua-caption vua-text-secondary">{copy.emptyFolder}</p>
             ) : null}
-            {listing.kind === "loaded"
-              ? listing.list.entries.map((entry) => (
+            {(listing.kind === "loaded" || listing.kind === "computer")
+              ? listedEntries.map((entry) => (
                   <div
                     key={entry.path}
                     role="listitem"
@@ -419,6 +430,7 @@ export function FolderPickerDialog({
             <div className="vua-folder-picker__footer-left">
               <Button
                 variant="subtle"
+                disabled={currentPath === null}
                 onClick={() => {
                   setNewFolderOpen((value) => !value);
                   setNewFolderError(null);
@@ -443,7 +455,7 @@ export function FolderPickerDialog({
               <Button variant="default" onClick={modal.closeTop}>
                 {copy.cancel}
               </Button>
-              <Button variant="primary" disabled={currentPath === null} onClick={handleOpen}>
+              <Button variant="primary" disabled={listing.kind !== "loaded" && listing.kind !== "computer" || currentPath === null && selection.size === 0} onClick={handleOpen}>
                 {copy.openCta}
               </Button>
             </div>

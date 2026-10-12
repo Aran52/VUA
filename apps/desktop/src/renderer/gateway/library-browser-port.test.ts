@@ -6,6 +6,14 @@ import { createLiveLibraryBrowserPort } from "./library-browser-port.ts";
 const vector = (): Record<string, unknown> => JSON.parse(readFileSync(new URL("../../../../../schemas/library-view/v0.1/examples/local-source.response.json", import.meta.url), "utf8")) as Record<string, unknown>;
 const client = (value: unknown): GatewayClient => ({ invoke: async () => ({ ok: true, value: value as DesktopGatewaySuccessValueV1 }), subscribe: () => () => {} });
 describe("library source reconciliation projection", () => {
+  it("retains observed variant counts and the exact reverse link filter without widening frozen catalog metadata", async () => {
+    const value = vector(); (value.items as Record<string, unknown>[])[0]!.variantCount = 3;
+    const requests: unknown[] = [];
+    const port = createLiveLibraryBrowserPort({ ...client(value), invoke: async request => { requests.push(request); return { ok: true, value: value as unknown as DesktopGatewaySuccessValueV1 }; } });
+    const page = await port.list({ schemaVersion: "0.1", descriptionLinksTo: "booth:902" });
+    expect(page.facts.get("booth:90")?.variantCount).toBe(3);
+    expect(requests[0]).toMatchObject({ method: "library.list", params: { descriptionLinksTo: "booth:902" } });
+  });
   it("preserves separate identities, candidate metadata and per-card deletion scopes", async () => {
     const page = await createLiveLibraryBrowserPort(client(vector())).list({ schemaVersion: "0.1" });
     expect(page.catalog.kind).toBe("results");

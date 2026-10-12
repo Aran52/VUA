@@ -95,7 +95,7 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
     let source_category = root
         .value()
         .attr("data-shop-tracking-product-category")
-        .map(str::to_owned)
+        .map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned)
         .or_else(|| {
             let crumbs = Selector::parse("#js-item-category-breadcrumbs li").expect("static selector");
             let last = document

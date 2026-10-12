@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
 import type {
   ApplicationEventV01,
   AmfModuleSnapshotV01,
@@ -82,6 +82,18 @@ const api: VuaDesktopApiV2 = Object.freeze({
       ipcRenderer.on("vua:amf-module:changed", wrapped);
       return () => ipcRenderer.removeListener("vua:amf-module:changed", wrapped);
     },
+  }),
+  library: Object.freeze({
+    openFolder: () => ipcRenderer.invoke("vua:library:open-folder"),
+    openEntryFolder: (entryId: string) => ipcRenderer.invoke("vua:library:open-entry-folder", entryId),
+    openBoothProduct: (productId: string) => ipcRenderer.invoke("vua:library:open-booth-product", productId),
+    resolveDroppedFiles: (files: readonly File[]) => {
+      if (!Array.isArray(files) || files.length === 0 || files.length > 200) return Promise.reject(new Error("invalid native file drop"));
+      const paths = files.map(file => webUtils.getPathForFile(file));
+      if (paths.some(value => value === "")) return Promise.reject(new Error("drop requires native files"));
+      return ipcRenderer.invoke("vua:library:resolve-dropped-files", paths);
+    },
+    previewDirectory: (path: string) => ipcRenderer.invoke("vua:library:preview-directory", path),
   }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
@@ -289,10 +301,13 @@ const api: VuaDesktopApiV2 = Object.freeze({
     // 并以全量观察(变体/画廊/描述/品牌)更新该行;无网络外泄面
     fetchProduct: (productId: string) =>
       ipcRenderer.invoke("vua:catalog-sync:fetch-product", productId),
+    searchProducts: (query: string) => ipcRenderer.invoke("vua:catalog-sync:search-products", query),
   }),
   // 静默下载(N5,2026-10-05 用户裁决):文件 id 批入队即受理;进度与终态
   // 走下载任务面(通知中心),本面不返回过程
   silentDownload: Object.freeze({
+    control: (batchId: string, paused: boolean) => ipcRenderer.invoke("vua:silent-download:control", batchId, paused),
+    transfers: () => ipcRenderer.invoke("vua:silent-download:transfers"),
     start: (productId: string, downloadableIds: readonly number[], replacementTargets?: readonly { readonly downloadableId: number; readonly copyId: string }[]) =>
       ipcRenderer.invoke("vua:silent-download:start", productId, downloadableIds, replacementTargets),
   }),
@@ -318,6 +333,7 @@ const api: VuaDesktopApiV2 = Object.freeze({
   // 只读列目录 + 单层新建;失败收信不抛,options 缺席经 null 透传(Main
   // 侧按形状收窄,IPC 序列化 undefined→null 的可选参数洞由此封死)
   fs: Object.freeze({
+    navigation: () => ipcRenderer.invoke("vua:fs:navigation"),
     listDirectory: (target: string | null, options?: { readonly showHidden?: boolean }) =>
       ipcRenderer.invoke("vua:fs:list-directory", target, options ?? null),
     createDirectory: (parentPath: string, name: string) =>

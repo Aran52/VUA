@@ -25,6 +25,7 @@ import { createLiveReleaseHandoffPort } from "../features/release/release-handof
 import { createLiveReleaseProjectOpenPort } from "../features/release/release-project-open-port-live.ts";
 import type { TaskCenterView, TaskPort } from "./task-port.ts";
 import type { CapabilityReport, DataSource } from "./types.ts";
+import { TaskProgressCache } from "./task-progress.ts";
 
 /**
  * Electron live Gateway(F2/F-3):任务中心、环境快照与生产纵向七方法经
@@ -39,6 +40,7 @@ function isTaskEvent(event: ApplicationEventV01): event is TaskEventV01 {
 }
 
 function createLiveTaskPort(client: GatewayClient): TaskPort {
+  const progress = new TaskProgressCache();
   const fetchView = async (): Promise<TaskCenterView> => {
     const result = await client.invoke({
       schemaVersion: 1,
@@ -52,7 +54,7 @@ function createLiveTaskPort(client: GatewayClient): TaskPort {
     if (!result.ok || !("revision" in result.value) || !("tasks" in result.value)) {
       throw new Error("task_list_unavailable");
     }
-    return { schemaVersion: 1, tasks: result.value.tasks.map(projectTaskItem) };
+    return { schemaVersion: 1, tasks: result.value.tasks.map(task => progress.project(projectTaskItem(task))) };
   };
   const refreshBestEffort = async (): Promise<TaskCenterView> => {
     try {
@@ -64,13 +66,23 @@ function createLiveTaskPort(client: GatewayClient): TaskPort {
   return {
     snapshot: fetchView,
     subscribe(callback) {
+      let active = true; let pending = false; let refreshing = false;
+      const refresh = async () => {
+        if (refreshing) return;
+        refreshing = true;
+        while (active && pending) {
+          pending = false;
+          try { const view = await fetchView(); if (active) callback(view); } catch { /* Keep the last confirmed view while disconnected. */ }
+        }
+        refreshing = false;
+      };
       // 事件只是事实通知;权威状态一律经 task.list 重取(契约"revision 与事件")
-      return client.subscribe((event) => {
+      const unsubscribe = client.subscribe((event) => {
         if (!isTaskEvent(event)) return;
-        void fetchView().then(callback, () => {
-          /* 断连期间保留上一视图 */
-        });
+        progress.observe(event);
+        pending = true; void refresh();
       });
+      return () => { active = false; unsubscribe(); };
     },
     async cancel(taskId) {
       const result = await client.invoke({

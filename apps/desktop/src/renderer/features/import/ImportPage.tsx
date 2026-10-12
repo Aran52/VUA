@@ -41,11 +41,9 @@ import { useAcquireView } from "../../gateway/index.ts";
 import { entrySurfacesVisible, inferGlobalDefaultMode } from "../warehouse/acquire-model.ts";
 
 /**
- * 素材导入(M6 IMP-2 批 A;proposal 015 对账受理,design-standard §8.3):连续素
- * 材获取路径的两段诚实呈现。2026-09-20 导航重构(用户裁决)起不再是独立页——
- * 组件整体由仓储页经 ContentDialog 挂载为页内弹窗,导航模型无对应页面;以下
- * 生命周期与两段内容语义不变,弹窗关闭即卸载组件,恰好触发同款「卸载即关」
- * 语义(见下)。
+ * 仓储页本地导入弹窗：2026-10-12 用户裁决起直接打开文件夹选择器，
+ * 选定文件夹后沿用确认列表与 warehouse.import 命令。取消初次选择即关闭。
+ * 只有显式 initialUrl 的旧商品获取交接保留云端浏览段，不参与本地导入入口。
  *
  * - 云端段:内嵌浏览面板。能力两态(desktop 架构 1.1.0):壳能力自报驱动——
  *   false = 未接线诚实降级(不可用标注,无替代假动作);true = 面板可用。
@@ -53,8 +51,7 @@ import { entrySurfacesVisible, inferGlobalDefaultMode } from "../warehouse/acqui
  *   signInHint 引导(未登录 → 登录页,已登录/未知 → 主页)。2026-09-25
  *   用户裁决极简形态:地址输入行退役(它不导入链接,只开内嵌浏览器,
  *   而允许清单本就只有 booth.pm/accounts.booth.pm——近死重),空态 =
- *   短说明 + 一个主钮(与首开同一条自动导航线);「重选来源」回行云端
- *   段移除(本地段保留)。用户关闭视图(导航条 ×)的归因(import-model
+ *   短说明 + 一个主钮(与首开同一条自动导航线)。用户关闭视图(导航条 ×)的归因(import-model
  *   ViewCloseTracker,拆卸/代次兜底关闭永不误判):已完成下载为零 →
  *   宿主弹窗自动收口;有下载 → 驻留,空态换「重新打开内嵌浏览」细钮。
  *   视图打开时呈现固定导航条(后退/前进/刷新/回首页/URL 脱敏显示/关闭回
@@ -78,8 +75,7 @@ import { entrySurfacesVisible, inferGlobalDefaultMode } from "../warehouse/acqui
  * - 本地段:W18 提交流迁入(确认列表→单命令 warehouse.import→任务中心;
  *   IMP-4 收口)。拾取面 2026-09-25 起为应用内文件夹选择器(用户裁决,
  *   ALCOM 形态:目录浏览/多选/新建/记忆,DesktopFsApiV1 窄面;Windows
- *   原生选择降为选择器内次级路径),确认合流去重累加。两段落成同一素
- *   材包条目模型。
+ *   原生选择降为选择器内次级路径),确认合流去重累加。
  */
 const copy = strings.importPage;
 const acquireCopy = strings.warehouse.acquire;
@@ -410,7 +406,8 @@ function LocalImportSection({ onRequestClose }: ImportCloseRequest) {
   // 应用内文件夹选择器(2026-09-25 用户裁决,ALCOM 形态):拾取从原生
   // 对话框改为弹窗内目录浏览(DesktopFsApiV1 窄面),原生选择降为选择器
   // 内次级路径;确认合流去重累加(重复拾取补选,不清空既有待确认清单)
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(true);
+  const pickerConfirmed = useRef(false);
   // 受理态自动关闭(W25 走查缺陷③根因修复):受理后弹窗短暂呈现「已受理」
   // 随即自动关闭,任务进度归任务中心——模态滞留(背景全部 inert)被用户
   // 视作整屏卡死的行为终止。武装判据见 autoCloseArmed(import-model,第
@@ -430,6 +427,7 @@ function LocalImportSection({ onRequestClose }: ImportCloseRequest) {
 
   const startImport = () => {
     setImportFeedback(null);
+    pickerConfirmed.current = false;
     setPickerOpen(true);
   };
 
@@ -438,6 +436,7 @@ function LocalImportSection({ onRequestClose }: ImportCloseRequest) {
       setImportFeedback({ kind: "notice", text: acquireCopy.importEmptySelection });
       return;
     }
+    pickerConfirmed.current = true;
     setPendingFolders((current) => mergeUniqueFolders(current, folders));
   };
 
@@ -475,9 +474,7 @@ function LocalImportSection({ onRequestClose }: ImportCloseRequest) {
 
   return (
     <div className="vua-import__local">
-      <Button variant="default" onClick={startImport} disabled={importBusy}>
-        {acquireCopy.importTitle}
-      </Button>
+      {pendingFolders !== null || importFeedback?.kind === "accepted" ? <Button variant="default" onClick={startImport} disabled={importBusy}>{copy.addFolders}</Button> : null}
       {importFeedback !== null ? (
         <p
           className="vua-caption vua-text-secondary"
@@ -540,7 +537,7 @@ function LocalImportSection({ onRequestClose }: ImportCloseRequest) {
       ) : null}
       <FolderPickerDialog
         open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
+        onClose={() => { setPickerOpen(false); if (!pickerConfirmed.current && pendingFolders === null) requestCloseRef.current?.(); }}
         onConfirm={handlePickerConfirm}
         onUseWindowsPicker={handleUseWindowsPicker}
       />
@@ -719,9 +716,7 @@ function CompletedDownloadsPanel({
 /* ---- 页面 ---- */
 
 export function ImportPage({ onRequestClose, initialUrl }: ImportCloseRequest & {
-  /** 定向首开地址(仓储右键「下载到本地」→ 商品页):在场且云端可用时
-   *  弹窗直入云端段并首开该地址,跳过「本地/云端」选择步——右键已是
-   *  显式浏览意图;弹窗关闭即卸载,重开(无论是否携带)回到诚实起点 */
+  /** An explicit legacy cloud handoff retains its isolated browser lifetime. */
   initialUrl?: string | undefined;
 } = {}) {
   // 能力两态数据源 = 壳能力自报(proposal 015 §11 仲裁方案 a:能力拥有者
@@ -731,16 +726,11 @@ export function ImportPage({ onRequestClose, initialUrl }: ImportCloseRequest & 
     () => browseAvailability(window.vua?.capabilities?.remoteBrowser),
     [],
   );
-  // 来源分流(W25 走查缺陷②,用户裁决期望):弹窗打开先选「本地导入/
-  // 云端导入」再进入对应段——不再同时铺开两段,云端段(内嵌 BOOTH 视图)
-  // 只在用户显式选择后激活,不再一开弹窗就自动盖出浏览器。弹窗关闭即
-  // 卸载组件,重开回到选择态(诚实起点,无记忆猜测)。
+  // Ordinary local intake opens the folder picker immediately (2026-10-12 ruling).
   // onRequestClose(W25 走查缺陷③根因修复):宿主弹窗的关闭请求线——
   // 受理态自动关闭计时与失败态醒目「关闭」主按钮都经此线收口;缺省
   // (如独立夹具挂载)诚实降级为无自动关闭,不猜测宿主。
-  const [section, setSection] = useState<"choose" | "local" | "cloud">(
-    initialUrl !== undefined && availability.kind === "available" ? "cloud" : "choose",
-  );
+  const section = initialUrl !== undefined && availability.kind === "available" ? "cloud" : "local";
   // 已完成下载计数(云端段自动收口裁决的事实源):null = 读面不可达/
   // 未落定,未知不武装(不猜态);由 CompletedDownloadsPanel 落定即报
   const [downloadsCount, setDownloadsCount] = useState<number | null>(null);
@@ -756,40 +746,10 @@ export function ImportPage({ onRequestClose, initialUrl }: ImportCloseRequest & 
 
   return (
     <div className="vua-page">
-      <section className="vua-page__hero">
-        <h1 className="vua-title">{copy.title}</h1>
-        <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
-      </section>
-
-      {section === "choose" ? (
-        <Card>
-          <div className="vua-import__choose" role="group" aria-label={copy.chooseAria}>
-            <p className="vua-text-secondary">{copy.chooseLead}</p>
-            <div className="vua-import__choose-actions">
-              <Button variant="primary" onClick={() => setSection("local")}>
-                {copy.chooseLocalCta}
-              </Button>
-              <Button
-                variant="default"
-                data-nav-id="import-cloud"
-                disabled={availability.kind !== "available"}
-                onClick={() => setSection("cloud")}
-              >
-                {copy.chooseCloudCta}
-              </Button>
-            </div>
-            {availability.kind !== "available" ? (
-              <p className="vua-caption vua-text-secondary">{copy.cloudUnavailable}</p>
-            ) : null}
-          </div>
-        </Card>
-      ) : (
         <Card>
           <div className="vua-page__stack">
             {section === "cloud" ? (
-              /* 云端段(2026-09-25 用户裁决极简形态):无「重选来源」回行
-                 (本地段保留)——空下载时关视图即弹窗收口,有下载时面板内
-                 「重新打开内嵌浏览」继续,收口路径不缺 */
+              /* Explicit cloud handoffs keep the existing close/reopen behavior. */
               <section>
                 <h3 className="vua-warehouse-detail__section-title">{copy.cloudTitle}</h3>
                 <EmbeddedBrowsePanel
@@ -805,18 +765,11 @@ export function ImportPage({ onRequestClose, initialUrl }: ImportCloseRequest & 
               </section>
             ) : (
               <section>
-                <div>
-                  <Button variant="subtle" onClick={() => setSection("choose")}>
-                    {copy.rechooseCta}
-                  </Button>
-                </div>
-                <h3 className="vua-warehouse-detail__section-title">{copy.localTitle}</h3>
                 <LocalImportSection onRequestClose={onRequestClose} />
               </section>
             )}
           </div>
         </Card>
-      )}
     </div>
   );
 }

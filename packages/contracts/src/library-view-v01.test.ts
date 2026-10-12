@@ -6,7 +6,12 @@ import { isDesktopGatewayRequestV1, DESKTOP_GATEWAY_METHOD_KINDS } from "./deskt
 import { isLibraryListV01, isLibraryProductFilesV01, isLibraryViewParamsV01 } from "./library-view-v01.js";
 const vector = (name: string): Record<string, unknown> => JSON.parse(readFileSync(fileURLToPath(new URL(`../../../schemas/library-view/v0.1/examples/${name}.json`, import.meta.url)), "utf8")) as Record<string, unknown>;
 describe("library-view v0.1 consumers", () => {
-  for (const name of ["list.request", "files.request", "invalid-session.request", "invalid-limit.request"]) {
+  it("accepts explicit imported origin without changing the retained physical-local source", () => {
+    const request = vector("imported-source.request");
+    expect(isLibraryViewParamsV01(String(request.method), request.params)).toBe(true);
+    expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", source: "local" })).toBe(true);
+  });
+  for (const name of ["list.request", "files.request", "description-links.request", "category.request", "unknown-category.request", "invalid-category.request", "invalid-session.request", "invalid-limit.request"]) {
     it(name, () => {
       const request = vector(name); const valid = !name.startsWith("invalid");
       expect(isLibraryViewParamsV01(String(request.method), request.params)).toBe(valid);
@@ -17,9 +22,20 @@ describe("library-view v0.1 consumers", () => {
   }
   it("accepts actual multi-source and physical-copy evidence without paths", () => {
     expect(isLibraryListV01(vector("list.response"))).toBe(true);
+    expect(isLibraryListV01(vector("category.response"))).toBe(true);
     expect(isLibraryListV01(vector("local-source.response"))).toBe(true);
     expect(isLibraryProductFilesV01(vector("files.response"))).toBe(true);
     expect(isLibraryProductFilesV01(vector("invalid-path.response"))).toBe(false);
+  });
+  it("requires an exact product identity for reverse links and safe recorded variant counts", () => {
+    for (const descriptionLinksTo of [null, "", "902", "https://booth.pm/items/902", "booth:x", 902]) expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", descriptionLinksTo })).toBe(false);
+    const response = vector("local-source.response");
+    const rows = response.items as Record<string, unknown>[];
+    rows[0]!.variantCount = 3; rows[1]!.variantCount = 0;
+    expect(isLibraryListV01(response)).toBe(true);
+    for (const count of [-1, 1.5, "3", null, Number.MAX_SAFE_INTEGER + 1]) {
+      rows[0]!.variantCount = count; expect(isLibraryListV01(response)).toBe(false);
+    }
   });
   it("keeps source suggestions separate and validates each card's file scope", () => {
     const list = vector("local-source.response");
@@ -43,5 +59,17 @@ describe("library-view v0.1 consumers", () => {
     expect(isLibraryListV01(misleading)).toBe(false);
     const files = vector("files.response"); (files.items as Record<string, unknown>[])[0]!.managedCopyId = "cpy-not-listed";
     expect(isLibraryProductFilesV01(files)).toBe(false);
+  });
+  it("accepts native category facets and explicit unknown filters, rejecting guesses of other types", () => {
+    for (const sourceCategory of [null, "3D衣装", "カテゴリー名", "a".repeat(200)]) expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", sourceCategory })).toBe(true);
+    for (const sourceCategory of ["", 3, [], "a".repeat(201)]) expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", sourceCategory })).toBe(false);
+    const response = vector("list.response");
+    response.sourceCategories = ["3D衣装"];
+    (response.items as Record<string, unknown>[])[0]!.sourceCategory = "3D衣装";
+    expect(isLibraryListV01(response)).toBe(true);
+    response.sourceCategories = ["3D衣装", "3D衣装"];
+    expect(isLibraryListV01(response)).toBe(false);
+    response.sourceCategories = [3];
+    expect(isLibraryListV01(response)).toBe(false);
   });
 });

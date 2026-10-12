@@ -107,6 +107,7 @@ export function NotificationPopover({ navigate }: { navigate: (target: PageId) =
         ref={toggleRef}
         type="button"
         className="vua-shell__notify"
+        data-nav-id="shell-notifications"
         aria-expanded={open}
         aria-label={format(copy.openAria, { count: center.activeCount })}
         onClick={() => setPhase((p) => (p === "closed" ? "open" : "closing"))}

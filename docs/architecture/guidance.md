@@ -1,8 +1,8 @@
 # Guidance architecture: app tour, knowledge encyclopedia and game guide
 
-> Document version: 1.9.0
+> Document version: 1.10.0
 > Status: Accepted
-> Updated: 2026-10-11
+> Updated: 2026-10-12
 > Last conformance review: 2026-10-10 (controlled first-use greeting, real feature anchors, skip/finish/resume, locale and legacy-bookmark checks; author and four-language human review pending)
 > Scope: First play release guidance in Electron and React
 
@@ -50,7 +50,7 @@ reading progress. The [desktop-browser face](../protocols/desktop-browser-v0.1.m
 geometry, loading/return behavior and remote isolation. This entry adds no installed-software
 or room/tutorial verification claim.
 
-The Tasks window is a queue/status entry, without an onboarding switch. Preparation and game
+The Tasks window is a raw queue/status diagnostic under Settings → Experimental, without an onboarding switch. Preparation and game
 guidance stay in their own presentations; retained legacy explicit guide calls do not add a
 guide tab to Tasks. Account guidance opens Settings → Accounts with a settings-only sidebar.
 The upper-left Back action or clicking Settings again returns to the source workflow; a guide's
@@ -66,7 +66,7 @@ focusing on a specific button. The tour never covers a different application.
 On a new profile, startup first shows the welcome scene in the selected UI language, beginning
 with “Welcome, traveler from reality.” and the author's supplied Chinese, Japanese and Korean
 equivalents. It introduces VUA, then points to Home, network checks, environment cards and their
-actions, Tools, Avatar-editing preparation/AMF controls, Tasks, Help and Settings.
+actions, Tools, Avatar-editing preparation/AMF controls, the notification bell, Help and Settings.
 Development tool entries remain descriptions, not claims of installation. These are available
 host controls; complex AMF workflow teaching follows AMF's own delivery.
 
@@ -217,6 +217,8 @@ code and real-machine checks.
 
 ## Document changelog
 
+- 1.10.0 (2026-10-12): anchor task guidance to the header notification bell and relocate raw queue diagnostics to Experimental.
+
 - 1.9.0 (2026-10-11): add an AMF-independent official Wiki entry in the encyclopedia, preserving local reading and targeted-chapter return through the Candidate desktop browser.
 - 1.8.1 (2026-10-10): align the tour's Avatar-editing wording with fresh-default AMF activation without giving guidance any module-lifecycle authority.
 - 1.8.0 (2026-10-10): add the author's four-language first-use welcome and automatic feature tour before the independent wizard, preserving existing profiles, manual replay and legacy active-step identity.
@@ -226,6 +228,5 @@ code and real-machine checks.
 - 1.5.0 (2026-10-09): fix background-only guide opacity and define persisted relative drag placement across focus, window and session changes without retaining machine identifiers.
 - 1.4.0 (2026-10-09): separate the daily Tasks entry from guidance and route account-help return through the independent settings area; retain legacy guide-call compatibility.
 - 1.3.0 (2026-10-08): keep the independent first-run wizard and manually opened app tour distinct; route Help and tour anchors through the fixed directory.
-- 1.2.0 (2026-10-08): record the delivered game-window observer and automatic guide following (game-window-observe v0.1); real-machine acceptance remains in the delivery plan.
 
 Earlier entries remain in Git history.

@@ -22,6 +22,28 @@ fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
 }
 
 #[test]
+fn public_booth_search_vectors_cross_the_wire_without_mutating_the_account_library() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/booth-search/v0.1");
+    let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(root.join(name)).unwrap()).unwrap() };
+    let request_schema = jsonschema::validator_for(&read("request.schema.json")).unwrap();
+    let response_schema = jsonschema::validator_for(&read("response.schema.json")).unwrap();
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let before = host.call("library.list", json!({"schemaVersion":"0.1"}));
+    for name in ["public", "invalid-source", "invalid-empty"] {
+        let request = read(&format!("examples/{name}.request.json"));
+        let valid = name == "public";
+        assert_eq!(request_schema.is_valid(&request), valid, "{name}");
+        let response = host.call("catalog.searchProducts", request["params"].clone());
+        assert_eq!(response["ok"], valid, "{response}");
+        if valid { assert!(response_schema.is_valid(&response["value"])); assert_eq!(response["value"], read("examples/public.response.json")); }
+    }
+    let mut mismatch = read("examples/public.request.json")["params"].clone();
+    mismatch["query"] = json!("Different");
+    assert_eq!(host.call("catalog.searchProducts", mismatch)["ok"], false);
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1"}))["value"], before["value"]);
+}
+
+#[test]
 fn library_intake_wire_keeps_files_expands_zip_and_replays_without_duplicate_entries() {
     let world = World::new();
     let source = world.base.join("migrated-source");
@@ -54,6 +76,65 @@ fn library_intake_wire_keeps_files_expands_zip_and_replays_without_duplicate_ent
     for invalid in [json!({"schemaVersion":"0.1","sourceFolders":[]}), json!({"schemaVersion":"0.1","sourceFolders":["relative"]}), json!({"schemaVersion":"0.1","sourceFolders":[source],"unknown":true})] {
         assert_eq!(host.call("library.importFolders", invalid)["ok"], false);
     }
+}
+
+#[test]
+fn mixed_file_folder_intake_v02_is_scoped_idempotent_and_consumes_schema_vectors() {
+    let world = World::new();
+    let folder = world.base.join("drop-folder"); std::fs::create_dir(&folder).unwrap();
+    std::fs::write(folder.join("texture.psd"), b"synthetic texture").unwrap();
+    let file = world.base.join("single.txt"); std::fs::write(&file, b"only this file").unwrap();
+    std::fs::write(world.base.join("unselected.txt"), b"must not import this sibling").unwrap();
+    let zip = world.base.join("single.zip");
+    let archive = zip_bytes(&[("sub/avatar.unitypackage", b"synthetic package"), ("instructions.txt", b"synthetic instructions")]);
+    std::fs::write(&zip, &archive).unwrap();
+    let params = json!({"schemaVersion":"0.2","sourcePaths":[folder,file,zip]});
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    let accepted = host.call_command("library.importPaths", params.clone(), Some("mixed-once"));
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let again = host.call_command("library.importPaths", params, Some("mixed-once"));
+    assert_eq!(accepted["value"]["taskId"], again["value"]["taskId"]);
+    let task_id = accepted["value"]["taskId"].as_str().unwrap(); let start = Instant::now();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded); break; }
+        assert!(start.elapsed() < Duration::from_secs(10)); std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 3);
+    let copies = world.bdl.library_copy_evidence().unwrap();
+    assert_eq!(copies.len(), 5);
+    assert!(!copies.iter().any(|c| c.copy.relative_path.contains("unselected.txt")));
+    assert!(copies.iter().any(|c| c.copy.relative_path.ends_with("sub/avatar.unitypackage")));
+    assert_eq!(std::fs::read(&file).unwrap(), b"only this file"); assert_eq!(std::fs::read(&zip).unwrap(), archive);
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/library-intake/v0.2");
+    let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(root.join(name)).unwrap()).unwrap() };
+    assert!(jsonschema::validator_for(&read("response.schema.json")).unwrap().is_valid(&accepted["value"]));
+    let request_schema = jsonschema::validator_for(&read("request.schema.json")).unwrap();
+    for name in ["import", "invalid-relative", "invalid-empty", "invalid-null", "invalid-unknown", "invalid-duplicate"] {
+        let request = read(&format!("examples/{name}.request.json"));
+        assert_eq!(request_schema.is_valid(&request), name == "import", "{name}");
+        if name != "import" { assert_eq!(host.call_command("library.importPaths", request["params"].clone(), Some(name))["ok"], false, "{name}"); }
+    }
+    // Versioned faces stay distinct; replay with a different selection is a conflict.
+    for invalid in [json!({"schemaVersion":"0.1","sourcePaths":[file]}), json!({"schemaVersion":"0.2","sourceFolders":[folder]})] {
+        assert_eq!(host.call_command("library.importPaths", invalid, Some("bad-face"))["ok"], false);
+    }
+    assert_eq!(host.call_command("library.importPaths", json!({"schemaVersion":"0.2","sourcePaths":[file]}), Some("mixed-once"))["ok"], false);
+    assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 3);
+}
+
+#[test]
+fn mixed_intake_refuses_warehouse_recursion_before_creating_an_entry() {
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let accepted = host.call_command("library.importPaths", json!({"schemaVersion":"0.2","sourcePaths":[world.base]}), Some("recursive-drop"));
+    assert_eq!(accepted["ok"], true);
+    let start = Instant::now(); let task_id = accepted["value"]["taskId"].as_str().unwrap();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Failed); break; }
+        assert!(start.elapsed() < Duration::from_secs(10)); std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().is_empty());
 }
 
 #[test]
@@ -125,6 +206,29 @@ fn interrupted_removal_wire_discovers_and_resolves_without_deleting_the_file() {
 }
 
 #[test]
+fn public_provenance_association_persists_without_account_membership_or_extra_cloud_card() {
+    let world = World::new();
+    let html = "<ul><li class='item-card' data-product-id='99' data-product-name='Public synthetic product'><h2 class='item-card__title'>Public synthetic product</h2></li></ul>";
+    let page = vua_acquisition::extract_library_page(html).unwrap();
+    world.bdl.record_product_observation(&vua_acquisition::library_item_to_observation(
+        &page.items[0], &format!("sha256:{}", "1".repeat(64)), "t", None, None,
+    )).unwrap();
+    let entry = world.bdl.create_warehouse_item("Local folder", "imported_material", "t").unwrap();
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    let result = host.call_command("library.updateEntryMetadata", json!({"schemaVersion":"0.1","entryId":entry.warehouse_item_id,"expectedRevision":0,"displayName":"Local folder","productId":"booth:99","thumbnailRef":null}), Some("public-source-only"));
+    assert_eq!(result["ok"], true, "{result}");
+    assert!(world.bdl.product_library_memberships("booth:99").unwrap().is_empty());
+    let view = host.call("library.list", json!({"schemaVersion":"0.1"}));
+    let rows = view["value"]["items"].as_array().unwrap();
+    let local = rows.iter().find(|row| row["entry"]["warehouseItemId"] == entry.warehouse_item_id).unwrap();
+    assert_eq!(local["sourceMatch"]["basis"], "mapping"); assert_eq!(local["sourceMatch"]["sources"], json!([]));
+    assert!(!rows.iter().any(|row| row["kind"] == "product" && row["product"]["productId"] == "booth:99"));
+    drop(host);
+    let reopened = BdlStore::open(world.base.join("bdl.db")).unwrap();
+    assert_eq!(reopened.library_entry_metadata(&entry.warehouse_item_id).unwrap().product_id.as_deref(), Some("booth:99"));
+}
+
+#[test]
 fn metadata_wire_has_atomic_replay_and_persistent_local_only_edits() {
     let world = World::new();
     let entry = world.bdl.create_warehouse_item("Local folder", "imported_material", "t").unwrap();
@@ -156,6 +260,55 @@ fn metadata_wire_has_atomic_replay_and_persistent_local_only_edits() {
 struct Lines {
     receiver: mpsc::Receiver<Vec<u8>>,
     current: Cursor<Vec<u8>>,
+}
+
+#[test]
+fn imported_source_and_card_removal_keep_files_refs_account_and_restart_tombstones() {
+    let world = World::new();
+    let entry = world.bdl.create_warehouse_item("An empty local import", "imported_material", "t").unwrap();
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    assert_eq!(host.batch("card-test", &[901])["ok"], true);
+    world.delivery(901, "dl-card-test", b"synthetic account download");
+    assert_eq!(host.observe("card-test", 901, "dl-card-test")["ok"], true);
+    assert_eq!(host.wait("card-test", &world.tasks)["state"], "succeeded");
+    let copy = world.bdl.managed_library_file(901).unwrap().unwrap();
+    let draft = host.call("recipeDraft.save", json!({"schemaVersion":"0.1","draftId":"recipe-draft-card-preserved","title":"Synthetic retained reference","baseRevision":0,
+        "selections":[{"identity":"booth:90","displayName":"Synthetic account product","source":"cloud"}]}));
+    assert_eq!(draft["ok"], true, "{draft}");
+    let imported = host.call("library.list", json!({"schemaVersion":"0.1","source":"imported"}));
+    assert_eq!(imported["value"]["total"], 1);
+    assert_eq!(imported["value"]["items"][0]["entry"]["warehouseItemId"], entry.warehouse_item_id);
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1","source":"local"}))["value"]["items"][0]["product"]["productId"], "booth:90");
+    let before = host.call("library.list", json!({"schemaVersion":"0.1"}))["value"].clone();
+    let invalid = json!({"schemaVersion":"0.2","targets":[{"kind":"entry","id":entry.warehouse_item_id},{"kind":"product","id":"booth:404"}]});
+    assert_eq!(host.call_command("library.removeCards", invalid, Some("bad-card-removal"))["error"]["code"], "vua.library.card_not_found");
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1"}))["value"], before);
+    // A physically missing account file still has a removable product card.
+    assert!(std::path::Path::new(&copy.stored_path).starts_with(&world.base));
+    std::fs::remove_file(&copy.stored_path).unwrap();
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1","state":"missing"}))["value"]["total"], 1);
+    let schema_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/library-records/v0.2");
+    let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(schema_root.join(name)).unwrap()).unwrap() };
+    let mut request = read("examples/remove.request.json"); request["params"]["targets"][0]["id"] = json!(entry.warehouse_item_id);
+    assert!(jsonschema::validator_for(&read("request.schema.json")).unwrap().is_valid(&request));
+    let removed = host.call_command("library.removeCards", request["params"].clone(), Some("remove-cards-once"));
+    assert_eq!(removed["ok"], true, "{removed}");
+    assert!(jsonschema::validator_for(&read("response.schema.json")).unwrap().is_valid(&removed["value"]));
+    assert_eq!(host.call_command("library.removeCards", request["params"].clone(), Some("remove-cards-once"))["value"], removed["value"]);
+    let changed = json!({"schemaVersion":"0.2","targets":[{"kind":"product","id":"booth:90"}]});
+    assert_eq!(host.call_command("library.removeCards", changed, Some("remove-cards-once"))["error"]["code"], "vua.library.record_conflict");
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1"}))["value"]["total"], 0);
+    assert!(world.bdl.warehouse_entry_detail(&entry.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage).unwrap().is_some());
+    assert!(world.bdl.managed_library_file(901).unwrap().is_some());
+    assert_eq!(world.bdl.product_library_memberships("booth:90").unwrap(), vec!["bought"]);
+    assert_eq!(host.call("recipeDraft.get", json!({"schemaVersion":"0.1","draftId":"recipe-draft-card-preserved"}))["value"]["document"], draft["value"]["document"]);
+    drop(host);
+    let reopened = Arc::new(BdlStore::open(world.base.join("bdl.db")).unwrap());
+    reopened.upsert_product_downloadables("booth:90", &[(901,"new product observation.pdf".into())], "t2", None, Some("bought")).unwrap();
+    let mut restarted = Host::new(&world.base, reopened);
+    assert_eq!(restarted.call("library.list", json!({"schemaVersion":"0.1"}))["value"]["total"], 0);
+    assert_eq!(restarted.call_command("library.removeCards", request["params"].clone(), Some("remove-cards-once"))["value"], removed["value"]);
+    assert_eq!(restarted.call("recipeDraft.get", json!({"schemaVersion":"0.1","draftId":"recipe-draft-card-preserved"}))["value"]["document"], draft["value"]["document"]);
 }
 
 #[test]
@@ -261,6 +414,7 @@ impl Host {
         let query = matches!(
             method,
             "library.downloadStatus"
+                | "catalog.searchProducts"
                 | "library.entryMetadata"
                 | "library.list"
                 | "library.productFiles"
@@ -617,19 +771,20 @@ fn library_view_schema_vectors_and_real_queries_agree() {
     };
     let request = jsonschema::validator_for(&read("request.schema.json")).unwrap();
     let response = jsonschema::validator_for(&read("response.schema.json")).unwrap();
-    for name in ["list.request", "files.request"] {
+    for name in ["list.request", "files.request", "description-links.request", "category.request", "unknown-category.request"] {
         assert!(request.is_valid(&read(&format!("examples/{name}.json"))));
     }
     for name in ["invalid-session.request", "invalid-limit.request"] {
         assert!(!request.is_valid(&read(&format!("examples/{name}.json"))));
     }
-    for name in ["list.response", "files.response", "local-source.response"] {
+    for name in ["list.response", "files.response", "local-source.response", "category.response"] {
         assert!(
             response.is_valid(&read(&format!("examples/{name}.json"))),
             "{name}"
         );
     }
     assert!(!response.is_valid(&read("examples/invalid-path.response.json")));
+    assert!(!request.is_valid(&read("examples/invalid-category.request.json")));
     let world = World::new();
     let mut host = Host::new(&world.base, world.bdl.clone());
     let list = host.call("library.list", json!({"schemaVersion":"0.1"}));
@@ -657,6 +812,22 @@ fn library_view_schema_vectors_and_real_queries_agree() {
         host.call("library.list", json!({"schemaVersion":"0.1","limit":201}))["error"]["code"],
         "vua.library.invalid_params"
     );
+}
+
+#[test]
+fn description_link_filter_and_variant_counts_cross_the_native_wire_and_clear() {
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let page = |body: &str| json!({"schemaVersion":"0.2","sourceUrl":"https://booth.pm/items/90","fetchedAt":"2026-10-12T00:00:00Z",
+        "html":format!(r#"<div id="items" data-product-id="90"><article><div class="summary"><h2>Synthetic outfit</h2></div><div class="js-market-item-detail-description description">{body}</div></article></div>"#)});
+    assert_eq!(host.call("catalog.ingestLibraryPage", page(r#"<a href="https://booth.pm/en/items/999"><img src="x"></a>"#))["ok"], true);
+    let request = json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"});
+    let result = host.call("library.list",request.clone()); assert_eq!(result["ok"],true,"{result}"); assert_eq!(result["value"]["total"],1);
+    assert_eq!(result["value"]["items"][0]["variantCount"],0);
+    for invalid in [Value::Null, json!("booth:x"), json!("https://booth.pm/items/999")] {
+        assert_eq!(host.call("library.list",json!({"schemaVersion":"0.1","descriptionLinksTo":invalid}))["error"]["code"],"vua.library.invalid_params");
+    }
+    assert_eq!(host.call("catalog.ingestLibraryPage",page(""))["ok"],true);
+    assert_eq!(host.call("library.list",request)["value"]["total"],0);
 }
 
 #[test]

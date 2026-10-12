@@ -41,6 +41,16 @@ describe("Electron Desktop Gateway routing", () => {
       expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "query", method, params }));
     }
   });
+  it("routes v0.2 native intake with separate idempotency and rejects non-closed parameters", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
+    const context = { provider, productVersion: "0.6.6", platform: "win32", rendererUrl };
+    const params = { schemaVersion: "0.2", sourcePaths: ["C:/Synthetic/Avatar.zip", "C:/Synthetic/Clothes"], commandId: "drop-once" };
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "drop", method: "library.importPaths", params });
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({ kind: "command", method: "library.importPaths", commandId: "drop-once", params: { schemaVersion: "0.2", sourcePaths: params.sourcePaths } }));
+    invoke.mockClear();
+    const rejected = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "drop-bad", method: "library.importPaths", params: { ...params, upload: true } });
+    expect(rejected).toMatchObject({ ok: false, error: { code: "invalid_request" } }); expect(invoke).not.toHaveBeenCalled();
+  });
   it("routes file deletion with its durable removal identity and rejects renderer paths", async () => {
     const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
     const context = { provider, productVersion: "0.6.0", platform: "win32", rendererUrl };

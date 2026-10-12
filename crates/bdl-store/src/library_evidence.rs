@@ -13,6 +13,42 @@ pub struct LibraryCopyEvidence {
 }
 
 impl BdlStore {
+    /// Last complete description snapshot. Empty replaces older link evidence;
+    /// account-library observations do not overwrite this independent snapshot.
+    pub fn record_description_links(&self, product_id: &str, targets: &[String], content_hash: &str, observed_at: &str) -> Result<(), BdlStoreError> {
+        let targets = serde_json::to_string(targets)?;
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        connection.execute("INSERT INTO product_description_links(product_id,target_ids,content_hash,observed_at) VALUES(?1,?2,?3,?4)
+            ON CONFLICT(product_id) DO UPDATE SET target_ids=excluded.target_ids,content_hash=excluded.content_hash,observed_at=excluded.observed_at",
+            rusqlite::params![product_id, targets, content_hash, observed_at])?;
+        Ok(())
+    }
+
+    pub fn library_description_links(&self) -> Result<std::collections::HashMap<String, Vec<String>>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare("SELECT product_id,target_ids FROM product_description_links")?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let mut result = std::collections::HashMap::new();
+        for row in rows { let (id, targets) = row?; result.insert(id, serde_json::from_str(&targets)?); }
+        Ok(result)
+    }
+
+    /// Observed product-page variant choices, never account entitlement counts.
+    pub fn library_variant_counts(&self) -> Result<std::collections::HashMap<String, usize>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare("SELECT product_id,COALESCE(json_array_length(subproducts),0) FROM products")?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)? as usize)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Original BOOTH category observations, without widening the frozen catalog face.
+    pub fn library_product_categories(&self) -> Result<std::collections::HashMap<String, Option<String>>, BdlStoreError> {
+        let conn = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = conn.prepare("SELECT product_id, source_category FROM products ORDER BY product_id")?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     pub fn library_product_summaries(
         &self,
     ) -> Result<Vec<crate::bdl_queries::CatalogProductSummary>, BdlStoreError> {

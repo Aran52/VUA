@@ -75,6 +75,14 @@ export async function registerImageCacheProtocol(dataRoot?: string): Promise<voi
   moduleDataRoot = dataRoot;
   await mkdir(cacheDir(), { recursive: true });
   active = true;
+  installImageCacheProtocol();
+}
+
+/** Install before creating any renderer, including the splash. Electron captures
+ * protocol loaders when a renderer starts; late registration leaves that renderer
+ * reporting ERR_UNKNOWN_URL_SCHEME even though Main can fetch the same URL.
+ * Installation alone creates no AMF storage and does not authorize image reads. */
+export function installImageCacheProtocol(): void {
   if (registered) return;
   registered = true;
   protocol.handle("vua-img", async (request) => {
@@ -85,7 +93,7 @@ export async function registerImageCacheProtocol(dataRoot?: string): Promise<voi
       if (!existsSync(file)) return new Response("missing", { status: 404 });
       return new Response(new Uint8Array(await readFile(file)), { headers: { "content-type": "image/png", "cache-control": "immutable" } });
     }
-    const raw = decodeURIComponent(new URL(request.url).hostname + new URL(request.url).pathname.slice(1));
+    const raw = decodeURIComponent(target.hostname + target.pathname.slice(1));
     if (!raw.startsWith(ALLOWED_PREFIX)) {
       return new Response("forbidden", { status: 403 });
     }

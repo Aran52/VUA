@@ -17,6 +17,8 @@ struct Query {
     #[serde(default)]
     text: String,
     availability_status: Option<String>,
+    source_category: Option<String>,
+    description_links_to: Option<String>,
     #[serde(default = "limit")]
     limit: usize,
     #[serde(default)]
@@ -102,12 +104,14 @@ pub fn list(
     downloads: &LibraryDownloadService,
     params: Value,
 ) -> Result<Value, LibraryDownloadError> {
-    if params.get("availabilityStatus").is_some_and(Value::is_null) {
+    if params.get("availabilityStatus").is_some_and(Value::is_null) || params.get("descriptionLinksTo").is_some_and(Value::is_null) {
         return Err(LibraryDownloadError("invalid_params"));
     }
+    // Omitted = all categories; null = no recorded native category.
+    let category_filter = params.get("sourceCategory").cloned();
     let query: Query = serde_json::from_value(params)?;
     if query.schema_version != "0.1"
-        || !["all", "local", "bought", "gifts", "free_downloads"].contains(&query.source.as_str())
+        || !["all", "local", "imported", "bought", "gifts", "free_downloads"].contains(&query.source.as_str())
         || ![
             "all",
             "downloaded",
@@ -121,6 +125,8 @@ pub fn list(
         || query.limit > 200
         || query.offset > 9_007_199_254_740_991usize
         || query.text.chars().count() > 1000
+        || query.source_category.as_ref().is_some_and(|v| v.is_empty() || v.chars().count() > 200)
+        || params_product_invalid(&query.description_links_to)
         || query
             .availability_status
             .as_ref()
@@ -129,6 +135,9 @@ pub fn list(
         return Err(LibraryDownloadError("invalid_params"));
     }
     let mut products = bdl.library_product_summaries()?;
+    let categories = bdl.library_product_categories()?;
+    let variant_counts = bdl.library_variant_counts()?;
+    let linked_products = query.description_links_to.as_ref().map(|id| crate::description_dependencies::products_linking_to(bdl, id)).transpose()?;
     let removed = bdl.removed_local_entries()?;
     let entries: Vec<_> = bdl.warehouse_entry_cards(global_default)?.into_iter().filter(|entry| !removed.contains(&entry.warehouse_item_id)).collect();
     let copies: Vec<_> = bdl.library_copy_evidence()?.into_iter().filter(|copy| !removed.contains(&copy.copy.warehouse_item_id)).collect();
@@ -178,7 +187,9 @@ pub fn list(
             .or_insert(snapshot.clone());
     }
     let mut rows = Vec::new();
+    let removed_products = bdl.removed_library_products()?;
     for product in &mut products {
+        if removed_products.contains(&product.product_id) { continue; }
         let attached: Vec<_> = copies
             .iter()
             .filter(|copy| {
@@ -193,7 +204,7 @@ pub fn list(
         // Compatibility projection: this new face counts present physical copies,
         // while the frozen catalog face retains its historical mapping count.
         product.imported_artifacts = facts["presentCopies"].as_u64().unwrap_or(0) as u32;
-        rows.push(json!({"kind":"product","product":product,"sources":memberships[&product.product_id],
+        rows.push(json!({"kind":"product","product":product,"variantCount":variant_counts.get(&product.product_id).copied().unwrap_or(0),"sources":memberships[&product.product_id],"sourceCategory":categories.get(&product.product_id).and_then(|v| v.as_ref()),
             "storage":facts,"copyIds":attached.iter().map(|c|&c.copy.copy_id).collect::<Vec<_>>(),"operation":operations.remove(&product.product_id)}));
         let local_entries: Vec<_> = entries.iter().filter(|entry| entry.kind == "imported_material" && attached.iter().any(|copy| copy.copy.warehouse_item_id == entry.warehouse_item_id))
             .map(|entry| json!({"entryId":entry.warehouse_item_id,"displayName":entry.display_name})).collect();
@@ -220,7 +231,7 @@ pub fn list(
         let hint =
             crate::library_reconcile::source_hint(&entry, &unassociated, &products, &grouping, explicit_sources.get(&entry.warehouse_item_id).map(String::as_str));
         let mut row = json!({"kind":"local","entry":entry,"storage":storage(&unassociated,&presences),
-            "copyIds":unassociated.iter().map(|c|&c.copy.copy_id).collect::<Vec<_>>()});
+            "copyIds":unassociated.iter().map(|c|&c.copy.copy_id).collect::<Vec<_>>(),"sourceCategory":null});
         if let Some(metadata) = metadata.get(&entry.warehouse_item_id) { row["metadata"] = json!(metadata); }
         if let Some((basis, id, content)) = hint {
             if let Some(product) = products.iter().find(|p| p.product_id == id) {
@@ -230,6 +241,11 @@ pub fn list(
                     basis,
                     content,
                 );
+                // A title/name clue is not evidence of the local item's category.
+                if basis != "name" {
+                    row["sourceCategory"] = json!(categories.get(&id).and_then(|v| v.as_ref()));
+                    row["variantCount"] = json!(variant_counts.get(&id).copied().unwrap_or(0));
+                }
             }
         }
         rows.push(row);
@@ -245,6 +261,11 @@ pub fn list(
         let source_match = match query.source.as_str() {
             "all" => true,
             "local" => row["storage"]["storedCopies"].as_u64().unwrap_or(0) > 0,
+            "imported" => if product {
+                row["localEntries"].as_array().is_some_and(|entries| !entries.is_empty())
+            } else {
+                row["entry"]["kind"] == "imported_material"
+            },
             kind => sources.is_some_and(|sources| sources.iter().any(|source| source == kind)),
         };
         let present = row["storage"]["presentCopies"].as_u64().unwrap_or(0);
@@ -297,7 +318,9 @@ pub fn list(
                         .is_some_and(|name| name.to_lowercase().contains(&needle))
                 })
             });
-        source_match
+        // Only other product cards whose recorded body has the exact target link.
+        let link_match = linked_products.as_ref().is_none_or(|ids| product && row["product"]["productId"].as_str().is_some_and(|id| ids.contains(id)));
+        link_match && source_match
             && state_match
             && matches_text
             && query.availability_status.as_ref().is_none_or(|word| {
@@ -308,10 +331,20 @@ pub fn list(
                 }
             })
     });
+    // Facets cover the full filtered library, before category and pagination.
+    let source_categories: std::collections::BTreeSet<_> = rows.iter()
+        .filter_map(|row| row["sourceCategory"].as_str().map(str::to_owned)).collect();
+    if let Some(category) = category_filter {
+        rows.retain(|row| row["sourceCategory"] == category);
+    }
     let total = rows.len();
     Ok(
-        json!({"schemaVersion":"0.1","total":total,"offset":query.offset,"limit":query.limit,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()}),
+        json!({"schemaVersion":"0.1","total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()}),
     )
+}
+
+fn params_product_invalid(value: &Option<String>) -> bool {
+    value.as_ref().is_some_and(|id| id.strip_prefix("booth:").is_none_or(|native| native.is_empty() || !native.bytes().all(|b| b.is_ascii_digit())))
 }
 
 /// Current visible product scope, including verified local copies and ZIP members.

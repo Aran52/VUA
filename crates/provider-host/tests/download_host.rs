@@ -181,9 +181,10 @@ fn duplicate_receipt_repairs_a_missing_task_journal_without_repeating_delivery()
     assert_eq!(receipt["folded"], 0);
     assert_eq!(receipt["duplicates"], 2);
     assert_eq!(receipt["rejected"], serde_json::json!([]));
+
     let tasks = vua_orchestrator::SqliteTaskStore::open(&world.database).unwrap();
     assert_eq!(tasks.task(TASK_A1).unwrap().unwrap().state, vua_orchestrator::TaskState::Succeeded);
-    assert_eq!(tasks.events_after(TASK_A1, 0).unwrap().len(), 4);
+    assert_eq!(tasks.events_after(TASK_A1, 0).unwrap().len(), 6);
     assert_eq!(BdlStore::open(&world.bdl_path).unwrap().download_events(DOWNLOAD).unwrap().len(), 2);
     drop(tasks);
     fs::remove_dir_all(&world.base).ok();
@@ -250,6 +251,15 @@ fn b4_dl_001_ingest_folds_events_creates_tasks_and_answers_receipts() {
     assert_eq!(receipt["folded"], 3);
     assert_eq!(receipt["duplicates"], 0);
     assert_eq!(receipt["rejected"], serde_json::json!([]));
+
+    // Transfer presentation uses the frozen progress envelope and public metadata only.
+    let progress: Vec<_> = frames.iter().filter(|frame| frame["payload"]["kind"] == "task.progressed")
+        .map(|frame| &frame["payload"]["payload"]).collect();
+    assert!(!progress.is_empty());
+    assert!(progress.iter().any(|payload| payload["params"]["receivedBytes"] == 512));
+    assert!(progress.iter().all(|payload| payload["messageKey"] == "tasks.download.transfer"
+        && payload["completed"].is_number() && payload["params"]["operation"] == "download.transfer"
+        && payload["params"].get("storedPath").is_none() && payload["params"].get("sourceUrl").is_none()));
 
     // The attempt task folded to Succeeded.
     let store = BdlStore::open(&world.bdl_path).unwrap();

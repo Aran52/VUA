@@ -177,6 +177,8 @@ export function createFixtureWarehouseCommands(
       return Promise.resolve({ ok: true, accepted: { taskId, correlationId } });
     },
 
+    // A browser fixture cannot resolve native files; never simulate a successful copy.
+    importPaths: () => Promise.resolve({ ok: false, error: { kind: "unavailable" } }),
     // IMP-3 下载采纳(bdl-commands v0.4,演示):逐下载身份落成
     // downloaded_material 条目并受理任务;守卫语义(仅已完成交付可采纳)
     // 在服务端,演示不模拟下载事件日志

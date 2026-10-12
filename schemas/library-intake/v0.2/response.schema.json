@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua-project.github.io/schemas/library-intake/v0.2/response.schema.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "operation", "taskId", "correlationId"],
+  "properties": {
+    "schemaVersion": {"const": "0.2"}, "operation": {"const": "library.importPaths"},
+    "taskId": {"type": "string", "minLength": 1}, "correlationId": {"type": "string", "minLength": 1}
+  }
+}

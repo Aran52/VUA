@@ -12,12 +12,23 @@ vi.mock("electron", () => ({
   net: { fetch: mocks.fetch },
   protocol: { handle: (_scheme: string, handler: typeof mocks.handler) => { mocks.handler = handler; }, registerSchemesAsPrivileged: vi.fn() },
 }));
-import { importLocalThumbnail, registerImageCacheProtocol } from "./image-cache.js";
+import { deactivateImageCache, importLocalThumbnail, installImageCacheProtocol, registerImageCacheProtocol, toCachedImageUrl } from "./image-cache.js";
 afterEach(async () => {
   if (mocks.root) await rm(mocks.root, { recursive: true, force: true });
   mocks.root = ""; vi.clearAllMocks();
 });
 describe("Kernel local thumbnail cache", () => {
+  it("installs a dormant loader before module activation and preserves the module read gate", async () => {
+    installImageCacheProtocol();
+    expect((await mocks.handler!({ url: toCachedImageUrl("https://booth.pximg.net/synthetic.jpg") })).status).toBe(503);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    mocks.root = await mkdtemp(path.join(os.tmpdir(), "vua-thumbnail-test-"));
+    mocks.fetch.mockResolvedValue(new Response("synthetic bytes", { headers: { "content-type": "image/jpeg" } }));
+    await registerImageCacheProtocol();
+    expect(await (await mocks.handler!({ url: toCachedImageUrl("https://booth.pximg.net/synthetic.jpg") })).text()).toBe("synthetic bytes");
+    deactivateImageCache();
+    expect((await mocks.handler!({ url: toCachedImageUrl("https://booth.pximg.net/synthetic.jpg") })).status).toBe(503);
+  });
   it("copies a bounded thumbnail, survives repeated reads and rejects arbitrary local paths", async () => {
     mocks.root = await mkdtemp(path.join(os.tmpdir(), "vua-thumbnail-test-"));
     const source = path.join(mocks.root, "original.png");

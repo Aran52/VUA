@@ -169,6 +169,7 @@ const syntheticGateway = {
 /* ---- 宿主:开态/关闭计数由夹具持有,onRequestClose 与 ContentDialog.onClose
  *      同收口(与仓储页宿主同构) ---- */
 let closeCount = 0;
+let cloudMode = false;
 function Harness() {
   const [open, setOpen] = useState(false);
   (window as any).__setImportOpen = (value: boolean) => setOpen(value);
@@ -185,6 +186,7 @@ function Harness() {
           }}
         >
           <ImportPage
+            initialUrl={cloudMode ? "https://booth.pm/" : undefined}
             onRequestClose={() => {
               closeCount++;
               setOpen(false);
@@ -222,10 +224,7 @@ async function confirmViaPicker() {
 async function driveToLocalSubmission() {
   await openDialog();
   check(dialogOpen(), "弹窗打开");
-  await button(strings.importPage.chooseLocalCta).click();
-  await wait();
-  await button(strings.warehouse.acquire.importTitle).click();
-  await wait();
+  check(document.querySelector(".vua-folder-picker") !== null, "本地导入直接打开文件夹选择器");
   await confirmViaPicker();
   await button(strings.warehouse.acquire.importConfirmCta).click();
   await wait();
@@ -241,7 +240,7 @@ async function escClosesPath() {
 
 async function backdropClosesPath() {
   await openDialog();
-  const overlay = document.querySelector(".vua-content-dialog__overlay") as HTMLElement;
+  const overlay = document.querySelector(".vua-folder-picker__overlay") as HTMLElement;
   check(overlay !== null, "背板路径:遮罩在场");
   overlay.click();
   await wait();
@@ -250,7 +249,7 @@ async function backdropClosesPath() {
 
 async function closeButtonClosesPath() {
   await openDialog();
-  const close = document.querySelector(".vua-content-dialog__close") as HTMLButtonElement;
+  const close = document.querySelector(".vua-folder-picker__close") as HTMLButtonElement;
   check(close !== null, "× 路径:关闭钮在场");
   close.click();
   await wait();
@@ -314,7 +313,7 @@ async function userTakeoverCancelsAutoClose() {
   closeCount = 0;
   await driveToLocalSubmission();
   check(document.body.textContent!.includes(strings.warehouse.acquire.importAccepted), "受理词面呈现(第一次受理)");
-  await button(strings.warehouse.acquire.importTitle).click();
+  await button(strings.importPage.addFolders).click();
   await wait();
   check(dialogOpen(), "受理窗口内用户再次发起导入,选择器打开(用户接管,反馈清空)");
   await wait(IMPORT_ACCEPTED_AUTO_CLOSE_MS + 250);
@@ -334,10 +333,6 @@ async function windowsPickerPathInsideDialog() {
   closeCount = 0;
   await openDialog();
   check(dialogOpen(), "原生次级路径:弹窗打开");
-  await button(strings.importPage.chooseLocalCta).click();
-  await wait();
-  await button(strings.warehouse.acquire.importTitle).click();
-  await wait();
   const panel = document.querySelector(".vua-folder-picker");
   check(panel !== null, "选择器在场");
   await button(strings.folderPicker.windowsPicker, panel as ParentNode).click();
@@ -359,11 +354,10 @@ async function windowsPickerPathInsideDialog() {
  *  .then 不执行,loading 假陈述恒挂;同配方库列表 !result?.ok → unavailable
  *  先例)。真机 DOM 为准。 */
 async function cloudDownloadsWithoutHostHonestUnavailable() {
+  cloudMode = true;
   const unavailableText = strings.warehouse.acquire.commandErrors.vua_warehouse_unavailable;
   await openDialog();
   check(dialogOpen(), "无宿主场景:弹窗打开");
-  await button(strings.importPage.chooseCloudCta).click();
-  await wait();
   check(
     document.body.textContent!.includes(unavailableText),
     "无宿主时下载面板诚实 unavailable(读面不可达如实呈现)",
@@ -375,20 +369,20 @@ async function cloudDownloadsWithoutHostHonestUnavailable() {
   await key("Escape");
   await wait();
   check(!dialogOpen(), "无宿主场景收尾:弹窗已关");
+  cloudMode = false;
 }
 
 /** 2026-09-25 用户裁决:用户经导航条 × 关闭内嵌视图且已完成下载为零 →
  *  宿主弹窗自动收口(恰一次关闭请求);拆卸/代次兜底关闭永不武装(由
  *  模型测试钉死,此处钉用户路径的 DOM 级接线)。 */
 async function userClosesViewWithNoDownloadsAutoCloses() {
+  cloudMode = true;
   closeCount = 0;
   downloadsMode = "empty";
   setCloudStubs(true);
   try {
     await openDialog();
     check(dialogOpen(), "零下载收口:弹窗打开");
-    await button(strings.importPage.chooseCloudCta).click();
-    await wait();
     check(document.querySelector(".vua-import__browse-bar") !== null, "首开自动导航:内嵌视图打开,导航条在场");
     navCloseButton().click();
     await wait();
@@ -397,20 +391,20 @@ async function userClosesViewWithNoDownloadsAutoCloses() {
   } finally {
     setCloudStubs(false);
     downloadsMode = "empty";
+    cloudMode = false;
   }
 }
 
 /** 2026-09-25 用户裁决:有已完成下载 → 用户关闭视图弹窗驻留,云端段呈现
  *  「重新打开内嵌浏览」细钮继续操作。 */
 async function userClosesViewWithDownloadsStaysOpen() {
+  cloudMode = true;
   closeCount = 0;
   downloadsMode = "one";
   setCloudStubs(true);
   try {
     await openDialog();
     check(dialogOpen(), "有下载驻留:弹窗打开");
-    await button(strings.importPage.chooseCloudCta).click();
-    await wait();
     check(document.querySelector(".vua-import__browse-bar") !== null, "有下载驻留:内嵌视图打开");
     navCloseButton().click();
     await wait();
@@ -423,6 +417,7 @@ async function userClosesViewWithDownloadsStaysOpen() {
   } finally {
     setCloudStubs(false);
     downloadsMode = "empty";
+    cloudMode = false;
     await key("Escape");
     await wait();
     check(!dialogOpen(), "有下载驻留场景收尾:弹窗已关");

@@ -15,12 +15,14 @@ const copy = strings.warehouse.compatibleDialog;
 /** Read-only observations. A known link target does not establish compatibility. */
 export function CompatibleItemsDialog({
   enabled,
+  onEnable,
   query,
   onClose,
   onSelectProduct,
   onLookupName,
 }: {
   enabled: boolean;
+  onEnable?: (() => void) | undefined;
   /** null = closed; otherwise the declaring product. */
   query: { readonly productId: string; readonly title: string } | null;
   onClose: () => void;
@@ -50,14 +52,17 @@ export function CompatibleItemsDialog({
 
   return (
     <ContentDialog
-      open={enabled && query !== null}
+      open={query !== null}
       title={format(copy.title, { name: query?.title ?? "" })}
       closeLabel={strings.common.dialogClose}
       onClose={onClose}
     >
       <div className="vua-compatible-items">
         <p className="vua-caption vua-text-secondary" role="note">{copy.boundary}</p>
-        {view === "loading" ? (
+        {!enabled ? <>
+          <p className="vua-caption vua-text-secondary">{copy.disabled}</p>
+          {onEnable ? <Button variant="default" onClick={onEnable}>{copy.enable}</Button> : null}
+        </> : view === "loading" ? (
           <div>
             <Skeleton width="100%" height={36} />
             <Skeleton width="100%" height={36} />

@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.23.0
+> Document version: 1.31.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-10-11
-> Last conformance review: 2026-10-11 (regional reference UI and inset Wiki/material browser sessions with bounded tabs, page/history/form/scroll return and four-language zoom layouts; physical game/device and human-language review pending)
+> Updated: 2026-10-12
+> Last conformance review: 2026-10-12 (controlled library columns, inline link filtering, import popup, corners, public search and intake checks; real account/material/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -180,9 +180,87 @@ ID to a fixed public URL; arbitrary URLs, page data and credentials do not cross
 Warehouse probes account-library access through the existing `authProbe` before offering
 sync; stored cookies alone are insufficient. Pending probes show a disabled checking entry;
 IPC failures offer a retry. A session that cannot be verified offers the BOOTH login flow.
-Closing login/import refreshes this fact, and an explicit sync request reprobes it. A rejected
-or expired session opens login directly. Main skips anonymous probes when account cookies are
-absent and bounds authenticated probes to eight seconds; no credentials or raw page bodies reach Renderer.
+Closing login/import refreshes this fact, and an explicit sync request reprobes it. Settings →
+Accounts also reprobes after its login view closes and discards replies from prior view lifetimes.
+A rejected or expired session opens login directly. Main matches stored cookies against the
+actual account-library URL, including applicable parent-domain storage, and skips anonymous
+probes when there is no matching storage. Authentication still requires a successful account
+page read, bounded to eight seconds; cookie presence never proves login. Electron's private HTML
+reader uses the same partition with explicit credentials, tracks each actual redirect, bounds
+the response size and rejects redirects outside the authenticated-read allowlist. This avoids
+the pinned Electron fetch response's empty URL without assuming a redirected request stayed at
+its starting URL. Neither credentials nor raw page bodies reach Renderer.
+
+The optional Candidate [desktop-library v0.1](../protocols/desktop-library-v0.1.md) face opens
+the active AMF material folder. Main accepts only the local main frame, requires ready AMF and
+resolves `warehouse` from the module's data root; Renderer supplies no path. The library's search,
+source and download-state controls share one responsive filter row. Retired availability,
+entity-type and relation controls are absent from the presentation, while Provider contracts
+retain their existing query fields for other consumers.
+
+Main installs the dormant `vua-img` dispatcher before creating any renderer, including the
+splash: late installation leaves existing Chromium renderers unable to use the scheme even
+when Main can fetch it. Installation creates no AMF storage. Activation supplies the module
+data root and enables bounded, allowlisted image caching; inactive AMF denies reads, including
+previously cached images. Existing image addresses and disk-cache keys remain valid. Product
+detail enrichment attempts its optional page read once per opened product, ignores late replies
+after closure and preserves the synchronized image when description enrichment fails.
+Missing categories also trigger this read when description/variations are already present;
+successful completion refreshes the joined library and category facets, not only the detail.
+Account-library HTML does not supply native categories. Unvisited product records may remain
+uncategorized; the UI must not infer category from names or report a complete backfill.
+
+The library reads original BOOTH categories through the unfrozen AMF library face, with provider
+filtering/facets before pagination. Multiselection captures the displayed product/entry copy scopes
+for preview and count-bearing removal confirmation; unknown local source identities do not gain
+BOOTH download access. Per-product removal receipts retain their request ID and preview on explicit
+retry; closing a dialog does not authorize additional files or restart interrupted operations.
+
+Card media carries a triangular corner with file/source/transfer facts. Menus and details open
+canonical BOOTH product pages; menu buttons align to the card bottom. Local intake opens the
+folder picker directly, retaining confirmation and cancellation. Card text reads title, shop,
+then the purchased variant when present. Native files/folders dropped into the host enter the
+AMF [mixed intake command](../protocols/library-intake-v0.2.md); a single file never implies its
+parent folder. An inactive module prompts for explicit enablement before importing. Preload
+resolves Electron-backed File objects and Main guards the native face; browser-created Files
+cannot supply paths. Task completion refreshes library facts even when intake started elsewhere.
+Native transfer polling always reconciles temporary card state, including unchanged empty queues;
+durable batch terminal/inspection replies clear their temporary transfers without a page remount.
+The view toggle sits immediately left of search. Single-card menus open recorded local entry folders
+through the [desktop-library face](../protocols/desktop-library-v0.1.md), with provider lookup and
+native containment checks. Multiple product folders offer a choice; cloud-only cards disable the
+action and multiselection omits it. The whole-library toolbar action is retired.
+The bounded public lookup
+face is [booth-search v0.1](../protocols/booth-search-v0.1.md): Main owns keyword-only IPC,
+partition transport, pacing and size/time bounds; acquisition parses closed candidates.
+Renderer saves observed sources through entry-metadata commands. No account membership or
+content fingerprint is minted by searching or confirming a product.
+
+Native `silentDownload.control(batchId, paused)` and `transfers()` expose current in-process
+batch identities and manual pause facts. Pausing holds queued files and calls DownloadItem.pause
+for bound active items; continuing resumes the same attempts/partial files. Failed native
+control reports failure instead of fabricated pause. User pause takes priority over automatic
+task resume. Frozen download/task vocabularies are unchanged; pause is not cancellation,
+restart persistence or authorization for additional files.
+
+The live task adapter caches progress events for display only and re-reads task.list for authoritative
+states. Native transfers publish the frozen progress envelope with public filename/byte metadata,
+without local paths or URLs. Speed derives from observed byte/time deltas and expires when stale;
+unknown totals remain indeterminate. File storage counts come from AMF batch checkpoints, distinct
+from transport completion. Raw task diagnostics are reached from Settings → Experimental; Home no
+longer advertises the raw queue. Experimental demo and UI-variant controls are retired.
+`NotificationList` owns its shared stylesheet import, so the bell never depends on the retired
+bottom taskbar to remove native button chrome. All task types/states keep row, main-button and
+glyph backgrounds transparent, including hover; normal focus feedback and the panel remain.
+
+The library's displayed cloud and local cards share page-scoped selection and context-menu
+shortcuts. A single known product's adaptation menu sends `descriptionLinksTo` through the
+unified library read face, replacing the wall with matching source products. The standalone
+dependency-name dialog and its settings gate are retired. Cancellation after pagination restores
+the pre-filter query, source/category/state, offset, view mode, selection, open detail and scroll;
+empty and failed reads retain cancellation. The
+[design standard](../design/design-standard.md#8-module-visual-language) owns these interaction and
+detail-header rules; source clues do not establish production compatibility.
 
 Main owns a VUA system tray icon throughout normal application execution. Double-click restores
 and focuses the existing main window. The localized menu exposes update checking
@@ -390,17 +468,34 @@ record that they are unsigned; signing preparation runs alongside development. F
 automatic updater and update-rollback validation follow under broader N7 acceptance. The
 redistribution review authorizes each bundled binary before a public release.
 
+### Library intake and card scope (2026-10-12)
+
+The source selector **Local imports** sends the additional `imported` value of [library view](../protocols/library-view-v0.1.md). Downloading BOOTH material alone does not make it a local import. Local entry cards represent the user-selected material entry, including empty or missing entries; files remain in entry details. Physical-copy and source facts remain independent. [Card removal](../protocols/library-records-v0.2.md) confirms selected identities and count, persists tombstones and retains files/references. The retained local-record command remains available independently.
+
+Marquee selection anchors its start in wall content coordinates. Pointer movement, wall scrolling and viewport changes recompute intersections; only the visual rectangle is clipped to the wall. Pointer release/cancel, blur, route unmount and wall replacement clean up listeners. Right-button completion uses the current selection.
+
+The import split button opens the native folder picker for a single item. Its arrow opens the migration entry on hover/click; the latter currently supplies only read-only structural review. See the [draft migration design](../development/library-migration-design.md) for boundary decisions and unresolved execution. Candidate desktop-library adds bounded immediate-directory reads without following links or expanding ZIPs; AMF still owns copying.
+
+The migration menu uses a fixed-position body portal, anchors at the import group's left edge
+and clamps to the viewport; pointer transitions into the popup retain it. List mode shares title,
+shop, variant and plain source columns across account products and imported entries. Draggable
+header dividers resize neighboring columns together; narrow walls scroll horizontally. Native
+active/paused transfers override durable download status, while presence failures remain errors.
+Observed multi-variant choices are supplied separately from the frozen product summary.
+
+The optional native `fs.navigation` face returns Electron's resolved Desktop/Documents/Downloads paths and logical drive names. Main queries drive names only, with a hidden bounded helper process; it does not poll drive readiness or sizes. The picker keeps a visible editable path field, four shortcuts and a virtual This PC list. Up at a drive root enters that list, which is not itself an importable directory.
+
 ## Document changelog
 
+- 1.31.0 (2026-10-12): Add shared resizable list columns, body-portal import menus and reversible inline product-link filtering.
+- 1.30.0 (2026-10-12): add imported-origin filtering, entry-level cards, scroll-anchored selection, persistent card removal, native picker locations/drives and the separate read-only migration preview.
+
+- 1.29.0 (2026-10-12): load notification styles at their shared owner, remove state/hover row fills, add single-card scoped folder actions and put the view toggle beside search.
+- 1.28.0 (2026-10-12): add host file/folder drops with explicit AMF activation, task-driven library refresh, title/shop/variant order and fast-download corner reconciliation.
+- 1.27.0 (2026-10-12): add public source discovery, fact-based library corners, native pause/resume, direct folder intake and category-enrichment refresh.
+- 1.26.0 (2026-10-12): add scoped bulk local-file actions, native category filtering and measured download notifications; move raw task diagnostics into Experimental and retire demo/variant panels.
+
+- 1.25.0 (2026-10-11): install the dormant image loader before renderer creation while retaining AMF cache gates, bound detail enrichment to one attempt, and connect mixed-card selection and discoverable product-clue dialogs.
+- 1.24.0 (2026-10-11): restore BOOTH account reads through tracked session redirects, refresh account status on login close, align library filters and add the bounded active-AMF folder action.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
-- 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.
-- 1.20.0 (2026-10-10): enable AMF for fresh profiles, add qualified CPU/GPU/RAM/VRAM headroom through desktop resource v0.2, and apply a reduced-motion-aware 120° Home-logo colour wipe.
-- 1.19.0 (2026-10-10): implement the approved small monochrome native splash, independent desktop-startup v0.1 face, Windows language selection and first-use welcome/tour handoff while preserving saved profiles.
-- 1.18.0 (2026-10-10): place each scenario/editor/manager's collapsible details directly beneath its own card, separate compact language and Search controls, migrate retired goal links to Help and retire big-screen layout/navigation/tray actions while retaining the legacy event shape.
-- 1.17.0 (2026-10-10): verify BOOTH account access before offering library sync with direct login/retry handoffs, discover Editors through the host and inspect fresh Unity 2022 entry before CLI acquisition, and replace the AMF Home Inspection card with Finished Avatars and Package Manager.
-- 1.16.0 (2026-10-10): unify collapsible scenario/tool/editor details, add native Help/chapter/wizard history and Avatar-editing AMF activation, and consolidate Settings language/version controls without changing vendor/device evidence.
-- 1.15.0 (2026-10-10): add environment Tools/Help, embed the knowledge encyclopedia through desktop-window v0.2, halve Play card heights and remove the resource-panel sampling-time label.
-- 1.14.0 (2026-10-10): clarify AMF's bundled installation and separate activation for fresh/legacy profiles; retain saved choices and omit external editing placeholders from Ibis.
-
-Earlier entries remain in Git history.

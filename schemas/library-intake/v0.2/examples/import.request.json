@@ -1,0 +1,1 @@
+{"contractVersion":"0.1","requestId":"drop-1","correlationId":"drop-corr-1","kind":"command","method":"library.importPaths","commandId":"drop-command-1","params":{"schemaVersion":"0.2","sourcePaths":["C:/synthetic/Avatar.zip","C:/synthetic/Clothes"],"autoGenerate":false}}

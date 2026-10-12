@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
-import type { DesktopGatewayRequestV1, DesktopGatewaySuccessValueV1 } from "@vua/contracts";
+import { describe, expect, it, test } from "vitest";
+import type { DesktopGatewayRequestV1, DesktopGatewaySuccessValueV1, LibraryCardTargetV02 } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { createLibraryMetadataPort } from "./library-metadata-port.ts";
+
 const reply = { schemaVersion: "0.1", entryId: "whi-local", revision: 1, displayName: "Texture", productId: null, thumbnailRef: null };
 const client = (value: unknown, calls: DesktopGatewayRequestV1[] = []): GatewayClient => ({ invoke: async (request) => { calls.push(request); return { ok: true, value: value as DesktopGatewaySuccessValueV1 }; }, subscribe: () => () => {} });
 describe("library metadata port", () => {
@@ -21,4 +22,16 @@ describe("library metadata port", () => {
     expect(await createLibraryMetadataPort(client(value, calls)).update({ schemaVersion: "0.1", entryId: "whi-local", expectedRevision: 0, displayName: "Texture", productId: value.productId, thumbnailRef: value.thumbnailRef }, "edit-one")).toEqual(value);
     expect(calls[0]).toMatchObject({ method: "library.updateEntryMetadata", params: { commandId: "edit-one", productId: "booth:123" } });
   });
+});
+
+test("card-removal receipts match ordered identities independently of object field order and reject another card", async () => {
+  const submitted: readonly LibraryCardTargetV02[] = [{ id: "booth:90", kind: "product" }];
+  let echoed: readonly LibraryCardTargetV02[] = [{ kind: "product", id: "booth:90" }];
+  const requests: DesktopGatewayRequestV1[] = [];
+  const client: GatewayClient = { invoke: async request => { requests.push(request); return { ok: true, value: { schemaVersion: "0.2", targets: echoed } }; }, subscribe: () => () => {} };
+  const port = createLibraryMetadataPort(client);
+  await expect(port.removeCards(submitted, "remove-once")).resolves.toBeUndefined();
+  expect(requests[0]).toMatchObject({ method: "library.removeCards", params: { commandId: "remove-once", targets: submitted } });
+  echoed = [{ kind: "product", id: "booth:91" }];
+  await expect(port.removeCards(submitted, "remove-once")).rejects.toThrow("write_failed");
 });

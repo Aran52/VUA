@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { LibraryEntryMetadataV01 } from "@vua/contracts";
 import { catalogBrowser } from "../../app/catalog-browser-instance.ts";
 import { Badge } from "../../components/primitives/Badge.tsx";
@@ -34,6 +34,7 @@ import {
   inferGlobalDefaultMode,
   sizeText,
   type AcquireArtifactCard,
+  type AcquireEntryCard,
   type GlobalDefaultInference,
 } from "./acquire-model.ts";
 import { useCardSpotlight } from "./use-card-spotlight.ts";
@@ -41,6 +42,28 @@ import { DetailAlbum } from "./WarehouseAlbum.tsx";
 
 const copy = strings.warehouse.acquire;
 const cloudCopy = strings.warehouse;
+
+/** Files remain in EntryDetail, including empty or missing imports. */
+export function MaterialEntryCard({ card, selected, onSelect, onOpen, onMenu, source, metadata, corner, badges }: {
+  card: AcquireEntryCard; selected: boolean; onSelect: () => void; onOpen: () => void; onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
+  source?: CatalogProductSummary | undefined; metadata?: LibraryEntryMetadataV01 | undefined; corner?: ReactNode; badges?: ReactNode;
+}) {
+  const entry = card.entry; const title = metadata?.displayName ?? source?.title ?? entry.displayName;
+  const image = metadata?.thumbnailRef ?? source?.imageUrl;
+  const size = sizeText(entry.artifacts.reduce((sum, file) => sum + file.sizeBytes, 0));
+  return <article className="vua-warehouse-card" role="listitem" tabIndex={0} data-selection-id={card.key} data-selected={selected || undefined}
+    onClick={onSelect} onDoubleClick={onOpen} onContextMenu={onMenu} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(); } }}>
+    <div className="vua-warehouse-card__media">{corner}{image ? <img src={image} alt={title} loading="lazy" /> : <div className="vua-warehouse-card__no-image"><span className="vua-caption vua-text-secondary">{copy.previewEmpty}</span></div>}</div>
+    <div className="vua-warehouse-card__body">
+      <p className="vua-warehouse-card__title" title={title}>{title}</p>
+      {source?.shopName ? <p className="vua-caption vua-text-secondary">{source.shopName}</p> : null}
+      {source?.variantName ? <p className="vua-caption vua-text-secondary">{source.variantName}</p> : null}
+      <div className="vua-warehouse-card__meta"><span>{format(copy.fileCount, { count: entry.artifacts.length })}</span><span>{format(copy[size.unitKey], { amount: size.amount })}</span></div>
+      <div className="vua-warehouse-card__badges">{badges}</div>
+      <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={event => { event.stopPropagation(); onMenu(event); }}>…</Button>
+    </div>
+  </article>;
+}
 
 /**
  * Warehouse 本地轨图册(C-ACQUIRE,F4-6 条目模型):
@@ -79,17 +102,23 @@ function stateTone(state: WarehouseArtifactState) {
 export function ArtifactCard({
   card,
   selected,
+  onSelect,
   onOpen,
   onMenu,
   source,
   metadata,
+  corner,
+  badges,
 }: {
   card: AcquireArtifactCard;
   selected: boolean;
+  onSelect?: (() => void) | undefined;
   onOpen: () => void;
   onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   source?: CatalogProductSummary | undefined;
   metadata?: LibraryEntryMetadataV01 | undefined;
+  corner?: ReactNode;
+  badges?: ReactNode;
 }) {
   const { entry, artifact } = card;
   const title = metadata?.displayName ?? source?.title ?? entry.displayName;
@@ -98,8 +127,10 @@ export function ArtifactCard({
     <article
       className="vua-warehouse-card"
       data-selected={selected || undefined}
+      data-selection-id={card.key}
       data-verdict={artifact.state}
-      onClick={onOpen}
+      onClick={onSelect ?? onOpen}
+      onDoubleClick={onSelect === undefined ? undefined : onOpen}
       onContextMenu={onMenu}
       role="listitem"
       tabIndex={0}
@@ -112,6 +143,7 @@ export function ArtifactCard({
       }}
     >
       <div className="vua-warehouse-card__media">
+        {corner}
         {image ? <img src={image} alt={title} loading="lazy" /> : <div className="vua-warehouse-card__no-image">
           <span className="vua-caption vua-text-secondary">{copy.previewEmpty}</span>
         </div>}
@@ -126,10 +158,11 @@ export function ArtifactCard({
           <span className="vua-caption vua-text-secondary">{copy.kind[entry.kind]}</span>
         </div>
         <div className="vua-warehouse-card__badges">
+          {badges}
           <Badge tone={stateTone(artifact.state)}>{copy.verdict[artifact.state]}</Badge>
           <Badge tone="neutral">{copy.role[artifact.role]}</Badge>
         </div>
-        <Button variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
+        <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
       </div>
     </article>
   );

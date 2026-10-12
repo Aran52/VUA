@@ -1,0 +1,5 @@
+{
+  "contractVersion": "0.1", "requestId": "synthetic-search", "correlationId": "synthetic-search",
+  "kind": "query", "method": "catalog.searchProducts",
+  "params": { "schemaVersion": "0.1", "query": "Synthetic Outfit", "sourceUrl": "https://accounts.booth.pm/library", "html": "<form>Sign in</form>" }
+}

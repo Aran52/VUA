@@ -11,3 +11,7 @@ export function boothSourceId(input: string): string | null {
     return match?.[1] ? `booth:${match[1]}` : null;
   } catch { return null; }
 }
+
+export function boothProductUrl(productId: string | undefined | null): string | null {
+  return typeof productId === "string" && /^booth:[0-9]+$/.test(productId) ? `https://booth.pm/items/${productId.slice(6)}` : null;
+}

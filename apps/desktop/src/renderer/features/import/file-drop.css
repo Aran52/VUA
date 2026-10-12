@@ -1,0 +1,10 @@
+.vua-file-drop {
+  position: fixed; inset: var(--vua-space-4); z-index: 1800;
+  display: grid; place-items: center; pointer-events: none;
+  border: 2px dashed var(--vua-accent); border-radius: var(--vua-radius-overlay);
+  background: color-mix(in srgb, var(--vua-bg-panel) 88%, transparent);
+}
+.vua-file-drop__label {
+  display: flex; gap: var(--vua-space-3); align-items: center;
+  padding: var(--vua-space-5); color: var(--vua-text-primary);
+}

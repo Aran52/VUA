@@ -19,6 +19,9 @@ export interface TaskItem {
   readonly status: TaskStatus;
   /** 进度;不可量化时省略,不得以假进度填充 */
   readonly progress?: { readonly done: number; readonly total: number };
+  /** Actual transfer observations; speed is derived from byte/time deltas. */
+  readonly download?: { readonly receivedBytes: number; readonly expectedBytes: number | null; readonly bytesPerSecond: number | null; readonly sampledAt: number };
+  readonly progressUnit?: "files";
   /** 来源页:任务列表提供"回到来源页"回跳 */
   readonly originPage: PageId;
   /** 当前状态是否允许取消(由应用层裁决,前端不自行推断) */

@@ -10,14 +10,17 @@ import { isCatalogSyncPageRequestV01, type CatalogSyncPageRequestV01 } from "./c
 import { isCatalogSyncParamsV03, type CatalogSyncBeginV03, type CatalogSyncPageV03, type CatalogSyncFinishV03, type CatalogSyncStatusV03 } from "./catalog-sync-v03.js";
 import { isLibraryDownloadParamsV01, type LibraryDownloadBeginV01, type LibraryDownloadObservationV01, type LibraryDownloadStatusV01 } from "./library-download-v01.js";
 import { isLibraryImportParamsV01, type LibraryImportParamsV01, type LibraryImportAcceptedV01 } from "./library-intake-v01.js";
+import { isLibraryImportPathsParamsV02, type LibraryImportPathsParamsV02, type LibraryImportPathsAcceptedV02 } from "./library-intake-v02.js";
 import { isLibraryEntryMetadataParamsV01, type LibraryEntryMetadataQueryV01, type LibraryEntryMetadataUpdateV01, type LibraryEntryMetadataV01 } from "./library-entry-metadata-v01.js";
 import { isLibraryRemoveLocalEntriesV01, type LibraryRemoveLocalEntriesV01, type LibraryRemovedLocalEntriesV01 } from "./library-records-v01.js";
+import { isLibraryRemoveCardsV02, type LibraryRemoveCardsV02 } from "./library-records-v02.js";
 import { isLibraryViewParamsV01, type LibraryListParamsV01, type LibraryProductFilesParamsV01, type LibraryListV01, type LibraryProductFilesV01 } from "./library-view-v01.js";
 import { isRecipeDraftParamsV01, type RecipeDraftListParamsV01, type RecipeDraftGetParamsV01, type RecipeDraftSaveParamsV01, type RecipeDraftAddParamsV01, type RecipeDraftListV01, type RecipeDraftReadV01 } from "./recipe-selection-draft-v01.js";
 import { isLibraryMaintenanceParamsV01, type LibraryRemovalPreviewParamsV01, type LibraryRemoveFilesParamsV01, type LibraryRemovalStatusParamsV01, type LibraryRemovalPreviewV01, type LibraryRemovalSnapshotV01 } from "./library-maintenance-v01.js";
 import type { LibraryPendingRemovalsParamsV01, LibraryPendingRemovalsV01, LibraryResolveRemovalParamsV01 } from "./library-maintenance-v01.js";
 import type { RecipeDraftSelectionStatusV01 } from "./recipe-selection-draft-v01.js";
 
+import { isBoothSearchParamsV01, type BoothSearchParamsV01, type BoothSearchResultV01 } from "./booth-search-v01.js";
 export const APPLICATION_CONTRACT_VERSION = "0.1" as const;
 
 export type ApplicationContractVersion = typeof APPLICATION_CONTRACT_VERSION;
@@ -1994,6 +1997,8 @@ export interface CatalogSyncStatusQueryV03 extends ApplicationRequestBaseV01 {
   readonly method: "catalog.librarySyncStatus";
   readonly params: CatalogSyncStatusV03;
 }
+// Public-search parsing is a separate, read-only face, with no account membership write.
+export interface BoothSearchQueryV01 extends ApplicationRequestBaseV01 { readonly kind: "query"; readonly method: "catalog.searchProducts"; readonly params: BoothSearchParamsV01 }
 export type LibraryDownloadCommandV01 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "library.beginDownload"; readonly params: LibraryDownloadBeginV01 }
   | { readonly method: "library.observeDownload"; readonly params: LibraryDownloadObservationV01 }
@@ -2021,10 +2026,14 @@ export type LibraryMaintenanceCommandV01 = ApplicationRequestBaseV01 & { readonl
 export interface LibraryImportCommandV01 extends ApplicationRequestBaseV01 {
   readonly kind: "command"; readonly method: "library.importFolders"; readonly commandId: string; readonly params: LibraryImportParamsV01;
 }
+export interface LibraryImportPathsCommandV02 extends ApplicationRequestBaseV01 {
+  readonly kind: "command"; readonly method: "library.importPaths"; readonly commandId: string; readonly params: LibraryImportPathsParamsV02;
+}
 export type LibraryEntryMetadataRequestV01 = ApplicationRequestBaseV01 & (
   | { readonly kind: "query"; readonly method: "library.entryMetadata"; readonly params: LibraryEntryMetadataQueryV01 }
   | { readonly kind: "command"; readonly commandId: string; readonly method: "library.updateEntryMetadata"; readonly params: LibraryEntryMetadataUpdateV01 }
   | { readonly kind: "command"; readonly commandId: string; readonly method: "library.removeLocalEntries"; readonly params: LibraryRemoveLocalEntriesV01 }
+  | { readonly kind: "command"; readonly commandId: string; readonly method: "library.removeCards"; readonly params: LibraryRemoveCardsV02 }
 );
 export type RecipeDraftCommandV01 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "recipeDraft.save"; readonly params: RecipeDraftSaveParamsV01 }
@@ -2857,11 +2866,13 @@ export type ApplicationRequestV01 =
   | CatalogIngestLibraryPageCommandV01
   | CatalogSyncControlCommandV03
   | CatalogSyncStatusQueryV03
+  | BoothSearchQueryV01
   | LibraryDownloadCommandV01
   | LibraryDownloadQueryV01
   | LibraryViewQueryV01
   | LibraryMaintenanceQueryV01 | LibraryMaintenanceCommandV01
   | LibraryImportCommandV01
+  | LibraryImportPathsCommandV02
   | LibraryEntryMetadataRequestV01
   | RecipeDraftQueryV01 | RecipeDraftCommandV01
   | WarehouseListEntriesQueryV03
@@ -3024,6 +3035,7 @@ export type ApplicationSuccessValueV01 =
   | CatalogListResultV03
   | CatalogDetailResultV03
   | CatalogStatusResultV03
+  | BoothSearchResultV01
   | WarehouseListEntriesResultV03
   | WarehouseEntryDetailResultV03
   | DownloadsListCompletedResultV04
@@ -3039,8 +3051,10 @@ export type ApplicationSuccessValueV01 =
   | WarehouseSetGlobalDefaultModeResultV02
   | WarehouseImportAcceptedV03
   | LibraryImportAcceptedV01
+  | LibraryImportPathsAcceptedV02
   | LibraryEntryMetadataV01
   | LibraryRemovedLocalEntriesV01
+  | LibraryRemoveCardsV02
   | RecipeSaveResultV02
   | RecipeGetResultV02
   | RecipeListResultV02
@@ -3719,12 +3733,19 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (value.method === "library.importFolders") {
     return value.kind === "command" && isIdentifier(value.commandId) && isLibraryImportParamsV01(value.params);
   }
+  if (value.method === "library.importPaths") {
+    return value.kind === "command" && isIdentifier(value.commandId) && isLibraryImportPathsParamsV02(value.params);
+  }
   if (value.method === "library.entryMetadata" || value.method === "library.updateEntryMetadata") {
     const query = value.method === "library.entryMetadata";
     return value.kind === (query ? "query" : "command") && (query || isIdentifier(value.commandId)) && isLibraryEntryMetadataParamsV01(value.method, value.params);
   }
   if (value.method === "library.removeLocalEntries") {
     return value.kind === "command" && isIdentifier(value.commandId) && isLibraryRemoveLocalEntriesV01(value.params);
+  }
+  if (value.method === "library.removeCards") {
+    return value.kind === "command" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])
+      && isIdentifier(value.commandId) && isLibraryRemoveCardsV02(value.params);
   }
   if (value.method === "library.removalPreview" || value.method === "library.removeFiles" || value.method === "library.removalStatus" || value.method === "library.pendingRemovals" || value.method === "library.resolveRemoval") {
     const query = value.method !== "library.removeFiles" && value.method !== "library.resolveRemoval";
@@ -3734,6 +3755,10 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (value.method === "library.list" || value.method === "library.productFiles") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
       && isLibraryViewParamsV01(value.method, value.params);
+  }
+  if (value.method === "catalog.searchProducts") {
+    return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
+      && isBoothSearchParamsV01(value.params);
   }
   if (value.method === "library.beginDownload" || value.method === "library.observeDownload" || value.method === "library.downloadStatus") {
     const query = value.method === "library.downloadStatus";

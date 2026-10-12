@@ -2,14 +2,18 @@ export * from "./application-contract.js";
 export * from "./catalog-sync.js";
 export * from "./catalog-sync-v03.js";
 export * from "./library-download-v01.js";
+export * from "./booth-search-v01.js";
 export * from "./library-view-v01.js";
 export * from "./library-maintenance-v01.js";
 export * from "./library-intake-v01.js";
+export * from "./library-intake-v02.js";
 export * from "./library-entry-metadata-v01.js";
 export * from "./library-records-v01.js";
+export * from "./library-records-v02.js";
 export * from "./recipe-selection-draft-v01.js";
 export * from "./desktop-gateway.js";
 export * from "./desktop-browser.js";
+export * from "./desktop-library.js";
 export * from "./download-events.js";
 
 export * from "./environment-deployment.js";

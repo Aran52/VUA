@@ -1,11 +1,11 @@
 # BDL architecture boundary
 
 
-> Document version: 1.3.0
+> Document version: 1.5.0
 > Status: Accepted
 > Scope: AMF-owned BDL module
-> Updated: 2026-10-09
-> Last conformance review: 2026-10-01 (source/layout review, not runtime acceptance)
+> Updated: 2026-10-12
+> Last conformance review: 2026-10-12 (controlled migrations and description-link filtering; real account/material acceptance pending)
 > Normative effect: Yes
 
 BDL base storage is always available **inside an enabled AMF**, independently of its experimental
@@ -155,7 +155,29 @@ selective download and cloud-material import before deciding what to retain, com
 Base storage and source-correlation responsibilities remain; automatic evidence collection is
 experimental and off by default. No runtime acceptance is asserted by this source check.
 
+### Card presentation removal
+
+[Library card removal v0.2](../protocols/library-records-v0.2.md) adds persistent format 0.9/migration 010. BDL stores validated entry/product tombstones and atomic command receipts. Acquisition excludes them from listing and entry reconciliation before counts/pagination; observations never restore them automatically. Existing files, copies, catalog/source identities, saved references and frozen read faces remain intact. Format 0.8 and earlier migrate through the existing transaction, while a future migration fence is still refused.
+
+### Recorded description links (format 0.10)
+
+Migration 011 adds `product_description_links`: one latest captured author-description snapshot
+per source product, including an explicit empty target set. Targets do not require catalog or
+account membership. AMF parses only anchors within the captured description, normalizes BOOTH
+product URLs and replaces the snapshot after successful evidence recording. Missing description
+markup is unknown and preserves the previous snapshot; account-library rows never overwrite it.
+Historical dependency observations and confirmations remain intact. For older records without a
+snapshot, acquisition can reuse the latest page's named description-link observations; name-only
+dependencies and unrelated page links never qualify. A new empty snapshot overrides that fallback.
+The additive [library view](../protocols/library-view-v0.1.md) filters by these links before counts
+and pagination. Older formats migrate transactionally to 0.10/user_version 11; future fences
+and foreign metadata remain rejected. Recorded variant counts are a private read of the existing
+product-page subproducts, separate from frozen catalog summaries and account ownership.
+
 ## Document changelog
+
+- 1.5.0 (2026-10-12): Add format 0.10 description-link snapshots, retained legacy evidence and private recorded-variant counts.
+- 1.4.0 (2026-10-12): add persistent format 0.9 card tombstones and replay receipts, preserving original/catalog/reference identities.
 
 - 1.3.0 (2026-10-09): scope base BDL storage to an enabled AMF; keep host module selection and task authority independent.
 
@@ -178,9 +200,3 @@ experimental and off by default. No runtime acceptance is asserted by this sourc
   counter + write-face closed sets + read-face consumption of the observed columns + scope
   statement); landing status re-reviewed with the corrected implementation location
   (`crates/bdl-store`).
-- 1.0.0 (2026-09-06): entered version management; the "pending" closing section rewritten as the
-  landing status (`schemas/bdl/v0.1` and the bdl-queries query contract v0.3 landed with B4); the
-  header status updated to accepted to match reality.
-
-- 1.3.0 (2026-10-03): observation write face merges by informativeness — NULL preserves known
-  facts, longer evidence lists win; library re-syncs no longer erase product-page enrichment.

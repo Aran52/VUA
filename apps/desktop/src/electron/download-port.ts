@@ -63,6 +63,7 @@ interface DownloadRecord {
   /** 已弃件:等待经 downloadURL 重发起的下一个 item 重绑定(downloadId 不变) */
   abandoned: boolean;
   transportActive: boolean;
+  userPaused: boolean;
   lastProgressAt: number;
   lastProgressBytes: number;
 }
@@ -83,6 +84,19 @@ export class DownloadPort {
    * change must not discard a transfer before its first native task receipt. */
   hasActiveTransfers(): boolean {
     return this.#pendingRestarts.size > 0 || [...this.#records.values()].some(record => record.transportActive && !record.abandoned);
+  }
+
+  /** Explicit library UI control; no new frozen download event or retry intent. */
+  setPaused(downloadId: string, paused: boolean): boolean {
+    const record = this.#records.get(downloadId);
+    if (record === undefined || record.abandoned || !record.transportActive) return false;
+    try {
+      if (paused) record.item.pause();
+      else if (record.item.isPaused() || record.item.canResume()) record.item.resume();
+      const applied = record.item.isPaused() === paused;
+      if (applied) record.userPaused = paused;
+      return applied;
+    } catch { return false; }
   }
 
   /**
@@ -133,6 +147,7 @@ export class DownloadPort {
       attempt,
       abandoned: false,
       transportActive: true,
+      userPaused: false,
       lastProgressAt: 0,
       lastProgressBytes: -1,
     };
@@ -226,7 +241,7 @@ export class DownloadPort {
     const item = record.item;
     if (intent === "resume") {
       // 同一 attempt 续传:canResume() 是唯一判据
-      if (item.canResume()) item.resume();
+      if (!record.userPaused && item.canResume()) item.resume();
       return;
     }
     // abandon / retry(全新 attempt):取消 + 弃除部分文件;retry 经

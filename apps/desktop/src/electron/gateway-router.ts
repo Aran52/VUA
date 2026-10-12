@@ -211,6 +211,8 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: "catalog.list", params: request.params };
     case "catalog.librarySyncStatus":
       return { ...base, kind: "query", method: request.method, params: request.params };
+    case "catalog.searchProducts":
+      return { ...base, kind: "query", method: request.method, params: request.params };
     case "library.downloadStatus":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "library.list":
@@ -231,11 +233,19 @@ function toApplicationRequest(
       const { commandId, ...params } = request.params;
       return { ...base, kind: "command", commandId, method: request.method, params };
     }
+    case "library.importPaths": {
+      const { commandId, ...params } = request.params;
+      return { ...base, kind: "command", commandId, method: request.method, params };
+    }
     case "library.entryMetadata":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "library.updateEntryMetadata": {
       const { commandId, ...params } = request.params;
       return { ...base, kind: "command", commandId, method: request.method, params };
+    }
+    case "library.removeCards": {
+      const { commandId, ...params } = request.params;
+      return { ...base, kind: "command", method: "library.removeCards", commandId, params };
     }
     case "library.removeLocalEntries": {
       const { commandId, ...params } = request.params;

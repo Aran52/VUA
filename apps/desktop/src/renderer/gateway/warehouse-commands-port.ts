@@ -96,6 +96,11 @@ export interface WarehouseCommandsPort {
     sourceFolders: readonly string[],
     options?: { readonly autoGenerate?: boolean },
   ): Promise<WarehouseCommandOutcome>;
+  /** Native file/folder drop; copy only the supplied paths (library-intake v0.2). */
+  importPaths(
+    sourcePaths: readonly string[],
+    options?: { readonly autoGenerate?: boolean; readonly commandId?: string },
+  ): Promise<WarehouseCommandOutcome>;
   /**
    * 采纳已完成下载为仓储条目(bdl-commands v0.4,IMP-3):只携带端口下载
    * 身份——暂存路径/大小/文件名是 BDL 下载事件日志的服务端事实,永不是

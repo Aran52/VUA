@@ -17,6 +17,7 @@ import "./context-menu.css";
 export interface ContextMenuItem {
   readonly id: string;
   readonly label: string;
+  readonly shortcut?: string;
   readonly onSelect: () => void;
   /** 置灰项:动作当前不可用(如节点从未拖动时的"归位") */
   readonly disabled?: boolean;
@@ -103,7 +104,8 @@ export function ContextMenu({ menu, onClose }: { menu: ContextMenuState; onClose
             item.onSelect();
           }}
         >
-          {item.label}
+          <span>{item.label}</span>
+          {item.shortcut ? <span className="vua-context-menu__shortcut" aria-hidden="true">{item.shortcut}</span> : null}
         </button>
       ))}
     </div>,

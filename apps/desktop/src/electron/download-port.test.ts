@@ -24,6 +24,7 @@ class FakeDownloadItem extends EventEmitter {
   resumable = false;
   cancelled = false;
   resumed = false;
+  paused = false;
 
   constructor(url: string, options: { filename?: string; total?: number | null; chain?: string[] } = {}) {
     super();
@@ -61,14 +62,16 @@ class FakeDownloadItem extends EventEmitter {
     return this.resumable;
   }
   isPaused(): boolean {
-    return false;
+    return this.paused;
   }
+  pause(): void { this.paused = true; }
   cancel(): void {
     this.cancelled = true;
     this.emit("done", {}, "cancelled");
   }
   resume(): void {
     this.resumed = true;
+    this.paused = false;
   }
   tick(bytes: number): void {
     this.received = bytes;
@@ -106,6 +109,21 @@ describe("download port (F4-3)", () => {
     stagingRoot = mkdtempSync(path.join(tmpdir(), "vua-download-port-"));
     events = [];
     downloadURLs = [];
+  });
+
+  it("pauses the native item without cancellation and prevents automatic retry from undoing it", () => {
+    const port = createPort({ progressIntervalMs: 0 });
+    const item = new FakeDownloadItem("https://booth.pm/downloadables/901");
+    port.handleWillDownload({ preventDefault() {} } as never, item as never, item.getWebContents() as never);
+    const id = events[0]!.downloadId;
+    expect(port.setPaused(id, true)).toBe(true);
+    item.resumable = true; item.tick(120);
+    expect(events).toHaveLength(1);
+    port.applyIntent(id, "resume"); expect(item.resumed).toBe(false);
+    expect(port.setPaused(id, false)).toBe(true);
+    item.tick(240); expect(events.at(-1)?.receivedBytes).toBe(240);
+    expect(item.cancelled).toBe(false); expect(events.every(e => e.attempt === 1)).toBe(true);
+    item.finish("completed"); expect(port.setPaused(id, true)).toBe(false);
   });
 
   it("blocks module stop from transport start through resumable interruption and pending retry", () => {

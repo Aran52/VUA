@@ -16,10 +16,13 @@ import type {
 } from "./application-contract.js";
 
 import { isCatalogSyncParamsV03, type CatalogSyncStatusV03 } from "./catalog-sync-v03.js";
+import { isBoothSearchParamsV01, type BoothSearchParamsV01 } from "./booth-search-v01.js";
 import { isLibraryDownloadParamsV01, type LibraryDownloadStatusV01 } from "./library-download-v01.js";
 import { isLibraryImportParamsV01, type LibraryImportParamsV01 } from "./library-intake-v01.js";
+import { isLibraryImportPathsParamsV02, type LibraryImportPathsParamsV02 } from "./library-intake-v02.js";
 import { isLibraryEntryMetadataParamsV01, type LibraryEntryMetadataQueryV01, type LibraryEntryMetadataUpdateV01 } from "./library-entry-metadata-v01.js";
 import { isLibraryRemoveLocalEntriesV01, type LibraryRemoveLocalEntriesV01 } from "./library-records-v01.js";
+import { isLibraryRemoveCardsV02, type LibraryRemoveCardsV02 } from "./library-records-v02.js";
 import { isLibraryViewParamsV01, type LibraryListParamsV01, type LibraryProductFilesParamsV01 } from "./library-view-v01.js";
 import { isRecipeDraftParamsV01, type RecipeDraftListParamsV01, type RecipeDraftGetParamsV01, type RecipeDraftSaveParamsV01, type RecipeDraftAddParamsV01 } from "./recipe-selection-draft-v01.js";
 import { isLibraryMaintenanceParamsV01, type LibraryRemovalPreviewParamsV01, type LibraryRemoveFilesParamsV01, type LibraryRemovalStatusParamsV01 } from "./library-maintenance-v01.js";
@@ -231,6 +234,10 @@ export interface CatalogSyncStatusRequestV1 {
   readonly method: "catalog.librarySyncStatus";
   readonly params: CatalogSyncStatusV03;
 }
+export interface BoothSearchRequestV1 {
+  readonly schemaVersion: 1; readonly requestId: string; readonly method: "catalog.searchProducts";
+  readonly params: BoothSearchParamsV01;
+}
 export interface LibraryDownloadStatusRequestV1 {
   readonly schemaVersion: 1; readonly requestId: string; readonly method: "library.downloadStatus";
   readonly params: LibraryDownloadStatusV01;
@@ -258,10 +265,15 @@ export interface LibraryImportRequestV1 {
   readonly schemaVersion: 1; readonly requestId: string; readonly method: "library.importFolders";
   readonly params: LibraryImportParamsV01 & { readonly commandId: string };
 }
+export interface LibraryImportPathsRequestV1 {
+  readonly schemaVersion: 1; readonly requestId: string; readonly method: "library.importPaths";
+  readonly params: LibraryImportPathsParamsV02 & { readonly commandId: string };
+}
 export type LibraryEntryMetadataRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & (
   | { readonly method: "library.entryMetadata"; readonly params: LibraryEntryMetadataQueryV01 }
   | { readonly method: "library.updateEntryMetadata"; readonly params: LibraryEntryMetadataUpdateV01 & { readonly commandId: string } }
   | { readonly method: "library.removeLocalEntries"; readonly params: LibraryRemoveLocalEntriesV01 & { readonly commandId: string } }
+  | { readonly method: "library.removeCards"; readonly params: LibraryRemoveCardsV02 & { readonly commandId: string } }
 );
 export type RecipeDraftCommandRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & (
   | { readonly method: "recipeDraft.save"; readonly params: RecipeDraftSaveParamsV01 }
@@ -1008,10 +1020,12 @@ export type DesktopGatewayRequestV1 =
   | ProductionGetBuildRecordRequestV1
   | CatalogListRequestV1
   | CatalogSyncStatusRequestV1
+  | BoothSearchRequestV1
   | LibraryDownloadStatusRequestV1
   | LibraryViewRequestV1
   | LibraryMaintenanceQueryRequestV1 | LibraryMaintenanceCommandRequestV1
   | LibraryImportRequestV1
+  | LibraryImportPathsRequestV1
   | LibraryEntryMetadataRequestV1
   | RecipeDraftQueryRequestV1 | RecipeDraftCommandRequestV1
   | CatalogDetailRequestV1
@@ -1098,15 +1112,18 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "production.getBuildRecord": "query",
   "catalog.list": "query",
   "catalog.librarySyncStatus": "query",
+  "catalog.searchProducts": "query",
   "library.downloadStatus": "query",
   "library.list": "query",
   "library.productFiles": "query",
   "library.removalPreview": "query",
   "library.removeFiles": "command",
   "library.importFolders": "command",
+  "library.importPaths": "command",
   "library.entryMetadata": "query",
   "library.updateEntryMetadata": "command",
   "library.removeLocalEntries": "command",
+  "library.removeCards": "command",
   "library.removalStatus": "query",
   "library.pendingRemovals": "query",
   "library.resolveRemoval": "command",
@@ -1479,6 +1496,9 @@ export interface RemoteContentApiV1 {
 /** 静默下载窄面(N5,2026-10-05 用户裁决:Steam 式):文件 id 批入队即受
  *  理;限速(串行 + 6s 源站间隔)与进度呈现归 Main/下载任务面,本面零过程 */
 export interface SilentDownloadApiV1 {
+  /** Session-only native queue control. It does not relabel frozen task states. */
+  control(batchId: string, paused: boolean): Promise<{ readonly ok: boolean; readonly paused: boolean }>;
+  transfers(): Promise<readonly { readonly batchId: string; readonly productId: string; readonly paused: boolean }[]>;
   start(productId: string, downloadableIds: readonly number[], replacementTargets?: readonly { readonly downloadableId: number; readonly copyId: string }[]): Promise<
     | { readonly accepted: number; readonly batchId: string; readonly taskId: string }
     | { readonly blocked: "sign-in-required" }
@@ -1513,6 +1533,7 @@ export interface CatalogSyncApiV1 {
   probe(): Promise<CatalogSyncProbeOutcomeV1>;
   /** 详情富化:抓取该商品页并更新本地目录观察(变体/画廊/描述) */
   fetchProduct(productId: string): Promise<{ ok: boolean }>;
+  searchProducts(query: string): Promise<import("./booth-search-v01.js").BoothSearchResultV01>;
 }
 
 /** catalog-sync 运行状态探针回执(任务前失败可见性) */
@@ -1643,6 +1664,8 @@ export type DesktopFsResultV1<T> =
   | { readonly ok: false; readonly error: DesktopFsErrorV1 };
 
 export interface DesktopFsApiV1 {
+  /** Native known-folder paths and logical drive names; no volume polling. */
+  navigation?(): Promise<DesktopFsResultV1<DesktopFsNavigationV1>>;
   /** 列目录(仅子目录):path null = 用户主目录;showHidden 缺省 false——
    * 隐藏目录以点前缀启发式判定,见 DesktopFsEntryV1.hidden */
   listDirectory(
@@ -1656,6 +1679,13 @@ export interface DesktopFsApiV1 {
     parentPath: string,
     name: string,
   ): Promise<DesktopFsResultV1<{ readonly path: string }>>;
+}
+
+export interface DesktopFsNavigationV1 {
+  readonly desktop: string;
+  readonly documents: string;
+  readonly downloads: string;
+  readonly drives: readonly DesktopFsEntryV1[];
 }
 
 /** 系统资源占用快照(瞬时读数,不持久化;schemaVersion 随形状演进) */
@@ -1703,6 +1733,7 @@ export interface VuaDesktopApiV2 extends Omit<VuaDesktopApiV1, "window" | "syste
   readonly window: DesktopWindowApiV2;
   readonly system: DesktopSystemApiV2;
   readonly startup?: DesktopStartupApiV01;
+  readonly library?: import("./desktop-library.js").DesktopLibraryApiV01;
 }
 
 export interface VuaDesktopApiV1 {
@@ -1949,6 +1980,8 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
         && isIdentifier(value.params.buildRecordId);
     case "catalog.librarySyncStatus":
       return hasExactKeys(value, REQUEST_KEYS) && isCatalogSyncParamsV03(value.method, value.params);
+    case "catalog.searchProducts":
+      return hasExactKeys(value, REQUEST_KEYS) && isBoothSearchParamsV01(value.params);
     case "library.downloadStatus":
       return hasExactKeys(value, REQUEST_KEYS) && isLibraryDownloadParamsV01(value.method, value.params);
     case "library.importFolders": {
@@ -1956,12 +1989,22 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
       const { commandId, ...params } = value.params as Record<string, unknown>;
       return isIdentifier(commandId) && isLibraryImportParamsV01(params);
     }
+    case "library.importPaths": {
+      if (!hasExactKeys(value, REQUEST_KEYS)) return false;
+      const { commandId, ...params } = value.params as Record<string, unknown>;
+      return isIdentifier(commandId) && isLibraryImportPathsParamsV02(params);
+    }
     case "library.entryMetadata":
       return hasExactKeys(value, REQUEST_KEYS) && isLibraryEntryMetadataParamsV01(value.method, value.params);
     case "library.updateEntryMetadata": {
       if (!hasExactKeys(value, REQUEST_KEYS)) return false;
       const { commandId, ...params } = value.params as Record<string, unknown>;
       return isIdentifier(commandId) && isLibraryEntryMetadataParamsV01(value.method, params);
+    }
+    case "library.removeCards": {
+      if (!hasExactKeys(value, REQUEST_KEYS)) return false;
+      const { commandId, ...params } = value.params as Record<string, unknown>;
+      return isIdentifier(commandId) && isLibraryRemoveCardsV02(params);
     }
     case "library.removeLocalEntries": {
       if (!hasExactKeys(value, REQUEST_KEYS)) return false;

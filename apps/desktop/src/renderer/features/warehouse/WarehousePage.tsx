@@ -1,12 +1,15 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import { isCatalogSyncSnapshotV03, isLibraryDownloadSnapshotV01, type CatalogSyncSnapshotV03 } from "@vua/contracts";
+import { isCatalogSyncSnapshotV03, isLibraryDownloadSnapshotV01, type CatalogSyncSnapshotV03, type BoothSearchResultV01 } from "@vua/contracts";
 import { catalogSyncNotice, startSignedInCatalogSync, type CatalogAccountState, type CatalogSyncNotice } from "./catalog-sync-model.ts";
 import { catalogBrowser } from "../../app/catalog-browser-instance.ts";
 import { libraryBrowser } from "../../app/library-browser-instance.ts";
@@ -24,16 +27,16 @@ import { Icon } from "@vua/design-system";
 import {
   useAcquireView,
   useGateway,
+  useTaskCenter,
   useDataSource,
   type LibraryPageView,
   type LibraryCardFacts,
-  type CatalogAvailabilityStatus,
   type CatalogDetailView,
   type CatalogErrorKey,
   type CatalogListView,
   type CatalogProductDetail,
   type CatalogProductSummary,
-  type CatalogRelationKind,
+  createLibraryMetadataPort,
 } from "../../gateway/index.ts";
 import { format, strings, termLabel } from "../../i18n/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -42,16 +45,17 @@ import { useDebugMode } from "../../app/debug-mode.ts";
 import { useCardSpotlight } from "./use-card-spotlight.ts";
 import type { RecipeAssetRef } from "../../gateway/index.ts";
 import { AddToRecipeDialog } from "./AddToRecipeDialog.tsx";
-import { CompatibleItemsDialog } from "./CompatibleItemsDialog.tsx";
-import { DependencyLookupDialog } from "./DependencyLookupDialog.tsx";
+import { LibraryListRow, libraryListSource, useLibraryColumns } from "./LibraryList.tsx";
 import { registerTaskIdentity } from "../../gateway/index.ts";
 import { CardAlbumMedia, DetailAlbum } from "./WarehouseAlbum.tsx";
-import { ArtifactCard, EntryDetail } from "./WarehouseAcquire.tsx";
+import { MaterialEntryCard, EntryDetail } from "./WarehouseAcquire.tsx";
 import { EditSourceDialog } from "./EditSourceDialog.tsx";
-import { RemoveEntriesDialog } from "./RemoveEntriesDialog.tsx";
-import { artifactCardMatches, artifactCards, inferGlobalDefaultMode } from "./acquire-model.ts";
+import { RemoveCardsDialog, type RemovalCard } from "./RemoveCardsDialog.tsx";
+import { entryCardMatches, entryCards, inferGlobalDefaultMode } from "./acquire-model.ts";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { ImportPage } from "../import/ImportPage.tsx";
+import { LocalImportButton } from "../import/LocalImportButton.tsx";
+import { LibraryMigrationPreview } from "../import/LibraryMigrationPreview.tsx";
 import {
   catalogEmptyCard,
   emptyWarehouseQuery,
@@ -63,10 +67,18 @@ import {
 import { BOOTH_SIGN_IN_URL } from "../import/import-model.ts";
 import { openLoginBrowser, useLoginBrowserRequest } from "../../app/login-browser-store.ts";
 import { useDownloadChecklist } from "../../app/download-checklist-flag.ts";
-import { useDependencyClues } from "../../app/dependency-clues-flag.ts";
 import { DownloadChecklistDialog } from "./DownloadChecklistDialog.tsx";
 import { RemoveFilesDialog, type RemovalDialogTarget } from "./RemoveFilesDialog.tsx";
+import { BulkDownloadDialog } from "./BulkDownloadDialog.tsx";
+import { BulkRemoveFilesDialog } from "./BulkRemoveFilesDialog.tsx";
+import { removalScopes, type BulkProduct, type BulkDownloadMode } from "./bulk-file-model.ts";
+import { boothProductUrl } from "./booth-source.ts";
+import { LibraryCorner } from "./LibraryCorner.tsx";
+import { libraryCornerState, type LocalSourceSearchState } from "./library-corner-model.ts";
+import { boothSearchKeyword, exactBoothMatch } from "./booth-match-model.ts";
+import { BoothMatchDialog } from "./BoothMatchDialog.tsx";
 import "./warehouse.css";
+import { clipSelectionRect, scrollSelectionRect } from "./marquee-model.ts";
 
 const copy = strings.warehouse;
 
@@ -138,12 +150,12 @@ function priceText(product: {
 
 /* ---- 商品卡片 ---- */
 
-function LibraryBadges({ facts }: { facts: LibraryCardFacts | undefined }) {
+function LibraryBadges({ facts, compact = false }: { facts: LibraryCardFacts | undefined; compact?: boolean }) {
   if (facts === undefined) return null;
   return <>
-    <Badge tone={facts.storage.state === "present" || facts.storage.state === "cloud_only" ? "neutral" : "warning"}>
+    {compact ? null : <Badge tone={facts.storage.state === "present" || facts.storage.state === "cloud_only" ? "neutral" : "warning"}>
       {copy.libraryState[facts.storage.state]}
-    </Badge>
+    </Badge>}
     {facts.sourceMatch === undefined ? null : <>
       {facts.sourceMatch.basis !== "mapping" ? <Badge tone="neutral">{copy.libraryState.sourceSuggested}</Badge> : null}
       <Badge tone="neutral">{facts.sourceMatch.content === "different" ? copy.libraryState.contentDifferent : copy.libraryState.contentUnverified}</Badge>
@@ -151,7 +163,7 @@ function LibraryBadges({ facts }: { facts: LibraryCardFacts | undefined }) {
     {facts.storage.supersededGeneratedCopies > 0 ? <Badge tone="neutral">{copy.removeFiles.oldVersion}</Badge> : null}
     {(facts.storage.unexpandedArchives ?? 0) > 0 ? <Badge tone="warning">{copy.libraryState.unexpandedArchives}</Badge> : null}
     {facts.storage.supersededGeneratedCopies > 0 && facts.storage.currentGeneratedCopies === 0 ? <Badge tone="warning">{copy.removeFiles.regenerate}</Badge> : null}
-    {facts.operation?.inspectRequired ? <Badge tone="warning">{copy.libraryState.inspectRequired}</Badge>
+    {compact ? null : facts.operation?.inspectRequired ? <Badge tone="warning">{copy.libraryState.inspectRequired}</Badge>
       : facts.operation?.state === "running" ? <Badge tone="neutral">{copy.libraryState.downloading}</Badge>
       : facts.operation?.state === "failed" ? <Badge tone="warning">{copy.libraryState.downloadFailed}</Badge>
       : facts.operation?.state === "succeeded_with_warnings" ? <Badge tone="warning">{copy.libraryState.downloadPartial}</Badge> : null}
@@ -161,50 +173,12 @@ function LibraryBadges({ facts }: { facts: LibraryCardFacts | undefined }) {
 /** 卡/行交互基座(Explorer 语义,用户裁决 2026-10-05):单击 = 选中该卡,
  * 双击/Enter = 打开详情,右键 = 交页面菜单(按选区约定裁决作用域)。
  * data-product-id 既是选区归属标记,也是框选命中测试的锚点。 */
-function WarehouseListRow({
-  item,
-  facts,
-  selected,
-  onSelect,
-  onOpen,
-  onMenu,
-}: {
-  item: CatalogProductSummary;
-  facts?: LibraryCardFacts | undefined;
-  selected: boolean;
-  onSelect: () => void;
-  onOpen: () => void;
-  onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
-}) {
-  return (
-    <div
-      className="vua-warehouse-list-row"
-      data-selected={selected || undefined}
-      data-product-id={item.productId}
-      role="listitem"
-      tabIndex={0}
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      onContextMenu={onMenu}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      <span className="vua-warehouse-list-row__title">{item.title ?? item.productId}</span>
-      {item.variantName !== null ? (
-        <span className="vua-warehouse-list-row__variant">{item.variantName}</span>
-      ) : null}
-      <span className="vua-warehouse-list-row__shop">{item.shopName ?? copy.card.unknownShop}</span>
-      {facts !== undefined ? <LibraryBadges facts={facts} /> : item.importedArtifacts > 0 ? (
-        <span className="vua-caption">{copy.importedBadge}</span>
-      ) : null}
-      <Button variant="subtle" aria-label={copy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
-    </div>
-  );
+function MaterialEntryView(props: Parameters<typeof MaterialEntryCard>[0] & { viewMode: "cards" | "list"; columnStyle: CSSProperties; facts?: LibraryCardFacts | undefined }) {
+  if (props.viewMode === "cards") return <MaterialEntryCard {...props} />;
+  const { card, source, metadata, facts } = props;
+  return <LibraryListRow id={card.key} title={metadata?.displayName ?? source?.title ?? card.entry.displayName}
+    shop={source?.shopName} variant={source?.variantName} variantCount={facts?.variantCount} source={libraryListSource(facts, card.entry.kind)}
+    selected={props.selected} style={props.columnStyle} onSelect={props.onSelect} onOpen={props.onOpen} onMenu={props.onMenu} />;
 }
 
 function WarehouseCard({
@@ -214,6 +188,7 @@ function WarehouseCard({
   onSelect,
   onOpen,
   onMenu,
+  corner,
 }: {
   item: CatalogProductSummary;
   facts?: LibraryCardFacts | undefined;
@@ -222,12 +197,14 @@ function WarehouseCard({
   onOpen: () => void;
   /** 素材卡右键菜单(S-XII):由页面组装真实动作项 */
   onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
+  corner?: ReactNode;
 }) {
   return (
     <article
       className="vua-warehouse-card"
       data-selected={selected || undefined}
       data-product-id={item.productId}
+      data-selection-id={item.productId}
       onClick={onSelect}
       onDoubleClick={onOpen}
       onContextMenu={onMenu}
@@ -243,6 +220,7 @@ function WarehouseCard({
       }}
     >
       <div className="vua-warehouse-card__media">
+        {corner}
         {item.imageUrls.length > 0 ? (
           // 多图卡:悬停 2s 进相册(光标横向位置翻页);单图退化为普通媒体槽
           <CardAlbumMedia imageUrls={item.imageUrls} title={item.title ?? item.productId} />
@@ -257,14 +235,14 @@ function WarehouseCard({
         <p className="vua-warehouse-card__title" title={item.title ?? item.productId}>
           {item.title ?? item.productId}
         </p>
-        {item.variantName !== null ? (
-          <p className="vua-warehouse-card__variant" title={item.variantName}>
-            {item.variantName}
-          </p>
-        ) : null}
         {item.shopName !== null ? (
           <p className="vua-caption vua-text-secondary vua-warehouse-card__shop">
             {item.shopName}
+          </p>
+        ) : null}
+        {item.variantName !== null ? (
+          <p className="vua-warehouse-card__variant" title={item.variantName}>
+            {item.variantName}
           </p>
         ) : null}
         <div className="vua-warehouse-card__badges">
@@ -273,11 +251,11 @@ function WarehouseCard({
           {item.availability !== "available" && item.availability !== "unknown" ? (
             <Badge tone="neutral">{copy.availability[item.availability]}</Badge>
           ) : null}
-        {facts !== undefined ? <LibraryBadges facts={facts} /> : item.importedArtifacts > 0 ? (
+        {facts !== undefined ? <LibraryBadges facts={facts} compact /> : item.importedArtifacts > 0 ? (
           <Badge tone="neutral">{copy.importedBadge}</Badge>
         ) : null}
         </div>
-        <Button variant="subtle" aria-label={copy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
+        <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={copy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
       </div>
     </article>
   );
@@ -302,10 +280,12 @@ function DetailContent({
   // 应用内窗口打开失败(S-IX-3):同样显式提示,引导改用系统浏览器
   const [openInAppFailed, setOpenInAppFailed] = useState(false);
   // 懒加载富化(N5 D2,2026-10-03):库行观察只有标题/缩略/店铺;
-  // 缺描述且缺变体 = 未富化 → 经分区会话抓商品页,provider 全量观察后
+  // 缺分类或同时缺描述与变体 → 经分区会话抓商品页,provider 全量观察后
   // 上层重取详情即得画廊/描述/变体/上架日期。失败静默保留现状
   // (详情仍可用,只是未增强)。
-  const [enriching, setEnriching] = useState(false);
+  // One request per opened product. Reuse its promise across effect re-runs,
+  // while discarding results after this detail closes or switches products.
+  const enrichmentRequest = useRef<Promise<boolean> | null>(null);
   // onEnriched 固定到 ref:内联箭头每次渲染产生新引用,旧实现的 effect
   // 依赖数组含它 → 父组件渲染即重跑 effect → 清理函数置 active=false →
   // 在途 fetch 的回调被丢弃 → 首开抽屉收不到重取通知(真机 2026-10-03
@@ -313,19 +293,18 @@ function DetailContent({
   const onEnrichedRef = useRef(onEnriched);
   onEnrichedRef.current = onEnriched;
   useEffect(() => {
-    const unenriched = product.description === null && product.variations.length === 0;
-    if (!unenriched || enriching) return;
+    const unenriched = product.sourceCategory === null || product.description === null && product.variations.length === 0;
+    if (!unenriched) return;
     const face = window.vua?.catalogSync;
     if (face === undefined || !("fetchProduct" in face)) return;
-    setEnriching(true);
-    void face
-      .fetchProduct(product.productId)
-      .then((result) => {
-        if (result.ok) onEnrichedRef.current?.();
-      })
-      .catch(() => {})
-      .finally(() => setEnriching(false));
-  }, [product.productId, product.description, product.variations.length, enriching]);
+    enrichmentRequest.current ??= face.fetchProduct(product.productId)
+      .then(result => result.ok).catch(() => false);
+    let active = true;
+    void enrichmentRequest.current.then(ok => {
+      if (active && ok) onEnrichedRef.current?.();
+    });
+    return () => { active = false; };
+  }, [product.productId, product.sourceCategory, product.description, product.variations.length]);
   return (
     <div className="vua-warehouse-detail__content">
       {/* 相册:详情媒体数组;详情缺媒体时回落主图单张(列表兜底场景) */}
@@ -574,28 +553,121 @@ export function WarehousePage({
   // 单库页(用户方向 2026-10-02):云端三来源 + 本地,来源只作筛选
   // 视图模式(用户裁决 2026-03):卡片墙(带图)↔ 纯文字标题列表
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const columns = useLibraryColumns();
   // 选区(Explorer 语义,用户裁决 2026-10-05):单击选卡/框选/右键拖选,
   // 无独立"选择模式"开关;Esc、空白单击、重新框选即清空
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const selectedIdsRef = useRef<ReadonlySet<string>>(selectedIds);
+  selectedIdsRef.current = selectedIds;
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
   const [contextSelection, setContextSelection] = useState<readonly RecipeAssetRef[]>([]);
-  const [dependencyCluesOn] = useDependencyClues();
-  const [lookupName, setLookupName] = useState<string | null>(null);
-  // Optional, unconfirmed dependency observations.
-  const [compatibleQuery, setCompatibleQuery] = useState<{
-    productId: string;
-    title: string;
-  } | null>(null);
-  useEffect(() => {
-    if (dependencyCluesOn) return;
-    setCompatibleQuery(null);
-    setLookupName(null);
-    setCardMenu(null);
-  }, [dependencyCluesOn]);
+  const pageRef = useRef<HTMLDivElement | null>(null);
   const [removalTarget, setRemovalTarget] = useState<RemovalDialogTarget | null>(null);
+  const [bulkRemovalTargets, setBulkRemovalTargets] = useState<readonly RemovalDialogTarget[] | null>(null);
+  const [bulkDownload, setBulkDownload] = useState<{ readonly products: readonly BulkProduct[]; readonly mode: BulkDownloadMode; readonly skippedLocal: number } | null>(null);
   const [metadataEntries, setMetadataEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
-  const [removedEntries, setRemovedEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+  const [transfers, setTransfers] = useState<readonly { batchId: string; productId: string; paused: boolean }[]>([]);
+  const [cornerBusy, setCornerBusy] = useState<ReadonlySet<string>>(new Set());
+  const busyCorners = useRef(new Set<string>());
+  const [sourceSearch, setSourceSearch] = useState<ReadonlyMap<string, LocalSourceSearchState>>(new Map());
+  const [matchDialog, setMatchDialog] = useState<{ entryId: string; name: string; result: BoothSearchResultV01 | null } | null>(null);
+  const [matchNotice, setMatchNotice] = useState<string | null>(null);
+  const lifetime = useRef(0);
+  useEffect(() => { lifetime.current++; return () => { lifetime.current++; }; }, []);
+  const sourceWrites = useRef(new Map<string, { productId: string; params: import("@vua/contracts").LibraryEntryMetadataUpdateV01; commandId: string }>());
+  const setSourceState = (entryId: string, state: LocalSourceSearchState) => setSourceSearch(prev => new Map(prev).set(entryId, state));
+  const openBooth = async (productId: string) => {
+    const url = boothProductUrl(productId);
+    if (url === null) return;
+    try {
+      const face = window.vua?.library;
+      const opened = typeof face?.openBoothProduct === "function" ? (await face.openBoothProduct(productId)).opened
+        : window.open(url, "_blank") !== null;
+      if (!opened) setDownloadNotice(copy.sourceSearch.openFailed);
+    } catch { setDownloadNotice(copy.sourceSearch.openFailed); }
+  };
+  const saveBoothSource = async (entryId: string, productId: string) => {
+    const outcome = await window.vua?.catalogSync?.fetchProduct(productId);
+    if (outcome?.ok !== true) throw new Error("official_source_unavailable");
+    const detail = await catalogBrowser.detail(productId);
+    if (detail.kind !== "detail" || detail.product.productId !== productId) throw new Error("official_source_unavailable");
+    const port = createLibraryMetadataPort();
+    const previous = sourceWrites.current.get(entryId);
+    const record = await port.read(entryId);
+    if (record.productId !== productId) {
+      const pending = previous?.productId === productId ? previous : {
+        productId, commandId: crypto.randomUUID(),
+        params: { schemaVersion: "0.1" as const, entryId, expectedRevision: record.revision, productId, displayName: record.displayName, thumbnailRef: record.thumbnailRef },
+      };
+      sourceWrites.current.set(entryId, pending);
+      try { await port.update(pending.params, pending.commandId); }
+      catch (error) {
+        if (error instanceof Error && error.message === "vua.library.metadata_conflict") sourceWrites.current.delete(entryId);
+        throw error;
+      }
+    }
+    sourceWrites.current.delete(entryId);
+  };
+  const searchBoothSource = async (entryId: string, name: string, query = boothSearchKeyword(name), automatic = true) => {
+    if (busyCorners.current.has(entryId)) return;
+    const generation = lifetime.current;
+    busyCorners.current.add(entryId); setCornerBusy(new Set(busyCorners.current)); setSourceState(entryId, "searching"); setMatchNotice(null);
+    try {
+      const result = await window.vua?.catalogSync?.searchProducts(query);
+      if (generation !== lifetime.current) return;
+      if (result === undefined) throw new Error("search_unavailable");
+      const exact = automatic ? exactBoothMatch(result, query) : null;
+      if (exact !== null) {
+        await saveBoothSource(entryId, exact.productId);
+        if (generation !== lifetime.current) return;
+        setSourceState(entryId, "matched"); setReloadKey(key => key + 1);
+      } else {
+        setSourceState(entryId, "uncertain"); setMatchDialog({ entryId, name, result });
+      }
+    } catch {
+      if (generation === lifetime.current) { setSourceState(entryId, "uncertain"); setMatchDialog({ entryId, name, result: null }); setMatchNotice(copy.sourceSearch.failed); }
+    } finally { busyCorners.current.delete(entryId); if (generation === lifetime.current) setCornerBusy(new Set(busyCorners.current)); }
+  };
+  const confirmBoothSource = async (entryId: string, productId: string) => {
+    if (busyCorners.current.has(entryId)) return;
+    const generation = lifetime.current;
+    busyCorners.current.add(entryId); setCornerBusy(new Set(busyCorners.current)); setMatchNotice(null); setSourceState(entryId, "searching");
+    try {
+      await saveBoothSource(entryId, productId);
+      if (generation !== lifetime.current) return;
+      setSourceState(entryId, "matched"); setMatchDialog(null); setReloadKey(key => key + 1);
+    } catch { if (generation === lifetime.current) { setSourceState(entryId, "uncertain"); setMatchNotice(copy.sourceSearch.saveFailed); } }
+    finally { busyCorners.current.delete(entryId); if (generation === lifetime.current) setCornerBusy(new Set(busyCorners.current)); }
+  };
+  const [openingFolder, setOpeningFolder] = useState(false);
+  const [folderOpenFailed, setFolderOpenFailed] = useState(false);
+  const [folderChoices, setFolderChoices] = useState<readonly { entryId: string; displayName: string }[] | null>(null);
+  const openEntryFolder = async (entryId: string) => {
+    const library = window.vua?.library;
+    if (typeof library?.openEntryFolder !== "function" || openingFolder) return;
+    setOpeningFolder(true);
+    setFolderOpenFailed(false);
+    try { const result = await library.openEntryFolder(entryId); setFolderOpenFailed(!result.opened); if (result.opened) setFolderChoices(null); }
+    catch { setFolderOpenFailed(true); }
+    finally { setOpeningFolder(false); }
+  };
+  const openProductFolder = async (productId: string) => {
+    if (openingFolder || typeof window.vua?.library?.openEntryFolder !== "function") return;
+    setOpeningFolder(true); setFolderOpenFailed(false);
+    try {
+      const entries = new Map((libraryPage?.facts.get(productId)?.localEntries ?? []).map(entry => [entry.entryId, entry]));
+      const files = await libraryBrowser.productFiles(productId);
+      for (const file of files.items) for (const copy of file.copies) {
+        if (!entries.has(copy.entryId)) entries.set(copy.entryId, { entryId: copy.entryId, displayName: file.fileName });
+      }
+      const choices = [...entries.values()];
+      if (choices.length === 1) setFolderOpenFailed(!(await window.vua.library.openEntryFolder(choices[0]!.entryId)).opened);
+      else if (choices.length > 1) setFolderChoices(choices);
+      else setFolderOpenFailed(true);
+    } catch { setFolderOpenFailed(true); }
+    finally { setOpeningFolder(false); }
+  };
   // 静默下载观察(人审 E18 修复):受理后记住商品,下载任务静默 + 目录里
   // 该商品已入库(自动采纳完成写 mappings)即刷新卡片墙并提示——用户看
   // 得到"下到哪了"。不按采纳任务 id 判定:main 发起的采纳任务是时间戳
@@ -614,20 +686,64 @@ export function WarehousePage({
     "all" | "bought" | "gifts" | "free" | "local"
   >("all");
   const [downloadState, setDownloadState] = useState<"all" | "downloaded" | "not-downloaded" | "missing" | "in_progress" | "attention">("all");
+  const [sourceCategory, setSourceCategory] = useState("all");
   const [libraryPage, setLibraryPage] = useState<LibraryPageView | null>(null);
+  const latestLibraryPage = useRef(libraryPage); latestLibraryPage.current = libraryPage;
+  useEffect(() => {
+    const face = window.vua?.silentDownload;
+    if (typeof face?.transfers !== "function") return;
+    let active = true, reading = false, previous = "";
+    const poll = async () => {
+      if (reading) return;
+      reading = true;
+      try {
+        const value = await face.transfers();
+        if (!active) return;
+        const key = JSON.stringify(value);
+        // Reconcile even an unchanged native snapshot: an optimistic start can finish
+        // between two empty queue reads. Comparing only poll snapshots leaves it stuck.
+        setTransfers(current => JSON.stringify(current) === key ? current : value);
+        if (key !== previous) { const initial = previous === ""; previous = key; if (!initial) setReloadKey(k => k + 1); }
+        else if ([...(latestLibraryPage.current?.facts.values() ?? [])].some(f => f.operation?.state === "running" && !f.operation.inspectRequired)) setReloadKey(k => k + 1);
+      } catch { /* Durable provider facts remain visible if native control is unavailable. */ }
+      finally { reading = false; }
+    };
+    void poll(); const timer = window.setInterval(() => void poll(), 2000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
   const [pageOffset, setPageOffset] = useState(0);
 
   const [query, setQuery] = useState<WarehouseQueryState>(emptyWarehouseQuery);
   const [listState, setListState] = useState<ListState>({ kind: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
+  // Drops can start outside this page, without the old import dialog's close
+  // callback. Refresh durable cards when their normal warehouse tasks finish.
+  const terminalTasks = useTaskCenter().tasks.filter(task => task.originPage === "warehouse"
+    && ["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)).map(task => `${task.id}:${task.status}`).sort().join("|");
+  const previousTerminalTasks = useRef(terminalTasks);
+  useEffect(() => {
+    if (previousTerminalTasks.current === terminalTasks) return;
+    previousTerminalTasks.current = terminalTasks;
+    setReloadKey(key => key + 1);
+  }, [terminalTasks]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const currentDetailId = useRef(selectedId); currentDetailId.current = selectedId;
   const [detailState, setDetailState] = useState<DetailState>({ kind: "loading" });
   const [detailReloadKey, setDetailReloadKey] = useState(0);
+  const refreshEnrichedDetail = (productId: string) => {
+    setReloadKey(key => key + 1);
+    // Keep the opened detail mounted: a loading remount would fetch again for products
+    // whose official page genuinely has no recorded category/description.
+    void catalogBrowser.detail(productId).then(view => {
+      if (currentDetailId.current === productId) setDetailState({ kind: "loaded", view });
+    }, () => {});
+  };
   /** 素材卡右键菜单(S-XII):null 即关闭;动作全部映射真实能力 */
   const [cardMenu, setCardMenu] = useState<ContextMenuState | null>(null);
   // 素材导入弹窗(2026-09-20 导航重构):原独立页收敛为仓储页内弹窗,
   // 弹窗关闭即卸载 ImportPage——其「卸载即在途关闭内嵌视图」生命周期语义原样生效
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [migrationPreviewOpen, setMigrationPreviewOpen] = useState(false);
   // 定向首开地址(右键「下载到本地」):null = 常规入口(本地/云端选择步)
   const [importInitialUrl, setImportInitialUrl] = useState<string | null>(null);
 
@@ -714,8 +830,8 @@ export function WarehousePage({
   const localEntries = dataSource === "fixture"
     ? acquireView !== null && acquireView.kind === "entries" ? acquireView.entries : []
     : libraryPage?.localEntries ?? [];
-  const localCards = artifactCards(localEntries).filter((card) =>
-    dataSource !== "fixture" || artifactCardMatches(card, query.text.trim()),
+  const localCards = entryCards(localEntries).filter((card) =>
+    dataSource !== "fixture" || entryCardMatches(card, query.text.trim()),
   );
   const selectedLocalEntry =
     selectedLocalId === null
@@ -793,8 +909,10 @@ export function WarehousePage({
           total: snapshot.files.length,
         };
         if (snapshot.recoveryDisposition === "inspect_required") {
+          setTransfers(current => current.filter(transfer => transfer.batchId !== snapshot.batchId));
           setDownloadNotice(copy.cardMenu.downloadInspectHint); setDownloadWatchBatch(null);
         } else if (snapshot.state !== "running") {
+          setTransfers(current => current.filter(transfer => transfer.batchId !== snapshot.batchId));
           setDownloadNotice(format(copy.cardMenu.downloadTerminalHint, counts));
           setDownloadWatchBatch(null); setReloadKey((key) => key + 1);
         } else setDownloadNotice(format(copy.cardMenu.downloadProgressHint, counts));
@@ -825,6 +943,9 @@ export function WarehousePage({
    * 单击处理(手抖不误入);右键拖动结束时在松开点打开选区菜单。监听挂
    * window(不持 pointer capture),拖出容器仍可跟踪,click 语义不受影响。 */
   const MARQUEE_THRESHOLD_PX = 4;
+  const marqueeCleanup = useRef<(() => void) | null>(null);
+  const selectionMenuRef = useRef<(x: number, y: number) => void>(() => {});
+  useEffect(() => () => marqueeCleanup.current?.(), [wallEl]);
   const dragStartRef = useRef<{
     x: number;
     y: number;
@@ -841,13 +962,6 @@ export function WarehousePage({
   const suppressNextClickRef = useRef(false);
   const suppressNextContextMenuRef = useRef(false);
 
-  const marqueeRectOf = (x0: number, y0: number, x1: number, y1: number) => ({
-    left: Math.min(x0, x1),
-    top: Math.min(y0, y1),
-    width: Math.abs(x1 - x0),
-    height: Math.abs(y1 - y0),
-  });
-
   const selectByRect = (rect: { left: number; top: number; width: number; height: number }) => {
     const el = wallEl;
     if (el === null) return;
@@ -855,9 +969,10 @@ export function WarehousePage({
     const hit = (r: DOMRect) =>
       r.left < rect.left + rect.width && r.right > rect.left
       && r.top < rect.top + rect.height && r.bottom > rect.top;
-    for (const card of el.querySelectorAll<HTMLElement>("[data-product-id]")) {
-      if (hit(card.getBoundingClientRect())) ids.add(card.dataset.productId ?? "");
+    for (const card of el.querySelectorAll<HTMLElement>("[data-selection-id]")) {
+      if (hit(card.getBoundingClientRect())) ids.add(card.dataset.selectionId ?? "");
     }
+    selectedIdsRef.current = ids;
     setSelectedIds(ids);
   };
 
@@ -865,6 +980,11 @@ export function WarehousePage({
     if (event.button !== 0 && event.button !== 2) return;
     const target = event.target as HTMLElement;
     if (target.closest("button, select, input, a, textarea") !== null) return;
+    const wall = event.currentTarget;
+    const bounds = wall.getBoundingClientRect();
+    const anchor = { x: event.clientX - bounds.left + wall.scrollLeft, y: event.clientY - bounds.top + wall.scrollTop };
+    let pointer = { x: event.clientX, y: event.clientY };
+    marqueeCleanup.current?.();
     const start = {
       x: event.clientX,
       y: event.clientY,
@@ -872,7 +992,15 @@ export function WarehousePage({
       becameMarquee: false,
     };
     dragStartRef.current = start;
+    const update = () => {
+      if (!start.becameMarquee) return;
+      const viewport = wall.getBoundingClientRect();
+      const rect = scrollSelectionRect(anchor, pointer, { x: viewport.left, y: viewport.top }, { x: wall.scrollLeft, y: wall.scrollTop });
+      setMarqueeRect(clipSelectionRect(rect, viewport));
+      selectByRect(rect);
+    };
     const onMove = (moveEvent: PointerEvent) => {
+      pointer = { x: moveEvent.clientX, y: moveEvent.clientY };
       if (
         !start.becameMarquee
         && Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y)
@@ -881,26 +1009,37 @@ export function WarehousePage({
         return;
       }
       start.becameMarquee = true;
-      const rect = marqueeRectOf(start.x, start.y, moveEvent.clientX, moveEvent.clientY);
-      setMarqueeRect(rect);
-      selectByRect(rect);
+      update();
     };
-    const finish = (upEvent: PointerEvent) => {
+    const cleanup = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
+      window.removeEventListener("blur", abandon);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
       dragStartRef.current = null;
       setMarqueeRect(null);
+      marqueeCleanup.current = null;
+    };
+    const abandon = () => cleanup();
+    const finish = (upEvent: PointerEvent) => {
+      update();
+      cleanup();
       if (!start.becameMarquee) return;
       suppressNextClickRef.current = true;
-      if (start.button === 2) {
+      if (start.button === 2 && upEvent.type === "pointerup") {
         suppressNextContextMenuRef.current = true;
-        openSelectionMenu(upEvent.clientX, upEvent.clientY);
+        selectionMenuRef.current(upEvent.clientX, upEvent.clientY);
       }
     };
+    marqueeCleanup.current = cleanup;
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", finish);
     window.addEventListener("pointercancel", finish);
+    window.addEventListener("blur", abandon);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, { capture: true, passive: true });
   };
 
   // 空白单击清空选区(卡/行自己的单击=选中;抑制标记吞掉框选落定的尾随 click)
@@ -910,7 +1049,7 @@ export function WarehousePage({
       return;
     }
     const target = event.target as HTMLElement;
-    if (target.closest("[data-product-id], button, a, select, input, textarea") === null) {
+    if (target.closest("[data-selection-id], button, a, select, input, textarea") === null) {
       clearSelection();
     }
   };
@@ -921,9 +1060,12 @@ export function WarehousePage({
       event.preventDefault();
       return;
     }
-    // 空白右键无菜单:抑制原生菜单;卡/行上的右键由其 onContextMenu 处理
+    // The wall also offers page-scoped selection without a card under the pointer.
     const target = event.target as HTMLElement;
-    if (target.closest("[data-product-id]") === null) event.preventDefault();
+    if (target.closest("[data-selection-id], input, textarea, select, [contenteditable='true']") === null) {
+      event.preventDefault();
+      openSelectionMenu(event.clientX, event.clientY);
+    }
   };
 
   // 单击选中(替换选区)——框选落定后的尾随单击经抑制标记吞掉,不塌缩选区
@@ -935,16 +1077,50 @@ export function WarehousePage({
     setSelectedIds(new Set([id]));
   };
 
-  // 列表查询:筛选变更保留旧结果(stale-while-revalidate),骨架屏只留给首次加载
+  const [adaptation, setAdaptation] = useState<{ productId: string; title: string; previous: {
+    query: WarehouseQueryState; source: typeof source; downloadState: typeof downloadState; sourceCategory: string; pageOffset: number;
+    viewMode: typeof viewMode; selectedIds: ReadonlySet<string>; selectedId: string | null; selectedLocalId: string | null; scrollTop: number; scrollLeft: number;
+  } } | null>(null);
+  const restoreScroll = useRef<{ top: number; left: number } | null>(null);
+  const changeFilters = (change: () => void) => { change(); setPageOffset(0); setSelectedIds(new Set()); };
+  const changePage = (offset: number) => { setPageOffset(offset); setSelectedIds(new Set()); };
+  const showAdaptations = (product: { productId: string; title: string | null }) => {
+    setAdaptation({ productId: product.productId, title: product.title ?? product.productId, previous: adaptation?.previous ?? {
+      query, source, downloadState, sourceCategory, pageOffset, viewMode, selectedIds: new Set(selectedIdsRef.current), selectedId, selectedLocalId,
+      scrollTop: wallEl?.scrollTop ?? 0, scrollLeft: wallEl?.scrollLeft ?? 0,
+    } });
+    restoreScroll.current = null; setQuery(emptyWarehouseQuery); setSource("all"); setDownloadState("all"); setSourceCategory("all");
+    setPageOffset(0); setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setLibraryPage(null); setListState({ kind: "loading" });
+    if (wallEl) { wallEl.scrollTop = 0; wallEl.scrollLeft = 0; }
+  };
+  const cancelAdaptations = () => {
+    if (!adaptation) return;
+    const previous = adaptation.previous;
+    setQuery(previous.query); setSource(previous.source); setDownloadState(previous.downloadState); setSourceCategory(previous.sourceCategory);
+    setPageOffset(previous.pageOffset); setViewMode(previous.viewMode); setSelectedIds(previous.selectedIds); setSelectedId(previous.selectedId); setSelectedLocalId(previous.selectedLocalId);
+    restoreScroll.current = { top: previous.scrollTop, left: previous.scrollLeft };
+    setAdaptation(null); setLibraryPage(null); setListState({ kind: "loading" });
+  };
+  useLayoutEffect(() => {
+    const scroll = restoreScroll.current;
+    if (scroll === null || adaptation !== null || libraryPage === null || listState.kind !== "loaded") return;
+    const wall = pageRef.current?.querySelector(".vua-warehouse__wall-scroll");
+    if (wall) { wall.scrollTop = scroll.top; wall.scrollLeft = scroll.left; restoreScroll.current = null; }
+  }, [libraryPage, listState, adaptation]);
+
+  // Ordinary filter changes retain old results. Entering/leaving link filtering
+  // clears them so a previous page never poses as a reverse-link result.
   useEffect(() => {
     if (!connected) return;
     let active = true;
     setListState((prev) => (prev.kind === "loaded" ? prev : { kind: "loading" }));
     const read = dataSource === "fixture"
       ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
-      : libraryBrowser.list({ schemaVersion: "0.1", source: source === "free" ? "free_downloads" : source,
+      : libraryBrowser.list({ schemaVersion: "0.1", source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
-        ...(query.availabilityStatus === "" ? {} : { availabilityStatus: query.availabilityStatus }), limit: 50, offset: pageOffset });
+        ...(sourceCategory === "all" ? {} : { sourceCategory: sourceCategory === "unknown" ? null : sourceCategory.slice(9) }),
+        ...(adaptation === null ? {} : { descriptionLinksTo: adaptation.productId }),
+        limit: 50, offset: pageOffset });
     read.then(
       (page) => {
         if (!active) return;
@@ -961,10 +1137,7 @@ export function WarehousePage({
     return () => {
       active = false;
     };
-  }, [query, connected, reloadKey, source, downloadState, pageOffset, dataSource]);
-
-  useEffect(() => { setPageOffset(0); setSelectedIds(new Set()); }, [query, source, downloadState]);
-  useEffect(() => { setSelectedIds(new Set()); }, [pageOffset]);
+  }, [query, connected, reloadKey, source, downloadState, sourceCategory, pageOffset, dataSource, adaptation]);
   useEffect(() => {
     const refresh = () => setReloadKey((key) => key + 1);
     window.addEventListener("focus", refresh);
@@ -999,6 +1172,33 @@ export function WarehousePage({
 
   const resultsView =
     listState.kind === "loaded" && listState.view.kind === "results" ? listState.view : null;
+
+  const visibleLocalCards = dataSource === "live" || source !== "gifts" && source !== "bought" && source !== "free" ? localCards : [];
+  const selectAll = () => setSelectedIds(new Set([
+    ...(resultsView?.items ?? []).map(item => item.productId),
+    ...visibleLocalCards.map(card => card.key),
+  ]));
+  const selectAllMenuItem = {
+    id: "selectAll", label: copy.selectBar.selectAll, shortcut: "Ctrl+A",
+    disabled: (resultsView?.items.length ?? 0) + visibleLocalCards.length === 0,
+    onSelect: selectAll,
+  };
+  // Select the displayed page, retaining normal text and dialog shortcuts.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.key.toLowerCase() !== "a") return;
+      const target = event.target instanceof Element ? event.target : document.activeElement;
+      if (target?.closest("input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox'], [role='dialog'], .vua-warehouse__drawer")
+        || document.querySelector('[aria-modal="true"]')) return;
+      if (target !== document.body && target !== document.documentElement && !pageRef.current?.contains(target)
+        && !(cardMenu !== null && target?.closest(".vua-context-menu"))) return;
+      event.preventDefault();
+      selectAll();
+      setCardMenu(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [resultsView, visibleLocalCards, cardMenu]);
 
   /** Search/filter emptiness remains distinct from an empty account library. */
   const emptyCard = catalogEmptyCard({
@@ -1037,37 +1237,113 @@ export function WarehousePage({
         return;
       }
       setDownloadNotice(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }));
-      registerTaskIdentity(outcome.taskId, { title: copy.cardMenu.download, originPage: "warehouse", notifyOnComplete: true });
+      registerTaskIdentity(outcome.taskId, { title: `${copy.cardMenu.download} · ${resultsView?.items.find((item) => item.productId === productId)?.title ?? productId}`, originPage: "warehouse", notifyOnComplete: true });
       setDownloadWatchBatch(outcome.batchId);
+      setTransfers(prev => [...prev.filter(t => t.batchId !== outcome.batchId), { batchId: outcome.batchId, productId, paused: false }]);
       setReloadKey((key) => key + 1);
     } catch {
       setDownloadNotice(copy.cardMenu.downloadFailedHint);
     }
   };
 
-  /** 选区 → Recipe 引用(云端卡;本地条目不进选区模型) */
-  const recipeRefsOfSelection = (): RecipeAssetRef[] =>
-    (resultsView?.items ?? [])
-      .filter((selected) => selectedIds.has(selected.productId))
+  /** Selected visible cards only; local content retains its own entry identity. */
+  const actOnProductCorner = async (item: CatalogProductSummary) => {
+    if (busyCorners.current.has(item.productId)) return;
+    busyCorners.current.add(item.productId); setCornerBusy(new Set(busyCorners.current));
+    try {
+      const active = transfers.filter(t => t.productId === item.productId);
+      if (active.length > 0) {
+        const paused = !active.every(t => t.paused);
+        for (const transfer of active) {
+          const receipt = await window.vua?.silentDownload.control(transfer.batchId, paused);
+          if (receipt?.ok !== true) { setDownloadNotice(copy.sourceSearch.controlFailed); break; }
+        }
+        setTransfers(await window.vua?.silentDownload.transfers() ?? []);
+      } else if (checklistOn) setChecklistProduct({ productId: item.productId, title: item.title ?? item.productId });
+      else await startSilentDownload(item.productId, null);
+    } catch { setDownloadNotice(copy.sourceSearch.controlFailed); }
+    finally { busyCorners.current.delete(item.productId); setCornerBusy(new Set(busyCorners.current)); }
+  };
+  const productCorner = (item: CatalogProductSummary) => {
+    const active = transfers.filter(t => t.productId === item.productId);
+    const state = libraryCornerState(libraryPage?.facts.get(item.productId), "product", { active: active.length > 0, paused: active.length > 0 && active.every(t => t.paused) });
+    return <LibraryCorner state={state} busy={cornerBusy.has(item.productId)} onAction={state === "cloud" || state === "error" || active.length > 0 ? () => void actOnProductCorner(item) : undefined} />;
+  };
+  const knownLocalProduct = (entryId: string) => {
+    const facts = libraryPage?.facts.get(entryId);
+    return facts?.metadata?.productId ?? (facts?.sourceMatch?.basis !== "name" ? facts?.sourceMatch?.product.productId : undefined);
+  };
+  const boothMenuItem = (productId: string | undefined | null) => ({ id: "openBooth", label: copy.sourceSearch.openBooth,
+    disabled: boothProductUrl(productId) === null, onSelect: () => { if (productId) void openBooth(productId); } });
+
+  const recipeRefsOfSelection = (ids: ReadonlySet<string> = selectedIds): RecipeAssetRef[] =>
+    [...(resultsView?.items ?? [])
+      .filter((selected) => ids.has(selected.productId))
       .map((selected) => ({
         identity: selected.productId,
         displayName: selected.title ?? selected.productId,
         source: "cloud" as const,
         variantName: selected.variantName,
         shopName: selected.shopName,
-      }));
+      })), ...visibleLocalCards.filter(card => ids.has(card.key)).flatMap(card => card.entry.artifacts.map(file => ({
+        identity: file.artifactSha256,
+        displayName: `${card.entry.displayName} / ${file.relativePath}`,
+        source: "local" as const,
+        warehouseItemId: card.entry.warehouseItemId,
+      })))];
 
-  /** 选区菜单(框选右键落点/多选右键):作用于整个选区 */
-  const openSelectionMenu = (x: number, y: number) => {
-    const refs = recipeRefsOfSelection();
+  const [removedCards, setRemovedCards] = useState<readonly RemovalCard[] | null>(null);
+  const selectedRemovalCards = (ids: ReadonlySet<string> = selectedIds): RemovalCard[] => [
+    ...(resultsView?.items ?? []).filter(item => ids.has(item.productId)).map(item => ({ target: { kind: "product" as const, id: item.productId }, title: item.title ?? item.productId })),
+    ...[...new Map(visibleLocalCards.filter(card => ids.has(card.key)).map(card => [card.entry.warehouseItemId, card.entry])).values()].map(entry => ({ target: { kind: "entry" as const, id: entry.warehouseItemId }, title: entry.displayName })),
+  ];
+  const selectedRecipeRefs = recipeRefsOfSelection();
+
+  const compatibilityMenuItem = (product: { productId: string; title: string | null }) => ({
+    id: "showCompatible", label: copy.cardMenu.showCompatible,
+    disabled: dataSource !== "live", onSelect: () => showAdaptations(product),
+  });
+
+  /** Bulk actions retain the selection; product clues apply to the clicked card. */
+  const openSelectionMenu = (x: number, y: number, product?: { productId: string; title: string | null }) => {
+    const selection = selectedIdsRef.current;
+    const refs = recipeRefsOfSelection(selection);
+    const products = new Map<string, BulkProduct>();
+    const removals: RemovalDialogTarget[] = [];
+    const localEntries = new Set<string>();
+    let skippedLocal = 0;
+    for (const selected of resultsView?.items ?? []) {
+      if (!selection.has(selected.productId)) continue;
+      products.set(selected.productId, { productId: selected.productId, title: selected.title ?? selected.productId });
+      const copyIds = libraryPage?.facts.get(selected.productId)?.copyIds;
+      if (copyIds?.length) removals.push({ target: { kind: "product", id: selected.productId }, title: selected.title ?? selected.productId, copyIds });
+    }
+    for (const selected of visibleLocalCards) {
+      if (!selection.has(selected.key) || localEntries.has(selected.entry.warehouseItemId)) continue;
+      localEntries.add(selected.entry.warehouseItemId);
+      const facts = libraryPage?.facts.get(selected.entry.warehouseItemId);
+      const source = facts?.sourceMatch;
+      if (source !== undefined && source.basis !== "name") products.set(source.product.productId, { productId: source.product.productId, title: source.product.title ?? source.product.productId });
+      else skippedLocal += 1;
+      if (facts?.copyIds?.length) removals.push({ target: { kind: "entry", id: selected.entry.warehouseItemId }, title: selected.entry.displayName, copyIds: facts.copyIds });
+    }
+    const scopes = removalScopes(removals);
+    const downloadAvailable = dataSource === "live" && window.vua?.silentDownload !== undefined && (products.size > 0 || skippedLocal > 0);
     setCardMenu({
       x,
       y,
       items: [
+        selectAllMenuItem,
+        { id: "bulkDownload", label: copy.cardMenu.download, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "download", skippedLocal }) },
+        { id: "bulkReDownload", label: copy.cardMenu.reDownload, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "redownload", skippedLocal }) },
+        { id: "bulkDeleteLocal", label: copy.cardMenu.deleteLocal, disabled: dataSource !== "live" || scopes.length === 0, onSelect: () => setBulkRemovalTargets(scopes) },
+        { id: "removeCards", label: copy.removeCards.title, disabled: dataSource !== "live" || selection.size === 0 || selection.size > 200, onSelect: () => setRemovedCards(selectedRemovalCards(selection)) },
+        ...(product ? [boothMenuItem(product.productId)] : []),
         ...(refs.length > 0
           ? [{
               id: "addToRecipe",
               label: format(copy.selectBar.addToRecipe, { count: refs.length }),
+              disabled: refs.length > 512,
               onSelect: () => {
                 setContextSelection(refs);
                 setRecipeDialogOpen(true);
@@ -1083,6 +1359,8 @@ export function WarehousePage({
     });
   };
 
+  selectionMenuRef.current = openSelectionMenu;
+
   /** 素材卡右键菜单(S-XII):仅真实动作——查看详情/已购标记。
    *  sourceUrl 只在详情负载上,打开来源/复制链接归详情抽屉,卡片菜单不猜 URL。
    *  Explorer 约定(2026-10-05):右键在多选选区内 = 菜单作用于整组;
@@ -1090,17 +1368,22 @@ export function WarehousePage({
   const openCardMenu = (event: ReactMouseEvent<HTMLElement>, item: CatalogProductSummary) => {
     event.preventDefault();
     if (selectedIds.has(item.productId) && selectedIds.size > 1) {
-      openSelectionMenu(event.clientX, event.clientY);
+      openSelectionMenu(event.clientX, event.clientY, item);
       return;
     }
     setSelectedIds(new Set([item.productId]));
     const menuItems: ContextMenuState["items"] = [
       { id: "open", label: copy.card.detailsCta, onSelect: () => setSelectedId(item.productId) },
+      boothMenuItem(item.productId),
+      { id: "openFolder", label: copy.cardMenu.openFolder,
+        disabled: dataSource !== "live" || typeof window.vua?.library?.openEntryFolder !== "function" || openingFolder
+          || (libraryPage?.facts.get(item.productId)?.storage.storedCopies ?? item.importedArtifacts) === 0,
+        onSelect: () => void openProductFolder(item.productId) },
+      selectAllMenuItem,
+      { id: "removeCard", label: copy.removeCards.title, disabled: dataSource !== "live", onSelect: () => setRemovedCards([{ target: { kind: "product", id: item.productId }, title: item.title ?? item.productId }]) },
       ...(dataSource === "live" && (libraryPage?.facts.get(item.productId)?.localEntries?.length ?? 0) > 0 ? [{
         id: "editLocalSource", label: copy.editSource.title,
         onSelect: () => setMetadataEntries(libraryPage!.facts.get(item.productId)!.localEntries!),
-      }, { id: "removeLocalEntries", label: copy.removeEntries.title,
-        onSelect: () => setRemovedEntries(libraryPage!.facts.get(item.productId)!.localEntries!),
       }] : []),
         {
           id: "download",
@@ -1141,96 +1424,44 @@ export function WarehousePage({
               },
             }]
           : []),
-        ...(dependencyCluesOn ? [{
-          id: "showCompatible",
-          label: copy.cardMenu.showCompatible,
-          onSelect: () => {
-            setCompatibleQuery({ productId: item.productId, title: item.title ?? item.productId });
-          },
-        }] : []),
+        compatibilityMenuItem(item),
     ];
     const anchor = event.currentTarget.getBoundingClientRect();
     setCardMenu({ x: event.detail === 0 ? anchor.left : event.clientX, y: event.detail === 0 ? anchor.bottom : event.clientY, items: menuItems });
   };
 
+  const pagination = libraryPage !== null || adaptation !== null ? <div className="vua-library-pagination">
+    <Button variant="subtle" disabled={libraryPage === null || pageOffset === 0} onClick={() => changePage(Math.max(0, pageOffset - 50))}>{copy.libraryState.previousPage}</Button>
+    <span className="vua-caption">{format(copy.libraryState.page, { page: Math.floor(pageOffset / 50) + 1, total: Math.max(1, Math.ceil((libraryPage?.total ?? 0) / 50)) })}</span>
+    <Button variant="subtle" disabled={libraryPage === null || pageOffset + 50 >= libraryPage.total} onClick={() => changePage(pageOffset + 50)}>{copy.libraryState.nextPage}</Button>
+    {adaptation !== null ? <Button variant="default" onClick={cancelAdaptations}>{copy.adaptation.cancel}</Button> : null}
+  </div> : null;
+
   return (
-    <div className="vua-page vua-warehouse">
+    <div ref={pageRef} className="vua-page vua-warehouse">
       <section className="vua-page__hero">
         <h1 className="vua-title">{termLabel("warehouse")}</h1>
         {/* 选区动作位(Explorer 语义,2026-10-05):选区存在才出现;选区本身
             由单击/框选建立,无独立"选择模式"开关 */}
-        {selectedIds.size > 0 ? (
-          <button
-            type="button"
-            className="vua-warehouse__filter"
-            onClick={() => {
-              setContextSelection(recipeRefsOfSelection());
-              setRecipeDialogOpen(true);
-            }}
-          >
-            {format(copy.selectBar.addToRecipe, { count: selectedIds.size })}
-          </button>
-        ) : null}
-        {/* 视图切换:卡片墙 / 纯文字列表;两态都保留商店名(用户裁决 2026-10-03) */}
-        <button
-          type="button"
-          className="vua-warehouse__filter"
-          aria-label={copy.viewToggleAria}
-          title={viewMode === "cards" ? copy.viewList : copy.viewCards}
-          onClick={() => setViewMode((mode) => (mode === "cards" ? "list" : "cards"))}
-        >
-          {viewMode === "cards" ? copy.viewList : copy.viewCards}
-        </button>
-        {/* 来源筛选(用户方向 2026-10-02):云端/本地合并为单库页,来源只作筛选 */}
-        {dependencyCluesOn && connected ? <Button variant="subtle" onClick={() => setLookupName("")}>{copy.dependencyLookup.open}</Button> : null}
-        <select
-          className="vua-warehouse__filter"
-          aria-label={copy.filters.source}
-          value={source}
-          onChange={(event) => setSource(event.target.value as typeof source)}
-        >
-          <option value="all">{copy.filters.sourceAll}</option>
-          <option value="bought">{copy.filters.sourceBought}</option>
-          <option value="gifts">{copy.filters.sourceGifts}</option>
-          <option value="free">{copy.filters.sourceFree}</option>
-          <option value="local">{copy.filters.sourceLocal}</option>
-        </select>
-        {/* 下载状态筛选(人审 2026-10-06):静默下载自动采纳后,"已下载"
-            = importedArtifacts > 0(与卡片"已导入"徽标同一事实);客户端
-            过滤——列表数据已在手,该事实随快照到达 */}
-        <select
-          className="vua-warehouse__filter"
-          aria-label={copy.filters.downloadState}
-          value={downloadState}
-          onChange={(event) => setDownloadState(event.target.value as typeof downloadState)}
-        >
-          <option value="all">{copy.filters.downloadAll}</option>
-          <option value="downloaded">{copy.filters.downloaded}</option>
-          <option value="not-downloaded">{copy.filters.notDownloaded}</option>
-          <option value="missing">{copy.libraryState.missing}</option>
-          <option value="in_progress">{copy.libraryState.downloading}</option>
-          <option value="attention">{copy.libraryState.attention}</option>
-        </select>
         <p className="vua-text-secondary">{copy.subtitle}</p>
-        {/* 素材导入入口(2026-09-20 导航重构):原独立页(设计标准 §8.3)收敛为
-            本页内弹窗——连续素材获取路径(云端内嵌浏览/已完成下载采纳/本地
-            文件夹导入)仍在,只是不再占一个侧栏页位 */}
+        {/* 本地导入直接打开文件夹选择器；账号库同步保留独立入口。 */}
         <div className="vua-page__actions">
-          <Button
-            variant="primary"
-            data-nav-id="warehouse-import"
-            onClick={() => {
+          {selectedIds.size > 0 ? <Button disabled={selectedRecipeRefs.length === 0 || selectedRecipeRefs.length > 512} onClick={() => {
+            setContextSelection(selectedRecipeRefs); setRecipeDialogOpen(true);
+          }}>{format(copy.selectBar.addToRecipe, { count: selectedRecipeRefs.length })}</Button> : null}
+          <LocalImportButton
+            onSingle={() => {
               setImportInitialUrl(null);
               setImportDialogOpen(true);
             }}
-          >
-            {strings.importPage.title}
-          </Button>
+            onMigration={() => setMigrationPreviewOpen(true)}
+          />
           {source !== "local" && remoteBrowser ? (
             <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
               {accountState === "checking" || syncStarting ? copy.catalogSync.checking : accountState === "sign-in" ? copy.catalogSync.signInAction : accountState === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
             </Button>
           ) : null}
+          {folderOpenFailed && folderChoices === null ? <span className="vua-caption vua-text-secondary" role="status">{copy.openFolderFailed}</span> : null}
           {syncNotice !== null ? (
             <span className="vua-caption vua-text-secondary" role="status">
               {syncNotice === "started"
@@ -1269,6 +1500,57 @@ export function WarehousePage({
         ) : null}
       </section>
 
+      <div className="vua-warehouse__filters" role="search" aria-label={copy.searchAria}>
+        <div className="vua-warehouse__search-controls">
+          <Button aria-label={copy.viewToggleAria} title={viewMode === "cards" ? copy.viewList : copy.viewCards} onClick={() => setViewMode(mode => mode === "cards" ? "list" : "cards")}>
+            {viewMode === "cards" ? copy.viewList : copy.viewCards}
+          </Button>
+          <label className="vua-warehouse__field">
+            <span>{copy.searchAria}</span>
+            <input type="search" className="vua-warehouse__search" aria-label={copy.searchAria} placeholder={copy.searchPlaceholder}
+              value={query.text} onChange={event => changeFilters(() => setQuery({ text: event.target.value }))} />
+          </label>
+        </div>
+        <label className="vua-warehouse__field">
+          <span>{copy.filters.source}</span>
+          <div className="vua-warehouse__select">
+            <select className="vua-warehouse__filter" aria-label={copy.filters.source} value={source} onChange={event => changeFilters(() => setSource(event.target.value as typeof source))}>
+              <option value="all">{copy.filters.sourceAll}</option>
+              <option value="bought">{copy.filters.sourceBought}</option>
+              <option value="gifts">{copy.filters.sourceGifts}</option>
+              <option value="free">{copy.filters.sourceFree}</option>
+              <option value="local">{copy.filters.sourceLocal}</option>
+            </select>
+            <Icon name="chevron-down" size={16} />
+          </div>
+        </label>
+        <label className="vua-warehouse__field">
+          <span>{copy.filters.downloadState}</span>
+          <div className="vua-warehouse__select">
+            <select className="vua-warehouse__filter" aria-label={copy.filters.downloadState} value={downloadState} onChange={event => changeFilters(() => setDownloadState(event.target.value as typeof downloadState))}>
+              <option value="all">{copy.filters.downloadAll}</option>
+              <option value="downloaded">{copy.filters.downloaded}</option>
+              <option value="not-downloaded">{copy.filters.notDownloaded}</option>
+              <option value="missing">{copy.libraryState.missing}</option>
+              <option value="in_progress">{copy.libraryState.downloading}</option>
+              <option value="attention">{copy.libraryState.attention}</option>
+            </select>
+            <Icon name="chevron-down" size={16} />
+          </div>
+        </label>
+        <label className="vua-warehouse__field">
+          <span>{copy.filters.category}</span>
+          <div className="vua-warehouse__select">
+            <select className="vua-warehouse__filter" aria-label={copy.filters.category} value={sourceCategory} onChange={event => changeFilters(() => setSourceCategory(event.target.value))} disabled={dataSource !== "live"}>
+              <option value="all">{copy.filters.categoryAll}</option>
+              <option value="unknown">{copy.filters.categoryUnknown}</option>
+              {[...new Set([...(libraryPage?.sourceCategories ?? []), ...(sourceCategory.startsWith("category:") ? [sourceCategory.slice(9)] : [])])].map(category => <option key={category} value={`category:${category}`}>{category}</option>)}
+            </select>
+            <Icon name="chevron-down" size={16} />
+          </div>
+        </label>
+      </div>
+
       {true ? (
         <>
           {!connected ||
@@ -1279,7 +1561,7 @@ export function WarehousePage({
         />
       ) : listState.kind === "loaded" && listState.view.kind === "error" ? (
         /* W17 透传呈现:服务端 application 错误按冻结码映射文案,不与断连混淆 */
-        <EmptyState
+        <>{adaptation !== null ? pagination : null}<EmptyState
           title={copy.states.loadFailedTitle}
           description={catalogErrorText(listState.view.messageKey)}
           action={
@@ -1287,9 +1569,9 @@ export function WarehousePage({
               {copy.states.retry}
             </Button>
           }
-        />
+        /></>
       ) : listState.kind === "failed" ? (
-        <EmptyState
+        <>{adaptation !== null ? pagination : null}<EmptyState
           title={copy.states.loadFailedTitle}
           description={copy.states.loadFailedDescription}
           action={
@@ -1297,73 +1579,11 @@ export function WarehousePage({
               {copy.states.retry}
             </Button>
           }
-        />
+        /></>
       ) : (
         <div className="vua-warehouse__content" data-drawer-open={selectedId !== null || undefined}>
           <div className="vua-warehouse__main">
-            {/* 工具栏:词表随数据(vocabulary),不硬编码 */}
-            <div className="vua-warehouse__toolbar" role="search">
-              <input
-                type="search"
-                className="vua-warehouse__search"
-                placeholder={copy.searchPlaceholder}
-                aria-label={copy.searchAria}
-                value={query.text}
-                onChange={(event) =>
-                  setQuery((prev) => ({ ...prev, text: event.target.value }))
-                }
-              />
-              <select
-                className="vua-warehouse__filter"
-                aria-label={copy.filters.availability}
-                value={query.availabilityStatus}
-                onChange={(event) =>
-                  setQuery((prev) => ({
-                    ...prev,
-                    availabilityStatus: event.target.value as CatalogAvailabilityStatus | "",
-                  }))
-                }
-              >
-                <option value="">{copy.filters.allAvailability}</option>
-                {(resultsView?.vocabulary.availabilities ?? []).map((value) => (
-                  <option key={value} value={value}>
-                    {copy.availability[value]}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="vua-warehouse__filter"
-                aria-label={copy.filters.entityType}
-                value={query.entityType}
-                onChange={(event) =>
-                  setQuery((prev) => ({ ...prev, entityType: event.target.value }))
-                }
-              >
-                <option value="">{copy.filters.allEntityTypes}</option>
-                {(resultsView?.vocabulary.entityTypes ?? []).map((value) => (
-                  <option key={value} value={value}>
-                    {entityTypeLabel(value)}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="vua-warehouse__filter"
-                aria-label={copy.filters.relationKind}
-                value={query.relationKind}
-                onChange={(event) =>
-                  setQuery((prev) => ({
-                    ...prev,
-                    relationKind: event.target.value as CatalogRelationKind | "",
-                  }))
-                }
-              >
-                <option value="">{copy.filters.allRelationKinds}</option>
-                {(resultsView?.vocabulary.relationKinds ?? []).map((value) => (
-                  <option key={value} value={value}>
-                    {copy.relationKind[value]}
-                  </option>
-                ))}
-              </select>
+            <div className="vua-warehouse__toolbar">
               {resultsView !== null ? (
                 <span className="vua-caption vua-text-secondary">
                   {hasActiveFilter(query)
@@ -1374,11 +1594,8 @@ export function WarehousePage({
                     : format(copy.resultCountAll, { total: resultsView.total })}
                 </span>
               ) : null}
-              {libraryPage !== null ? <div className="vua-library-pagination">
-                <Button variant="subtle" disabled={pageOffset === 0} onClick={() => setPageOffset((offset) => Math.max(0, offset - 50))}>{copy.libraryState.previousPage}</Button>
-                <span className="vua-caption">{format(copy.libraryState.page, { page: Math.floor(pageOffset / 50) + 1, total: Math.max(1, Math.ceil(libraryPage.total / 50)) })}</span>
-                <Button variant="subtle" disabled={pageOffset + 50 >= libraryPage.total} onClick={() => setPageOffset((offset) => offset + 50)}>{copy.libraryState.nextPage}</Button>
-              </div> : null}
+              {pagination}
+              {adaptation !== null ? <span className="vua-caption vua-text-secondary" title={copy.adaptation.boundary}>{format(copy.adaptation.active, { name: adaptation.title })}</span> : null}
             </div>
 
             {/* 滚动限定在本容器:工具栏/hero 不随图片墙滚动(用户反馈 #2) */}
@@ -1422,7 +1639,7 @@ export function WarehousePage({
                   ))}
                 </div>
               ) : resultsView !== null && resultsView.items.length === 0 && localCards.length === 0 ? (
-                emptyCard.kind === "checking" || emptyCard.kind === "unknown" ? (
+                adaptation !== null ? <EmptyState title={copy.adaptation.emptyTitle} description={copy.adaptation.emptyDescription} /> : emptyCard.kind === "checking" || emptyCard.kind === "unknown" ? (
                   <EmptyState
                     title={emptyCard.kind === "checking" ? copy.catalogSync.checking : copy.catalogSync.checkFailed}
                     description={copy.catalogSync.checkDescription}
@@ -1470,8 +1687,9 @@ export function WarehousePage({
                       ? "vua-warehouse__wall"
                       : "vua-warehouse__list"
                   }
-                  role="list"
+                  role={viewMode === "cards" ? "list" : "table"}
                 >
+                  {viewMode === "list" ? columns.header : null}
                   {resultsView?.items
                       .map((item) =>
                         viewMode === "cards" ? (
@@ -1479,6 +1697,7 @@ export function WarehousePage({
                             key={item.productId}
                             item={item}
                             facts={libraryPage?.facts.get(item.productId)}
+                            corner={productCorner(item)}
                             selected={selectedIds.has(item.productId)}
                             onSelect={() => selectSingle(item.productId)}
                             onOpen={() => {
@@ -1488,10 +1707,14 @@ export function WarehousePage({
                             onMenu={(event) => openCardMenu(event, item)}
                           />
                         ) : (
-                          <WarehouseListRow
+                          <LibraryListRow
                             key={item.productId}
-                            item={item}
-                            facts={libraryPage?.facts.get(item.productId)}
+                            id={item.productId} productId={item.productId} title={item.title ?? item.productId} shop={item.shopName} variant={item.variantName}
+                            variantCount={libraryPage?.facts.get(item.productId)?.variantCount} style={columns.style}
+                            source={libraryListSource(libraryPage?.facts.get(item.productId), "product", {
+                              active: transfers.some(transfer => transfer.productId === item.productId),
+                              paused: transfers.filter(transfer => transfer.productId === item.productId).every(transfer => transfer.paused),
+                            })}
                             selected={selectedIds.has(item.productId)}
                             onSelect={() => selectSingle(item.productId)}
                             onOpen={() => {
@@ -1503,27 +1726,44 @@ export function WarehousePage({
                         )
                       )
                   }
-                  {dataSource === "live" || source !== "gifts" && source !== "bought" && source !== "free"
-                    ? localCards.map((card) => (
-                        <div key={card.key}>
-                        <LibraryBadges facts={libraryPage?.facts.get(card.entry.warehouseItemId)} />
-                        <ArtifactCard
+                  {visibleLocalCards.map((card) => (
+                        <MaterialEntryView
+                          viewMode={viewMode} columnStyle={columns.style} facts={libraryPage?.facts.get(card.entry.warehouseItemId)}
                           key={card.key}
                           card={card}
                           source={libraryPage?.facts.get(card.entry.warehouseItemId)?.sourceMatch?.product}
                           metadata={libraryPage?.facts.get(card.entry.warehouseItemId)?.metadata}
-                          selected={selectedLocalId === card.entry.warehouseItemId}
+                          badges={<LibraryBadges facts={libraryPage?.facts.get(card.entry.warehouseItemId)} compact />}
+                          corner={<LibraryCorner state={libraryCornerState(libraryPage?.facts.get(card.entry.warehouseItemId), "local", { sourceSearch: sourceSearch.get(card.entry.warehouseItemId) })}
+                            busy={cornerBusy.has(card.entry.warehouseItemId)} onAction={knownLocalProduct(card.entry.warehouseItemId) == null ? () => void searchBoothSource(card.entry.warehouseItemId, card.entry.displayName) : undefined} />}
+                          selected={selectedIds.has(card.key)}
+                          onSelect={() => selectSingle(card.key)}
                           onOpen={() => {
                             setSelectedId(null);
                             setSelectedLocalId(card.entry.warehouseItemId);
                           }}
                           onMenu={(event) => {
                             event.preventDefault();
+                            const sourceProduct = libraryPage?.facts.get(card.entry.warehouseItemId)?.sourceMatch?.product;
+                            if (selectedIds.has(card.key) && selectedIds.size > 1) {
+                              openSelectionMenu(event.clientX, event.clientY, sourceProduct);
+                              return;
+                            }
+                            setSelectedIds(new Set([card.key]));
                             const anchor = event.currentTarget.getBoundingClientRect();
                             setCardMenu({
                               x: event.detail === 0 ? anchor.left : event.clientX,
                               y: event.detail === 0 ? anchor.bottom : event.clientY,
                               items: [
+                                selectAllMenuItem,
+                                { id: "removeCard", label: copy.removeCards.title, disabled: dataSource !== "live", onSelect: () => setRemovedCards([{ target: { kind: "entry", id: card.entry.warehouseItemId }, title: card.entry.displayName }]) },
+                                boothMenuItem(knownLocalProduct(card.entry.warehouseItemId)),
+                                { id: "openFolder", label: copy.cardMenu.openFolder,
+                                  disabled: dataSource !== "live" || typeof window.vua?.library?.openEntryFolder !== "function" || openingFolder,
+                                  onSelect: () => void openEntryFolder(card.entry.warehouseItemId) },
+                                { id: "searchBooth", label: copy.sourceSearch.title, disabled: dataSource !== "live" || cornerBusy.has(card.entry.warehouseItemId),
+                                  onSelect: () => void searchBoothSource(card.entry.warehouseItemId, card.entry.displayName) },
+                                ...(sourceProduct ? [compatibilityMenuItem(sourceProduct)] : []),
                                 {
                                   id: "open",
                                   label: copy.card.detailsCta,
@@ -1535,20 +1775,19 @@ export function WarehousePage({
                                 {
                                   id: "addToDraft",
                                   label: copy.recipeDialog.title,
+                                  disabled: card.entry.artifacts.length === 0 || card.entry.artifacts.length > 512,
                                   onSelect: () => {
-                                    setContextSelection([{
-                                      identity: card.artifact.artifactSha256,
-                                      displayName: `${card.entry.displayName} / ${card.artifact.relativePath}`,
+                                    setContextSelection(card.entry.artifacts.map(file => ({
+                                      identity: file.artifactSha256,
+                                      displayName: `${card.entry.displayName} / ${file.relativePath}`,
                                       source: "local",
                                       warehouseItemId: card.entry.warehouseItemId,
-                                    }]);
+                                    })));
                                     setRecipeDialogOpen(true);
                                   },
                                 },
                                 ...(dataSource === "live" && card.entry.kind === "imported_material" ? [{ id: "editSource", label: copy.editSource.title,
                                   onSelect: () => setMetadataEntries([{ entryId: card.entry.warehouseItemId, displayName: card.entry.displayName }]),
-                                }, { id: "removeEntry", label: copy.removeEntries.title,
-                                  onSelect: () => setRemovedEntries([{ entryId: card.entry.warehouseItemId, displayName: card.entry.displayName }]),
                                 }] : []),
                                 ...(dataSource === "live" ? [{ id: "removeFiles", label: copy.cardMenu.deleteLocal,
                                   onSelect: () => setRemovalTarget({ target: { kind: "entry", id: card.entry.warehouseItemId }, title: card.entry.displayName,
@@ -1557,9 +1796,8 @@ export function WarehousePage({
                               ],
                             });
                           }}
-                        /></div>
-                      ))
-                    : null}
+                        />
+                    ))}
                 </div>
               ) : null}
             </div>
@@ -1614,12 +1852,12 @@ export function WarehousePage({
                 /* key=productId:切换商品时重置组件内状态(如来源跳转失败标记) */
                 <><div className="vua-warehouse-detail__content">
                   <LibraryBadges facts={libraryPage?.facts.get(selectedId)} />
-                  <p className="vua-caption vua-text-secondary">{copy.libraryState.productionUnchecked}</p>
+                  <Button onClick={() => void openBooth(selectedId)}>{copy.sourceSearch.openBooth}</Button>
                   <Button variant="default" onClick={() => setChecklistProduct({ productId: selectedId, title: detailState.view.kind === "detail" ? detailState.view.product.title ?? selectedId : selectedId })}>{copy.libraryState.manageFiles}</Button>
                 </div><DetailContent
                   key={detailState.view.product.productId}
                   product={detailState.view.product}
-                  onEnriched={() => setDetailReloadKey((key) => key + 1)}
+                  onEnriched={() => refreshEnrichedDetail(selectedId)}
                 /></>
               ) : detailState.view.kind === "error" ? (
                 /* W17 透传呈现:application 错误文案 + 重试;与 not-found/断连区分 */
@@ -1669,6 +1907,10 @@ export function WarehousePage({
               entryId={selectedLocalEntry.warehouseItemId}
               globalDefault={inferGlobalDefaultMode(localEntries)}
             />
+            <div className="vua-warehouse-detail__content">
+              <Button disabled={knownLocalProduct(selectedLocalEntry.warehouseItemId) == null} onClick={() => { const id = knownLocalProduct(selectedLocalEntry.warehouseItemId); if (id) void openBooth(id); }}>{copy.sourceSearch.openBooth}</Button>
+              <Button disabled={cornerBusy.has(selectedLocalEntry.warehouseItemId)} onClick={() => void searchBoothSource(selectedLocalEntry.warehouseItemId, selectedLocalEntry.displayName)}>{copy.sourceSearch.title}</Button>
+            </div>
           </aside>
         ) : null}
         </>
@@ -1682,9 +1924,16 @@ export function WarehousePage({
       {cardMenu !== null ? (
         <ContextMenu menu={cardMenu} onClose={() => setCardMenu(null)} />
       ) : null}
+      <ContentDialog open={folderChoices !== null} title={copy.cardMenu.openFolder} closeLabel={strings.common.dialogClose} onClose={() => { if (!openingFolder) { setFolderChoices(null); setFolderOpenFailed(false); } }}>
+        <div className="vua-page__stack">
+          <p>{copy.cardMenu.chooseFolder}</p>
+          {folderChoices?.map(entry => <Button key={entry.entryId} disabled={openingFolder} onClick={() => void openEntryFolder(entry.entryId)}><Icon name="folder" size={16} />{entry.displayName}</Button>)}
+          {folderOpenFailed ? <p role="status">{copy.openFolderFailed}</p> : null}
+        </div>
+      </ContentDialog>
       <ContentDialog
         open={importDialogOpen}
-        title={strings.importPage.title}
+        title={strings.importPage.localTitle}
         closeLabel={strings.common.dialogClose}
         onClose={() => {
           setImportDialogOpen(false);
@@ -1702,17 +1951,20 @@ export function WarehousePage({
           initialUrl={importInitialUrl ?? undefined}
         />
       </ContentDialog>
+      {matchDialog === null ? null : <BoothMatchDialog key={matchDialog.entryId} name={matchDialog.name} result={matchDialog.result} busy={cornerBusy.has(matchDialog.entryId)} notice={matchNotice}
+        onClose={() => setMatchDialog(null)} onSearch={query => void searchBoothSource(matchDialog.entryId, matchDialog.name, query, false)}
+        onConfirm={id => void confirmBoothSource(matchDialog.entryId, id)} onOpen={id => void openBooth(id)} />}
       <AddToRecipeDialog
         open={recipeDialogOpen}
         onClose={() => setRecipeDialogOpen(false)}
         selections={contextSelection}
       />
+      {bulkDownload !== null ? <BulkDownloadDialog {...bulkDownload} onClose={() => setBulkDownload(null)} onChanged={() => setReloadKey(key => key + 1)} /> : null}
+      {bulkRemovalTargets !== null ? <BulkRemoveFilesDialog items={bulkRemovalTargets} onClose={() => setBulkRemovalTargets(null)} onChanged={() => setReloadKey(key => key + 1)} onInspect={item => { setBulkRemovalTargets(null); setRemovalTarget(item); }} /> : null}
       {removalTarget !== null ? <RemoveFilesDialog key={`${removalTarget.target.kind}:${removalTarget.target.id}`} item={removalTarget}
         onClose={() => setRemovalTarget(null)} onChanged={() => { setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
       {metadataEntries !== null ? <EditSourceDialog key={metadataEntries.map((entry) => entry.entryId).join(",")} entries={metadataEntries}
         onClose={() => setMetadataEntries(null)} onChanged={() => { setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
-      {removedEntries !== null ? <RemoveEntriesDialog key={removedEntries.map((entry) => entry.entryId).join(",")} entries={removedEntries}
-        onClose={() => setRemovedEntries(null)} onChanged={() => { setSelectedLocalId(null); setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
       <DownloadChecklistDialog
         product={checklistProduct}
         onClose={() => setChecklistProduct(null)}
@@ -1721,19 +1973,10 @@ export function WarehousePage({
           void startSilentDownload(productId, downloadableIds, targets);
         }}
       />
-      <CompatibleItemsDialog
-        enabled={dependencyCluesOn}
-        query={compatibleQuery}
-        onClose={() => setCompatibleQuery(null)}
-        onSelectProduct={(productId) => {
-          setCompatibleQuery(null);
-          setSelectedId(productId);
-        }}
-        onLookupName={(name) => { setCompatibleQuery(null); setLookupName(name); }}
-      />
-      {dependencyCluesOn && lookupName !== null ? <DependencyLookupDialog key={lookupName}
-        enabled={dependencyCluesOn} initialName={lookupName} onClose={() => setLookupName(null)}
-        onSelectProduct={(productId) => { setLookupName(null); setSelectedId(productId); }} /> : null}
+      {migrationPreviewOpen ? <LibraryMigrationPreview onClose={() => setMigrationPreviewOpen(false)} /> : null}
+      {removedCards !== null ? <RemoveCardsDialog key={removedCards.map(card => `${card.target.kind}:${card.target.id}`).join(",")} cards={removedCards} onClose={() => setRemovedCards(null)} onChanged={() => {
+        setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setReloadKey(key => key + 1); setDetailReloadKey(key => key + 1);
+      }} /> : null}
     </div>
   );
 }

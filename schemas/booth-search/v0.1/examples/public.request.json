@@ -1,0 +1,6 @@
+{
+  "contractVersion": "0.1", "requestId": "synthetic-search", "correlationId": "synthetic-search",
+  "kind": "query", "method": "catalog.searchProducts",
+  "params": { "schemaVersion": "0.1", "query": "Synthetic Outfit", "sourceUrl": "https://booth.pm/ja/search/Synthetic%20Outfit",
+    "html": "<ul class='market-items'><li class='item-card' data-product-id='90' data-product-category='3D衣装'><h2 class='item-card__title'>Synthetic Outfit</h2><span class='item-card__shop-name'>Synthetic Shop</span></li></ul>" }
+}

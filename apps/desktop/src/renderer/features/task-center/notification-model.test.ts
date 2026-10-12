@@ -152,6 +152,11 @@ test("notifyOnComplete 同族只显示最新一条(反复同步不堆通知山)"
   assert.equal(withRunning.filter((t) => t.id === "catalog-sync-4").length, 1);
 });
 
+test("all active bulk downloads remain visible, regardless of completion retention", () => {
+  const make = (id: string): TaskItem => ({ id, title: "Synthetic download", status: "running", originPage: "warehouse", cancellable: true, notifyOnComplete: true });
+  assert.deepEqual(visibleNotifications([make("batch-a"), make("batch-z"), make("batch-b")], new Set(), false).map(task => task.id), ["batch-a", "batch-z", "batch-b"]);
+});
+
 test("startup-terminal tasks never show even with show-completed on (2026-10-06)", () => {
   const stale: TaskItem = {
     id: "t-old", title: "old", status: "completed",

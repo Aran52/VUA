@@ -1,12 +1,40 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type {
   DesktopFsEntryV1,
   DesktopFsErrorV1,
   DesktopFsListV1,
   DesktopFsResultV1,
+  DesktopFsNavigationV1,
 } from "@vua/contracts";
+
+const runFile = promisify(execFile);
+
+/** Names only: avoids probing offline/removable/network drives for readiness. */
+export async function listFsNavigation(known: Omit<DesktopFsNavigationV1, "drives">, readDrives?: () => Promise<readonly string[]>): Promise<DesktopFsResultV1<DesktopFsNavigationV1>> {
+  try {
+    let roots: string[];
+    if (process.platform === "win32") {
+      if (!readDrives) return { ok: false, error: "failed" };
+      roots = [...await readDrives()];
+      if (roots.some(root => !/^[A-Za-z]:\\$/.test(root))) return { ok: false, error: "failed" };
+    } else roots = ["/"];
+    return { ok: true, value: { ...known, drives: [...new Set(roots)].sort().map(root => ({ name: root, path: root, hidden: false })) } };
+  } catch { return { ok: false, error: "failed" }; }
+}
+/** Fixed trusted host executable, with a read-only native mode. No shell/.NET
+ * startup and no scans of removable or disconnected network volumes. */
+export async function readNativeDriveRoots(executable: string): Promise<readonly string[]> {
+  const { stdout } = await runFile(executable, ["--list-drives"], { windowsHide: true, timeout: 3000, maxBuffer: 16384 });
+  const value: unknown = JSON.parse(stdout);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw Error("invalid_native_drive_snapshot");
+  const v = value as Record<string, unknown>;
+  if (Object.keys(v).length !== 2 || v.schemaVersion !== "0.1" || !Array.isArray(v.drives) || v.drives.length > 26 || v.drives.some(drive => typeof drive !== "string" || !/^[A-Z]:\\$/.test(drive))) throw Error("invalid_native_drive_snapshot");
+  return v.drives as string[];
+}
 
 /**
  * 本地文件系统窄面的 Main 侧实现(2026-09-25 用户裁决:素材导入应用内

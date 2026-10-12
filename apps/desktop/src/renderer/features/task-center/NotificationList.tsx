@@ -1,11 +1,13 @@
 import { taskErrorMessage } from "../../i18n/diagnostics.ts";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { monotonicDone } from "../../app/busy-timing.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Icon, type IconName } from "@vua/design-system";
 import { format, strings } from "../../i18n/index.ts";
 import type { TaskItem } from "../../gateway/index.ts";
 import type { TaskStatus } from "../../app/task-status.ts";
+import { formatBytes, recentDownloadSpeed } from "../../gateway/index.ts";
+import "./taskbar.css";
 
 const copy = strings.taskCenter;
 const statusCopy = strings.taskStatus;
@@ -37,6 +39,14 @@ function TaskRow({
   onDismiss?: (() => void) | undefined;
   onBackToOrigin: () => void;
 }) {
+  const [now, setNow] = useState(Date.now);
+  const timed = task.download !== undefined && task.status === "running";
+  useEffect(() => {
+    if (!timed) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [timed]);
+  const speed = task.download === undefined ? null : recentDownloadSpeed(task.download, Math.max(now, task.download.sampledAt));
   // 单调进度地板(S-XIV-4):快照乱序/重算导致的回退不显示;
   // 行按 task.id key 挂载,ref 即该任务的历史最大 done;上限钳制到 total
   const maxDoneRef = useRef<number | null>(null);
@@ -50,7 +60,7 @@ function TaskRow({
   return (
     <li className="vua-taskbar__task">
       <span className="vua-taskbar__task-glyph" data-status={task.status}>
-        <Icon name={statusGlyph[task.status]} size={16} />
+        <Icon name={task.download !== undefined && task.status === "running" ? "download" : statusGlyph[task.status]} size={20} />
       </span>
       {/* 行主区 = 打开按钮(W25 走查 D2):活动/终态两态一致回来源页,
           不做静默无响应;可访问名说明动作与目标,行内动作按钮在其外 */}
@@ -67,19 +77,23 @@ function TaskRow({
           </span>
           {task.progress && done !== null ? (
             <span className="vua-text-secondary">
-              {format(copy.progress, { done, total: task.progress.total })}
+              {format(task.progressUnit === "files" ? copy.storedProgress : copy.progress, { done, total: task.progress.total })}
             </span>
           ) : null}
         </span>
+        {task.download !== undefined ? <>
+          <span className="vua-taskbar__transfer vua-caption">
+            <span>{task.download.expectedBytes === null ? format(copy.receivedBytes, { received: formatBytes(task.download.receivedBytes) }) : format(copy.transferProgress, { received: formatBytes(task.download.receivedBytes), total: formatBytes(task.download.expectedBytes) })}</span>
+            {task.status === "running" ? <span>{speed === null ? copy.speedUnavailable : `${formatBytes(speed)}/s`}</span> : null}
+          </span>
+          <progress className="vua-taskbar__download-progress" aria-label={task.title} max={task.download.expectedBytes ?? 1} {...(task.download.expectedBytes === null ? {} : { value: Math.min(task.download.receivedBytes, task.download.expectedBytes) })} />
+        </> : task.progress !== undefined && task.progress.total > 0 ? <progress className="vua-taskbar__download-progress" aria-label={task.title} max={task.progress.total} value={done ?? task.progress.done} /> : null}
         {task.errorText ? (
           <span className="vua-caption vua-text-secondary">{taskErrorMessage(task.errorText)} <code>{task.errorText}</code></span>
         ) : null}
         {rejected ? <span className="vua-taskbar__rejected vua-caption">{copy.cancelRejected}</span> : null}
       </button>
       <div className="vua-taskbar__task-actions">
-        <Button variant="subtle" onClick={onBackToOrigin}>
-          {copy.backToOrigin}
-        </Button>
         {task.cancellable ? (
           <Button variant="subtle" onClick={onCancel}>
             {copy.cancel}

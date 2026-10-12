@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua-project.github.io/schemas/booth-search/v0.1/response.schema.json",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "query", "items", "truncated"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "query": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$" },
+    "truncated": { "type": "boolean" },
+    "items": { "type": "array", "maxItems": 24, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["productId", "title", "shopName", "sourceCategory"],
+      "properties": {
+        "productId": { "type": "string", "pattern": "^booth:[0-9]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "shopName": { "type": ["string", "null"], "minLength": 1, "maxLength": 500 },
+        "sourceCategory": { "type": ["string", "null"], "minLength": 1, "maxLength": 500 }
+      }
+    } }
+  }
+}

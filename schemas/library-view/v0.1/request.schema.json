@@ -74,6 +74,10 @@
               ],
               "minLength": 1,
               "maxLength": 200
+            },
+            "descriptionLinksTo": {
+              "type": "string",
+              "pattern": "^booth:[0-9]+$"
             }
           }
         }

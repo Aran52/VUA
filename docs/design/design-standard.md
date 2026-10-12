@@ -1,11 +1,11 @@
-# VUA design standard v0.29.0
+# VUA design standard v0.30.0
 
 
-> Document version: 0.29.0
+> Document version: 0.30.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-12
-> Last conformance review: 2026-10-12 (four-language controlled corners/source association/category/bulk/removal/notification and direct-intake checks; author account/material/device and human-language review pending)
+> Last conformance review: 2026-10-12 (four-language controlled columns/link filtering/popup, source association, bulk/removal/notification and intake checks; author account/material/device and human-language review pending)
 > Normative effect: Governs interaction, visual, and accessibility implementation;
 > does not expand product scope or replace versioned application contracts
 
@@ -422,9 +422,9 @@ changelog history already uses.
   The visible filter strip groups labeled search, library source, download state and original BOOTH category with matching
   control height, padding, border and theme colors. Narrow windows stack search above the three
   aligned selectors and permit page scrolling at large zoom. Availability, entity-type and
-  relation filters are retired from this UI. The action area includes an explicit "Open local
-  asset library in File Explorer" action for the active AMF material root, with pending/failed
-  handoff states; it does not ask the user to enter or select a path.
+  relation filters are retired from this UI. The "Open local asset library in File Explorer"
+  toolbar action is retired; a single card's folder action opens
+  its recorded directory without asking the player to type a path.
   Multiselection menus expose Download (missing files), Re-download (explicitly selected captured
   files including existing copies) and Delete local files. The removal dialog lists the exact scoped
   files and affected references before a "Delete local files of X products" confirmation. Receipt
@@ -435,10 +435,11 @@ changelog history already uses.
   the displayed page in the current filter/view, including local cards. Card and blank-wall
   context menus offer "Select all" with its shortcut; the shortcut also works while that menu
   has focus. Text editing, dialogs and the detail panel retain their own keyboard behavior.
-  Each known product's menu offers "此商品的适配" even when dependency clues are disabled;
-  opening it in that state explains and offers explicit enablement without sending a query.
-  Clues remain optional, experimental and off by default. Known source links or dependency
-  statements are evidence to inspect, never a guarantee of fit or production compatibility.
+  A single known product's menu offers "此商品的适配". It filters the wall to other library
+  products containing that exact product link in recorded author-description HTML, with no
+  enable prompt or dependency-name dialog. "Cancel filter" immediately follows pagination and
+  restores the previous filters, page, mode, selection and scroll, including after an empty or
+  failed query. Recorded links are evidence, never a guarantee of production compatibility.
   Card media's upper-left corner replaces cloud/local text badges: purple computer for local
   import, green cloud for cloud-only content, orange computer for linked local files, red cross
   for missing/failed content. Hover shows a short explanation; green cloud becomes a download
@@ -453,6 +454,13 @@ changelog history already uses.
   The view toggle sits immediately left of the search input. Single-card menus offer "Open folder"
   for recorded local files; cloud-only cards disable it. Several directories for one product require
   an explicit choice, while multiselection omits the action. The whole-library toolbar button is retired.
+  List mode uses title, shop, variant and source columns for both account products and local
+  imports. Header dividers drag horizontally to resize neighboring columns. Multiple recorded
+  variant choices show a count; source uses only plain Cloud, Downloading, Download paused,
+  Downloaded, Local import or Error text, replacing the old storage badges. The row menu lives
+  in the title cell so source stays at the right edge. Narrow lists may scroll horizontally.
+  The split import button's migration popup opens from its left edge in a viewport-clamped body
+  portal, avoiding the sidebar and clipping ancestors.
   Layout (v0.6.2, ruling of 2026-09-07): the card wall adapts its column count to the window width; the entry detail
   is a dedicated right-hand panel (own scroll, sticky header), not a drawer that squeezes the wall;
   the close button occupies its own top row, with the full-width title beneath it, for both
@@ -881,6 +889,7 @@ The in-app folder picker uses a permanently visible path text field and places D
 
 ## 12. Document changelog
 
+- 0.30.0 (2026-10-12): Define library column dividers and source text, unclipped migration popup and inline adaptation-filter cancellation.
 - 0.29.0 (2026-10-12): define entry-level local cards, imported-origin filtering, scroll-aware marquee, card-removal confirmation and separate single/migration intake with a native-location picker.
 
 - 0.28.0 (2026-10-12): remove all notification row/hover fills at the shared style owner, move folder access into single-card menus and place view switching immediately left of search.
@@ -891,4 +900,3 @@ The in-app folder picker uses a permanently visible path text field and places D
 - 0.23.0 (2026-10-11): unify the library's search/source/download-state controls, retire the three legacy selectors and add an explicit local-material folder action with narrow-window scroll recovery.
 - 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
-- 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.

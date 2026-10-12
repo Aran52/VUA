@@ -1472,6 +1472,15 @@ rolled_back: "已回滚",
       replaceCta: "重新下载并覆盖（{count}）", previousPage: "上一页", nextPage: "下一页", page: "第 {page} / {total} 页",
     },
     viewCards: "卡片",
+    listColumns: {
+      title: "标题", shop: "商店", variant: "变体", source: "来源", variants: "共{count}件", resize: "调整{name}栏宽度",
+      states: { cloud: "云端", downloading: "下载中", paused: "下载暂停", downloaded: "已下载", imported: "本地导入", error: "错误" },
+    },
+    adaptation: {
+      cancel: "取消筛选", active: "正文引用：{name}", emptyTitle: "尚未找到引用这件商品的素材",
+      emptyDescription: "只搜索素材库已读取的商品正文。没有结果不代表没有适配。",
+      boundary: "匹配已记录的正文链接，不代表作者已确认适配。尚未读取正文的商品无法命中。",
+    },
     loginBrowser: {
       successTitle: "登录成功",
       autoCloseHint: "{countdown} 秒后自动关闭",

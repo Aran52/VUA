@@ -1,6 +1,6 @@
 # Unified library view v0.1
 
-> Document version: 0.7
+> Document version: 0.8
 > Status: Implementation baseline
 > Updated: 2026-10-12
 > Maintainer: AMF
@@ -27,7 +27,7 @@ output and the need to regenerate when no current generated copy is present.
 | `library.productFiles` | query | Captured selectable file IDs, current managed binding and eligible legacy replacement candidates |
 
 Both requests require `schemaVersion: "0.1"` and reject unknown fields. A list has optional
-`source`, `state`, `text`, `availabilityStatus`, `sourceCategory`, `limit` and `offset`. Defaults are all sources,
+`source`, `state`, `text`, `availabilityStatus`, `sourceCategory`, `descriptionLinksTo`, `limit` and `offset`. Defaults are all sources,
 all states, empty text, no availability filter, limit 50 and offset zero. Limits are 1–200;
 offset is a nonnegative safe integer. Text is at most 1000 Unicode characters. Filtered `total`
 counts library rows before pagination: one product or one local warehouse entry. An entry can
@@ -73,6 +73,25 @@ Rows may include unique `copyIds`, whose length equals `storage.storedCopies`. T
 returns these for each displayed subset, and the delete-files UI uses that scope. A product target
 must not silently expand its selection to a different local card through a historical mapping.
 These optional fields extend this unfrozen baseline; frozen catalog/warehouse behavior is unchanged.
+
+Optional `descriptionLinksTo` requires an exact `booth:` numeric product identity; null and
+foreign identity/URL shapes are rejected. Only other **product rows** whose captured author
+description contains a link to that identity qualify. Link filtering intersects the other filters
+before facets, totals and pagination. It does not query by dependency name, confirm compatibility,
+require target ownership or fetch pages. Parsing covers absolute, protocol-relative and relative
+BOOTH links, permitted language/shop paths and image-only anchors; self, unrelated-host, plain
+text and outside-description links are excluded. BDL format 0.10 retains the latest snapshot,
+including explicit empty, independently of coarse library-row updates. Older named description
+link observations are used only where no newer snapshot exists. Unread descriptions and old
+image-only links not captured by previous builds cannot be inferred; normal official-page reading
+records them. Results cover recorded library products, not all products on BOOTH.
+
+Optional row `variantCount` is a nonnegative safe integer of recorded product-page variation
+choices (zero when not captured). It is not a count of purchased or downloaded files. Product
+and explicitly identified local rows may carry it; the frozen product summary is unchanged.
+List mode shows a count when greater than one, otherwise its recorded variant name or an empty
+dash. Source text uses actual native transfer/pause state and durable storage facts; an imported
+entry remains **Local import** even after receiving a BOOTH source association.
 
 ## Independent facts
 
@@ -142,6 +161,7 @@ remain `not_run` for this takeover baseline and are owned by N5.
 
 ## Document changelog
 
+- 0.8 (2026-10-12): Add optional descriptionLinksTo filtering and observed variantCount rows without changing frozen catalog faces.
 - 0.7 (2026-10-12): add origin-specific imported filtering, retain the physical-local face, and
   apply persistent entry/product card removal before listing counts and pagination.
 

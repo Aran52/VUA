@@ -11,7 +11,7 @@ describe("library-view v0.1 consumers", () => {
     expect(isLibraryViewParamsV01(String(request.method), request.params)).toBe(true);
     expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", source: "local" })).toBe(true);
   });
-  for (const name of ["list.request", "files.request", "category.request", "unknown-category.request", "invalid-category.request", "invalid-session.request", "invalid-limit.request"]) {
+  for (const name of ["list.request", "files.request", "description-links.request", "category.request", "unknown-category.request", "invalid-category.request", "invalid-session.request", "invalid-limit.request"]) {
     it(name, () => {
       const request = vector(name); const valid = !name.startsWith("invalid");
       expect(isLibraryViewParamsV01(String(request.method), request.params)).toBe(valid);
@@ -26,6 +26,16 @@ describe("library-view v0.1 consumers", () => {
     expect(isLibraryListV01(vector("local-source.response"))).toBe(true);
     expect(isLibraryProductFilesV01(vector("files.response"))).toBe(true);
     expect(isLibraryProductFilesV01(vector("invalid-path.response"))).toBe(false);
+  });
+  it("requires an exact product identity for reverse links and safe recorded variant counts", () => {
+    for (const descriptionLinksTo of [null, "", "902", "https://booth.pm/items/902", "booth:x", 902]) expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", descriptionLinksTo })).toBe(false);
+    const response = vector("local-source.response");
+    const rows = response.items as Record<string, unknown>[];
+    rows[0]!.variantCount = 3; rows[1]!.variantCount = 0;
+    expect(isLibraryListV01(response)).toBe(true);
+    for (const count of [-1, 1.5, "3", null, Number.MAX_SAFE_INTEGER + 1]) {
+      rows[0]!.variantCount = count; expect(isLibraryListV01(response)).toBe(false);
+    }
   });
   it("keeps source suggestions separate and validates each card's file scope", () => {
     const list = vector("local-source.response");

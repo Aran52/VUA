@@ -1440,6 +1440,15 @@ rolled_back: "롤백됨",
       replaceCta: "다시 다운로드하고 덮어쓰기 ({count})", previousPage: "이전", nextPage: "다음", page: "{page} / {total} 페이지",
     },
     viewCards: "카드",
+    listColumns: {
+      title: "제목", shop: "상점", variant: "옵션", source: "출처", variants: "총{count}개", resize: "{name} 열 너비 조절",
+      states: { cloud: "클라우드", downloading: "다운로드 중", paused: "다운로드 일시 중지", downloaded: "다운로드됨", imported: "로컬 가져오기", error: "오류" },
+    },
+    adaptation: {
+      cancel: "필터 해제", active: "본문 참조 대상: {name}", emptyTitle: "이 상품을 참조하는 기록이 없습니다",
+      emptyDescription: "소재 보관함에 읽어 둔 상품 본문만 검색합니다. 결과가 없다고 호환 소재가 없는 것은 아닙니다.",
+      boundary: "기록된 본문 링크는 호환 확인을 뜻하지 않습니다. 본문을 읽지 않은 상품은 검색되지 않습니다.",
+    },
     loginBrowser: {
       successTitle: "로그인 성공",
       autoCloseHint: "{countdown}초 후 자동으로 닫습니다",

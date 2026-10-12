@@ -1073,44 +1073,27 @@
 
 /* 纯文字列表模式(视图切换;商店名两态都在) */
 .vua-warehouse__list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: flex; flex-direction: column; min-width: 480px; width: 100%;
 }
-
-.vua-warehouse-list-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--vua-space-3);
-  padding: var(--vua-space-2) var(--vua-space-3);
-  border-radius: 6px;
-  cursor: pointer;
-}
+.vua-warehouse-list-row, .vua-library-list__header { display: grid; align-items: stretch; }
+.vua-warehouse-list-row { cursor: pointer; border-bottom: 1px solid var(--vua-border); }
+.vua-library-list__header { position: sticky; top: 0; z-index: 2; background: var(--vua-bg-panel); color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-library-list__cell, .vua-library-list__heading { padding: var(--vua-space-2) var(--vua-space-3); min-width: 0; border-right: 1px solid var(--vua-border); }
+.vua-library-list__cell { display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vua-library-list__cell:last-child, .vua-library-list__heading:last-child { border-right: 0; }
+.vua-library-list__title { gap: var(--vua-space-2); }
+.vua-library-list__title > span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.vua-library-list__title > button { flex-shrink: 0; min-height: 28px; padding: 0 6px; }
+.vua-library-list__heading { position: relative; user-select: none; }
+.vua-library-list__resize { position: absolute; right: -5px; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 1; }
+.vua-library-list__resize:hover, .vua-library-list__resize:focus-visible { background: color-mix(in srgb, var(--vua-accent) 40%, transparent); }
+.vua-library-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: var(--vua-space-2); }
 
 .vua-warehouse-list-row:hover,
 .vua-warehouse-list-row[data-selected] {
   background: var(--vua-bg-hover, rgba(255, 255, 255, 0.06));
 }
 
-.vua-warehouse-list-row__title {
-  flex: 1;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vua-warehouse-list-row__variant {
-  font-size: 0.875rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.vua-warehouse-list-row__shop {
-  font-size: 0.8125rem;
-  color: var(--vua-text-secondary);
-  white-space: nowrap;
-}
 
 /* 多选模式卡片选中态(用户裁决 2026-10-04):橙色描边 + 角标计数 */
 .vua-warehouse-card[data-selected] {

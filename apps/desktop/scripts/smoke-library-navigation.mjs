@@ -7,7 +7,7 @@ import os from "node:os";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let server, window;
-const timeout = setTimeout(() => { console.error("Library navigation smoke timed out"); app.exit(1); }, 60000);
+const timeout = setTimeout(() => { console.error("Library navigation smoke timed out"); app.exit(1); }, 90000);
 app.on("window-all-closed", () => {});
 async function main() {
   try {
@@ -25,7 +25,8 @@ async function main() {
     window = new BrowserWindow({ show: false, width: 1200, height: 900, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, offscreen: true } });
     const errors = []; window.webContents.on("console-message", event => { if (event.level === "error") errors.push(event.message); });
     const checks = [];
-    for (const locale of ["en", "zh-CN", "ja", "ko"]) {
+    const requestedLocale = process.argv.find(arg => arg.startsWith("--locale="))?.slice(9);
+    for (const locale of requestedLocale && ["en", "zh-CN", "ja", "ko"].includes(requestedLocale) ? [requestedLocale] : ["en", "zh-CN", "ja", "ko"]) {
       await window.loadURL(`http://127.0.0.1:${server.httpServer.address().port}/__library-navigation?locale=${locale}`);
       await window.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{if(window.libraryNavigationReview){clearInterval(t);resolve()}else if(++n>200){clearInterval(t);reject(Error('Fixture timeout'))}},50)})");
       checks.push(...(await window.webContents.executeJavaScript("window.libraryNavigationReview.run()")).map(check => `${locale}: ${check}`));

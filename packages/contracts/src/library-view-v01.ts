@@ -9,6 +9,8 @@ export interface LibraryListParamsV01 {
   readonly text?: string; readonly availabilityStatus?: "available" | "unavailable" | "unknown";
   /** Original BOOTH category; omitted = all, null = not recorded. */
   readonly sourceCategory?: string | null;
+  /** Reverse filter over captured author-description product links. */
+  readonly descriptionLinksTo?: string;
   readonly limit?: number; readonly offset?: number;
 }
 export interface LibraryProductFilesParamsV01 { readonly schemaVersion: "0.1"; readonly productId: string }
@@ -36,9 +38,9 @@ export interface LibrarySourceMatchV01 {
 export type LibraryRowV01 =
   | { readonly kind: "product"; readonly product: LibraryProductV01; readonly sources: readonly ("bought" | "gifts" | "free_downloads")[];
       readonly storage: LibraryStorageV01; readonly operation: LibraryDownloadSnapshotV01 | null; readonly copyIds?: readonly string[];
-      readonly localEntries?: readonly { readonly entryId: string; readonly displayName: string }[]; readonly sourceCategory?: string | null }
+      readonly localEntries?: readonly { readonly entryId: string; readonly displayName: string }[]; readonly sourceCategory?: string | null; readonly variantCount?: number }
   | { readonly kind: "local"; readonly entry: WarehouseEntryCardV03; readonly storage: LibraryStorageV01;
-      readonly copyIds?: readonly string[]; readonly sourceMatch?: LibrarySourceMatchV01; readonly metadata?: LibraryEntryMetadataV01; readonly sourceCategory?: string | null };
+      readonly copyIds?: readonly string[]; readonly sourceMatch?: LibrarySourceMatchV01; readonly metadata?: LibraryEntryMetadataV01; readonly sourceCategory?: string | null; readonly variantCount?: number };
 export interface LibraryListV01 {
   readonly schemaVersion: "0.1"; readonly total: number; readonly offset: number; readonly limit: number; readonly items: readonly LibraryRowV01[];
   readonly sourceCategories?: readonly string[];
@@ -64,7 +66,8 @@ const words = (v: unknown, values: readonly string[]): boolean => typeof v === "
 export function isLibraryViewParamsV01(method: string, v: unknown): boolean {
   if (!record(v) || v.schemaVersion !== "0.1") return false;
   if (method === "library.productFiles") return exact(v, ["schemaVersion", "productId"]) && product(v.productId);
-  return method === "library.list" && exact(v, ["schemaVersion"], ["source", "state", "text", "availabilityStatus", "sourceCategory", "limit", "offset"])
+  return method === "library.list" && exact(v, ["schemaVersion"], ["source", "state", "text", "availabilityStatus", "sourceCategory", "descriptionLinksTo", "limit", "offset"])
+    && (v.descriptionLinksTo === undefined || product(v.descriptionLinksTo))
     && (v.sourceCategory === undefined || v.sourceCategory === null || category(v.sourceCategory))
     && (v.source === undefined || words(v.source, ["all", "local", "imported", "bought", "gifts", "free_downloads"]))
     && (v.state === undefined || words(v.state, ["all", "downloaded", "cloud_only", "missing", "in_progress", "attention"]))
@@ -105,16 +108,17 @@ export function isLibraryListV01(v: unknown): v is LibraryListV01 {
     && integer(v.limit) && v.limit > 0 && v.limit <= 200 && Array.isArray(v.items) && v.items.length <= v.limit
     && v.items.every((row) => {
       if (!record(row) || !isLibraryStorageV01(row.storage)) return false;
+      if (row.variantCount !== undefined && !integer(row.variantCount)) return false;
       if (row.sourceCategory !== undefined && row.sourceCategory !== null && !category(row.sourceCategory)) return false;
       if (row.copyIds !== undefined && (!Array.isArray(row.copyIds) || !row.copyIds.every(text)
         || new Set(row.copyIds).size !== row.copyIds.length || row.copyIds.length !== row.storage.storedCopies)) return false;
-      if (row.kind === "local") return exact(row, ["kind", "entry", "storage"], ["copyIds", "sourceMatch", "metadata", "sourceCategory"]) && isEntry(row.entry)
+      if (row.kind === "local") return exact(row, ["kind", "entry", "storage"], ["copyIds", "sourceMatch", "metadata", "sourceCategory", "variantCount"]) && isEntry(row.entry)
         && (!('metadata' in row) || isLibraryEntryMetadataV01(row.metadata) && row.metadata.entryId === row.entry.warehouseItemId && row.metadata.displayName === row.entry.displayName)
         && (row.sourceMatch === undefined || record(row.sourceMatch) && exact(row.sourceMatch, ["product", "sources", "basis", "content"])
           && isProduct(row.sourceMatch.product) && Array.isArray(row.sourceMatch.sources) && row.sourceMatch.sources.every(source)
           && new Set(row.sourceMatch.sources).size === row.sourceMatch.sources.length
           && words(row.sourceMatch.basis, ["mapping", "product_id", "name"]) && words(row.sourceMatch.content, ["unverified", "different"]));
-      return row.kind === "product" && exact(row, ["kind", "product", "sources", "storage", "operation"], ["copyIds", "localEntries", "sourceCategory"]) && isProduct(row.product)
+      return row.kind === "product" && exact(row, ["kind", "product", "sources", "storage", "operation"], ["copyIds", "localEntries", "sourceCategory", "variantCount"]) && isProduct(row.product)
         && (!('localEntries' in row) || Array.isArray(row.localEntries) && row.localEntries.length > 0 && row.localEntries.length <= row.storage.storedCopies
           && row.localEntries.every((entry) => record(entry) && exact(entry, ["entryId", "displayName"]) && text(entry.entryId) && text(entry.displayName))
           && new Set(row.localEntries.map((entry: Record<string, unknown>) => entry.entryId)).size === row.localEntries.length)

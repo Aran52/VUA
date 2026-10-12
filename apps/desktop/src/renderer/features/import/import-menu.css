@@ -2,7 +2,7 @@
 .vua-import-menu__buttons { display: flex; }
 .vua-import-menu__buttons > :first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .vua-import-menu__buttons > :last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid var(--vua-border); min-width: 30px; padding-inline: 8px; }
-.vua-import-menu__choices { position: absolute; top: 100%; right: 0; z-index: 30; padding: var(--vua-space-1); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-elevated); min-width: max-content; box-shadow: 0 6px 20px color-mix(in srgb, var(--vua-bg-canvas) 40%, transparent); }
+.vua-import-menu__choices { position: fixed; z-index: 1000; padding: var(--vua-space-1); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-elevated); width: max-content; max-width: calc(100vw - 16px); box-sizing: border-box; box-shadow: 0 6px 20px color-mix(in srgb, var(--vua-bg-canvas) 40%, transparent); }
 .vua-import-menu__choices button { width: 100%; text-align: left; }
 .vua-migration-preview { display: flex; flex-direction: column; gap: var(--vua-space-2); }
 .vua-migration-preview__tree { list-style: none; padding-left: 18px; margin: 6px 0; }

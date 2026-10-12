@@ -50,4 +50,7 @@ async function main() {
     console.error(error); window?.destroy(); await server?.close(); app.exit(1);
   }
 }
-void main();
+// The name-based dialog/settings workflow is retired. Keep the established
+// smoke command routed to the current inline link filter; entry review remains.
+if (entries) void main();
+else await import("./smoke-library-navigation.mjs");

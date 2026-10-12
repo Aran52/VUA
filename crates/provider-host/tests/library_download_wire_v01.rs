@@ -771,7 +771,7 @@ fn library_view_schema_vectors_and_real_queries_agree() {
     };
     let request = jsonschema::validator_for(&read("request.schema.json")).unwrap();
     let response = jsonschema::validator_for(&read("response.schema.json")).unwrap();
-    for name in ["list.request", "files.request", "category.request", "unknown-category.request"] {
+    for name in ["list.request", "files.request", "description-links.request", "category.request", "unknown-category.request"] {
         assert!(request.is_valid(&read(&format!("examples/{name}.json"))));
     }
     for name in ["invalid-session.request", "invalid-limit.request"] {
@@ -812,6 +812,22 @@ fn library_view_schema_vectors_and_real_queries_agree() {
         host.call("library.list", json!({"schemaVersion":"0.1","limit":201}))["error"]["code"],
         "vua.library.invalid_params"
     );
+}
+
+#[test]
+fn description_link_filter_and_variant_counts_cross_the_native_wire_and_clear() {
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let page = |body: &str| json!({"schemaVersion":"0.2","sourceUrl":"https://booth.pm/items/90","fetchedAt":"2026-10-12T00:00:00Z",
+        "html":format!(r#"<div id="items" data-product-id="90"><article><div class="summary"><h2>Synthetic outfit</h2></div><div class="js-market-item-detail-description description">{body}</div></article></div>"#)});
+    assert_eq!(host.call("catalog.ingestLibraryPage", page(r#"<a href="https://booth.pm/en/items/999"><img src="x"></a>"#))["ok"], true);
+    let request = json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"});
+    let result = host.call("library.list",request.clone()); assert_eq!(result["ok"],true,"{result}"); assert_eq!(result["value"]["total"],1);
+    assert_eq!(result["value"]["items"][0]["variantCount"],0);
+    for invalid in [Value::Null, json!("booth:x"), json!("https://booth.pm/items/999")] {
+        assert_eq!(host.call("library.list",json!({"schemaVersion":"0.1","descriptionLinksTo":invalid}))["error"]["code"],"vua.library.invalid_params");
+    }
+    assert_eq!(host.call("catalog.ingestLibraryPage",page(""))["ok"],true);
+    assert_eq!(host.call("library.list",request)["value"]["total"],0);
 }
 
 #[test]

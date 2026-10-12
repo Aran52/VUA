@@ -31,6 +31,33 @@ fn library_view(w: &World, query: Value) -> Value {
     .unwrap()
 }
 
+#[test]
+fn reverse_description_links_are_exact_latest_evidence_not_names_or_ownership() {
+    let w = World::new();
+    let capture = |body: &str| crate::description_dependencies::record_description_dependencies(&w.bdl,
+        &format!(r#"<div id="items"><article><div class="js-market-item-detail-description description">{body}</div></article><aside><a href="https://booth.pm/items/777">Recommendation</a></aside></div>"#),
+        "booth:90", "sha256:synthetic", "2026-10-12T00:00:00Z").unwrap();
+    capture(r#"<a href="https://shop.booth.pm/en/items/999?from=body"><img src="sample.png"></a>
+        <a href="/ja/items/999">Duplicate</a><a href="https://booth.pm/items/90">Self</a>
+        <a href="https://booth.pm.evil/items/888">Spoof</a> Plain https://booth.pm/items/666"#);
+    assert!(w.bdl.catalog_detail("booth:999").unwrap().is_none(), "target does not need to be owned or catalogued");
+    let result = library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","limit":1}));
+    assert_eq!(result["total"], 1); assert_eq!(result["items"][0]["product"]["productId"], "booth:90");
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","offset":1}))["total"], 1);
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999","text":"nonexistent"}))["total"], 0);
+    for target in ["booth:99", "booth:90", "booth:777", "booth:888", "booth:666"] {
+        assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":target}))["total"], 0, "{target}");
+    }
+    let reopened = BdlStore::open(w.base.join("bdl.db")).unwrap();
+    assert_eq!(crate::description_dependencies::products_linking_to(&reopened,"booth:999").unwrap().len(), 1);
+    // Library rows and an unreadable/missing description preserve the last body.
+    crate::description_dependencies::record_description_dependencies(&w.bdl, "<h1>Incomplete page</h1>","booth:90","sha256:other","2026-10-12T01:00:00Z").unwrap();
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"}))["total"], 1);
+    capture("No remaining links");
+    assert_eq!(library_view(&w, json!({"schemaVersion":"0.1","descriptionLinksTo":"booth:999"}))["total"], 0, "empty snapshot overrides immutable historical clues");
+    assert!(!w.bdl.dependency_observations("booth:90").unwrap().is_empty(), "historical evidence survives");
+}
+
 fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
     use std::io::Write;
     let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));

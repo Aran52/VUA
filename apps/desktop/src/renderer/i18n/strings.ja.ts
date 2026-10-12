@@ -1447,6 +1447,15 @@ rolled_back: "ロールバック済み",
       replaceCta: "再ダウンロードして置き換え（{count}）", previousPage: "前へ", nextPage: "次へ", page: "{page} / {total} ページ",
     },
     viewCards: "カード",
+    listColumns: {
+      title: "タイトル", shop: "ショップ", variant: "バリエーション", source: "入手元", variants: "全{count}件", resize: "{name}列の幅を変更",
+      states: { cloud: "クラウド", downloading: "ダウンロード中", paused: "ダウンロード一時停止", downloaded: "ダウンロード済み", imported: "ローカル取込", error: "エラー" },
+    },
+    adaptation: {
+      cancel: "絞り込みを解除", active: "本文の参照先：{name}", emptyTitle: "この商品への参照はまだ見つかりません",
+      emptyDescription: "素材庫に読み込み済みの商品本文を検索します。結果がなくても対応品がないとは限りません。",
+      boundary: "記録された本文リンクは対応の確認を意味しません。本文未取得の商品は検索対象になりません。",
+    },
     loginBrowser: {
       successTitle: "ログインしました",
       autoCloseHint: "{countdown} 秒後に自動で閉じます",

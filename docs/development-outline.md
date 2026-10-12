@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Document version: 3.25.0
+> Document version: 3.26.0
 > Status: Accepted
 > Updated: 2026-10-12
 > Authority: User rulings of 2026-09-28 through 2026-10-12, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
@@ -409,7 +409,7 @@ Do not assume an upstream API or scraping approach before capability investigati
 | Maintain files | Show associated local files and missing status; restore missing BOOTH-managed files through explicit re-download and report unavailable upstream content; a dedicated relink feature is not required under the 2026-10-08 ruling |
 | Maintain provenance | Local use need not start with a BOOTH ID; reuse official metadata retrieval from an ID/page or bounded public BOOTH keyword candidates, expose only name and thumbnail for manual supplementation, and retain source associations under the product boundary. Public discovery is independent of account entitlement; ambiguous/incomplete results require confirmation. Other third-party search is deferred |
 | Distinguish content | Same-name different-content material is distinguishable and never silently overwritten; Recipe/VPM revision selection and regeneration are deferred |
-| Manage relationships | Persist author-description link clues with their source evidence; gate dependency display/reverse lookup in settings and explain accuracy limits when enabled. Distinguish unconfirmed clues from confirmations and empty evidence from an absence of dependencies; exhaustive inference and missing-link corner cases are later work |
+| Manage relationships | A single product's "此商品的适配" menu filters the wall by captured author-description links to that exact BOOTH product; cancel after pagination restores the previous view. Retain link evidence and accuracy limits without a dependency-name dialog or enable prompt. Empty evidence does not establish an absence of compatible items; exhaustive inference and missing-link corner cases are later work |
 | Remove/clean | Allow count-confirmed entry and account-product card removal separately from file deletion, retaining identities/references and removal across sync/restart |
 
 The missing-file and provenance refinements are owned by the
@@ -526,6 +526,7 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.26.0 (2026-10-12): Align N5 relationship management with the explicit card-menu link filter without claiming real-account or human acceptance.
 - 3.25.0 (2026-10-12): route the separate migration design and delivered origin/card/picker refinements while retaining real-library and human-review outcomes.
 
 - 3.24.1 (2026-10-12): clarify native file/folder drops and explicit AMF enablement alongside the existing local picker; pending N-stage outcomes stay unchanged.
@@ -536,4 +537,3 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.21.0 (2026-10-11): accept approximate regional references for Ibis and defer exact Photon/room measurement, retaining independent website observations and physical play acceptance.
 - 3.20.0 (2026-10-10): record the Candidate VRCFT Steam/device-guidance connection, add connection-dependent module selection and retain source-specific real-installation/tracking acceptance and other planned tools.
 - 3.19.0 (2026-10-10): enable bundled AMF for new profiles while retaining saved choices and old-profile defaults; link the small VRCFT connection plan without changing stage or tracking acceptance.
-- 3.18.0 (2026-10-10): apply the seven-stage scenario-host/AMF/BDL sequence, expand N2 sources and selected tools, place N6 with each path and split N7 release scope; preserve N1/N5 evidence and pending formal acceptance.

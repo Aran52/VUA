@@ -1,11 +1,11 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.30.0
+> Document version: 1.31.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-12
-> Last conformance review: 2026-10-12 (controlled library corners, public search, native pause and intake checks; real account/material/device and human-language review pending)
+> Last conformance review: 2026-10-12 (controlled library columns, inline link filtering, import popup, corners, public search and intake checks; real account/material/device and human-language review pending)
 > Normative effect: Yes
 
 ## Technology decision
@@ -254,8 +254,11 @@ bottom taskbar to remove native button chrome. All task types/states keep row, m
 glyph backgrounds transparent, including hover; normal focus feedback and the panel remain.
 
 The library's displayed cloud and local cards share page-scoped selection and context-menu
-shortcuts. Product adaptation opens the optional read-only dependency observation surface;
-disabled clues require explicit enablement and make no observation query beforehand. The
+shortcuts. A single known product's adaptation menu sends `descriptionLinksTo` through the
+unified library read face, replacing the wall with matching source products. The standalone
+dependency-name dialog and its settings gate are retired. Cancellation after pagination restores
+the pre-filter query, source/category/state, offset, view mode, selection, open detail and scroll;
+empty and failed reads retain cancellation. The
 [design standard](../design/design-standard.md#8-module-visual-language) owns these interaction and
 detail-header rules; source clues do not establish production compatibility.
 
@@ -473,10 +476,18 @@ Marquee selection anchors its start in wall content coordinates. Pointer movemen
 
 The import split button opens the native folder picker for a single item. Its arrow opens the migration entry on hover/click; the latter currently supplies only read-only structural review. See the [draft migration design](../development/library-migration-design.md) for boundary decisions and unresolved execution. Candidate desktop-library adds bounded immediate-directory reads without following links or expanding ZIPs; AMF still owns copying.
 
+The migration menu uses a fixed-position body portal, anchors at the import group's left edge
+and clamps to the viewport; pointer transitions into the popup retain it. List mode shares title,
+shop, variant and plain source columns across account products and imported entries. Draggable
+header dividers resize neighboring columns together; narrow walls scroll horizontally. Native
+active/paused transfers override durable download status, while presence failures remain errors.
+Observed multi-variant choices are supplied separately from the frozen product summary.
+
 The optional native `fs.navigation` face returns Electron's resolved Desktop/Documents/Downloads paths and logical drive names. Main queries drive names only, with a hidden bounded helper process; it does not poll drive readiness or sizes. The picker keeps a visible editable path field, four shortcuts and a virtual This PC list. Up at a drive root enters that list, which is not itself an importable directory.
 
 ## Document changelog
 
+- 1.31.0 (2026-10-12): Add shared resizable list columns, body-portal import menus and reversible inline product-link filtering.
 - 1.30.0 (2026-10-12): add imported-origin filtering, entry-level cards, scroll-anchored selection, persistent card removal, native picker locations/drives and the separate read-only migration preview.
 
 - 1.29.0 (2026-10-12): load notification styles at their shared owner, remove state/hover row fills, add single-card scoped folder actions and put the view toggle beside search.
@@ -488,4 +499,3 @@ The optional native `fs.navigation` face returns Electron's resolved Desktop/Doc
 - 1.24.0 (2026-10-11): restore BOOTH account reads through tracked session redirects, refresh account status on login close, align library filters and add the bounded active-AMF folder action.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
-- 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.

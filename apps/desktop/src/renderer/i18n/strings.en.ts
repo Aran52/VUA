@@ -1484,6 +1484,15 @@ demoTaskTitle: "Demo task",
       replaceCta: "Download and replace ({count})", previousPage: "Previous", nextPage: "Next", page: "Page {page} of {total}",
     },
     viewCards: "Cards",
+    listColumns: {
+      title: "Title", shop: "Shop", variant: "Variant", source: "Source", variants: "{count} variants", resize: "Resize {name} column",
+      states: { cloud: "Cloud", downloading: "Downloading", paused: "Download paused", downloaded: "Downloaded", imported: "Local import", error: "Error" },
+    },
+    adaptation: {
+      cancel: "Clear filter", active: "Description links to: {name}", emptyTitle: "No recorded references to this product",
+      emptyDescription: "Search covers product descriptions already read into this library. No results do not rule out compatible items.",
+      boundary: "A recorded description link is not confirmed compatibility. Products without a captured description cannot match.",
+    },
     loginBrowser: {
       successTitle: "Signed in",
       autoCloseHint: "Closing in {countdown}s",

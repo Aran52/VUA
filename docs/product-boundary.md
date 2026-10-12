@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Document version: 2.27.0
+> Document version: 2.28.0
 > Status: Accepted
 > Scope: Entire VUA product
 > Updated: 2026-10-12
@@ -207,11 +207,20 @@ files stay in the library. The first production intake accepts UnityPackage only
 image editing and direct FBX/PSD integration are outside this N5 pass. Retention does not establish
 production qualification, and existing format/content checks still apply at production intake.
 
-Dependency display and reverse lookup are optional settings. Explain their accuracy limits when
-enabled: author-description links may describe demonstrations or unrelated products, authors may
-omit links, and available reverse lookup is limited by recorded evidence and its matching rules.
-Show unconfirmed clues honestly; a link, resolved product identity or empty result is not a
-compatibility or dependency verdict. Full dependency inference is not required for N5 closure.
+**Description-link filtering (user ruling, 2026-10-12).** The standalone dependency reverse-lookup
+button is retired. A single known product's menu offers "此商品的适配" and filters the material
+wall to other library products whose captured author-description HTML contains its BOOTH product
+link. No dependency-name matching, account ownership inference or whole-site crawl is involved.
+"Cancel filter" sits immediately after pagination and restores the prior filters, page, display
+mode, selection and scroll. This explicit read is available without an experimental enable prompt;
+the old dependency-display setting is retired. Recorded links may describe demonstrations or
+unrelated products, and unobserved/omitted links cannot match. A link or empty result is not a
+compatibility or dependency verdict. Full dependency inference remains outside N5 closure.
+
+Library list mode separates title, shop, variant and source into columns with draggable width
+dividers. Multiple recorded variant choices use a count; source is plain cloud/downloading/paused/
+downloaded/local-import/error text. Local imports use the same columns. The migration popup stays
+outside clipping ancestors and opens from the import group's left edge.
 
 **BDL.** The existing base storage, asset identity, source correlation, and catalog capabilities
 are retained. Automatic compatibility-evidence collection is an experimental feature, off by
@@ -640,6 +649,7 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.28.0 (2026-10-12): Replace dependency-name dialogs with cancellable author-description link filtering and define resizable plain-source library columns.
 - 2.27.0 (2026-10-12): record origin-specific local imports, full card presentation removal and the author-selected single-item/migration intake split without changing acceptance.
 
 - 2.26.0 (2026-10-12): authorize bounded public BOOTH keyword lookup for local provenance independently of account membership; preserve content, ambiguity and entitlement boundaries.
@@ -650,4 +660,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
 - 2.21.0 (2026-10-10): distinguish ordinary local-material intake from active support for pirated acquisition sources, without introducing rights classification or new intake gates.
 - 2.20.0 (2026-10-10): bundle AMF with Ibis while requiring explicit first activation, retain saved choices and legacy data, and defer external Avatar-editing modules.
-- 2.19.0 (2026-10-09): accept VUA as a scenario host with optional AMF＋BDL, independent fresh startup/navigation and retained module data.

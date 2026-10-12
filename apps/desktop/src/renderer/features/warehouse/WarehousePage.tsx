@@ -1,10 +1,12 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
 import { isCatalogSyncSnapshotV03, isLibraryDownloadSnapshotV01, type CatalogSyncSnapshotV03, type BoothSearchResultV01 } from "@vua/contracts";
@@ -43,8 +45,7 @@ import { useDebugMode } from "../../app/debug-mode.ts";
 import { useCardSpotlight } from "./use-card-spotlight.ts";
 import type { RecipeAssetRef } from "../../gateway/index.ts";
 import { AddToRecipeDialog } from "./AddToRecipeDialog.tsx";
-import { CompatibleItemsDialog } from "./CompatibleItemsDialog.tsx";
-import { DependencyLookupDialog } from "./DependencyLookupDialog.tsx";
+import { LibraryListRow, libraryListSource, useLibraryColumns } from "./LibraryList.tsx";
 import { registerTaskIdentity } from "../../gateway/index.ts";
 import { CardAlbumMedia, DetailAlbum } from "./WarehouseAlbum.tsx";
 import { MaterialEntryCard, EntryDetail } from "./WarehouseAcquire.tsx";
@@ -66,7 +67,6 @@ import {
 import { BOOTH_SIGN_IN_URL } from "../import/import-model.ts";
 import { openLoginBrowser, useLoginBrowserRequest } from "../../app/login-browser-store.ts";
 import { useDownloadChecklist } from "../../app/download-checklist-flag.ts";
-import { useDependencyClues } from "../../app/dependency-clues-flag.ts";
 import { DownloadChecklistDialog } from "./DownloadChecklistDialog.tsx";
 import { RemoveFilesDialog, type RemovalDialogTarget } from "./RemoveFilesDialog.tsx";
 import { BulkDownloadDialog } from "./BulkDownloadDialog.tsx";
@@ -173,51 +173,12 @@ function LibraryBadges({ facts, compact = false }: { facts: LibraryCardFacts | u
 /** 卡/行交互基座(Explorer 语义,用户裁决 2026-10-05):单击 = 选中该卡,
  * 双击/Enter = 打开详情,右键 = 交页面菜单(按选区约定裁决作用域)。
  * data-product-id 既是选区归属标记,也是框选命中测试的锚点。 */
-function WarehouseListRow({
-  item,
-  facts,
-  selected,
-  onSelect,
-  onOpen,
-  onMenu,
-}: {
-  item: CatalogProductSummary;
-  facts?: LibraryCardFacts | undefined;
-  selected: boolean;
-  onSelect: () => void;
-  onOpen: () => void;
-  onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
-}) {
-  return (
-    <div
-      className="vua-warehouse-list-row"
-      data-selected={selected || undefined}
-      data-product-id={item.productId}
-      data-selection-id={item.productId}
-      role="listitem"
-      tabIndex={0}
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      onContextMenu={onMenu}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      <span className="vua-warehouse-list-row__title">{item.title ?? item.productId}</span>
-      <span className="vua-warehouse-list-row__shop">{item.shopName ?? copy.card.unknownShop}</span>
-      {item.variantName !== null ? (
-        <span className="vua-warehouse-list-row__variant">{item.variantName}</span>
-      ) : null}
-      {facts !== undefined ? <LibraryBadges facts={facts} /> : item.importedArtifacts > 0 ? (
-        <span className="vua-caption">{copy.importedBadge}</span>
-      ) : null}
-      <Button variant="subtle" aria-label={copy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
-    </div>
-  );
+function MaterialEntryView(props: Parameters<typeof MaterialEntryCard>[0] & { viewMode: "cards" | "list"; columnStyle: CSSProperties; facts?: LibraryCardFacts | undefined }) {
+  if (props.viewMode === "cards") return <MaterialEntryCard {...props} />;
+  const { card, source, metadata, facts } = props;
+  return <LibraryListRow id={card.key} title={metadata?.displayName ?? source?.title ?? card.entry.displayName}
+    shop={source?.shopName} variant={source?.variantName} variantCount={facts?.variantCount} source={libraryListSource(facts, card.entry.kind)}
+    selected={props.selected} style={props.columnStyle} onSelect={props.onSelect} onOpen={props.onOpen} onMenu={props.onMenu} />;
 }
 
 function WarehouseCard({
@@ -592,6 +553,7 @@ export function WarehousePage({
   // 单库页(用户方向 2026-10-02):云端三来源 + 本地,来源只作筛选
   // 视图模式(用户裁决 2026-03):卡片墙(带图)↔ 纯文字标题列表
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const columns = useLibraryColumns();
   // 选区(Explorer 语义,用户裁决 2026-10-05):单击选卡/框选/右键拖选,
   // 无独立"选择模式"开关;Esc、空白单击、重新框选即清空
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
@@ -599,20 +561,7 @@ export function WarehousePage({
   selectedIdsRef.current = selectedIds;
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
   const [contextSelection, setContextSelection] = useState<readonly RecipeAssetRef[]>([]);
-  const [dependencyCluesOn, setDependencyCluesOn] = useDependencyClues();
   const pageRef = useRef<HTMLDivElement | null>(null);
-  const [lookupName, setLookupName] = useState<string | null>(null);
-  // Optional, unconfirmed dependency observations.
-  const [compatibleQuery, setCompatibleQuery] = useState<{
-    productId: string;
-    title: string;
-  } | null>(null);
-  useEffect(() => {
-    if (dependencyCluesOn) return;
-    setCompatibleQuery(null);
-    setLookupName(null);
-    setCardMenu(null);
-  }, [dependencyCluesOn]);
   const [removalTarget, setRemovalTarget] = useState<RemovalDialogTarget | null>(null);
   const [bulkRemovalTargets, setBulkRemovalTargets] = useState<readonly RemovalDialogTarget[] | null>(null);
   const [bulkDownload, setBulkDownload] = useState<{ readonly products: readonly BulkProduct[]; readonly mode: BulkDownloadMode; readonly skippedLocal: number } | null>(null);
@@ -1128,7 +1077,39 @@ export function WarehousePage({
     setSelectedIds(new Set([id]));
   };
 
-  // 列表查询:筛选变更保留旧结果(stale-while-revalidate),骨架屏只留给首次加载
+  const [adaptation, setAdaptation] = useState<{ productId: string; title: string; previous: {
+    query: WarehouseQueryState; source: typeof source; downloadState: typeof downloadState; sourceCategory: string; pageOffset: number;
+    viewMode: typeof viewMode; selectedIds: ReadonlySet<string>; selectedId: string | null; selectedLocalId: string | null; scrollTop: number; scrollLeft: number;
+  } } | null>(null);
+  const restoreScroll = useRef<{ top: number; left: number } | null>(null);
+  const changeFilters = (change: () => void) => { change(); setPageOffset(0); setSelectedIds(new Set()); };
+  const changePage = (offset: number) => { setPageOffset(offset); setSelectedIds(new Set()); };
+  const showAdaptations = (product: { productId: string; title: string | null }) => {
+    setAdaptation({ productId: product.productId, title: product.title ?? product.productId, previous: adaptation?.previous ?? {
+      query, source, downloadState, sourceCategory, pageOffset, viewMode, selectedIds: new Set(selectedIdsRef.current), selectedId, selectedLocalId,
+      scrollTop: wallEl?.scrollTop ?? 0, scrollLeft: wallEl?.scrollLeft ?? 0,
+    } });
+    restoreScroll.current = null; setQuery(emptyWarehouseQuery); setSource("all"); setDownloadState("all"); setSourceCategory("all");
+    setPageOffset(0); setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setLibraryPage(null); setListState({ kind: "loading" });
+    if (wallEl) { wallEl.scrollTop = 0; wallEl.scrollLeft = 0; }
+  };
+  const cancelAdaptations = () => {
+    if (!adaptation) return;
+    const previous = adaptation.previous;
+    setQuery(previous.query); setSource(previous.source); setDownloadState(previous.downloadState); setSourceCategory(previous.sourceCategory);
+    setPageOffset(previous.pageOffset); setViewMode(previous.viewMode); setSelectedIds(previous.selectedIds); setSelectedId(previous.selectedId); setSelectedLocalId(previous.selectedLocalId);
+    restoreScroll.current = { top: previous.scrollTop, left: previous.scrollLeft };
+    setAdaptation(null); setLibraryPage(null); setListState({ kind: "loading" });
+  };
+  useLayoutEffect(() => {
+    const scroll = restoreScroll.current;
+    if (scroll === null || adaptation !== null || libraryPage === null || listState.kind !== "loaded") return;
+    const wall = pageRef.current?.querySelector(".vua-warehouse__wall-scroll");
+    if (wall) { wall.scrollTop = scroll.top; wall.scrollLeft = scroll.left; restoreScroll.current = null; }
+  }, [libraryPage, listState, adaptation]);
+
+  // Ordinary filter changes retain old results. Entering/leaving link filtering
+  // clears them so a previous page never poses as a reverse-link result.
   useEffect(() => {
     if (!connected) return;
     let active = true;
@@ -1138,6 +1119,7 @@ export function WarehousePage({
       : libraryBrowser.list({ schemaVersion: "0.1", source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
         ...(sourceCategory === "all" ? {} : { sourceCategory: sourceCategory === "unknown" ? null : sourceCategory.slice(9) }),
+        ...(adaptation === null ? {} : { descriptionLinksTo: adaptation.productId }),
         limit: 50, offset: pageOffset });
     read.then(
       (page) => {
@@ -1155,10 +1137,7 @@ export function WarehousePage({
     return () => {
       active = false;
     };
-  }, [query, connected, reloadKey, source, downloadState, sourceCategory, pageOffset, dataSource]);
-
-  useEffect(() => { setPageOffset(0); setSelectedIds(new Set()); }, [query, source, downloadState, sourceCategory]);
-  useEffect(() => { setSelectedIds(new Set()); }, [pageOffset]);
+  }, [query, connected, reloadKey, source, downloadState, sourceCategory, pageOffset, dataSource, adaptation]);
   useEffect(() => {
     const refresh = () => setReloadKey((key) => key + 1);
     window.addEventListener("focus", refresh);
@@ -1322,7 +1301,7 @@ export function WarehousePage({
 
   const compatibilityMenuItem = (product: { productId: string; title: string | null }) => ({
     id: "showCompatible", label: copy.cardMenu.showCompatible,
-    onSelect: () => setCompatibleQuery({ productId: product.productId, title: product.title ?? product.productId }),
+    disabled: dataSource !== "live", onSelect: () => showAdaptations(product),
   });
 
   /** Bulk actions retain the selection; product clues apply to the clicked card. */
@@ -1359,7 +1338,7 @@ export function WarehousePage({
         { id: "bulkReDownload", label: copy.cardMenu.reDownload, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "redownload", skippedLocal }) },
         { id: "bulkDeleteLocal", label: copy.cardMenu.deleteLocal, disabled: dataSource !== "live" || scopes.length === 0, onSelect: () => setBulkRemovalTargets(scopes) },
         { id: "removeCards", label: copy.removeCards.title, disabled: dataSource !== "live" || selection.size === 0 || selection.size > 200, onSelect: () => setRemovedCards(selectedRemovalCards(selection)) },
-        ...(product ? [boothMenuItem(product.productId), compatibilityMenuItem(product)] : []),
+        ...(product ? [boothMenuItem(product.productId)] : []),
         ...(refs.length > 0
           ? [{
               id: "addToRecipe",
@@ -1451,6 +1430,13 @@ export function WarehousePage({
     setCardMenu({ x: event.detail === 0 ? anchor.left : event.clientX, y: event.detail === 0 ? anchor.bottom : event.clientY, items: menuItems });
   };
 
+  const pagination = libraryPage !== null || adaptation !== null ? <div className="vua-library-pagination">
+    <Button variant="subtle" disabled={libraryPage === null || pageOffset === 0} onClick={() => changePage(Math.max(0, pageOffset - 50))}>{copy.libraryState.previousPage}</Button>
+    <span className="vua-caption">{format(copy.libraryState.page, { page: Math.floor(pageOffset / 50) + 1, total: Math.max(1, Math.ceil((libraryPage?.total ?? 0) / 50)) })}</span>
+    <Button variant="subtle" disabled={libraryPage === null || pageOffset + 50 >= libraryPage.total} onClick={() => changePage(pageOffset + 50)}>{copy.libraryState.nextPage}</Button>
+    {adaptation !== null ? <Button variant="default" onClick={cancelAdaptations}>{copy.adaptation.cancel}</Button> : null}
+  </div> : null;
+
   return (
     <div ref={pageRef} className="vua-page vua-warehouse">
       <section className="vua-page__hero">
@@ -1470,7 +1456,6 @@ export function WarehousePage({
             }}
             onMigration={() => setMigrationPreviewOpen(true)}
           />
-          {dependencyCluesOn && connected ? <Button variant="subtle" onClick={() => setLookupName("")}>{copy.dependencyLookup.open}</Button> : null}
           {source !== "local" && remoteBrowser ? (
             <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
               {accountState === "checking" || syncStarting ? copy.catalogSync.checking : accountState === "sign-in" ? copy.catalogSync.signInAction : accountState === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
@@ -1523,13 +1508,13 @@ export function WarehousePage({
           <label className="vua-warehouse__field">
             <span>{copy.searchAria}</span>
             <input type="search" className="vua-warehouse__search" aria-label={copy.searchAria} placeholder={copy.searchPlaceholder}
-              value={query.text} onChange={event => setQuery({ text: event.target.value })} />
+              value={query.text} onChange={event => changeFilters(() => setQuery({ text: event.target.value }))} />
           </label>
         </div>
         <label className="vua-warehouse__field">
           <span>{copy.filters.source}</span>
           <div className="vua-warehouse__select">
-            <select className="vua-warehouse__filter" aria-label={copy.filters.source} value={source} onChange={event => setSource(event.target.value as typeof source)}>
+            <select className="vua-warehouse__filter" aria-label={copy.filters.source} value={source} onChange={event => changeFilters(() => setSource(event.target.value as typeof source))}>
               <option value="all">{copy.filters.sourceAll}</option>
               <option value="bought">{copy.filters.sourceBought}</option>
               <option value="gifts">{copy.filters.sourceGifts}</option>
@@ -1542,7 +1527,7 @@ export function WarehousePage({
         <label className="vua-warehouse__field">
           <span>{copy.filters.downloadState}</span>
           <div className="vua-warehouse__select">
-            <select className="vua-warehouse__filter" aria-label={copy.filters.downloadState} value={downloadState} onChange={event => setDownloadState(event.target.value as typeof downloadState)}>
+            <select className="vua-warehouse__filter" aria-label={copy.filters.downloadState} value={downloadState} onChange={event => changeFilters(() => setDownloadState(event.target.value as typeof downloadState))}>
               <option value="all">{copy.filters.downloadAll}</option>
               <option value="downloaded">{copy.filters.downloaded}</option>
               <option value="not-downloaded">{copy.filters.notDownloaded}</option>
@@ -1556,7 +1541,7 @@ export function WarehousePage({
         <label className="vua-warehouse__field">
           <span>{copy.filters.category}</span>
           <div className="vua-warehouse__select">
-            <select className="vua-warehouse__filter" aria-label={copy.filters.category} value={sourceCategory} onChange={event => setSourceCategory(event.target.value)} disabled={dataSource !== "live"}>
+            <select className="vua-warehouse__filter" aria-label={copy.filters.category} value={sourceCategory} onChange={event => changeFilters(() => setSourceCategory(event.target.value))} disabled={dataSource !== "live"}>
               <option value="all">{copy.filters.categoryAll}</option>
               <option value="unknown">{copy.filters.categoryUnknown}</option>
               {[...new Set([...(libraryPage?.sourceCategories ?? []), ...(sourceCategory.startsWith("category:") ? [sourceCategory.slice(9)] : [])])].map(category => <option key={category} value={`category:${category}`}>{category}</option>)}
@@ -1576,7 +1561,7 @@ export function WarehousePage({
         />
       ) : listState.kind === "loaded" && listState.view.kind === "error" ? (
         /* W17 透传呈现:服务端 application 错误按冻结码映射文案,不与断连混淆 */
-        <EmptyState
+        <>{adaptation !== null ? pagination : null}<EmptyState
           title={copy.states.loadFailedTitle}
           description={catalogErrorText(listState.view.messageKey)}
           action={
@@ -1584,9 +1569,9 @@ export function WarehousePage({
               {copy.states.retry}
             </Button>
           }
-        />
+        /></>
       ) : listState.kind === "failed" ? (
-        <EmptyState
+        <>{adaptation !== null ? pagination : null}<EmptyState
           title={copy.states.loadFailedTitle}
           description={copy.states.loadFailedDescription}
           action={
@@ -1594,7 +1579,7 @@ export function WarehousePage({
               {copy.states.retry}
             </Button>
           }
-        />
+        /></>
       ) : (
         <div className="vua-warehouse__content" data-drawer-open={selectedId !== null || undefined}>
           <div className="vua-warehouse__main">
@@ -1609,11 +1594,8 @@ export function WarehousePage({
                     : format(copy.resultCountAll, { total: resultsView.total })}
                 </span>
               ) : null}
-              {libraryPage !== null ? <div className="vua-library-pagination">
-                <Button variant="subtle" disabled={pageOffset === 0} onClick={() => setPageOffset((offset) => Math.max(0, offset - 50))}>{copy.libraryState.previousPage}</Button>
-                <span className="vua-caption">{format(copy.libraryState.page, { page: Math.floor(pageOffset / 50) + 1, total: Math.max(1, Math.ceil(libraryPage.total / 50)) })}</span>
-                <Button variant="subtle" disabled={pageOffset + 50 >= libraryPage.total} onClick={() => setPageOffset((offset) => offset + 50)}>{copy.libraryState.nextPage}</Button>
-              </div> : null}
+              {pagination}
+              {adaptation !== null ? <span className="vua-caption vua-text-secondary" title={copy.adaptation.boundary}>{format(copy.adaptation.active, { name: adaptation.title })}</span> : null}
             </div>
 
             {/* 滚动限定在本容器:工具栏/hero 不随图片墙滚动(用户反馈 #2) */}
@@ -1657,7 +1639,7 @@ export function WarehousePage({
                   ))}
                 </div>
               ) : resultsView !== null && resultsView.items.length === 0 && localCards.length === 0 ? (
-                emptyCard.kind === "checking" || emptyCard.kind === "unknown" ? (
+                adaptation !== null ? <EmptyState title={copy.adaptation.emptyTitle} description={copy.adaptation.emptyDescription} /> : emptyCard.kind === "checking" || emptyCard.kind === "unknown" ? (
                   <EmptyState
                     title={emptyCard.kind === "checking" ? copy.catalogSync.checking : copy.catalogSync.checkFailed}
                     description={copy.catalogSync.checkDescription}
@@ -1705,8 +1687,9 @@ export function WarehousePage({
                       ? "vua-warehouse__wall"
                       : "vua-warehouse__list"
                   }
-                  role="list"
+                  role={viewMode === "cards" ? "list" : "table"}
                 >
+                  {viewMode === "list" ? columns.header : null}
                   {resultsView?.items
                       .map((item) =>
                         viewMode === "cards" ? (
@@ -1724,10 +1707,14 @@ export function WarehousePage({
                             onMenu={(event) => openCardMenu(event, item)}
                           />
                         ) : (
-                          <WarehouseListRow
+                          <LibraryListRow
                             key={item.productId}
-                            item={item}
-                            facts={libraryPage?.facts.get(item.productId)}
+                            id={item.productId} productId={item.productId} title={item.title ?? item.productId} shop={item.shopName} variant={item.variantName}
+                            variantCount={libraryPage?.facts.get(item.productId)?.variantCount} style={columns.style}
+                            source={libraryListSource(libraryPage?.facts.get(item.productId), "product", {
+                              active: transfers.some(transfer => transfer.productId === item.productId),
+                              paused: transfers.filter(transfer => transfer.productId === item.productId).every(transfer => transfer.paused),
+                            })}
                             selected={selectedIds.has(item.productId)}
                             onSelect={() => selectSingle(item.productId)}
                             onOpen={() => {
@@ -1740,7 +1727,8 @@ export function WarehousePage({
                       )
                   }
                   {visibleLocalCards.map((card) => (
-                        <MaterialEntryCard
+                        <MaterialEntryView
+                          viewMode={viewMode} columnStyle={columns.style} facts={libraryPage?.facts.get(card.entry.warehouseItemId)}
                           key={card.key}
                           card={card}
                           source={libraryPage?.facts.get(card.entry.warehouseItemId)?.sourceMatch?.product}
@@ -1985,24 +1973,10 @@ export function WarehousePage({
           void startSilentDownload(productId, downloadableIds, targets);
         }}
       />
-      <CompatibleItemsDialog
-        enabled={dependencyCluesOn}
-        onEnable={() => setDependencyCluesOn(true)}
-        query={compatibleQuery}
-        onClose={() => setCompatibleQuery(null)}
-        onSelectProduct={(productId) => {
-          setCompatibleQuery(null);
-          setSelectedId(productId);
-        }}
-        onLookupName={(name) => { setCompatibleQuery(null); setLookupName(name); }}
-      />
       {migrationPreviewOpen ? <LibraryMigrationPreview onClose={() => setMigrationPreviewOpen(false)} /> : null}
       {removedCards !== null ? <RemoveCardsDialog key={removedCards.map(card => `${card.target.kind}:${card.target.id}`).join(",")} cards={removedCards} onClose={() => setRemovedCards(null)} onChanged={() => {
         setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setReloadKey(key => key + 1); setDetailReloadKey(key => key + 1);
       }} /> : null}
-      {dependencyCluesOn && lookupName !== null ? <DependencyLookupDialog key={lookupName}
-        enabled={dependencyCluesOn} initialName={lookupName} onClose={() => setLookupName(null)}
-        onSelectProduct={(productId) => { setLookupName(null); setSelectedId(productId); }} /> : null}
     </div>
   );
 }

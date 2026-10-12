@@ -15,5 +15,6 @@ export default defineConfig({
   // on startup so newly added contract exports cannot resolve to stale code.
   optimizeDeps: { include: ["@vua/contracts"], force: true },
   build: { outDir: "dist/renderer", emptyOutDir: true },
-  server: { host: "127.0.0.1", port: 5173, strictPort: true },
+  optimizeDeps: { entries: ["index.html"] },
+  server: { host: "127.0.0.1", port: 5173, strictPort: true, watch: { ignored: ["**/out/**"] } },
 });

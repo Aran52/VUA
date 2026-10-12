@@ -19,7 +19,9 @@ export async function listFsNavigation(known: Omit<DesktopFsNavigationV1, "drive
     let roots: string[];
     if (process.platform === "win32") {
       const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-      const { stdout } = await runFile(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "[System.IO.DriveInfo]::GetDrives().Name | ConvertTo-Json -Compress"], { windowsHide: true, timeout: 5000, maxBuffer: 16384 });
+      // Cold Windows PowerShell startup can exceed five seconds under load.
+      // The asynchronous request stays bounded and never tests volume readiness.
+      const { stdout } = await runFile(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "[System.IO.DriveInfo]::GetDrives().Name | ConvertTo-Json -Compress"], { windowsHide: true, timeout: 10000, maxBuffer: 16384 });
       const value: unknown = JSON.parse(stdout.trim() || "[]");
       roots = typeof value === "string" ? [value] : Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && /^[A-Za-z]:\\$/.test(v)) : [];
       if (roots.some(root => !/^[A-Za-z]:\\$/.test(root))) return { ok: false, error: "failed" };

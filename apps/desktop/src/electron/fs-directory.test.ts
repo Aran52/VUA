@@ -19,7 +19,7 @@ test("native navigation preserves supplied known folders and enumerates drive na
   assert.deepEqual({ desktop: result.value.desktop, documents: result.value.documents, downloads: result.value.downloads }, known);
   assert.equal(result.value.drives.length > 0, true);
   assert.equal(result.value.drives.every(entry => entry.name === entry.path && !entry.hidden && (process.platform !== "win32" || /^[A-Za-z]:\\$/.test(entry.path))), true);
-});
+}, 15000);
 
 /**
  * 文件系统窄面(DesktopFsApiV1 的 Main 侧实现)纯行为覆盖:

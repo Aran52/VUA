@@ -142,8 +142,8 @@ profiles stay in the named temporary directory for investigation. They are not c
 This bootstrap check complements the [first-play acceptance](../../docs/development-outline.md#first-play-release-acceptance).
 Physical PICO USB/Wi-Fi tests and human UI review are separate. The author selected current-state
 v0.6.6 Ibis ZIP publication with these remaining rows explicit; see its
-[release notes](../../docs/release/v0.6.6.md). NSIS/runtime reuse and independent AMF updates follow
-this release. The published ZIP may omit the local `-preview` filename suffix without changing
+[release notes](../../docs/release/v0.6.6.md). The subsequent [v0.6.7 installation release](../../docs/release/v0.6.7.md)
+adds NSIS/runtime reuse and independent AMF updates, described below. The published ZIP may omit the local `-preview` filename suffix without changing
 its verified bytes; release source identity and archive digest must match the actual tested build.
 The [Windows ZIP workflow](../../.github/workflows/windows-zip.yml) runs on relevant packaging
 PR changes or manual dispatch and keeps unsigned preview artifacts for seven days. It does

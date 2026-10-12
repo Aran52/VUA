@@ -45,15 +45,15 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 
 ## 开发进度说明
 
-[v0.6.6 Ibis（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) 提供当前 Windows x64 应用的完整 ZIP，随包包含 AMF。开发仍按 [N1–N7 序列](docs/development-outline.md) 推进；NSIS 安装器、镜像下载与复用运行时、AMF 独立增量更新在本次发布之后继续开发。
+[v0.6.7 Ibis（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7) 提供 Windows x64 在线与离线 NSIS 安装包，随包包含 AMF。安装时自动选择可达且通过校验的运行时镜像，复用兼容运行时，并支持 AMF 独立按文件更新。开发仍按 [N1–N7 序列](docs/development-outline.md) 推进。
 
-项目保持 Beta。发布不代表 N1/N5 或尚未完成的真机、素材及人工审查已通过。实际范围、检查与限制见 [v0.6.6 发行说明](docs/release/v0.6.6.md)。
+项目保持 Beta。发布不代表 N1/N5 或尚未完成的真机、素材及人工审查已通过。实际范围、检查与限制见 [v0.6.7 发行说明](docs/release/v0.6.7.md)。
 
 ### 当前交付与开始入口
 
-- 从 [Ibis 发布页](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) 下载 **Windows x64 ZIP**，完整解压后运行 **VUA.exe**，保留所有配套文件。运行不需要 Node、pnpm、Rust 或源码。本包尚未签名，Windows 可能提示未知发布者。
+- 从 [Ibis 发布页](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7) 下载 **VUA-0.6.7-windows-x64-setup.exe**；下载不稳定时选择 **VUA-0.6.7-windows-x64-offline.exe**。运行安装器，随后从开始菜单打开 VUA。运行不需要 Node、pnpm、Rust 或源码。本包尚未签名，Windows 可能提示未知发布者。
 - 首次启动会播放功能导览；也可直接进入游玩、工具或改模。新用户默认启用 AMF，可在设置 → 模块关闭。Steam/PICO/Unity 和账号操作按官方应用的提示完成。
-- 更新 ZIP 版时先退出 VUA，把新版解压到另一个文件夹。数据保留在 %APPDATA%\VUA；试用 Beta 前建议备份。发行说明列出尚未实测的流程和人工交接。问题可通过 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) 提交。
+- 更新 VUA 时先完成当前任务、退出程序，再运行新版安装器。AMF 可在设置 → 模块或关于单独更新，然后明确重启。数据保留在 %APPDATA%\VUA，原 ZIP 用户也可改用安装版并沿用这份档案。发行说明列出尚未实测的流程和人工交接。问题可通过 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) 提交。
 - 开发者可从[安装依赖、启动桌面应用与选择检查](apps/desktop/README.md#development-commands)开始，再阅读[贡献指南](CONTRIBUTING.md)。
 
 ## 文档
@@ -61,7 +61,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - [文档指南](docs/README.md)——每项任务的最小阅读路径
 - [产品边界](docs/product-boundary.md)
 - [系统架构](docs/architecture/system.md)
-- [v0.6.6 发行说明](docs/release/v0.6.6.md)
+- [v0.6.7 发行说明](docs/release/v0.6.7.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
 
 ## 许可证

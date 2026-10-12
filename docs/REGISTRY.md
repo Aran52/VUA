@@ -157,7 +157,7 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | docs/protocols/desktop-browser-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-11 |
 | docs/protocols/environment-deployment-v0.1.md | 0.1 | Candidate | Environment | 2026-09-30 |
 | docs/meta/document-audit-2026-09-28.md | 1.0.0 | Accepted | Integration | 2026-09-28 |
-| docs/meta/protected-main.md | 1.3.0 | Accepted | Integration | 2026-10-11 |
+| docs/meta/protected-main.md | 1.4.0 | Accepted | Integration | 2026-10-13 |
 | docs/development/engineering-rules.md | 1.0.0 | Accepted | Integration | 2026-09-29 |
 | docs/architecture/unity-deployment.md | 2.3.1 | Accepted | Environment | 2026-10-10 |
 | docs/development/n5-capability-audit.md | 1.0.0 | Draft | Data | 2026-10-02 |
@@ -202,4 +202,3 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | docs/architecture/windows-distribution.md | 1.0.0 | Implementation baseline | Integration | 2026-10-13 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/windows-distribution/v0.1/ | 0.1 | Candidate | Integration | 2026-10-13 |
-| docs/release/v0.6.7.md | release-note | Candidate | Integration | 2026-10-13 |

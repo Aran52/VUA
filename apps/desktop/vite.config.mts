@@ -13,8 +13,7 @@ export default defineConfig({
   // 强制预构建做一次 CJS→ESM 互操作。production build 由 rolldown 处理,不受影响。
   // Workspace dist changes do not update the lockfile hash. Rebuild the dev cache
   // on startup so newly added contract exports cannot resolve to stale code.
-  optimizeDeps: { include: ["@vua/contracts"], force: true },
+  optimizeDeps: { entries: ["index.html"], include: ["@vua/contracts"], force: true },
   build: { outDir: "dist/renderer", emptyOutDir: true },
-  optimizeDeps: { entries: ["index.html"] },
   server: { host: "127.0.0.1", port: 5173, strictPort: true, watch: { ignored: ["**/out/**"] } },
 });

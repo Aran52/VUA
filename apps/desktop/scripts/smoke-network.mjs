@@ -9,6 +9,8 @@ import os from "node:os";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.resolve(root, "../../_local_real_machine/network-ui");
 app.setPath("userData", path.join(output, "profile"));
+// Keep asynchronous cleanup from turning a failed fixture into exit code zero.
+app.on("window-all-closed", () => {});
 let server, window;
 const watchdog = setTimeout(() => { console.error("Network DOM smoke timed out"); app.exit(1); }, 60_000);
 async function main() {
@@ -18,7 +20,8 @@ try {
   server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()],
     resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },
     cacheDir: path.join(os.tmpdir(), "vua-network-ui-vite"),
-    server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { include: ["react", "react-dom/client", "@vua/contracts"] } });
+    server: { host: "127.0.0.1", port: 0, watch: { ignored: ["**/out/**"] } },
+    optimizeDeps: { force: true, entries: ["scripts/fixtures/network-check.tsx"], include: ["react", "react-dom/client", "@vua/contracts"] } });
   server.middlewares.use(async (req, res, next) => {
     if (!req.url?.startsWith("/__network")) return next();
     res.setHeader("Content-Type", "text/html");

@@ -69,6 +69,17 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   amfReady(): boolean { return this.#enabled && !this.#changing && this.#amf?.status().acceptingCalls === true; }
+  /** Update activation is a user-requested restart. Never force a live task. */
+  async prepareForUpdate(): Promise<boolean> {
+    if (this.#changing || this.#mutations > 0 || this.#shutdown.length > 0 || this.options.shellBusy?.()) return false;
+    this.#changing = true;
+    try {
+      const tasks = await this.#aggregate(this.#query("task.list"));
+      if (!tasks.ok || !("tasks" in tasks.value) || (tasks.value.tasks as readonly TaskSnapshotV01[]).some(task => !isTerminalTaskStateV01(task.state))
+          || this.#mutations > 0 || this.options.shellBusy?.()) return false;
+      return (await this.prepareShutdown({ timeoutMs: 3_000 })).outcome === "safe_to_stop";
+    } finally { this.#changing = false; }
+  }
   subscribeModule(listener: (snapshot: AmfModuleSnapshotV01) => void): () => void {
     this.#moduleListeners.add(listener);
     return () => this.#moduleListeners.delete(listener);

@@ -47,15 +47,15 @@ Project and package management prepares the required Unity environment and depen
 
 ## Development progress
 
-[v0.6.6 Ibis (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6) provides the current Windows x64 desktop application as a complete ZIP, with AMF bundled. Development follows the [N1–N7 sequence](docs/development-outline.md); NSIS installation, verified mirrored runtime acquisition and independent AMF incremental updates follow this release.
+[v0.6.7 Ibis (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7) provides online and offline Windows x64 NSIS installers, with AMF bundled. Installation selects a reachable verified runtime mirror, reuses compatible runtime files and supports independent AMF file updates. Development follows the [N1–N7 sequence](docs/development-outline.md).
 
-The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.6.6 scope, checks and limitations (Chinese)](docs/release/v0.6.6.md).
+The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.6.7 scope, checks and limitations (Chinese)](docs/release/v0.6.7.md).
 
 ### Current delivery and starting points
 
-- Download the **Windows x64 ZIP** from the [Ibis release page](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6), extract the entire archive, and run **VUA.exe**. Keep its companion files together; Node, pnpm, Rust and a source checkout are not needed. This build is unsigned; Windows may display an unfamiliar-publisher warning.
+- Download **VUA-0.6.7-windows-x64-setup.exe** from the [Ibis release page](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7), or choose **VUA-0.6.7-windows-x64-offline.exe** when downloads are unreliable. Run the installer, then open VUA from the Start menu. Node, pnpm, Rust and a source checkout are not needed. This build is unsigned; Windows may display an unfamiliar-publisher warning.
 - Start with the first-use tour and guide, or open Play, Tools or Avatar editing directly. AMF is enabled for new users and can be disabled in Settings → Modules. Steam/PICO/Unity/account actions remain with their official applications.
-- To update this ZIP edition, exit VUA and extract the new ZIP into a separate folder. Application data remains in `%APPDATA%\VUA`; back it up before experimenting with Beta builds. The release notes name remaining tests and manual handoffs. Use [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) for problems.
+- To update VUA, finish your work, exit VUA and run the new installer. AMF also supports separate updates through Settings → Modules or About, followed by an explicit restart. Application data remains in `%APPDATA%\VUA`. Existing ZIP users can switch to the installer while retaining that profile. The release notes name remaining tests and manual handoffs. Use [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) for problems.
 - For developers: [install dependencies, launch the desktop app and select checks](apps/desktop/README.md#development-commands), then follow [Contributing](CONTRIBUTING.md).
 
 ## Documentation
@@ -63,7 +63,7 @@ The project remains in Beta. Publication does not declare N1/N5 or other pending
 - [Documentation guide](docs/README.md) — the smallest route for every task
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
-- [v0.6.6 release notes (Chinese)](docs/release/v0.6.6.md)
+- [v0.6.7 release notes (Chinese)](docs/release/v0.6.7.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ## License

@@ -1,8 +1,8 @@
 # VUA development sequence
 
-> Document version: 3.26.0
+> Document version: 3.27.0
 > Status: Accepted
-> Updated: 2026-10-12
+> Updated: 2026-10-13
 > Authority: User rulings of 2026-09-28 through 2026-10-12, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
 > Scope: N1-N7, real-machine deployment and real-material workflows, continuing Beta
 > Normative effect: Schedules accepted product work; product scope belongs to product-boundary.md
@@ -460,6 +460,12 @@ updates to current distribution work. Existing ZIP evidence is retained; full la
 coverage remains separate. The [Windows distribution plan](development/windows-distribution-plan.md)
 proposes the slices without declaring any acceptance complete.
 
+The author-selected v0.6.7 delivery now includes online/offline NSIS, multiple pinned-runtime
+mirrors and a complete independently updatable AMF UI/native baseline. Controlled Windows and
+synthetic update evidence is recorded in [distribution architecture](architecture/windows-distribution.md).
+Clean-machine installation, blocked-GitHub AMF feeds/objects, physical scenarios and author-led
+four-language human review remain open; this implementation does not close N1/N5/N7 acceptance.
+
 The later 2026-10-11 user ruling publishes the current state as **v0.6.6 Ibis** with the existing
 standalone Windows x64 ZIP before those distribution slices. The published notes record tested
 package behavior and the uncompleted physical/material/human rows; publication does not close
@@ -526,6 +532,8 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.27.0 (2026-10-13): record controlled NSIS/runtime/AMF update evidence for the selected v0.6.7 delivery while retaining clean-machine, source-hosting, physical and human acceptance gaps.
+
 - 3.26.0 (2026-10-12): Align N5 relationship management with the explicit card-menu link filter without claiming real-account or human acceptance.
 - 3.25.0 (2026-10-12): route the separate migration design and delivered origin/card/picker refinements while retaining real-library and human-review outcomes.
 
@@ -536,4 +544,3 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.21.1 (2026-10-11): clarify that public material-browser shortcuts and the host Wiki do not expand catalog/search integration or replace independent N5 acquisition acceptance; stage outcomes are unchanged.
 - 3.21.0 (2026-10-11): accept approximate regional references for Ibis and defer exact Photon/room measurement, retaining independent website observations and physical play acceptance.
 - 3.20.0 (2026-10-10): record the Candidate VRCFT Steam/device-guidance connection, add connection-dependent module selection and retain source-specific real-installation/tracking acceptance and other planned tools.
-- 3.19.0 (2026-10-10): enable bundled AMF for new profiles while retaining saved choices and old-profile defaults; link the small VRCFT connection plan without changing stage or tracking acceptance.

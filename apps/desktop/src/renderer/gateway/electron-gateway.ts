@@ -1,5 +1,6 @@
 import { createLiveDeploymentPort } from "./live-deployment-port.ts";
 import { createAmfModulePort } from "./amf-module-port.ts";
+import { createDistributionPort } from "./distribution-port.ts";
 import { createLivePlayPort } from "./live-play-port.ts";
 import { createLiveToolPort } from "./live-tool-port.ts";
 import { createCreatorInventoryPort } from "./creator-inventory-port.ts";
@@ -223,6 +224,7 @@ export function createElectronGateway(
   const liveWarehouseCommands = createWarehouseCommands(client);
   return {
     amfModule: createAmfModulePort(host?.amfModule),
+    distribution: createDistributionPort(host?.distribution),
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

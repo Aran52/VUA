@@ -28,6 +28,7 @@ export interface GatewayClient {
 }
 
 export interface DesktopGatewayHost {
+  readonly distribution?: import("@vua/contracts").DesktopDistributionApiV01;
   gateway: { invoke(request: DesktopGatewayRequestV1): Promise<unknown> };
   events: { subscribe(listener: (event: ApplicationEventV01) => void): Unsubscribe };
 }

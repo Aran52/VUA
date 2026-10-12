@@ -1,0 +1,43 @@
+name: Windows NSIS preview
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'packages/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/windows-nsis.yml'
+permissions:
+  contents: read
+concurrency:
+  group: windows-nsis-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @vua/orchestrator-provider build
+      - name: Build with an ephemeral CI-only anchor (no release key/publication)
+        run: node apps/desktop/scripts/ci-nsis.mjs
+      - name: Isolated install, runtime reuse, AMF page and owned uninstall
+        run: node apps/desktop/scripts/smoke-nsis.mjs --preview
+      - name: Retain public diagnostic summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: VUA-NSIS-diagnostic
+          path: apps/desktop/out/nsis-smoke.json
+          if-no-files-found: error
+          retention-days: 7

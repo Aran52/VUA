@@ -1,0 +1,459 @@
+[
+  {
+    "name": "minimal-manifest",
+    "schema": "manifest",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "releaseVersion": "0.6.7",
+      "releaseUrl": "https://github.com/VUA-Project/VUA/releases/tag/v0.6.7",
+      "runtime": {
+        "version": "44.1.1",
+        "archive": {
+          "bytes": 256,
+          "sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+          "sources": [
+            "https://example.test/runtime.zip"
+          ]
+        },
+        "files": [
+          {
+            "path": "electron.exe",
+            "bytes": 12,
+            "sha256": "dcedf875e21343ecbf6371ffa7e5420b1badf3136ebdc98f908b9ef2ace9fa86",
+            "offset": 0
+          },
+          {
+            "path": "resources/default_app.asar",
+            "bytes": 26,
+            "sha256": "3a606624b8292131530390fafe7a01577d0b7ee0c12c332ed6a3e77c8436b398",
+            "offset": 12
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 7,
+            "sha256": "c693279643b8cd5d248172d9c22cb7cf4ed163a3c98c8a3f69c2717edd3eacb7",
+            "offset": 38
+          },
+          {
+            "path": "LICENSES.chromium.html",
+            "bytes": 22,
+            "sha256": "1fb018f7a57c8061fcf7dc7e3e5b5176ea2f2fa9717137c08ca83619bdcbd5be",
+            "offset": 45
+          }
+        ]
+      },
+      "host": {
+        "version": "0.6.7",
+        "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "dist/electron/main.js",
+            "bytes": 21,
+            "sha256": "d6aa1ea3aa7b60eeeea5cae7c0b0754c218616fda13fda09265e82d7c1631cbc",
+            "offset": 0
+          },
+          {
+            "path": "dist/electron/preload.js",
+            "bytes": 24,
+            "sha256": "7c165fe47767a53f98b12a53f96963355af5a4252ef3e9d7556f2625477ef9cd",
+            "offset": 21
+          },
+          {
+            "path": "dist/renderer/index.html",
+            "bytes": 24,
+            "sha256": "e9ac94694c9b8b42f6ddca59ff8e3416cfc2d498d3375a0bee056481b4976205",
+            "offset": 45
+          },
+          {
+            "path": "provider/vua-orchestrator-provider.exe",
+            "bytes": 38,
+            "sha256": "f982daca0a7a29f5c7e89da3d9a28ffee91fcfa9f512d88c3626708d715f5535",
+            "offset": 69
+          },
+          {
+            "path": "bootstrap/app.asar",
+            "bytes": 18,
+            "sha256": "3be4069d5313b553d4eb779aff8a63ce28f90ee16342be38bcfc8909360e1196",
+            "offset": 107
+          }
+        ],
+        "pack": {
+          "bytes": 125,
+          "sha256": "a6c0e78175d432689362699d00fbb51b8a2d7c4e478c66f0e4339bf8b0f41952",
+          "sources": [
+            "https://example.test/component.bin"
+          ]
+        }
+      },
+      "amf": {
+        "version": "0.1.0",
+        "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "ui/amf-entry.js",
+            "bytes": 15,
+            "sha256": "064d0bee045611d2cb432ea2d36998367006644be57b38537103733f5b67e6d8",
+            "offset": 0
+          },
+          {
+            "path": "ui/style.css",
+            "bytes": 12,
+            "sha256": "c7f626cff7fe4ec1d6c92dce605603daadbcd4e865eafe207007308562a22b8d",
+            "offset": 15
+          },
+          {
+            "path": "provider/vua-amf-provider.exe",
+            "bytes": 29,
+            "sha256": "02b842a20c4c36a4fc673d1f4605d112395117350bc90cb5aa666a1863d3c8b8",
+            "offset": 27
+          }
+        ],
+        "pack": {
+          "bytes": 56,
+          "sha256": "fd45e9236ec4daa4d7a47ea2c8d0fc0b8a75fa4864f529bfc72da4a9748084b6",
+          "sources": [
+            "https://example.test/component.bin"
+          ]
+        }
+      },
+      "compatibility": {
+        "host": ">=0.6.7, <0.7.0",
+        "uiAbi": "amf-ui/0.1",
+        "react": "19.2.8",
+        "application": "0.1",
+        "bridge": "0.1",
+        "bdlWrite": "0.10",
+        "bdlRead": [
+          "0.10"
+        ]
+      }
+    }
+  },
+  {
+    "name": "signed-test-key",
+    "schema": "envelope",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "algorithm": "ed25519",
+      "payload": "{\"schemaVersion\":\"0.1\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"releaseVersion\":\"0.6.7\",\"releaseUrl\":\"https://github.com/VUA-Project/VUA/releases/tag/v0.6.7\",\"runtime\":{\"version\":\"44.1.1\",\"archive\":{\"bytes\":256,\"sha256\":\"0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3\",\"sources\":[\"https://example.test/runtime.zip\"]},\"files\":[{\"path\":\"electron.exe\",\"bytes\":12,\"sha256\":\"dcedf875e21343ecbf6371ffa7e5420b1badf3136ebdc98f908b9ef2ace9fa86\",\"offset\":0},{\"path\":\"resources/default_app.asar\",\"bytes\":26,\"sha256\":\"3a606624b8292131530390fafe7a01577d0b7ee0c12c332ed6a3e77c8436b398\",\"offset\":12},{\"path\":\"LICENSE\",\"bytes\":7,\"sha256\":\"c693279643b8cd5d248172d9c22cb7cf4ed163a3c98c8a3f69c2717edd3eacb7\",\"offset\":38},{\"path\":\"LICENSES.chromium.html\",\"bytes\":22,\"sha256\":\"1fb018f7a57c8061fcf7dc7e3e5b5176ea2f2fa9717137c08ca83619bdcbd5be\",\"offset\":45}]},\"host\":{\"version\":\"0.6.7\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"files\":[{\"path\":\"dist/electron/main.js\",\"bytes\":21,\"sha256\":\"d6aa1ea3aa7b60eeeea5cae7c0b0754c218616fda13fda09265e82d7c1631cbc\",\"offset\":0},{\"path\":\"dist/electron/preload.js\",\"bytes\":24,\"sha256\":\"7c165fe47767a53f98b12a53f96963355af5a4252ef3e9d7556f2625477ef9cd\",\"offset\":21},{\"path\":\"dist/renderer/index.html\",\"bytes\":24,\"sha256\":\"e9ac94694c9b8b42f6ddca59ff8e3416cfc2d498d3375a0bee056481b4976205\",\"offset\":45},{\"path\":\"provider/vua-orchestrator-provider.exe\",\"bytes\":38,\"sha256\":\"f982daca0a7a29f5c7e89da3d9a28ffee91fcfa9f512d88c3626708d715f5535\",\"offset\":69},{\"path\":\"bootstrap/app.asar\",\"bytes\":18,\"sha256\":\"3be4069d5313b553d4eb779aff8a63ce28f90ee16342be38bcfc8909360e1196\",\"offset\":107}],\"pack\":{\"bytes\":125,\"sha256\":\"a6c0e78175d432689362699d00fbb51b8a2d7c4e478c66f0e4339bf8b0f41952\",\"sources\":[\"https://example.test/component.bin\"]}},\"amf\":{\"version\":\"0.1.0\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"files\":[{\"path\":\"ui/amf-entry.js\",\"bytes\":15,\"sha256\":\"064d0bee045611d2cb432ea2d36998367006644be57b38537103733f5b67e6d8\",\"offset\":0},{\"path\":\"ui/style.css\",\"bytes\":12,\"sha256\":\"c7f626cff7fe4ec1d6c92dce605603daadbcd4e865eafe207007308562a22b8d\",\"offset\":15},{\"path\":\"provider/vua-amf-provider.exe\",\"bytes\":29,\"sha256\":\"02b842a20c4c36a4fc673d1f4605d112395117350bc90cb5aa666a1863d3c8b8\",\"offset\":27}],\"pack\":{\"bytes\":56,\"sha256\":\"fd45e9236ec4daa4d7a47ea2c8d0fc0b8a75fa4864f529bfc72da4a9748084b6\",\"sources\":[\"https://example.test/component.bin\"]}},\"compatibility\":{\"host\":\">=0.6.7, <0.7.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.10\",\"bdlRead\":[\"0.10\"]}}",
+      "signature": "f2400857166210cff5b29c362fcd6c072451acc6c43eb3f71a6d0ddaf285b20eb9a8eebda8931835ddc4d3b6ce4c678b08096993df9beb7f0010564e27ab1607"
+    }
+  },
+  {
+    "name": "wrong-platform",
+    "schema": "manifest",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "product": "VUA",
+      "platform": "linux",
+      "arch": "x64",
+      "releaseVersion": "0.6.7",
+      "releaseUrl": "https://github.com/VUA-Project/VUA/releases/tag/v0.6.7",
+      "runtime": {
+        "version": "44.1.1",
+        "archive": {
+          "bytes": 256,
+          "sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+          "sources": [
+            "https://example.test/runtime.zip"
+          ]
+        },
+        "files": [
+          {
+            "path": "electron.exe",
+            "bytes": 12,
+            "sha256": "dcedf875e21343ecbf6371ffa7e5420b1badf3136ebdc98f908b9ef2ace9fa86",
+            "offset": 0
+          },
+          {
+            "path": "resources/default_app.asar",
+            "bytes": 26,
+            "sha256": "3a606624b8292131530390fafe7a01577d0b7ee0c12c332ed6a3e77c8436b398",
+            "offset": 12
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 7,
+            "sha256": "c693279643b8cd5d248172d9c22cb7cf4ed163a3c98c8a3f69c2717edd3eacb7",
+            "offset": 38
+          },
+          {
+            "path": "LICENSES.chromium.html",
+            "bytes": 22,
+            "sha256": "1fb018f7a57c8061fcf7dc7e3e5b5176ea2f2fa9717137c08ca83619bdcbd5be",
+            "offset": 45
+          }
+        ]
+      },
+      "host": {
+        "version": "0.6.7",
+        "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "dist/electron/main.js",
+            "bytes": 21,
+            "sha256": "d6aa1ea3aa7b60eeeea5cae7c0b0754c218616fda13fda09265e82d7c1631cbc",
+            "offset": 0
+          },
+          {
+            "path": "dist/electron/preload.js",
+            "bytes": 24,
+            "sha256": "7c165fe47767a53f98b12a53f96963355af5a4252ef3e9d7556f2625477ef9cd",
+            "offset": 21
+          },
+          {
+            "path": "dist/renderer/index.html",
+            "bytes": 24,
+            "sha256": "e9ac94694c9b8b42f6ddca59ff8e3416cfc2d498d3375a0bee056481b4976205",
+            "offset": 45
+          },
+          {
+            "path": "provider/vua-orchestrator-provider.exe",
+            "bytes": 38,
+            "sha256": "f982daca0a7a29f5c7e89da3d9a28ffee91fcfa9f512d88c3626708d715f5535",
+            "offset": 69
+          },
+          {
+            "path": "bootstrap/app.asar",
+            "bytes": 18,
+            "sha256": "3be4069d5313b553d4eb779aff8a63ce28f90ee16342be38bcfc8909360e1196",
+            "offset": 107
+          }
+        ],
+        "pack": {
+          "bytes": 125,
+          "sha256": "a6c0e78175d432689362699d00fbb51b8a2d7c4e478c66f0e4339bf8b0f41952",
+          "sources": [
+            "https://example.test/component.bin"
+          ]
+        }
+      },
+      "amf": {
+        "version": "0.1.0",
+        "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "ui/amf-entry.js",
+            "bytes": 15,
+            "sha256": "064d0bee045611d2cb432ea2d36998367006644be57b38537103733f5b67e6d8",
+            "offset": 0
+          },
+          {
+            "path": "ui/style.css",
+            "bytes": 12,
+            "sha256": "c7f626cff7fe4ec1d6c92dce605603daadbcd4e865eafe207007308562a22b8d",
+            "offset": 15
+          },
+          {
+            "path": "provider/vua-amf-provider.exe",
+            "bytes": 29,
+            "sha256": "02b842a20c4c36a4fc673d1f4605d112395117350bc90cb5aa666a1863d3c8b8",
+            "offset": 27
+          }
+        ],
+        "pack": {
+          "bytes": 56,
+          "sha256": "fd45e9236ec4daa4d7a47ea2c8d0fc0b8a75fa4864f529bfc72da4a9748084b6",
+          "sources": [
+            "https://example.test/component.bin"
+          ]
+        }
+      },
+      "compatibility": {
+        "host": ">=0.6.7, <0.7.0",
+        "uiAbi": "amf-ui/0.1",
+        "react": "19.2.8",
+        "application": "0.1",
+        "bridge": "0.1",
+        "bdlWrite": "0.10",
+        "bdlRead": [
+          "0.10"
+        ]
+      }
+    }
+  },
+  {
+    "name": "unknown-member",
+    "schema": "manifest",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "releaseVersion": "0.6.7",
+      "releaseUrl": "https://github.com/VUA-Project/VUA/releases/tag/v0.6.7",
+      "runtime": {
+        "version": "44.1.1",
+        "archive": {
+          "bytes": 256,
+          "sha256": "0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3",
+          "sources": [
+            "https://example.test/runtime.zip"
+          ]
+        },
+        "files": [
+          {
+            "path": "electron.exe",
+            "bytes": 12,
+            "sha256": "dcedf875e21343ecbf6371ffa7e5420b1badf3136ebdc98f908b9ef2ace9fa86",
+            "offset": 0
+          },
+          {
+            "path": "resources/default_app.asar",
+            "bytes": 26,
+            "sha256": "3a606624b8292131530390fafe7a01577d0b7ee0c12c332ed6a3e77c8436b398",
+            "offset": 12
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 7,
+            "sha256": "c693279643b8cd5d248172d9c22cb7cf4ed163a3c98c8a3f69c2717edd3eacb7",
+            "offset": 38
+          },
+          {
+            "path": "LICENSES.chromium.html",
+            "bytes": 22,
+            "sha256": "1fb018f7a57c8061fcf7dc7e3e5b5176ea2f2fa9717137c08ca83619bdcbd5be",
+            "offset": 45
+          }
+        ]
+      },
+      "host": {
+        "version": "0.6.7",
+        "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "dist/electron/main.js",
+            "bytes": 21,
+            "sha256": "d6aa1ea3aa7b60eeeea5cae7c0b0754c218616fda13fda09265e82d7c1631cbc",
+            "offset": 0
+          },
+          {
+            "path": "dist/electron/preload.js",
+            "bytes": 24,
+            "sha256": "7c165fe47767a53f98b12a53f96963355af5a4252ef3e9d7556f2625477ef9cd",
+            "offset": 21
+          },
+          {
+            "path": "dist/renderer/index.html",
+            "bytes": 24,
+            "sha256": "e9ac94694c9b8b42f6ddca59ff8e3416cfc2d498d3375a0bee056481b4976205",
+            "offset": 45
+          },
+          {
+            "path": "provider/vua-orchestrator-provider.exe",
+            "bytes": 38,
+            "sha256": "f982daca0a7a29f5c7e89da3d9a28ffee91fcfa9f512d88c3626708d715f5535",
+            "offset": 69
+          },
+          {
+            "path": "bootstrap/app.asar",
+            "bytes": 18,
+            "sha256": "3be4069d5313b553d4eb779aff8a63ce28f90ee16342be38bcfc8909360e1196",
+            "offset": 107
+          }
+        ],
+        "pack": {
+          "bytes": 125,
+          "sha256": "a6c0e78175d432689362699d00fbb51b8a2d7c4e478c66f0e4339bf8b0f41952",
+          "sources": [
+            "https://example.test/component.bin"
+          ]
+        }
+      },
+      "amf": {
+        "version": "0.1.0",
+        "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "ui/amf-entry.js",
+            "bytes": 15,
+            "sha256": "064d0bee045611d2cb432ea2d36998367006644be57b38537103733f5b67e6d8",
+            "offset": 0
+          },
+          {
+            "path": "ui/style.css",
+            "bytes": 12,
+            "sha256": "c7f626cff7fe4ec1d6c92dce605603daadbcd4e865eafe207007308562a22b8d",
+            "offset": 15
+          },
+          {
+            "path": "provider/vua-amf-provider.exe",
+            "bytes": 29,
+            "sha256": "02b842a20c4c36a4fc673d1f4605d112395117350bc90cb5aa666a1863d3c8b8",
+            "offset": 27
+          }
+        ],
+        "pack": {
+          "bytes": 56,
+          "sha256": "fd45e9236ec4daa4d7a47ea2c8d0fc0b8a75fa4864f529bfc72da4a9748084b6",
+          "sources": [
+            "https://example.test/component.bin"
+          ]
+        }
+      },
+      "compatibility": {
+        "host": ">=0.6.7, <0.7.0",
+        "uiAbi": "amf-ui/0.1",
+        "react": "19.2.8",
+        "application": "0.1",
+        "bridge": "0.1",
+        "bdlWrite": "0.10",
+        "bdlRead": [
+          "0.10"
+        ]
+      },
+      "scripts": []
+    }
+  },
+  {
+    "name": "bad-signature-length",
+    "schema": "envelope",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "algorithm": "ed25519",
+      "payload": "{\"schemaVersion\":\"0.1\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"releaseVersion\":\"0.6.7\",\"releaseUrl\":\"https://github.com/VUA-Project/VUA/releases/tag/v0.6.7\",\"runtime\":{\"version\":\"44.1.1\",\"archive\":{\"bytes\":256,\"sha256\":\"0eb3e36bfb24dcd9bb1d1bece1531216b59539a8fde17ee80224af0653c92aa3\",\"sources\":[\"https://example.test/runtime.zip\"]},\"files\":[{\"path\":\"electron.exe\",\"bytes\":12,\"sha256\":\"dcedf875e21343ecbf6371ffa7e5420b1badf3136ebdc98f908b9ef2ace9fa86\",\"offset\":0},{\"path\":\"resources/default_app.asar\",\"bytes\":26,\"sha256\":\"3a606624b8292131530390fafe7a01577d0b7ee0c12c332ed6a3e77c8436b398\",\"offset\":12},{\"path\":\"LICENSE\",\"bytes\":7,\"sha256\":\"c693279643b8cd5d248172d9c22cb7cf4ed163a3c98c8a3f69c2717edd3eacb7\",\"offset\":38},{\"path\":\"LICENSES.chromium.html\",\"bytes\":22,\"sha256\":\"1fb018f7a57c8061fcf7dc7e3e5b5176ea2f2fa9717137c08ca83619bdcbd5be\",\"offset\":45}]},\"host\":{\"version\":\"0.6.7\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"files\":[{\"path\":\"dist/electron/main.js\",\"bytes\":21,\"sha256\":\"d6aa1ea3aa7b60eeeea5cae7c0b0754c218616fda13fda09265e82d7c1631cbc\",\"offset\":0},{\"path\":\"dist/electron/preload.js\",\"bytes\":24,\"sha256\":\"7c165fe47767a53f98b12a53f96963355af5a4252ef3e9d7556f2625477ef9cd\",\"offset\":21},{\"path\":\"dist/renderer/index.html\",\"bytes\":24,\"sha256\":\"e9ac94694c9b8b42f6ddca59ff8e3416cfc2d498d3375a0bee056481b4976205\",\"offset\":45},{\"path\":\"provider/vua-orchestrator-provider.exe\",\"bytes\":38,\"sha256\":\"f982daca0a7a29f5c7e89da3d9a28ffee91fcfa9f512d88c3626708d715f5535\",\"offset\":69},{\"path\":\"bootstrap/app.asar\",\"bytes\":18,\"sha256\":\"3be4069d5313b553d4eb779aff8a63ce28f90ee16342be38bcfc8909360e1196\",\"offset\":107}],\"pack\":{\"bytes\":125,\"sha256\":\"a6c0e78175d432689362699d00fbb51b8a2d7c4e478c66f0e4339bf8b0f41952\",\"sources\":[\"https://example.test/component.bin\"]}},\"amf\":{\"version\":\"0.1.0\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"files\":[{\"path\":\"ui/amf-entry.js\",\"bytes\":15,\"sha256\":\"064d0bee045611d2cb432ea2d36998367006644be57b38537103733f5b67e6d8\",\"offset\":0},{\"path\":\"ui/style.css\",\"bytes\":12,\"sha256\":\"c7f626cff7fe4ec1d6c92dce605603daadbcd4e865eafe207007308562a22b8d\",\"offset\":15},{\"path\":\"provider/vua-amf-provider.exe\",\"bytes\":29,\"sha256\":\"02b842a20c4c36a4fc673d1f4605d112395117350bc90cb5aa666a1863d3c8b8\",\"offset\":27}],\"pack\":{\"bytes\":56,\"sha256\":\"fd45e9236ec4daa4d7a47ea2c8d0fc0b8a75fa4864f529bfc72da4a9748084b6\",\"sources\":[\"https://example.test/component.bin\"]}},\"compatibility\":{\"host\":\">=0.6.7, <0.7.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.10\",\"bdlRead\":[\"0.10\"]}}",
+      "signature": "f"
+    }
+  },
+  {
+    "name": "installed-pair",
+    "schema": "installed",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "hostManifest": "4740ae6347b0172c01254ff55bae5aff5199f4446e7f6d643d40185b3f475145",
+      "amfManifest": "1dc72ec46cc967916f7d7d70148caf2ddae174544406ed54ac79de7129266f75"
+    }
+  },
+  {
+    "name": "pending-explicit",
+    "schema": "pending",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "manifest": "34a04005bcaf206eec990bd9637d9fdb6725e0a0c0d4aebf003f17f4c956eb5c",
+      "state": "staged",
+      "requested": false
+    }
+  },
+  {
+    "name": "silent-resume",
+    "schema": "pending",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "manifest": "34a04005bcaf206eec990bd9637d9fdb6725e0a0c0d4aebf003f17f4c956eb5c",
+      "state": "active",
+      "requested": true
+    }
+  }
+]

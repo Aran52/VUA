@@ -4,6 +4,7 @@ import { format, strings, TERMS } from "../../i18n/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Badge } from "../../components/primitives/Badge.tsx";
+import { DistributionPanel } from "./DistributionPanel.tsx";
 
 export function ModulesPage({ onOpen, embedded = false, activationSwitch = false }: { onOpen: () => void; embedded?: boolean; activationSwitch?: boolean }) {
   const snapshot = useAmfModule();
@@ -36,5 +37,6 @@ export function ModulesPage({ onOpen, embedded = false, activationSwitch = false
         {outcome ? <p role="status">{outcome === "busy" ? text("busy") : text("changeFailed")}</p> : null}
       </div>
     </Card>
+    {!embedded ? <DistributionPanel /> : null}
   </div>;
 }

@@ -1,9 +1,9 @@
 # VUA host and optional AMF module
 
-> Document version: 1.5.0
+> Document version: 1.6.0
 > Status: Accepted
 > Scope: First-party module composition, lifecycle and data ownership
-> Updated: 2026-10-11
+> Updated: 2026-10-13
 
 The user-defined unit is a **scenario** (the author's term: “情景”): a goal with a SOP list,
 prerequisites, preparation, launch and recovery. A module supplies capabilities to scenarios.
@@ -42,7 +42,8 @@ adding a model-service configuration page or Agent harness to this Ibis slice.
 - Electron's `ModuleProvider` routes AMF methods to this process and host methods to the host.
   Task queries merge the reachable authorities; task lookup/cancellation is routed by owner.
   Capabilities come from the serving owner. AMF failure cannot revoke host capabilities.
-- The first-party payload is installed with VUA at `resources/modules/amf/`. A fresh profile
+- The first-party payload is installed with VUA (`resources/modules/amf/` in legacy ZIP;
+  a signed versioned payload in [NSIS distribution](windows-distribution.md)). A fresh profile
   defaults to enabled. Main records this choice before either provider creates its database.
   Existing saved enable/disable choices win; a pre-existing host/legacy/module-data profile with
   no registration retains the former disabled default. “Enable” starts this local payload,
@@ -60,15 +61,19 @@ adding a model-service configuration page or Agent harness to this Ibis slice.
 
 The native protocol dispatch and task/domain types still share `provider-host` and `orchestrator`
 libraries. This extraction creates separate executable composition and runtime authorities; it
-does not claim mutually independent Rust libraries or independently updatable AMF releases.
+does not claim mutually independent Rust libraries. Independent release payloads now include
+both UI/assets and the native process as described below.
 
-## Accepted independent-update direction
+## Independent-update boundary
 
 The [2026-10-11 delivery ruling](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
 requires AMF to remain installed with VUA while supporting independent incremental updates
-inside the host. This is the next delivery boundary, not a claim about the extraction above.
+inside the host. NSIS now separates complete AMF UI/native payloads with versioned host bindings,
+signed inventories, file reuse/range acquisition, safe restart admission and retained rollback.
+The current bundled module version is independently declared as 0.1.0. The
+[Windows architecture](windows-distribution.md) owns implementation details and evidence limits.
 
-Separate module UI/assets and native payload from the host release, give the payload its own
+Keep module UI/assets and native payload separate from the host release, give the payload its own
 version and explicit host/protocol/data compatibility, and keep host-owned services behind a
 narrow first-party interface. User data and private BDL remain in their current ownership/layout.
 Activation respects existing admission gates and saved module choices; failed updates cannot
@@ -116,6 +121,8 @@ real-material, PICO, installer or four-language human acceptance. Those outcomes
 owned by the [N sequence](../development-outline.md) and [Ibis plan](../development/first-play-delivery-plan.md).
 
 ## Document changelog
+
+- 1.6.0 (2026-10-13): record complete AMF UI/native release payloads, host bindings and installed update/recovery boundary without claiming shared Rust-library extraction or full acceptance.
 
 - 1.5.0 (2026-10-11): distinguish current process isolation from the accepted next independent UI/backend payload and incremental-update boundary, retaining bundled defaults, lifecycle admission and private data ownership.
 - 1.4.0 (2026-10-10): retain the fresh enabled default before provider initialization, preserve existing opt-outs and old-profile defaults, and keep independent module lifecycle/data ownership.

@@ -1,15 +1,16 @@
 # Windows distribution and independent AMF updates
 
-> Document version: 1.0.0
+> Document version: 1.1.0
 > Status: Draft
-> Updated: 2026-10-11
+> Updated: 2026-10-13
 > Scope: NSIS installation, mirrored Electron runtime acquisition and bundled AMF incremental updates
 
 The author approved the delivery direction on 2026-10-11: use NSIS for VUA, automatically
 select an available mirror for the runtime during installation, install AMF with VUA, and
 support independent incremental AMF updates inside VUA. The [product boundary](../product-boundary.md#windows-delivery-and-amf-updates-user-ruling-2026-10-11)
 owns that accepted scope. This document proposes implementation slices; it does not claim that
-an installer, updater or release has been delivered. Acceptance belongs to [N7](../development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide),
+an installer, updater or release has been accepted. The current controlled implementation is
+recorded in [Windows distribution architecture](../architecture/windows-distribution.md). Acceptance belongs to [N7](../development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide),
 with interruption and retry exercised under N6. Existing N1/N5 and physical play evidence remain separate.
 
 ## 1. Outcome and limits
@@ -168,7 +169,13 @@ Do not advertise a saving percentage before measuring the actual artifacts and c
 
 ## 6. Sequential implementation slices
 
-All slices are pending. Use ordinary `slice/*` branches/PRs in sequence; no parallel writers or
+Code now covers D1–D5; controlled local Windows checks cover online/offline installation,
+real-provider/AMF-page startup, verified runtime reuse, unchanged-host AMF payload activation
+and compatible rollback, plus uninstall/profile retention. Synthetic file-range, fallback,
+cancellation and trust/compatibility checks supplement these. D6 publication and the clean-machine,
+blocked-GitHub AMF-feed/object, physical and four-language human rows remain distinct.
+
+Use ordinary `slice/*` branches/PRs in sequence; no parallel writers or
 collaboration bootstrap is authorized by this plan. Existing accepted checks remain in force.
 
 | Order | Deliverable | Completion evidence |
@@ -231,5 +238,7 @@ These describe available mechanisms, not a working VUA installer or updater. Val
 against the dependency version selected by the implementation slice.
 
 ## Document changelog
+
+- 1.1.0 (2026-10-13): record the implemented first-party NSIS/runtime/AMF boundary and controlled evidence; retain clean-machine, alternative update hosting and human/physical acceptance gaps.
 
 - 1.0.0 (2026-10-11): plan NSIS with mirrored verified Electron acquisition, bundled AMF and independent file-based incremental updates, with compatibility, recovery and exact-build acceptance.

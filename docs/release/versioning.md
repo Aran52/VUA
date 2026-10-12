@@ -1,10 +1,10 @@
 # Versioning policy
 
 
-> Document version: 3.2.0
+> Document version: 3.3.0
 > Status: Accepted
 > Scope: VUA product releases, tags, packages, and public contracts
-> Updated: 2026-10-11
+> Updated: 2026-10-13
 > Normative effect: Yes
 
 ## Product version
@@ -49,6 +49,11 @@ The author explicitly selected **v0.6.6 Ibis** for current-state publication on 
 That number overrides the automatic minor/patch selection convention for this release only.
 It remains a continuing-Beta release; publication does not pass pending N stages. NSIS and
 independent AMF incremental updates follow this current ZIP release.
+
+The author then explicitly selected **v0.6.7 Ibis** for NSIS/update delivery and the reviewed
+library fixes. That selection is a release-specific exception to the automatic minor/patch
+convention, not a change to it. AMF starts its separate payload version at **0.1.0**; neither
+number declares N-stage or clean-machine/human acceptance complete.
 
 Compare the release candidate with the last published release, not with an N-stage number.
 Identify the public application behavior/contracts and any stored-format compatibility changes;
@@ -148,6 +153,8 @@ entry points. Upstream distributions retain their own licenses; follow
 [third-party notices](../../THIRD_PARTY_NOTICES.md) for any future redistribution.
 
 ## Document changelog
+
+- 3.3.0 (2026-10-13): record the author's explicit v0.6.7 release selection and the independent AMF 0.1.0 baseline, retaining ordinary SemVer and N-stage independence.
 
 - 3.2.0 (2026-10-11): record the explicit v0.6.6 Ibis numbering/current-ZIP ruling, preserving continuing Beta and subsequent installer/module-update work.
 - 3.1.0 (2026-10-11): add independent AMF payload identity/compatibility and exact runtime inventory, keeping host numbering, immutable mirrored artifacts and historical publication evidence separate.

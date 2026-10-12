@@ -87,3 +87,5 @@ jobs:
         run: cargo test -p vua-provider-host --test m3_vectors --test provider_frame_handshake --test warehouse_commands --test catalog_queries --test production_use_case_vectors --test project_ops_wire --test task_snapshot_wire --test editor_verify_wire --test game_window_wire --test catalog_sync_wire_v01 --test product_downloadables_wire_v07 --test library_download_wire_v01 --test play_session_wire --test external_tool_wire
       - name: vua-unity-bridge
         run: cargo test -p vua-unity-bridge --test material_intake --test bridge_v2_vectors --test inspection_evidence_vectors
+      - name: Windows signed distribution and installed/update pointers
+        run: cargo test -p vua-distribution --lib schema_vectors_and_javascript_signature_agree_with_the_native_consumer

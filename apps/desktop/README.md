@@ -3,7 +3,7 @@
 
 > Status: Accepted
 > Scope: Electron Main / Preload / Renderer, package scripts, and quality gates
-> Updated: 2026-10-10
+> Updated: 2026-10-13
 > Authority: development entry point; product boundary and contracts live in `docs/`
 
 ## Development commands
@@ -142,8 +142,8 @@ profiles stay in the named temporary directory for investigation. They are not c
 This bootstrap check complements the [first-play acceptance](../../docs/development-outline.md#first-play-release-acceptance).
 Physical PICO USB/Wi-Fi tests and human UI review are separate. The author selected current-state
 v0.6.6 Ibis ZIP publication with these remaining rows explicit; see its
-[release notes](../../docs/release/v0.6.6.md). NSIS/runtime reuse and independent AMF updates follow
-this release. The published ZIP may omit the local `-preview` filename suffix without changing
+[release notes](../../docs/release/v0.6.6.md). The subsequent [v0.6.7 installation release](../../docs/release/v0.6.7.md)
+adds NSIS/runtime reuse and independent AMF updates, described below. The published ZIP may omit the local `-preview` filename suffix without changing
 its verified bytes; release source identity and archive digest must match the actual tested build.
 The [Windows ZIP workflow](../../.github/workflows/windows-zip.yml) runs on relevant packaging
 PR changes or manual dispatch and keeps unsigned preview artifacts for seven days. It does
@@ -154,3 +154,7 @@ not create a GitHub release; documentation-only edits do not trigger that workfl
 - Presentation asset migration record: [MIGRATION_ASSETS.md](MIGRATION_ASSETS.md);
 - Legacy repository asset ledger: `docs/migration/asset-ledger.md`;
 - Release notes: `docs/release/`.
+
+## NSIS and independent AMF updates
+
+`pnpm --filter @vua/desktop package:nsis` builds the host, separate AMF UI/native payload, exact notices and online/offline NSIS artifacts. It requires Windows/MSVC and the private release key matching `distribution/trust.json`; private keys and build directories never enter Git. Release preparation rejects a dirty checkout unless explicitly labelled `--preview`. Installer/runtime/AMF design and evidence limits live in [Windows distribution architecture](../../docs/architecture/windows-distribution.md).

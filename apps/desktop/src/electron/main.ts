@@ -95,7 +95,7 @@ import {
   isAllowedLocalSender,
   localWindowWebPreferences as secureLocalWindowPreferences,
 } from "./security.js";
-import { checkLatestRelease } from "./update-check.js";
+import { checkLatestRelease, compareVersions } from "./update-check.js";
 import { SystemUsageCollector } from "./system-usage.js";
 import { createFsDirectory, listFsDirectory, listFsNavigation, readNativeDriveRoots } from "./fs-directory.js";
 import { previewLibraryDirectory } from "./library-preview.js";
@@ -104,6 +104,9 @@ import { preparePackagedSmoke } from "./packaged-smoke.js";
 import { configureDesktopProfile, resolveDesktopProfile, tagDevelopmentWindow } from "./runtime-profile.js";
 import { createVuaTray } from "./system-tray.js";
 import { createStartupWindow } from "./startup-window.js";
+import { registerAmfUiScheme, installAmfUiProtocol } from "./amf-ui-protocol.js";
+import { installedContext } from "./installed-context.js";
+import { DistributionUpdater } from "./distribution-updater.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -113,6 +116,7 @@ function localWindowWebPreferences(preload: string) {
 }
 
 registerImageCacheScheme();
+registerAmfUiScheme();
 
 const desktopRuntime = resolveDesktopRuntime({
   isPackaged: app.isPackaged,
@@ -135,6 +139,8 @@ const desktopProfile = resolveDesktopProfile({
     ? app.commandLine.getSwitchValue("vua-smoke-test") : undefined,
 });
 configureDesktopProfile(app, desktopProfile);
+if (app.isPackaged && !app.requestSingleInstanceLock()) app.exit(0);
+app.on("second-instance", () => { if (mainWindow !== null && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); } });
 if (desktopProfile.kind !== "release") {
   process.stderr.write(`${JSON.stringify({ channel: "desktop-profile", ...desktopProfile })}\n`);
 }
@@ -377,6 +383,19 @@ function resolveAmfEndpoint(): DesktopProviderEndpoint {
 }
 
 function registerIpc(provider: ModuleProvider): void {
+  const updates = new DistributionUpdater({ context: installedContext(),
+    prepareRestart: () => provider.prepareForUpdate(),
+    restart: command => { shutdownStarted = true; app.relaunch({ execPath: path.join(installedContext()!.root, "VUA.exe"), args: [command] }); app.quit(); },
+  });
+  updates.subscribe(value => {
+    for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) window.webContents.send("vua:distribution:changed", value);
+  });
+  for (const method of ["snapshot", "check", "cancel", "apply", "restore"] as const) {
+    ipcMain.handle(`vua:distribution:${method}`, event => { assertLocalSender(senderFrameUrl(event)); return updates[method](); });
+  }
+  ipcMain.handle("vua:distribution:stage", (event, id: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity"); return updates.stage(id);
+  });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));
     return provider.moduleSnapshot();
@@ -511,6 +530,12 @@ function registerIpc(provider: ModuleProvider): void {
   // 10s 超时熔断;失败语义全部内收于 check-failed,本 handler 永不抛
   ipcMain.handle("vua:system:check-update", async (event) => {
     assertLocalSender(senderFrameUrl(event));
+    if (installedContext()) {
+      const view = await updates.check(); const target = view.target;
+      return { schemaVersion: 1, checkedAt: new Date().toISOString(), currentVersion: app.getVersion(),
+        state: target ? (compareVersions(target.hostVersion, app.getVersion()) ?? 0) > 0 ? "newer-available" : "up-to-date" : "check-failed",
+        latestVersion: target?.hostVersion ?? null, releaseUrl: target?.releaseUrl ?? null };
+    }
     return checkLatestRelease(app.getVersion(), async (url) => {
       const response = await net.fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) throw new Error(`http ${response.status}`);
@@ -1700,6 +1725,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  installAmfUiProtocol();
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {
@@ -1721,7 +1747,10 @@ app.whenReady().then(async () => {
     host: createDesktopOrchestratorProvider(resolveProviderEndpoint()),
     enabled: amfRegistry.registration.enabled,
     persist: enabled => amfRegistry!.save(enabled),
-    createAmf: () => createDesktopOrchestratorProvider(resolveAmfEndpoint()),
+    createAmf: () => {
+      if (installedContext()?.amfAvailable === false) throw new Error("AMF program files need repair");
+      return createDesktopOrchestratorProvider(resolveAmfEndpoint());
+    },
     shellBusy: () => catalogSyncRun !== null || (silentDownloadQueue?.pending() ?? 0) > 0
       || downloadPort?.hasActiveTransfers() === true || amfIngestSink?.pending() === true,
   });

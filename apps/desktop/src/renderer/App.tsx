@@ -93,9 +93,11 @@ import {
   type VuaGateway,
 } from "./gateway/index.ts";
 import { ModulesPage } from "./features/modules/ModulesPage.tsx";
+import { DistributionPanel } from "./features/modules/DistributionPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
-const AmfPages = lazy(() => import("./features/amf/AmfPages.tsx"));
+import { loadAmfPages } from "./features/modules/amf-ui-loader.ts";
+const AmfPages = lazy(loadAmfPages);
 import { HomePage, directory } from "./features/home/HomePage.tsx";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
 import "./app-shell.css";
@@ -453,6 +455,7 @@ function AboutPage() {
       <section className="vua-page__hero">
         <h1 className="vua-title">{strings.nav.pages.settingsAbout}</h1>
       </section>
+      <DistributionPanel host />
       <VersionDetails />
       <Card>
         <div className="vua-page__stack">

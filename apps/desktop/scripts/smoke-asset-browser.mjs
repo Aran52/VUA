@@ -207,12 +207,16 @@ async function main() {
     assert(true, "Retained BOOTH login also leaves shell chrome visible and interactive");
     await click("nav-settings-theme"); await waitFor(() => remoteViews().length === 0, "login close on navigation");
     assert(true, "Leaving the login page disposes its view");
-    await click("logo-home"); await click("nav-warehouse"); await click("warehouse-import"); await click("import-cloud");
-    await waitFor(frameFits, "import browser inset and modal navigation");
-    assert(true, "BOOTH import leaves shell chrome usable despite the surrounding modal");
+    await click("logo-home"); await click("nav-warehouse"); await click("warehouse-import");
+    await waitFor(() => js('!!document.querySelector(".vua-folder-picker")'), "direct local folder picker");
+    assert(await js('!document.querySelector("[data-nav-id=import-cloud]")') && remoteViews().length === 0,
+      "Local import opens its folder picker directly without the retired source choice or a remote page");
+    await js('document.querySelector(".vua-folder-picker__close").click()');
+    await waitFor(() => js('!document.querySelector(".vua-content-dialog") && !document.querySelector(".vua-folder-picker")'), "initial folder selection cancelled");
+    assert(true, "Cancelling the initial folder selection closes the local import dialog");
     await click("shell-settings");
     await waitFor(() => js('!document.querySelector(".vua-content-dialog")') && remoteViews().length === 0, "import leave");
-    assert(true, "Leaving import closes its browser and modal before Settings");
+    assert(true, "Settings remains available after cancelling local import");
     await click("shell-back");
     assert(await js('!document.querySelector(".vua-content-dialog")'), "Returning to the library does not reopen a stale import modal");
     if (process.env.VUA_SMOKE_PUBLIC_BROWSER === "1") {

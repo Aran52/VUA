@@ -1,6 +1,6 @@
 # Desktop-library v0.1: local library handoffs
 
-> Document version: 1.3.0
+> Document version: 1.4.0
 > Status: Candidate
 > Updated: 2026-10-12
 > Scope: Local Electron preload/Main action; no Provider contract or task-frame change
@@ -78,7 +78,13 @@ source preservation, text/URL exclusion and actual provider-resolved entry-folde
 four UI languages with a temporary profile. The system-folder handler is stubbed: no visible
 Explorer window or user files are used.
 
+## Structural migration preview
+
+Candidate `previewDirectory(path)` requires the same main-frame/local-sender and enabled-AMF guards as entry folder actions. It returns `{path,state:"ready"|"unavailable",truncated,items}`, with each item carrying name, path, ordinary file/directory/link/other kind and nullable byte size. Main reads at most 1000 immediate entries, never follows links or expands archives, and rejects nonordinary roots, invalid/relative paths, the managed warehouse and its ancestors. Failure returns no guessed empty inventory. Renderer expands selected directories on demand, with a disclosed depth limit; this preview neither copies files nor confirms material boundaries. The [migration design](../development/library-migration-design.md) owns the next grouping UI.
+
 ## Document changelog
+
+- 1.4.0 (2026-10-12): add an AMF-gated, bounded read-only directory preview for the separate library migration entry.
 
 - 1.3.0 (2026-10-12): add provider-resolved single-entry folder handoffs and explicit multi-directory choice; retire the whole-library toolbar entry and retain its compatibility face.
 - 1.2.0 (2026-10-12): add the main-frame/active-AMF native drop resolver; JavaScript-created files and unselected sibling folders cannot become intake inputs.

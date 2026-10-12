@@ -6,6 +6,11 @@ import { isDesktopGatewayRequestV1, DESKTOP_GATEWAY_METHOD_KINDS } from "./deskt
 import { isLibraryListV01, isLibraryProductFilesV01, isLibraryViewParamsV01 } from "./library-view-v01.js";
 const vector = (name: string): Record<string, unknown> => JSON.parse(readFileSync(fileURLToPath(new URL(`../../../schemas/library-view/v0.1/examples/${name}.json`, import.meta.url)), "utf8")) as Record<string, unknown>;
 describe("library-view v0.1 consumers", () => {
+  it("accepts explicit imported origin without changing the retained physical-local source", () => {
+    const request = vector("imported-source.request");
+    expect(isLibraryViewParamsV01(String(request.method), request.params)).toBe(true);
+    expect(isLibraryViewParamsV01("library.list", { schemaVersion: "0.1", source: "local" })).toBe(true);
+  });
   for (const name of ["list.request", "files.request", "category.request", "unknown-category.request", "invalid-category.request", "invalid-session.request", "invalid-limit.request"]) {
     it(name, () => {
       const request = vector(name); const valid = !name.startsWith("invalid");

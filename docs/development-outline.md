@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Document version: 3.24.1
+> Document version: 3.25.0
 > Status: Accepted
 > Updated: 2026-10-12
 > Authority: User rulings of 2026-09-28 through 2026-10-12, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
@@ -363,7 +363,7 @@ from browser shortcuts and both account-acquisition workflows. Exercise matching
 unavailable search, persisted association and no account-membership inference. Library corner
 controls reflect actual file/download facts, including native pause/resume; local import opens
 the folder picker directly, and native file/folder drops use the same AMF task path with explicit
-enablement when required. These refinements do not close real-material or human review outcomes.
+enablement when required. Single-item intake keeps selected material boundaries; the separate migration entry currently provides read-only structural review. Its [grouping design](development/library-migration-design.md) remains a draft. These refinements do not close real-material or human review outcomes.
 
 ### Mandatory first step: capability audit
 
@@ -410,7 +410,7 @@ Do not assume an upstream API or scraping approach before capability investigati
 | Maintain provenance | Local use need not start with a BOOTH ID; reuse official metadata retrieval from an ID/page or bounded public BOOTH keyword candidates, expose only name and thumbnail for manual supplementation, and retain source associations under the product boundary. Public discovery is independent of account entitlement; ambiguous/incomplete results require confirmation. Other third-party search is deferred |
 | Distinguish content | Same-name different-content material is distinguishable and never silently overwritten; Recipe/VPM revision selection and regeneration are deferred |
 | Manage relationships | Persist author-description link clues with their source evidence; gate dependency display/reverse lookup in settings and explain accuracy limits when enabled. Distinguish unconfirmed clues from confirmations and empty evidence from an absence of dependencies; exhaustive inference and missing-link corner cases are later work |
-| Remove/clean | Allow local-import record removal separately from file deletion, with reference effects explained; account-product hiding is later work |
+| Remove/clean | Allow count-confirmed entry and account-product card removal separately from file deletion, retaining identities/references and removal across sync/restart |
 
 The missing-file and provenance refinements are owned by the
 [product boundary](product-boundary.md#production-scope-and-product-rulings-user-ruling-2026-09-22).
@@ -526,6 +526,8 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.25.0 (2026-10-12): route the separate migration design and delivered origin/card/picker refinements while retaining real-library and human-review outcomes.
+
 - 3.24.1 (2026-10-12): clarify native file/folder drops and explicit AMF enablement alongside the existing local picker; pending N-stage outcomes stay unchanged.
 - 3.24.0 (2026-10-12): incorporate public BOOTH provenance lookup, fact-based corner controls and direct local intake into N5 without changing pending account/material and human acceptance.
 - 3.23.0 (2026-10-11): record current-state v0.6.6 Ibis ZIP publication before the NSIS/AMF-update slices without closing N1/N5 or their pending real-machine/human outcomes.
@@ -535,4 +537,3 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.20.0 (2026-10-10): record the Candidate VRCFT Steam/device-guidance connection, add connection-dependent module selection and retain source-specific real-installation/tracking acceptance and other planned tools.
 - 3.19.0 (2026-10-10): enable bundled AMF for new profiles while retaining saved choices and old-profile defaults; link the small VRCFT connection plan without changing stage or tracking acceptance.
 - 3.18.0 (2026-10-10): apply the seven-stage scenario-host/AMF/BDL sequence, expand N2 sources and selected tools, place N6 with each path and split N7 release scope; preserve N1/N5 evidence and pending formal acceptance.
-- 3.17.0 (2026-10-10): retain bundled AMF with explicit activation and defer external Avatar-editing modules beyond Ibis without changing existing gate outcomes.

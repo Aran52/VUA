@@ -243,6 +243,10 @@ function toApplicationRequest(
       const { commandId, ...params } = request.params;
       return { ...base, kind: "command", commandId, method: request.method, params };
     }
+    case "library.removeCards": {
+      const { commandId, ...params } = request.params;
+      return { ...base, kind: "command", method: "library.removeCards", commandId, params };
+    }
     case "library.removeLocalEntries": {
       const { commandId, ...params } = request.params;
       return { ...base, kind: "command", commandId, method: request.method, params };

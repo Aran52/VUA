@@ -93,6 +93,7 @@ const api: VuaDesktopApiV2 = Object.freeze({
       if (paths.some(value => value === "")) return Promise.reject(new Error("drop requires native files"));
       return ipcRenderer.invoke("vua:library:resolve-dropped-files", paths);
     },
+    previewDirectory: (path: string) => ipcRenderer.invoke("vua:library:preview-directory", path),
   }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
@@ -332,6 +333,7 @@ const api: VuaDesktopApiV2 = Object.freeze({
   // 只读列目录 + 单层新建;失败收信不抛,options 缺席经 null 透传(Main
   // 侧按形状收窄,IPC 序列化 undefined→null 的可选参数洞由此封死)
   fs: Object.freeze({
+    navigation: () => ipcRenderer.invoke("vua:fs:navigation"),
     listDirectory: (target: string | null, options?: { readonly showHidden?: boolean }) =>
       ipcRenderer.invoke("vua:fs:list-directory", target, options ?? null),
     createDirectory: (parentPath: string, name: string) =>

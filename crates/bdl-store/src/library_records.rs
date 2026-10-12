@@ -74,7 +74,7 @@ impl BdlStore {
     pub fn removed_local_entries(&self) -> Result<HashSet<String>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         let mut query =
-            connection.prepare("SELECT warehouse_item_id FROM removed_local_entries")?;
+            connection.prepare("SELECT warehouse_item_id FROM removed_local_entries UNION SELECT target_id FROM removed_library_cards WHERE kind='entry'")?;
         let rows = query
             .query_map([], |row| row.get(0))?
             .collect::<Result<_, _>>()?;

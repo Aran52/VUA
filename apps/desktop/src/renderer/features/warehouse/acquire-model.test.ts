@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
+  entryCards, entryCardMatches,
   artifactCardMatches,
   artifactCards,
   commandErrorText,
@@ -57,6 +58,14 @@ function entryOf(partial: Partial<WarehouseEntry> & { warehouseItemId: string })
 }
 
 const entryA = entryOf({ warehouseItemId: "whentry-a" });
+test("single-item cards stay at entry scope for companion files, generated copies and empty entries", () => {
+  const multiple = entryOf({ warehouseItemId: "whentry-many", artifacts: [...entryA.artifacts, { ...entryA.artifacts[0]!, relativePath: "texture.psd" }] });
+  const empty = entryOf({ warehouseItemId: "whentry-empty", artifacts: [] });
+  const cards = entryCards([multiple, empty]);
+  assert.deepEqual(cards.map(card => card.key), ["whentry-many", "whentry-empty"]);
+  assert.equal(entryCardMatches(cards[0]!, "TEXTURE.PSD"), true);
+  assert.equal(entryCardMatches(cards[1]!, "empty"), true);
+});
 const entryB = entryOf({
   warehouseItemId: "whentry-b",
   displayName: "巫女裙套装",

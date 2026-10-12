@@ -1,6 +1,6 @@
 # Unified library view v0.1
 
-> Document version: 0.6
+> Document version: 0.7
 > Status: Implementation baseline
 > Updated: 2026-10-12
 > Maintainer: AMF
@@ -42,6 +42,12 @@ not establish the category. Unknown categories are not inferred from titles or p
 
 Source filters are `all`, `local`, `bought`, `gifts` and `free_downloads`. Local means a
 registered physical copy, including missing files and copies associated with an account product.
+The additional `imported` source selects `imported_material` entries, including empty/missing
+imports, and product rows with a verified imported-entry contribution (`localEntries`). Downloaded
+BOOTH files alone do not qualify. The visible source label is **Local imports** and sends this new
+value; the older `local` physical-copy filter retains its protocol meaning. Filtering happens
+before counts and pagination. Card tombstones from [record removal v0.2](library-records-v0.2.md)
+are excluded before these filters and do not erase source or copy identities.
 An item can belong to several account libraries. Migration backfills only the last membership
 actually known by the earlier catalog; missing historical memberships are not invented.
 Text searches product/entry identity and title, shop/variant names, local folder names and
@@ -135,6 +141,9 @@ idempotency and restart proof reuse. Real-account, real-material and human UI ac
 remain `not_run` for this takeover baseline and are owned by N5.
 
 ## Document changelog
+
+- 0.7 (2026-10-12): add origin-specific imported filtering, retain the physical-local face, and
+  apply persistent entry/product card removal before listing counts and pagination.
 
 - 0.6 (2026-10-12): add recorded BOOTH category filters/facets before pagination without widening frozen catalog faces.
 

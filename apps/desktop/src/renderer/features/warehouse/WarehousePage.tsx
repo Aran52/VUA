@@ -47,12 +47,14 @@ import { CompatibleItemsDialog } from "./CompatibleItemsDialog.tsx";
 import { DependencyLookupDialog } from "./DependencyLookupDialog.tsx";
 import { registerTaskIdentity } from "../../gateway/index.ts";
 import { CardAlbumMedia, DetailAlbum } from "./WarehouseAlbum.tsx";
-import { ArtifactCard, EntryDetail } from "./WarehouseAcquire.tsx";
+import { MaterialEntryCard, EntryDetail } from "./WarehouseAcquire.tsx";
 import { EditSourceDialog } from "./EditSourceDialog.tsx";
-import { RemoveEntriesDialog } from "./RemoveEntriesDialog.tsx";
-import { artifactCardMatches, artifactCards, inferGlobalDefaultMode } from "./acquire-model.ts";
+import { RemoveCardsDialog, type RemovalCard } from "./RemoveCardsDialog.tsx";
+import { entryCardMatches, entryCards, inferGlobalDefaultMode } from "./acquire-model.ts";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { ImportPage } from "../import/ImportPage.tsx";
+import { LocalImportButton } from "../import/LocalImportButton.tsx";
+import { LibraryMigrationPreview } from "../import/LibraryMigrationPreview.tsx";
 import {
   catalogEmptyCard,
   emptyWarehouseQuery,
@@ -76,6 +78,7 @@ import { libraryCornerState, type LocalSourceSearchState } from "./library-corne
 import { boothSearchKeyword, exactBoothMatch } from "./booth-match-model.ts";
 import { BoothMatchDialog } from "./BoothMatchDialog.tsx";
 import "./warehouse.css";
+import { clipSelectionRect, scrollSelectionRect } from "./marquee-model.ts";
 
 const copy = strings.warehouse;
 
@@ -592,6 +595,8 @@ export function WarehousePage({
   // 选区(Explorer 语义,用户裁决 2026-10-05):单击选卡/框选/右键拖选,
   // 无独立"选择模式"开关;Esc、空白单击、重新框选即清空
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const selectedIdsRef = useRef<ReadonlySet<string>>(selectedIds);
+  selectedIdsRef.current = selectedIds;
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
   const [contextSelection, setContextSelection] = useState<readonly RecipeAssetRef[]>([]);
   const [dependencyCluesOn, setDependencyCluesOn] = useDependencyClues();
@@ -612,7 +617,6 @@ export function WarehousePage({
   const [bulkRemovalTargets, setBulkRemovalTargets] = useState<readonly RemovalDialogTarget[] | null>(null);
   const [bulkDownload, setBulkDownload] = useState<{ readonly products: readonly BulkProduct[]; readonly mode: BulkDownloadMode; readonly skippedLocal: number } | null>(null);
   const [metadataEntries, setMetadataEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
-  const [removedEntries, setRemovedEntries] = useState<readonly { readonly entryId: string; readonly displayName: string }[] | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [transfers, setTransfers] = useState<readonly { batchId: string; productId: string; paused: boolean }[]>([]);
   const [cornerBusy, setCornerBusy] = useState<ReadonlySet<string>>(new Set());
@@ -790,6 +794,7 @@ export function WarehousePage({
   // 素材导入弹窗(2026-09-20 导航重构):原独立页收敛为仓储页内弹窗,
   // 弹窗关闭即卸载 ImportPage——其「卸载即在途关闭内嵌视图」生命周期语义原样生效
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [migrationPreviewOpen, setMigrationPreviewOpen] = useState(false);
   // 定向首开地址(右键「下载到本地」):null = 常规入口(本地/云端选择步)
   const [importInitialUrl, setImportInitialUrl] = useState<string | null>(null);
 
@@ -876,8 +881,8 @@ export function WarehousePage({
   const localEntries = dataSource === "fixture"
     ? acquireView !== null && acquireView.kind === "entries" ? acquireView.entries : []
     : libraryPage?.localEntries ?? [];
-  const localCards = artifactCards(localEntries).filter((card) =>
-    dataSource !== "fixture" || artifactCardMatches(card, query.text.trim()),
+  const localCards = entryCards(localEntries).filter((card) =>
+    dataSource !== "fixture" || entryCardMatches(card, query.text.trim()),
   );
   const selectedLocalEntry =
     selectedLocalId === null
@@ -989,6 +994,9 @@ export function WarehousePage({
    * 单击处理(手抖不误入);右键拖动结束时在松开点打开选区菜单。监听挂
    * window(不持 pointer capture),拖出容器仍可跟踪,click 语义不受影响。 */
   const MARQUEE_THRESHOLD_PX = 4;
+  const marqueeCleanup = useRef<(() => void) | null>(null);
+  const selectionMenuRef = useRef<(x: number, y: number) => void>(() => {});
+  useEffect(() => () => marqueeCleanup.current?.(), [wallEl]);
   const dragStartRef = useRef<{
     x: number;
     y: number;
@@ -1005,13 +1013,6 @@ export function WarehousePage({
   const suppressNextClickRef = useRef(false);
   const suppressNextContextMenuRef = useRef(false);
 
-  const marqueeRectOf = (x0: number, y0: number, x1: number, y1: number) => ({
-    left: Math.min(x0, x1),
-    top: Math.min(y0, y1),
-    width: Math.abs(x1 - x0),
-    height: Math.abs(y1 - y0),
-  });
-
   const selectByRect = (rect: { left: number; top: number; width: number; height: number }) => {
     const el = wallEl;
     if (el === null) return;
@@ -1022,6 +1023,7 @@ export function WarehousePage({
     for (const card of el.querySelectorAll<HTMLElement>("[data-selection-id]")) {
       if (hit(card.getBoundingClientRect())) ids.add(card.dataset.selectionId ?? "");
     }
+    selectedIdsRef.current = ids;
     setSelectedIds(ids);
   };
 
@@ -1029,6 +1031,11 @@ export function WarehousePage({
     if (event.button !== 0 && event.button !== 2) return;
     const target = event.target as HTMLElement;
     if (target.closest("button, select, input, a, textarea") !== null) return;
+    const wall = event.currentTarget;
+    const bounds = wall.getBoundingClientRect();
+    const anchor = { x: event.clientX - bounds.left + wall.scrollLeft, y: event.clientY - bounds.top + wall.scrollTop };
+    let pointer = { x: event.clientX, y: event.clientY };
+    marqueeCleanup.current?.();
     const start = {
       x: event.clientX,
       y: event.clientY,
@@ -1036,7 +1043,15 @@ export function WarehousePage({
       becameMarquee: false,
     };
     dragStartRef.current = start;
+    const update = () => {
+      if (!start.becameMarquee) return;
+      const viewport = wall.getBoundingClientRect();
+      const rect = scrollSelectionRect(anchor, pointer, { x: viewport.left, y: viewport.top }, { x: wall.scrollLeft, y: wall.scrollTop });
+      setMarqueeRect(clipSelectionRect(rect, viewport));
+      selectByRect(rect);
+    };
     const onMove = (moveEvent: PointerEvent) => {
+      pointer = { x: moveEvent.clientX, y: moveEvent.clientY };
       if (
         !start.becameMarquee
         && Math.hypot(moveEvent.clientX - start.x, moveEvent.clientY - start.y)
@@ -1045,26 +1060,37 @@ export function WarehousePage({
         return;
       }
       start.becameMarquee = true;
-      const rect = marqueeRectOf(start.x, start.y, moveEvent.clientX, moveEvent.clientY);
-      setMarqueeRect(rect);
-      selectByRect(rect);
+      update();
     };
-    const finish = (upEvent: PointerEvent) => {
+    const cleanup = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
+      window.removeEventListener("blur", abandon);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
       dragStartRef.current = null;
       setMarqueeRect(null);
+      marqueeCleanup.current = null;
+    };
+    const abandon = () => cleanup();
+    const finish = (upEvent: PointerEvent) => {
+      update();
+      cleanup();
       if (!start.becameMarquee) return;
       suppressNextClickRef.current = true;
-      if (start.button === 2) {
+      if (start.button === 2 && upEvent.type === "pointerup") {
         suppressNextContextMenuRef.current = true;
-        openSelectionMenu(upEvent.clientX, upEvent.clientY);
+        selectionMenuRef.current(upEvent.clientX, upEvent.clientY);
       }
     };
+    marqueeCleanup.current = cleanup;
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", finish);
     window.addEventListener("pointercancel", finish);
+    window.addEventListener("blur", abandon);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, { capture: true, passive: true });
   };
 
   // 空白单击清空选区(卡/行自己的单击=选中;抑制标记吞掉框选落定的尾随 click)
@@ -1109,7 +1135,7 @@ export function WarehousePage({
     setListState((prev) => (prev.kind === "loaded" ? prev : { kind: "loading" }));
     const read = dataSource === "fixture"
       ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
-      : libraryBrowser.list({ schemaVersion: "0.1", source: source === "free" ? "free_downloads" : source,
+      : libraryBrowser.list({ schemaVersion: "0.1", source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
         ...(sourceCategory === "all" ? {} : { sourceCategory: sourceCategory === "unknown" ? null : sourceCategory.slice(9) }),
         limit: 50, offset: pageOffset });
@@ -1271,21 +1297,28 @@ export function WarehousePage({
   const boothMenuItem = (productId: string | undefined | null) => ({ id: "openBooth", label: copy.sourceSearch.openBooth,
     disabled: boothProductUrl(productId) === null, onSelect: () => { if (productId) void openBooth(productId); } });
 
-  const recipeRefsOfSelection = (): RecipeAssetRef[] =>
+  const recipeRefsOfSelection = (ids: ReadonlySet<string> = selectedIds): RecipeAssetRef[] =>
     [...(resultsView?.items ?? [])
-      .filter((selected) => selectedIds.has(selected.productId))
+      .filter((selected) => ids.has(selected.productId))
       .map((selected) => ({
         identity: selected.productId,
         displayName: selected.title ?? selected.productId,
         source: "cloud" as const,
         variantName: selected.variantName,
         shopName: selected.shopName,
-      })), ...visibleLocalCards.filter(card => selectedIds.has(card.key)).map(card => ({
-        identity: card.artifact.artifactSha256,
-        displayName: `${card.entry.displayName} / ${card.artifact.relativePath}`,
+      })), ...visibleLocalCards.filter(card => ids.has(card.key)).flatMap(card => card.entry.artifacts.map(file => ({
+        identity: file.artifactSha256,
+        displayName: `${card.entry.displayName} / ${file.relativePath}`,
         source: "local" as const,
         warehouseItemId: card.entry.warehouseItemId,
-      }))];
+      })))];
+
+  const [removedCards, setRemovedCards] = useState<readonly RemovalCard[] | null>(null);
+  const selectedRemovalCards = (ids: ReadonlySet<string> = selectedIds): RemovalCard[] => [
+    ...(resultsView?.items ?? []).filter(item => ids.has(item.productId)).map(item => ({ target: { kind: "product" as const, id: item.productId }, title: item.title ?? item.productId })),
+    ...[...new Map(visibleLocalCards.filter(card => ids.has(card.key)).map(card => [card.entry.warehouseItemId, card.entry])).values()].map(entry => ({ target: { kind: "entry" as const, id: entry.warehouseItemId }, title: entry.displayName })),
+  ];
+  const selectedRecipeRefs = recipeRefsOfSelection();
 
   const compatibilityMenuItem = (product: { productId: string; title: string | null }) => ({
     id: "showCompatible", label: copy.cardMenu.showCompatible,
@@ -1294,19 +1327,20 @@ export function WarehousePage({
 
   /** Bulk actions retain the selection; product clues apply to the clicked card. */
   const openSelectionMenu = (x: number, y: number, product?: { productId: string; title: string | null }) => {
-    const refs = recipeRefsOfSelection();
+    const selection = selectedIdsRef.current;
+    const refs = recipeRefsOfSelection(selection);
     const products = new Map<string, BulkProduct>();
     const removals: RemovalDialogTarget[] = [];
     const localEntries = new Set<string>();
     let skippedLocal = 0;
     for (const selected of resultsView?.items ?? []) {
-      if (!selectedIds.has(selected.productId)) continue;
+      if (!selection.has(selected.productId)) continue;
       products.set(selected.productId, { productId: selected.productId, title: selected.title ?? selected.productId });
       const copyIds = libraryPage?.facts.get(selected.productId)?.copyIds;
       if (copyIds?.length) removals.push({ target: { kind: "product", id: selected.productId }, title: selected.title ?? selected.productId, copyIds });
     }
     for (const selected of visibleLocalCards) {
-      if (!selectedIds.has(selected.key) || localEntries.has(selected.entry.warehouseItemId)) continue;
+      if (!selection.has(selected.key) || localEntries.has(selected.entry.warehouseItemId)) continue;
       localEntries.add(selected.entry.warehouseItemId);
       const facts = libraryPage?.facts.get(selected.entry.warehouseItemId);
       const source = facts?.sourceMatch;
@@ -1324,11 +1358,13 @@ export function WarehousePage({
         { id: "bulkDownload", label: copy.cardMenu.download, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "download", skippedLocal }) },
         { id: "bulkReDownload", label: copy.cardMenu.reDownload, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "redownload", skippedLocal }) },
         { id: "bulkDeleteLocal", label: copy.cardMenu.deleteLocal, disabled: dataSource !== "live" || scopes.length === 0, onSelect: () => setBulkRemovalTargets(scopes) },
+        { id: "removeCards", label: copy.removeCards.title, disabled: dataSource !== "live" || selection.size === 0 || selection.size > 200, onSelect: () => setRemovedCards(selectedRemovalCards(selection)) },
         ...(product ? [boothMenuItem(product.productId), compatibilityMenuItem(product)] : []),
         ...(refs.length > 0
           ? [{
               id: "addToRecipe",
               label: format(copy.selectBar.addToRecipe, { count: refs.length }),
+              disabled: refs.length > 512,
               onSelect: () => {
                 setContextSelection(refs);
                 setRecipeDialogOpen(true);
@@ -1343,6 +1379,8 @@ export function WarehousePage({
       ],
     });
   };
+
+  selectionMenuRef.current = openSelectionMenu;
 
   /** 素材卡右键菜单(S-XII):仅真实动作——查看详情/已购标记。
    *  sourceUrl 只在详情负载上,打开来源/复制链接归详情抽屉,卡片菜单不猜 URL。
@@ -1363,11 +1401,10 @@ export function WarehousePage({
           || (libraryPage?.facts.get(item.productId)?.storage.storedCopies ?? item.importedArtifacts) === 0,
         onSelect: () => void openProductFolder(item.productId) },
       selectAllMenuItem,
+      { id: "removeCard", label: copy.removeCards.title, disabled: dataSource !== "live", onSelect: () => setRemovedCards([{ target: { kind: "product", id: item.productId }, title: item.title ?? item.productId }]) },
       ...(dataSource === "live" && (libraryPage?.facts.get(item.productId)?.localEntries?.length ?? 0) > 0 ? [{
         id: "editLocalSource", label: copy.editSource.title,
         onSelect: () => setMetadataEntries(libraryPage!.facts.get(item.productId)!.localEntries!),
-      }, { id: "removeLocalEntries", label: copy.removeEntries.title,
-        onSelect: () => setRemovedEntries(libraryPage!.facts.get(item.productId)!.localEntries!),
       }] : []),
         {
           id: "download",
@@ -1423,19 +1460,16 @@ export function WarehousePage({
         <p className="vua-text-secondary">{copy.subtitle}</p>
         {/* 本地导入直接打开文件夹选择器；账号库同步保留独立入口。 */}
         <div className="vua-page__actions">
-          {selectedIds.size > 0 ? <Button onClick={() => {
-            setContextSelection(recipeRefsOfSelection()); setRecipeDialogOpen(true);
-          }}>{format(copy.selectBar.addToRecipe, { count: selectedIds.size })}</Button> : null}
-          <Button
-            variant="primary"
-            data-nav-id="warehouse-import"
-            onClick={() => {
+          {selectedIds.size > 0 ? <Button disabled={selectedRecipeRefs.length === 0 || selectedRecipeRefs.length > 512} onClick={() => {
+            setContextSelection(selectedRecipeRefs); setRecipeDialogOpen(true);
+          }}>{format(copy.selectBar.addToRecipe, { count: selectedRecipeRefs.length })}</Button> : null}
+          <LocalImportButton
+            onSingle={() => {
               setImportInitialUrl(null);
               setImportDialogOpen(true);
             }}
-          >
-            {strings.importPage.localTitle}
-          </Button>
+            onMigration={() => setMigrationPreviewOpen(true)}
+          />
           {dependencyCluesOn && connected ? <Button variant="subtle" onClick={() => setLookupName("")}>{copy.dependencyLookup.open}</Button> : null}
           {source !== "local" && remoteBrowser ? (
             <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
@@ -1706,7 +1740,7 @@ export function WarehousePage({
                       )
                   }
                   {visibleLocalCards.map((card) => (
-                        <ArtifactCard
+                        <MaterialEntryCard
                           key={card.key}
                           card={card}
                           source={libraryPage?.facts.get(card.entry.warehouseItemId)?.sourceMatch?.product}
@@ -1734,6 +1768,7 @@ export function WarehousePage({
                               y: event.detail === 0 ? anchor.bottom : event.clientY,
                               items: [
                                 selectAllMenuItem,
+                                { id: "removeCard", label: copy.removeCards.title, disabled: dataSource !== "live", onSelect: () => setRemovedCards([{ target: { kind: "entry", id: card.entry.warehouseItemId }, title: card.entry.displayName }]) },
                                 boothMenuItem(knownLocalProduct(card.entry.warehouseItemId)),
                                 { id: "openFolder", label: copy.cardMenu.openFolder,
                                   disabled: dataSource !== "live" || typeof window.vua?.library?.openEntryFolder !== "function" || openingFolder,
@@ -1752,20 +1787,19 @@ export function WarehousePage({
                                 {
                                   id: "addToDraft",
                                   label: copy.recipeDialog.title,
+                                  disabled: card.entry.artifacts.length === 0 || card.entry.artifacts.length > 512,
                                   onSelect: () => {
-                                    setContextSelection([{
-                                      identity: card.artifact.artifactSha256,
-                                      displayName: `${card.entry.displayName} / ${card.artifact.relativePath}`,
+                                    setContextSelection(card.entry.artifacts.map(file => ({
+                                      identity: file.artifactSha256,
+                                      displayName: `${card.entry.displayName} / ${file.relativePath}`,
                                       source: "local",
                                       warehouseItemId: card.entry.warehouseItemId,
-                                    }]);
+                                    })));
                                     setRecipeDialogOpen(true);
                                   },
                                 },
                                 ...(dataSource === "live" && card.entry.kind === "imported_material" ? [{ id: "editSource", label: copy.editSource.title,
                                   onSelect: () => setMetadataEntries([{ entryId: card.entry.warehouseItemId, displayName: card.entry.displayName }]),
-                                }, { id: "removeEntry", label: copy.removeEntries.title,
-                                  onSelect: () => setRemovedEntries([{ entryId: card.entry.warehouseItemId, displayName: card.entry.displayName }]),
                                 }] : []),
                                 ...(dataSource === "live" ? [{ id: "removeFiles", label: copy.cardMenu.deleteLocal,
                                   onSelect: () => setRemovalTarget({ target: { kind: "entry", id: card.entry.warehouseItemId }, title: card.entry.displayName,
@@ -1943,8 +1977,6 @@ export function WarehousePage({
         onClose={() => setRemovalTarget(null)} onChanged={() => { setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
       {metadataEntries !== null ? <EditSourceDialog key={metadataEntries.map((entry) => entry.entryId).join(",")} entries={metadataEntries}
         onClose={() => setMetadataEntries(null)} onChanged={() => { setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
-      {removedEntries !== null ? <RemoveEntriesDialog key={removedEntries.map((entry) => entry.entryId).join(",")} entries={removedEntries}
-        onClose={() => setRemovedEntries(null)} onChanged={() => { setSelectedLocalId(null); setReloadKey((key) => key + 1); setDetailReloadKey((key) => key + 1); }} /> : null}
       <DownloadChecklistDialog
         product={checklistProduct}
         onClose={() => setChecklistProduct(null)}
@@ -1964,6 +1996,10 @@ export function WarehousePage({
         }}
         onLookupName={(name) => { setCompatibleQuery(null); setLookupName(name); }}
       />
+      {migrationPreviewOpen ? <LibraryMigrationPreview onClose={() => setMigrationPreviewOpen(false)} /> : null}
+      {removedCards !== null ? <RemoveCardsDialog key={removedCards.map(card => `${card.target.kind}:${card.target.id}`).join(",")} cards={removedCards} onClose={() => setRemovedCards(null)} onChanged={() => {
+        setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setReloadKey(key => key + 1); setDetailReloadKey(key => key + 1);
+      }} /> : null}
       {dependencyCluesOn && lookupName !== null ? <DependencyLookupDialog key={lookupName}
         enabled={dependencyCluesOn} initialName={lookupName} onClose={() => setLookupName(null)}
         onSelectProduct={(productId) => { setLookupName(null); setSelectedId(productId); }} /> : null}

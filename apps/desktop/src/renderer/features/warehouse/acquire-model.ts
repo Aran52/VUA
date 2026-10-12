@@ -55,6 +55,16 @@ export function artifactCards(
   );
 }
 
+/** A user-selected material entry owns its files; no inferred package boundaries. */
+export interface AcquireEntryCard { readonly key: string; readonly entry: WarehouseEntry }
+export function entryCards(entries: readonly WarehouseEntry[]): readonly AcquireEntryCard[] {
+  return entries.map(entry => ({ key: entry.warehouseItemId, entry }));
+}
+export function entryCardMatches(card: AcquireEntryCard, query: string): boolean {
+  const text = query.trim().toLowerCase();
+  return text === "" || [card.entry.displayName, card.entry.folderName, ...card.entry.artifacts.map(file => file.relativePath)].some(value => value.toLowerCase().includes(text));
+}
+
 /** 卡片搜索:显示名 / 文件夹名 / 相对路径子串匹配(大小写不敏感;空词全过) */
 export function artifactCardMatches(card: AcquireArtifactCard, query: string): boolean {
   const text = query.trim().toLowerCase();

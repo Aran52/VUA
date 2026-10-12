@@ -263,6 +263,55 @@ struct Lines {
 }
 
 #[test]
+fn imported_source_and_card_removal_keep_files_refs_account_and_restart_tombstones() {
+    let world = World::new();
+    let entry = world.bdl.create_warehouse_item("An empty local import", "imported_material", "t").unwrap();
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    assert_eq!(host.batch("card-test", &[901])["ok"], true);
+    world.delivery(901, "dl-card-test", b"synthetic account download");
+    assert_eq!(host.observe("card-test", 901, "dl-card-test")["ok"], true);
+    assert_eq!(host.wait("card-test", &world.tasks)["state"], "succeeded");
+    let copy = world.bdl.managed_library_file(901).unwrap().unwrap();
+    let draft = host.call("recipeDraft.save", json!({"schemaVersion":"0.1","draftId":"recipe-draft-card-preserved","title":"Synthetic retained reference","baseRevision":0,
+        "selections":[{"identity":"booth:90","displayName":"Synthetic account product","source":"cloud"}]}));
+    assert_eq!(draft["ok"], true, "{draft}");
+    let imported = host.call("library.list", json!({"schemaVersion":"0.1","source":"imported"}));
+    assert_eq!(imported["value"]["total"], 1);
+    assert_eq!(imported["value"]["items"][0]["entry"]["warehouseItemId"], entry.warehouse_item_id);
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1","source":"local"}))["value"]["items"][0]["product"]["productId"], "booth:90");
+    let before = host.call("library.list", json!({"schemaVersion":"0.1"}))["value"].clone();
+    let invalid = json!({"schemaVersion":"0.2","targets":[{"kind":"entry","id":entry.warehouse_item_id},{"kind":"product","id":"booth:404"}]});
+    assert_eq!(host.call_command("library.removeCards", invalid, Some("bad-card-removal"))["error"]["code"], "vua.library.card_not_found");
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1"}))["value"], before);
+    // A physically missing account file still has a removable product card.
+    assert!(std::path::Path::new(&copy.stored_path).starts_with(&world.base));
+    std::fs::remove_file(&copy.stored_path).unwrap();
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1","state":"missing"}))["value"]["total"], 1);
+    let schema_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/library-records/v0.2");
+    let read = |name: &str| -> Value { serde_json::from_slice(&std::fs::read(schema_root.join(name)).unwrap()).unwrap() };
+    let mut request = read("examples/remove.request.json"); request["params"]["targets"][0]["id"] = json!(entry.warehouse_item_id);
+    assert!(jsonschema::validator_for(&read("request.schema.json")).unwrap().is_valid(&request));
+    let removed = host.call_command("library.removeCards", request["params"].clone(), Some("remove-cards-once"));
+    assert_eq!(removed["ok"], true, "{removed}");
+    assert!(jsonschema::validator_for(&read("response.schema.json")).unwrap().is_valid(&removed["value"]));
+    assert_eq!(host.call_command("library.removeCards", request["params"].clone(), Some("remove-cards-once"))["value"], removed["value"]);
+    let changed = json!({"schemaVersion":"0.2","targets":[{"kind":"product","id":"booth:90"}]});
+    assert_eq!(host.call_command("library.removeCards", changed, Some("remove-cards-once"))["error"]["code"], "vua.library.record_conflict");
+    assert_eq!(host.call("library.list", json!({"schemaVersion":"0.1"}))["value"]["total"], 0);
+    assert!(world.bdl.warehouse_entry_detail(&entry.warehouse_item_id, ArtifactMode::UseOriginalUnitypackage).unwrap().is_some());
+    assert!(world.bdl.managed_library_file(901).unwrap().is_some());
+    assert_eq!(world.bdl.product_library_memberships("booth:90").unwrap(), vec!["bought"]);
+    assert_eq!(host.call("recipeDraft.get", json!({"schemaVersion":"0.1","draftId":"recipe-draft-card-preserved"}))["value"]["document"], draft["value"]["document"]);
+    drop(host);
+    let reopened = Arc::new(BdlStore::open(world.base.join("bdl.db")).unwrap());
+    reopened.upsert_product_downloadables("booth:90", &[(901,"new product observation.pdf".into())], "t2", None, Some("bought")).unwrap();
+    let mut restarted = Host::new(&world.base, reopened);
+    assert_eq!(restarted.call("library.list", json!({"schemaVersion":"0.1"}))["value"]["total"], 0);
+    assert_eq!(restarted.call_command("library.removeCards", request["params"].clone(), Some("remove-cards-once"))["value"], removed["value"]);
+    assert_eq!(restarted.call("recipeDraft.get", json!({"schemaVersion":"0.1","draftId":"recipe-draft-card-preserved"}))["value"]["document"], draft["value"]["document"]);
+}
+
+#[test]
 fn local_record_removal_wire_keeps_account_and_warehouse_identities() {
     let world = World::new();
     let entry = world.bdl.create_warehouse_item("Local", "imported_material", "t").unwrap();

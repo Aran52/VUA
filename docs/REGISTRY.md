@@ -8,7 +8,7 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | Path | Document version | Status | Maintainer | Last review |
 | --- | --- | --- | --- | --- |
 | AGENTS.md | 2.1.0 | Accepted | Integration | 2026-09-28 |
-| docs/product-boundary.md | 2.26.0 | Accepted | Integration | 2026-10-12 |
+| docs/product-boundary.md | 2.27.0 | Accepted | Integration | 2026-10-12 |
 | docs/compatibility/unity-editor.md | 2.0.1 | Accepted | Integration | 2026-10-02 |
 | docs/compatibility/alcom-vcc.md | 1.3.2 | Accepted | Environment | 2026-10-01 |
 | schemas/project-inspection/v0.1 | 0.1 | Superseded | Environment | 2026-09-09 |
@@ -27,14 +27,14 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | docs/architecture/system.md | 2.3.0 | Accepted | Integration | 2026-10-10 |
 | docs/architecture/orchestrator.md | 1.0.1 | Accepted | Core | 2026-10-01 |
-| docs/architecture/desktop.md | 1.29.0 | Accepted | Desktop | 2026-10-12 |
+| docs/architecture/desktop.md | 1.30.0 | Accepted | Desktop | 2026-10-12 |
 | docs/architecture/guidance.md | 1.10.0 | Accepted | Desktop | 2026-10-12 |
 | docs/protocols/desktop-resource-v0.2.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
 | docs/development/vrcft-integration-plan.md | 1.1.0 | Accepted | Environment | 2026-10-10 |
 | docs/protocols/desktop-window-v0.2.md | 1.0.2 | Candidate | Desktop | 2026-10-10 |
 | docs/protocols/desktop-startup-v0.1.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |
-| docs/protocols/desktop-library-v0.1.md | 1.3.0 | Candidate | Desktop | 2026-10-12 |
-| docs/architecture/bdl.md | 1.3.0 | Accepted | Data | 2026-10-09 |
+| docs/protocols/desktop-library-v0.1.md | 1.4.0 | Candidate | Desktop | 2026-10-12 |
+| docs/architecture/bdl.md | 1.4.0 | Accepted | Data | 2026-10-12 |
 | docs/architecture/amf-unity.md | 1.3.0 | Accepted | Production | 2026-10-09 |
 | docs/architecture/integrations-and-overlays.md | 1.7.0 | Accepted | Integration | 2026-10-10 |
 | docs/decisions/orchestrator-supervised-provider.md | ADR | Accepted | Integration | 2026-09-06 |
@@ -72,9 +72,13 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | schemas/library-download/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | docs/protocols/library-download-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | schemas/library-view/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-12 |
-| docs/protocols/library-view-v0.1.md | 0.6 | Implementation baseline | AMF | 2026-10-12 |
+| docs/protocols/library-view-v0.1.md | 0.7 | Implementation baseline | AMF | 2026-10-12 |
 | schemas/library-records/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-records-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
+| docs/development/library-migration-design.md | 0.1.0 | Draft | AMF | 2026-10-12 |
+| schemas/library-records/v0.2 | 0.2 | Implementation baseline | AMF | 2026-10-12 |
+| docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
+| schemas/bdl/v0.9 | 0.9 | Implementation baseline | Data | 2026-10-12 |
 | schemas/bdl/v0.8 | 0.8 | Implementation baseline | Data | 2026-10-09 |
 | schemas/library-entry-metadata/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-entry-metadata-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
@@ -142,8 +146,8 @@ Current owners, versions and statuses only. [Governance](meta/documentation-gove
 | schemas/recipe-export/v0.1 | 0.1 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/release/versioning.md | 3.2.0 | Accepted | Integration | 2026-10-11 |
-| docs/design/design-standard.md | 0.28.0 | Accepted | Desktop | 2026-10-12 |
-| docs/development-outline.md | 3.24.1 | Accepted | Integration | 2026-10-12 |
+| docs/design/design-standard.md | 0.29.0 | Accepted | Desktop | 2026-10-12 |
+| docs/development-outline.md | 3.25.0 | Accepted | Integration | 2026-10-12 |
 | docs/meta/documentation-governance.md | 2.5.0 | Accepted | Integration | 2026-10-01 |
 | CONTRIBUTING.md | 2.1.0 | Accepted | Integration | 2026-09-28 |
 | docs/REGISTRY.md | event-driven | Accepted | Integration | 2026-10-01 |

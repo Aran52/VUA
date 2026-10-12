@@ -5,4 +5,12 @@ export interface DesktopLibraryApiV01 {
   openBoothProduct(productId: string): Promise<{ readonly opened: boolean }>;
   /** Preload extracts native File paths; Main validates them, only for active AMF. */
   resolveDroppedFiles(files: readonly File[]): Promise<readonly string[]>;
+  previewDirectory(path: string): Promise<DesktopLibraryDirectoryPreviewV01>;
+}
+
+export interface DesktopLibraryDirectoryPreviewV01 {
+  readonly path: string;
+  readonly state: "ready" | "unavailable";
+  readonly truncated: boolean;
+  readonly items: readonly { readonly name: string; readonly path: string; readonly kind: "directory" | "file" | "link" | "other"; readonly sizeBytes: number | null }[];
 }

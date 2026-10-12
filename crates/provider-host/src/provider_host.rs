@@ -1816,6 +1816,9 @@ fn served_capabilities(state: &HostState) -> Value {
     capabilities.as_array_mut().expect("capabilities array").push(json!({
         "operationId": "library.importPaths", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }
     }));
+    capabilities.as_array_mut().expect("capabilities array").push(json!({
+        "operationId": "library.removeCards", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }
+    }));
     capabilities
 }
 
@@ -5515,6 +5518,24 @@ fn library_download_request(state: &HostState, method: &str, request: &Value, re
     };
     if matches!(method, "library.entryMetadata" | "library.updateEntryMetadata" | "library.removeLocalEntries") {
         return library_entry_metadata_request(warehouse, method, request, request_id, correlation_id);
+    }
+    if method == "library.removeCards" {
+        let invalid = || FrameOutcome::Response(application_error(request_id, correlation_id, "vua.library.invalid_params", "errors.library.recordRemovalFailed", "validation"));
+        if request["kind"] != "command" { return invalid(); }
+        let Ok(remove) = serde_json::from_value::<vua_bdl_store::RemoveLibraryCards>(request["params"].clone()) else { return invalid(); };
+        let Some(command) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
+        return FrameOutcome::Response(match warehouse.bdl.remove_library_cards(&remove, command, &vua_orchestrator::Clock::now_rfc3339(&SystemClock)) {
+            Ok(value) => match serde_json::to_value(value) { Ok(value) => application_success(request_id, value), Err(_) => application_error(request_id, correlation_id, "vua.library.store_failed", "errors.library.recordRemovalFailed", "internal") },
+            Err(error) => {
+                let (code, category) = match error {
+                    vua_bdl_store::BdlStoreError::InvalidEvent("record_conflict") => ("record_conflict", "conflict"),
+                    vua_bdl_store::BdlStoreError::InvalidEvent("card_not_found") => ("card_not_found", "validation"),
+                    vua_bdl_store::BdlStoreError::InvalidEvent(_) => ("invalid_params", "validation"),
+                    _ => ("store_failed", "internal"),
+                };
+                application_error(request_id, correlation_id, &format!("vua.library.{code}"), "errors.library.recordRemovalFailed", category)
+            }
+        });
     }
     if matches!(method, "library.importFolders" | "library.importPaths") {
         if request["kind"] != "command" { return warehouse_invalid_params(request_id, correlation_id); }

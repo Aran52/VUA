@@ -4,7 +4,7 @@ import { isLibraryEntryMetadataV01, type LibraryEntryMetadataV01 } from "./libra
 
 export interface LibraryListParamsV01 {
   readonly schemaVersion: "0.1";
-  readonly source?: "all" | "local" | "bought" | "gifts" | "free_downloads";
+  readonly source?: "all" | "local" | "imported" | "bought" | "gifts" | "free_downloads";
   readonly state?: "all" | "downloaded" | "cloud_only" | "missing" | "in_progress" | "attention";
   readonly text?: string; readonly availabilityStatus?: "available" | "unavailable" | "unknown";
   /** Original BOOTH category; omitted = all, null = not recorded. */
@@ -66,7 +66,7 @@ export function isLibraryViewParamsV01(method: string, v: unknown): boolean {
   if (method === "library.productFiles") return exact(v, ["schemaVersion", "productId"]) && product(v.productId);
   return method === "library.list" && exact(v, ["schemaVersion"], ["source", "state", "text", "availabilityStatus", "sourceCategory", "limit", "offset"])
     && (v.sourceCategory === undefined || v.sourceCategory === null || category(v.sourceCategory))
-    && (v.source === undefined || words(v.source, ["all", "local", "bought", "gifts", "free_downloads"]))
+    && (v.source === undefined || words(v.source, ["all", "local", "imported", "bought", "gifts", "free_downloads"]))
     && (v.state === undefined || words(v.state, ["all", "downloaded", "cloud_only", "missing", "in_progress", "attention"]))
     && (v.text === undefined || typeof v.text === "string" && Array.from(v.text).length <= 1000)
     && (v.availabilityStatus === undefined || words(v.availabilityStatus, ["available", "unavailable", "unknown"]))

@@ -1,7 +1,7 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.29.0
+> Document version: 1.30.0
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
 > Updated: 2026-10-12
@@ -465,7 +465,19 @@ record that they are unsigned; signing preparation runs alongside development. F
 automatic updater and update-rollback validation follow under broader N7 acceptance. The
 redistribution review authorizes each bundled binary before a public release.
 
+### Library intake and card scope (2026-10-12)
+
+The source selector **Local imports** sends the additional `imported` value of [library view](../protocols/library-view-v0.1.md). Downloading BOOTH material alone does not make it a local import. Local entry cards represent the user-selected material entry, including empty or missing entries; files remain in entry details. Physical-copy and source facts remain independent. [Card removal](../protocols/library-records-v0.2.md) confirms selected identities and count, persists tombstones and retains files/references. The retained local-record command remains available independently.
+
+Marquee selection anchors its start in wall content coordinates. Pointer movement, wall scrolling and viewport changes recompute intersections; only the visual rectangle is clipped to the wall. Pointer release/cancel, blur, route unmount and wall replacement clean up listeners. Right-button completion uses the current selection.
+
+The import split button opens the native folder picker for a single item. Its arrow opens the migration entry on hover/click; the latter currently supplies only read-only structural review. See the [draft migration design](../development/library-migration-design.md) for boundary decisions and unresolved execution. Candidate desktop-library adds bounded immediate-directory reads without following links or expanding ZIPs; AMF still owns copying.
+
+The optional native `fs.navigation` face returns Electron's resolved Desktop/Documents/Downloads paths and logical drive names. Main queries drive names only, with a hidden bounded helper process; it does not poll drive readiness or sizes. The picker keeps a visible editable path field, four shortcuts and a virtual This PC list. Up at a drive root enters that list, which is not itself an importable directory.
+
 ## Document changelog
+
+- 1.30.0 (2026-10-12): add imported-origin filtering, entry-level cards, scroll-anchored selection, persistent card removal, native picker locations/drives and the separate read-only migration preview.
 
 - 1.29.0 (2026-10-12): load notification styles at their shared owner, remove state/hover row fills, add single-card scoped folder actions and put the view toggle beside search.
 - 1.28.0 (2026-10-12): add host file/folder drops with explicit AMF activation, task-driven library refresh, title/shop/variant order and fast-download corner reconciliation.
@@ -477,6 +489,3 @@ redistribution review authorizes each bundled binary before a public release.
 - 1.23.0 (2026-10-11): retain Wiki/material browsing across shell navigation with eight-tab sessions, independent native history/state and bounded local popup tabs; preserve transient account/import lifetimes and storage ownership.
 - 1.22.0 (2026-10-11): add host Wiki and AMF material shortcuts through the Candidate desktop-browser face; keep remote views inside shell content and preserve account/download/module isolation.
 - 1.21.0 (2026-10-11): restore Help beside Settings in the topbar and align compact network UI with explicitly approximate regional references, preserving child history and independent website tests.
-- 1.20.0 (2026-10-10): enable AMF for fresh profiles, add qualified CPU/GPU/RAM/VRAM headroom through desktop resource v0.2, and apply a reduced-motion-aware 120° Home-logo colour wipe.
-
-Earlier entries remain in Git history.

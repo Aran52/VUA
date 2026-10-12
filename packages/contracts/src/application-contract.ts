@@ -13,6 +13,7 @@ import { isLibraryImportParamsV01, type LibraryImportParamsV01, type LibraryImpo
 import { isLibraryImportPathsParamsV02, type LibraryImportPathsParamsV02, type LibraryImportPathsAcceptedV02 } from "./library-intake-v02.js";
 import { isLibraryEntryMetadataParamsV01, type LibraryEntryMetadataQueryV01, type LibraryEntryMetadataUpdateV01, type LibraryEntryMetadataV01 } from "./library-entry-metadata-v01.js";
 import { isLibraryRemoveLocalEntriesV01, type LibraryRemoveLocalEntriesV01, type LibraryRemovedLocalEntriesV01 } from "./library-records-v01.js";
+import { isLibraryRemoveCardsV02, type LibraryRemoveCardsV02 } from "./library-records-v02.js";
 import { isLibraryViewParamsV01, type LibraryListParamsV01, type LibraryProductFilesParamsV01, type LibraryListV01, type LibraryProductFilesV01 } from "./library-view-v01.js";
 import { isRecipeDraftParamsV01, type RecipeDraftListParamsV01, type RecipeDraftGetParamsV01, type RecipeDraftSaveParamsV01, type RecipeDraftAddParamsV01, type RecipeDraftListV01, type RecipeDraftReadV01 } from "./recipe-selection-draft-v01.js";
 import { isLibraryMaintenanceParamsV01, type LibraryRemovalPreviewParamsV01, type LibraryRemoveFilesParamsV01, type LibraryRemovalStatusParamsV01, type LibraryRemovalPreviewV01, type LibraryRemovalSnapshotV01 } from "./library-maintenance-v01.js";
@@ -2032,6 +2033,7 @@ export type LibraryEntryMetadataRequestV01 = ApplicationRequestBaseV01 & (
   | { readonly kind: "query"; readonly method: "library.entryMetadata"; readonly params: LibraryEntryMetadataQueryV01 }
   | { readonly kind: "command"; readonly commandId: string; readonly method: "library.updateEntryMetadata"; readonly params: LibraryEntryMetadataUpdateV01 }
   | { readonly kind: "command"; readonly commandId: string; readonly method: "library.removeLocalEntries"; readonly params: LibraryRemoveLocalEntriesV01 }
+  | { readonly kind: "command"; readonly commandId: string; readonly method: "library.removeCards"; readonly params: LibraryRemoveCardsV02 }
 );
 export type RecipeDraftCommandV01 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "recipeDraft.save"; readonly params: RecipeDraftSaveParamsV01 }
@@ -3052,6 +3054,7 @@ export type ApplicationSuccessValueV01 =
   | LibraryImportPathsAcceptedV02
   | LibraryEntryMetadataV01
   | LibraryRemovedLocalEntriesV01
+  | LibraryRemoveCardsV02
   | RecipeSaveResultV02
   | RecipeGetResultV02
   | RecipeListResultV02
@@ -3739,6 +3742,10 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   }
   if (value.method === "library.removeLocalEntries") {
     return value.kind === "command" && isIdentifier(value.commandId) && isLibraryRemoveLocalEntriesV01(value.params);
+  }
+  if (value.method === "library.removeCards") {
+    return value.kind === "command" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])
+      && isIdentifier(value.commandId) && isLibraryRemoveCardsV02(value.params);
   }
   if (value.method === "library.removalPreview" || value.method === "library.removeFiles" || value.method === "library.removalStatus" || value.method === "library.pendingRemovals" || value.method === "library.resolveRemoval") {
     const query = value.method !== "library.removeFiles" && value.method !== "library.resolveRemoval";

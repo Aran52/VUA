@@ -25,6 +25,7 @@ export type IconName =
   | "computer"
   | "pause"
   | "folder"
+  | "file"
   | "avatar"
   | "outfit"
   | "anim"
@@ -37,6 +38,7 @@ export type IconName =
   | "add";
 
 const paths: Record<IconName, string> = {
+  file: "M6 3h8l4 4v14H6ZM14 3v5h4M9 12h6M9 16h6",
   download: "M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4",
   check: "M5 12.5l4.5 4.5L19 7.5",
   warning: "M12 4 L21 20 H3 Z M12 10v4 M12 17v.5",

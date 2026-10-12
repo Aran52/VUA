@@ -1,7 +1,7 @@
-# VUA design standard v0.26.0
+# VUA design standard v0.29.0
 
 
-> Document version: 0.28.0
+> Document version: 0.29.0
 > Status: Accepted
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation  
 > Updated: 2026-10-12
@@ -465,7 +465,7 @@ changelog history already uses.
   mirror the entry facts and carry the experimental badge; "Delete originals after generation"
   is an unwired preference (proposal 008), permanently labeled unwired.
 - Material import is a content dialog inside the warehouse page. The 2026-10-12 ruling labels
-  the entry "Local import" and opens the folder picker immediately, without a source-choice
+  the entry "Import a local item" and opens the folder picker immediately, without a source-choice
   or a second import button. Folder selection leads to the existing confirmation and command;
   canceling the initial picker dismisses the import. Native file/folder drops into the host start
   local intake directly, without copying unselected siblings. An inactive AMF prompts for explicit
@@ -869,7 +869,19 @@ The accepted VUA mark serves as the Home action, with jurisdiction and theme col
 schedule are reviewed separately; a schedule change does not automatically delete an approved design
 direction.
 
+### Material library navigation refinements (2026-10-12)
+
+**Local imports** filters the origin of intake, including missing imports. Local entry cards show one material entry with file count; companion files stay inside its details. **Delete cards** is available on local and account product cards, including missing files, and on selected groups. Its count-bearing confirmation preserves files and saved references; physical file deletion keeps its separate action.
+
+Scrolling while holding a marquee expands/shrinks selection from its original content position without requiring another pointer move. The rectangle stays clipped to the library wall.
+
+The main intake action reads **Import a local item**. A joined small arrow opens **Import multiple items (library migration)** below it on hover or click. The latter currently previews actual directory structure read-only and honestly marks boundaries unconfirmed; grouping proposals are owned by the [draft design](../development/library-migration-design.md).
+
+The in-app folder picker uses a permanently visible path text field and places Desktop, Documents, Downloads and This PC to the right of Up and Refresh. Up from a drive root returns to actual drive choices. Virtual This PC cannot itself be imported or receive a new directory.
+
 ## 12. Document changelog
+
+- 0.29.0 (2026-10-12): define entry-level local cards, imported-origin filtering, scroll-aware marquee, card-removal confirmation and separate single/migration intake with a native-location picker.
 
 - 0.28.0 (2026-10-12): remove all notification row/hover fills at the shared style owner, move folder access into single-card menus and place view switching immediately left of search.
 - 0.27.0 (2026-10-12): add native file/folder drops and AMF prerequisite prompts, title/shop/variant ordering, transparent notification rows and in-place completion-corner recovery.
@@ -880,7 +892,3 @@ direction.
 - 0.22.0 (2026-10-11): retain Wiki/material pages across navigation and define compact bounded tabs with independent close/history, popup and shortcut behavior, preserving transient import presentation and shell themes.
 - 0.21.0 (2026-10-11): retire the pixel robot from environment conclusions, shared state messages and developer showcases; remove the About character-art placeholder and retain explanatory states and real actions.
 - 0.20.0 (2026-10-11): add official Wiki and AMF material browsing with peer navigation/website shortcuts; constrain all embedded browser presentations to shell content with visible navigation, history and failure recovery.
-- **0.19.0 (2026-10-11)**: restore Help's topbar parallelogram and define explicit approximate regional reference states without changing card height, history or independent website tests.
-
-
-Earlier entries remain in Git history.

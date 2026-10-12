@@ -1,12 +1,32 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type {
   DesktopFsEntryV1,
   DesktopFsErrorV1,
   DesktopFsListV1,
   DesktopFsResultV1,
+  DesktopFsNavigationV1,
 } from "@vua/contracts";
+
+const runFile = promisify(execFile);
+
+/** Names only: avoids probing offline/removable/network drives for readiness. */
+export async function listFsNavigation(known: Omit<DesktopFsNavigationV1, "drives">): Promise<DesktopFsResultV1<DesktopFsNavigationV1>> {
+  try {
+    let roots: string[];
+    if (process.platform === "win32") {
+      const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+      const { stdout } = await runFile(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "[System.IO.DriveInfo]::GetDrives().Name | ConvertTo-Json -Compress"], { windowsHide: true, timeout: 5000, maxBuffer: 16384 });
+      const value: unknown = JSON.parse(stdout.trim() || "[]");
+      roots = typeof value === "string" ? [value] : Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && /^[A-Za-z]:\\$/.test(v)) : [];
+      if (roots.some(root => !/^[A-Za-z]:\\$/.test(root))) return { ok: false, error: "failed" };
+    } else roots = ["/"];
+    return { ok: true, value: { ...known, drives: [...new Set(roots)].sort().map(root => ({ name: root, path: root, hidden: false })) } };
+  } catch { return { ok: false, error: "failed" }; }
+}
 
 /**
  * 本地文件系统窄面的 Main 侧实现(2026-09-25 用户裁决:素材导入应用内

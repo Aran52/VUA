@@ -28,6 +28,7 @@
               "enum": [
                 "all",
                 "local",
+                "imported",
                 "bought",
                 "gifts",
                 "free_downloads"

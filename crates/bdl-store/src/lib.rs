@@ -21,6 +21,7 @@ pub use bdl_store::{
     ArchiveMember, StoredArchiveMember,
     LibraryEntryMetadata, LibraryEntryMetadataUpdate,
     RemoveLocalEntries, RemovedLocalEntries,
+    LibraryCardTarget, RemoveLibraryCards,
     StoredWarehouseItem, SubproductObservation, WarehouseArtifactFact,
     WarehouseArtifactRef, WarehouseEntryCard, WarehouseEntryDetail, WAREHOUSE_ITEM_KINDS,
     BDL_FORMAT_VERSION,

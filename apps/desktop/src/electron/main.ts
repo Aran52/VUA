@@ -97,7 +97,8 @@ import {
 } from "./security.js";
 import { checkLatestRelease } from "./update-check.js";
 import { SystemUsageCollector } from "./system-usage.js";
-import { createFsDirectory, listFsDirectory } from "./fs-directory.js";
+import { createFsDirectory, listFsDirectory, listFsNavigation } from "./fs-directory.js";
+import { previewLibraryDirectory } from "./library-preview.js";
 import { resolveDesktopRuntime } from "./runtime-paths.js";
 import { preparePackagedSmoke } from "./packaged-smoke.js";
 import { configureDesktopProfile, resolveDesktopProfile, tagDevelopmentWindow } from "./runtime-profile.js";
@@ -542,6 +543,10 @@ function registerIpc(provider: ModuleProvider): void {
         : false;
     return listFsDirectory(target, { showHidden });
   });
+  ipcMain.handle("vua:fs:navigation", async event => {
+    assertLocalSender(senderFrameUrl(event));
+    return listFsNavigation({ desktop: app.getPath("desktop"), documents: app.getPath("documents"), downloads: app.getPath("downloads") });
+  });
   ipcMain.handle("vua:fs:create-directory", async (event, parentPath: unknown, name: unknown) => {
     assertLocalSender(senderFrameUrl(event));
     if (typeof parentPath !== "string" || typeof name !== "string") {
@@ -744,6 +749,12 @@ function registerIpc(provider: ModuleProvider): void {
     return openLibraryEntryFolder(provider, path.join(amfDataRoot(), "warehouse"), entryId, folder => {
       assertAmfReady(); return shell.openPath(folder);
     });
+  });
+  ipcMain.handle("vua:library:preview-directory", async (event, target: unknown) => {
+    assertBrowserSender(event); assertAmfReady();
+    if (typeof target !== "string") throw new Error("invalid library preview target");
+    const result = await previewLibraryDirectory(target, path.join(amfDataRoot(), "warehouse"));
+    assertAmfReady(); return result;
   });
   ipcMain.handle("vua:library:resolve-dropped-files", async (event, values: unknown) => {
     assertBrowserSender(event); assertAmfReady();

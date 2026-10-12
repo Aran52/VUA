@@ -73,6 +73,7 @@ async function run() { try {
     const single = path.join(sources, "single.txt"), folder = path.join(sources, "folder");
     fs.writeFileSync(single, "synthetic selected file"); fs.writeFileSync(path.join(sources, "unselected.txt"), "must stay out of the library");
     fs.mkdirSync(folder); fs.mkdirSync(path.join(folder, "sub")); fs.writeFileSync(path.join(folder, "sub", "companion.txt"), "synthetic companion");
+    fs.writeFileSync(path.join(folder, "sub", "texture.psd"), "synthetic texture retained in the same item");
     const before = new URL(window.webContents.getURL());
     await drop([single, folder, path.join(folder, "sub")]); total += 2; folderCount++;
     await waitFor(async () => { const result = await list(); return result.ok && result.value.total === total && result.value.items.every(item => item.storage.presentCopies > 0); }, `${locale} mixed intake`);
@@ -82,6 +83,12 @@ async function run() { try {
     assert(await js('document.querySelector("[data-nav-id=nav-warehouse]")?.getAttribute("aria-current") === "page"'), `${locale}: accepted import opens the library through the AMF route guard`);
     const result = await list();
     const entry = result.value.items.find(item => item.entry.displayName === "folder").entry;
+    await waitFor(() => js(`document.querySelectorAll('[data-selection-id="${entry.warehouseItemId}"]').length === 1`), `${locale} one multi-file material card`);
+    assert(await js(`document.querySelectorAll('[data-selection-id="${entry.warehouseItemId}"]').length === 1`), `${locale}: multiple companion files remain one card under the imported entry`);
+    const preview = await js(`window.vua.library.previewDirectory(${JSON.stringify(folder)})`);
+    assert(preview.state === "ready" && preview.items.length === 1 && preview.items[0].kind === "directory" && fs.readFileSync(path.join(folder, "sub", "texture.psd"), "utf8") === "synthetic texture retained in the same item", `${locale}: actual native migration preview reports structure without copying or changing sources`);
+    const nativeLocations = await js('window.vua.fs.navigation()');
+    assert(nativeLocations.ok && nativeLocations.value.drives.length > 0 && ["desktop", "documents", "downloads"].every(key => path.isAbsolute(nativeLocations.value[key])), `${locale}: native known-folder and drive navigation is served by Main/preload`);
     const opened = await js(`window.vua.library.openEntryFolder(${JSON.stringify(entry.warehouseItemId)})`);
     assert(opened.opened === true && folderRequests.at(-1) === path.join(profile, "modules", "amf", "data", "warehouse", entry.folderName), `${locale}: actual provider lookup opens only the selected managed entry folder`);
     assert((await js('window.vua.library.openEntryFolder("not-a-recorded-entry")')).opened === false, `${locale}: unknown entries never open the whole warehouse or another directory`);

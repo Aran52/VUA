@@ -110,7 +110,7 @@ pub fn list(
     let category_filter = params.get("sourceCategory").cloned();
     let query: Query = serde_json::from_value(params)?;
     if query.schema_version != "0.1"
-        || !["all", "local", "bought", "gifts", "free_downloads"].contains(&query.source.as_str())
+        || !["all", "local", "imported", "bought", "gifts", "free_downloads"].contains(&query.source.as_str())
         || ![
             "all",
             "downloaded",
@@ -183,7 +183,9 @@ pub fn list(
             .or_insert(snapshot.clone());
     }
     let mut rows = Vec::new();
+    let removed_products = bdl.removed_library_products()?;
     for product in &mut products {
+        if removed_products.contains(&product.product_id) { continue; }
         let attached: Vec<_> = copies
             .iter()
             .filter(|copy| {
@@ -254,6 +256,11 @@ pub fn list(
         let source_match = match query.source.as_str() {
             "all" => true,
             "local" => row["storage"]["storedCopies"].as_u64().unwrap_or(0) > 0,
+            "imported" => if product {
+                row["localEntries"].as_array().is_some_and(|entries| !entries.is_empty())
+            } else {
+                row["entry"]["kind"] == "imported_material"
+            },
             kind => sources.is_some_and(|sources| sources.iter().any(|source| source == kind)),
         };
         let present = row["storage"]["presentCopies"].as_u64().unwrap_or(0);

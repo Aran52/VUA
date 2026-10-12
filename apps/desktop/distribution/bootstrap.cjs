@@ -6,6 +6,12 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const key = "__VUA_RELEASE_PUBLIC_KEY__";
 const hash = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+const smokeDirectory = process.argv.find(arg => arg.startsWith("--vua-smoke-test="))?.slice("--vua-smoke-test=".length);
+function smokePhase(phase) {
+  if (!smokeDirectory || !path.isAbsolute(smokeDirectory)) return;
+  fs.mkdirSync(smokeDirectory, { recursive: true });
+  fs.writeFileSync(path.join(smokeDirectory, "bootstrap-progress.json"), JSON.stringify({ phase, at: new Date().toISOString() }));
+}
 function owned(root, relative) {
   if (!relative || relative.includes("\\") || relative.split("/").some(part => !part || part === "." || part === ".." || /[:\x00-\x1f]/.test(part))) throw Error("unsafe_release_path");
   let target = root;
@@ -34,6 +40,7 @@ function verifyFiles(root, files) {
   }
 }
 try {
+  smokePhase("bootstrap-entered");
   if (!app.isPackaged || process.defaultApp) throw Error("invalid_packaged_identity");
   const root = path.resolve(process.resourcesPath, "../../..");
   for (let directory = root; directory !== path.dirname(directory); directory = path.dirname(directory)) {
@@ -48,11 +55,14 @@ try {
   const runtimeRoot = owned(root, `runtime/${host.runtime.archive.sha256}`);
   if (path.resolve(process.resourcesPath) !== path.join(runtimeRoot, "resources")) throw Error("invalid_runtime_identity");
   verifyFiles(hostRoot, host.host.files);
+  smokePhase("host-files-verified");
   let amfAvailable = true;
   try { verifyFiles(amfRoot, amf.amf.files); } catch { amfAvailable = false; }
+  smokePhase("amf-files-checked");
   app.setName("VUA"); app.setAppUserModelId("org.vua-project.desktop");
   Object.defineProperty(globalThis, "__VUA_DISTRIBUTION_V01__", { writable: false, configurable: false,
     value: Object.freeze({ schemaVersion: "0.1", root, hostRoot, amfRoot, runtimeRoot, host, amf, amfAvailable }) });
+  smokePhase("main-entry-loading");
   require(owned(hostRoot, "dist/electron/main.js"));
 } catch (error) {
   const smoke = process.argv.find(arg => arg.startsWith("--vua-smoke-test="))?.slice("--vua-smoke-test=".length);

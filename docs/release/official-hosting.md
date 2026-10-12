@@ -36,7 +36,8 @@ an installation authority; only the authenticated complete inventory may authori
 3. Run `node apps/desktop/scripts/prepare-official-release.mjs <public-release-directory> <new-output-directory>`.
    It verifies the shipped Ed25519 anchor before interpreting the payload, checks publication
    SHA-256 values, pack lengths/digests and source identity, and copies the existing bytes unchanged.
-   The generated output includes a version directory, download page/styles and `project-vua.html`.
+   The generated output includes a version directory, download page/styles, the small same-origin
+   copy-button script and `project-vua.html`.
    Existing output paths fail rather than being overwritten. Project copy separates current
    features from automatic editing and Recipe work marked "开发中".
 4. Transfer to a private server staging directory, then recheck every public file's length and
@@ -64,6 +65,26 @@ Future signed packs include versioned official and GitHub URLs for the same byte
 and compatibility checks remain in the native helper; the website cannot select arbitrary code.
 GitHub retains the canonical release record and alternative download source.
 
+## Transport and page usability
+
+The author's later 2026-10-13 request authorized suitable website/server improvements. The
+existing HTTPS virtual hosts now negotiate HTTP/2 while retaining HTTP/1.1. Enable the syntax
+appropriate to the deployed Nginx version, test configuration before a graceful reload, then
+verify both protocols with certificate validation intact. This changes transport, not backend
+API or release identity. No extra database/cache service is required by this static mirror.
+
+The download location compresses HTML/CSS and the small JavaScript/text resources with gzip and
+`Vary: Accept-Encoding`. Versioned packs and release inventories retain identity encoding and
+their existing range behavior. A controlled HTTPS/HTTP2 range sample returned the exact 1,024
+original bytes with 206; stylesheet transfer was 685 bytes with gzip in that check. These are
+scoped measurements, not a whole-install bandwidth-saving claim.
+
+The project hero directly links the online installer, with separate installation choices and
+anchors for features, planned AMF work, first use and updates. Optional same-origin JavaScript
+copies only fixed official installer URLs or displayed SHA-256 values after a button click.
+It never reads the clipboard or sends its contents anywhere; a denied clipboard write explains
+how to copy the link or visible text manually. Downloads and verification text work without it.
+
 ## Current delivery and migration
 
 The current mirror is **v0.6.7**, source `71c989f85f8bed950d7e3cebfa6557078035065f`, AMF **0.1.0**.
@@ -82,4 +103,4 @@ the same tag or replace its signed metadata to imply this change is already deli
 
 ## Document changelog
 
-- 1.0.0 (2026-10-13): define static official publication, immutable asset export, trust/range/caching/security requirements and the explicit v0.6.7 mirror/client migration boundary.
+- 1.0.0 (2026-10-13): define static official publication, immutable artifact export, trust/range/caching/security requirements, transport/usability improvements and the explicit v0.6.7 mirror/client migration boundary.

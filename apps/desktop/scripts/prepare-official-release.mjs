@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, createPublicKey, verify } from "node:crypto";
 import { officialReleaseUrl } from "../distribution/release-sources.mjs";
-import { downloadPage, officialStyles, projectPage } from "../distribution/official-pages.mjs";
+import { downloadPage, officialExtraStyles, officialStyles, projectPage } from "../distribution/official-pages.mjs";
 
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const readFile = (root, name) => {
@@ -57,7 +57,8 @@ export function prepareOfficialRelease(source, output, publicKey) {
   fs.writeFileSync(path.join(releaseDirectory, "index.html"), downloadPage(release), { flag: "wx" });
   fs.mkdirSync(path.join(output, "downloads"));
   fs.writeFileSync(path.join(output, "downloads", "index.html"), downloadPage(release), { flag: "wx" });
-  fs.writeFileSync(path.join(output, "downloads", "style.css"), officialStyles, { flag: "wx" });
+  fs.writeFileSync(path.join(output, "downloads", "style.css"), officialStyles + officialExtraStyles, { flag: "wx" });
+  fs.copyFileSync(fileURLToPath(new URL("../distribution/official-downloads.js", import.meta.url)), path.join(output, "downloads", "downloads.js"), fs.constants.COPYFILE_EXCL);
   fs.writeFileSync(path.join(output, "project-vua.html"), projectPage(release), { flag: "wx" });
   return release;
 }

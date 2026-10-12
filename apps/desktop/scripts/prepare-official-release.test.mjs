@@ -46,6 +46,8 @@ test("official mirror exports verified immutable bytes, metadata and clear plann
     assert.doesNotMatch(page, /<style>|style=/);
     assert.match(page, /href="\/vua\/downloads\/style.css"/);
     assert.ok(fs.statSync(path.join(output, "downloads/style.css")).size > 0);
+    assert.ok(fs.statSync(path.join(output, "downloads/downloads.js")).size > 0);
+    assert.match(page, /src="\/vua\/downloads\/downloads.js"/);
     assert.throws(() => prepareOfficialRelease(root, output, publicKey), /EEXIST/);
   } finally { fs.rmSync(root, { recursive: true }); }
 });

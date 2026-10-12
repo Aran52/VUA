@@ -134,6 +134,9 @@ fn server(
     let handle = std::thread::spawn(move || {
         while !exit.load(Ordering::Relaxed) {
             if let Ok((mut socket, _)) = listener.accept() {
+                // Windows can inherit the listener's nonblocking mode. Read the
+                // complete bounded request before interpreting its Range header.
+                socket.set_nonblocking(false).unwrap();
                 socket
                     .set_read_timeout(Some(std::time::Duration::from_secs(2)))
                     .unwrap();

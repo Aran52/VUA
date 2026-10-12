@@ -204,10 +204,10 @@ const review = {
       document.querySelector<HTMLButtonElement>('.vua-tour .vua-button--primary')!.click();
       await wait(() => JSON.parse(localStorage.getItem(storageKeys.tourProgress)!).step === index + 1);
     }
-    await wait(() => document.querySelector('[data-nav-id="home-tasks"]') && document.querySelector(".vua-tour__highlight") && document.querySelector(".vua-tour")?.textContent?.includes(strings.tour.steps.tasks.body), "task tour page and highlight");
-    const taskTile = document.querySelector('[data-nav-id="home-tasks"]')!.getBoundingClientRect();
+    await wait(() => document.querySelector('[data-nav-id="shell-notifications"]') && document.querySelector(".vua-tour__highlight") && document.querySelector(".vua-tour")?.textContent?.includes(strings.tour.steps.tasks.body), "notification tour page and highlight");
+    const taskTile = document.querySelector('[data-nav-id="shell-notifications"]')!.getBoundingClientRect();
     const taskHighlight = document.querySelector(".vua-tour__highlight")!.getBoundingClientRect();
-    check("explicit task-tour step highlights the Home Tasks entry", document.querySelector(".vua-tour")?.textContent?.includes(strings.tour.steps.tasks.body) && Math.abs((taskTile.x + taskTile.width / 2) - (taskHighlight.x + taskHighlight.width / 2)) < 1 && Math.abs((taskTile.y + taskTile.height / 2) - (taskHighlight.y + taskHighlight.height / 2)) < 1);
+    check("explicit task-tour step highlights the notification entry", document.querySelector(".vua-tour")?.textContent?.includes(strings.tour.steps.tasks.body) && Math.abs((taskTile.x + taskTile.width / 2) - (taskHighlight.x + taskHighlight.width / 2)) < 1 && Math.abs((taskTile.y + taskTile.height / 2) - (taskHighlight.y + taskHighlight.height / 2)) < 1);
     await mount(); await step("goal");
     return checks;
   },

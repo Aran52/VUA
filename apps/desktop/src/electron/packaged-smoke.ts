@@ -22,10 +22,12 @@ export function preparePackagedSmoke(): PackagedSmoke | undefined {
 
 class PackagedSmoke {
   private readonly timeout: NodeJS.Timeout;
+  private phase = "main-entered";
 
   constructor(private readonly directory: string) {
     // This watchdog also covers startup failures before a renderer exists.
     this.timeout = setTimeout(() => this.fail(new Error("Packaged startup exceeded 45 seconds")), 45_000);
+    this.checkpoint("main-entered");
   }
 
   fail(error: unknown): void {
@@ -35,6 +37,7 @@ class PackagedSmoke {
   }
 
   async verify(window: BrowserWindow, provider: OrchestratorProviderV01): Promise<void> {
+    this.checkpoint("provider-ready");
     const rendererErrors: string[] = [];
     window.webContents.on("console-message", (_event, level, message) => { if (level >= 2) rendererErrors.push(message.slice(0, 1200)); });
     if (provider.status().state !== "ready") throw new Error("Bundled Provider did not start");
@@ -48,6 +51,7 @@ class PackagedSmoke {
       if (attempt === 99) throw new Error("Packaged renderer did not mount");
       await delay(100);
     }
+    this.checkpoint("renderer-mounted");
     const result = await window.webContents.executeJavaScript(`(async () => {
       const snapshot = await window.vua.gateway.invoke({schemaVersion: 1, requestId: 'packaged-smoke-snapshot', method: 'app.snapshot', params: {}});
       const tasks = await window.vua.gateway.invoke({schemaVersion: 1, requestId: 'packaged-smoke-tasks', method: 'task.list', params: {}});
@@ -59,6 +63,7 @@ class PackagedSmoke {
       localStorage.setItem('vua.packaged-smoke', 'persisted');
       return { previousMarker, version: snapshot.value.productVersion, capabilities: snapshot.value.capabilities.operations.length, nativeDriveNavigation: true };
     })()`) as { previousMarker: string | null; version: string; capabilities: number };
+    this.checkpoint("native-queries-complete");
     const installed = installedContext();
     if (installed && installed.amfAvailable) {
       // Only the explicit isolated diagnostic chooses UI preferences. No user
@@ -81,10 +86,12 @@ class PackagedSmoke {
       const module = await window.webContents.executeJavaScript("window.vua.amfModule.snapshot()");
       if (module.state !== "ready") throw new Error("Installed AMF provider did not become ready");
       Object.assign(result, { independentAmfUi: installed.amf.amf.version, amfPageMounted: true, packagedIdentity: app.isPackaged && !process.defaultApp });
+      this.checkpoint("amf-mounted");
     }
     await window.webContents.session.flushStorageData();
     const database = path.join(this.directory, "host", "tasks.db");
     if (!fs.statSync(database).isFile()) throw new Error("Provider database was not created in the isolated profile");
+    this.checkpoint("provider-shutdown");
     const shutdown = await provider.prepareShutdown({ timeoutMs: 5_000 });
     if (shutdown.outcome === "needs_user_choice") throw new Error("Read-only smoke unexpectedly left a running task");
     clearTimeout(this.timeout);
@@ -94,7 +101,11 @@ class PackagedSmoke {
 
   private write(result: Record<string, unknown>): void {
     fs.writeFileSync(path.join(this.directory, "packaged-smoke.json"), JSON.stringify({
-      ...result, testedAt: new Date().toISOString(), scope: "Packaged desktop bootstrap; no play or installation acceptance",
+      ...result, phase: this.phase, testedAt: new Date().toISOString(), scope: "Packaged desktop bootstrap; no play or installation acceptance",
     }, null, 2));
+  }
+  private checkpoint(phase: string): void {
+    this.phase = phase;
+    this.write({ status: "running" });
   }
 }

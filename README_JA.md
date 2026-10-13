@@ -53,7 +53,7 @@ Beta は継続します。公開は N1/N5 や未完了の実機・素材・人�
 
 ### 現在の提供状況と開始方法
 
-- [Ibis リリースページ](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7)から **VUA-0.6.7-windows-x64-setup.exe** をダウンロードします。通信が不安定な場合は **VUA-0.6.7-windows-x64-offline.exe** を選んでください。インストール後、スタートメニューから VUA を開きます。Node、pnpm、Rust、ソースは不要です。未署名のため、Windows が不明な発行元の警告を表示する場合があります。
+- [公式ダウンロードページ](https://ph-r.com/projects/vua/#download)または [GitHub リリース](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7)から **VUA-0.6.7-windows-x64-setup.exe** をダウンロードします。通信が不安定な場合は **VUA-0.6.7-windows-x64-offline.exe** を選んでください。どちらも同じファイルです。インストール後、スタートメニューから VUA を開きます。Node、pnpm、Rust、ソースは不要です。未署名のため、Windows が不明な発行元の警告を表示する場合があります。
 - 初回の機能ツアーとガイドから始めるか、プレイ・ツール・Avatar 編集を直接開きます。新規ユーザーの AMF は有効で、設定 → モジュールから無効にできます。Steam/PICO/Unity とアカウント操作は公式アプリで行います。
 - VUA の更新時は作業を終えてアプリを終了し、新しいインストーラーを実行します。AMF は設定 → モジュールまたは「このアプリについて」で個別に更新し、明示的に再起動できます。データは %APPDATA%\VUA に保持され、ZIP 版から移行しても同じプロファイルを使用できます。未検証の手順や手動の引き継ぎはリリースノートに記載し、問題は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) で受け付けます。
 - 開発者は[依存関係の導入・アプリ起動・検査](apps/desktop/README.md#development-commands)と[コントリビューション](CONTRIBUTING.md)を参照してください。

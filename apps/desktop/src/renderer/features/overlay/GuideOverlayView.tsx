@@ -43,6 +43,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { GuideTargetV1 } from "@vua/contracts";
 import { MediaSlot } from "../../components/primitives/MediaSlot.tsx";
+import { Button } from "../../components/primitives/Button.tsx";
 import { strings } from "../../i18n/index.ts";
 import { readEncyclopediaHash, recordEncyclopediaTarget } from "../help/encyclopedia-navigation.ts";
 import {
@@ -52,6 +53,7 @@ import {
   type GuideTopicId,
 } from "../guide/guide-content.ts";
 import {
+  GUIDE_TARGETS,
   loadGuideReading,
   normalizeGuideTarget,
   parseGuideTargetFromSearch,
@@ -117,6 +119,7 @@ export function GuideOverlayView({
   const pendingScroll = useRef<string | null>(initialTarget.section ?? null);
   const appliedNonce = useRef(0);
   const topicCopy = copy.pages[GUIDE_TOPIC_COPY_KEY[topic]];
+  const openXrSection = copy.pages.devices.sections.find(section => section.id === "steamvr-openxr");
   const TopicHeading = embedded ? "h2" : "h1";
   const SectionHeading = embedded ? "h3" : "h2";
 
@@ -362,6 +365,12 @@ export function GuideOverlayView({
                   {paragraph}
                 </p>
               ))}
+              {section.id === "pico-prepare" && openXrSection ? (
+                <Button variant="subtle" data-guide-entry="steamvr-openxr" onClick={() => {
+                  applyGuideTarget(GUIDE_TARGETS.steamVrOpenXr);
+                  if (embedded) recordEncyclopediaTarget(GUIDE_TARGETS.steamVrOpenXr);
+                }}>{openXrSection.title}</Button>
+              ) : null}
               {media !== null && caption !== null ? (
                 <figure className="vua-overlay-guide__figure">
                   <MediaSlot src={media.src} alt={media.alt} aspectRatio="16 / 9" />

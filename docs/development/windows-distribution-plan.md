@@ -1,6 +1,6 @@
 # Windows distribution and independent AMF updates
 
-> Document version: 1.1.0
+> Document version: 1.2.0
 > Status: Draft
 > Updated: 2026-10-13
 > Scope: NSIS installation, mirrored Electron runtime acquisition and bundled AMF incremental updates
@@ -152,10 +152,12 @@ until activation is confirmed; clean only unreferenced owned versions, never a r
 ## 5. Release sources and bandwidth
 
 Build each payload once. Mirrors serve the same immutable bytes and signed release identity.
-Use PH-R.COM as the proposed download/feed entrance; large objects can live on validated mirrors
+Use PH-R.COM as the authorized download/feed entrance; large objects can live on validated mirrors
 or object storage/CDN. GitHub retains the official build/release record and an alternative source.
 Gitee or another host is optional after attachment limits, anonymous download, redirects and
-range/resumption behavior are checked. Hosting account/budget and final endpoints remain unresolved.
+range/resumption behavior are checked. The [official hosting procedure](../release/official-hosting.md)
+records the static HTTPS paths, publication allowlist, range/caching requirements and current
+v0.6.7 mirror. Further object storage/CDN or hosting-budget changes remain undecided.
 
 Upload immutable payloads and notices first, verify accessible sources, and publish the release
 manifest last. Installation and AMF checking must not depend solely on GitHub reachability.
@@ -172,8 +174,12 @@ Do not advertise a saving percentage before measuring the actual artifacts and c
 Code now covers D1–D5; controlled local Windows checks cover online/offline installation,
 real-provider/AMF-page startup, verified runtime reuse, unchanged-host AMF payload activation
 and compatible rollback, plus uninstall/profile retention. Synthetic file-range, fallback,
-cancellation and trust/compatibility checks supplement these. D6 publication and the clean-machine,
-blocked-GitHub AMF-feed/object, physical and four-language human rows remain distinct.
+cancellation and trust/compatibility checks supplement these. GitHub v0.6.7 publication and its
+byte-identical PH-R.COM mirror are available. The new helper's authenticated check passed with
+GitHub denied only to the test process; published v0.6.7 clients still require a subsequent host
+installer to acquire that helper. Future component metadata includes official/GitHub sources.
+Clean-machine installation, a newer publicly delivered AMF object update with GitHub unavailable,
+physical scenarios and four-language human rows remain distinct and pending.
 
 Use ordinary `slice/*` branches/PRs in sequence; no parallel writers or
 collaboration bootstrap is authorized by this plan. Existing accepted checks remain in force.
@@ -239,6 +245,7 @@ against the dependency version selected by the implementation slice.
 
 ## Document changelog
 
+- 1.2.0 (2026-10-13): record official immutable v0.6.7 hosting and controlled dual-feed checks, route publication operations, and distinguish subsequent-client delivery from existing installer bytes.
 - 1.1.0 (2026-10-13): record the implemented first-party NSIS/runtime/AMF boundary and controlled evidence; retain clean-machine, alternative update hosting and human/physical acceptance gaps.
 
 - 1.0.0 (2026-10-11): plan NSIS with mirrored verified Electron acquisition, bundled AMF and independent file-based incremental updates, with compatibility, recovery and exact-build acceptance.

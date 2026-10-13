@@ -5,6 +5,11 @@ const context = { root: "C:\\isolated\\VUA", host: { host: { version: "0.6.7" },
 const id = "a".repeat(64);
 const target = { manifestId: id, hostVersion: "0.6.7", amfVersion: "0.1.1", compatible: true, newer: true, downloadBytes: 1024, releaseUrl: "https://github.com/VUA-Project/VUA/releases/tag/v0.6.7" };
 describe("installed distribution updates", () => {
+  it("accepts an official release page from the signed native result", async () => {
+    const run = vi.fn(async () => ({ ...target, releaseUrl: "https://ph-r.com/vua/releases/v0.6.8/" }));
+    const updater = new DistributionUpdater({ context, run, prepareRestart: async () => true, restart: vi.fn() });
+    expect((await updater.check()).target?.releaseUrl).toBe("https://ph-r.com/vua/releases/v0.6.8/");
+  });
   it("keeps legacy ZIP/dev honest and never starts a helper", async () => {
     const run = vi.fn(); const updater = new DistributionUpdater({ run, prepareRestart: async () => true, restart: vi.fn() });
     expect((await updater.check()).available).toBe(false); expect((await updater.stage(id)).available).toBe(false); expect(run).not.toHaveBeenCalled();

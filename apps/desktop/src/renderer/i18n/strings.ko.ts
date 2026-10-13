@@ -1167,8 +1167,8 @@ rolled_back: "롤백됨",
         ],
       },
       devices: {
-        title: "디바이스 팁",
-        intro: "PICO 4 Pro의 USB·Wi-Fi 스트리밍, 헤드셋 안에서 이 가이드를 읽는 방법, 그리고 선택적 아이트래킹.",
+        title: "디바이스와 VR 런타임",
+        intro: "SteamVR과 OpenXR 설정, PICO USB / Wi-Fi 스트리밍, 선택적 아이트래킹.",
         sections: [
           {
             id: "platforms",
@@ -1182,6 +1182,17 @@ rolled_back: "롤백됨",
               "위치: PC와 헤드셋. PC에는 SteamVR을, PICO 공식 사이트에서 PICO Connect를 설치하세요. PICO의 현재 요구 사양은 Windows 10 22H2 이상, 8GB 메모리, GTX 1060 6GB / RX 480 급 이상의 GPU입니다.",
               "헤드셋은 PICO OS를 최신으로 업데이트하세요——현재 PICO Connect는 PICO OS 5.11.2 이상, 아이트래킹은 5.9.0 이상이 필요합니다——그리고 PICO Store에서 헤드셋용 PICO Connect 앱을 설치합니다. 헤드셋 활성화 자체는 PICO 공식 절차를 따릅니다.",
               "설치가 거부되면: Windows 버전과 디스크 여유 공간을 확인한 후 공식 페이지에서 다시 설치하세요.",
+            ],
+          },
+          {
+            id: "steamvr-openxr",
+            title: "SteamVR을 기본 OpenXR 런타임으로 설정하기",
+            paragraphs: [
+              "SteamVR로 OpenXR 게임을 실행할 때 확인하세요. 데스크톱 모드에는 필요하지 않습니다. 스트리밍 방식이 다른 런타임을 요구한다면 해당 공식 안내를 따르세요.",
+              "실행 중인 VR 게임을 종료하고 PC의 SteamVR 상태 창을 여세요. 메뉴 → 설정 → OpenXR로 이동합니다. 항목이 없다면 고급 설정을 표시하세요. 구버전에서는 개발자 페이지에 있을 수 있습니다.",
+              "현재 OpenXR 런타임을 확인하세요. 이미 SteamVR이면 바꿀 필요가 없습니다. 그렇지 않으면 SteamVR을 OpenXR 런타임으로 설정(Set SteamVR as OpenXR Runtime)을 누르고 Windows 권한 요청은 직접 확인하세요.",
+              "현재 런타임이 SteamVR로 바뀌었는지 확인하고 VR 게임을 다시 실행하세요. SteamVR이 설치되어 있다는 것만으로 이 설정이 완료되었다고 볼 수는 없습니다. 설정 화면에서 확인하세요.",
+              "버튼이 없거나 설정이 적용되지 않으면 PC 데스크톱에서 설정을 열었는지 확인한 뒤 SteamVR을 업데이트하고 재시작하세요. 다른 소프트웨어가 전용 런타임을 요구하면 해당 공식 설정에서 다시 변경할 수 있습니다.",
             ],
           },
           {

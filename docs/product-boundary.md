@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Document version: 2.29.0
+> Document version: 2.30.0
 > Status: Accepted
 > Scope: Entire VUA product
 > Updated: 2026-10-13
@@ -393,8 +393,14 @@ proposes the sequential slices; [N7](development-outline.md#n7-beta-installer-re
 owns acceptance. This is a delivery decision, not installer/update evidence or N-stage completion.
 
 On 2026-10-13 the author required multiple built-in usable runtime mirrors, selected by actual
-reachability, primarily for mainland China. Current publication is GitHub first; PH-R.COM awaits
-the author's deployment details. The [implemented distribution boundary](architecture/windows-distribution.md)
+reachability, primarily for mainland China. The author then authorized PH-R.COM deployment on
+2026-10-13: serve the published installers from the official website and support official-site
+version information alongside GitHub. Hosting distributes public immutable artifacts and signed
+inventories only; the release key, user accounts/materials and machine evidence remain local.
+The existing v0.6.7 bytes are mirrored unchanged; dual-source checking enters a subsequent client
+build rather than rewriting that published release. The official project page distinguishes
+current capabilities from AMF automatic editing and Recipe work that remains in development.
+The [implemented distribution boundary](architecture/windows-distribution.md)
 records the exact runtime, first-party module and controlled evidence separately from N7 acceptance.
 
 ### Play network presentation (user ruling, 2026-10-09)
@@ -654,6 +660,7 @@ plugin execution and a marketplace still require their separately accepted secur
 
 ## Document changelog
 
+- 2.30.0 (2026-10-13): authorize official-site immutable installer hosting and parallel website/GitHub version discovery, with local signing and explicit current/planned AMF presentation.
 - 2.29.0 (2026-10-13): require multiple automatically selected runtime mirrors for mainland-China availability and route the implemented NSIS/AMF boundary without declaring acceptance complete.
 
 - 2.28.0 (2026-10-12): Replace dependency-name dialogs with cancellable author-description link filtering and define resizable plain-source library columns.
@@ -665,4 +672,3 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
 - 2.22.0 (2026-10-10): align scenario-host/AMF/BDL stage ownership, selected N2 module/software sources and separate release acceptance with the author's revised N sequence; preserve open N1/N5 outcomes.
 - 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
-- 2.21.0 (2026-10-10): distinguish ordinary local-material intake from active support for pirated acquisition sources, without introducing rights classification or new intake gates.

@@ -30,14 +30,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @vua/orchestrator-provider build
+      - name: Verify official-site publication allowlist and immutable digests
+        run: node --test apps/desktop/scripts/prepare-official-release.test.mjs
       - name: Build with an ephemeral CI-only anchor (no release key/publication)
         run: node apps/desktop/scripts/ci-nsis.mjs
       - name: Isolated install, runtime reuse, AMF page and owned uninstall
         run: node apps/desktop/scripts/smoke-nsis.mjs --preview
       - name: Retain public diagnostic summary
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: VUA-NSIS-diagnostic
           path: apps/desktop/out/nsis-smoke.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7

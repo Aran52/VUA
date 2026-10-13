@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { checkLatestRelease, compareVersions, LATEST_RELEASE_URL } from "./update-check.js";
+import { checkLatestRelease, compareVersions, isDistributionReleaseUrl, LATEST_RELEASE_URL, OFFICIAL_RELEASE_URL } from "./update-check.js";
 
 /**
  * 版本检测纯逻辑测试:三段数字比较(去 v 前缀、不等长补零、不可解析 = null
@@ -68,6 +68,8 @@ describe("checkLatestRelease (honest three-state detection)", () => {
     assert.equal(result.state, "check-failed");
     assert.equal(result.latestVersion, null);
     assert.equal(result.releaseUrl, null);
+    const synchronous = await checkLatestRelease("0.6.0", () => { throw Error("offline before returning a Promise"); });
+    assert.equal(synchronous.state, "check-failed");
   });
 
   it("falls to check-failed on malformed payloads without guessing", async () => {
@@ -79,5 +81,30 @@ describe("checkLatestRelease (honest three-state detection)", () => {
 
   it("queries the repository releases endpoint kept in sync with app-meta", () => {
     assert.match(LATEST_RELEASE_URL, /^https:\/\/api\.github\.com\/repos\/VUA-Project\/VUA\/releases\/latest$/);
+  });
+
+  it("uses the official source when GitHub is unreachable and rejects malformed mirrors", async () => {
+    const result = await checkLatestRelease("0.6.7", async url => {
+      if (url === LATEST_RELEASE_URL) throw Error("unreachable");
+      return { tag_name: "v0.6.8", html_url: "https://ph-r.com/vua/releases/v0.6.8/" };
+    });
+    assert.equal(result.state, "newer-available");
+    assert.equal(result.releaseUrl, "https://ph-r.com/vua/releases/v0.6.8/");
+    const fallback = await checkLatestRelease("0.6.7", async url => url === OFFICIAL_RELEASE_URL ? "html instead of JSON" : { tag_name: "v0.6.8" });
+    assert.equal(fallback.latestVersion, "v0.6.8");
+  });
+
+  it("does not let a reachable stale source hide a newer version", async () => {
+    for (const newerSource of [LATEST_RELEASE_URL, OFFICIAL_RELEASE_URL]) {
+      const result = await checkLatestRelease("0.6.7", async url => ({ tag_name: url === newerSource ? "v0.6.9" : "v0.6.7", html_url: url }));
+      assert.equal(result.latestVersion, "v0.6.9");
+      assert.equal(result.state, "newer-available");
+    }
+  });
+
+  it("limits authenticated release navigation to the two release-page roots", () => {
+    assert.equal(isDistributionReleaseUrl("https://ph-r.com/vua/releases/v0.6.8/"), true);
+    assert.equal(isDistributionReleaseUrl("https://github.com/VUA-Project/VUA/releases/tag/v0.6.8"), true);
+    for (const url of ["http://ph-r.com/vua/releases/v0.6.8/", "https://ph-r.com.evil.test/vua/releases/v0.6.8/", "https://ph-r.com/vua/releases/v0.6.8/?next=evil", "https://github.com/other/repo/releases/tag/v0.6.8"]) assert.equal(isDistributionReleaseUrl(url), false);
   });
 });

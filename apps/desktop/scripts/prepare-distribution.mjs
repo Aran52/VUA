@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
-import { componentSources, officialReleaseUrl } from "../distribution/release-sources.mjs";
+import { canonicalReleaseUrl, componentSources } from "../distribution/release-sources.mjs";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.resolve(desktop, "../..");
@@ -73,7 +73,7 @@ if (sha256(archiveBytes) !== expected) throw Error("Electron archive failed the 
 copy(archive, path.join(output, "runtime.zip"));
 const runtimeRoot = path.join(output, "runtime");
 await electron("@electron-internal/extract-zip").extract(archive, { dir: runtimeRoot });
-const releaseUrl = officialReleaseUrl(pkg.version);
+const releaseUrl = canonicalReleaseUrl(pkg.version);
 const component = (version, data, name) => ({ version, build, files: data.files, pack: { bytes: data.bytes, sha256: data.sha256, sources: componentSources(pkg.version, name) } });
 const manifest = { schemaVersion: "0.1", product: "VUA", platform: "windows", arch: "x64", releaseVersion: pkg.version, releaseUrl,
   runtime: { version: electronVersion, files: inventory(runtimeRoot), archive: { bytes: archiveBytes.length, sha256: expected,

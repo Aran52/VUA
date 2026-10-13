@@ -122,30 +122,41 @@ async fn mirrored_feeds_authenticate_both_and_select_the_newer_release_or_amf() 
     manifest.amf.version = "0.1.1".into();
     let (module, _) = signed(&manifest);
     assert_eq!(
-        select_manifest([Ok(old.clone()), Ok(module.clone())], &key).unwrap(),
+        select_manifest([Ok(old.clone()), Ok(module.clone())], &key)
+            .unwrap()
+            .raw,
         module
     );
     manifest.release_version = "0.6.8".into();
     manifest.host.version = "0.6.8".into();
+    manifest.release_url = "https://github.com/VUA-Project/VUA/releases/tag/v0.6.8".into();
     let (new, _) = signed(&manifest);
     assert_eq!(
-        select_manifest([Ok(module), Ok(new.clone())], &key).unwrap(),
+        select_manifest([Ok(module), Ok(new.clone())], &key)
+            .unwrap()
+            .raw,
         new
     );
     assert_eq!(
-        select_manifest([Ok(new.clone()), Ok(old.clone())], &key).unwrap(),
+        select_manifest([Ok(new.clone()), Ok(old.clone())], &key)
+            .unwrap()
+            .raw,
         new
     );
     let mut tampered = new.clone();
     let position = tampered.iter().position(|byte| *byte == b'6').unwrap();
     tampered[position] = b'9';
     assert_eq!(
-        select_manifest([Ok(tampered.clone()), Ok(old.clone())], &key).unwrap(),
+        select_manifest([Ok(tampered.clone()), Ok(old.clone())], &key)
+            .unwrap()
+            .raw,
         old
     );
     assert!(select_manifest([Ok(tampered), Err(crate::Error("offline".into()))], &key).is_err());
     assert_eq!(
-        select_manifest([Err(crate::Error("offline".into())), Ok(new.clone())], &key).unwrap(),
+        select_manifest([Err(crate::Error("offline".into())), Ok(new.clone())], &key)
+            .unwrap()
+            .raw,
         new
     );
     let (first_url, _, first_stop, first_server) = server(old, false, false);
@@ -161,7 +172,27 @@ async fn mirrored_feeds_authenticate_both_and_select_the_newer_release_or_amf() 
     second_stop.store(true, Ordering::Relaxed);
     first_server.join().unwrap();
     second_server.join().unwrap();
-    assert_eq!(selected, new);
+    assert_eq!(selected.raw, new);
+    assert!(!selected.official);
+    assert_eq!(selected.release_page(&manifest), manifest.release_url);
+    let official = select_manifest(
+        [
+            Ok(selected.raw.clone()),
+            Err(crate::Error("offline".into())),
+        ],
+        &key,
+    )
+    .unwrap();
+    assert!(official.official);
+    assert_eq!(
+        official.release_page(&manifest),
+        "https://ph-r.com/vua/releases/v0.6.8/"
+    );
+    let tied = select_manifest([Ok(new.clone()), Ok(new.clone())], &key).unwrap();
+    assert!(tied.official);
+    let fallback = select_manifest([Err(crate::Error("offline".into())), Ok(new)], &key).unwrap();
+    assert!(!fallback.official);
+    assert_eq!(fallback.release_page(&manifest), manifest.release_url);
     assert_eq!(cancelled.unwrap_err().0, "cancelled");
 }
 fn server(

@@ -1,4 +1,8 @@
-use crate::{manifest::verify, transfer::Transfer, Error, Result};
+use crate::{
+    manifest::{verify, Manifest},
+    transfer::Transfer,
+    Error, Result,
+};
 use std::time::Duration;
 
 pub const FEEDS: [&str; 2] = [
@@ -6,13 +10,32 @@ pub const FEEDS: [&str; 2] = [
     "https://github.com/VUA-Project/VUA/releases/latest/download/vua-release.json",
 ];
 
+#[derive(Debug)]
+pub(crate) struct SelectedManifest {
+    pub raw: Vec<u8>,
+    pub official: bool,
+}
+impl SelectedManifest {
+    pub fn release_page(&self, manifest: &Manifest) -> String {
+        if self.official {
+            format!(
+                "https://ph-r.com/vua/releases/v{}/",
+                manifest.release_version
+            )
+        } else {
+            manifest.release_url.clone()
+        }
+    }
+}
+
 /// Query both bounded sources so a reachable but stale mirror cannot hide a release.
 /// Only authenticated complete inventories participate; no cached result is substituted.
 pub(crate) async fn latest_manifest(
     transfer: &Transfer,
     sources: [&str; 2],
     public_key: &[u8; 32],
-) -> Result<Vec<u8>> {
+) -> Result<SelectedManifest> {
+    transfer.checkpoint()?;
     let fetch = async |url: &str| {
         tokio::time::timeout(Duration::from_secs(10), transfer.manifest(url))
             .await
@@ -26,9 +49,12 @@ pub(crate) async fn latest_manifest(
 pub(crate) fn select_manifest(
     results: [Result<Vec<u8>>; 2],
     public_key: &[u8; 32],
-) -> Result<Vec<u8>> {
+) -> Result<SelectedManifest> {
     let mut latest = None;
-    for raw in results.into_iter().flatten() {
+    for (source, result) in results.into_iter().enumerate() {
+        let Ok(raw) = result else {
+            continue;
+        };
         let Ok(manifest) = verify(&raw, public_key) else {
             continue;
         };
@@ -42,7 +68,13 @@ pub(crate) fn select_manifest(
             .as_ref()
             .is_none_or(|(current, _)| &version > current)
         {
-            latest = Some((version, raw));
+            latest = Some((
+                version,
+                SelectedManifest {
+                    raw,
+                    official: source == 0,
+                },
+            ));
         }
     }
     latest

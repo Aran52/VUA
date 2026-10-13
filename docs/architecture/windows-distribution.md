@@ -81,6 +81,10 @@ unauthenticated source cannot replace a valid result; if neither works, checking
 substituting a cached target. Existing cancellation and activation rules remain intact.
 Future signed component packs declare both official versioned URLs and GitHub URLs for identical
 bytes; the existing bounded range-source selection and digest enforcement apply to both.
+The signed v0.1 envelope retains the canonical GitHub `releaseUrl`, which the published v0.6.7
+Main accepts. The new helper projects an official version page only when the selected authenticated
+inventory came from the official feed; a newer GitHub result retains its canonical page. A stale
+official mirror cannot redirect users to a version directory that it has not published.
 
 Legacy ZIP/development version notifications query the informational official `latest.json` and
 GitHub latest-release API in parallel, choosing the higher valid version. This read-only information
@@ -127,10 +131,11 @@ versions remain. A cleanup failure retains files and does not undo a successful 
 
 ## Sources, verification and remaining evidence
 
-Publication currently targets GitHub under the author's ruling. PH-R.COM waits for deployment
-details. Runtime acquisition has two tested China alternatives; AMF feed/object availability when
-GitHub is blocked remains pending until an alternative feed/object host is deployed. Online and
-offline installers do not need that feed to complete initial installation.
+GitHub retains the canonical release record; the authorized PH-R.COM mirror is now deployed.
+Runtime acquisition has two tested China alternatives. Authenticated official-feed checks and
+public object ranges have controlled evidence, while a newer public AMF update using those object
+sources remains pending. Online and offline installers do not need the feed to complete initial
+installation, and the published v0.6.7 client retains the migration limit described above.
 
 Controlled local Windows evidence covers both NSIS installers, startup with real providers and
 the separate AMF page, unchanged-runtime reuse, uninstall/profile retention, two named compatible
@@ -141,5 +146,5 @@ human acceptance. The [delivery plan](../development/windows-distribution-plan.m
 
 ## Document changelog
 
-- 1.1.0 (2026-10-13): add immutable official hosting, authenticated dual-feed discovery, future signed pack sources and explicit v0.6.7 client migration limits.
+- 1.1.0 (2026-10-13): add immutable official hosting, authenticated dual-feed discovery, compatible canonical envelope URLs, future signed pack sources and explicit v0.6.7 client migration limits.
 - 1.0.0 (2026-10-13): describe NSIS, complete mirrored runtime identity, independent AMF UI/native payloads, signed file updates, activation/rollback and controlled evidence limits.

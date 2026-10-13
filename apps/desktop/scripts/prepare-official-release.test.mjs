@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { prepareOfficialRelease } from "./prepare-official-release.mjs";
-import { componentSources, officialReleaseUrl } from "../distribution/release-sources.mjs";
+import { canonicalReleaseUrl, componentSources, officialReleaseUrl } from "../distribution/release-sources.mjs";
 
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 function fixture(root) {
@@ -66,6 +66,7 @@ test("corrupt artifacts and unauthenticated inventories cannot create a deployab
 });
 
 test("future signed packs include official and GitHub sources with fixed immutable names", () => {
+  assert.equal(canonicalReleaseUrl("0.6.8"), "https://github.com/VUA-Project/VUA/releases/tag/v0.6.8");
   assert.deepEqual(componentSources("0.6.8", "vua-amf-0.1.1.bin"), [
     "https://ph-r.com/vua/releases/v0.6.8/vua-amf-0.1.1.bin",
     "https://github.com/VUA-Project/VUA/releases/download/v0.6.8/vua-amf-0.1.1.bin",

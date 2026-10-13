@@ -64,6 +64,10 @@ an installation authority; only the authenticated complete inventory may authori
 Future signed packs include versioned official and GitHub URLs for the same bytes. Their digest
 and compatibility checks remain in the native helper; the website cannot select arbitrary code.
 GitHub retains the canonical release record and alternative download source.
+Keep the signed v0.1 envelope's `releaseUrl` canonical to GitHub so the published v0.6.7 Main can
+accept future targets. The new helper exposes the official version page when the official feed
+supplied the selected authenticated inventory; otherwise it retains the canonical GitHub page.
+The unsigned informational `latest.json` may link the official version page independently.
 
 ## Transport and page usability
 

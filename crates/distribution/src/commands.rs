@@ -50,8 +50,10 @@ pub async fn execute(
         }
         "snapshot" => Ok(serde_json::to_value(installation.snapshot()?)?),
         "check" => {
-            let raw = latest_manifest(&transfer, FEEDS, &crate::layout::PUBLIC_KEY).await?;
-            let target = verify(&raw, &crate::layout::PUBLIC_KEY)?;
+            let selected = latest_manifest(&transfer, FEEDS, &crate::layout::PUBLIC_KEY).await?;
+            let raw = &selected.raw;
+            let target = verify(raw, &crate::layout::PUBLIC_KEY)?;
+            let release_url = selected.release_page(&target);
             let active = installation.active()?;
             let host = installation.manifest(&active.host_manifest)?;
             let amf = installation.manifest(&active.amf_manifest)?;
@@ -79,10 +81,10 @@ pub async fn execute(
                 })
                 .map(|file| file.bytes)
                 .sum();
-            let (manifest_id, _) = installation.store_manifest(&raw)?;
+            let (manifest_id, _) = installation.store_manifest(raw)?;
             Ok(
                 json!({"amfVersion":target.amf.version, "hostVersion":target.host.version, "compatible":compatible,
-                "newer":newer, "downloadBytes":download_bytes, "manifestId":manifest_id, "releaseUrl":target.release_url}),
+                "newer":newer, "downloadBytes":download_bytes, "manifestId":manifest_id, "releaseUrl":release_url}),
             )
         }
         "stage" => {

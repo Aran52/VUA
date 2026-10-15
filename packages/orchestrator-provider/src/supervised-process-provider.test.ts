@@ -211,4 +211,12 @@ describe("supervised process Provider v0.1", () => {
       PATH: "unneeded",
     })).toEqual({ SystemRoot: "C:\\Windows", TEMP: "C:\\Temp" });
   });
+
+  it("passes the machine folders Unity's Package Manager needs", () => {
+    expect(providerEnvironment({
+      ProgramData: "C:\\ProgramData",
+      ALLUSERSPROFILE: "C:\\ProgramData",
+      USERNAME: "player",
+    })).toEqual({ ProgramData: "C:\\ProgramData", ALLUSERSPROFILE: "C:\\ProgramData" });
+  });
 });

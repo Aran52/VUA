@@ -325,7 +325,9 @@ function spawnProviderProcess(executablePath: string, databasePath: string): Chi
 }
 
 export function providerEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const allowed = new Set(["systemroot", "windir", "temp", "tmp"]);
+  // ProgramData/ALLUSERSPROFILE are machine folder paths; Unity's Package Manager
+  // server needs both to start and resolve packages inside a batch-mode Editor.
+  const allowed = new Set(["systemroot", "windir", "temp", "tmp", "programdata", "allusersprofile"]);
   return Object.fromEntries(
     Object.entries(source).filter(([key, value]) => value !== undefined && allowed.has(key.toLowerCase())),
   );

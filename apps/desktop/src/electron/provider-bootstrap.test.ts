@@ -95,7 +95,7 @@ describe("desktop provider process factory environment injection", () => {
       ];
       // 环境键集 = 清洗层放行的系统变量(大小写随宿主环境块)+ 三个注入的
       // 运行时根,别无其它;凭据形与普通宿主变量一律剥离
-      const allowed = new Set(["systemroot", "windir", "temp", "tmp"]);
+      const allowed = new Set(["systemroot", "windir", "temp", "tmp", "programdata", "allusersprofile"]);
       const injected = new Set(["VUA_PROVIDER_DATA", "VUA_WAREHOUSE_ROOT", "VUA_PROJECT_ROOT", "VUA_AMF_HANDOFF_FROM_DESKTOP"]);
       for (const key of Object.keys(options.env)) {
         expect(

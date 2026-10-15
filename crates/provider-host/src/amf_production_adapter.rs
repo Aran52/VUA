@@ -1,7 +1,7 @@
 //! Thin native adapter for the AMF-owned material-first use case.
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -401,6 +401,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 }
             }
         }
+        let mut result = drop_expanded_duplicates(result);
         result.sort_by(|a, b| {
             (&a.item_name, &a.name, &a.source_id).cmp(&(&b.item_name, &b.name, &b.source_id))
         });
@@ -814,11 +815,32 @@ fn bridge_log_failure(path: &Path) -> Option<AppErrorV1> {
     classify_bridge_log(&String::from_utf8_lossy(&head), &String::from_utf8_lossy(&tail))
 }
 
+/// Library intake keeps an original ZIP and also extracts it to `expanded/<zip copy>/<member>`.
+/// When the ZIP's member is already offered, the extracted copy is the same package and is omitted.
+fn drop_expanded_duplicates(sources: Vec<ProductionSource>) -> Vec<ProductionSource> {
+    let members: BTreeSet<(String, String)> = sources
+        .iter()
+        .filter_map(|s| s.archive_member.as_ref().map(|m| (s.item_id.clone(), format!("{}/{}", s.source_id.rsplit_once('-').map_or("", |(zip, _)| zip), m.replace('\\', "/")))))
+        .collect();
+    sources
+        .into_iter()
+        .filter(|s| {
+            s.archive_member.is_some()
+                || !s.name.strip_prefix("expanded/").is_some_and(|rest| members.contains(&(s.item_id.clone(), rest.to_owned())))
+        })
+        .collect()
+}
+
 fn classify_bridge_log(head: &str, tail: &str) -> Option<AppErrorV1> {
     if ["No ULF license found", "License is not active", "No valid Unity Editor license found"]
         .iter().any(|message| head.contains(message) || tail.contains(message))
     {
         return Some(err("unity_license_unavailable", "Activate this Editor's license in Unity Hub, then retry preparation. Selected materials are retained."));
+    }
+    if ["Failed to start the Unity Package Manager local server", "UpmClient::Connect -- Could not connect to IPC stream"]
+        .iter().any(|message| tail.contains(message))
+    {
+        return Some(err("unity_package_manager_unavailable", "Unity's Package Manager service did not start. Allow UnityPackageManager.exe in antivirus software if it is blocked, then reinspect the retained project. Selected materials are retained."));
     }
     let mut errors = Vec::new();
     for line in tail.lines().filter(|line| line.contains(": error CS")) {
@@ -955,6 +977,30 @@ mod tests {
         assert!(!text.contains("private"));
         assert!(classify_bridge_log("Access token is unavailable; failed to update\nSuccessfully resolved entitlements", "Compilation succeeded").is_none());
         assert_eq!(classify_bridge_log("No valid Unity Editor license found", "").unwrap().code, "vua.amf_production.unity_license_unavailable");
+    }
+
+    #[test]
+    fn package_manager_startup_failure_has_its_own_next_step() {
+        let tail = "[Package Manager] UpmClient::Connect -- Could not connect to IPC stream \"Upm-17136\" after 30.0 seconds.\n[Package Manager] Failed to start the Unity Package Manager local server process.";
+        let error = classify_bridge_log("Serial number assigned to: private", tail).unwrap();
+        assert_eq!(error.code, "vua.amf_production.unity_package_manager_unavailable");
+        assert!(!serde_json::to_string(&error).unwrap().contains("private"));
+    }
+
+    #[test]
+    fn extracted_copies_of_offered_zip_members_are_listed_once() {
+        let source = |id: &str, item: &str, name: &str, member: Option<&str>| ProductionSource {
+            source_id: id.into(), item_id: item.into(), item_name: "Meiyun.zip".into(), name: name.into(),
+            path: PathBuf::from("x"), archive_member: member.map(Into::into),
+        };
+        let kept = drop_expanded_duplicates(vec![
+            source("cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa", "whi-1", "Meiyun/Meiyun.unitypackage", Some("Meiyun/Meiyun.unitypackage")),
+            source("cpy-zip-1-0", "whi-1", "expanded/cpy-whi-1/Meiyun/Meiyun.unitypackage", None),
+            source("cpy-zip-2-0", "whi-2", "expanded/cpy-whi-9/Other.unitypackage", None),
+            source("cpy-whi-3", "whi-3", "Direct.unitypackage", None),
+        ]);
+        let ids: Vec<_> = kept.iter().map(|s| s.source_id.as_str()).collect();
+        assert_eq!(ids, ["cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa", "cpy-zip-2-0", "cpy-whi-3"]);
     }
 
     #[test]

@@ -178,9 +178,12 @@ struct Harness {
 }
 impl Harness {
     fn new() -> Self {
+        // Parallel tests can read the same clock value; the counter keeps each root unique.
+        static NEXT_ROOT: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!(
-            "vua-n3-test-{}-{}",
+            "vua-n3-test-{}-{}-{}",
             std::process::id(),
+            NEXT_ROOT.fetch_add(1, Ordering::Relaxed),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()

@@ -33,7 +33,9 @@ export function ScenarioPreparation({ intent, checked, onChecked, autoCheck = fa
     catch { if (version === generation.current) setError(true); }
     finally { setBusy(false); }
   };
-  useEffect(() => { if (autoCheck && port && !autoStarted.current && intent.purposes.length) { autoStarted.current = true; void check(); } }, [autoCheck, port]);
+  // The panel keeps the result for its intent; a remount (for example when installation
+  // availability arrives) reuses it instead of clearing it and checking again.
+  useEffect(() => { if (autoCheck && port && !autoStarted.current && !checked && intent.purposes.length) { autoStarted.current = true; void check(); } }, [autoCheck, port]);
   const readSop = async () => {
     if (!port || !scenario) return;
     if (sopOpen) { setSopOpen(false); return; }

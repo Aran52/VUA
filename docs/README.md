@@ -20,7 +20,7 @@ before editing. Report verified results and open gaps separately.
 | What is VUA for, and how is progress measured? | [North star](north-star.md), [North Star Eval](eval/README.md) |
 | How do I develop and submit changes? | [Contributing](../CONTRIBUTING.md) |
 | What does the product include? | [Product boundary](product-boundary.md) |
-| What comes next and what counts as passing? | [N sequence](development-outline.md) |
+| What comes next and what counts as passing? | [Current plan](development/current-plan.md), [N sequence](development-outline.md) |
 | Where does each responsibility live? | [System map](architecture/system.md) |
 | How do scenarios and the optional AMF module relate? | [Host and modules](architecture/modules.md) |
 | Which exact contract do I need? | [Protocol guide](protocols/README.md) |

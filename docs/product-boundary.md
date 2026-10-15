@@ -1,36 +1,33 @@
 # VUA product boundary
 
 
-> Document version: 2.32.0
-> Status: Accepted
-> Scope: Entire VUA product
-> Updated: 2026-10-13
-> Normative effect: Yes
+> Updated: 2026-10-16
 
 ## Product definition
 
-VUA is a Windows-first, local-first VRChat **scenario** host (the author's term: “情景”).
-It installs, manages and launches the capabilities a scenario needs, with a SOP list for preparation,
-use and recovery. The core audience includes players unfamiliar with Unity or the required software.
-PC screen play and PICO streaming are play scenarios; self-built AMF supplies the Avatar-editing
-scenario. Under the latest 2026-10-10 user ruling, Ibis installs AMF with VUA and enables it
-for new users. Existing enable/disable choices are remembered; existing profiles without a
-choice retain the old disabled default, and finding legacy BDL data alone does not enable AMF.
-External Avatar-editing modules are deferred beyond Ibis. BDL stays private inside AMF.
+VUA is a Windows-first, local-first VRChat **scenario** host (the author's term: “情景”). A
+scenario is a player goal with its SOP for preparation, use and recovery. VUA observes the local
+environment; installs, manages and launches what each scenario needs; and gives players, and the
+AI agents they direct, the same facts, SOPs and permissioned operations. The
+[north star](north-star.md) states the goal and how progress is measured. The core audience
+includes players new to Unity and to the software VRChat relies on.
 
-Recipe-first production and reproducible production records belong to AMF. The VUA host remains
-usable without AMF/BDL, and the Wizard chooses a path by goal, device and current facts. Wizard goal
-preferences do not determine which installed modules appear in the main directory. Concrete
-ownership, local payload activation, migration and lifecycle are owned by
-[host/module architecture](architecture/modules.md).
+Desktop play and PICO streaming are play scenarios. The first-party AMF module supplies the
+Avatar-production scenario. VUA installs AMF and enables it by default, and keeps a player's
+saved enable/disable choice (user correction, 2026-10-14). External Avatar-editing modules are
+scheduled after Ibis. BDL is private to AMF.
 
-**Material-first production (user ruling, 2026-10-13).** The player begins by selecting materials,
-rather than naming or creating a Unity project. Project choice/preparation, unique Avatar/material
-selection and unambiguous assembly relationships are automated and hidden from the normal path.
-Ambiguity and unsupported targets still require an explicit choice. The first N3 implementation
-may prepare an independent managed project; existing originals stay untouched. Menu options and
-reviewable changes lead to execution and an honest result/SDK handoff. Portable Recipe work belongs
-to N4; neither a usable basic path nor a synthetic demonstration closes N3's real-material gate.
+AMF owns Recipe-first production and reproducible production records. The VUA host works with or
+without AMF and BDL. The Wizard chooses a path by goal, device and current facts, and installed
+modules decide what appears in the main directory.
+[Host/module architecture](architecture/modules.md) owns activation, migration and lifecycle.
+
+**Material-first production (user ruling, 2026-10-13).** The player starts by selecting
+materials. VUA prepares an independent managed project and chooses the Avatar, materials and
+assembly relationships automatically when the observed facts determine them; the player chooses
+where a target is ambiguous or unsupported. Existing projects stay as they are. The player reviews
+menu options and changes, then VUA executes, reports the result and hands off to the SDK.
+Portable Recipes belong to N4, and N3 closes with its real-material acceptance rows.
 
 ## Accepted product areas
 
@@ -85,6 +82,12 @@ to N4; neither a usable basic path nor a synthetic demonstration closes N3's rea
    The tools named in the active delivery policy enter N2; other integrations remain unscheduled.
 9. **Community plugin interface:** a versioned protocol for optional enhancements and customization,
    with declared capabilities, lifecycle, tasks, permissions, and compatibility rules.
+10. **SOPs and agent access (user ruling, 2026-10-16):** versioned SOPs that take a goal or a
+    symptom to verified steps, covering settings, diagnosis, tools and Avatar production; an MCP
+    server that gives the player's own AI agent observation, planning and permissioned execution
+    through VUA's existing task authority; and external-tool delivery chosen by each tool's
+    license. The [north star](north-star.md) defines the permission levels, SOP fields and license
+    policy.
 
 ## Production scope and product rulings (user ruling, 2026-09-22)
 
@@ -664,33 +667,14 @@ Current development is continuing Beta under the N sequence. The historical v0.6
 unchanged; this ruling is not a new product release. Runtime-tool deployment is active. Community
 plugin execution and a marketplace still require their separately accepted security decisions.
 
-**External Agent access (user ruling, 2026-10-13).** VUA supplies a built-in local MCP server for
-the player's existing AI tool; it does not supply a harness or model-service configuration.
-[The Candidate adapter](protocols/ai-tools-v0.1.md) reuses the typed Gateway, module readiness,
-versioned Bridge, concrete plan confirmations and existing task/recovery authorities. The player
-enables connection and deliberately copies its local pairing token to their chosen AI. That
-token is encrypted at rest and excluded from state snapshots/logs; it grants no account-session
-or asset-byte access. Mutating requests wait for a concrete local confirmation and cannot be
-approved by the Agent. [SOP, checks and installation](protocols/scenario-environment-v0.1.md)
-are independently callable. Installed Unity files do not establish license activation or a
-successful production run; [registration/activation guidance](compatibility/unity-editor.md)
-appears before Editor execution. Current releases and outstanding N outcomes remain unchanged.
+**External Agent access (user ruling, 2026-10-13).** VUA runs a local MCP server for the
+player's own AI tool through the [Candidate adapter](protocols/ai-tools-v0.1.md). The player turns
+the connection on and gives the pairing prompt, with its local token, to their AI tool; VUA stores
+the token encrypted and keeps it out of snapshots and logs. The tools reuse the typed Gateway,
+module readiness, the versioned Bridge and the existing task and recovery authorities, and reach
+only VUA's own facts and operations. Every change an agent requests waits for the player's
+confirmation in VUA. [SOP, checks and installation](protocols/scenario-environment-v0.1.md) are
+separate calls, and VUA shows [registration and activation guidance](compatibility/unity-editor.md)
+before the Unity Editor runs.
 
 **Library presentation and intake (user ruling, 2026-10-12).** The visible local source means user-imported material, rather than every downloaded local file. The separate [card-removal face](protocols/library-records-v0.2.md) extends the initial local-record removal to complete entry and account-product card presentations, with files/references retained and no automatic restoration by sync. **Import a local item** keeps explicit per-path copy-in; its adjacent arrow opens **Import multiple items (library migration)**. Material boundaries must not be silently guessed. The current migration preview is read-only; its [grouping design](development/library-migration-design.md) is a draft and does not grant a new writer or declare N5 accepted.
-
-## Document changelog
-
-- 2.32.0 (2026-10-13): authorize built-in external-Agent tools, independent scenario preparation operations and novice Unity activation guidance under existing execution/data boundaries.
-- 2.31.0 (2026-10-13): accept the material-first N3 journey and automatic unambiguous preparation while retaining Recipe ownership and real-material acceptance.
-- 2.30.0 (2026-10-13): authorize official-site immutable installer hosting and parallel website/GitHub version discovery, with local signing and explicit current/planned AMF presentation.
-- 2.29.0 (2026-10-13): require multiple automatically selected runtime mirrors for mainland-China availability and route the implemented NSIS/AMF boundary without declaring acceptance complete.
-
-- 2.28.0 (2026-10-12): Replace dependency-name dialogs with cancellable author-description link filtering and define resizable plain-source library columns.
-- 2.27.0 (2026-10-12): record origin-specific local imports, full card presentation removal and the author-selected single-item/migration intake split without changing acceptance.
-
-- 2.26.0 (2026-10-12): authorize bounded public BOOTH keyword lookup for local provenance independently of account membership; preserve content, ambiguity and entitlement boundaries.
-- 2.25.0 (2026-10-11): authorize current-state v0.6.6 Ibis ZIP publication before subsequent NSIS/runtime and AMF-update work, retaining continuing Beta and pending acceptance.
-- 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
-- 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
-
-Earlier entries remain in Git history.

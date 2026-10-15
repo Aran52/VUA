@@ -1,7 +1,5 @@
 # Protocol reading guide
 
-> Document version: 1.16.0
-> Status: Accepted
 > Updated: 2026-10-16
 > Scope: Navigation and retention guidance; no wire-format changes
 
@@ -78,20 +76,3 @@ For upstream-driven changes, follow the [third-party compatibility and licensing
 face for host-owned selection/readiness. It does not replace or edit frozen Provider frames, task
 rows, Recipe/BDL families or Unity Bridge contracts. [Module architecture](../architecture/modules.md)
 owns routing and legacy-data migration.
-
-## Document changelog
-
-- 1.16.0 (2026-10-16): integrate the external-tool v0.2 producer/consumer and six-tool evidence alongside the AMF/Recipe Candidate faces, retaining per-scenario acceptance limits.
-- 1.15.0 (2026-10-15): route reviewed Recipe application onto retained Avatars, separate field conflicts from identity ambiguity, and retain full N4 acceptance limits.
-- 1.14.0 (2026-10-15): include source-reviewed production Recipe sharing and import without changing frozen Recipe faces.
-
-- 1.13.0 (2026-10-15): route saved production Recipe v0.4 separately from frozen Recipe faces and portable-sharing acceptance.
-
-- 1.12.0 (2026-10-13): index Candidate local MCP and independent scenario read faces under existing execution authorities.
-- 1.11.0 (2026-10-13): index the separate material-first AMF/Bridge Candidate faces and their evidence limits without replacing frozen production/Recipe contracts.
-- 1.10.1 (2026-10-12): route mixed native file/folder intake v0.2 alongside retained folder-only and frozen material faces.
-- 1.10.0 (2026-10-11): index the Candidate fixed-site desktop browser and bounded shell geometry, independent of retained account/catalog/download and Provider faces.
-- 1.9.0 (2026-10-10): index the Candidate external-tool face and VRCFT producer/consumer routes, separating hardware/module guidance from pending real acceptance.
-- 1.8.0 (2026-10-10): index Candidate desktop-window v0.2 for main Help navigation while retaining the V1 window face.
-
-Earlier entries remain in Git history.

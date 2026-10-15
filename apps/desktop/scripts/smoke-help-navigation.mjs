@@ -152,8 +152,10 @@ async function run() {
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true'`), `${button} expands inline`);
       assert(await inlineDetailFits(button), `${button} details stay below their own editor or manager card`);
       if (button === 'route-unity2022') {
-        await waitFor(() => js('!!document.querySelector("#route-unity2022-details .vua-scenario-preparation [role=status] li")'), "Automatic Unity software check");
-        assert(await js('!!document.querySelector("#route-unity2022-details .vua-scenario-preparation [role=status] li") && !document.querySelector("#route-unity2022-details .vua-deployment ol li")'), "Unity preparation checks software on first entry without planning or installing");
+        const softwareChecked = 'document.querySelector("#route-unity2022-details .vua-scenario-preparation [role=status] li") && !document.querySelector("#route-unity2022-details .vua-deployment ol li")';
+        try { await waitFor(() => js(`!!(${softwareChecked})`), "Automatic Unity software check"); }
+        catch (error) { console.error(JSON.stringify({ unityDetails: await js('document.querySelector("#route-unity2022-details")?.innerText.slice(0, 1200)') })); throw error; }
+        assert(await js(`!!(${softwareChecked})`), "Unity preparation checks software on first entry without planning or installing");
         if (process.env.VUA_TEST_EXPECT_EDITOR_VERSION) {
           const expected = process.env.VUA_TEST_EXPECT_EDITOR_VERSION;
           assert(await js(`[...document.querySelectorAll('#route-unity2022-details .vua-scenario-preparation [role=status] li')].some(item=>item.textContent.includes(${JSON.stringify(expected)}))`), "The existing Editor's full version is reported on first entry without installation");

@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Document version: 2.30.0
+> Document version: 2.32.0
 > Status: Accepted
 > Scope: Entire VUA product
 > Updated: 2026-10-13
@@ -23,6 +23,14 @@ usable without AMF/BDL, and the Wizard chooses a path by goal, device and curren
 preferences do not determine which installed modules appear in the main directory. Concrete
 ownership, local payload activation, migration and lifecycle are owned by
 [host/module architecture](architecture/modules.md).
+
+**Material-first production (user ruling, 2026-10-13).** The player begins by selecting materials,
+rather than naming or creating a Unity project. Project choice/preparation, unique Avatar/material
+selection and unambiguous assembly relationships are automated and hidden from the normal path.
+Ambiguity and unsupported targets still require an explicit choice. The first N3 implementation
+may prepare an independent managed project; existing originals stay untouched. Menu options and
+reviewable changes lead to execution and an honest result/SDK handoff. Portable Recipe work belongs
+to N4; neither a usable basic path nor a synthetic demonstration closes N3's real-material gate.
 
 ## Accepted product areas
 
@@ -656,10 +664,24 @@ Current development is continuing Beta under the N sequence. The historical v0.6
 unchanged; this ruling is not a new product release. Runtime-tool deployment is active. Community
 plugin execution and a marketplace still require their separately accepted security decisions.
 
+**External Agent access (user ruling, 2026-10-13).** VUA supplies a built-in local MCP server for
+the player's existing AI tool; it does not supply a harness or model-service configuration.
+[The Candidate adapter](protocols/ai-tools-v0.1.md) reuses the typed Gateway, module readiness,
+versioned Bridge, concrete plan confirmations and existing task/recovery authorities. The player
+enables connection and deliberately copies its local pairing token to their chosen AI. That
+token is encrypted at rest and excluded from state snapshots/logs; it grants no account-session
+or asset-byte access. Mutating requests wait for a concrete local confirmation and cannot be
+approved by the Agent. [SOP, checks and installation](protocols/scenario-environment-v0.1.md)
+are independently callable. Installed Unity files do not establish license activation or a
+successful production run; [registration/activation guidance](compatibility/unity-editor.md)
+appears before Editor execution. Current releases and outstanding N outcomes remain unchanged.
+
 **Library presentation and intake (user ruling, 2026-10-12).** The visible local source means user-imported material, rather than every downloaded local file. The separate [card-removal face](protocols/library-records-v0.2.md) extends the initial local-record removal to complete entry and account-product card presentations, with files/references retained and no automatic restoration by sync. **Import a local item** keeps explicit per-path copy-in; its adjacent arrow opens **Import multiple items (library migration)**. Material boundaries must not be silently guessed. The current migration preview is read-only; its [grouping design](development/library-migration-design.md) is a draft and does not grant a new writer or declare N5 accepted.
 
 ## Document changelog
 
+- 2.32.0 (2026-10-13): authorize built-in external-Agent tools, independent scenario preparation operations and novice Unity activation guidance under existing execution/data boundaries.
+- 2.31.0 (2026-10-13): accept the material-first N3 journey and automatic unambiguous preparation while retaining Recipe ownership and real-material acceptance.
 - 2.30.0 (2026-10-13): authorize official-site immutable installer hosting and parallel website/GitHub version discovery, with local signing and explicit current/planned AMF presentation.
 - 2.29.0 (2026-10-13): require multiple automatically selected runtime mirrors for mainland-China availability and route the implemented NSIS/AMF boundary without declaring acceptance complete.
 
@@ -670,5 +692,5 @@ plugin execution and a marketplace still require their separately accepted secur
 - 2.25.0 (2026-10-11): authorize current-state v0.6.6 Ibis ZIP publication before subsequent NSIS/runtime and AMF-update work, retaining continuing Beta and pending acceptance.
 - 2.24.0 (2026-10-11): accept NSIS, automatic mirrored Electron acquisition/reuse and bundled AMF independent incremental updates, superseding ZIP-first deferral without changing existing evidence or user-data boundaries.
 - 2.23.0 (2026-10-10): enable bundled AMF for new users while retaining existing choices, legacy opt-in behavior and host/BDL isolation.
-- 2.22.0 (2026-10-10): align scenario-host/AMF/BDL stage ownership, selected N2 module/software sources and separate release acceptance with the author's revised N sequence; preserve open N1/N5 outcomes.
-- 2.21.1 (2026-10-10): align preparation-reading wording with the main Help encyclopedia ruling without changing guidance scope or acceptance.
+
+Earlier entries remain in Git history.

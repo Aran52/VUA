@@ -1,9 +1,9 @@
 # Unity editor compatibility
 
-> Document version: 2.0.1
+> Document version: 2.1.0
 > Status: Accepted
 > Scope: Unity detection, deployment, project intake, AMF and Unity Bridge
-> Updated: 2026-10-02
+> Updated: 2026-10-13
 > Normative effect: Defines the development support matrix
 
 ## Current development decision
@@ -42,6 +42,31 @@ Inspect the installed executable, register its real path with Unity CLI, and ret
 version in the task result. Users complete Unity account authorization and license selection
 through Unity's tooling. Follow with a disposable project and the real SDK/MA workflow.
 
+## Installation and license activation are separate
+
+File/PE metadata checks, package download and installation can run without starting the Editor.
+AMF material import, inspection, assembly and SDK work run the Editor and require an active
+license, including batch mode. An installed C1/global executable is an installation fact, not
+proof of activation. This explains a successful earlier deployment followed by an unlicensed
+N3 run; it does not introduce a new installation prerequisite.
+
+The target-version [Unity activation policy](https://docs.unity3d.com/2022.3/Documentation/Manual/LicenseActivationMethods.html)
+uses Hub for Personal activation/return. Serial-based paid licensing supports its documented
+CLI/manual paths; manual offline activation is not supported for Personal. Current
+[Hub guidance](https://docs.unity.com/en-us/hub/manage-license) also describes automatic Personal
+activation after sign-in. VUA does not use undocumented free-mode flags, fabricate license files,
+rewrite identity, or collect account passwords/serials. Reuse an already active legitimate
+license; otherwise follow official registration and activation. Eligible Personal is free under
+the [official eligibility policy](https://unity.com/pages/license-compliance).
+
+The novice journey is **Settings → Accounts → Unity**: create/verify an account if needed, sign
+in to Hub, activate/confirm a suitable license, locate the already installed exact Editor if
+necessary, then return to AMF and reinspect retained work. Existing accounts skip registration;
+the existing Editor and original materials are retained. The same explanation is reachable from
+the scenario SOP and a license failure. Installing software remains independently usable and
+does not gate on an account form. License activation and actual licensed Editor/SDK acceptance
+remain real-machine observations; software-only checks explicitly report `not_checked`.
+
 ## Contract implementation and subsequent project work
 
 N1 Candidate deployment applies this admission rule independently of the frozen Editor identity
@@ -65,6 +90,7 @@ including SDK recognition and upload preparation, rather than blocking N1 instal
 
 ## Document changelog
 
+- 2.1.0 (2026-10-13): separate installation facts from licensed Editor execution, record official Personal/paid activation routes, and add novice registration/reinspection guidance.
 - 2.0.1 (2026-10-02): align official-first acquisition and actual downloaded-version checks with the latest user ruling.
 - 2.0.0 (2026-10-02): accept the author's development f1/c1 pair, prefer global with China fallback,
   and separate N1 admission from frozen inspection/project contracts.

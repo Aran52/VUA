@@ -18,6 +18,14 @@
 /// It is VUA-authored synthetic code with no third-party content.
 pub const MA_STUB_PACKAGE_ID: &str = "nadena.dev.modular-avatar.core";
 
+/// Candidate N3 files require the real MA package. They are deliberately
+/// excluded from conversion scaffolds that use the minimal compile stub.
+pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
+    ("Editor/Amf.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs.meta")),
+];
+
 pub const MA_STUB_PACKAGE_JSON: &str =
     r#"{ "name": "nadena.dev.modular-avatar.core", "version": "0.0.0-stub" }"#;
 

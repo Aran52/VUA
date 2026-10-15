@@ -168,3 +168,8 @@ pub use win_registry::{FakeRegistrySource, RegistryHive, RegistrySource, Windows
 
 /// N1 deployment decisions and adapter port; independent of vendor/process types.
 pub mod deployment;
+pub mod amf_production;
+pub mod amf_recipe;
+pub mod amf_recipe_share;
+pub mod amf_recipe_apply;
+pub mod scenario_environment;

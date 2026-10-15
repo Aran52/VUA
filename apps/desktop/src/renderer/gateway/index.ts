@@ -271,3 +271,4 @@ export { useAmfModule } from "./GatewayProvider.tsx";
 export { formatBytes, recentDownloadSpeed } from "./task-progress.ts";
 export { createDistributionPort } from "./distribution-port.ts";
 export { installAmfUiHost } from "./amf-ui-host.ts";
+export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionSource, AmfProductionList, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted } from "./amf-production-port.ts";

@@ -90,6 +90,7 @@ import {
   useAmfModule,
   useEnvironmentView,
   useSettingsView,
+  useGateway,
   type VuaGateway,
 } from "./gateway/index.ts";
 import { ModulesPage } from "./features/modules/ModulesPage.tsx";
@@ -530,7 +531,7 @@ function renderPage(
   switch (page) {
     case "home": case "environment-hub": case "avatar-hub":
       return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
-    case "help": case "help-wizard": case "help-tour": case "help-game-assistant": case "help-encyclopedia":
+    case "help": case "help-wizard": case "help-tour": case "help-game-assistant": case "help-encyclopedia": case "help-ai":
       return <HelpPage page={page} navigate={actions.navigate} onAccounts={actions.openAccounts} startTour={actions.startTour} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
     case "env-play": case "env-create":
       return <RouteEnvironmentPage zone={page === "env-play" ? "play" : "create"} onAccounts={actions.openAccounts} onOpenAmf={() => actions.navigate("warehouse")} />;
@@ -589,6 +590,8 @@ function AppShell({
   const guideRequestNonce = useRef(0);
   const acknowledgeGuide = (nonce: number) => setGuideRequest(current => shouldClearGuideRequest(current, nonce) ? null : current);
   useAutoDeleteOriginals();
+  const aiPort = useGateway().aiTools;
+  const seenAiRequests = useRef(new Set<string>());
   // 启动里程碑 paint:AppShell 首帧提交(Phase A 开屏牵线)
   useEffect(() => {
     bootProgress.report("paint");
@@ -665,6 +668,11 @@ function AppShell({
     }
   });
   useEffect(() => window.vua?.window.shellCommandEvents?.subscribe(onShellCommand), []);
+  const onAiRequests = useEffectEvent((snapshot: import("@vua/contracts").AiToolsSnapshotV01) => {
+    const fresh = snapshot.requests.filter(request => request.state === "pending" && !seenAiRequests.current.has(request.id));
+    if (fresh.length) { fresh.forEach(request => seenAiRequests.current.add(request.id)); navigate("help-ai"); }
+  });
+  useEffect(() => aiPort?.subscribe(onAiRequests), [aiPort]);
   const onEncyclopediaTarget = useEffectEvent((target: GuideTargetV1 | null) => {
     setGuideRequest({ target, nonce: ++guideRequestNonce.current });
     navigate("help-encyclopedia");

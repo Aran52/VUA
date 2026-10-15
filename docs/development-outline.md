@@ -1,9 +1,9 @@
 # VUA development sequence
 
-> Document version: 3.27.1
+> Document version: 3.30.0
 > Status: Accepted
-> Updated: 2026-10-13
-> Authority: User rulings of 2026-09-28 through 2026-10-12, including independent release numbering, scenario-host ownership, AMF/BDL isolation and separate host/module acceptance
+> Updated: 2026-10-16
+> Authority: User rulings of 2026-09-28 through 2026-10-13, including independent release numbering, scenario-host ownership, AMF/BDL isolation and material-first production
 > Scope: N1-N7, real-machine deployment and real-material workflows, continuing Beta
 > Normative effect: Schedules accepted product work; product scope belongs to product-boundary.md
 
@@ -57,7 +57,7 @@ and placeholder entries are deferred beyond this release under the 2026-10-10 us
 | Gate | User task | Status |
 | --- | --- | --- |
 | N1 | Isolate the host, then detect, deploy and guide each scenario's prerequisites and SOP | Desktop/PICO play subset first; complete real-machine acceptance pending |
-| N2 | Select optional modules and connect chosen external software from Steam, official installers or GitHub releases | VRCFT Candidate connection and device-guidance slice; real installation/tracking acceptance pending; other selected entries planned |
+| N2 | Select optional modules and connect chosen external software from Steam, official installers or GitHub releases | Six-tool Candidate Steam connection with bounded discovery/launch evidence; fresh installation, tracking/calibration and human UI acceptance pending; VRCS/LIV remain planned |
 | N3 | Accept AMF's complex real-material Avatar production and SDK handoff | Planned; independent of host-only publication |
 | N4 | Accept AMF's Recipe saving, sharing and reproduction | Planned; independent AMF scope |
 | N5 | Accept AMF + BDL material management and acquisition | Existing code, audit and review retained; independent acceptance remains open |
@@ -133,6 +133,7 @@ does not require AMF or BDL. AMF owns Avatar/material behavior, not the host's e
 | Host without active AMF | Fresh and legacy profiles can use host scenarios with AMF disabled or failed; no AMF/BDL queries are needed to inspect or prepare play/Unity prerequisites |
 | Module selection and lifecycle | The bundled Ibis AMF payload defaults to enabled for new profiles. Existing choices and old-profile defaults survive; the user can disable/re-enable it independently. Disabled navigation offers its explanation in Avatar editing; host startup, settings and scenario tasks remain usable |
 | One usable scenario | Connect choice → prerequisite check → plan/deployment → SOP → supported launch/handoff. Exercise return, reinspection and retry with that path under N6 before broadening it |
+| Independent preparation operations | SOP reads, software-only checks and installation plan/execute can each be called separately from UI or the Candidate MCP tools. Checks create no installation tasks and report Unity license state as not checked; actual Editor execution uses the registration/activation handoff |
 
 This is an implementation order and ownership change, not a new generic plugin framework or
 evidence that a stage passed. Keep the existing physical and human acceptance rows below.
@@ -233,10 +234,22 @@ N2 covers optional modules and external-software connections, extending the orig
 Steam tools with the explicitly selected VRCS entry. Reuse N1's prerequisite capabilities;
 support each application's actual Steam, official-installer or GitHub-release source rather
 than forcing every entry through Steam. A module supplies a chosen scenario/SOP, not a second
-copy of host environment management. VRCFT now has a Candidate Steam connection and device picker;
-the other Tools cards expose descriptions with disabled development actions. Neither the guide
-nor the presence of a card establishes physical tracking or accepted integrations.
-MioVRC and a public Agent/MCP integration remain outside Ibis.
+copy of host environment management. Six Steam entries — VRCFT, Space Calibrator, OVR Advanced
+Settings, OVR Overlay Translator, OVR Toolkit and OyasumiVR — now share the Candidate Steam
+connection (discovery, install handoff, launch and status observation); VRCFT additionally keeps
+its device picker and hardware SOP. VRCS (a GitHub source) and LIV remain description cards with
+disabled development actions. Neither the guide nor the presence of a card establishes physical
+tracking or accepted integrations. Local Windows evidence from 2026-10-14 covers discovery,
+installed-software reuse, Steam launch handoff and process observation for all six tools. It
+also records delayed launches beyond the observation window and normal-close failures; these
+are not complete lifecycle passes. The evidence is retained under
+`_local_real_machine/n2-steam-tools-20261014/` in the `slice/n2-steam-tools` checkout. Fresh
+installation, hardware tracking/calibration, internal tool behavior and human UI acceptance
+remain pending; see the bounded findings in [external-tool v0.2](protocols/external-tool-v0.2.md).
+MioVRC remains excluded. Historical v0.6.6/v0.6.7 did not include public Agent tools. The author's
+subsequent 2026-10-13 instruction is implemented as a local
+[Candidate MCP adapter](protocols/ai-tools-v0.1.md), with existing Agents as consumers and VUA as
+the fact/execution authority. Its real-client and production acceptance is recorded independently.
 
 | Application / official distribution | Steam App ID | Purpose | Additional acceptance / timing |
 | --- | --- | --- | --- |
@@ -306,6 +319,15 @@ it is not a prerequisite for publishing a host-only scenario. Bundling or enabli
 does not close N3 or broaden a release's advertised production scope.
 
 User task: combine owned materials in one project and hand the result to VRC SDK.
+The normal journey starts with selecting materials. Hide automatic project preparation and
+unambiguous Avatar/material/relationship selection; request a choice only when the observed
+facts do not determine a safe target. The Candidate [basic implementation](protocols/amf-production-v0.1.md)
+connects local inputs, independent project/SDK/MA preparation, prefab observation, supported
+bindings/switches, digest confirmation, snapshots, retained results and SDK handoff. Its contract,
+synthetic use-case and browser checks do not establish actual Unity/SDK or complex-material
+acceptance. Real execution, author visual review and the following full gate remain pending;
+N4's portable Recipe behavior and existing-project import are separate remaining work.
+
 Minimum successful case: **one real Avatar + at least two actively used dependencies/plugins +
 at least six other real materials, together in one project and one production run**. Do not count
 individual files from one package as separate materials or install unused plugins to meet the count.
@@ -537,6 +559,9 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 
 ## Document changelog
 
+- 3.30.0 (2026-10-16): integrate the six-tool N2 Steam connection and bounded 2026-10-14 evidence alongside N3/N4 and the local Agent adapter, preserving installation, physical and human acceptance gaps.
+- 3.29.0 (2026-10-13): record the Candidate external-Agent adapter and independent preparation operations with novice activation/recovery, retaining real-client, licensed Unity and N acceptance gaps.
+- 3.28.0 (2026-10-13): schedule material-first N3 automation and record the Candidate basic path without closing actual Unity, SDK, complex-material or N4 acceptance.
 - 3.27.1 (2026-10-13): record official immutable hosting and controlled future-client source fallback without closing physical, material, clean-machine or human acceptance.
 - 3.27.0 (2026-10-13): record controlled NSIS/runtime/AMF update evidence for the selected v0.6.7 delivery while retaining clean-machine, source-hosting, physical and human acceptance gaps.
 
@@ -546,6 +571,5 @@ do not turn documentation completeness, speculative coverage, or idle agent acti
 - 3.24.1 (2026-10-12): clarify native file/folder drops and explicit AMF enablement alongside the existing local picker; pending N-stage outcomes stay unchanged.
 - 3.24.0 (2026-10-12): incorporate public BOOTH provenance lookup, fact-based corner controls and direct local intake into N5 without changing pending account/material and human acceptance.
 - 3.23.0 (2026-10-11): record current-state v0.6.6 Ibis ZIP publication before the NSIS/AMF-update slices without closing N1/N5 or their pending real-machine/human outcomes.
-- 3.22.0 (2026-10-11): add NSIS/mirrored-runtime distribution and independent incremental AMF update/recovery acceptance under the new user ruling; retain ZIP evidence and separate pending N-stage outcomes.
-- 3.21.1 (2026-10-11): clarify that public material-browser shortcuts and the host Wiki do not expand catalog/search integration or replace independent N5 acquisition acceptance; stage outcomes are unchanged.
-- 3.21.0 (2026-10-11): accept approximate regional references for Ibis and defer exact Photon/room measurement, retaining independent website observations and physical play acceptance.
+
+Earlier entries remain in Git history.

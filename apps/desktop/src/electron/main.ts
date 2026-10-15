@@ -1,5 +1,8 @@
+import { recipeTransferText } from "./amf-recipe-transfer.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
-import { app, BrowserWindow, dialog, ipcMain, net, screen, session, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
+import { AiToolsServer } from "./ai-tools-server.js";
+import { aiConnectionStore } from "./ai-connection-store.js";
 import fs from "node:fs";
 import path from "node:path";
 import type {
@@ -18,6 +21,7 @@ import type {
   OverlayViewV1,
   RemoteContentEventV1,
   RemoteContentViewStateV1,
+  AiConnectionLocale,
 } from "@vua/contracts";
 import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01 } from "@vua/contracts";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
@@ -146,6 +150,7 @@ if (desktopProfile.kind !== "release") {
 }
 const packagedSmoke = preparePackagedSmoke();
 let mainWindow: BrowserWindow | null = null;
+let aiTools: AiToolsServer | null = null;
 let startupWindow: BrowserWindow | null = null;
 let startupFallback: ReturnType<typeof setTimeout> | null = null;
 
@@ -383,6 +388,25 @@ function resolveAmfEndpoint(): DesktopProviderEndpoint {
 }
 
 function registerIpc(provider: ModuleProvider): void {
+  // Pairing and approval are restricted to the local Main frame; overlays and
+  // embedded websites cannot read a token or approve an Agent's proposed write.
+  const assertAiSender = (event: Electron.IpcMainInvokeEvent) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error("untrusted_ai_control");
+  };
+  ipcMain.handle("vua:ai-tools:snapshot", event => { assertAiSender(event); return aiTools!.snapshot(); });
+  ipcMain.handle("vua:ai-tools:set-enabled", (event, enabled: unknown) => {
+    assertAiSender(event); if (typeof enabled !== "boolean") throw new Error("invalid_ai_control"); return aiTools!.setEnabled(enabled);
+  });
+  for (const action of ["prompt", "copy-prompt"] as const) ipcMain.handle(`vua:ai-tools:${action}`, (event, locale: unknown) => {
+    assertAiSender(event); if (locale !== "en" && locale !== "zh-CN" && locale !== "ja" && locale !== "ko") throw new Error("invalid_ai_locale");
+    const prompt = aiTools!.prompt(locale as AiConnectionLocale);
+    if (action === "copy-prompt") { clipboard.writeText(prompt); return; } return prompt;
+  });
+  ipcMain.handle("vua:ai-tools:resolve", (event, id: unknown, decision: unknown) => {
+    assertAiSender(event); if (typeof id !== "string" || id.length > 100 || (decision !== "approve" && decision !== "reject")) throw new Error("invalid_ai_approval");
+    return aiTools!.resolve(id, decision);
+  });
   const updates = new DistributionUpdater({ context: installedContext(),
     prepareRestart: () => provider.prepareForUpdate(),
     restart: command => { shutdownStarted = true; app.relaunch({ execPath: path.join(installedContext()!.root, "VUA.exe"), args: [command] }); app.quit(); },
@@ -414,6 +438,7 @@ function registerIpc(provider: ModuleProvider): void {
       platform: process.platform as "win32" | "darwin" | "linux",
       rendererUrl,
       resolveMaterialSource: resolveProductionContext,
+      launchAmfEditor: runId => launchAmfEditor(provider, runId),
     },
     senderFrameUrl(event),
     request,
@@ -473,6 +498,18 @@ function registerIpc(provider: ModuleProvider): void {
     if (result.canceled || result.filePaths.length === 0) return null;
     assertAmfReady();
     return result.filePaths;
+  });
+  ipcMain.handle("vua:recipe:copy-share", (event, document: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    clipboard.writeText(recipeTransferText(document).shareCode);
+  });
+  ipcMain.handle("vua:recipe:save-share", async (event, document: unknown) => {
+    assertLocalSender(senderFrameUrl(event)); assertAmfReady();
+    const {fileText} = recipeTransferText(document);
+    const options = { defaultPath: "avatar-recipe.vuarecipe.json", filters: [{name:"VUA Recipe",extensions:["json"]}] };
+    const result = mainWindow === null ? await dialog.showSaveDialog(options) : await dialog.showSaveDialog(mainWindow, options);
+    if (result.canceled || !result.filePath) return false;
+    assertAmfReady(); await fs.promises.writeFile(result.filePath, fileText, "utf8"); return true;
   });
   ipcMain.handle("vua:dialog:pick-library-thumbnail", async (event, locale: unknown) => {
     assertLocalSender(senderFrameUrl(event));
@@ -1789,9 +1826,20 @@ app.whenReady().then(async () => {
     }
     broadcastGatewayEvent(rendererUrl, event);
   });
+  aiTools = new AiToolsServer({
+    version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage),
+    invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
+      platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
+      resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId) },
+      mainWindow?.webContents.getURL() ?? "", request),
+  });
+  aiTools.subscribe(snapshot => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:ai-tools:changed", snapshot);
+  });
   registerIpc(provider);
   systemUsage.start(desktopRuntime.providerExecutable);
   await createWindow();
+  if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
   if (packagedSmoke && mainWindow) {
     await packagedSmoke.verify(mainWindow, provider);
     return;
@@ -1824,6 +1872,7 @@ app.on("will-quit", () => { systemTray?.dispose(); systemTray = null; });
 app.on("before-quit", (event) => {
   systemUsage.stop();
   stopGameGuideFollowTimer();
+  void aiTools?.dispose();
   if (provider === null || shutdownStarted || provider.status().state === "stopped") return;
   event.preventDefault();
   shutdownStarted = true;
@@ -1843,3 +1892,4 @@ app.on("before-quit", (event) => {
     }
   })();
 });
+import { launchAmfEditor } from "./amf-editor-handoff.js";

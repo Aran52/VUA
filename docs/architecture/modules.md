@@ -1,9 +1,9 @@
 # VUA host and optional AMF module
 
-> Document version: 1.6.0
+> Document version: 1.7.0
 > Status: Accepted
 > Scope: First-party module composition, lifecycle and data ownership
-> Updated: 2026-10-13
+> Updated: 2026-10-14
 
 The user-defined unit is a **scenario** (the author's term: “情景”): a goal with a SOP list,
 prerequisites, preparation, launch and recovery. A module supplies capabilities to scenarios.
@@ -45,8 +45,9 @@ adding a model-service configuration page or Agent harness to this Ibis slice.
 - The first-party payload is installed with VUA (`resources/modules/amf/` in legacy ZIP;
   a signed versioned payload in [NSIS distribution](windows-distribution.md)). A fresh profile
   defaults to enabled. Main records this choice before either provider creates its database.
-  Existing saved enable/disable choices win; a pre-existing host/legacy/module-data profile with
-  no registration retains the former disabled default. “Enable” starts this local payload,
+  Existing saved enable/disable choices win. Under the 2026-10-14 user correction, a profile
+  without a registration also defaults to enabled: database presence chooses the data layout,
+  never an opt-out. “Enable” starts this local payload,
   not a network install. Registration read failure retains the file and fails only AMF.
   Avatar editing explains the module and provides its enable/disable switch. When disabled,
   the sidebar entry opens that setup section without changing selection; Settings → Modules
@@ -121,6 +122,8 @@ real-material, PICO, installer or four-language human acceptance. Those outcomes
 owned by the [N sequence](../development-outline.md) and [Ibis plan](../development/first-play-delivery-plan.md).
 
 ## Document changelog
+
+- 1.7.0 (2026-10-14): apply the user's default-enablement correction to profiles without a saved module choice; preserve explicit opt-outs and existing data layouts.
 
 - 1.6.0 (2026-10-13): record complete AMF UI/native release payloads, host bindings and installed update/recovery boundary without claiming shared Rust-library extraction or full acceptance.
 

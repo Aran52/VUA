@@ -33,6 +33,7 @@ export interface DesktopGatewayRouteContext {
    *  未知引用返回 undefined。四元组随 startInspection 一次性转交,此后路径
    *  不再出现在任何请求面 */
   readonly resolveMaterialSource: (refId: string) => ProductionContextV02 | undefined;
+  readonly launchAmfEditor?: ((runId: string) => Promise<void>) | undefined;
 }
 
 function requestIdFrom(value: unknown): string {
@@ -545,6 +546,11 @@ function toApplicationRequest(
       return { ...base, kind: "command", method: "warehouse.importDownloads", commandId: request.params.commandId, params: { downloadIds: [...request.params.downloadIds] } };
 
     // production-use-case v0.2(W20 ten-method, W24 workbench): verbatim pass-through
+    case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
+    case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe":
+      return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };
     case "recipe.save":
       return {
         ...base,
@@ -692,6 +698,9 @@ export async function routeDesktopGatewayInvoke(
         ok: false,
         error: { code: "application", application: providerResponse.error },
       };
+    }
+    if (request.method === "amf.production.open" && context.launchAmfEditor) {
+      await context.launchAmfEditor(request.params.runId);
     }
     if (request.method === "app.snapshot") {
       if (!isApplicationSnapshot(providerResponse.value)) {

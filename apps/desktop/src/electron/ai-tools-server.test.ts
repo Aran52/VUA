@@ -1,0 +1,136 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
+import { AiToolsServer } from "./ai-tools-server.js";
+import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
+import { request as httpRequest } from "node:http";
+
+const token = "a".repeat(43), digest = "b".repeat(64);
+const intent = { purposes: ["desktop_play"], editorRoot: "C:\\Program Files\\Unity\\Hub\\Editor", useMirrors: true };
+const cleanups: (() => Promise<unknown>)[] = [];
+afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
+function envelope(request: DesktopGatewayRequestV1, value: unknown): DesktopGatewayResponseV1 {
+  return { schemaVersion: 1, requestId: request.requestId, ok: true, value } as DesktopGatewayResponseV1;
+}
+async function setup(handler?: (request: DesktopGatewayRequestV1) => Promise<DesktopGatewayResponseV1>, now?: () => number) {
+  const calls: DesktopGatewayRequestV1[] = [];
+  const service = new AiToolsServer({ version: "test", port: 0, now, load: () => ({ enabled: false, token }), save: () => {},
+    invoke: async request => {
+      calls.push(request);
+      if (handler) return handler(request);
+      if (request.method === "environment.planDeployment") return envelope(request, { deploymentPlan: { digest, intent: request.params.intent,
+        steps: [{ component: "steam", action: "install_steam", reason: "missing" }] } });
+      if (request.method === "environment.executeDeployment") return envelope(request, { taskId: "test-installation" });
+      if (request.method === "environment.observePlay") return envelope(request, { playSession: { route: request.params.route, software: [] } });
+      return envelope(request, { observed: request.method });
+    } });
+  cleanups.push(() => service.dispose());
+  await service.setEnabled(true);
+  const endpoint = service.snapshot().endpoint!;
+  const client = new Client({ name: "test-agent", version: "1" });
+  const transport = new StreamableHTTPClientTransport(new URL(endpoint), { requestInit: { headers: { Authorization: `Bearer ${token}` } } });
+  await client.connect(transport);
+  cleanups.push(async () => { await transport.terminateSession().catch(() => {}); await client.close(); });
+  return { service, client, endpoint, calls };
+}
+function data(result: Awaited<ReturnType<Client["callTool"]>>): Record<string, unknown> {
+  if (result.structuredContent) return result.structuredContent as Record<string, unknown>;
+  const text = result.content?.find(value => value.type === "text");
+  return JSON.parse(text?.type === "text" ? text.text : "{}") as Record<string, unknown>;
+}
+describe("built-in MCP, using the official HTTP client", () => {
+  it("initializes, lists a closed tool catalog and calls independent reads", async () => {
+    const { client, calls, service } = await setup();
+    const tools = await client.listTools();
+    expect(tools.tools.map(tool => tool.name)).toEqual(AI_TOOLS.map(tool => tool.name));
+    expect(service.snapshot().connections).toBe(1);
+    await client.callTool({ name: "vua_sop", arguments: { scenario: "pico_pcvr", connection: "wifi" } });
+    await client.callTool({ name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"] } } });
+    expect(calls.map(request => request.method)).toEqual(["environment.getScenarioSop", "environment.checkScenarioEnvironment"]);
+    expect(calls[0]!.params).toEqual({ schemaVersion: "0.1", scenario: { scenario: "pico_pcvr", connection: "wifi" } });
+    expect(calls[1]!.params).toEqual({ schemaVersion: "0.1", intent });
+    expect(service.snapshot().requests).toEqual([]);
+  });
+  it("queues the concrete installation, deduplicates retries, and requires a local approval", async () => {
+    const { client, calls, service } = await setup();
+    const args = { intent: { purposes: ["desktop_play"] }, confirmedDigest: digest };
+    const first = data(await client.callTool({ name: "vua_request_installation", arguments: args }));
+    const second = data(await client.callTool({ name: "vua_request_installation", arguments: args }));
+    expect(first.data).toEqual(second.data);
+    const request = service.snapshot().requests[0]!;
+    expect(request.state).toBe("pending");
+    expect(request.details.reviewed).toHaveProperty("deploymentPlan.steps.0.component", "steam");
+    expect(calls.map(request => request.method)).toEqual(["environment.planDeployment"]);
+    const forged = await client.callTool({ name: "vua_action_status", arguments: { approvalId: request.id, decision: "approve" } });
+    expect(forged.isError).toBe(true);
+    expect(calls).toHaveLength(1);
+    await service.resolve(request.id, "approve");
+    expect(calls.map(request => request.method)).toEqual(["environment.planDeployment", "environment.executeDeployment"]);
+    expect(service.snapshot().requests[0]).toMatchObject({ state: "accepted", result: { taskId: "test-installation" } });
+    await expect(service.resolve(request.id, "approve")).rejects.toThrow("resolved");
+    const state = data(await client.callTool({ name: "vua_action_status", arguments: { approvalId: request.id } }));
+    expect(state.data).toHaveProperty("state", "accepted");
+  });
+  it("rejects a stale digest before consent and preserves a backend rejection after consent", async () => {
+    let changed = false;
+    const { client, service } = await setup(async request => {
+      if (request.method === "environment.planDeployment") return envelope(request, { deploymentPlan: { digest, intent } });
+      if (changed) return { schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "application", application: {
+        contractVersion: "0.1", code: "vua.deployment.plan_changed", category: "validation", messageKey: "errors.deployment.failed",
+        recoverable: true, retryable: false, correlationId: request.requestId,
+      } } };
+      return envelope(request, {});
+    });
+    const stale = await client.callTool({ name: "vua_request_installation", arguments: { intent: { purposes: ["desktop_play"] }, confirmedDigest: "c".repeat(64) } });
+    expect(stale.isError).toBe(true); expect(service.snapshot().requests).toEqual([]);
+    await client.callTool({ name: "vua_request_installation", arguments: { intent: { purposes: ["desktop_play"] }, confirmedDigest: digest } });
+    changed = true;
+    await service.resolve(service.snapshot().requests[0]!.id, "approve");
+    expect(service.snapshot().requests[0]).toMatchObject({ state: "failed", error: "vua.deployment.plan_changed" });
+  });
+  it("requires pairing on every request and rejects websites, alternate hosts and oversized bodies", async () => {
+    const { endpoint } = await setup();
+    const post = (headers: Record<string, string>, body = "{}") => fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body });
+    expect((await post({})).status).toBe(401);
+    expect((await post({ Authorization: "Bearer wrong" })).status).toBe(401);
+    expect((await post({ Authorization: `Bearer ${token}`, Origin: "https://booth.pm" })).status).toBe(403);
+    const wrongHost = await new Promise<number>(resolve => {
+      const request = httpRequest(endpoint, { method: "POST", headers: { Authorization: `Bearer ${token}`, Host: "attacker.test", "Content-Type": "application/json" } }, response => { response.resume(); resolve(response.statusCode!); });
+      request.end("{}");
+    });
+    expect(wrongHost).toBe(403);
+    expect((await post({ Authorization: `Bearer ${token}` }, JSON.stringify({ padding: "x".repeat(129 * 1024) }))).status).toBe(413);
+  });
+  it("expires approval, rejects declined work and shuts down the endpoint on disable", async () => {
+    let clock = Date.now();
+    const { client, service, calls, endpoint } = await setup(undefined, () => clock);
+    await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
+    const first = service.snapshot().requests[0]!;
+    await service.resolve(first.id, "reject");
+    await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
+    const pending = service.snapshot().requests[1]!;
+    clock += 16 * 60_000;
+    expect(service.snapshot().requests[1]!.state).toBe("expired");
+    await expect(service.resolve(pending.id, "approve")).rejects.toThrow("expired");
+    expect(calls.every(request => request.method === "environment.observePlay")).toBe(true);
+    expect(service.snapshot()).not.toHaveProperty("token");
+    expect(service.prompt("zh-CN")).toContain("Bearer ");
+    await service.setEnabled(false);
+    expect(service.snapshot()).toMatchObject({ enabled: false, endpoint: null, connections: 0 });
+    expect(() => service.prompt("en")).toThrow("disabled");
+    await expect(fetch(endpoint)).rejects.toThrow();
+  });
+  it("rejects invented methods and parameter injection before touching the Gateway", async () => {
+    const { client, calls } = await setup();
+    for (const request of [
+      { name: "execute_shell", arguments: { command: "anything" } },
+      { name: "vua_sop", arguments: { scenario: "desktop_play", connection: "wifi" } },
+      { name: "vua_check_environment", arguments: { intent: { purposes: ["desktop_play"], method: "anything" } } },
+      { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
+    ]) expect((await client.callTool(request)).isError).toBe(true);
+    expect(calls).toEqual([]);
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan"].includes(spec.name))) {
+      expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
+    }
+  });
+});

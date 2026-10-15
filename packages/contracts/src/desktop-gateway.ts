@@ -1,6 +1,8 @@
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams } from "./environment-deployment.js";
+import { isAmfProductionParams, type AmfProductionRequestV1 } from "./amf-production-v01.js";
+import { isScenarioEnvironmentParams, type ScenarioEnvironmentRequestV1 } from "./scenario-environment.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute } from "./play-session.js";
-import { isExternalToolParams, type ExternalToolAction } from "./external-tool.js";
+import { isExternalToolParams, type ExternalToolAction, type ExternalToolId } from "./external-tool.js";
 import { isNetworkParams, type NetworkIntent } from "./environment-network.js";
 import { isWebsiteTestParams, type WebsiteTestParams } from "./website-test.js";
 import type {
@@ -994,10 +996,12 @@ export interface GatewayDeploymentPlanRequest { readonly schemaVersion: 1; reado
 export interface GatewayDeploymentExecuteRequest { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.executeDeployment"; readonly params: DeploymentExecuteParams & { readonly commandId: string } }
 
 export type DesktopGatewayRequestV1 =
+  | AmfProductionRequestV1
+  | ScenarioEnvironmentRequestV1
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } }
-  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: "vrcft" } }
-  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.actConnection"; readonly params: { readonly toolId: "vrcft"; readonly action: ExternalToolAction; readonly commandId: string } }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.actConnection"; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.startPlay" | "environment.stopPlay"; readonly params: { readonly route: PlayRoute; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.checkNetwork"; readonly params: { readonly intent: NetworkIntent } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.testWebsites"; readonly params: WebsiteTestParams }
@@ -1085,6 +1089,9 @@ export type DesktopGatewayRequestV1 =
 
 /** 方法 → 应用语义:Kernel 路由用;未知方法返回 undefined */
 export const DESKTOP_GATEWAY_METHOD_KINDS = {
+  "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query",
+  "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
+  "amf.production.prepare": "command", "amf.production.assemble": "command", "amf.production.reinspect": "command", "amf.production.open": "command", "amf.production.rollback": "command", "amf.production.saveRecipe": "command", "amf.production.prepareRecipe": "command", "amf.production.exportRecipe": "command", "amf.production.importRecipe": "command", "amf.production.applyRecipe": "command",
   "app.snapshot": "query",
   "task.list": "query",
   "task.get": "query",
@@ -1415,6 +1422,8 @@ export interface DesktopDialogApiV1 {
   pickWarehouseFolders(): Promise<readonly string[] | null>;
   /** User-picked thumbnail copied into local cache; no source path reaches Renderer. */
   pickLibraryThumbnail?(): Promise<string | null>;
+  copyRecipeShare?(document: import("./amf-recipe-v04.ts").AmfSharedRecipe): Promise<void>;
+  saveRecipeShare?(document: import("./amf-recipe-v04.ts").AmfSharedRecipe): Promise<boolean>;
   /** U10 手选编辑器路径(021 收敛点 4:单一「浏览」入口 openFile +
    *  openDirectory 双态):pickEditorExecutable 选 exe 文件本身,
    *  pickEditorDirectory 选版本化根/Editor 目录;取消返回 null。路径原样
@@ -1873,6 +1882,11 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
   if (!isRecord(value.params)) return false;
 
   switch (value.method) {
+    case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
+      return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
+    case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare":
+    case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe":
+      return hasExactKeys(value, REQUEST_KEYS) && isAmfProductionParams(value.method, value.params);
     case "app.snapshot":
     case "task.list":
     case "environment.getSnapshot":

@@ -1,8 +1,8 @@
 # N-sequence architecture evolution
 
-> Document version: 1.8.0
+> Document version: 1.9.0
 > Status: Accepted
-> Updated: 2026-10-10
+> Updated: 2026-10-13
 > Last conformance review: 2026-10-05 (first-play source/evidence checkpoint; remaining paths tracked separately)
 > Scope: Incremental software and documentation structure for N1-N7
 > Normative effect: Accepted incremental direction; existing wire/storage contracts remain authoritative
@@ -40,17 +40,23 @@ when a measured dependency, build, packaging, or independent lifecycle problem j
 The author's 2026-10-10 direction is for VUA to supply stable tools to an Agent already available
 on the user's computer. The external Agent owns conversation, model selection and planning;
 VUA owns observed facts, bounded operations, task state and verification. Do not make a VUA-owned
-Agent harness, chat runtime or model-service/API-key configuration a prerequisite. This is a future
-increment, not an implemented API or an additional Ibis release requirement.
+Agent harness, chat runtime or model-service/API-key configuration a prerequisite. The author's
+2026-10-13 instruction now has a local [Candidate MCP adapter](../protocols/ai-tools-v0.1.md);
+historical release artifacts and N-stage acceptance are unchanged.
 
-MCP is a candidate adapter, alongside another narrow local interface. The
+The built-in MCP adapter is owned by Electron Main and uses authenticated loopback Streamable
+HTTP through the official SDK. Its optional V4 desktop control face belongs to the typed Gateway;
+AMF is not required to connect or read host steps. The
 [MCP tools specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
 supports named tools with input schemas and optional structured output schemas. Transport choice
 does not establish reproducibility: VUA must retain concrete inputs, relevant versions, plan or
 task identities, actual inspection results and existing production records. Model suggestions
 remain suggestions until the normal execution and verification path succeeds.
 
-Start a future slice with read-only facts and a bounded plan for one already supported scenario.
+The first slice exposes read-only facts and bounded plans for already supported operations.
+SOP, software-only checks and installation are [independent](../protocols/scenario-environment-v0.1.md).
+Writes queue concrete local approvals; the Agent cannot confirm itself. Acceptance means dispatch,
+not task completion. Unity installation remains separate from licensed Editor execution.
 Mutation entry points must reuse the existing task authority, idempotency, project leases,
 confirmation and recovery discipline. Route host work to the host and AMF work to a ready AMF;
 deterministic Unity changes still cross the versioned Bridge. Do not introduce an Agent shortcut
@@ -226,6 +232,7 @@ installer choices above are not frozen interfaces; define them from the first ex
 
 ## Document changelog
 
+- 1.9.0 (2026-10-13): route the implemented Candidate local MCP adapter, independent scenario reads, local approvals and licensed Editor handoff while preserving host/AMF authority.
 - 1.8.0 (2026-10-10): accept future external-Agent tool access through a narrow adapter and existing execution authorities, without adding an Agent harness or widening Ibis.
 - 1.7.0 (2026-10-09): place the concrete host/AMF lifecycle extraction before scenario integrations and route current network rulings.
 - 1.6.0 (2026-10-05): prioritize three guidance contexts on the completed first-play foundation and link the current delivery checkpoint.
@@ -241,5 +248,5 @@ installer choices above are not frozen interfaces; define them from the first ex
   modules), name the real onboarding/guide renderer features instead of a nonexistent Wizard
   module, and clarify that this accepted direction governs proposed implementation changes.
 - 1.3.0 (2026-09-30): prefer official standalone Unity CLI deployment; retain existing Hub only as optional fallback.
-- 1.2.0 (2026-09-30): link the implemented purpose-plan/confirmation slice and distinguish remaining N1 functional acceptance.
+
 Earlier entries remain in Git history.

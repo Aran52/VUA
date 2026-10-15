@@ -1,0 +1,12 @@
+.vua-ai-tools { display: grid; gap: 20px; min-width: 0; max-width: 1100px; }
+.vua-ai-tools h2, .vua-ai-tools h3 { margin-top: 0; }
+.vua-ai-tools__controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.vua-ai-tools__prompt { display: block; box-sizing: border-box; width: 100%; resize: vertical; min-height: 190px; max-height: 60dvh; margin-block: 16px; padding: 16px; font: inherit; font-size: 14px; line-height: 1.6; color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); border-radius: 12px; }
+.vua-ai-tools__prompt:focus-visible { outline: 2px solid var(--vua-accent); outline-offset: 3px; }
+.vua-ai-tools__requests { display: grid; gap: 16px; }
+.vua-ai-tools__requests > h2, .vua-ai-tools__requests > p { margin: 0; }
+.vua-ai-tools__requests header { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px; }
+.vua-ai-review { overflow-wrap: anywhere; }
+.vua-ai-review pre { max-height: 220px; overflow: auto; font-size: 13px; white-space: pre-wrap; }
+.vua-ai-review li { margin-block: 8px; }
+.vua-ai-review summary { cursor: pointer; }

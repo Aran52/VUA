@@ -27,6 +27,7 @@ pub struct UnityBatchBridge {
     runner: Arc<dyn ProcessRunner>,
     executable: PathBuf,
     timeout: Duration,
+    amf_production: bool,
 }
 
 impl UnityBatchBridge {
@@ -35,6 +36,7 @@ impl UnityBatchBridge {
             runner: Arc::new(StdProcessRunner),
             executable: executable.into(),
             timeout: DEFAULT_BRIDGE_TIMEOUT,
+            amf_production: false,
         }
     }
 
@@ -43,12 +45,17 @@ impl UnityBatchBridge {
             runner,
             executable: executable.into(),
             timeout: DEFAULT_BRIDGE_TIMEOUT,
+            amf_production: false,
         }
     }
 
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
+    }
+
+    pub fn for_amf_production(executable: impl Into<PathBuf>) -> Self {
+        Self { amf_production: true, ..Self::new(executable) }
     }
 }
 
@@ -67,9 +74,17 @@ impl UnityBatchBridge {
         if result_path.exists() {
             fs::remove_file(&result_path)?;
         }
+        let mut args = Self::invocation_args(&project.root, &request, &result_path);
+        if self.amf_production {
+            let index = args.iter().position(|a| a == "-executeMethod").expect("fixed Bridge arguments");
+            args[index + 1] = "Vua.Editor.Bridge.AmfProductionEntryPoint.Run".into();
+            let logs = project.root.join(".vua/logs");
+            fs::create_dir_all(&logs)?;
+            args.extend(["-logFile".into(), logs.join(format!("{}.log",command.command_id)).to_string_lossy().into_owned()]);
+        }
         let spec = ProcessSpec {
             executable: self.executable.clone(),
-            args: Self::invocation_args(&project.root, &request, &result_path),
+            args,
             working_dir: None,
             timeout: self.timeout,
             output_limit: OUTPUT_LIMIT,

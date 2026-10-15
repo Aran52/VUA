@@ -15,7 +15,7 @@ import type {
   ProviderUnsubscribe, ProviderShutdownResultV01, ContinueShutdownRequestV01,
 } from "@vua/orchestrator-provider";
 
-const AMF_PREFIXES = ["production.", "warehouse.", "catalog.", "library.", "download.", "downloads.", "dependencies.", "recipe.", "recipeDraft.", "plan.", "job.", "record.", "inspection.", "release.", "project.", "packages.", "overlay."];
+const AMF_PREFIXES = ["amf.production.", "production.", "warehouse.", "catalog.", "library.", "download.", "downloads.", "dependencies.", "recipe.", "recipeDraft.", "plan.", "job.", "record.", "inspection.", "release.", "project.", "packages.", "overlay."];
 export function isAmfOperation(method: string): boolean {
   return AMF_PREFIXES.some(prefix => method.startsWith(prefix));
 }

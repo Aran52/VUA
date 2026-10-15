@@ -1,10 +1,10 @@
 # Electron desktop and presentation architecture
 
 
-> Document version: 1.32.0
+> Document version: 1.32.1
 > Status: Accepted
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-10-13
+> Updated: 2026-10-14
 > Last conformance review: 2026-10-12 (controlled library columns, inline link filtering, import popup, corners, public search and intake checks; real account/material/device and human-language review pending)
 > Normative effect: Yes
 
@@ -89,8 +89,10 @@ The [design standard](../design/design-standard.md#3-platform-and-information-ar
 owns the accepted layout, logo colors, unavailable peers and preserved visual preferences.
 
 Environment contains Play, Tools and Avatar editing. Tools groups the planned tracking,
-translation, VR utilities and capture integrations, independently of AMF. Its unwired entries
-offer collapsible descriptions with disabled development actions, not installed/launchable plugin claims. Help is a global topbar
+translation, VR utilities and capture integrations, independently of AMF. The six fixed Steam
+entries share the Candidate connection card (discovery/install handoff/launch/status); the
+remaining unwired entries offer collapsible descriptions with disabled development actions,
+not installed/launchable plugin claims. Help is a global topbar
 parallelogram beside Settings, with no sidebar duplicate; its active state covers all Help children.
 Home exposes it among global actions, and Search retains its entry. Help contains Getting started, the app tour, Knowledge encyclopedia and
 In-game assistant. The encyclopedia is a main-window page with hardware introductions and
@@ -491,6 +493,7 @@ The optional native `fs.navigation` face returns Electron's resolved Desktop/Doc
 
 ## Document changelog
 
+- 1.32.1 (2026-10-14): record that the six fixed Steam Tools entries now share the Candidate connection card, with only the remaining unwired entries on description cards.
 - 1.32.0 (2026-10-13): route NSIS packaged bootstrap and complete AMF UI/native updates to the owning Windows distribution architecture; add fixed native drive discovery to avoid PowerShell cold-start I/O.
 
 - 1.31.0 (2026-10-12): Add shared resizable list columns, body-portal import menus and reversible inline product-link filtering.

@@ -119,6 +119,21 @@ describe("host / optional AMF process boundary", () => {
     await provider.prepareShutdown({ timeoutMs: 100 });
   });
 
+  it("waits for a failed AMF process to exit before starting AMF again", async () => {
+    const order: string[] = [];
+    class FailingStart extends Port {
+      override async start(): Promise<never> { this.failed = true; throw new Error("corrupt BDL"); }
+      async waitForExit(): Promise<boolean> { order.push("previous exited"); return true; }
+    }
+    const instances: OrchestratorProviderV01[] = [new FailingStart({ capabilities: [] }), new Port({ capabilities: [{ operationId: "production.recipes", availability: "available" }] })];
+    const { provider } = setup({ factory: () => { order.push("created"); return instances.shift()!; } });
+    await provider.start();
+    expect((await provider.setAmfEnabled(true)).outcome).toBe("failed");
+    expect((await provider.setAmfEnabled(true)).snapshot.state).toBe("ready");
+    expect(order).toEqual(["created", "previous exited", "created"]);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+
   it("merges owner capabilities and tasks, and routes cancellation to the persisted owner", async () => {
     const { provider, host, amf, saved } = setup();
     await provider.start();

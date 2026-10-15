@@ -121,7 +121,10 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   async #startAmf(): Promise<void> {
+    const previous = this.#amf;
     this.#detachAmf();
+    // A failed start can leave its process exiting while it still holds module data.
+    if (previous?.status().state === "failed") await previous.waitForExit?.(5_000);
     try {
       const amf = this.options.createAmf();
       this.#amf = amf;

@@ -106,6 +106,7 @@ import { previewLibraryDirectory } from "./library-preview.js";
 import { resolveDesktopRuntime } from "./runtime-paths.js";
 import { preparePackagedSmoke } from "./packaged-smoke.js";
 import { configureDesktopProfile, resolveDesktopProfile, tagDevelopmentWindow } from "./runtime-profile.js";
+import { notificationIdentity, registerNotificationIdentity } from "./notification-identity.js";
 import { createVuaTray } from "./system-tray.js";
 import { createStartupWindow } from "./startup-window.js";
 import { registerAmfUiScheme, installAmfUiProtocol } from "./amf-ui-protocol.js";
@@ -143,8 +144,9 @@ const desktopProfile = resolveDesktopProfile({
     ? app.commandLine.getSwitchValue("vua-smoke-test") : undefined,
 });
 configureDesktopProfile(app, desktopProfile);
-// Windows attributes notifications to this identity (the installer's appId).
-if (process.platform === "win32") app.setAppUserModelId("org.vua-project.desktop");
+// Windows attributes notifications to this identity, registered for the current user once ready.
+const windowsIdentity = notificationIdentity(desktopProfile.kind);
+if (process.platform === "win32") app.setAppUserModelId(windowsIdentity.appId);
 if (app.isPackaged && !app.requestSingleInstanceLock()) app.exit(0);
 app.on("second-instance", () => { if (mainWindow !== null && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); } });
 if (desktopProfile.kind !== "release") {
@@ -1796,6 +1798,10 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === "win32" && !packagedSmoke) {
+    void registerNotificationIdentity(windowsIdentity, app.getPath("userData"))
+      .catch(error => process.stderr.write(`notification identity: ${error instanceof Error ? error.message : String(error)}\n`));
+  }
   installAmfUiProtocol();
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);

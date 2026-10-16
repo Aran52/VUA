@@ -29,7 +29,7 @@ export function createVuaTray(actions: {
     ? nativeTheme.shouldUseDarkColorsForSystemIntegratedUI : nativeTheme.shouldUseDarkColors);
   const tray = new Tray(image());
   tray.setToolTip("VUA");
-  tray.on("double-click", actions.showMain);
+  tray.on("click", actions.showMain);
   const updateTheme = () => { if (!tray.isDestroyed()) tray.setImage(image()); };
   nativeTheme.on("updated", updateTheme);
   const setLocale = (locale: unknown) => {

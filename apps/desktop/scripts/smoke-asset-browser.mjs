@@ -147,7 +147,7 @@ async function main() {
     await clickInPage("#next");
     await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "material child page");
     const originalContents = activeView().webContents.id;
-    const originalTab = await js('document.querySelector("[role=tab][aria-selected=true]").dataset.browserTab');
+    const originalTab = await js('document.querySelector("[data-browser-tab][aria-selected=true]").dataset.browserTab');
     await activeView().webContents.executeJavaScript('document.querySelector("#note").value="retained draft";window.scrollTo(0,420);true', true);
     await click("nav-env-play"); await waitFor(() => remoteViews().every(view => !view.getVisible()), "material browser hidden on another route");
     assert(remoteViews().length === 1, "Another shell route retains the material native view");
@@ -161,14 +161,14 @@ async function main() {
     assert(activeView().webContents.id !== originalContents && remoteViews().filter(view => view.getVisible()).length === 1, "Each tab has an independent native page and only one is visible");
     await clickInPage("#new-tab");
     await waitFor(() => remoteViews().length === 3 && activeView()?.webContents.getURL().endsWith("/child"), "website link opens local child tab");
-    assert(await js('document.querySelectorAll("[role=tab]").length===3'), "Allowed website popup becomes a VUA tab");
+    assert(await js('document.querySelectorAll("[data-browser-tab]").length===3'), "Allowed website popup becomes a VUA tab");
     await js('document.querySelector("[data-browser-site=vrcfinder]").dispatchEvent(new MouseEvent("click",{bubbles:true,ctrlKey:true}))');
     await waitFor(() => remoteViews().length === 4 && activeView()?.webContents.getURL() === "https://vrcfinder.net/", "shortcut opens new tab");
     assert(true, "Ctrl shortcut opens a separate tab without replacing the previous page");
     await clickShell(`[data-browser-tab="${originalTab}"]`);
     await waitFor(() => activeView()?.webContents.id === originalContents, "original tab activation");
     assert((await activeView().webContents.executeJavaScript('document.querySelector("#note").value')) === "retained draft", "Tab switching preserves the original form");
-    while (await js('document.querySelectorAll("[role=tab]").length<8')) {
+    while (await js('document.querySelectorAll("[data-browser-tab]").length<8')) {
       const count = remoteViews().length;
       await clickShell("[data-browser-new-tab]");
       await waitFor(() => remoteViews().length === count + 1 && activeView()?.webContents.getURL() === "https://booth.pm/", "tab limit preparation");
@@ -177,7 +177,7 @@ async function main() {
     await waitFor(frameFits, "eight tabs geometry");
     await clickInPage("#new-tab");
     await delay(150);
-    assert(remoteViews().length === 8 && (await js('document.querySelectorAll("[role=tab]").length')) === 8, "Both Main and Renderer cap retained tabs at eight");
+    assert(remoteViews().length === 8 && (await js('document.querySelectorAll("[data-browser-tab]").length')) === 8, "Both Main and Renderer cap retained tabs at eight");
     const extraTabs = await js(`[...document.querySelectorAll('[data-browser-close-tab]')].map(button=>button.dataset.browserCloseTab).filter(id=>id!==${JSON.stringify(originalTab)})`);
     for (const id of extraTabs) await clickShell(`[data-browser-close-tab="${id}"]`);
     await waitFor(() => remoteViews().length === 1 && activeView()?.webContents.id === originalContents, "extra tabs closed");

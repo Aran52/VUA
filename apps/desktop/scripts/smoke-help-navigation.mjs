@@ -248,14 +248,17 @@ async function run() {
     assert(await js('document.querySelector("[data-nav-id=toggle-amf]").checked && !document.querySelector("[data-nav-id=nav-enable-amf]")'), "AMF activation exposes its own sidebar without navigating away");
     await js('document.querySelector("[data-nav-id=logo-home]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=home-release]")'), "AMF Home directory");
-    assert(await js('!document.querySelector("[data-nav-id=home-inspection]") && document.querySelector("[data-nav-id=home-release]").textContent.includes("成品") && document.querySelector("[data-nav-id=home-packages]").textContent.includes("包管理器")'), "Finished Avatars and Package Manager replace the Inspection Home card");
+    // The factory rooms (2026-10-17 author ruling): Materials, Workshop (with checks), Office (Recipes and packages), Release.
+    assert(await js('["warehouse","workshop","recipe","release"].every(id => !!document.querySelector(`[data-nav-id=home-${id}]`)) && !document.querySelector("[data-nav-id=home-inspection]") && !document.querySelector("[data-nav-id=home-packages]")'), "AMF Home lists the four factory rooms; checks and packages live inside them");
     await js('document.querySelector("[data-nav-id=home-release]").click()');
     await waitFor(() => js('location.hash==="#release" && !!document.querySelector("main h1")'), "Finished Avatars destination");
     await js('document.querySelector("[data-nav-id=logo-home]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=home-packages]")'), "AMF Home return");
-    await js('document.querySelector("[data-nav-id=home-packages]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=home-recipe]")'), "AMF Home return");
+    await js('document.querySelector("[data-nav-id=home-recipe]").click()');
+    await waitFor(() => js('location.hash==="#recipe" && !!document.querySelector("[data-nav-id=tab-packages]")'), "Office room with its package tab");
+    await js('document.querySelector("[data-nav-id=tab-packages]").click()');
     await waitFor(() => js('location.hash==="#packages" && !!document.querySelector("main h1")'), "Package Manager destination");
-    assert(true, "Both new AMF Home cards open their existing functional pages");
+    assert(true, "Release and the Office package tab open their functional pages");
     // Synthetic authentication replies exercise the real renderer/Main IPC
     // handoff without contacting BOOTH, loading login pages or syncing accounts.
     let resolveAccountProbe;

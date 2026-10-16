@@ -10,7 +10,7 @@ import os from "node:os";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [output = path.join(os.tmpdir(), "vua-preview-factory"), locale = "zh-CN", theme = "dark"] = process.argv.slice(2).filter(arg => !arg.startsWith("--"));
-const views = ["map", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished"];
+const views = ["map", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished"];
 let server;
 app.on("window-all-closed", () => {});
 async function main() {

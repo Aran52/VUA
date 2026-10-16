@@ -31,6 +31,8 @@ const MAX_BODY = 128 * 1024;
 const MAX_RESULT = 256 * 1024;
 const SESSION_IDLE_MS = 10 * 60_000;
 const MAX_KEPT = 32;
+const MAX_PREVIEW_IMAGES = 24;
+const MAX_PREVIEW_BASE64 = 6 * 1024 * 1024;
 const STATES = new Set<AiActionRequestV01["state"]>(["pending", "running", "accepted", "rejected", "withdrawn", "failed"]);
 /** Saved requests of the expected shape; one still dispatching when VUA closed is marked interrupted. */
 function restoredApprovals(saved: unknown): Approval[] {
@@ -200,10 +202,32 @@ export class AiToolsServer {
     server.setRequestHandler("tools/call", async request => this.call(request.params.name, request.params.arguments ?? {}));
     return server;
   }
-  private result(body: Record<string, unknown>, isError = false): CallToolResult {
+  private result(body: Record<string, unknown>, isError = false, images: CallToolResult["content"] = []): CallToolResult {
     const text = JSON.stringify(body);
     if (Buffer.byteLength(text) > MAX_RESULT) return { content: [{ type: "text", text: "The result is too large. Narrow the selection in VUA and retry; no success has been assumed." }], isError: true };
-    return { content: [{ type: "text", text }], structuredContent: body, ...(isError ? { isError: true } : {}) };
+    return { content: [{ type: "text", text }, ...images], structuredContent: body, ...(isError ? { isError: true } : {}) };
+  }
+  /** The run's rendered previews as image content, each after a text line naming what it shows. */
+  private async previews(runId: string, run: unknown): Promise<CallToolResult["content"]> {
+    if (!record(run)) return [];
+    const facts = record(run.result) && record(run.result.facts) ? run.result.facts : {};
+    const views = (Array.isArray(facts.previews) ? facts.previews : []).filter(record)
+      .map(view => ({ path: view.path, label: `Assembled Avatar, ${String(view.view)} view` }));
+    const candidates = (Array.isArray(run.prefabs) ? run.prefabs : []).filter(record)
+      .map(prefab => ({ path: prefab.preview, label: `${prefab.isAvatar === true ? "Avatar" : "Outfit"} candidate prefab ${JSON.stringify(prefab.path)}` }));
+    const content: CallToolResult["content"] = [];
+    let total = 0;
+    for (const item of [...views, ...candidates].filter(item => typeof item.path === "string").slice(0, MAX_PREVIEW_IMAGES)) {
+      let image: unknown;
+      try {
+        image = await this.invoke({ schemaVersion: 1, requestId: `preview-${randomUUID()}`, method: "amf.production.previewImage", params: { schemaVersion: "0.1", runId, path: String(item.path) } });
+      } catch { continue; }
+      if (!record(image) || image.mediaType !== "image/png" || typeof image.data !== "string") continue;
+      if (total + image.data.length > MAX_PREVIEW_BASE64) break;
+      total += image.data.length;
+      content.push({ type: "text", text: item.label }, { type: "image", data: image.data, mimeType: "image/png" });
+    }
+    return content;
   }
   private async invoke(request: DesktopGatewayRequestV1): Promise<unknown> {
     let result: DesktopGatewayResponseV1;
@@ -234,7 +258,8 @@ export class AiToolsServer {
         return this.result({ whatHappened: "A concrete request is waiting for the player in VUA. Execution has not started.", nextAction: spec.next, expectedResult: spec.expected, data: approval });
       }
       const data = await this.invoke(request);
-      return this.result({ whatHappened: "The requested facts or plan were read. No change was made.", nextAction: spec.next, expectedResult: spec.expected, data });
+      const images = name === "vua_amf_run" ? await this.previews(String(args.runId), data) : [];
+      return this.result({ whatHappened: "The requested facts or plan were read. No change was made.", nextAction: spec.next, expectedResult: spec.expected, data }, false, images);
     } catch (error) {
       const code = error instanceof Error ? error.message : "request_failed";
       return this.result({ whatHappened: "VUA could not complete this request.", error: code,

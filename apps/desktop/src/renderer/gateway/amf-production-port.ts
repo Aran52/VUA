@@ -1,5 +1,5 @@
 import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice } from "@vua/contracts";
-import { isAmfAssemblySelection, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare } from "@vua/contracts";
+import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
 import { strings } from "../i18n/index.ts";
@@ -9,7 +9,10 @@ export interface AmfProductionEditor { readonly path: string; readonly version: 
 export interface AmfPrefab {
   readonly sourceId: string; readonly path: string; readonly name: string; readonly isAvatar: boolean;
   readonly hasSkinnedMesh: boolean; readonly hasMergeArmature: boolean; readonly hasMissingScripts: boolean; readonly humanoidBones: readonly string[];
+  /** Work-project-relative PNG rendered for this candidate; read it with `previewImage`. */
+  readonly preview?: string;
 }
+export interface AmfPreviewImage { readonly view: "front" | "side" | "back"; readonly path: string }
 export type AmfRunPhase = "preparing" | "ready" | "assembling" | "restoring" | "succeeded" | "failed" | "cancelled" | "inspect_required";
 export interface AmfProductionRun {
   readonly schemaVersion: "0.1"; readonly runId: string; readonly phase: AmfRunPhase; readonly taskId: string;
@@ -22,7 +25,8 @@ export interface AmfProductionRun {
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
-    readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown" };
+    readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
+    readonly previews?: readonly AmfPreviewImage[] };
     readonly diagnostics?: readonly { readonly code: string; readonly severity: string; readonly message: string }[] } | null;
 }
 export interface AmfProductionList {
@@ -72,6 +76,8 @@ export interface AmfProductionPort {
   rollbackPlan(runId: string): Promise<AmfProductionRestorePlan>;
   rollback(runId: string, plan: AmfProductionRestorePlan): Promise<AmfProductionAccepted>;
   open(runId: string): Promise<AmfProductionAccepted>;
+  /** A `data:image/png` URL for one preview the run reports. */
+  previewImage(runId: string, path: string): Promise<string>;
 }
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -84,7 +90,8 @@ const choice = (v: unknown) => record(v) && text(v.sourceId) && roles.includes(S
 const editor = (v: unknown): v is AmfProductionEditor => record(v) && text(v.path) && (v.version === "2022.3.22f1" || v.version === "2022.3.22f1c1");
 const source = (v: unknown): v is AmfProductionSource => record(v) && [v.sourceId, v.itemId, v.itemName, v.name].every(text);
 const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path, v.name].every(text)
-  && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones);
+  && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
+  && (v.preview === undefined || isAmfPreviewPath(v.preview));
 function result(v: unknown): boolean {
   if (v === null) return true;
   if (!record(v)) return false;
@@ -96,6 +103,7 @@ function result(v: unknown): boolean {
     && (facts.hasMissingScripts === undefined || typeof facts.hasMissingScripts === "boolean")
     && (facts.missingShaderMaterials === undefined || texts(facts.missingShaderMaterials))
     && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
+    && (facts.previews === undefined || (Array.isArray(facts.previews) && facts.previews.length <= 3 && facts.previews.every(p => record(p) && ["front","side","back"].includes(String(p.view)) && isAmfPreviewPath(p.path))))
     && facts.instances.every(i => record(i) && text(i.sourceId) && typeof i.bindingVerified === "boolean" && typeof i.menuVerified === "boolean"
       && (i.menuModified === undefined || typeof i.menuModified === "boolean"))))
     && (v.diagnostics === undefined || (Array.isArray(v.diagnostics) && v.diagnostics.every(d => record(d) && text(d.code) && text(d.message) && ["info","warning","error"].includes(String(d.severity)))));
@@ -213,6 +221,12 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async rollback(runId, plan) {
       if (plan.runId !== runId) throw new Error("amf_production_restore_plan_invalid");
       return accepted(await call({ method: "amf.production.rollback", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest } }), strings.amfProduction.restoring);
+    },
+    async previewImage(runId, path) {
+      const v = await call({ method: "amf.production.previewImage", params: { schemaVersion: "0.1", runId, path } });
+      if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || v.path !== path || v.mediaType !== "image/png"
+        || !text(v.data) || v.data.length > 900_000 || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/u.test(v.data)) throw new Error("amf_production_preview_invalid");
+      return `data:image/png;base64,${v.data}`;
     },
     async open(runId) { return accepted(await call({ method: "amf.production.open", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.opening); },
   };

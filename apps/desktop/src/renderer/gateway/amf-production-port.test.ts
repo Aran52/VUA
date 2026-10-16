@@ -18,6 +18,28 @@ describe("AMF production response boundary", () => {
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,observedSelection:{...selection,outfits:[{...selection.outfits[0],active:"false"}]}}}})).toBe(false);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,hasMissingScripts:"none"}}})).toBe(false);
   });
+  it("accepts previews only inside the work project's preview folder", () => {
+    const previews = [{view:"front",path:".vua/previews/n3-test-1/front.png"},{view:"side",path:".vua/previews/n3-test-1/side.png"}];
+    const prefab = {sourceId:"coat",path:"Assets/Coat.prefab",name:"Coat",isAvatar:false,hasSkinnedMesh:true,hasMergeArmature:true,hasMissingScripts:false,humanoidBones:[]};
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,preview:".vua/previews/n3-test-0/candidate-000.png"}],result:{facts:{...run.result.facts,previews}}})).toBe(true);
+    expect(isAmfProductionRun({...run,prefabs:[prefab]})).toBe(true);
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,preview:"C:/Users/me/secret.png"}]})).toBe(false);
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,preview:".vua/previews/../../Assets/x.png"}]})).toBe(false);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,previews:[{view:"top",path:previews[0]?.path}]}}})).toBe(false);
+  });
+  it("turns a reported preview into a PNG data URL", async () => {
+    const path = ".vua/previews/n3-test-1/front.png";
+    let response: unknown = {schemaVersion:"0.1",runId:"n3-test",path,mediaType:"image/png",data:"iVBORw0KGgoAAAANSUhEUg=="};
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect(await port.previewImage("n3-test",path)).toBe("data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==");
+    expect(requests[0]).toMatchObject({method:"amf.production.previewImage",params:{schemaVersion:"0.1",runId:"n3-test",path}});
+    response = {schemaVersion:"0.1",runId:"n3-test",path,mediaType:"image/png",data:"PHN2Zz48L3N2Zz4="};
+    await expect(port.previewImage("n3-test",path)).rejects.toThrow("preview_invalid");
+    response = {schemaVersion:"0.1",runId:"n3-test",path:".vua/previews/n3-test-1/back.png",mediaType:"image/png",data:"iVBORw0KGgo="};
+    await expect(port.previewImage("n3-test",path)).rejects.toThrow("preview_invalid");
+  });
   it("does not accept a plan that omits preservation or fabricates SDK completion", async () => {
     const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"a".repeat(64),selection,inputs:[],editor:run.editor,projectRoot:run.projectRoot,preserveOriginals:true,officialSdkChecks:"not_run"};
     let response: unknown = plan;

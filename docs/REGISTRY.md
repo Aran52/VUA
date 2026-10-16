@@ -12,8 +12,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/path-configuration.md | ADR | Accepted | Integration | 2026-09-12 |
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
-| docs/protocols/ai-tools-v0.1.md | 0.1.0 | Candidate | Integration | 2026-10-13 |
-| docs/protocols/amf-production-v0.1.md | 0.6.0 | Candidate | AMF | 2026-10-15 |
+| docs/protocols/ai-tools-v0.1.md | 0.2.0 | Candidate | Integration | 2026-10-16 |
+| docs/protocols/amf-production-v0.1.md | 0.8.0 | Candidate | AMF | 2026-10-16 |
 | docs/protocols/amf-recipe-v0.4.md | 0.3.0 | Candidate | AMF | 2026-10-15 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
@@ -85,12 +85,12 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.4.0 | Candidate | Production | 2026-10-15 |
+| docs/protocols/unity-bridge-v5.md | 0.6.0 | Candidate | Production | 2026-10-16 |
 | docs/protocols/website-tests-v0.1.md | 0.3 | Candidate | Environment | 2026-10-11 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
-| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-15 |
+| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-16 |
 | schemas/amf-recipe/v0.4 | 0.4 | Candidate | AMF | 2026-10-15 |
 | schemas/application-contract/v0.1 | 0.1 | Frozen | Core | 2026-09-15 |
 | schemas/bdl/v0.10 | 0.10 | Implementation baseline | Data | 2026-10-12 |

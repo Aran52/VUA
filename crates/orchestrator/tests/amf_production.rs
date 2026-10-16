@@ -33,6 +33,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_merge_armature: false,
             has_missing_scripts: false,
             humanoid_bones: vec!["Head".into()],
+            preview: Some(".vua/previews/cmd/candidate-000.png".into()),
         },
         PrefabCandidate {
             source_id: "outfit".into(),
@@ -43,6 +44,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_merge_armature: false,
             has_missing_scripts: false,
             humanoid_bones: vec![],
+            preview: None,
         },
     ]
 }
@@ -103,12 +105,18 @@ impl AmfProductionPlatform for TestPlatform {
         if self.fail_inspect.swap(false, Ordering::SeqCst) {
             return Err(production_error("test_inspect", "Synthetic inspection failed."));
         }
+        let previews = Path::new(&run.project_root).join(".vua/previews/cmd");
+        fs::create_dir_all(&previews).unwrap();
+        for file in ["front.png", "candidate-000.png", "unreported.png"] {
+            fs::write(previews.join(file), b"\x89PNG\r\n\x1a\nsynthetic").unwrap();
+        }
         Ok(ObservedProject {
             prefabs: candidates(),
             unity_fingerprint: "scene-before".into(),
             editor_version: "2022.3.22f1c1".into(),
             result: serde_json::json!({"synthetic":true,
-                "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"], "observedSelection": (fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection)},
+                "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
+                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection)},
                 "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}}),
         })
     }
@@ -288,6 +296,20 @@ fn confirmation_binds_source_target_editor_and_reinspection_revision() {
         digest,
         plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap()
     );
+}
+#[test]
+fn only_previews_the_run_reports_are_read() {
+    let h = Harness::new();
+    h.prepared();
+    let front = h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap();
+    assert!(front.starts_with(b"\x89PNG"));
+    assert!(h.engine.preview_image("n3-test", ".vua/previews/cmd/candidate-000.png").is_ok());
+    for unreported in [".vua/previews/cmd/unreported.png", ".vua/previews/cmd/../cmd/front.png", "Assets/state"] {
+        assert_eq!(h.engine.preview_image("n3-test", unreported).unwrap_err().code, "vua.amf_production.preview_unknown");
+    }
+    let run = h.engine.get("n3-test").unwrap();
+    fs::write(Path::new(&run.project_root).join(".vua/previews/cmd/front.png"), b"not an image").unwrap();
+    assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap_err().code, "vua.amf_production.preview_invalid");
 }
 #[test]
 fn project_drift_refuses_before_snapshot_or_mutation() {

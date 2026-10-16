@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.7.0
+> Document version: 0.8.0
 > Status: Candidate
 > Updated: 2026-10-16
 > Owner: AMF
@@ -36,6 +36,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.importRecipe` | Command | `text` | Idempotently saved local received Recipe |
 | `amf.production.recipeApplyPlan` | Query | `runId`, `recipeId`, optional `avatarGlobalObjectId` | Observed differences, retained outfits, selectable owned Avatars, target identity and digest |
 | `amf.production.applyRecipe` | Command | `runId`, `recipeId`, `planDigest`, `choice`, optional `avatarGlobalObjectId` | Durable overlay or same-project new-Avatar task |
+| `amf.production.previewImage` | Query | `runId`, `path` | One preview PNG that the run reports, as `mediaType: "image/png"` and base64 `data` |
 
 Roles: `auto`, `avatar`, `outfit`, `dependency`. The player path starts with `auto` sources.
 Unity discovers actual prefabs; a unique Avatar/outfit candidate is preselected, while ambiguity
@@ -117,6 +118,23 @@ attempts recovery to the protected current state and reports its outcome separat
 protected state remains the next restore point, making restoration itself reversible. Interrupted
 restoration requires explicit reinspection. Original library inputs are never restoration targets.
 
+## Previews
+
+Every inspection and assembly reports what the Bridge rendered. `facts.previews` lists the active
+owned Avatar from the `front`, `side` and `back`, and after inspection each candidate in `prefabs`
+carries a `preview`. Each value is a work-project-relative path of the form
+`.vua/previews/<commandId>/<name>.png`. Each path names the folder of the command that reported
+it, and its resolved location stays inside the work project; a receipt with any other path is
+invalid. An image that is missing, not a regular file or larger than 640 KiB is left out of the
+facts with the warning `amf.preview.failed`. Before the next Unity run, preview folders that the
+run no longer reports are removed.
+
+`amf.production.previewImage` returns one of the paths the run currently reports, after the same
+checks and a PNG signature check. The Avatar page shows the three views with the result and a
+picture per candidate while choosing prefabs; the [AI tools](ai-tools-v0.1.md) return them as
+image content. A preview is a visual aid for the player and the agent; the observed facts above
+remain the record of what was assembled.
+
 ## Unity producing face
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
@@ -143,6 +161,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
 - 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.
 - 0.6.0 (2026-10-15): add observed Recipe differences, reviewed priority choices, same-project new Avatars and preserved unmentioned outfits.
 

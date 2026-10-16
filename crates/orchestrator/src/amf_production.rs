@@ -81,6 +81,48 @@ pub struct PrefabCandidate {
     pub has_merge_armature: bool,
     pub has_missing_scripts: bool,
     pub humanoid_bones: Vec<String>,
+    /// Work-project-relative PNG the Bridge rendered for this candidate during inspection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<String>,
+}
+
+/// Bridge previews live in this work-project folder, one subfolder per Bridge command.
+pub const PREVIEW_ROOT: &str = ".vua/previews";
+/// One preview PNG, base64-encoded, fits in a single Gateway frame.
+pub const MAX_PREVIEW_BYTES: u64 = 640 * 1024;
+pub const PREVIEW_VIEWS: [&str; 3] = ["front", "side", "back"];
+
+/// A preview path has the form `.vua/previews/<command>/<name>.png` with plain ASCII names.
+pub fn is_preview_path(relative: &str) -> bool {
+    let plain = |part: &str| part.bytes().next().is_some_and(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+        && part.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'));
+    let Some(rest) = relative.strip_prefix(PREVIEW_ROOT).and_then(|rest| rest.strip_prefix('/')) else { return false; };
+    let parts = rest.split('/').collect::<Vec<_>>();
+    relative.len() <= 512 && parts.len() == 2 && parts.iter().all(|part| plain(part)) && parts[1].ends_with(".png")
+}
+
+/// Resolves a reported preview path to its PNG file, which stays inside the work project.
+pub fn preview_file(project_root: &Path, relative: &str) -> Result<PathBuf, AppErrorV1> {
+    let invalid = || production_error("preview_invalid", format!("A preview path is outside the work project's preview folder: {relative}"));
+    if !is_preview_path(relative) {
+        return Err(invalid());
+    }
+    let root = fs::canonicalize(project_root).map_err(|e| production_error("project_missing", e.to_string()))?;
+    let file = relative.split('/').fold(project_root.to_path_buf(), |path, part| path.join(part));
+    let metadata = fs::symlink_metadata(&file).map_err(|e| production_error("preview_missing", format!("{relative}: {e}")))?;
+    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_PREVIEW_BYTES {
+        return Err(production_error("preview_unusable", format!("A preview is not a bounded image file: {relative}")));
+    }
+    let actual = fs::canonicalize(&file).map_err(|e| production_error("preview_missing", format!("{relative}: {e}")))?;
+    if !actual.starts_with(&root) { return Err(invalid()); }
+    Ok(actual)
+}
+
+/// Preview paths a run reports: the active Avatar's views and each candidate's image.
+pub fn preview_paths(run: &ProductionRun) -> Vec<String> {
+    let views = run.result["facts"]["previews"].as_array().into_iter().flatten()
+        .filter_map(|view| view["path"].as_str().map(str::to_owned));
+    views.chain(run.prefabs.iter().filter_map(|p| p.preview.clone())).collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -800,6 +842,19 @@ impl AmfProductionEngine {
     pub fn open(&self, run_id: &str, ctx: &TaskContext) -> Result<serde_json::Value, AppErrorV1> {
         self.precheck_open(run_id)?;
         self.platform.open(&self.get(run_id)?, ctx)
+    }
+    /// Reads one preview PNG that the run reports, for the Avatar page and the AI tools.
+    pub fn preview_image(&self, run_id: &str, path: &str) -> Result<Vec<u8>, AppErrorV1> {
+        let run = self.get(run_id)?;
+        if !preview_paths(&run).iter().any(|known| known == path) {
+            return Err(production_error("preview_unknown", "This run reports another set of previews. Read the run again."));
+        }
+        let bytes = fs::read(preview_file(Path::new(&run.project_root), path)?)
+            .map_err(|e| production_error("preview_missing", e.to_string()))?;
+        if bytes.len() as u64 > MAX_PREVIEW_BYTES || !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+            return Err(production_error("preview_invalid", "The preview file is not a bounded PNG image."));
+        }
+        Ok(bytes)
     }
 }
 

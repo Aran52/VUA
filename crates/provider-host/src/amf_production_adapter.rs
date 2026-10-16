@@ -208,6 +208,7 @@ impl NativeAmfProduction {
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         refresh_bridge_package(Path::new(&run.project_root))?;
+        prune_previews(Path::new(&run.project_root), &preview_paths(run));
         self.start_unity_hub();
         let id = format!(
             "{}-{}",
@@ -283,14 +284,21 @@ impl NativeAmfProduction {
         {
             return Err(err("receipt_invalid", "Bridge returned another operation."));
         }
-        let prefabs = serde_json::from_value(result.data["prefabs"].clone())
+        let mut facts = result.data;
+        let omitted = normalize_previews(&mut facts, Path::new(&run.project_root), &id)?;
+        let mut diagnostics = result.diagnostics;
+        if !omitted.is_empty() {
+            diagnostics.push(vua_orchestrator::Diagnostic { code: "amf.preview.failed".into(), severity: vua_orchestrator::DiagnosticSeverity::Warning,
+                message: format!("{} preview images were left out because their files are missing or too large.", omitted.len()) });
+        }
+        let prefabs = serde_json::from_value(facts["prefabs"].clone())
             .map_err(|e| err("receipt_invalid", e))?;
-        let unity_fingerprint = result.data["projectFingerprint"]
+        let unity_fingerprint = facts["projectFingerprint"]
             .as_str()
             .filter(|s| !s.is_empty())
             .ok_or_else(|| err("receipt_invalid", "Missing project fingerprint."))?
             .into();
-        let editor_version = result.data["editorVersion"]
+        let editor_version = facts["editorVersion"]
             .as_str()
             .ok_or_else(|| err("receipt_invalid", "Missing actual Editor version."))?
             .into();
@@ -309,15 +317,74 @@ impl NativeAmfProduction {
                     .map(|version| (id.clone(), version.to_owned()))
             })
             .collect::<BTreeMap<_, _>>();
-        let mut facts = result.data;
         normalize_observed_selection(&mut facts)?;
-        let data = serde_json::json!({"facts":facts,"packageVersions":package_versions,"diagnostics":result.diagnostics,"officialSdkChecks":"not_run","visualReview":"pending"});
+        let data = serde_json::json!({"facts":facts,"packageVersions":package_versions,"diagnostics":diagnostics,"officialSdkChecks":"not_run","visualReview":"pending"});
         Ok(ObservedProject {
             prefabs,
             unity_fingerprint,
             editor_version,
             result: data,
         })
+    }
+}
+
+/// Accepts the Bridge's preview paths when each names a PNG that this command wrote inside the
+/// work project; a path that leaves it invalidates the receipt. A missing or oversized image is
+/// left out and named in the returned list. Unity writes an empty string for a candidate without
+/// an image.
+fn normalize_previews(facts: &mut serde_json::Value, project: &Path, command_id: &str) -> Result<Vec<String>, AppErrorV1> {
+    let folder = format!("{PREVIEW_ROOT}/{command_id}/");
+    let mut omitted = Vec::new();
+    let mut usable = |path: &str| -> Result<bool, AppErrorV1> {
+        if !path.starts_with(&folder) {
+            return Err(err("receipt_invalid", format!("A preview belongs to another Bridge command: {path}")));
+        }
+        match preview_file(project, path) {
+            Ok(_) => Ok(true),
+            Err(error) if error.code == "vua.amf_production.preview_invalid" => Err(err("receipt_invalid", format!("{path}: {}", error.code))),
+            Err(_) => { omitted.push(path.to_owned()); Ok(false) }
+        }
+    };
+    let views = match facts.get("previews") {
+        None | Some(serde_json::Value::Null) => Vec::new(),
+        Some(serde_json::Value::Array(views)) => views.clone(),
+        Some(_) => return Err(err("receipt_invalid", "Previews are not a list.")),
+    };
+    let mut seen = BTreeSet::new();
+    let mut kept = Vec::new();
+    for view in views {
+        let (Some(name), Some(path)) = (view["view"].as_str(), view["path"].as_str()) else {
+            return Err(err("receipt_invalid", "A preview has no view or path."));
+        };
+        if view.as_object().map_or(0, |v| v.len()) != 2 || !PREVIEW_VIEWS.contains(&name) || !seen.insert(name.to_owned()) {
+            return Err(err("receipt_invalid", "Previews name each of front, side and back at most once."));
+        }
+        if usable(path)? { kept.push(view); }
+    }
+    facts["previews"] = serde_json::Value::Array(kept);
+    if let Some(prefabs) = facts.get_mut("prefabs").and_then(serde_json::Value::as_array_mut) {
+        for prefab in prefabs.iter_mut().filter_map(serde_json::Value::as_object_mut) {
+            let rendered = match prefab.get("preview") {
+                Some(serde_json::Value::String(path)) if !path.is_empty() => usable(path)?,
+                None | Some(serde_json::Value::Null) | Some(serde_json::Value::String(_)) => false,
+                Some(_) => return Err(err("receipt_invalid", "A candidate preview is not a path.")),
+            };
+            if !rendered { prefab.remove("preview"); }
+        }
+    }
+    Ok(omitted)
+}
+
+/// Removes preview folders of earlier Bridge commands that the run no longer reports.
+fn prune_previews(project: &Path, kept: &[String]) {
+    let Ok(entries) = fs::read_dir(project.join(PREVIEW_ROOT)) else { return; };
+    let kept = kept.iter().filter_map(|path| path.split('/').nth(2)).collect::<BTreeSet<_>>();
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        // A link or junction is left as it is; only plain folders VUA wrote are removed.
+        if entry.file_type().is_ok_and(|kind| kind.is_dir() && !kind.is_symlink()) && !kept.contains(name.to_string_lossy().as_ref()) {
+            let _ = fs::remove_dir_all(entry.path());
+        }
     }
 }
 
@@ -1078,6 +1145,86 @@ mod tests {
         assert!(facts["observedSelection"].is_null());
         let mut malformed = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/A.prefab","outfits":[]}});
         assert!(normalize_observed_selection(&mut malformed).is_err());
+    }
+
+    fn preview_project(name: &str) -> PathBuf {
+        let project = std::env::temp_dir().join(format!("vua-amf-preview-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&project);
+        std::fs::create_dir_all(project.join(".vua/previews/cmd-1")).unwrap();
+        for file in ["front.png", "side.png", "back.png", "candidate-000.png"] {
+            std::fs::write(project.join(".vua/previews/cmd-1").join(file), b"\x89PNG\r\n\x1a\nimage").unwrap();
+        }
+        project
+    }
+
+    #[test]
+    fn previews_stay_inside_the_work_project_preview_folder() {
+        let project = preview_project("paths");
+        assert!(preview_file(&project, ".vua/previews/cmd-1/front.png").unwrap().ends_with("front.png"));
+        for outside in [
+            "../front.png", ".vua/previews/../cmd-1/front.png", ".vua/previews/cmd-1/../../x.png",
+            ".vua\\previews\\cmd-1\\front.png", "C:/Windows/front.png", "/.vua/previews/cmd-1/front.png",
+            ".vua/previews/cmd-1/front.jpg", ".vua/previews/front.png", ".vua/previews/cmd-1/a/front.png",
+            ".vua/bridge/cmd-1/front.png", ".vua/previews/cmd-1/front.png:stream", ".vua/previews/./front.png",
+        ] {
+            assert_eq!(preview_file(&project, outside).unwrap_err().code, "vua.amf_production.preview_invalid", "{outside}");
+        }
+        assert_eq!(preview_file(&project, ".vua/previews/cmd-1/absent.png").unwrap_err().code, "vua.amf_production.preview_missing");
+        std::fs::write(project.join(".vua/previews/cmd-1/large.png"), vec![0u8; MAX_PREVIEW_BYTES as usize + 1]).unwrap();
+        assert_eq!(preview_file(&project, ".vua/previews/cmd-1/large.png").unwrap_err().code, "vua.amf_production.preview_unusable");
+        std::fs::remove_dir_all(&project).unwrap();
+    }
+
+    #[test]
+    fn receipts_keep_previews_this_command_wrote() {
+        let project = preview_project("receipt");
+        let mut facts = serde_json::json!({
+            "previews": [{"view":"front","path":".vua/previews/cmd-1/front.png"},{"view":"side","path":".vua/previews/cmd-1/side.png"},{"view":"back","path":".vua/previews/cmd-1/back.png"}],
+            "prefabs": [{"path":"Assets/A.prefab","preview":".vua/previews/cmd-1/candidate-000.png"},{"path":"Assets/B.prefab","preview":""},
+                {"path":"Assets/C.prefab","preview":".vua/previews/cmd-1/candidate-002.png"}]});
+        assert_eq!(normalize_previews(&mut facts, &project, "cmd-1").unwrap(), vec![".vua/previews/cmd-1/candidate-002.png".to_owned()]);
+        assert_eq!(facts["previews"].as_array().unwrap().len(), 3);
+        assert_eq!(facts["prefabs"][0]["preview"], ".vua/previews/cmd-1/candidate-000.png");
+        assert!(facts["prefabs"][1].get("preview").is_none(), "an empty Unity string means no image");
+        assert!(facts["prefabs"][2].get("preview").is_none(), "a missing image is left out");
+
+        std::fs::write(project.join(".vua/previews/cmd-1/side.png"), vec![0u8; MAX_PREVIEW_BYTES as usize + 1]).unwrap();
+        let mut large = serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png"},{"view":"side","path":".vua/previews/cmd-1/side.png"}]});
+        assert_eq!(normalize_previews(&mut large, &project, "cmd-1").unwrap().len(), 1);
+        assert_eq!(large["previews"], serde_json::json!([{"view":"front","path":".vua/previews/cmd-1/front.png"}]));
+
+        let mut absent = serde_json::json!({"prefabs":[]});
+        normalize_previews(&mut absent, &project, "cmd-1").unwrap();
+        assert_eq!(absent["previews"], serde_json::json!([]));
+
+        let mut other_command = serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png"}]});
+        assert_eq!(normalize_previews(&mut other_command, &project, "cmd-2").unwrap_err().code, "vua.amf_production.receipt_invalid");
+        for invalid in [
+            serde_json::json!({"previews":[{"view":"top","path":".vua/previews/cmd-1/front.png"}]}),
+            serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png"},{"view":"front","path":".vua/previews/cmd-1/side.png"}]}),
+            serde_json::json!({"previews":[{"view":"front","path":".vua/previews/cmd-1/front.png","extra":1}]}),
+            serde_json::json!({"previews":[{"view":"front","path":"../outside.png"}]}),
+            serde_json::json!({"previews":"front.png"}),
+            serde_json::json!({"prefabs":[{"preview":".vua/previews/cmd-1/../../../secret.png"}]}),
+            serde_json::json!({"prefabs":[{"preview":7}]}),
+        ] {
+            let mut facts = invalid.clone();
+            assert_eq!(normalize_previews(&mut facts, &project, "cmd-1").unwrap_err().code, "vua.amf_production.receipt_invalid", "{invalid}");
+        }
+        std::fs::remove_dir_all(&project).unwrap();
+    }
+
+    #[test]
+    fn earlier_preview_folders_are_removed_unless_the_run_reports_them() {
+        let project = preview_project("prune");
+        std::fs::create_dir_all(project.join(".vua/previews/cmd-0")).unwrap();
+        std::fs::write(project.join(".vua/previews/notes.txt"), b"kept").unwrap();
+        prune_previews(&project, &[".vua/previews/cmd-1/front.png".into()]);
+        assert!(project.join(".vua/previews/cmd-1/front.png").is_file());
+        assert!(!project.join(".vua/previews/cmd-0").exists());
+        assert!(project.join(".vua/previews/notes.txt").is_file(), "only folders are pruned");
+        prune_previews(&project.join("absent"), &[]);
+        std::fs::remove_dir_all(&project).unwrap();
     }
 
     #[test]

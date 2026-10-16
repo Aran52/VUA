@@ -21,9 +21,10 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the bell offers waiting requests; the tray icon and taskbar signal them in the background.
 - VUA-Project/VUA#85 detects the packaged (MSIX) Unity Hub; VUA-Project/VUA#86 keeps notification
   rows in place while downloads progress.
-- First real run (P-02, Meiyun with the T-shirt & shorts): assembly succeeded on 2026-10-16. The
-  author's Unity check found three issues: lighting (bundled lilToon 1.4.0, now replaced),
-  texture memory, and the SDK panel's difficulty for newcomers.
+- First real run (P-02, Meiyun with the T-shirt & shorts): assembly succeeded on 2026-10-16, and
+  with lilToon 2.3.4 from VPM the author confirmed correct shading in Unity. The author's review
+  also found texture memory, lilToon brightness limits, the SDK panel's difficulty for newcomers,
+  and an SDK sign-in that each new work project asked for again.
 
 ## Order
 
@@ -36,15 +37,19 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 5 | SDK step for newcomers | P-02 | |
 | 6 | Unity familiarity levels and simpler choices | P-02, P-03 | |
 | 7 | Known packages | P-01, P-03 | |
-| 8 | Texture memory | P-02, P-03 | |
-| 9 | Unity sign-in and license | A-01 | |
-| 10 | Managed upload | P-02 | |
-| 11 | Appearance and one-click styles | — | needs a design session |
-| 12 | Player language | P-02 | |
-| 13 | Versioned SOPs | A-03, B-02–B-05 | |
-| 14 | Eval runs | all `ready` cases | |
-| 15 | Complex production and Recipe reproduction | P-03, P-04 | |
-| 16 | Tool and package delivery by license | C-01, C-02 | |
+| 8 | Material tuning | P-02, P-03 | |
+| 9 | Face tracking add-on | P-03 | |
+| 10 | Unity sign-in and license | A-01 | |
+| 11 | Managed upload | P-02 | |
+| 12 | Appearance and one-click styles | — | needs a design session |
+| 13 | Player language and four-language review | P-02 | |
+| 14 | Versioned SOPs | A-03, B-02–B-05 | |
+| 15 | Eval runs | all `ready` cases | |
+| 16 | Complex production and Recipe reproduction | P-03, P-04 | |
+| 17 | Tool and package delivery by license | C-01, C-02 | |
+
+Every slice ships its player-facing text in the four UI languages; slice 13 reviews them together
+with the author.
 
 ## 1 — Integrate
 
@@ -55,9 +60,8 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 
 ## 2 — Finish the first real production runs
 
-1. Rerun P-02 with lilToon from VPM; the author checks the lighting in Unity.
-2. Save the result as a Recipe.
-3. Run the missing-shader case (P-01) on a project whose material needs a shader it lacks.
+1. P-02 with lilToon from VPM: shading confirmed by the author. Save the result as a Recipe.
+2. Run the missing-shader case (P-01) on a project whose material needs a shader it lacks.
 
 **Done when** P-02 and P-01 pass as closed-loop runs in the app, with evidence in `_local_eval/`.
 
@@ -73,12 +77,18 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 
 ## 4 — Unity editor handoff
 
-1. The Bridge inside an open Editor accepts "save and close": save scenes and assets, quit, and
-   send a receipt.
-2. When work needs a project an Editor holds, the request card offers "Save and close Unity,
-   then continue". After the look check, the page offers "Done checking, close Unity".
+1. VUA starts Unity Hub before Unity work and waits for its licensing client, so a license held
+   by the packaged Hub is available (author decision, 2026-10-16).
+2. All VUA work projects share one company and product name, so the SDK sign-in, which Unity
+   keeps per product name, carries over between them. VUA reports whether the SDK is signed in
+   as yes or no through the Bridge; the sign-in itself stays inside the SDK.
+3. The Bridge inside an open Editor accepts "save and close": save scenes and assets, quit, and
+   send a receipt. When work needs a project an Editor holds, the request card offers "Save and
+   close Unity, then continue". After the look check, the page offers "Done checking, close
+   Unity".
 
-**Done when** a held project continues without closing Unity by hand.
+**Done when** a run with Hub closed reaches a licensed Unity, a second work project opens signed
+in to the SDK, and a held project continues without closing Unity by hand.
 
 ## 5 — SDK step for newcomers
 
@@ -124,27 +134,40 @@ change, and at the manual level with every detail adjustable.
 
 **Done when** P-01 resolves its missing shader through a known package.
 
-## 8 — Texture memory
+## 8 — Material tuning
 
-1. Measure each texture's memory and the total against VRChat's performance thresholds.
-2. Lower Max Size and switch compression in the work project, reversible by snapshot: toward a
-   target rank (fully automatic), as a reviewed list (semi-automatic) or per texture (manual).
-3. Evaluate lilAvatarUtils (MIT) first; integrate it when it covers these steps.
+1. Texture memory: measure each texture's memory and the total against VRChat's performance
+   thresholds; lower Max Size and switch compression in the work project, reversible by
+   snapshot.
+2. lilToon brightness limits: align the outfit materials' lower and upper brightness limits with
+   the Avatar's, so the outfit and body brighten and darken together across worlds.
+3. Both follow the familiarity levels: applied toward a target (fully automatic), as a reviewed
+   list (semi-automatic) or per material and texture (manual).
+4. Evaluate lilAvatarUtils (MIT) first; integrate it when it covers these steps.
 
-**Done when** the P-02 result reaches a chosen rank without visible loss the author objects to.
+**Done when** the P-02 result reaches a chosen rank, and its outfit and body match in brightness
+in bright and dark worlds, without visible loss the author objects to.
 
-## 9 — Unity sign-in and license
+## 9 — Face tracking add-on
+
+1. Run the author's Meiyun face tracking add-on with the P-02 result; its patcher runs from an
+   Editor menu, which the Bridge calls with the player's confirmation.
+2. Record what the add-on needs (packages, menus, parameters) in the known packages and SOPs.
+3. Check it with VRCFaceTracking through the tools page.
+
+**Done when** the Meiyun result carries working face tracking, verified in VRChat.
+
+## 10 — Unity sign-in and license
 
 1. Detect the license from the license file (standard and packaged-Hub locations), whether Hub
    and its licensing client run, and a short real check in a VUA-owned project.
 2. The scenario step shows the state and the one next action; a production license failure
    opens that step with the run retained.
-3. With the packaged Hub, Unity work needs Hub running; see the open decisions.
-4. Test the Unity CLI that Hub installs at `%LOCALAPPDATA%\Unity\bin\unity.exe`.
+3. Test the Unity CLI that Hub installs at `%LOCALAPPDATA%\Unity\bin\unity.exe`.
 
 **Done when** a fresh machine reaches a licensed Unity run guided by VUA alone.
 
-## 10 — Managed upload
+## 11 — Managed upload
 
 1. Verify the SDK's build-and-upload interface in SDK 3.10.5, including whether it needs the
    Editor window.
@@ -153,7 +176,7 @@ change, and at the manual level with every detail adjustable.
 
 **Done when** the P-02 result uploads from VUA with the player's confirmation.
 
-## 11 — Appearance and one-click styles
+## 12 — Appearance and one-click styles
 
 1. Design session with the author: which screens, and whether a style may recolor the module
    colors. The first two styles come from the author's briefs; the current purple style stays
@@ -161,22 +184,24 @@ change, and at the manual level with every detail adjustable.
    - **Y2K**: aqua and white, bandages, pills, angel wings, flat;
    - **Jirai-kei**: pink and black, lace, energy drinks, leather, dimensional.
 2. Move remaining literal values into tokens (colors, radii, shadows, font sizes, timings).
-3. A style is token data checked against a schema, switched with one click in Appearance and
-   the command palette; contrast is checked per style in dark and light.
+3. A style is token data plus its motifs (patterns, icons, textures), checked against a schema
+   and switched with one click in Appearance and the command palette; contrast is checked per
+   style in dark and light.
 4. Redo the notification panel's size and animation; build the production animation from real
    step events.
 
 **Done when** the author switches styles in one click and approves the redone screens.
 
-## 12 — Player language
+## 13 — Player language and four-language review
 
 1. Remove internal references and process vocabulary from UI text; add a four-language
    terminology table and a check for Chinese full-width punctuation.
 2. Rewrite the Japanese and Korean strings for the AMF, tour and onboarding pages natively.
+3. Review every screen and message added in slices 3–12 in all four languages with the author.
 
-**Done when** the author reviews the AMF journey in all four languages.
+**Done when** the author reviews the AMF journey and the new screens in all four languages.
 
-## 13 — Versioned SOPs
+## 14 — Versioned SOPs
 
 1. Turn the scenario SOPs into versioned SOP documents with the fields in the north star.
 2. Write the first symptom-to-solution SOPs and serve them through Help and `vua_sop`.
@@ -185,7 +210,7 @@ change, and at the manual level with every detail adjustable.
 **Eval:** A-03, B-02, B-03, B-04, B-05. **Done when** these cases are `ready` and pass in both
 channels.
 
-## 14 — Eval runs
+## 15 — Eval runs
 
 1. Convert the cases into machine-readable files and define the run record.
 2. Run every `ready` case in the app and through an MCP agent; publish the two pass rates and
@@ -193,16 +218,15 @@ channels.
 
 **Done when** a release reports both metrics.
 
-## 15 — Complex production and Recipe reproduction
+## 16 — Complex production and Recipe reproduction
 
-1. Run the N3 complex case with the author's real materials, then repeat it in a clean project;
-   include the Meiyun face tracking add-on, whose patcher runs from an Editor menu.
+1. Run the N3 complex case with the author's real materials, then repeat it in a clean project.
 2. Reproduce it from a Recipe in a second project, including reapplication and conflicts.
 3. Run both through the MCP agent as well.
 
 **Eval:** P-03, P-04. **Done when** the N3 and N4 acceptance rows pass.
 
-## 16 — Tool and package delivery by license
+## 17 — Tool and package delivery by license
 
 1. Add license, delivery-channel and verified-version fields to the tool catalog and the known
    packages.
@@ -215,7 +239,6 @@ channels.
 
 ## Open decisions
 
-- Packaged Unity Hub: VUA starts Hub before Unity work, or guides the player to the regular Hub.
 - Styles: built-in only first or shareable data from the start; how the two briefs translate
   into tokens, motifs and motion.
 - Known packages beyond the shaders, SDK and Modular Avatar (for example Avatar Optimizer,

@@ -99,6 +99,9 @@ namespace Vua.Editor.Bridge
                 if (string.Concat(sha.ComputeHash(bytes).Select(b => b.ToString("x2"))) != command.payload.planHash)
                     throw new InvalidOperationException("Production request hash changed.");
             var request = JsonUtility.FromJson<Request>(Encoding.UTF8.GetString(bytes));
+            // JsonUtility gives an absent [Serializable] field an empty instance. A Recipe apply
+            // always names the Avatar it applies to, so a target without one is no target.
+            if (request.applyTarget != null && string.IsNullOrEmpty(request.applyTarget.avatarGlobalObjectId)) request.applyTarget = null;
             if (request.schemaVersion != "0.1" || request.runId != command.projectId || request.sources == null || request.sources.Length > 64)
                 throw new InvalidOperationException("Production request binding is invalid.");
             var marker = Path.Combine(root, ".vua", "amf-run.txt");

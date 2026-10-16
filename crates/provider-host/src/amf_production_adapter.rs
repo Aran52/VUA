@@ -142,6 +142,7 @@ impl NativeAmfProduction {
     ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
+        refresh_bridge_package(Path::new(&run.project_root))?;
         let id = format!(
             "{}-{}",
             run.run_id,
@@ -533,15 +534,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         backend.apply_install(&p, &packages, &preview.digest)?;
         // Real upstream SDK + MA are required. No staging-scaffold stubs are installed here.
-        for (relative, contents) in vua_unity_bridge::staging_scaffold::BRIDGE_PACKAGE_FILES
-            .iter()
-            .chain(vua_unity_bridge::staging_scaffold::AMF_PRODUCTION_BRIDGE_FILES)
-        {
-            let target = p.root.join("Packages/com.ph-r.vua").join(relative);
-            fs::create_dir_all(target.parent().expect("Bridge parent"))
-                .map_err(|e| err("project_failed", e))?;
-            fs::write(target, contents).map_err(|e| err("project_failed", e))?;
-        }
+        refresh_bridge_package(&p.root)?;
         Ok(())
     }
     fn import_sources(
@@ -764,6 +757,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
             .as_str()
             .filter(|s| !s.is_empty())
             .ok_or_else(|| err("result_invalid", "Result has no Avatar identity."))?;
+        if !editor_holds_project(Path::new(&run.project_root)) {
+            refresh_bridge_package(Path::new(&run.project_root))?;
+        }
         let folder = Path::new(&run.project_root).join(".vua/bridge");
         let receipt = folder.join("amf-open.result.json");
         if receipt.exists() {
@@ -938,6 +934,25 @@ fn editor_holds_project(project: &Path) -> bool {
     #[cfg(not(windows))]
     true
 }
+/// Brings the work project's VUA Bridge package to this build's copy. Retained projects keep
+/// working after a VUA update; files that already match stay untouched. Returns the files written.
+fn refresh_bridge_package(project: &Path) -> Result<usize, AppErrorV1> {
+    let mut written = 0;
+    for (relative, contents) in vua_unity_bridge::staging_scaffold::BRIDGE_PACKAGE_FILES
+        .iter()
+        .chain(vua_unity_bridge::staging_scaffold::AMF_PRODUCTION_BRIDGE_FILES)
+    {
+        let target = project.join("Packages/com.ph-r.vua").join(relative);
+        if fs::read(&target).is_ok_and(|current| current == contents.as_bytes()) {
+            continue;
+        }
+        fs::create_dir_all(target.parent().expect("Bridge parent"))
+            .map_err(|e| err("project_failed", e))?;
+        fs::write(target, contents).map_err(|e| err("project_failed", e))?;
+        written += 1;
+    }
+    Ok(written)
+}
 fn reject_editor_lock(project: &Path) -> Result<(), AppErrorV1> {
     if editor_holds_project(project) {
         return Err(err(
@@ -1008,6 +1023,20 @@ mod tests {
         assert_eq!(reject_editor_lock(&project).unwrap_err().code, "vua.amf_production.project_open");
         drop(held);
         assert!(reject_editor_lock(&project).is_ok());
+        std::fs::remove_dir_all(&project).unwrap();
+    }
+
+    #[test]
+    fn retained_projects_receive_this_builds_bridge_and_matching_files_stay() {
+        let project = std::env::temp_dir().join(format!("vua-amf-bridge-{}", std::process::id()));
+        let total = vua_unity_bridge::staging_scaffold::BRIDGE_PACKAGE_FILES.len()
+            + vua_unity_bridge::staging_scaffold::AMF_PRODUCTION_BRIDGE_FILES.len();
+        assert_eq!(refresh_bridge_package(&project).unwrap(), total);
+        let entry = project.join("Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs");
+        std::fs::write(&entry, "// an older Bridge").unwrap();
+        assert_eq!(refresh_bridge_package(&project).unwrap(), 1);
+        assert!(std::fs::read_to_string(&entry).unwrap().contains("class AmfProductionEntryPoint"));
+        assert_eq!(refresh_bridge_package(&project).unwrap(), 0);
         std::fs::remove_dir_all(&project).unwrap();
     }
 

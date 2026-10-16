@@ -86,12 +86,14 @@ export function AiRequestCard({ request, busy, revealed = false, onResolve, onOp
   onResolve?: (decision: "approve" | "reject") => void;
   onOpen?: () => void;
 }) {
+  // Why a request was withdrawn or could not start, e.g. the project changed after the AI asked.
+  const reason = request.error ? (copy.reasons as Record<string, string>)[request.error] : undefined;
   return <Card data-ai-request={request.id} data-revealed={revealed ? "" : undefined}>
     <header className="vua-ai-request__header"><h3>{requestTitle(request)}</h3><span role="status">{copy.states[request.state]}</span></header>
     <p>{outcome(request)}</p>
     <Review request={request} />
     {request.state === "pending" ? <>
-      <p className="vua-caption vua-text-secondary">{format(copy.validUntil, { time: requestClock(request.expiresAt) })}</p>
+      <p className="vua-caption vua-text-secondary">{format(copy.askedAt, { time: requestClock(request.createdAt) })}</p>
       <div className="vua-ai-request__controls">
         {onResolve ? <>
           <Button variant="primary" disabled={busy} onClick={() => onResolve("approve")}>{copy.approve}</Button>
@@ -99,8 +101,8 @@ export function AiRequestCard({ request, busy, revealed = false, onResolve, onOp
         </> : onOpen ? <Button variant="primary" onClick={onOpen}>{copy.goConfirm}</Button> : null}
       </div></> : null}
     {request.state === "accepted" ? <p role="status">{copy.dispatchedHint}</p> : null}
-    {request.state === "expired" ? <p>{copy.expiredHint}</p> : null}
-    {request.state === "failed" ? <p role="alert">{copy.requestFailed} <code>{request.error}</code></p> : null}
+    {request.state === "withdrawn" ? <p>{reason ?? copy.reasons.withdrawn_by_ai}</p> : null}
+    {request.state === "failed" ? <p role="alert">{reason ?? copy.requestFailed} <code>{request.error}</code></p> : null}
     <TechnicalDetails request={request} />
   </Card>;
 }

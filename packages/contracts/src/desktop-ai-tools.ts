@@ -1,9 +1,11 @@
 import type { VuaDesktopApiV3 } from "./desktop-distribution.js";
 export type AiConnectionLocale = "en" | "zh-CN" | "ja" | "ko";
+/** A request waits until the player decides or the AI withdraws it, also across VUA restarts.
+ * `error` names why a request failed or was withdrawn. */
 export interface AiActionRequestV01 {
   readonly id: string; readonly tool: string; readonly title: string; readonly explanation: string;
-  readonly expectedResult: string; readonly createdAt: string; readonly expiresAt: string;
-  readonly state: "pending" | "running" | "accepted" | "rejected" | "expired" | "failed";
+  readonly expectedResult: string; readonly createdAt: string;
+  readonly state: "pending" | "running" | "accepted" | "rejected" | "withdrawn" | "failed";
   readonly details: Readonly<Record<string,unknown>>; readonly result?: unknown; readonly error?: string;
 }
 export interface AiToolsSnapshotV01 {

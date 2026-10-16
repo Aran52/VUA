@@ -101,24 +101,51 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(wrongHost).toBe(403);
     expect((await post({ Authorization: `Bearer ${token}` }, JSON.stringify({ padding: "x".repeat(129 * 1024) }))).status).toBe(413);
   });
-  it("expires approval, rejects declined work and shuts down the endpoint on disable", async () => {
+  it("keeps a request waiting, lets the AI withdraw it, and withdraws the rest when the connection is turned off", async () => {
     let clock = Date.now();
     const { client, service, calls, endpoint } = await setup(undefined, () => clock);
     await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
     const first = service.snapshot().requests[0]!;
     await service.resolve(first.id, "reject");
     await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
-    const pending = service.snapshot().requests[1]!;
-    clock += 16 * 60_000;
-    expect(service.snapshot().requests[1]!.state).toBe("expired");
-    await expect(service.resolve(pending.id, "approve")).rejects.toThrow("expired");
+    await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "stop" } });
+    const [, start, stop] = service.snapshot().requests;
+    clock += 24 * 60 * 60_000;
+    expect(service.snapshot().requests[1]!.state).toBe("pending");
+    const withdrawn = data(await client.callTool({ name: "vua_withdraw_request", arguments: { approvalId: start!.id } }));
+    expect(withdrawn.data).toMatchObject({ state: "withdrawn", error: "withdrawn_by_ai" });
+    await expect(service.resolve(start!.id, "approve")).rejects.toThrow("withdrawn");
+    expect((await client.callTool({ name: "vua_withdraw_request", arguments: { approvalId: first.id } })).isError).toBe(true);
     expect(calls.every(request => request.method === "environment.observePlay")).toBe(true);
     expect(service.snapshot()).not.toHaveProperty("token");
     expect(service.prompt("zh-CN")).toContain("Bearer ");
     await service.setEnabled(false);
+    expect(service.snapshot().requests.find(r => r.id === stop!.id)).toMatchObject({ state: "withdrawn", error: "connection_disabled" });
     expect(service.snapshot()).toMatchObject({ enabled: false, endpoint: null, connections: 0 });
     expect(() => service.prompt("en")).toThrow("disabled");
     await expect(fetch(endpoint)).rejects.toThrow();
+  });
+  it("brings waiting requests back after a restart and marks an interrupted dispatch", async () => {
+    let saved: unknown = null;
+    const options = { version: "test", port: 0, load: () => ({ enabled: false, token }), save: () => {},
+      loadRequests: () => saved, saveRequests: (approvals: readonly unknown[]) => { saved = structuredClone(approvals); },
+      invoke: async (request: DesktopGatewayRequestV1) => envelope(request, { playSession: { route: "desktop_play", software: [] } }) };
+    const first = new AiToolsServer(options);
+    await first.setEnabled(true);
+    const client = new Client({ name: "restart-agent", version: "1" });
+    const transport = new StreamableHTTPClientTransport(new URL(first.snapshot().endpoint!), { requestInit: { headers: { Authorization: `Bearer ${token}` } } });
+    await client.connect(transport);
+    await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
+    await transport.terminateSession().catch(() => {}); await client.close();
+    const waiting = first.snapshot().requests[0]!;
+    await first.dispose();
+    (saved as { view: { state: string } }[]).push({ ...(saved as { view: object; request: object }[])[0]!, view: { ...waiting, id: "dispatching", state: "running" } } as never);
+    const second = new AiToolsServer(options);
+    cleanups.push(() => second.dispose());
+    expect(second.snapshot().requests.map(r => [r.id, r.state, r.error])).toEqual([[waiting.id, "pending", undefined], ["dispatching", "failed", "interrupted"]]);
+    await second.setEnabled(true);
+    await second.resolve(waiting.id, "approve");
+    expect(second.snapshot().requests[0]!.state).toBe("accepted");
   });
   it("rejects invented methods and parameter injection before touching the Gateway", async () => {
     const { client, calls } = await setup();

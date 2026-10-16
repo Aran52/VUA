@@ -2,7 +2,7 @@ import { recipeTransferText } from "./amf-recipe-transfer.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
-import { aiConnectionStore } from "./ai-connection-store.js";
+import { aiConnectionStore, aiRequestStore } from "./ai-connection-store.js";
 import fs from "node:fs";
 import path from "node:path";
 import type {
@@ -1841,7 +1841,7 @@ app.whenReady().then(async () => {
     broadcastGatewayEvent(rendererUrl, event);
   });
   aiTools = new AiToolsServer({
-    version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage),
+    version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage), ...aiRequestStore(app.getPath("userData")),
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
       platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
       resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId) },

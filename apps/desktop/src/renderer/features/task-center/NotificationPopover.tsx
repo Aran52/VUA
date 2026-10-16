@@ -155,7 +155,7 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
             <div className="vua-notify-peek" role="alertdialog" aria-label={aiCopy.peekTitle}>
               <p className="vua-caption vua-text-secondary">{aiCopy.peekTitle}</p>
               <strong>{requestTitle(peek)}</strong>
-              <p className="vua-caption vua-text-secondary">{format(aiCopy.validUntil, { time: requestClock(peek.expiresAt) })}</p>
+              <p className="vua-caption vua-text-secondary">{format(aiCopy.askedAt, { time: requestClock(peek.createdAt) })}</p>
               <div className="vua-notify-peek__actions">
                 <Button variant="primary" onClick={() => openRequest(peek)}>{aiCopy.goConfirm}</Button>
                 <Button variant="subtle" onClick={() => setPeek(null)}>{aiCopy.later}</Button>
@@ -194,7 +194,7 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
                   <h3 className="vua-caption">{aiCopy.requests}</h3>
                   <ul>{pending.map(request => <li key={request.id}>
                     <span><strong>{requestTitle(request)}</strong><br />
-                      <span className="vua-caption vua-text-secondary">{format(aiCopy.until, { time: requestClock(request.expiresAt) })}</span></span>
+                      <span className="vua-caption vua-text-secondary">{format(aiCopy.askedAt, { time: requestClock(request.createdAt) })}</span></span>
                     <Button variant="primary" onClick={() => { close(); openRequest(request); }}>{aiCopy.goConfirm}</Button>
                   </li>)}</ul>
                 </section> : null}

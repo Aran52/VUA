@@ -7,10 +7,12 @@ import type { AiActionRequestV01, AiConnectionLocale, AiToolsSnapshotV01, Deskto
 import { AI_TOOLS, aiGatewayRequest, type AiToolSpec } from "./ai-tool-catalog.js";
 import { aiConnectionPrompt } from "./ai-connection-prompt.js";
 
-interface Approval {
+/** A queued request and the exact typed call it dispatches once the player confirms. */
+export interface StoredAiApproval {
   view: AiActionRequestV01;
   request: DesktopGatewayRequestV1;
 }
+type Approval = StoredAiApproval;
 interface ClientSession { server: Server; transport: NodeStreamableHTTPServerTransport; touched: number }
 export interface AiToolsOptions {
   version: string;
@@ -18,6 +20,9 @@ export interface AiToolsOptions {
   /** Only encrypted token storage is supplied by Electron Main. */
   load(): { enabled: boolean; token: string | null };
   save(enabled: boolean, token: string): void;
+  /** Requests saved by an earlier launch; they wait until the player decides. */
+  loadRequests?(): unknown;
+  saveRequests?(approvals: readonly StoredAiApproval[]): void;
   port?: number;
   now?: () => number;
 }
@@ -25,7 +30,16 @@ const record = (value: unknown): value is Record<string, unknown> => value !== n
 const MAX_BODY = 128 * 1024;
 const MAX_RESULT = 256 * 1024;
 const SESSION_IDLE_MS = 10 * 60_000;
-const APPROVAL_MS = 15 * 60_000;
+const MAX_KEPT = 32;
+const STATES = new Set<AiActionRequestV01["state"]>(["pending", "running", "accepted", "rejected", "withdrawn", "failed"]);
+/** Saved requests of the expected shape; one still dispatching when VUA closed is marked interrupted. */
+function restoredApprovals(saved: unknown): Approval[] {
+  if (!Array.isArray(saved)) return [];
+  return saved.slice(-MAX_KEPT).filter((item): item is Approval => record(item) && record(item.view) && record(item.request)
+    && typeof item.view.id === "string" && typeof item.view.tool === "string" && STATES.has(item.view.state as AiActionRequestV01["state"])
+    && typeof item.request.method === "string" && record(item.request.params))
+    .map(item => item.view.state === "running" ? { ...item, view: { ...item.view, state: "failed", error: "interrupted" } } : item);
+}
 function canonicalParameters(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalParameters);
   if (record(value)) return Object.fromEntries(Object.keys(value).filter(key => key !== "commandId").sort().map(key => [key, canonicalParameters(value[key])]));
@@ -57,16 +71,21 @@ export class AiToolsServer {
     const saved = options.load();
     this.initiallyEnabled = saved.enabled;
     this.token = saved.token ?? randomBytes(32).toString("base64url");
+    let restored: unknown = null;
+    try { restored = options.loadRequests?.() ?? null; } catch { /* An unreadable file starts an empty list. */ }
+    for (const approval of restoredApprovals(restored)) this.approvals.set(approval.view.id, approval);
   }
   snapshot(): AiToolsSnapshotV01 {
-    this.expireApprovals();
     return { schemaVersion: "0.1", enabled: this.enabled, endpoint: this.endpoint, connections: this.sessions.size,
       requests: [...this.approvals.values()].map(a => structuredClone(a.view)), error: this.error };
   }
   subscribe(listener: (snapshot: AiToolsSnapshotV01) => void): () => void {
     this.listeners.add(listener); return () => this.listeners.delete(listener);
   }
-  private changed(): void { const value = this.snapshot(); for (const listener of this.listeners) listener(value); }
+  private changed(): void {
+    try { this.options.saveRequests?.([...this.approvals.values()]); } catch { /* The list stays current in memory. */ }
+    const value = this.snapshot(); for (const listener of this.listeners) listener(value);
+  }
   setEnabled(enabled: boolean): Promise<AiToolsSnapshotV01> {
     const work = this.lifecycle.then(async () => {
       if (this.disposed) throw new Error("connection_closed");
@@ -74,7 +93,7 @@ export class AiToolsServer {
       if (enabled && !this.http) {
         try { await this.start(); this.options.save(true, this.token); }
         catch { await this.stop(); this.error = "connection_start_failed"; }
-      } else if (!enabled) { await this.stop(); this.options.save(false, this.token); }
+      } else if (!enabled) { await this.stop(true); this.options.save(false, this.token); }
       this.changed(); return this.snapshot();
     });
     this.lifecycle = work.catch(() => {}); return work;
@@ -108,17 +127,17 @@ export class AiToolsServer {
       }
     }
   }
-  private async stop(): Promise<void> {
+  /** Closing VUA keeps waiting requests for the next launch; turning the connection off withdraws them. */
+  private async stop(withdrawPending = false): Promise<void> {
     this.enabled = false; this.endpoint = null;
     if (this.pruneTimer) clearInterval(this.pruneTimer); this.pruneTimer = null;
-    for (const approval of this.approvals.values()) if (approval.view.state === "pending") approval.view = { ...approval.view, state: "expired" };
+    if (withdrawPending) {
+      for (const approval of this.approvals.values()) if (approval.view.state === "pending") approval.view = { ...approval.view, state: "withdrawn", error: "connection_disabled" };
+    }
     const clients = [...this.sessions.values()]; this.sessions.clear();
     await Promise.allSettled(clients.map(s => s.server.close()));
     const http = this.http; this.http = null;
     if (http) { http.closeAllConnections(); await new Promise<void>(resolve => http.close(() => resolve())); }
-  }
-  private expireApprovals(): void {
-    for (const a of this.approvals.values()) if (a.view.state === "pending" && Date.parse(a.view.expiresAt) <= this.now()) a.view = { ...a.view, state: "expired" };
   }
   private async prune(): Promise<void> {
     for (const session of this.sessions.values()) if (this.now() - session.touched > SESSION_IDLE_MS) await session.server.close();
@@ -199,10 +218,15 @@ export class AiToolsServer {
       if (this.disposed || !this.enabled) throw new Error("connection_disabled");
       const spec = AI_TOOLS.find(tool => tool.name === name), validate = this.validate.get(name);
       if (!spec || !validate || !record(args) || !validate(args).valid) throw new Error("unsupported_tool_or_parameters");
-      this.expireApprovals();
       if (name === "vua_action_status") {
         const approval = this.approvals.get(String(args.approvalId)); if (!approval) throw new Error("approval_not_found");
         return this.result({ whatHappened: "Read the local approval state; no new action was taken.", nextAction: spec.next, expectedResult: spec.expected, data: approval.view });
+      }
+      if (name === "vua_withdraw_request") {
+        const approval = this.approvals.get(String(args.approvalId)); if (!approval) throw new Error("approval_not_found");
+        if (approval.view.state !== "pending") throw new Error("approval_not_waiting");
+        approval.view = { ...approval.view, state: "withdrawn", error: "withdrawn_by_ai" }; this.changed();
+        return this.result({ whatHappened: "The request no longer waits for the player. Nothing was run.", nextAction: spec.next, expectedResult: spec.expected, data: approval.view });
       }
       const request = aiGatewayRequest(spec, structuredClone(args), `ai-${randomUUID()}`);
       if (spec.command) {
@@ -214,7 +238,9 @@ export class AiToolsServer {
     } catch (error) {
       const code = error instanceof Error ? error.message : "request_failed";
       return this.result({ whatHappened: "VUA could not complete this request.", error: code,
-        nextAction: code.includes("license") ? "Open VUA Settings → Accounts → Unity, activate a valid license in Hub, then reinspect retained AMF work." : "Read current capabilities and facts, then correct the request or follow the recovery shown in VUA.",
+        nextAction: code.includes("license") ? "Open VUA Settings → Accounts → Unity, activate a valid license in Hub, then reinspect retained AMF work."
+          : code === "review_pending_requests_first" ? "Up to four requests wait at once. Ask the player to decide them in VUA, or withdraw one that is no longer wanted with vua_withdraw_request."
+          : "Read current capabilities and facts, then correct the request or follow the recovery shown in VUA.",
         expectedResult: "A verified result is required before proceeding." }, true);
     } finally { this.activeCalls--; }
   }
@@ -259,18 +285,17 @@ export class AiToolsServer {
     if (afterRead) return structuredClone(afterRead.view);
     const id = randomUUID();
     const view: AiActionRequestV01 = { id, tool: spec.name, title: spec.title, explanation: spec.next, expectedResult: spec.expected,
-      createdAt: new Date(this.now()).toISOString(), expiresAt: new Date(this.now() + APPROVAL_MS).toISOString(), state: "pending",
+      createdAt: new Date(this.now()).toISOString(), state: "pending",
       details: { parameters: structuredClone(request.params), reviewed } };
     this.approvals.set(id, { view, request });
-    // Keep bounded receipts, including rejected/expired requests; never evict active ones.
-    for (const [key, a] of this.approvals) if (this.approvals.size > 32 && a.view.state !== "pending" && a.view.state !== "running") this.approvals.delete(key);
+    // Keep bounded receipts, including decided and withdrawn requests; never evict waiting ones.
+    for (const [key, a] of this.approvals) if (this.approvals.size > MAX_KEPT && a.view.state !== "pending" && a.view.state !== "running") this.approvals.delete(key);
     this.changed(); return structuredClone(view);
   }
   /** Only the local, verified Main-window IPC can reach this method. */
   async resolve(id: string, decision: "approve" | "reject"): Promise<AiToolsSnapshotV01> {
-    this.expireApprovals();
     const approval = this.approvals.get(id);
-    if (!approval || approval.view.state !== "pending" || this.disposed || !this.enabled) throw new Error("approval_expired_or_resolved");
+    if (!approval || approval.view.state !== "pending" || this.disposed || !this.enabled) throw new Error("approval_resolved_or_withdrawn");
     if (decision === "reject") { approval.view = { ...approval.view, state: "rejected" }; this.changed(); return this.snapshot(); }
     approval.view = { ...approval.view, state: "running" }; this.changed();
     try { const result = await this.invoke(approval.request); approval.view = { ...approval.view, state: "accepted", result }; }

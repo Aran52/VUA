@@ -4,7 +4,7 @@ import { requestPage, requestRunId, visibleRequests } from "./ai-request-routing
 
 const request = (tool: string, parameters: Record<string, unknown> = {}, extra: Partial<AiActionRequestV01> = {}): AiActionRequestV01 => ({
   id: `${tool}-1`, tool, title: tool, explanation: "", expectedResult: "", createdAt: "2026-10-16T05:00:00.000Z",
-  expiresAt: "2026-10-16T05:15:00.000Z", state: "pending", details: { parameters }, ...extra,
+  state: "pending", details: { parameters }, ...extra,
 });
 
 describe("AI requests are confirmed on the page they change", () => {
@@ -29,7 +29,7 @@ describe("AI requests are confirmed on the page they change", () => {
   it("keeps decided requests visible for a while", () => {
     const now = Date.parse("2026-10-16T05:10:00.000Z");
     const recent = request("vua_request_amf_open", {}, { state: "accepted" });
-    const old = request("vua_request_amf_open", {}, { id: "old", state: "expired", createdAt: "2026-10-16T04:00:00.000Z" });
+    const old = request("vua_request_amf_open", {}, { id: "old", state: "withdrawn", createdAt: "2026-10-16T04:00:00.000Z" });
     const waiting = request("vua_request_amf_open", {}, { id: "waiting", createdAt: "2026-10-16T04:00:00.000Z" });
     expect(visibleRequests([recent, old, waiting], now).map(r => r.id)).toEqual([recent.id, "waiting"]);
   });

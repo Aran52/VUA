@@ -55,7 +55,7 @@ Object.assign(window,{agentUiReview:{async run(){ const passed:string[]=[]; cons
   const field=document.querySelector("textarea")!;
   assert(getComputedStyle(field).color!==getComputedStyle(field).backgroundColor,"Prompt remains readable in light appearance");
   document.documentElement.dataset.theme="dark";
-  snapshot={...snapshot,requests:[{id:"synthetic",tool:"vua_request_play",title:"Start",explanation:"Review",expectedResult:"Game opens",createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+100000).toISOString(),state:"pending",details:{parameters:{route:"desktop_play",action:"start"}}}]};listeners.forEach(fn=>fn(snapshot));
+  snapshot={...snapshot,requests:[{id:"synthetic",tool:"vua_request_play",title:"Start",explanation:"Review",expectedResult:"Game opens",createdAt:new Date().toISOString(),state:"pending",details:{parameters:{route:"desktop_play",action:"start"}}}]};listeners.forEach(fn=>fn(snapshot));
   await until(()=>!!button(strings.aiTools.goConfirm));
   assert(!button(strings.aiTools.approve),"Help lists the request and sends the player to the page it changes");
   button(strings.aiTools.goConfirm)!.click();await until(()=>!!button(strings.aiTools.approve));

@@ -54,17 +54,24 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_request_amf_prepare`, `vua_request_amf_assemble`, `vua_request_amf_reinspect`, `vua_request_amf_open` | Existing [AMF production](amf-production-v0.1.md) authority and Bridge v5 |
 | `vua_request_cancel_task` | Existing revision-bound cancellation request |
 | `vua_action_status` | Local approval receipt; never grants approval |
+| `vua_withdraw_request` | Withdraws a request still waiting for the player; nothing runs |
 
 Read-only tools run immediately. Each `vua_request_*` queues an immutable concrete draft in VUA.
 Installation and assembly drafts re-read their plan before being offered; digest drift rejects
 the proposal. The player sees the actual software/materials/targets and expected consequence.
 Only their **Confirm this action** dispatches the original typed request; the backend revalidates
 readiness, input identity/digest, command idempotency and project constraints. Repeated identical
-pending proposals reuse a receipt. Declined/expired/disabled proposals cannot run. AMF calls
+pending proposals reuse a receipt. Declined and withdrawn proposals cannot run. AMF calls
 remain unavailable when AMF is disabled; no Agent call enables a module implicitly.
 
 Receipts distinguish `pending`, `running` (dispatching), `accepted` (dispatched), `rejected`,
-`expired`, `failed`. They expire after 15 minutes. Acceptance is not completion: the caller reads
+`withdrawn`, `failed`. A request waits until the player decides or the Agent withdraws it, also
+across VUA restarts: VUA keeps the receipts in its data folder. Turning the connection off
+withdraws waiting requests; one that was dispatching when VUA closed restarts as `failed`
+(`interrupted`). Safety comes from revalidation at confirmation, so a request confirmed after the
+project or environment changed fails with the backend's code (for example
+`vua.amf_production.project_drift`, `vua.deployment.plan_changed`), which VUA explains to the
+player. At most four requests wait at once. Acceptance is not completion: the caller reads
 the returned task or observes play/tool state. Tool responses contain `whatHappened`, `nextAction`,
 `expectedResult` and bounded `data`, or a specific failure and recovery action. Private project
 paths/material names can be necessary references for the selected local task; no material bytes,

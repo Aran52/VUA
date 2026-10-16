@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-16
+> Updated: 2026-10-17
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -25,15 +25,19 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   with lilToon 2.3.4 from VPM the author confirmed correct shading in Unity. The author's review
   also found texture memory, lilToon brightness limits, the SDK panel's difficulty for newcomers,
   and an SDK sign-in that each new work project asked for again.
+- The Meiyun result is saved as the Recipe "Meiyun T恤短裤" (2026-10-16). P-01 passed on 2026-10-17:
+  with the outfit's bundled lilToon left out, VUA installed lilToon 2.3.4 from its feed, and the
+  Bridge re-check and assembly reported no material without its shader. In the same run, with
+  Unity Hub quit, VUA started Hub and Unity received its license.
 
 ## Order
 
 | # | Slice | Eval | State |
 | --- | --- | --- | --- |
 | 1 | Integrate | — | in progress |
-| 2 | Finish the first real production runs | P-02, P-01 | in progress |
-| 3 | Unity Hub and SDK sign-in | P-02 | next |
-| 4 | Result previews | P-02 | |
+| 2 | Finish the first real production runs | P-02, P-01 | P-01 passed; P-02 needs the SDK build check (slice 6) |
+| 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; SDK sign-in carry-over to verify |
+| 4 | Result previews | P-02 | in review |
 | 5 | Unity editor handoff | P-02 | |
 | 6 | SDK step for newcomers | P-02 | |
 | 7 | Unity familiarity levels and simpler choices | P-02, P-03 | |

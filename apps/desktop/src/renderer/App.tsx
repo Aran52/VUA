@@ -530,7 +530,10 @@ function renderPage(
 ) {
   if (isAmfPage(page) && amf.state !== "ready") return <ModulesPage onOpen={() => actions.navigate("warehouse")} />;
   switch (page) {
-    case "home": case "environment-hub": case "avatar-hub":
+    case "avatar-hub":
+      if (amf.installed && amf.state === "ready") return <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<p role="status">{format(strings.amfModule.loading, { amf: TERMS.amf })}</p>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>;
+      return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
+    case "home": case "environment-hub":
       return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
     case "help": case "help-wizard": case "help-tour": case "help-game-assistant": case "help-encyclopedia": case "help-ai":
       return <HelpPage page={page} navigate={actions.navigate} onAccounts={actions.openAccounts} startTour={actions.startTour} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
@@ -959,7 +962,7 @@ function AppShell({
             {moduleDef("settings").groups.flatMap(g => g.pages).map(p => <button type="button" key={p.id} className="vua-shell__sidebar-item" aria-current={page === p.id ? "page" : undefined} onClick={() => navigate(p.id)} data-nav-id={`nav-${p.id}`}>{pageLabel(p)}</button>)}
           </div> : (["env", "production"] as const).filter(group => group !== "production" || amf.installed).map(group => <div className="vua-shell__sidebar-group" key={group} data-module={group}>
             <button type="button" className="vua-shell__sidebar-label" onClick={() => navigate(group === "env" ? "environment-hub" : "avatar-hub")}>{group === "env" ? strings.journey.environment : TERMS.amf}</button>
-            {directory[group].map(item => <button type="button" key={item.id} className="vua-shell__sidebar-item" aria-current={page === item.id ? "page" : undefined} onClick={() => navigate(item.id)} data-nav-id={`nav-${item.id}`}>{item.title}</button>)}
+            {directory[group].map(item => <button type="button" key={item.id} className="vua-shell__sidebar-item" aria-current={page === item.id || ("pages" in item && (item.pages as readonly string[]).includes(page)) ? "page" : undefined} onClick={() => navigate(item.id)} data-nav-id={`nav-${item.id}`}>{item.title}</button>)}
           </div>)}
           {!settingsOpen && !amf.installed ? <div className="vua-shell__sidebar-group" data-module="amf-enablement">
             <span className="vua-shell__sidebar-label">{TERMS.amf}</span>

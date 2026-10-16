@@ -113,8 +113,8 @@ async function main() {
     const reject = await js(`Promise.all([window.vua.desktopBrowser.open('booth'),window.vua.desktopBrowser.open('https://booth.pm/')].map(p=>p.then(()=>false,()=>true)))`);
     assert(reject.every(Boolean), "AMF-off assets and arbitrary site strings are rejected by Main");
     await click("nav-enable-amf"); await click("toggle-amf");
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-asset-browser]") && document.querySelector("[data-nav-id=toggle-amf]")?.disabled===false'), "AMF mounted");
-    await click("nav-asset-browser");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && document.querySelector("[data-nav-id=toggle-amf]")?.disabled===false'), "AMF mounted");
+    await click("nav-warehouse"); await waitFor(() => js('!!document.querySelector("[data-nav-id=tab-asset-browser]")'), "materials room tabs"); await click("tab-asset-browser");
     await waitFor(() => activeView()?.webContents.getURL() === "https://booth.pm/", "default BOOTH");
     await waitFor(frameFits, "BOOTH fits");
     assert(await js('document.querySelectorAll("[data-browser-site]").length===9'), "AMF material browser includes all nine requested shortcuts");
@@ -151,7 +151,7 @@ async function main() {
     await activeView().webContents.executeJavaScript('document.querySelector("#note").value="retained draft";window.scrollTo(0,420);true', true);
     await click("nav-env-play"); await waitFor(() => remoteViews().every(view => !view.getVisible()), "material browser hidden on another route");
     assert(remoteViews().length === 1, "Another shell route retains the material native view");
-    await click("nav-asset-browser"); await waitFor(frameFits, "material route return");
+    await click("nav-warehouse"); await waitFor(() => js('!!document.querySelector("[data-nav-id=tab-asset-browser]")'), "materials room tabs"); await click("tab-asset-browser"); await waitFor(frameFits, "material route return");
     const remembered = await activeView().webContents.executeJavaScript('({note:document.querySelector("#note").value,scroll:window.scrollY})');
     assert(activeView().webContents.id === originalContents && activeView().webContents.getURL().endsWith("/second") && remembered.note === "retained draft" && remembered.scroll === 420,
       "Returning retains URL, history, form draft and scroll without reloading BOOTH");
@@ -184,8 +184,8 @@ async function main() {
     assert(true, "Closing other tabs leaves the original page and history intact");
     for (const locale of ["en", "zh-CN", "ja", "ko"]) {
       await js(`localStorage.setItem('vua-locale','${locale}');location.reload()`);
-      await waitFor(() => js(`document.documentElement.lang==='${locale}' && !!document.querySelector('[data-nav-id=nav-asset-browser]') && !document.querySelector('.vua-boot-splash')`), locale);
-      await click("nav-asset-browser"); await waitFor(frameFits, `${locale} viewport`);
+      await waitFor(() => js(`document.documentElement.lang==='${locale}' && !!document.querySelector('[data-nav-id=nav-warehouse]') && !document.querySelector('.vua-boot-splash')`), locale);
+      await click("nav-warehouse"); await waitFor(() => js('!!document.querySelector("[data-nav-id=tab-asset-browser]")'), "materials room tabs"); await click("tab-asset-browser"); await waitFor(frameFits, `${locale} viewport`);
       for (const [width, height, zoom] of [[1280, 850, 1], [960, 600, 1.25], [760, 560, 1]]) {
         window.setSize(width, height); window.webContents.setZoomFactor(zoom);
         await waitFor(frameFits, `${locale} at ${width} / ${zoom}`);

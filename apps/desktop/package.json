@@ -27,6 +27,7 @@
     "smoke:remote-permissions": "pnpm build && electron scripts/smoke-remote-permissions.mjs",
     "smoke:m2-deliverables": "pnpm build && electron scripts/smoke-m2-deliverables.mjs",
     "preview:overlay": "electron scripts/preview-overlay.mjs",
+    "preview:factory": "electron scripts/preview-factory.mjs",
     "smoke:remote-content": "pnpm build && electron scripts/smoke-remote-content.mjs",
     "smoke:download-port": "pnpm build && electron scripts/smoke-download-port.mjs",
     "smoke:f4-deliverables": "pnpm build && node scripts/smoke-f4-deliverables.mjs",

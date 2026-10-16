@@ -1,6 +1,6 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, net, Notification, safeStorage, screen, session, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
 import { aiConnectionStore } from "./ai-connection-store.js";
 import fs from "node:fs";
@@ -106,7 +106,6 @@ import { previewLibraryDirectory } from "./library-preview.js";
 import { resolveDesktopRuntime } from "./runtime-paths.js";
 import { preparePackagedSmoke } from "./packaged-smoke.js";
 import { configureDesktopProfile, resolveDesktopProfile, tagDevelopmentWindow } from "./runtime-profile.js";
-import { notificationIdentity, registerNotificationIdentity } from "./notification-identity.js";
 import { createVuaTray } from "./system-tray.js";
 import { createStartupWindow } from "./startup-window.js";
 import { registerAmfUiScheme, installAmfUiProtocol } from "./amf-ui-protocol.js";
@@ -144,9 +143,6 @@ const desktopProfile = resolveDesktopProfile({
     ? app.commandLine.getSwitchValue("vua-smoke-test") : undefined,
 });
 configureDesktopProfile(app, desktopProfile);
-// Windows attributes notifications to this identity, registered for the current user once ready.
-const windowsIdentity = notificationIdentity(desktopProfile.kind);
-if (process.platform === "win32") app.setAppUserModelId(windowsIdentity.appId);
 if (app.isPackaged && !app.requestSingleInstanceLock()) app.exit(0);
 app.on("second-instance", () => { if (mainWindow !== null && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); } });
 if (desktopProfile.kind !== "release") {
@@ -202,24 +198,12 @@ function focusMainWindow(): void {
   mainWindow.focus();
 }
 
-// Notifications stay referenced until clicked or closed so their click handlers survive.
-const attentionNotices = new Set<Notification>();
-/** A request waits for the player while VUA is in the background: blink the tray icon, flash the
- * taskbar button and show a Windows notification that opens the request. */
-function requestAttention(notice: { requestId: string; title: string; body: string }): void {
+/** A request waits for the player while VUA is in the background: blink the tray icon and flash
+ * the taskbar button until VUA comes to the front. */
+function requestAttention(): void {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isFocused()) return;
   systemTray?.setAttention(true);
   mainWindow.flashFrame(true);
-  if (!Notification.isSupported()) return;
-  const notification = new Notification({ title: notice.title, body: notice.body });
-  const release = () => attentionNotices.delete(notification);
-  notification.on("click", () => {
-    release(); focusMainWindow();
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:ai-tools:reveal", notice.requestId);
-  });
-  notification.on("close", release);
-  attentionNotices.add(notification);
-  notification.show();
 }
 function endAttention(): void {
   systemTray?.setAttention(false);
@@ -435,13 +419,7 @@ function registerIpc(provider: ModuleProvider): void {
     assertAiSender(event); if (typeof id !== "string" || id.length > 100 || (decision !== "approve" && decision !== "reject")) throw new Error("invalid_ai_approval");
     return aiTools!.resolve(id, decision);
   });
-  ipcMain.handle("vua:ai-tools:attention", (event, notice: unknown) => {
-    assertAiSender(event);
-    const text = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 200;
-    const record = notice as Record<string, unknown> | null;
-    if (!record || !text(record.requestId) || !text(record.title) || !text(record.body)) throw new Error("invalid_ai_attention");
-    requestAttention({ requestId: String(record.requestId), title: String(record.title), body: String(record.body) });
-  });
+  ipcMain.handle("vua:ai-tools:attention", event => { assertAiSender(event); requestAttention(); });
   const updates = new DistributionUpdater({ context: installedContext(),
     prepareRestart: () => provider.prepareForUpdate(),
     restart: command => { shutdownStarted = true; app.relaunch({ execPath: path.join(installedContext()!.root, "VUA.exe"), args: [command] }); app.quit(); },
@@ -1798,10 +1776,6 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  if (process.platform === "win32" && !packagedSmoke) {
-    void registerNotificationIdentity(windowsIdentity, app.getPath("userData"))
-      .catch(error => process.stderr.write(`notification identity: ${error instanceof Error ? error.message : String(error)}\n`));
-  }
   installAmfUiProtocol();
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);

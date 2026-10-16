@@ -43,35 +43,25 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
   const panelRef = useRef<HTMLDivElement | null>(null);
   const wasOpenRef = useRef(false);
   const announced = useRef(new Set<string>());
-  const requestsRef = useRef<readonly AiActionRequestV01[]>([]);
 
   // AI requests wait on the page they change. Elsewhere the bell offers them; in the background
-  // the system is asked for attention (tray icon, taskbar, Windows notification).
+  // the system is asked for attention (tray icon and taskbar button).
   const requests = ai.snapshot?.requests ?? [];
-  requestsRef.current = requests;
   const pending = requests.filter(request => request.state === "pending");
   const taskOrigin = (taskId: string) => center.tasks.find(task => task.id === taskId)?.originPage;
   const openRequest = (request: AiActionRequestV01) => { setPeek(null); revealRequest(request, navigate, taskOrigin); };
-  const openRef = useRef(openRequest);
-  openRef.current = openRequest;
   const pendingKey = pending.map(request => request.id).join("|");
   useEffect(() => {
     for (const request of pending) {
       if (announced.current.has(request.id)) continue;
       announced.current.add(request.id);
-      if (!document.hasFocus()) {
-        void ai.port?.attention?.({ requestId: request.id, title: aiCopy.attentionTitle, body: format(aiCopy.attentionBody, { title: requestTitle(request) }) });
-      }
+      if (!document.hasFocus()) void ai.port?.attention?.();
       if (requestPage(request, taskOrigin) !== page) setPeek(request);
     }
   }, [pendingKey]);
   useEffect(() => {
     if (peek && (requestPage(peek, taskOrigin) === page || !pending.some(request => request.id === peek.id))) setPeek(null);
   }, [page, pendingKey, peek]);
-  useEffect(() => ai.port?.subscribeReveal?.(id => {
-    const request = requestsRef.current.find(candidate => candidate.id === id);
-    if (request) openRef.current(request);
-  }), [ai.port]);
 
   // 退场窗结束后卸载;动效压平时不空等动画窗
   useEffect(() => {

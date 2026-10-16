@@ -123,7 +123,6 @@ Section "Uninstall"
   RMDir "$SMPROGRAMS\VUA"
   DeleteRegKey HKCU "Software\VUA"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA"
-  DeleteRegKey HKCU "Software\Classes\AppUserModelId\org.vua-project.desktop"
   skipRegistration:
   Delete "$INSTDIR\nsis-isolated"
   Delete "$INSTDIR\active.json"

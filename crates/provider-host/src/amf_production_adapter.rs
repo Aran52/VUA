@@ -31,7 +31,66 @@ fn project(run: &ProductionRun) -> ProjectRef {
     }
 }
 
+// Only the private AMF package environment is updated, never VCC/ALCOM subscriptions.
+const MA_REPO: &str = "https://vpm.nadena.dev/vpm.json";
+const LILTOON_REPO: &str = "https://lilxyzw.github.io/vpm-repos/vpm.json";
+const LILTOON_PACKAGE: &str = "jp.lilxyzw.liltoon";
+
+/// lilToon's unitypackage installs into Assets/lilToon; material packages often ship a copy there.
+fn is_bundled_liltoon(folded_path: &str) -> bool {
+    folded_path == "assets/liltoon" || folded_path.starts_with("assets/liltoon/")
+}
+
+/// Subscribes the private environment to a feed and makes sure its manifest is cached.
+fn ensure_repo(
+    backend: &vua_project_manager::VrcGetLibBackend,
+    url: &str,
+    name: &str,
+) -> Result<(), AppErrorV1> {
+    if !backend.list_repos()?.iter().any(|r| r.url.as_deref() == Some(url)) {
+        backend.add_remote_repo(url, name)?;
+    }
+    // Registering a feed does not populate its package cache. Resolve only
+    // after the private environment has a readable first manifest; warmed
+    // developer caches must not hide a first-launch preparation failure.
+    let repo = backend
+        .list_repos()?
+        .into_iter()
+        .find(|repo| repo.url.as_deref() == Some(url))
+        .ok_or_else(|| err("dependencies_unavailable", format!("The {name} repository is not registered.")))?;
+    if !repo.cached {
+        let id = repo.repo_id.as_deref().ok_or_else(|| {
+            err("dependencies_unavailable", format!("The {name} repository has no verified identity."))
+        })?;
+        backend.refresh_repo(id)?;
+    }
+    Ok(())
+}
+
 impl NativeAmfProduction {
+    fn package_backend(&self) -> Result<vua_project_manager::VrcGetLibBackend, AppErrorV1> {
+        vua_project_manager::VrcGetLibBackend::with_environment_root(
+            self.root.join("vpm-environment"),
+            false,
+        )?
+        .with_cached_metadata()
+    }
+    /// Installs the newest lilToon from its official feed that resolves for this project.
+    fn install_liltoon(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+        let backend = self.package_backend()?;
+        ensure_repo(&backend, LILTOON_REPO, "lilToon")?;
+        let p = project(run);
+        let request = [PackageRequestV1 { package_id: LILTOON_PACKAGE.into(), version: None }];
+        let preview = backend.preview_install(&p, &request)?;
+        if preview.destructive || !preview.conflicts.is_empty() {
+            return Err(err(
+                "dependencies_conflict",
+                format!("lilToon installation needs explicit conflict handling: {:?}", preview.conflicts),
+            ));
+        }
+        backend.apply_install(&p, &request, &preview.digest)?;
+        Ok(())
+    }
     fn package_path(&self, source: &ProductionSource) -> Result<PathBuf, AppErrorV1> {
         let Some(member) = &source.archive_member else {
             return Ok(source.path.clone());
@@ -483,31 +542,12 @@ impl AmfProductionPlatform for NativeAmfProduction {
         FileSystemProjectStore::initialize(&p).map_err(|e| err("project_failed", e))?;
         fs::write(p.root.join(".vua/amf-run.txt"), &run.run_id)
             .map_err(|e| err("project_failed", e))?;
-        let backend = vua_project_manager::VrcGetLibBackend::with_environment_root(
-            self.root.join("vpm-environment"),
-            false,
-        )?
-        .with_cached_metadata()?;
+        let backend = self.package_backend()?;
         backend.ensure_official_sdk_cache()?;
-        // Only the private AMF package environment is updated, never VCC/ALCOM subscriptions.
-        const MA_REPO: &str = "https://vpm.nadena.dev/vpm.json";
-        if !backend
-            .list_repos()?
-            .iter()
-            .any(|r| r.url.as_deref() == Some(MA_REPO))
-        {
-            backend.add_remote_repo(MA_REPO, "Modular Avatar")?;
-        }
-        // Registering a feed does not populate its package cache. Resolve only
-        // after the private environment has a readable first manifest; warmed
-        // developer caches must not hide a first-launch preparation failure.
-        let ma_repo = backend.list_repos()?.into_iter()
-            .find(|repo| repo.url.as_deref() == Some(MA_REPO))
-            .ok_or_else(|| err("dependencies_unavailable", "The Modular Avatar repository is not registered."))?;
-        if !ma_repo.cached {
-            let id = ma_repo.repo_id.as_deref()
-                .ok_or_else(|| err("dependencies_unavailable", "The Modular Avatar repository has no verified identity."))?;
-            backend.refresh_repo(id)?;
+        ensure_repo(&backend, MA_REPO, "Modular Avatar")?;
+        // A reproduced Recipe pins lilToon up front; its feed is needed only then.
+        if run.package_pins.contains_key(LILTOON_PACKAGE) {
+            ensure_repo(&backend, LILTOON_REPO, "lilToon")?;
         }
         if let Some(error) = ctx.cancellation_error("amf-production") {
             return Err(error);
@@ -545,6 +585,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         let mut sources = Vec::new();
         let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
         let mut guids = HashMap::<String, String>::new();
+        let mut needs_liltoon = false;
         let available = self
             .sources()?
             .into_iter()
@@ -575,6 +616,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
             )
             .map_err(|e| err("source_invalid", e))?;
             let mut asset_paths = Vec::new();
+            let mut bundled_liltoon = false;
             for folder in
                 fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
             {
@@ -602,6 +644,12 @@ impl AmfProductionPlatform for NativeAmfProduction {
                         "asset_conflict",
                         "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
                     ));
+                }
+                // A copy of lilToon shipped inside a material package: the current official VPM
+                // package takes its place, so materials render with the maintained shaders.
+                if is_bundled_liltoon(&folded) {
+                    bundled_liltoon = true;
+                    continue;
                 }
                 let guid = folder
                     .file_name()
@@ -655,7 +703,8 @@ impl AmfProductionPlatform for NativeAmfProduction {
                     asset_paths.push(logical);
                 }
             }
-            if asset_paths.is_empty() {
+            needs_liltoon |= bundled_liltoon;
+            if asset_paths.is_empty() && !bundled_liltoon {
                 return Err(err(
                     "source_invalid",
                     format!("{} contains no supported Assets/ inputs.", source.name),
@@ -673,6 +722,10 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         // Validate the entire batch before the first asset copy; shared identical files are reused.
         validate_asset_layout(files.keys().map(String::as_str))?;
+        if needs_liltoon && !run.package_pins.contains_key(LILTOON_PACKAGE) {
+            ctx.emit_progress(serde_json::json!({"operation":"amf.production","runId":run.run_id,"stage":"materials","name":"lilToon"}));
+            self.install_liltoon(run)?;
+        }
         for (relative, original) in files {
             let destination = Path::new(&run.project_root).join(&relative);
             if destination.exists() {
@@ -1024,6 +1077,14 @@ mod tests {
         drop(held);
         assert!(reject_editor_lock(&project).is_ok());
         std::fs::remove_dir_all(&project).unwrap();
+    }
+
+    #[test]
+    fn bundled_liltoon_copies_are_recognized_by_their_install_folder() {
+        assert!(is_bundled_liltoon("assets/liltoon"));
+        assert!(is_bundled_liltoon("assets/liltoon/shader/lts.shader"));
+        assert!(!is_bundled_liltoon("assets/liltoonextras/readme.txt"));
+        assert!(!is_bundled_liltoon("assets/amenbo/tshirt&shorts/material/liltoon.mat"));
     }
 
     #[test]

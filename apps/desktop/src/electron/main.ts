@@ -1,6 +1,6 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, net, Notification, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
 import { aiConnectionStore } from "./ai-connection-store.js";
 import fs from "node:fs";
@@ -143,6 +143,8 @@ const desktopProfile = resolveDesktopProfile({
     ? app.commandLine.getSwitchValue("vua-smoke-test") : undefined,
 });
 configureDesktopProfile(app, desktopProfile);
+// Windows attributes notifications to this identity (the installer's appId).
+if (process.platform === "win32") app.setAppUserModelId("org.vua-project.desktop");
 if (app.isPackaged && !app.requestSingleInstanceLock()) app.exit(0);
 app.on("second-instance", () => { if (mainWindow !== null && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); } });
 if (desktopProfile.kind !== "release") {
@@ -196,6 +198,30 @@ function focusMainWindow(): void {
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
+}
+
+// Notifications stay referenced until clicked or closed so their click handlers survive.
+const attentionNotices = new Set<Notification>();
+/** A request waits for the player while VUA is in the background: blink the tray icon, flash the
+ * taskbar button and show a Windows notification that opens the request. */
+function requestAttention(notice: { requestId: string; title: string; body: string }): void {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isFocused()) return;
+  systemTray?.setAttention(true);
+  mainWindow.flashFrame(true);
+  if (!Notification.isSupported()) return;
+  const notification = new Notification({ title: notice.title, body: notice.body });
+  const release = () => attentionNotices.delete(notification);
+  notification.on("click", () => {
+    release(); focusMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:ai-tools:reveal", notice.requestId);
+  });
+  notification.on("close", release);
+  attentionNotices.add(notification);
+  notification.show();
+}
+function endAttention(): void {
+  systemTray?.setAttention(false);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.flashFrame(false);
 }
 
 function sendShellCommand(command: DesktopShellCommandV1): void {
@@ -406,6 +432,13 @@ function registerIpc(provider: ModuleProvider): void {
   ipcMain.handle("vua:ai-tools:resolve", (event, id: unknown, decision: unknown) => {
     assertAiSender(event); if (typeof id !== "string" || id.length > 100 || (decision !== "approve" && decision !== "reject")) throw new Error("invalid_ai_approval");
     return aiTools!.resolve(id, decision);
+  });
+  ipcMain.handle("vua:ai-tools:attention", (event, notice: unknown) => {
+    assertAiSender(event);
+    const text = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 200;
+    const record = notice as Record<string, unknown> | null;
+    if (!record || !text(record.requestId) || !text(record.title) || !text(record.body)) throw new Error("invalid_ai_attention");
+    requestAttention({ requestId: String(record.requestId), title: String(record.title), body: String(record.body) });
   });
   const updates = new DistributionUpdater({ context: installedContext(),
     prepareRestart: () => provider.prepareForUpdate(),
@@ -1581,6 +1614,7 @@ async function createWindow(): Promise<void> {
   });
 
   tagDevelopmentWindow(mainWindow, desktopProfile);
+  mainWindow.on("focus", endAttention);
   // Native mouse side buttons use Chromium history, including same-document Help routes.
   mainWindow.on("app-command", (_event, command) => {
     const navigation = mainWindow?.webContents.navigationHistory;

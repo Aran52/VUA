@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx";
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
 import { HelpPage } from "../../src/renderer/features/help/HelpPage.tsx";
+import { AiRequestsHere } from "../../src/renderer/features/ai-requests/AiRequestsHere.tsx";
 import { DeploymentPanel } from "../../src/renderer/features/deployer/DeploymentPanel.tsx";
 import { AccountGuide } from "../../src/renderer/features/settings/AccountGuide.tsx";
 import type { PageId } from "../../src/renderer/app/nav-model.ts";
@@ -33,6 +34,7 @@ const environment = { ...base.environment,
 function Fixture() {
   const [page,setPage] = useState<PageId>("help");
   return <GatewayProvider gateway={{...base,aiTools,environment} as any}>
+    <AiRequestsHere page={page} />
     {page === "env-play" ? <DeploymentPanel zone="play" purpose="desktop_play" /> : page === "settings-accounts" ? <AccountGuide account="unity" onBack={()=>setPage("help")} />
       : <HelpPage page={page as any} navigate={setPage} onAccounts={()=>{}} startTour={()=>{}} guideRequest={null} acknowledgeGuide={()=>{}} />}
     <button id="to-preparation" onClick={()=>setPage("env-play")}>Test preparation</button>
@@ -49,15 +51,17 @@ Object.assign(window,{agentUiReview:{async run(){ const passed:string[]=[]; cons
   button(strings.aiTools.enable)!.click();await until(()=>!!document.querySelector("textarea"));
   button(strings.aiTools.copy)!.click();await until(()=>copied);
   assert(copied,"The copy action uses the host pairing port");
-  snapshot={...snapshot,requests:[{id:"synthetic",tool:"vua_request_play",title:"Start",explanation:"Review",expectedResult:"Game opens",createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+100000).toISOString(),state:"pending",details:{parameters:{route:"desktop_play",action:"start"}}}]};listeners.forEach(fn=>fn(snapshot));
-  await until(()=>!!button(strings.aiTools.approve));
-  assert(!approved,"Incoming action waits for a local click");button(strings.aiTools.approve)!.click();await until(()=>approved);
-  await until(()=>document.body.textContent!.includes(strings.aiTools.dispatchedHint));
-  assert(document.body.textContent!.includes(strings.aiTools.dispatchedHint),"Dispatch is explained separately from completion");
   document.documentElement.dataset.theme="light";await wait();
   const field=document.querySelector("textarea")!;
   assert(getComputedStyle(field).color!==getComputedStyle(field).backgroundColor,"Prompt remains readable in light appearance");
   document.documentElement.dataset.theme="dark";
+  snapshot={...snapshot,requests:[{id:"synthetic",tool:"vua_request_play",title:"Start",explanation:"Review",expectedResult:"Game opens",createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+100000).toISOString(),state:"pending",details:{parameters:{route:"desktop_play",action:"start"}}}]};listeners.forEach(fn=>fn(snapshot));
+  await until(()=>!!button(strings.aiTools.goConfirm));
+  assert(!button(strings.aiTools.approve),"Help lists the request and sends the player to the page it changes");
+  button(strings.aiTools.goConfirm)!.click();await until(()=>!!button(strings.aiTools.approve));
+  assert(!approved,"Incoming action waits for a local click");button(strings.aiTools.approve)!.click();await until(()=>approved);
+  await until(()=>document.body.textContent!.includes(strings.aiTools.dispatchedHint));
+  assert(document.body.textContent!.includes(strings.aiTools.dispatchedHint),"Dispatch is explained separately from completion");
   document.getElementById("to-preparation")!.click();await until(()=>!!button(strings.scenarioEnvironment.sop));
   button(strings.scenarioEnvironment.sop)!.click();await until(()=>sopReads===1);await wait();
   assert(checks===0&&plans===0&&installs===0,"Reading steps performs no check, plan or installation");

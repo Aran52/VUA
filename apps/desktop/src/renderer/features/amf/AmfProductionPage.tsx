@@ -12,7 +12,7 @@ import { strings, format, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
-import { takeRequestedProductionRecipe } from "./production-recipe-navigation.ts";
+import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
 
 const copy = strings.amfProduction;
@@ -33,7 +33,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [search, setSearch] = useState(""); const [visible, setVisible] = useState(60);
   const [editorPath, setEditorPath] = useState("");
   const [requestedRecipe] = useState(takeRequestedProductionRecipe);
-  const [runId, setRunId] = useState(() => requestedRecipe ? "" : storedRun());
+  const [runId, setRunId] = useState(() => takeRequestedProductionRun() ?? (requestedRecipe ? "" : storedRun()));
+  useEffect(() => { if (runId) remember(runKey, runId); }, [runId]);
+  useEffect(() => onProductionRunRequested(id => { takeRequestedProductionRun(); initialized.current = ""; setRunId(id); setError(null); }), []);
   const [run, setRun] = useState<AmfProductionRun | null>(null);
   const [selection, setSelection] = useState<AmfAssemblySelection>(blank);
   const [plan, setPlan] = useState<AmfProductionPlan | null>(null);
@@ -79,7 +81,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         if (taskId === null && initialized.current !== runId && (loaded.phase === "ready" || loaded.phase === "succeeded")) {
           initialized.current = runId; setSelection(initialProductionSelection(loaded));
         }
-        if (["preparing", "assembling", "restoring"].includes(loaded.phase) || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
+        // A reinspection keeps the previous phase until it ends; a running step still needs fresh facts.
+        if (["preparing", "assembling", "restoring"].includes(loaded.phase) || loaded.steps.some(step => step.state === "running") || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
       } catch (e) { if (alive) { setError(e instanceof Error ? e.message : unavailable); timer = setTimeout(() => { void load(); }, 2000); } }
     };
     void load();

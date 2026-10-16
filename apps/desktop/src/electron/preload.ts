@@ -13,6 +13,7 @@ import type {
   OverlayViewV1,
   RemoteContentEventV1,
   VuaDesktopApiV4,
+  AiAttentionNoticeV01,
   AiConnectionLocale,
   AiToolsSnapshotV01,
 } from "@vua/contracts";
@@ -82,6 +83,12 @@ const api: VuaDesktopApiV4 = Object.freeze({
       const wrapped = (_event: IpcRendererEvent, value: AiToolsSnapshotV01) => listener(value);
       ipcRenderer.on("vua:ai-tools:changed", wrapped);
       return () => ipcRenderer.removeListener("vua:ai-tools:changed", wrapped);
+    },
+    attention: (notice: AiAttentionNoticeV01) => ipcRenderer.invoke("vua:ai-tools:attention", notice),
+    subscribeReveal: (listener: (requestId: string) => void) => {
+      const wrapped = (_event: IpcRendererEvent, requestId: string) => listener(requestId);
+      ipcRenderer.on("vua:ai-tools:reveal", wrapped);
+      return () => ipcRenderer.removeListener("vua:ai-tools:reveal", wrapped);
     },
   }),
   distribution: Object.freeze({

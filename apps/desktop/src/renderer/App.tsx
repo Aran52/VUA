@@ -52,6 +52,7 @@ import { LoginBrowserOverlay } from "./app/LoginBrowserOverlay.tsx";
 import { closeLoginBrowser } from "./app/login-browser-store.ts";
 import { closeBrowserModal } from "./components/primitives/modal-layer.tsx";
 import { NotificationPopover } from "./features/task-center/NotificationPopover.tsx";
+import { AiRequestsHere } from "./features/ai-requests/AiRequestsHere.tsx";
 import { ResourceMonitor } from "./features/resource-monitor/ResourceMonitor.tsx";
 import { BootGate, BootSplash } from "./components/splash/BootSplash.tsx";
 import { bootProgress } from "./app/boot-progress.ts";
@@ -591,7 +592,6 @@ function AppShell({
   const acknowledgeGuide = (nonce: number) => setGuideRequest(current => shouldClearGuideRequest(current, nonce) ? null : current);
   useAutoDeleteOriginals();
   const aiPort = useGateway().aiTools;
-  const seenAiRequests = useRef(new Set<string>());
   // 启动里程碑 paint:AppShell 首帧提交(Phase A 开屏牵线)
   useEffect(() => {
     bootProgress.report("paint");
@@ -668,11 +668,6 @@ function AppShell({
     }
   });
   useEffect(() => window.vua?.window.shellCommandEvents?.subscribe(onShellCommand), []);
-  const onAiRequests = useEffectEvent((snapshot: import("@vua/contracts").AiToolsSnapshotV01) => {
-    const fresh = snapshot.requests.filter(request => request.state === "pending" && !seenAiRequests.current.has(request.id));
-    if (fresh.length) { fresh.forEach(request => seenAiRequests.current.add(request.id)); navigate("help-ai"); }
-  });
-  useEffect(() => aiPort?.subscribe(onAiRequests), [aiPort]);
   const onEncyclopediaTarget = useEffectEvent((target: GuideTargetV1 | null) => {
     setGuideRequest({ target, nonce: ++guideRequestNonce.current });
     navigate("help-encyclopedia");
@@ -928,7 +923,7 @@ function AppShell({
         </button>
         {/* 通知中心顶栏入口(对标 Comfy 铃铛,自绘):保留任务与通知投影;
          *  capability 非 ready 时组件自身不渲染 */}
-        <NotificationPopover navigate={navigate} />
+        <NotificationPopover navigate={navigate} page={contentPage ?? page} />
         {inShell ? (
           <div className="vua-shell__window-controls">
             <button
@@ -989,6 +984,7 @@ function AppShell({
         </aside>
         <main className="vua-shell__main">
           {contentPage !== null ? <div hidden={showOnboarding || settingsOpen} key={contentPage} className="vua-page-enter">
+            {aiPort ? <AiRequestsHere page={contentPage} /> : null}
             {renderPage(contentPage, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}
           </div> : null}
           {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={onOnboardingComplete} onAccounts={pageActions.openAccounts} /></div> : null}

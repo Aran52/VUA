@@ -25,7 +25,7 @@ export function HelpPage({ page, navigate, onAccounts, startTour, guideRequest, 
   const back = <Button variant="subtle" data-back data-nav-id="help-child-back" onClick={() => navigate("help")}>{copy.backToHelp}</Button>;
   if (page === "help-ai") return <div className="vua-page vua-help-child" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.aiTools.title}</h1>{back}</header>
-    <AiToolsPage />
+    <AiToolsPage navigate={navigate} />
   </div>;
   if (page === "help-encyclopedia") return <div className="vua-page vua-knowledge" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading">

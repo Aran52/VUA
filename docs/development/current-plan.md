@@ -67,6 +67,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
    and one image per Avatar and outfit candidate during inspection, using the existing preview
    renderer. Images stay in the work project.
 2. The Avatar page shows them; the agent reads them to check a result before asking the author.
+   The MCP adapter returns them as image content, as the author approved on 2026-10-16.
 
 **Done when** a P-02 result can be judged from its previews, and each candidate has an image.
 
@@ -106,11 +107,20 @@ change, and at the manual level with every detail adjustable.
 
 ## 7 — Known packages
 
-1. A table of known packages: ID, feed, license, delivery policy, detection signals. First
-   entries: VRChat SDK (official source), Modular Avatar with NDMF, lilToon.
+1. A table of known packages: ID, feed, license, delivery policy, detection signals. Shaders
+   come first:
+   - lilToon (`jp.lilxyzw.liltoon`, MIT), already installed from its feed;
+   - Poiyomi Toon, the free version (`https://poiyomi.github.io/vpm/index.json`, MIT per its
+     repository); Poiyomi Pro stays with its own EULA;
+   - UnlitWF (whiteflare's VPM feed), after its feed URL and redistribution terms are confirmed;
+   - VRChat's Toon Standard ships inside the SDK (3.8.1 and later) for PC and mobile Avatars;
+   - then VRChat SDK (official source), Modular Avatar with NDMF.
 2. Bundled copies are recognized from each package's `legacyFolders` and `legacyFiles`
    (lilToon declares `Assets\lilToon`), generalizing the lilToon rule.
-3. The package page lists work projects with installed versions, updates and Recipe pins.
+3. The package page follows the familiarity levels: fully automatic resolves dependencies
+   without showing it; semi-automatic shows it with "Next step" and "Handle dependencies for me";
+   fully manual shows every package, version and feed.
+4. The package page lists work projects with installed versions, updates and Recipe pins.
 
 **Done when** P-01 resolves its missing shader through a known package.
 
@@ -145,8 +155,11 @@ change, and at the manual level with every detail adjustable.
 
 ## 11 — Appearance and one-click styles
 
-1. Design session with the author: which screens, which first styles, and whether a style may
-   recolor the module colors.
+1. Design session with the author: which screens, and whether a style may recolor the module
+   colors. The first two styles come from the author's briefs; the current purple style stays
+   as the default:
+   - **Y2K**: aqua and white, bandages, pills, angel wings, flat;
+   - **Jirai-kei**: pink and black, lace, energy drinks, leather, dimensional.
 2. Move remaining literal values into tokens (colors, radii, shadows, font sizes, timings).
 3. A style is token data checked against a schema, switched with one click in Appearance and
    the command palette; contrast is checked per style in dark and light.
@@ -203,10 +216,10 @@ channels.
 ## Open decisions
 
 - Packaged Unity Hub: VUA starts Hub before Unity work, or guides the player to the regular Hub.
-- Previews: the agent views local renders of the author's paid materials during development runs.
-- Styles: built-in only first or shareable data from the start; first styles and reference apps.
-- Known packages beyond the first three (for example Avatar Optimizer, VRCFury, Poiyomi), each
-  after a license check.
+- Styles: built-in only first or shareable data from the start; how the two briefs translate
+  into tokens, motifs and motion.
+- Known packages beyond the shaders, SDK and Modular Avatar (for example Avatar Optimizer,
+  VRCFury), each after a license check.
 
 ## Scheduled after these slices
 

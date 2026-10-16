@@ -32,23 +32,24 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | --- | --- | --- | --- |
 | 1 | Integrate | — | in progress |
 | 2 | Finish the first real production runs | P-02, P-01 | in progress |
-| 3 | Result previews | P-02 | next |
-| 4 | Unity editor handoff | P-02 | |
-| 5 | SDK step for newcomers | P-02 | |
-| 6 | Unity familiarity levels and simpler choices | P-02, P-03 | |
-| 7 | Known packages | P-01, P-03 | |
-| 8 | Material tuning | P-02, P-03 | |
-| 9 | Face tracking add-on | P-03 | |
-| 10 | Unity sign-in and license | A-01 | |
-| 11 | Managed upload | P-02 | |
-| 12 | Appearance and one-click styles | — | needs a design session |
-| 13 | Player language and four-language review | P-02 | |
-| 14 | Versioned SOPs | A-03, B-02–B-05 | |
-| 15 | Eval runs | all `ready` cases | |
-| 16 | Complex production and Recipe reproduction | P-03, P-04 | |
-| 17 | Tool and package delivery by license | C-01, C-02 | |
+| 3 | Unity Hub and SDK sign-in | P-02 | next |
+| 4 | Result previews | P-02 | |
+| 5 | Unity editor handoff | P-02 | |
+| 6 | SDK step for newcomers | P-02 | |
+| 7 | Unity familiarity levels and simpler choices | P-02, P-03 | |
+| 8 | Known packages | P-01, P-03 | |
+| 9 | Material tuning | P-02, P-03 | |
+| 10 | Face tracking add-on | P-03 | |
+| 11 | Unity sign-in and license | A-01 | |
+| 12 | Managed upload | P-02 | |
+| 13 | Appearance and one-click styles | — | needs a design session |
+| 14 | Player language and four-language review | P-02 | |
+| 15 | Versioned SOPs | A-03, B-02–B-05 | |
+| 16 | Eval runs | all `ready` cases | |
+| 17 | Complex production and Recipe reproduction | P-03, P-04 | |
+| 18 | Tool and package delivery by license | C-01, C-02 | |
 
-Every slice ships its player-facing text in the four UI languages; slice 13 reviews them together
+Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
 
 ## 1 — Integrate
@@ -65,7 +66,23 @@ with the author.
 
 **Done when** P-02 and P-01 pass as closed-loop runs in the app, with evidence in `_local_eval/`.
 
-## 3 — Result previews
+## 3 — Unity Hub and SDK sign-in
+
+Both removed friction in the first real run, so they come before the previews (author decision,
+2026-10-16).
+
+1. VUA starts Unity Hub before Unity work and waits for its licensing client, so a license held
+   by the packaged Hub is available.
+2. All VUA work projects share one company and product name, so the SDK sign-in, which Unity
+   keeps per product name under `LocalLow`, carries over between them. Existing work projects
+   take the shared name at their next Bridge run.
+3. VUA reports whether the SDK is signed in as yes or no through the Bridge; the sign-in itself
+   stays inside the SDK.
+
+**Done when** a run with Hub closed reaches a licensed Unity, and a second work project opens
+signed in to the SDK.
+
+## 4 — Result previews
 
 1. The Bridge renders the finished Avatar from the front, side and back under neutral lighting,
    and one image per Avatar and outfit candidate during inspection, using the existing preview
@@ -75,22 +92,16 @@ with the author.
 
 **Done when** a P-02 result can be judged from its previews, and each candidate has an image.
 
-## 4 — Unity editor handoff
+## 5 — Unity editor handoff
 
-1. VUA starts Unity Hub before Unity work and waits for its licensing client, so a license held
-   by the packaged Hub is available (author decision, 2026-10-16).
-2. All VUA work projects share one company and product name, so the SDK sign-in, which Unity
-   keeps per product name, carries over between them. VUA reports whether the SDK is signed in
-   as yes or no through the Bridge; the sign-in itself stays inside the SDK.
-3. The Bridge inside an open Editor accepts "save and close": save scenes and assets, quit, and
-   send a receipt. When work needs a project an Editor holds, the request card offers "Save and
-   close Unity, then continue". After the look check, the page offers "Done checking, close
-   Unity".
+1. The Bridge inside an open Editor accepts "save and close": save scenes and assets, quit, and
+   send a receipt.
+2. When work needs a project an Editor holds, the request card offers "Save and close Unity,
+   then continue". After the look check, the page offers "Done checking, close Unity".
 
-**Done when** a run with Hub closed reaches a licensed Unity, a second work project opens signed
-in to the SDK, and a held project continues without closing Unity by hand.
+**Done when** a held project continues without closing Unity by hand.
 
-## 5 — SDK step for newcomers
+## 6 — SDK step for newcomers
 
 1. The Bridge reads the official SDK checks and performance statistics for the result.
 2. VUA shows each item in plain words as "must fix before upload", "reminder, upload still
@@ -100,7 +111,7 @@ in to the SDK, and a held project continues without closing Unity by hand.
 **Eval:** P-02 outside-help count. **Done when** the author uploads the P-02 result guided by
 VUA alone.
 
-## 6 — Unity familiarity levels and simpler choices
+## 7 — Unity familiarity levels and simpler choices
 
 1. On first entry to Avatar production VUA asks how familiar the player is with Unity: fully
    automatic, semi-automatic or fully manual; the choice is changeable in settings and sets how
@@ -109,13 +120,13 @@ VUA alone.
    target, top-level prefab, the creator's base for outfits) and asks only when two candidates
    are equally plausible.
 3. The confirmation reads as one sentence with images: BOOTH product images for materials and
-   the previews from slice 3 for prefabs; binding details sit under "Adjust".
+   the previews from slice 4 for prefabs; binding details sit under "Adjust".
 4. `vua_amf_plan` without a selection returns the recommendation.
 
 **Done when** the author completes P-02 at the fully automatic level with one confirmation per
 change, and at the manual level with every detail adjustable.
 
-## 7 — Known packages
+## 8 — Known packages
 
 1. A table of known packages: ID, feed, license, delivery policy, detection signals. Shaders
    come first:
@@ -134,7 +145,7 @@ change, and at the manual level with every detail adjustable.
 
 **Done when** P-01 resolves its missing shader through a known package.
 
-## 8 — Material tuning
+## 9 — Material tuning
 
 1. Texture memory: measure each texture's memory and the total against VRChat's performance
    thresholds; lower Max Size and switch compression in the work project, reversible by
@@ -148,7 +159,7 @@ change, and at the manual level with every detail adjustable.
 **Done when** the P-02 result reaches a chosen rank, and its outfit and body match in brightness
 in bright and dark worlds, without visible loss the author objects to.
 
-## 9 — Face tracking add-on
+## 10 — Face tracking add-on
 
 1. Run the author's Meiyun face tracking add-on with the P-02 result; its patcher runs from an
    Editor menu, which the Bridge calls with the player's confirmation.
@@ -157,7 +168,7 @@ in bright and dark worlds, without visible loss the author objects to.
 
 **Done when** the Meiyun result carries working face tracking, verified in VRChat.
 
-## 10 — Unity sign-in and license
+## 11 — Unity sign-in and license
 
 1. Detect the license from the license file (standard and packaged-Hub locations), whether Hub
    and its licensing client run, and a short real check in a VUA-owned project.
@@ -167,7 +178,7 @@ in bright and dark worlds, without visible loss the author objects to.
 
 **Done when** a fresh machine reaches a licensed Unity run guided by VUA alone.
 
-## 11 — Managed upload
+## 12 — Managed upload
 
 1. Verify the SDK's build-and-upload interface in SDK 3.10.5, including whether it needs the
    Editor window.
@@ -176,7 +187,7 @@ in bright and dark worlds, without visible loss the author objects to.
 
 **Done when** the P-02 result uploads from VUA with the player's confirmation.
 
-## 12 — Appearance and one-click styles
+## 13 — Appearance and one-click styles
 
 1. Design session with the author: which screens, and whether a style may recolor the module
    colors. The first two styles come from the author's briefs; the current purple style stays
@@ -192,16 +203,16 @@ in bright and dark worlds, without visible loss the author objects to.
 
 **Done when** the author switches styles in one click and approves the redone screens.
 
-## 13 — Player language and four-language review
+## 14 — Player language and four-language review
 
 1. Remove internal references and process vocabulary from UI text; add a four-language
    terminology table and a check for Chinese full-width punctuation.
 2. Rewrite the Japanese and Korean strings for the AMF, tour and onboarding pages natively.
-3. Review every screen and message added in slices 3–12 in all four languages with the author.
+3. Review every screen and message added in slices 3–13 in all four languages with the author.
 
 **Done when** the author reviews the AMF journey and the new screens in all four languages.
 
-## 14 — Versioned SOPs
+## 15 — Versioned SOPs
 
 1. Turn the scenario SOPs into versioned SOP documents with the fields in the north star.
 2. Write the first symptom-to-solution SOPs and serve them through Help and `vua_sop`.
@@ -210,7 +221,7 @@ in bright and dark worlds, without visible loss the author objects to.
 **Eval:** A-03, B-02, B-03, B-04, B-05. **Done when** these cases are `ready` and pass in both
 channels.
 
-## 15 — Eval runs
+## 16 — Eval runs
 
 1. Convert the cases into machine-readable files and define the run record.
 2. Run every `ready` case in the app and through an MCP agent; publish the two pass rates and
@@ -218,7 +229,7 @@ channels.
 
 **Done when** a release reports both metrics.
 
-## 16 — Complex production and Recipe reproduction
+## 17 — Complex production and Recipe reproduction
 
 1. Run the N3 complex case with the author's real materials, then repeat it in a clean project.
 2. Reproduce it from a Recipe in a second project, including reapplication and conflicts.
@@ -226,7 +237,7 @@ channels.
 
 **Eval:** P-03, P-04. **Done when** the N3 and N4 acceptance rows pass.
 
-## 17 — Tool and package delivery by license
+## 18 — Tool and package delivery by license
 
 1. Add license, delivery-channel and verified-version fields to the tool catalog and the known
    packages.

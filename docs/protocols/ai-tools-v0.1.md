@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.1.0
+> Document version: 0.2.0
 > Status: Candidate
-> Updated: 2026-10-13
+> Updated: 2026-10-16
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -78,6 +78,12 @@ paths/material names can be necessary references for the selected local task; no
 credentials, raw logs or automatic screenshots are exposed. Responses and material descriptions
 are data, not instructions or authority to widen the catalog.
 
+`vua_amf_run` follows its facts with the run's rendered [AMF previews](amf-production-v0.1.md#previews)
+as MCP image content, as the author approved on 2026-10-16: the assembled Avatar from the front,
+side and back, then each candidate prefab, every image after a text line naming it. A response
+carries up to 24 images and 6 MiB of image data. The Agent checks a result from these images
+before asking the player.
+
 ## Desktop control face
 
 `VuaDesktopApiV4.aiTools` is an optional additive Candidate control face. `snapshot`, `setEnabled`,
@@ -95,4 +101,5 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
+- 0.2.0 (2026-10-16): return AMF result and candidate previews as image content from `vua_amf_run`.
 - 0.1.0 (2026-10-13): add authenticated local MCP over the existing host/AMF execution authorities with explicit player approval.

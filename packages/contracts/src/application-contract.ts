@@ -2840,7 +2840,7 @@ export interface DeploymentExecuteCommand extends ApplicationRequestBaseV01 { re
 
 export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
-  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollback" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } })
@@ -3221,7 +3221,7 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
       && isScenarioEnvironmentParams(value.method,value.params);
   }
   if (typeof value.method === "string" && value.method.startsWith("amf.production.")) {
-    const query = ["amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare"].includes(value.method);
+    const query = ["amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage"].includes(value.method);
     const command = ["amf.production.prepare", "amf.production.assemble", "amf.production.reinspect", "amf.production.open", "amf.production.rollback", "amf.production.saveRecipe", "amf.production.prepareRecipe", "amf.production.exportRecipe", "amf.production.importRecipe", "amf.production.applyRecipe"].includes(value.method);
     return ((query && value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"]))
       || (command && value.kind === "command" && isIdentifier(value.commandId) && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])))

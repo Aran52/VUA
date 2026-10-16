@@ -21,6 +21,11 @@ namespace Vua.Editor.Bridge
         private const string WorkCompany = "VUA";
         private const string WorkProduct = "VUA Avatar Work";
         private const int MaxReportedMaterials = 200;
+        // Previews stay in the work project beside the Bridge files, outside Assets.
+        private const string PreviewRoot = ".vua/previews";
+        private const int ViewSize = 512;
+        private const int CandidateSize = 256;
+        private const int MaxCandidatePreviews = 128;
         [Serializable] internal sealed class Source { public string sourceId; public string role; public string[] assetPaths; }
         [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; }
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
@@ -31,7 +36,9 @@ namespace Vua.Editor.Bridge
             public string sourceId; public string path; public string name; public bool isAvatar;
             public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts;
             public List<string> humanoidBones = new List<string>();
+            public string preview = "";
         }
+        [Serializable] internal sealed class PreviewImage { public string view; public string path; }
         [Serializable] internal sealed class BoundObject
         {
             public string sourceId; public string prefabPath; public string globalObjectId;
@@ -50,6 +57,7 @@ namespace Vua.Editor.Bridge
             public List<AvatarObservation> avatars = new List<AvatarObservation>();
             public List<string> missingShaderMaterials = new List<string>();
             public string sdkSignedIn = "unknown";
+            public List<PreviewImage> previews = new List<PreviewImage>();
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -149,6 +157,56 @@ namespace Vua.Editor.Bridge
             if (command.operation == "amf_assemble" && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
             result.data.projectFingerprint = ProjectFingerprint.Compute();
+            if (command.operation != "amf_prepare") RenderPreviews(command, result, root);
+        }
+
+        // The active Avatar from three sides, and during inspection each prefab candidate. A failed
+        // render becomes a warning; the inspected and assembled facts stand on their own.
+        private static void RenderPreviews(BridgeCommand command, Result result, string root)
+        {
+            if (command.commandId.Length > 160 || !command.commandId.All(c => (c < 128 && char.IsLetterOrDigit(c)) || c == '-' || c == '_'))
+            {
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.preview.failed", "Previews need a plain command identity."));
+                return;
+            }
+            var folder = PreviewRoot + "/" + command.commandId;
+            string Full(string relative) => Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+            try { Directory.CreateDirectory(Full(folder)); }
+            catch (Exception error)
+            {
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.preview.failed", "The preview folder could not be created: " + error.Message));
+                return;
+            }
+            var failures = new List<string>();
+            var avatar = string.IsNullOrEmpty(result.data.avatarGlobalObjectId) ? null : FindOwned(result.data.avatarGlobalObjectId);
+            if (avatar != null)
+            {
+                var views = new[] { ("front", 0f), ("side", 90f), ("back", 180f) };
+                try
+                {
+                    BridgePreviewBake.RenderStills(avatar, ViewSize, views.Select(v => (Full(folder + "/" + v.Item1 + ".png"), v.Item2)).ToArray());
+                    foreach (var view in views) result.data.previews.Add(new PreviewImage { view = view.Item1, path = folder + "/" + view.Item1 + ".png" });
+                }
+                catch (Exception error) { failures.Add(avatar.name + ": " + error.Message); }
+            }
+            if (command.operation == "amf_inspect")
+            {
+                var index = 0;
+                foreach (var candidate in result.data.prefabs.Take(MaxCandidatePreviews))
+                {
+                    var relative = folder + "/candidate-" + (index++).ToString("D3") + ".png";
+                    try
+                    {
+                        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(candidate.path);
+                        if (prefab == null) throw new InvalidOperationException("The prefab no longer loads.");
+                        BridgePreviewBake.RenderStills(prefab, CandidateSize, new[] { (Full(relative), 0f) });
+                        candidate.preview = relative;
+                    }
+                    catch (Exception error) { failures.Add(candidate.path + ": " + error.Message); }
+                }
+            }
+            if (failures.Count > 0)
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.preview.failed", failures.Count + " preview images could not be rendered. First: " + failures[0]));
         }
 
         private static bool SafeAssetPath(string path) => !string.IsNullOrEmpty(path) && path.StartsWith("Assets/", StringComparison.Ordinal)

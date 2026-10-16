@@ -85,6 +85,14 @@ fn wire_run(run: ProductionRun) -> Value {
     }
     value
 }
+/// Padded standard base64, as data URLs and MCP image content expect.
+fn standard_base64(bytes: &[u8]) -> String {
+    let mut text = vua_orchestrator::base64_url_encode(bytes).replace('-', "+").replace('_', "/");
+    while !text.len().is_multiple_of(4) {
+        text.push('=');
+    }
+    text
+}
 fn route(
     service: Arc<AmfProductionServices>,
     method: &str,
@@ -92,7 +100,7 @@ fn route(
 ) -> Result<Value, vua_orchestrator::AppErrorV1> {
     let query = matches!(
         method,
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -111,6 +119,7 @@ fn route(
         "amf.production.previewRecipeShare" | "amf.production.importRecipe" => &["schemaVersion", "text"],
         "amf.production.exportRecipe" => &["schemaVersion", "recipeId", "planDigest", "sources"],
         "amf.production.saveRecipe" => &["schemaVersion", "runId", "title"],
+        "amf.production.previewImage" => &["schemaVersion", "runId", "path"],
         "amf.production.prepareRecipe" => &["schemaVersion", "recipeId", "editorPath"],
         "amf.production.recipeApplyPlan" if params.contains_key("avatarGlobalObjectId") => &["schemaVersion", "runId", "recipeId", "avatarGlobalObjectId"],
         "amf.production.recipeApplyPlan" => &["schemaVersion", "runId", "recipeId"],
@@ -166,6 +175,14 @@ fn route(
         return Ok(
             json!({"schemaVersion":"0.1","sources":service.engine.sources()?,"editors":service.engine.editors()?,"runs":runs,"busy":service.busy.load(Ordering::SeqCst)}),
         );
+    }
+    if method == "amf.production.previewImage" {
+        let (run_id, path) = (string("runId")?, string("path")?);
+        if !is_preview_path(&path) {
+            return Err(production_error("params_invalid", "A preview path names a PNG under .vua/previews."));
+        }
+        let bytes = service.engine.preview_image(&run_id, &path)?;
+        return Ok(json!({"schemaVersion":"0.1","runId":run_id,"path":path,"mediaType":"image/png","data":standard_base64(&bytes)}));
     }
     if method == "amf.production.get" {
         return Ok(wire_run(project_view(

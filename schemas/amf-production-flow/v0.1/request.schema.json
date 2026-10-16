@@ -704,6 +704,46 @@
       ],
       "properties": {
         "method": {
+          "const": "amf.production.previewImage"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "path"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "path": {
+              "type": "string",
+              "maxLength": 512,
+              "pattern": "^\\.vua/previews/[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.png$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
           "const": "amf.production.importRecipe"
         },
         "kind": {

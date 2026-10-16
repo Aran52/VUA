@@ -1,6 +1,6 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.5.0
+> Document version: 0.6.0
 > Status: Candidate
 > Updated: 2026-10-16
 
@@ -51,6 +51,18 @@ holds none and `unknown` when the SDK cannot be asked. `missingShaderMaterials` 
 sources' materials and the active Avatar's renderer materials that Unity draws with its error
 shader because their shader is absent, with the warning `amf.shaders.missing`.
 
+After inspection and assembly, the Bridge renders the active owned Avatar at 512×512 from the
+front, side and back (camera yaw 0°, 90° and 180°) and lists them in `previews` as
+`{view, path}`. During inspection it also renders each prefab candidate from the front at
+256×256, up to 128 candidates, into the candidate's `preview`; a candidate without an image has an
+empty `preview`. Each render copies the object into its own preview scene, lit by the white
+three-light rig of the `build_preview` turntable, on an opaque neutral grey background, so the
+work scene and its lighting stay unchanged. Images are opaque PNG files under
+`.vua/previews/<commandId>/` in the work project, named `front.png`, `side.png`, `back.png` and
+`candidate-NNN.png`; paths are relative to the project root with `/` separators. Rendering runs in
+`-batchmode` with a graphics device. A failed render adds the warning `amf.preview.failed` and the
+operation continues with its facts.
+
 Requests and results are atomically written under the controlled Bridge directory. File hash,
 run binding, exact Editor pair, allowed operations and path containment are checked by Unity.
 The caller additionally validates schema version, operation, command identity and receipt status.
@@ -59,6 +71,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.6.0 (2026-10-16): render the active Avatar from three sides after inspection and assembly, and each prefab candidate during inspection.
 - 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.
 - 0.4.0 (2026-10-15): bind Recipe application to observed Avatar identities, support independent same-scene Avatar scopes, and observe retained Avatars separately.
 

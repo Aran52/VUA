@@ -547,7 +547,7 @@ function toApplicationRequest(
 
     // production-use-case v0.2(W20 ten-method, W24 workbench): verbatim pass-through
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
-    case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare":
+    case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe":
       return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };

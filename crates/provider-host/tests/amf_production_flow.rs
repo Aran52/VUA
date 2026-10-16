@@ -60,6 +60,7 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-apply-digest.json"),
         read("examples/invalid-apply-cancel-command.json"),
         read("examples/invalid-apply-empty-avatar.json"),
+        read("examples/invalid-preview-path.json"),
     ];
     let mut lines = String::new();
     for (index, case) in cases.iter().enumerate() {

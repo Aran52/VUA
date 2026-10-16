@@ -147,6 +147,21 @@ describe("built-in MCP, using the official HTTP client", () => {
     await second.resolve(waiting.id, "approve");
     expect(second.snapshot().requests[0]!.state).toBe("accepted");
   });
+  it("returns a run's previews as labelled image content", async () => {
+    const front = ".vua/previews/n3-test-1/front.png", coat = ".vua/previews/n3-test-0/candidate-000.png";
+    const { client, calls } = await setup(async request => {
+      if (request.method === "amf.production.get") return envelope(request, { runId: "n3-test", prefabs: [{ path: "Assets/Coat.prefab", isAvatar: false, preview: coat }, { path: "Assets/Hat.prefab", isAvatar: false }],
+        result: { facts: { previews: [{ view: "front", path: front }] } } });
+      if (request.method === "amf.production.previewImage" && request.params.path === front) return envelope(request, { mediaType: "image/png", data: "iVBORw0KGgoFRONT" });
+      return { schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "application", application: { contractVersion: "0.1", code: "vua.amf_production.preview_missing",
+        category: "validation", messageKey: "errors.amfProduction.failed", recoverable: true, retryable: false, correlationId: request.requestId } } } as DesktopGatewayResponseV1;
+    });
+    const result = await client.callTool({ name: "vua_amf_run", arguments: { runId: "n3-test" } });
+    expect(result.isError).toBeFalsy();
+    expect(result.content).toEqual([expect.objectContaining({ type: "text" }), { type: "text", text: "Assembled Avatar, front view" }, { type: "image", data: "iVBORw0KGgoFRONT", mimeType: "image/png" }]);
+    expect(calls.map(request => [request.method, request.params])).toEqual([["amf.production.get", { schemaVersion: "0.1", runId: "n3-test" }],
+      ["amf.production.previewImage", { schemaVersion: "0.1", runId: "n3-test", path: front }], ["amf.production.previewImage", { schemaVersion: "0.1", runId: "n3-test", path: coat }]]);
+  });
   it("rejects invented methods and parameter injection before touching the Gateway", async () => {
     const { client, calls } = await setup();
     for (const request of [

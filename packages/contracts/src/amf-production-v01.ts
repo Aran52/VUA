@@ -17,6 +17,7 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.listRecipes"; readonly params: { readonly schemaVersion: "0.1" } }
   | { readonly method: "amf.production.getRecipe" | "amf.production.recipeSharePlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string } }
   | { readonly method: "amf.production.saveRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly title: string } }
+  | { readonly method: "amf.production.previewImage"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly path: string } }
   | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
@@ -30,6 +31,11 @@ const text = (value: unknown, limit = 4096): value is string => typeof value ===
 const exact = (value: Record<string, unknown>, keys: readonly string[]) => Object.keys(value).length === keys.length && keys.every(key => key in value);
 const roles: readonly string[] = ["auto", "avatar", "outfit", "dependency"];
 
+/** A Bridge preview inside the work project: `.vua/previews/<command>/<name>.png`. */
+export function isAmfPreviewPath(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 512 && /^\.vua\/previews\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.png$/u.test(value)
+    && !value.split("/").includes("..");
+}
 export function isAmfAssemblySelection(value: unknown): value is AmfAssemblySelection {
   if (!record(value) || !exact(value, ["avatarPrefab", "outfits"]) || !text(value.avatarPrefab) || !Array.isArray(value.outfits) || value.outfits.length < 1 || value.outfits.length > 64) return false;
   return value.outfits.every(outfit => record(outfit) && exact(outfit, ["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"])
@@ -53,6 +59,8 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     case "amf.production.getRecipe": case "amf.production.recipeSharePlan": return exact(value, ["schemaVersion", "recipeId"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId);
     case "amf.production.saveRecipe": return exact(value, ["schemaVersion", "runId", "title"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && typeof value.title === "string" && value.title.trim().length > 0 && [...value.title].length <= 120 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value.title);
+    case "amf.production.previewImage": return exact(value, ["schemaVersion", "runId", "path"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+      && text(value.path,512) && isAmfPreviewPath(value.path);
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);

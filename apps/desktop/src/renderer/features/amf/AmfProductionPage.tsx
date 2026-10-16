@@ -3,7 +3,7 @@ import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
-import { useGateway, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
@@ -12,6 +12,7 @@ import { strings, format, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
+import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
 
@@ -199,16 +200,18 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         </Card>}
         <Card><h2>{copy.menuTitle}</h2><p className="vua-caption vua-text-secondary">{copy.menuHint}</p>
           {avatars.length !== 1 ? <label className="vua-n3__field">{copy.chooseAvatar}<select value={selection.avatarPrefab} onChange={e => edit({...selection,avatarPrefab:e.target.value})}><option value="">{copy.choosePrefab}</option>{avatars.map(p => <option key={`${p.sourceId}-${p.path}`} value={p.path}>{p.name} — {p.path}</option>)}</select></label> : <p>{format(copy.preparedAvatar,{name:avatar?.name ?? avatars[0]?.name ?? ""})}</p>}
+          {port && <AmfCandidateGallery port={port} runId={run.runId} candidates={avatars} chosen={selection.avatarPrefab} label={copy.chooseAvatar} onChoose={p => edit({...selection,avatarPrefab:p.path})}/>}
           {avatars.length === 0 && <p role="alert">{copy.noCandidate}</p>}
         </Card>
         {run.sources.filter(source => source.role !== "dependency" && source.role !== "avatar").map(source => {
           const options = run.prefabs.filter(p => p.sourceId === source.sourceId && !p.isAvatar);
           if (options.length === 0) return null;
           const chosen = selection.outfits.find(o => o.sourceId === source.sourceId); const candidate = options.find(p => p.path === chosen?.prefabPath);
+          const choose = (p: AmfPrefab | undefined) => outfit(source.sourceId,p ? {prefabPath:p.path,mode:p.hasSkinnedMesh || p.hasMergeArmature ? "merge_armature" : "attach_to_bone",bone:"",toggleName:source.itemName.slice(0,80)} : null);
           return <Card key={source.sourceId}><div className="vua-n3__outfit"><h3>{source.itemName}</h3>
-            {(options.length > 1 || !chosen) && <label className="vua-n3__field">{copy.choosePrefab}<select value={chosen?.prefabPath ?? ""} onChange={e => {
-              const p = options.find(o => o.path === e.target.value); outfit(source.sourceId,p ? {prefabPath:p.path,mode:p.hasSkinnedMesh || p.hasMergeArmature ? "merge_armature" : "attach_to_bone",bone:"",toggleName:source.itemName.slice(0,80)} : null);
-            }}><option value="">{copy.importedOnly}</option>{options.map(p => <option key={p.path} value={p.path}>{p.name} — {p.path}</option>)}</select></label>}
+            {port && <AmfCandidateGallery port={port} runId={run.runId} candidates={options} chosen={chosen?.prefabPath ?? ""} label={copy.choosePrefab} onChoose={p => { if (p.path !== chosen?.prefabPath) choose(p); }}/>}
+            {(options.length > 1 || !chosen) && <label className="vua-n3__field">{copy.choosePrefab}<select value={chosen?.prefabPath ?? ""} onChange={e => choose(options.find(o => o.path === e.target.value))}>
+              <option value="">{copy.importedOnly}</option>{options.map(p => <option key={p.path} value={p.path}>{p.name} — {p.path}</option>)}</select></label>}
             {candidate?.hasMissingScripts && <p role="alert">{copy.missingScripts}</p>}
             {chosen && <div className="vua-n3__fields"><label>{copy.switchName}<input value={chosen.toggleName} maxLength={80} onChange={e => outfit(source.sourceId,{toggleName:e.target.value})}/></label>
               <details className="vua-n3__advanced"><summary>{copy.binding}</summary><label>{copy.binding}<select value={chosen.mode} onChange={e => outfit(source.sourceId,{mode:e.target.value as AmfOutfitSelection["mode"],bone:""})}>
@@ -230,6 +233,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
       {run.phase === "succeeded" && !restorePlan && <Card><h2>{copy.completed}</h2><p>{copy.next}</p>
+        {port && <AmfResultViews port={port} run={run}/>}
         <ul className="vua-n3__checks">{run.result?.facts?.instances?.length ? <>
           <li>{run.result.facts.instances.every(i => i.bindingVerified) && <Icon name="check" size={16}/>} {copy.bindings}</li>
           {run.result.facts.instances.some(i => i.menuModified) && <li>{run.result.facts.instances.filter(i => i.menuModified).every(i => i.menuVerified) && <Icon name="check" size={16}/>} {copy.menus}</li>}

@@ -1089,7 +1089,7 @@ export type DesktopGatewayRequestV1 =
 
 /** 方法 → 应用语义:Kernel 路由用;未知方法返回 undefined */
 export const DESKTOP_GATEWAY_METHOD_KINDS = {
-  "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query",
+  "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query", "amf.production.previewImage": "query",
   "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
   "amf.production.prepare": "command", "amf.production.assemble": "command", "amf.production.reinspect": "command", "amf.production.open": "command", "amf.production.rollback": "command", "amf.production.saveRecipe": "command", "amf.production.prepareRecipe": "command", "amf.production.exportRecipe": "command", "amf.production.importRecipe": "command", "amf.production.applyRecipe": "command",
   "app.snapshot": "query",
@@ -1884,7 +1884,7 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
   switch (value.method) {
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
-    case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare":
+    case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage":
     case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe":
       return hasExactKeys(value, REQUEST_KEYS) && isAmfProductionParams(value.method, value.params);
     case "app.snapshot":

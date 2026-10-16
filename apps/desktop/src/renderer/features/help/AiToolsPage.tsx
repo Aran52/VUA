@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AiActionRequestV01, AiToolsSnapshotV01 } from "@vua/contracts";
 import { useGateway } from "../../gateway/index.ts";
-import { currentLocale, strings } from "../../i18n/index.ts";
+import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import "./ai-tools.css";
@@ -13,45 +13,71 @@ function outcome(request: AiActionRequestV01): string {
   const keys: Record<string, keyof typeof copy.outcomes> = { vua_request_installation: "installation", vua_request_play: "play", vua_request_tool: "tool", vua_request_amf_prepare: "prepare", vua_request_amf_assemble: "assemble", vua_request_amf_reinspect: "reinspect", vua_request_amf_open: "open", vua_request_cancel_task: "cancel" };
   return copy.outcomes[keys[request.tool] ?? "cancel"];
 }
-/** Facts displayed for consent, not executable text supplied by the Agent. */
+/** File or folder name without directories or extension: "Meiyun_v2.1.0/Meiyun.unitypackage" → "Meiyun". */
+const baseName = (value: unknown) => String(value ?? "").split(/[\\/]/).pop()!.replace(/\.(unitypackage|zip|prefab)$/i, "");
+const roleLabel = (role: unknown) => copy.roles[role as keyof typeof copy.roles] ?? copy.roles.material;
+/** One material line: its role, the package name, and the download it came from when that name differs. */
+function Material({ role, name, item }: { role: unknown; name: unknown; item: unknown }) {
+  const own = baseName(name), from = baseName(item);
+  return <li><strong>{roleLabel(role)}</strong>{" · "}{own}
+    {from && from !== own ? <span className="vua-caption vua-text-secondary"> · {format(copy.fromItem, { item: from })}</span> : null}</li>;
+}
+/** Facts displayed for consent, not executable text supplied by the Agent. The player sees what the
+ * action touches in everyday words; paths and raw parameters stay under the technical details. */
 function Review({ request }: { request: AiActionRequestV01 }) {
   const params = record(request.details.parameters) ? request.details.parameters : {};
   const reviewed = record(request.details.reviewed) ? request.details.reviewed : {};
   const plan = record(reviewed.deploymentPlan) ? reviewed.deploymentPlan : null;
+  const steps = plan && Array.isArray(plan.steps) ? plan.steps.filter(record) : [];
   const sources = Array.isArray(params.sources) ? params.sources.filter(record) : [];
   const knownSources = Array.isArray(reviewed.sources) ? reviewed.sources.filter(record) : [];
   const inputs = Array.isArray(reviewed.inputs) ? reviewed.inputs.filter(record) : [];
   const selection = record(params.selection) ? params.selection : null;
   const outfits = selection && Array.isArray(selection.outfits) ? selection.outfits.filter(record) : [];
+  const materials = sources.length > 0
+    ? sources.map(source => ({ source, fact: knownSources.find(s => s.sourceId === source.sourceId) }))
+    : params.runId ? knownSources.map(fact => ({ source: fact, fact })) : [];
   return <div className="vua-ai-review">
-    {plan && Array.isArray(plan.steps) ? <ol>{plan.steps.filter(record).map((step, i) => <li key={i}>
+    {steps.length > 0 ? <><h4>{copy.software}</h4><ul>{steps.map((step, i) => <li key={i}>
       <strong>{strings.deployment.components[step.component as keyof typeof strings.deployment.components] ?? String(step.component)}</strong>
       {" · "}{strings.deployment.actions[step.action as keyof typeof strings.deployment.actions] ?? String(step.action)}
       {step.version ? ` (${String(step.version)})` : ""}
-      {step.location ? <div><code>{String(step.location)}</code></div> : null}
-    </li>)}</ol> : null}
+    </li>)}</ul></> : null}
+    {params.route ? <p>{strings.deployment.purposes[params.route as keyof typeof strings.deployment.purposes] ?? String(params.route)}</p> : null}
+    {params.action ? <p>{copy.actions[params.action as keyof typeof copy.actions] ?? String(params.action)}</p> : null}
+    {materials.length > 0 ? <><h4>{copy.materials}</h4><ul>{materials.map(({ source, fact }, i) => fact
+      ? <Material key={i} role={fact.role ?? source.role} name={fact.name} item={fact.itemName} />
+      : <Material key={i} role={source.role} name={source.sourceId} item={null} />)}</ul></> : null}
+    {inputs.length > 0 ? <><h4>{copy.materials}</h4><ul>{inputs.map((input, i) => <li key={i}>{baseName(input.name)}</li>)}</ul></> : null}
+    {selection ? <><h4>{copy.combination}</h4><ul>
+      <li><strong>{copy.roles.avatar}</strong>{" · "}{baseName(selection.avatarPrefab)}</li>
+      {outfits.map((outfit, i) => <li key={i}><strong>{copy.roles.outfit}</strong>{" · "}{baseName(outfit.prefabPath)}
+        <span className="vua-caption vua-text-secondary">
+          {" · "}{outfit.mode === "attach_to_bone" ? `${strings.amfProduction.attach} (${String(outfit.bone)})` : strings.amfProduction.merge}
+          {outfit.toggleName ? ` · ${strings.amfProduction.switchName}: ${String(outfit.toggleName)}` : ""}
+        </span></li>)}
+    </ul></> : null}
+  </div>;
+}
+/** Paths, download routing and raw parameters, for the AI or for troubleshooting. */
+function TechnicalDetails({ request }: { request: AiActionRequestV01 }) {
+  const params = record(request.details.parameters) ? request.details.parameters : {};
+  const reviewed = record(request.details.reviewed) ? request.details.reviewed : {};
+  const plan = record(reviewed.deploymentPlan) ? reviewed.deploymentPlan : null;
+  const locations = plan && Array.isArray(plan.steps) ? plan.steps.filter(record).filter(step => step.location) : [];
+  return <details className="vua-ai-review"><summary>{copy.technical}</summary>
+    {locations.map((step, i) => <p key={i}>{strings.deployment.components[step.component as keyof typeof strings.deployment.components] ?? String(step.component)}: <code>{String(step.location)}</code></p>)}
     {plan && record(plan.downloadPolicy) ? <p className="vua-caption">
       {strings.deployment.downloadRegion}: {strings.deployment.downloadRegions[plan.downloadPolicy.region as keyof typeof strings.deployment.downloadRegions]}
       <br />{strings.deployment.downloadOrder}: {Array.isArray(plan.downloadPolicy.sources) ? plan.downloadPolicy.sources.map(source => strings.deployment.downloadSources[source as keyof typeof strings.deployment.downloadSources]).join(" → ") : ""}
       {plan.downloadPolicy.editorEditions ? <><br />{strings.deployment.editorEditionOrder}</> : null}
     </p> : null}
-    {params.route ? <p>{strings.deployment.purposes[params.route as keyof typeof strings.deployment.purposes] ?? String(params.route)}</p> : null}
-    {params.action ? <p>{copy.actions[params.action as keyof typeof copy.actions] ?? String(params.action)}</p> : null}
     {params.editorPath ? <p>{strings.amfProduction.editor}: <code>{String(params.editorPath)}</code></p> : null}
-    {sources.length > 0 ? <ul>{sources.map((source, i) => {
-      const fact = knownSources.find(s => s.sourceId === source.sourceId);
-      return <li key={i}>{fact ? `${String(fact.itemName)} · ${String(fact.name)}` : String(source.sourceId)}</li>;
-    })}</ul> : null}
-    {inputs.length > 0 ? <ul>{inputs.map((input, i) => <li key={i}>{String(input.name)}</li>)}</ul> : null}
-    {params.runId && knownSources.length > 0 ? <ul>{knownSources.map((source, i) => <li key={i}>{String(source.itemName)} · {String(source.name)}</li>)}</ul> : null}
-    {reviewed.projectRoot ? <p><code>{String(reviewed.projectRoot)}</code></p> : null}
-    {selection ? <p>{strings.amfProduction.avatar}: <code>{String(selection.avatarPrefab)}</code></p> : null}
-    {outfits.length > 0 ? <ul>{outfits.map((outfit, i) => <li key={i}><code>{String(outfit.prefabPath)}</code>
-      {" · "}{outfit.mode === "attach_to_bone" ? `${strings.amfProduction.attach} (${String(outfit.bone)})` : strings.amfProduction.merge}
-      {outfit.toggleName ? ` · ${strings.amfProduction.switchName}: ${String(outfit.toggleName)}` : ""}</li>)}</ul> : null}
-    <details><summary>{copy.parameters}</summary><pre>{JSON.stringify(params, null, 2)}</pre></details>
-  </div>;
+    {reviewed.projectRoot ? <p>{copy.project}: <code>{String(reviewed.projectRoot)}</code></p> : null}
+    <pre>{JSON.stringify(params, null, 2)}</pre>
+  </details>;
 }
+const clock = (iso: string) => new Date(iso).toLocaleTimeString(currentLocale, { hour: "2-digit", minute: "2-digit" });
 
 export function AiToolsPage() {
   const port = useGateway().aiTools;
@@ -113,14 +139,18 @@ export function AiToolsPage() {
       <h2>{copy.requests}</h2><p>{snapshot?.requests.length ? copy.approvalHint : copy.noRequests}</p>
       {[...(snapshot?.requests ?? [])].reverse().map(request => <Card key={request.id}>
         <header><h3>{title(request)}</h3><span role="status">{copy.states[request.state]}</span></header>
-        <Review request={request} /><h4>{copy.afterwards}</h4><p>{outcome(request)}</p>
-        {request.state === "pending" ? <div className="vua-ai-tools__controls">
-          <Button variant="primary" disabled={busy} onClick={() => { void act(async () => setSnapshot(await port.resolve(request.id, "approve"))); }}>{copy.approve}</Button>
-          <Button variant="subtle" disabled={busy} onClick={() => { void act(async () => setSnapshot(await port.resolve(request.id, "reject"))); }}>{copy.reject}</Button>
-        </div> : null}
+        <p>{outcome(request)}</p>
+        <Review request={request} />
+        {request.state === "pending" ? <>
+          <p className="vua-caption vua-text-secondary">{format(copy.validUntil, { time: clock(request.expiresAt) })}</p>
+          <div className="vua-ai-tools__controls">
+            <Button variant="primary" disabled={busy} onClick={() => { void act(async () => setSnapshot(await port.resolve(request.id, "approve"))); }}>{copy.approve}</Button>
+            <Button variant="subtle" disabled={busy} onClick={() => { void act(async () => setSnapshot(await port.resolve(request.id, "reject"))); }}>{copy.reject}</Button>
+          </div></> : null}
         {request.state === "accepted" ? <p role="status">{copy.dispatchedHint}</p> : null}
         {request.state === "expired" ? <p>{copy.expiredHint}</p> : null}
-        {request.state === "failed" ? <p role="alert">{copy.error} <code>{request.error}</code></p> : null}
+        {request.state === "failed" ? <p role="alert">{copy.requestFailed} <code>{request.error}</code></p> : null}
+        <TechnicalDetails request={request} />
       </Card>)}
     </section>
   </div>;

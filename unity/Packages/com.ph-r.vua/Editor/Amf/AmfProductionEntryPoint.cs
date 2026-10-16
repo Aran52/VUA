@@ -17,6 +17,10 @@ namespace Vua.Editor.Bridge
     {
         private const string ScenePath = "Assets/VUA/Production.unity";
         private const string OwnershipPath = "Assets/VUA/Ownership.json";
+        // Unity keeps the VRChat SDK sign-in per company and product, so every work project shares both.
+        private const string WorkCompany = "VUA";
+        private const string WorkProduct = "VUA Avatar Work";
+        private const int MaxReportedMaterials = 200;
         [Serializable] internal sealed class Source { public string sourceId; public string role; public string[] assetPaths; }
         [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; }
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
@@ -44,6 +48,8 @@ namespace Vua.Editor.Bridge
             public bool hasMissingScripts; public Selection observedSelection;
             public List<string> usedSourceIds = new List<string>();
             public List<AvatarObservation> avatars = new List<AvatarObservation>();
+            public List<string> missingShaderMaterials = new List<string>();
+            public string sdkSignedIn = "unknown";
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -127,10 +133,19 @@ namespace Vua.Editor.Bridge
             var fingerprint = ProjectFingerprint.Compute();
             if (command.operation == "amf_assemble" && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
                 throw new InvalidOperationException("The scene changed. Reinspect and review the plan.");
+            if (PlayerSettings.companyName != WorkCompany || PlayerSettings.productName != WorkProduct)
+            {
+                PlayerSettings.companyName = WorkCompany; PlayerSettings.productName = WorkProduct;
+                AssetDatabase.SaveAssets();
+            }
+            result.data.sdkSignedIn = SdkSignedIn();
             result.data.editorVersion = Application.unityVersion;
             result.data.prefabs = Inspect(request);
             if (command.operation == "amf_assemble") Assemble(request, result);
             ObserveScene(request, result);
+            result.data.missingShaderMaterials = MissingShaderMaterials(request, result.data.avatarGlobalObjectId);
+            if (result.data.missingShaderMaterials.Count > 0)
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.shaders.missing", result.data.missingShaderMaterials.Count + " materials use a shader that is not in the project."));
             if (command.operation == "amf_assemble" && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
             result.data.projectFingerprint = ProjectFingerprint.Compute();
@@ -143,6 +158,28 @@ namespace Vua.Editor.Bridge
             .Select(a => a.GetType("VRC.SDK3.Avatars.Components.VRCAvatarDescriptor", false)).FirstOrDefault(t => t != null);
 
         private static bool IsAvatar(GameObject prefab) { var type = DescriptorType(); return type != null && prefab.GetComponent(type) != null; }
+        // Unity draws a material whose shader is absent with its error shader (the pink look).
+        private static List<string> MissingShaderMaterials(Request request, string avatarGlobalObjectId)
+        {
+            var materials = request.sources.SelectMany(s => s.assetPaths)
+                .Where(p => p.EndsWith(".mat", StringComparison.OrdinalIgnoreCase)).Select(AssetDatabase.LoadAssetAtPath<Material>);
+            var avatar = string.IsNullOrEmpty(avatarGlobalObjectId) ? null : FindOwned(avatarGlobalObjectId);
+            if (avatar != null) materials = materials.Concat(avatar.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials));
+            return materials.Where(m => m != null && (m.shader == null || m.shader.name == "Hidden/InternalErrorShader"))
+                .Select(AssetDatabase.GetAssetPath).Where(p => !string.IsNullOrEmpty(p))
+                .Distinct().OrderBy(p => p, StringComparer.Ordinal).Take(MaxReportedMaterials).ToList();
+        }
+        // "yes" when the SDK has a saved sign-in for this product; the credentials stay inside the SDK.
+        private static string SdkSignedIn()
+        {
+            try
+            {
+                var type = AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType("VRC.Core.ApiCredentials", false)).FirstOrDefault(t => t != null);
+                var load = type?.GetMethod("Load", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, null, Type.EmptyTypes, null);
+                return load?.Invoke(null, null) is bool loaded ? (loaded ? "yes" : "no") : "unknown";
+            }
+            catch (Exception) { return "unknown"; }
+        }
         private static bool MissingScripts(GameObject prefab) => prefab.GetComponentsInChildren<Component>(true).Any(c => c == null);
         private static Animator HumanAnimator(GameObject avatar) => avatar.GetComponentsInChildren<Animator>(true).FirstOrDefault(a => a.isHuman);
         private static List<string> Bones(GameObject avatar)

@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.6.0
+> Document version: 0.7.0
 > Status: Candidate
-> Updated: 2026-10-15
+> Updated: 2026-10-16
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -128,6 +128,13 @@ Desktop launches the GUI Editor outside the strict AMF worker job after AMF admi
 Unity returns a receipt for actual Avatar selection and official SDK panel invocation. This is a
 handoff, not a successful build/upload. Disabling AMF does not terminate that player's GUI Editor.
 
+Before each Unity run and Editor handoff, AMF starts Unity Hub when its licensing client is not
+running and waits up to 90 seconds for the client. A packaged (MSIX) Hub starts through its
+application identity, so the client reads the license from Hub's package folder.
+
+Preparation installs lilToon from its official feed when a selected package bundles lilToon or
+carries a lilToon material whose shader none of the selected packages provides.
+
 ## Evidence limits
 
 Synthetic tests check contracts, confirmation, recovery and relationships. They do not establish
@@ -136,6 +143,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.
 - 0.6.0 (2026-10-15): add observed Recipe differences, reviewed priority choices, same-project new Avatars and preserved unmentioned outfits.
 
 - 0.5.0 (2026-10-15): connect source-reviewed export and idempotent received Recipes through the closed production Gateway.

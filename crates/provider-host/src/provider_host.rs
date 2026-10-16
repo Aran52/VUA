@@ -961,6 +961,10 @@ pub fn run_provider_host_with_legacy(
             bdl: warehouse.bdl.clone(), root: root.clone(),
             editor_roots: project_ops.as_ref().map(|ops| ops.editor_roots.as_ref().clone()).unwrap_or_else(|| vec![PathBuf::from("C:/Program Files/Unity/Hub/Editor")]),
             explicit_editor: std::env::var_os("VUA_UNITY_EDITOR").map(PathBuf::from),
+            unity_hub: environment.clone().map(|services| {
+                Arc::new(move || services.engine.inspect_unity_hub())
+                    as Arc<dyn Fn() -> vua_orchestrator::EnvironmentCheckItemV1 + Send + Sync>
+            }),
         };
         Arc::new(crate::amf_production_routes::AmfProductionServices {
             engine: vua_orchestrator::amf_production::AmfProductionEngine::new(root, Arc::new(platform)),

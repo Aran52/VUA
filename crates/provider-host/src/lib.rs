@@ -30,5 +30,6 @@ mod play_session_routes;
 mod external_tool_routes;
 mod network_routes;
 mod amf_production_adapter;
+mod unity_hub;
 mod amf_production_routes;
 mod scenario_routes;

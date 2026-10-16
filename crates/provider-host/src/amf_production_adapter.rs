@@ -19,6 +19,8 @@ pub struct NativeAmfProduction {
     pub root: PathBuf,
     pub editor_roots: Vec<PathBuf>,
     pub explicit_editor: Option<PathBuf>,
+    /// The environment's current `unity_hub` finding, read before each Unity run.
+    pub unity_hub: Option<Arc<dyn Fn() -> vua_orchestrator::EnvironmentCheckItemV1 + Send + Sync>>,
 }
 
 fn err(code: &str, error: impl std::fmt::Display) -> AppErrorV1 {
@@ -68,6 +70,10 @@ fn ensure_repo(
 }
 
 impl NativeAmfProduction {
+    fn start_unity_hub(&self) {
+        let launch = self.unity_hub.as_ref().and_then(|finding| crate::unity_hub::hub_launch(&finding().facts));
+        crate::unity_hub::ensure_licensing_client(launch, || false);
+    }
     fn package_backend(&self) -> Result<vua_project_manager::VrcGetLibBackend, AppErrorV1> {
         vua_project_manager::VrcGetLibBackend::with_environment_root(
             self.root.join("vpm-environment"),
@@ -202,6 +208,7 @@ impl NativeAmfProduction {
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         refresh_bridge_package(Path::new(&run.project_root))?;
+        self.start_unity_hub();
         let id = format!(
             "{}-{}",
             run.run_id,
@@ -586,6 +593,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
         let mut guids = HashMap::<String, String>::new();
         let mut needs_liltoon = false;
+        let mut liltoon_shaders = BTreeSet::new();
         let available = self
             .sources()?
             .into_iter()
@@ -700,6 +708,10 @@ impl AmfProductionPlatform for NativeAmfProduction {
                     ));
                 }
                 if folder.join("asset").is_file() {
+                    if folded.ends_with(".mat") {
+                        let material = fs::read(folder.join("asset")).map_err(|e| err("source_invalid", e))?;
+                        liltoon_shaders.extend(liltoon_material_shader(&material));
+                    }
                     asset_paths.push(logical);
                 }
             }
@@ -722,6 +734,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         // Validate the entire batch before the first asset copy; shared identical files are reused.
         validate_asset_layout(files.keys().map(String::as_str))?;
+        // lilToon materials whose shader none of the selected packages carries render pink
+        // until the lilToon package is in the project.
+        needs_liltoon |= liltoon_shaders.iter().any(|shader| !guids.contains_key(shader));
         if needs_liltoon && !run.package_pins.contains_key(LILTOON_PACKAGE) {
             ctx.emit_progress(serde_json::json!({"operation":"amf.production","runId":run.run_id,"stage":"materials","name":"lilToon"}));
             self.install_liltoon(run)?;
@@ -820,6 +835,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         fs::write(folder.join("amf-open.json"), serde_json::to_vec(&serde_json::json!({"schemaVersion":"0.1","runId":run.run_id,"avatarGlobalObjectId":avatar})).map_err(|e| err("open_failed", e))?)
             .map_err(|e| err("open_failed", e))?;
+        if !editor_holds_project(Path::new(&run.project_root)) {
+            self.start_unity_hub();
+        }
         if std::env::var("VUA_AMF_HANDOFF_FROM_DESKTOP").as_deref() != Ok("1") {
             open_editor(run)?;
         }
@@ -916,6 +934,17 @@ fn hash_text(value: &str) -> String {
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect()
+}
+
+/// The shader GUID of a lilToon material (it records `_lilToonVersion`), in lower case.
+fn liltoon_material_shader(material: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(material);
+    if !text.contains("_lilToonVersion") {
+        return None;
+    }
+    let reference = text.lines().find_map(|line| line.trim_start().strip_prefix("m_Shader:"))?;
+    let guid = reference.split("guid:").nth(1)?.split([',', '}']).next()?.trim().to_ascii_lowercase();
+    (guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit())).then_some(guid)
 }
 
 fn validate_metadata_guid(meta: &str, guid: &str, path: &str) -> Result<(), AppErrorV1> {
@@ -1052,6 +1081,13 @@ mod tests {
     }
 
     #[test]
+    fn liltoon_materials_name_their_shader() {
+        let material = b"Material:\n  m_Name: Tshirt\n  m_Shader: {fileID: 4800000, guid: DF12117ECD77C31469C224178886498E, type: 3}\n  m_Floats:\n    - _lilToonVersion: 44\n";
+        assert_eq!(liltoon_material_shader(material).as_deref(), Some("df12117ecd77c31469c224178886498e"));
+        assert_eq!(liltoon_material_shader(b"Material:\n  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}\n"), None);
+    }
+
+    #[test]
     fn compiler_failure_reports_deduplicated_diagnostics_without_license_metadata() {
         let diagnostic = "Library/PackageCache/com.unity.xr.oculus@4.2.0/Runtime/FFR.cs(22,20): error CS0103: The name 'Permission' does not exist in the current context";
         let error = classify_bridge_log("Serial number assigned to: private\nSuccessfully resolved entitlements", &format!("{diagnostic}\n{diagnostic}\nScripts have compiler errors.")).unwrap();
@@ -1151,6 +1187,7 @@ mod tests {
             root: root.join("amf"),
             editor_roots: vec![],
             explicit_editor: None,
+            unity_hub: None,
         };
         let source = ProductionSource {
             source_id: "source-1".into(),

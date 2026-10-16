@@ -233,10 +233,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <ul className="vua-n3__checks">{run.result?.facts?.instances?.length ? <>
           <li>{run.result.facts.instances.every(i => i.bindingVerified) && <Icon name="check" size={16}/>} {copy.bindings}</li>
           {run.result.facts.instances.some(i => i.menuModified) && <li>{run.result.facts.instances.filter(i => i.menuModified).every(i => i.menuVerified) && <Icon name="check" size={16}/>} {copy.menus}</li>}
-        </> : null}{run.result?.facts?.sdkDescriptorRecognized && <li><Icon name="check" size={16}/> {copy.sdk}</li>}</ul>
+        </> : null}{run.result?.facts?.sdkDescriptorRecognized && <li><Icon name="check" size={16}/> {copy.sdk}</li>}
+          {run.result?.facts?.missingShaderMaterials?.length === 0 && <li><Icon name="check" size={16}/> {copy.shaders}</li>}
+          {run.result?.facts?.sdkSignedIn === "yes" && <li><Icon name="check" size={16}/> {copy.sdkSignedIn}</li>}</ul>
+        {!!run.result?.facts?.missingShaderMaterials?.length && <p className="vua-n3__notice">{format(copy.shadersMissing,{count:String(run.result.facts.missingShaderMaterials.length)})}</p>}
+        {run.result?.facts?.sdkSignedIn === "no" && <p className="vua-text-secondary">{copy.sdkSignIn}</p>}
         <p className="vua-text-secondary">{copy.sdkNotRun}</p>
         {!!run.result?.facts?.missingReferences && <p className="vua-n3__notice">{copy.warning}</p>}
-        {run.result?.diagnostics?.filter(d => d.severity !== "info").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
+        {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
         <div className="vua-n3__actions"><Button variant="subtle" disabled={busy} onClick={newPreparation}>{copy.newPreparation}</Button><Button disabled={busy} onClick={() => { void command("reinspect"); }}>{copy.continueEditing}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }}>{taskAction === "open" ? copy.opening : copy.open}</Button></div>
       </Card>}
       {!busy && !restorePlan && ["ready","succeeded"].includes(run.phase) && run.result?.facts?.observedSelection && <Card>

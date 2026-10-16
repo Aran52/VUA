@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.4.0
+> Document version: 0.5.0
 > Status: Candidate
-> Updated: 2026-10-15
+> Updated: 2026-10-16
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -44,6 +44,13 @@ allowing preservation to be verified rather than inferred from an ownership file
 collection uses [Unity's object dependency API](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/EditorUtility.CollectDependencies.html)
 for the active Avatar so another scene Avatar does not expand a saved Recipe.
 
+Every operation sets the work project's company and product name to `VUA` and `VUA Avatar Work`.
+Unity keeps the VRChat SDK sign-in per company and product, so one sign-in serves every work
+project. `sdkSignedIn` is `yes` when the SDK holds a saved sign-in for that product, `no` when it
+holds none and `unknown` when the SDK cannot be asked. `missingShaderMaterials` lists the selected
+sources' materials and the active Avatar's renderer materials that Unity draws with its error
+shader because their shader is absent, with the warning `amf.shaders.missing`.
+
 Requests and results are atomically written under the controlled Bridge directory. File hash,
 run binding, exact Editor pair, allowed operations and path containment are checked by Unity.
 The caller additionally validates schema version, operation, command identity and receipt status.
@@ -52,6 +59,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.
 - 0.4.0 (2026-10-15): bind Recipe application to observed Avatar identities, support independent same-scene Avatar scopes, and observe retained Avatars separately.
 
 - 0.3.0 (2026-10-15): report source dependencies actually used by the saved scene for Recipe capture.

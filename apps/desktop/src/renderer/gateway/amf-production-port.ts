@@ -21,7 +21,8 @@ export interface AmfProductionRun {
   readonly snapshotId: string | null;
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
-    readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean };
+    readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
+    readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown" };
     readonly diagnostics?: readonly { readonly code: string; readonly severity: string; readonly message: string }[] } | null;
 }
 export interface AmfProductionList {
@@ -93,6 +94,8 @@ function result(v: unknown): boolean {
     && (facts.avatarName === null || text(facts.avatarName)) && Array.isArray(facts.instances)
     && (facts.observedSelection === undefined || facts.observedSelection === null || isAmfAssemblySelection(facts.observedSelection))
     && (facts.hasMissingScripts === undefined || typeof facts.hasMissingScripts === "boolean")
+    && (facts.missingShaderMaterials === undefined || texts(facts.missingShaderMaterials))
+    && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
     && facts.instances.every(i => record(i) && text(i.sourceId) && typeof i.bindingVerified === "boolean" && typeof i.menuVerified === "boolean"
       && (i.menuModified === undefined || typeof i.menuModified === "boolean"))))
     && (v.diagnostics === undefined || (Array.isArray(v.diagnostics) && v.diagnostics.every(d => record(d) && text(d.code) && text(d.message) && ["info","warning","error"].includes(String(d.severity)))));

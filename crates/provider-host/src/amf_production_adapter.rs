@@ -919,8 +919,27 @@ fn safe_zip_member(value: &str) -> bool {
             .split('/')
             .all(|p| !p.is_empty() && p != "." && p != "..")
 }
+/// An Editor keeps `Temp/UnityLockfile` open while it has the project. A crashed batch run leaves
+/// the file behind with no handle, so the project counts as open only while the file is held.
+fn editor_holds_project(project: &Path) -> bool {
+    let lock = project.join("Temp/UnityLockfile");
+    if !lock.exists() {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&lock)
+            .is_err()
+    }
+    #[cfg(not(windows))]
+    true
+}
 fn reject_editor_lock(project: &Path) -> Result<(), AppErrorV1> {
-    if project.join("Temp/UnityLockfile").exists() {
+    if editor_holds_project(project) {
         return Err(err(
             "project_open",
             "Close this project's Unity Editor, then reinspect before production.",
@@ -929,10 +948,7 @@ fn reject_editor_lock(project: &Path) -> Result<(), AppErrorV1> {
     Ok(())
 }
 fn open_editor(run: &ProductionRun) -> Result<(), AppErrorV1> {
-    if Path::new(&run.project_root)
-        .join("Temp/UnityLockfile")
-        .exists()
-    {
+    if editor_holds_project(Path::new(&run.project_root)) {
         return Ok(());
     }
     let mut command = std::process::Command::new(&run.editor.path);
@@ -977,6 +993,22 @@ mod tests {
         assert!(!text.contains("private"));
         assert!(classify_bridge_log("Access token is unavailable; failed to update\nSuccessfully resolved entitlements", "Compilation succeeded").is_none());
         assert_eq!(classify_bridge_log("No valid Unity Editor license found", "").unwrap().code, "vua.amf_production.unity_license_unavailable");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn only_a_held_unity_lockfile_means_the_project_is_open() {
+        let project = std::env::temp_dir().join(format!("vua-amf-lock-{}", std::process::id()));
+        std::fs::create_dir_all(project.join("Temp")).unwrap();
+        assert!(reject_editor_lock(&project).is_ok());
+        let lock = project.join("Temp/UnityLockfile");
+        std::fs::write(&lock, b"").unwrap();
+        assert!(reject_editor_lock(&project).is_ok(), "a crashed run's leftover lock file");
+        let held = std::fs::File::open(&lock).unwrap();
+        assert_eq!(reject_editor_lock(&project).unwrap_err().code, "vua.amf_production.project_open");
+        drop(held);
+        assert!(reject_editor_lock(&project).is_ok());
+        std::fs::remove_dir_all(&project).unwrap();
     }
 
     #[test]

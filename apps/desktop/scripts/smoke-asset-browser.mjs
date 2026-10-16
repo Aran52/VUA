@@ -55,6 +55,11 @@ async function main() {
     const js = source => window.webContents.executeJavaScript(source, true);
     const remoteViews = () => window.contentView.children.filter(view => view.webContents && view.webContents !== window.webContents);
     const activeView = () => remoteViews().find(view => view.getVisible());
+    // A website link is clicked once its page has rendered it; the URL changes before the DOM is ready.
+    const clickInPage = async selector => {
+      await waitFor(() => activeView()?.webContents.executeJavaScript(`!!document.querySelector(${JSON.stringify(selector)})`), selector);
+      await activeView().webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).click()`, true);
+    };
     const click = async id => {
       await waitFor(() => js(`!!document.querySelector('[data-nav-id="${id}"]')`), id);
       await js(`document.querySelector('[data-nav-id="${id}"]').click()`);
@@ -78,7 +83,7 @@ async function main() {
     assert(await frameFits(), "Wiki opens with AMF off and leaves header/sidebar interactive");
     assert(!fs.existsSync(path.join(profile, "modules", "amf", "data")), "Host Wiki does not initialize material storage");
     assert(Object.values(await activeView().webContents.executeJavaScript('({vua:typeof window.vua,node:typeof require,process:typeof process})')).every(value => value === "undefined"), "Remote Wiki has no VUA, Node or process capability");
-    await activeView().webContents.executeJavaScript('document.querySelector("#outside").click()');
+    await clickInPage("#outside");
     await waitFor(() => js('!!document.querySelector(".vua-nav-confirm__backdrop")'), "navigation prompt");
     assert(remoteViews().every(view => !view.getVisible()), "Native pages yield to local navigation confirmation");
     await js('document.querySelector(".vua-nav-confirm__actions button").click()');
@@ -89,7 +94,7 @@ async function main() {
     assert(true, "Settings temporarily hides Wiki without leaving an uncontrollable native view");
     await click("shell-back"); await waitFor(frameFits, "Wiki returns from Settings");
     const wikiContents = activeView().webContents.id;
-    await activeView().webContents.executeJavaScript('document.querySelector("#next").click()', true);
+    await clickInPage("#next");
     await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "Wiki child page");
     await click("shell-help"); await waitFor(() => remoteViews().every(view => !view.getVisible()), "Wiki hidden after leaving knowledge");
     assert(remoteViews().length === 1, "Leaving knowledge retains its hidden native page");
@@ -121,7 +126,7 @@ async function main() {
     assert(await js('document.querySelector("[data-browser-site=booth]")?.getAttribute("aria-current")==="true"'), "Account navigation selects BOOTH rather than the previous shortcut");
     await js('document.querySelector("[data-browser-site=vrc-db]").click()');
     await waitFor(() => activeView()?.webContents.getURL() === "https://vrc-db.com/", "history site reset");
-    await activeView().webContents.executeJavaScript('document.querySelector("#next").click()', true);
+    await clickInPage("#next");
     await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "site history");
     await waitFor(() => js('document.querySelector(".vua-browser-frame__bar button:nth-child(1)")?.disabled===false'), "Back enabled");
     await js('document.querySelector(".vua-browser-frame__bar button:nth-child(1)").click()');
@@ -134,7 +139,7 @@ async function main() {
     assert(true, "Failed site shows a reachable retry instead of a blank native page");
     await js('document.querySelector("[data-browser-site=booth]").click()');
     await waitFor(() => activeView()?.webContents.getURL() === "https://booth.pm/", "recover using another site");
-    await activeView().webContents.executeJavaScript('document.querySelector("#next").click()', true);
+    await clickInPage("#next");
     await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "material child page");
     const originalContents = activeView().webContents.id;
     const originalTab = await js('document.querySelector("[role=tab][aria-selected=true]").dataset.browserTab');
@@ -149,7 +154,7 @@ async function main() {
     await waitFor(() => remoteViews().length === 2 && activeView()?.webContents.getURL() === "https://booth.pm/", "new material tab");
     await waitFor(frameFits, "new tab geometry");
     assert(activeView().webContents.id !== originalContents && remoteViews().filter(view => view.getVisible()).length === 1, "Each tab has an independent native page and only one is visible");
-    await activeView().webContents.executeJavaScript('document.querySelector("#new-tab").click()', true);
+    await clickInPage("#new-tab");
     await waitFor(() => remoteViews().length === 3 && activeView()?.webContents.getURL().endsWith("/child"), "website link opens local child tab");
     assert(await js('document.querySelectorAll("[role=tab]").length===3'), "Allowed website popup becomes a VUA tab");
     await js('document.querySelector("[data-browser-site=vrcfinder]").dispatchEvent(new MouseEvent("click",{bubbles:true,ctrlKey:true}))');
@@ -165,7 +170,7 @@ async function main() {
     }
     await waitFor(() => js('document.querySelector("[data-browser-new-tab]").disabled'), "tab limit visible");
     await waitFor(frameFits, "eight tabs geometry");
-    await activeView().webContents.executeJavaScript('document.querySelector("#new-tab").click()', true);
+    await clickInPage("#new-tab");
     await delay(150);
     assert(remoteViews().length === 8 && (await js('document.querySelectorAll("[role=tab]").length')) === 8, "Both Main and Renderer cap retained tabs at eight");
     const extraTabs = await js(`[...document.querySelectorAll('[data-browser-close-tab]')].map(button=>button.dataset.browserCloseTab).filter(id=>id!==${JSON.stringify(originalTab)})`);

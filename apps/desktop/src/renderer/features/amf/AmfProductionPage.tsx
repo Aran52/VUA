@@ -172,7 +172,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const effective: AutomationLevel = level ?? "semi";
   const stops = stopsAt(effective);
   const showDetails = effective !== "auto" || adjusting;
-  const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/.zip$/iu, "")))].join(" + ");
+  const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
   const runningStep = run?.steps.find(item => item.state === "running");
 
   return <div className="vua-page vua-n3 vua-workshop">

@@ -6,7 +6,7 @@ export const factoryCopy = {
     rooms: {
       materials: { name: "Materials", tag: "STORAGE", hint: "Your Avatars, outfits and tools" },
       workshop: { name: "Workshop", tag: "PRODUCTION", hint: "Production lines and checks" },
-      office: { name: "Office", tag: "PLANNING", hint: "Recipes and packages" },
+      control: { name: "Control center", tag: "CONTROL", hint: "Recipes and packages" },
       release: { name: "Release", tag: "SHIPPING", hint: "Finished Avatars, SDK and upload" },
     },
     tabs: { library: "Library", browse: "Browse", lines: "Production lines", inspection: "Checks", recipes: "Recipes", packages: "Packages" },
@@ -57,7 +57,7 @@ export const factoryCopy = {
     rooms: {
       materials: { name: "素材", tag: "STORAGE", hint: "你的 Avatar、衣装和工具" },
       workshop: { name: "车间", tag: "PRODUCTION", hint: "产线与检测" },
-      office: { name: "办公室", tag: "PLANNING", hint: "配方与包管理" },
+      control: { name: "控制中心", tag: "CONTROL", hint: "配方与包管理" },
       release: { name: "出厂", tag: "SHIPPING", hint: "成品、SDK 与上传" },
     },
     tabs: { library: "素材库", browse: "浏览", lines: "产线", inspection: "检测", recipes: "配方", packages: "包管理" },
@@ -108,7 +108,7 @@ export const factoryCopy = {
     rooms: {
       materials: { name: "素材", tag: "STORAGE", hint: "アバター、衣装、ツール" },
       workshop: { name: "工房", tag: "PRODUCTION", hint: "生産ラインと検査" },
-      office: { name: "事務所", tag: "PLANNING", hint: "レシピとパッケージ" },
+      control: { name: "コントロールセンター", tag: "CONTROL", hint: "レシピとパッケージ" },
       release: { name: "出荷", tag: "SHIPPING", hint: "完成品、SDK、アップロード" },
     },
     tabs: { library: "ライブラリ", browse: "閲覧", lines: "生産ライン", inspection: "検査", recipes: "レシピ", packages: "パッケージ" },
@@ -159,7 +159,7 @@ export const factoryCopy = {
     rooms: {
       materials: { name: "소재", tag: "STORAGE", hint: "아바타, 의상, 도구" },
       workshop: { name: "작업장", tag: "PRODUCTION", hint: "생산 라인과 검사" },
-      office: { name: "사무실", tag: "PLANNING", hint: "레시피와 패키지" },
+      control: { name: "제어 센터", tag: "CONTROL", hint: "레시피와 패키지" },
       release: { name: "출고", tag: "SHIPPING", hint: "완성품, SDK, 업로드" },
     },
     tabs: { library: "라이브러리", browse: "둘러보기", lines: "생산 라인", inspection: "검사", recipes: "레시피", packages: "패키지" },

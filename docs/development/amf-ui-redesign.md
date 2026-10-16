@@ -16,14 +16,14 @@ ask them; the stations are the same for everyone.
 ## Base map
 
 Selecting AMF opens the base map: a two-floor building in the style of a base-management game.
-Each room shows its live state and opens on click. A banner gathers what waits for the player and
+Each room shows its live state. A banner gathers what waits for the player and
 what needs attention.
 
 | Floor | Room | Holds | Shows on the map |
 | --- | --- | --- | --- |
-| 2F | **Office** | Recipes and the package manager (tabs) | saved Recipes |
-| 2F | **Release** | finished Avatars, the 60-frame turntable, SDK and upload | finished count, latest |
-| 1F | **Materials** | the library and the material browser (tabs) | packages ready for production |
+| 2F | **Control center** | Recipes and the package manager (tabs) | saved Recipes |
+| 2F | **Materials** | the library and the material browser (tabs) | packages ready for production |
+| 1F | **Release** | finished Avatars, the 60-frame turntable, SDK and upload | finished count, latest |
 | 1F | **Workshop** | production lines and checks (tabs) | running / waiting / attention counts and the busiest line's stations |
 
 The sidebar lists the four rooms. Each room page has a bar with the room's plate, a way back to
@@ -69,7 +69,7 @@ Asked on the first visit to the workshop and changeable on every line:
 | 5 Unity editor handoff | "Close Unity and continue" on a needs-attention card; "Done checking, close Unity" on the quality check |
 | 6 SDK step | release: the SDK checks in plain words |
 | 7 Familiarity levels | the automation levels above; recommendation rules for prefabs |
-| 8 Known packages | office: packages; the materials station |
+| 8 Known packages | control center: packages; the materials station |
 | 9 Material tuning | an optional station between quality check and release |
 | 10 Face tracking | an add-on station after the quality check |
 | 11 Unity license | the needs-attention card for license failures |

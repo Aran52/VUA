@@ -39,7 +39,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__room:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 3px; }
 .vua-factory__room[data-room="materials"] { --room: var(--vua-info); }
 .vua-factory__room[data-room="workshop"] { --room: var(--vua-orange); }
-.vua-factory__room[data-room="office"] { --room: var(--vua-purple); }
+.vua-factory__room[data-room="control"] { --room: var(--vua-purple); }
 .vua-factory__room[data-room="release"] { --room: var(--vua-success); }
 
 .vua-factory__plate { display: flex; align-items: center; justify-content: space-between; color: var(--room); }
@@ -76,7 +76,7 @@ button.vua-factory__alert { cursor: pointer; }
 /* Room frame: the room's plate and its tabs above the pages it holds. */
 .vua-room { --room: var(--vua-accent); display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin-inline: auto; }
 .vua-room[data-room="materials"] { --room: var(--vua-info); }
-.vua-room[data-room="office"] { --room: var(--vua-purple); }
+.vua-room[data-room="control"] { --room: var(--vua-purple); }
 .vua-room[data-room="release"] { --room: var(--vua-success); }
 .vua-room__bar { display: flex; align-items: center; gap: 14px; padding: 0 0 12px; margin-bottom: 14px; border-bottom: 1px solid var(--vua-border); flex-wrap: wrap; }
 .vua-room__map { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-secondary); cursor: pointer; clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }

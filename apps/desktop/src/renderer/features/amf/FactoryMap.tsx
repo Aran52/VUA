@@ -8,9 +8,9 @@ import { currentStation, lineStations, lineStatus, phaseStatus, STATIONS, type L
 import "./factory.css";
 
 const copy = strings.factory;
-type Room = "materials" | "workshop" | "office" | "release";
-export const ROOM_PAGES: Record<Room, PageId> = { materials: "warehouse", workshop: "workshop", office: "recipe", release: "release" };
-const ROOM_ICONS = { materials: "folder", workshop: "avatar", office: "edit", release: "anim" } as const;
+type Room = "materials" | "workshop" | "control" | "release";
+export const ROOM_PAGES: Record<Room, PageId> = { materials: "warehouse", workshop: "workshop", control: "recipe", release: "release" };
+const ROOM_ICONS = { materials: "folder", workshop: "avatar", control: "edit", release: "anim" } as const;
 const PRIORITY: readonly LineStatus[] = ["running", "waiting", "attention", "finished", "stopped", "idle"];
 
 export function FactoryMap({ navigate }: { navigate: (page: PageId) => void }) {
@@ -67,16 +67,16 @@ export function FactoryMap({ navigate }: { navigate: (page: PageId) => void }) {
     </header>
     <div className="vua-factory__building">
       <div className="vua-factory__floor" data-floor="2">
-        {room("office", <>
+        {room("control", <>
           <span>{recipes === null ? "—" : format(copy.recipesCount, { count: recipes })}</span>
         </>)}
-        {room("release", <>
-          <span>{format(copy.finishedCount, { count: finished.length })}</span>
-          {finished[0] && <span className="vua-factory__muted">{format(copy.latestFinished, { name: [...new Set(finished[0].run.sourceNames.map(name => name.replace(/.zip$/iu, "")))].join(" + ") || finished[0].run.runId })}</span>}
-        </>, true)}
+        {room("materials", <span>{list === null ? "—" : format(copy.materialsCount, { count: list.sources.length })}</span>, true)}
       </div>
       <div className="vua-factory__floor" data-floor="1">
-        {room("materials", <span>{list === null ? "—" : format(copy.materialsCount, { count: list.sources.length })}</span>)}
+        {room("release", <>
+          <span>{format(copy.finishedCount, { count: finished.length })}</span>
+          {finished[0] && <span className="vua-factory__muted">{format(copy.latestFinished, { name: [...new Set(finished[0].run.sourceNames.map(name => name.replace(/\.zip$/iu, "")))].join(" + ") || finished[0].run.runId })}</span>}
+        </>)}
         {room("workshop", <>
           <span className="vua-factory__counts">
             {running > 0 && <span data-tone="running">{format(copy.linesRunning, { count: running })}</span>}
@@ -85,7 +85,7 @@ export function FactoryMap({ navigate }: { navigate: (page: PageId) => void }) {
             {running + waiting + attention === 0 && <span className="vua-factory__muted">{copy.linesIdle}</span>}
           </span>
           {focus && stations && <span className="vua-factory__line">
-            <span className="vua-factory__line-name">{[...new Set(focus.sources.map(source => source.itemName.replace(/.zip$/iu, "")))].join(" + ")}</span>
+            <span className="vua-factory__line-name">{[...new Set(focus.sources.map(source => source.itemName.replace(/\.zip$/iu, "")))].join(" + ")}</span>
             <span className="vua-factory__stations" aria-label={copy.stations[currentStation(stations)]}>
               {STATIONS.map(key => <span key={key} data-state={stations[key]} data-current={currentStation(stations) === key || undefined}>{copy.stations[key]}</span>)}
             </span>

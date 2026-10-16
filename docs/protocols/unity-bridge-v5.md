@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.6.0
+> Document version: 0.7.0
 > Status: Candidate
-> Updated: 2026-10-16
+> Updated: 2026-10-17
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -63,6 +63,12 @@ work scene and its lighting stay unchanged. Images are opaque PNG files under
 `-batchmode` with a graphics device. A failed render adds the warning `amf.preview.failed` and the
 operation continues with its facts.
 
+A batch run writes its Unity log to `.vua/logs/<commandId>.log` in the work project. The entry
+point writes `[VUA] stage=bridge` when it starts, `[VUA] stage=previews` before rendering and
+`[VUA] stage=finishing` before it writes the result, each as one line without a stack trace. AMF
+reads these lines with Unity's own messages for its [live progress](amf-production-v0.1.md#progress-stop-and-continue).
+A stopped run ends with Unity's process tree; the next run opens the project as Unity left it.
+
 Requests and results are atomically written under the controlled Bridge directory. File hash,
 run binding, exact Editor pair, allowed operations and path containment are checked by Unity.
 The caller additionally validates schema version, operation, command identity and receipt status.
@@ -71,6 +77,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.7.0 (2026-10-17): write bridge, previews and finishing stage lines to the run log.
 - 0.6.0 (2026-10-16): render the active Avatar from three sides after inspection and assembly, and each prefab candidate during inspection.
 - 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.
 - 0.4.0 (2026-10-15): bind Recipe application to observed Avatar identities, support independent same-scene Avatar scopes, and observe retained Avatars separately.

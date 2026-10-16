@@ -65,6 +65,18 @@ impl UnityBatchBridge {
         project: &ProjectRef,
         command: &UnityCommand,
     ) -> Result<UnityResult, BridgeError> {
+        self.execute_watched(project, command, &|| false)
+    }
+
+    /// Runs like [`Self::execute`] and calls `poll` repeatedly while Unity runs. When `poll`
+    /// returns true, the Unity process tree is ended and the result is [`BridgeError::Cancelled`].
+    /// The work project and its files stay as Unity left them.
+    pub fn execute_watched(
+        &self,
+        project: &ProjectRef,
+        command: &UnityCommand,
+        poll: &(dyn Fn() -> bool + Send + Sync),
+    ) -> Result<UnityResult, BridgeError> {
         let request =
             FileSystemProjectStore::write_bridge_command(project, &command.command_id, command)?;
         let result_path = project
@@ -95,7 +107,7 @@ impl UnityBatchBridge {
                 .collect(),
             ..Default::default()
         };
-        let outcome = self.runner.run(&spec).map_err(|error| match error {
+        let outcome = self.runner.run_cancellable(&spec, poll).map_err(|error| match error {
             vua_orchestrator::ProcessError::Io(io) => BridgeError::Io(io),
         })?;
         Self::collect(&outcome, &result_path)
@@ -104,6 +116,9 @@ impl UnityBatchBridge {
     /// Maps a process outcome plus the expected result file into a bridge
     /// result. Shared with tests through the runner port.
     fn collect(outcome: &ProcessOutcome, result_path: &Path) -> Result<UnityResult, BridgeError> {
+        if outcome.cancelled {
+            return Err(BridgeError::Cancelled);
+        }
         if outcome.timed_out {
             return Err(BridgeError::TimedOut);
         }

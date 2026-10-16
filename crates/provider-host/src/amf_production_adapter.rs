@@ -4,7 +4,8 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 use vua_bdl_store::{ArtifactMode, BdlStore};
 use vua_orchestrator::{
@@ -35,6 +36,8 @@ fn project(run: &ProductionRun) -> ProjectRef {
 
 // Only the private AMF package environment is updated, never VCC/ALCOM subscriptions.
 const MA_REPO: &str = "https://vpm.nadena.dev/vpm.json";
+/// How often a running Unity step reads its log and checks for a stop.
+const UNITY_POLL: Duration = Duration::from_millis(500);
 const LILTOON_REPO: &str = "https://lilxyzw.github.io/vpm-repos/vpm.json";
 const LILTOON_PACKAGE: &str = "jp.lilxyzw.liltoon";
 
@@ -195,8 +198,9 @@ impl NativeAmfProduction {
         run: &ProductionRun,
         operation: UnityOperation,
         selection: Option<&AssemblySelection>,
+        watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_with_target(run, operation, selection, None)
+        self.bridge_with_target(run, operation, selection, None, watch)
     }
     fn bridge_with_target(
         &self,
@@ -204,9 +208,11 @@ impl NativeAmfProduction {
         operation: UnityOperation,
         selection: Option<&AssemblySelection>,
         apply_target: Option<&vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
+        watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
+        clear_stale_lock(Path::new(&run.project_root));
         refresh_bridge_package(Path::new(&run.project_root))?;
         prune_previews(Path::new(&run.project_root), &preview_paths(run));
         self.start_unity_hub();
@@ -249,11 +255,29 @@ impl NativeAmfProduction {
                 ..Default::default()
             },
         };
-        let result = UnityBatchBridge::for_amf_production(&run.editor.path).execute(&project(run), &command)
-            .map_err(|e| {
+        // The first preparation imports every work-project asset, so its count has a total.
+        let total = (operation == UnityOperation::AmfPrepare && watch.step_key() == "inspect").then(|| imported_asset_count(run));
+        let tail = Mutex::new(vua_unity_bridge::UnityLogTail::new(Path::new(&run.project_root), &id, total));
+        let next_poll = Mutex::new(Instant::now());
+        let poll = || {
+            let mut next = next_poll.lock().expect("Unity poll poisoned");
+            if Instant::now() < *next {
+                return false;
+            }
+            *next = Instant::now() + UNITY_POLL;
+            watch.report(tail.lock().expect("Unity log poisoned").poll());
+            watch.stop_requested()
+        };
+        let outcome = UnityBatchBridge::for_amf_production(&run.editor.path).execute_watched(&project(run), &command, &poll);
+        // A stopped or crashed Unity leaves its lock file behind.
+        clear_stale_lock(Path::new(&run.project_root));
+        let result = outcome.map_err(|e| match e {
+            vua_orchestrator::BridgeError::Cancelled => watch.stopped(),
+            e => {
                 let log = Path::new(&run.project_root).join(".vua/logs").join(format!("{id}.log"));
                 bridge_log_failure(&log).unwrap_or_else(|| err("bridge_failed", e))
-            })?;
+            }
+        })?;
         if result.schema_version != 5 || result.command_id != id {
             return Err(err(
                 "receipt_invalid",
@@ -676,7 +700,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
                     "Selected local input is no longer present.",
                 )
             })?;
-            ctx.emit_progress(serde_json::json!({"operation":"amf.production","runId":run.run_id,"stage":"materials","name":source.item_name}));
+            ctx.emit_progress(material_progress(run, &source.item_name));
             let package_path = self.package_path(&source)?;
             let sha256 = vua_unity_bridge::material_exec::sha256_file(&package_path)
                 .map_err(|e| err("source_unreadable", e))?;
@@ -805,7 +829,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         // until the lilToon package is in the project.
         needs_liltoon |= liltoon_shaders.iter().any(|shader| !guids.contains_key(shader));
         if needs_liltoon && !run.package_pins.contains_key(LILTOON_PACKAGE) {
-            ctx.emit_progress(serde_json::json!({"operation":"amf.production","runId":run.run_id,"stage":"materials","name":"lilToon"}));
+            ctx.emit_progress(material_progress(run, "lilToon"));
             self.install_liltoon(run)?;
         }
         for (relative, original) in files {
@@ -822,7 +846,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         Ok(sources)
     }
-    fn inspect(&self, run: &ProductionRun) -> Result<ObservedProject, AppErrorV1> {
+    fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         let operation = if Path::new(&run.project_root)
             .join("Assets/VUA/Production.unity")
             .is_file()
@@ -831,19 +855,20 @@ impl AmfProductionPlatform for NativeAmfProduction {
         } else {
             UnityOperation::AmfPrepare
         };
-        self.bridge(run, operation, None)
+        self.bridge(run, operation, None, watch)
     }
     fn assemble(
         &self,
         run: &ProductionRun,
         selection: &AssemblySelection,
+        watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_assembly_sources(run)?;
-        self.bridge(run, UnityOperation::AmfAssemble, Some(selection))
+        self.bridge(run, UnityOperation::AmfAssemble, Some(selection), watch)
     }
-    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget) -> Result<ObservedProject, AppErrorV1> {
+    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.verify_assembly_sources(run)?;
-        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), Some(target))
+        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), Some(target), watch)
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         reject_editor_lock(project)?;
@@ -905,6 +930,10 @@ impl AmfProductionPlatform for NativeAmfProduction {
         if !editor_holds_project(Path::new(&run.project_root)) {
             self.start_unity_hub();
         }
+        // The Editor shows its own progress window; the task names its start.
+        let now = vua_orchestrator::rfc3339(std::time::SystemTime::now());
+        ctx.emit_progress(serde_json::json!({"operation":"amf.production","runId":run.run_id,"step":"open",
+            "name":"Open the work project in Unity","startedAt":now,"unity":{"stage":"starting","lastActivityAt":now}}));
         if std::env::var("VUA_AMF_HANDOFF_FROM_DESKTOP").as_deref() != Ok("1") {
             open_editor(run)?;
         }
@@ -1064,6 +1093,38 @@ fn safe_zip_member(value: &str) -> bool {
             .split('/')
             .all(|p| !p.is_empty() && p != "." && p != "..")
 }
+/// The progress payload of the materials step while it works on one material.
+fn material_progress(run: &ProductionRun, name: &str) -> serde_json::Value {
+    let mut step = run.steps.last().cloned().expect("materials are imported inside their step");
+    step.name = name.into();
+    step_progress(&run.run_id, &step)
+}
+
+/// The work-project assets the first preparation imports: each material file and each folder
+/// that holds them, as Unity imports folders too.
+fn imported_asset_count(run: &ProductionRun) -> u32 {
+    let mut assets = BTreeSet::new();
+    for path in run.sources.iter().flat_map(|source| &source.asset_paths) {
+        let mut current = path.as_str();
+        assets.insert(current);
+        while let Some((parent, _)) = current.rsplit_once('/') {
+            if parent == "Assets" || !assets.insert(parent) {
+                break;
+            }
+            current = parent;
+        }
+    }
+    u32::try_from(assets.len()).unwrap_or(u32::MAX)
+}
+
+/// Removes `Temp/UnityLockfile` when no Editor holds it. A stopped or crashed batch run leaves
+/// the file behind; Unity and the desktop handoff then find the project closed again.
+fn clear_stale_lock(project: &Path) {
+    if !editor_holds_project(project) {
+        let _ = fs::remove_file(project.join("Temp/UnityLockfile"));
+    }
+}
+
 /// An Editor keeps `Temp/UnityLockfile` open while it has the project. A crashed batch run leaves
 /// the file behind with no handle, so the project counts as open only while the file is held.
 fn editor_holds_project(project: &Path) -> bool {
@@ -1257,9 +1318,32 @@ mod tests {
         assert!(reject_editor_lock(&project).is_ok(), "a crashed run's leftover lock file");
         let held = std::fs::File::open(&lock).unwrap();
         assert_eq!(reject_editor_lock(&project).unwrap_err().code, "vua.amf_production.project_open");
+        clear_stale_lock(&project);
+        assert!(lock.is_file(), "a held lock belongs to a running Editor");
         drop(held);
         assert!(reject_editor_lock(&project).is_ok());
+        clear_stale_lock(&project);
+        assert!(!lock.exists(), "a stopped run's lock file is removed");
+        clear_stale_lock(&project);
         std::fs::remove_dir_all(&project).unwrap();
+    }
+
+    #[test]
+    fn the_first_import_counts_material_files_and_their_folders() {
+        let source = |paths: &[&str]| PreparedSource {
+            source_id: "s".into(), role: SourceRole::Auto, name: "s.unitypackage".into(), item_name: "s".into(),
+            sha256: String::new(), asset_paths: paths.iter().map(|p| (*p).into()).collect(),
+        };
+        let run: ProductionRun = serde_json::from_value(serde_json::json!({
+            "schemaVersion":"0.1","runId":"n3-count","phase":"preparing","taskId":"t","editor":{"path":"Unity.exe","version":"2022.3.22f1"},
+            "projectRoot":"x","choices":[],"sources":[],"prefabs":[],"projectFingerprint":"","unityFingerprint":"","steps":[],
+            "selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null})).unwrap();
+        let run = ProductionRun { sources: vec![
+            source(&["Assets/Meiyun/Meiyun.prefab", "Assets/Meiyun/Textures/Body.png"]),
+            source(&["Assets/Meiyun/Textures/Face.png", "Assets/Tshirt.mat"]),
+        ], ..run };
+        // Four files, plus Assets/Meiyun and Assets/Meiyun/Textures.
+        assert_eq!(imported_asset_count(&run), 6);
     }
 
     #[test]

@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.2.0
+> Document version: 0.3.0
 > Status: Candidate
-> Updated: 2026-10-16
+> Updated: 2026-10-17
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -82,7 +82,9 @@ are data, not instructions or authority to widen the catalog.
 as MCP image content, as the author approved on 2026-10-16: the assembled Avatar from the front,
 side and back, then each candidate prefab, every image after a text line naming it. A response
 carries up to 24 images and 6 MiB of image data. The Agent checks a result from these images
-before asking the player.
+before asking the player. While a step runs, `vua_amf_run` data carries its
+[progress](amf-production-v0.1.md#progress-stop-and-continue): the step, its elapsed and usual
+seconds and, inside Unity, the Unity stage, imported count and last log activity.
 
 ## Desktop control face
 
@@ -101,5 +103,6 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
+- 0.3.0 (2026-10-17): report the running AMF step, its Unity stage and elapsed and usual seconds through `vua_amf_run`.
 - 0.2.0 (2026-10-16): return AMF result and candidate previews as image content from `vua_amf_run`.
 - 0.1.0 (2026-10-13): add authenticated local MCP over the existing host/AMF execution authorities with explicit player approval.

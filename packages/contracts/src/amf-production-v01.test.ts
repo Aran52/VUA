@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { isAmfProductionParams, isAmfAssemblySelection } from "./amf-production-v01.js";
+import { isAmfProductionParams, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
 import { isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 
@@ -33,6 +33,20 @@ describe("AMF material-first Candidate boundary", () => {
   it("requires a digest on execution and disallows implicit deletion fields", () => {
     expect(isAmfProductionParams("amf.production.assemble",{schemaVersion:"0.1",runId:"n3-test",selection,planDigest:""})).toBe(false);
     expect(isAmfAssemblySelection({...selection,deleteUnmentioned:true})).toBe(false);
+  });
+  it("reads progress events and run status from the shared vectors without log text", () => {
+    const folder = (name: string) => new URL(`../../../schemas/amf-production-flow/v0.1/${name}/`, import.meta.url);
+    for (const name of readdirSync(folder("progress-examples"))) {
+      const value: unknown = JSON.parse(readFileSync(new URL(name, folder("progress-examples")), "utf8"));
+      expect(readAmfProductionProgress(value) !== null, name).toBe(name.includes(".valid."));
+    }
+    const status = (v: Record<string, unknown>) => (AMF_RUN_PHASES as readonly unknown[]).includes(v.phase)
+      && Array.isArray(v.steps) && v.steps.every(isAmfStep) && isAmfUsualDurations(v.usualDurations) && (v.progress === null || isAmfRunProgress(v.progress));
+    for (const name of readdirSync(folder("status-examples"))) {
+      const value = JSON.parse(readFileSync(new URL(name, folder("status-examples")), "utf8")) as Record<string, unknown>;
+      expect(status(value), name).toBe(name.includes(".valid."));
+    }
+    expect(readAmfProductionProgress({ completed: 1, messageKey: "tasks.download.transfer" })).toBeNull();
   });
   it("does not authorize mutating commands as queries or traversal identities", () => {
     expect(isApplicationRequestV01({contractVersion:"0.1",requestId:"req",correlationId:"corr",kind:"query",method:"amf.production.open",params:{schemaVersion:"0.1",runId:"n3-test"}})).toBe(false);

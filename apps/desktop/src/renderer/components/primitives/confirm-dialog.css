@@ -90,3 +90,13 @@
   background: color-mix(in srgb, var(--vua-error) 84%, var(--vua-on-status));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--vua-error) 24%, transparent);
 }
+
+/* A closing dialog moves out without taking clicks. */
+.vua-confirm-dialog__overlay[data-closing] {
+  pointer-events: none;
+}
+
+.vua-confirm-dialog__text {
+  margin: 0;
+  line-height: 1.6;
+}

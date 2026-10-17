@@ -7,7 +7,7 @@ import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionR
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
-import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
+import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { strings, format, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
@@ -223,14 +223,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </button>)}
     </aside>
     <div className="vua-workshop__main">
-    <ContentDialog open={confirmFull} title={factory.fullAccess.title} closeLabel={strings.common.dialogClose} onClose={() => setConfirmFull(false)}>
-      <div className="vua-page__stack">
-        <p role="alert">{factory.fullAccess.body}</p>
-        <p className="vua-caption vua-text-secondary">{factory.levels.full.hint}</p>
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setConfirmFull(false)}>{factory.fullAccess.cancel}</Button>
-          <Button variant="primary" onClick={() => { setConfirmFull(false); applyLevel("full"); }} data-nav-id="workshop-full-access">{factory.fullAccess.confirm}</Button></div>
-      </div>
-    </ContentDialog>
+    <ConfirmDialog open={confirmFull} danger title={factory.fullAccess.title} cancelLabel={factory.fullAccess.cancel} confirmLabel={factory.fullAccess.confirm}
+      onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
+      <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
+    </ConfirmDialog>
     {error !== null && <Card><div role="alert"><strong>{copy.error}</strong><p className="vua-caption vua-text-secondary">{error}</p><Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button></div></Card>}
     {run === null && error !== null && /license/iu.test(error) ? <Card>
       <h2>{strings.unityLicense.retry}</h2><p>{strings.unityLicense.retryHint}</p>

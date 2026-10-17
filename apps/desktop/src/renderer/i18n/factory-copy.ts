@@ -50,7 +50,7 @@ export const factoryCopy = {
     },
     fullAccess: {
       title: "Turn on full access?",
-      body: "VUA will change your Avatar's work project without asking, and that can mess up your Avatar. VUA keeps a restore point before each assembly, so the workshop can bring the Avatar back.",
+      body: "VUA will change your Avatar's work project without asking, which can mess up your Avatar. A restore point is kept before each assembly, and uploads to VRChat still ask.",
       confirm: "Turn on full access",
       cancel: "Keep asking",
     },
@@ -108,7 +108,7 @@ export const factoryCopy = {
     },
     fullAccess: {
       title: "开启完全访问？",
-      body: "VUA 将不再询问，直接修改 Avatar 的工作工程，这可能会搞砸你的 Avatar。每次装配前 VUA 都会保存还原点，可以在车间恢复。",
+      body: "VUA 将不经询问直接修改 Avatar 的工作工程，这可能会搞砸你的 Avatar。每次装配前都会留下还原点，上传到 VRChat 仍会询问。",
       confirm: "开启完全访问",
       cancel: "保持询问",
     },
@@ -166,7 +166,7 @@ export const factoryCopy = {
     },
     fullAccess: {
       title: "フルアクセスにしますか？",
-      body: "VUA は確認せずにアバターの作業プロジェクトを変更します。アバターを壊してしまう可能性があります。組み立てのたびに復元ポイントを保存するので、工房から元に戻せます。",
+      body: "VUA は確認せずにアバターの作業プロジェクトを変更するため、アバターを壊してしまうことがあります。組み立ての前には毎回復元ポイントを残し、VRChat へのアップロードは引き続き確認します。",
       confirm: "フルアクセスにする",
       cancel: "確認を続ける",
     },
@@ -224,7 +224,7 @@ export const factoryCopy = {
     },
     fullAccess: {
       title: "전체 권한을 켤까요?",
-      body: "VUA가 묻지 않고 아바타 작업 프로젝트를 바꿔요. 아바타를 망칠 수 있어요. 조립할 때마다 복원 지점을 저장하므로 작업장에서 되돌릴 수 있어요.",
+      body: "VUA가 묻지 않고 아바타 작업 프로젝트를 바꾸므로 아바타를 망칠 수 있어요. 조립할 때마다 복원 지점을 남기고, VRChat 업로드는 계속 확인해요.",
       confirm: "전체 권한 켜기",
       cancel: "계속 확인",
     },

@@ -8,7 +8,7 @@ const copy = strings.aiTools;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 export const requestTitle = (request: AiActionRequestV01) => copy.tools[request.tool as keyof typeof copy.tools] ?? request.title;
 function outcome(request: AiActionRequestV01): string {
-  const keys: Record<string, keyof typeof copy.outcomes> = { vua_request_installation: "installation", vua_request_play: "play", vua_request_tool: "tool", vua_request_amf_prepare: "prepare", vua_request_amf_assemble: "assemble", vua_request_amf_reinspect: "reinspect", vua_request_amf_open: "open", vua_request_cancel_task: "cancel" };
+  const keys: Record<string, keyof typeof copy.outcomes> = { vua_request_installation: "installation", vua_request_play: "play", vua_request_tool: "tool", vua_request_amf_prepare: "prepare", vua_request_amf_assemble: "assemble", vua_request_amf_reinspect: "reinspect", vua_request_amf_open: "open", vua_request_amf_upload: "upload", vua_request_cancel_task: "cancel" };
   return copy.outcomes[keys[request.tool] ?? "cancel"];
 }
 /** File or folder name without directories or extension: "Meiyun_v2.1.0/Meiyun.unitypackage" → "Meiyun". */

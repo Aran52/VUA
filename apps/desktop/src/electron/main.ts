@@ -23,7 +23,7 @@ import type {
   RemoteContentViewStateV1,
   AiConnectionLocale,
 } from "@vua/contracts";
-import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01 } from "@vua/contracts";
+import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01, isAiUploadConfirmationV01 } from "@vua/contracts";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
 import { routeDesktopGatewayInvoke } from "./gateway-router.js";
 import { DownloadPort } from "./download-port.js";
@@ -415,9 +415,10 @@ function registerIpc(provider: ModuleProvider): void {
     const prompt = aiTools!.prompt(locale as AiConnectionLocale);
     if (action === "copy-prompt") { clipboard.writeText(prompt); return; } return prompt;
   });
-  ipcMain.handle("vua:ai-tools:resolve", (event, id: unknown, decision: unknown) => {
+  ipcMain.handle("vua:ai-tools:resolve", (event, id: unknown, decision: unknown, confirmation: unknown) => {
     assertAiSender(event); if (typeof id !== "string" || id.length > 100 || (decision !== "approve" && decision !== "reject")) throw new Error("invalid_ai_approval");
-    return aiTools!.resolve(id, decision);
+    if (confirmation !== undefined && !isAiUploadConfirmationV01(confirmation)) throw new Error("invalid_ai_approval");
+    return aiTools!.resolve(id, decision, confirmation);
   });
   ipcMain.handle("vua:ai-tools:attention", event => { assertAiSender(event); requestAttention(); });
   const updates = new DistributionUpdater({ context: installedContext(),

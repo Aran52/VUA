@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AiToolsSnapshotV01 } from "@vua/contracts";
+import type { AiToolsSnapshotV01, AiUploadConfirmationV01 } from "@vua/contracts";
 import { useGateway } from "../../gateway/index.ts";
 
 /** Live AI connection facts and the player's decision on a request. */
@@ -16,10 +16,11 @@ export function useAiRequests() {
     const unsubscribe = port.subscribe(update);
     return () => { alive = false; unsubscribe(); };
   }, [port]);
-  const resolve = async (id: string, decision: "approve" | "reject") => {
+  /** `confirmation` is the player's upload confirmation from the Release page's dialog. */
+  const resolve = async (id: string, decision: "approve" | "reject", confirmation?: AiUploadConfirmationV01) => {
     if (!port) return;
     setBusy(true); setFailed(false);
-    try { setSnapshot(await port.resolve(id, decision)); } catch { setFailed(true); } finally { setBusy(false); }
+    try { setSnapshot(await port.resolve(id, decision, confirmation)); } catch { setFailed(true); } finally { setBusy(false); }
   };
   return { port, snapshot, setSnapshot, busy, setBusy, failed, setFailed, resolve };
 }

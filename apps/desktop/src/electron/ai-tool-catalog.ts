@@ -1,4 +1,8 @@
-import { isDesktopGatewayRequestV1, type DesktopGatewayRequestV1 } from "@vua/contracts";
+import { isDesktopGatewayRequestV1, type AiUploadConfirmationV01, type DesktopGatewayRequestV1 } from "@vua/contracts";
+/** The queued upload request completed with the player's own confirmation from the Release page. */
+export function withUploadConfirmation(request:DesktopGatewayRequestV1,confirmation:AiUploadConfirmationV01):DesktopGatewayRequestV1 {
+  return {...request,params:{...request.params,avatarName:confirmation.avatarName,rightsConfirmed:true}} as DesktopGatewayRequestV1;
+}
 export interface AiToolSpec {
   name:string; description:string; inputSchema:Record<string,unknown>; title:string; next:string; expected:string;
   method?:string; command?:boolean; fixed?:Record<string,unknown>;
@@ -31,6 +35,8 @@ export const AI_TOOLS:readonly AiToolSpec[]=[
   {name:"vua_request_amf_assemble",description:"Queue an exact AMF plan for approval. Reinspection/drift invalidates old confirmation. Does not upload.",inputSchema:object({runId:id,selection,planDigest:digest}),title:"Assemble this Avatar",next:"Approve in VUA, then read real bindings, warnings and recovery.",expected:"A retained assembly record; official SDK checks remain separate.",method:"amf.production.assemble",command:true,fixed:{schemaVersion:"0.1"}},
   {name:"vua_request_amf_reinspect",description:"Queue reinspection of retained AMF work after interruption or changes; never automatically resumes assembly.",inputSchema:object({runId:id}),title:"Reinspect Avatar work",next:"Approve, then review a new plan.",expected:"Fresh observed facts and invalidated prior confirmations.",method:"amf.production.reinspect",command:true,fixed:{schemaVersion:"0.1"}},
   {name:"vua_request_amf_open",description:"Queue opening the managed Unity project and requesting the SDK panel. This is a handoff, not a successful SDK build/upload.",inputSchema:object({runId:id}),title:"Open Unity and the SDK",next:"Approve in VUA; review appearance and SDK checks yourself.",expected:"Actual Avatar selection and SDK-panel handoff receipt.",method:"amf.production.open",command:true,fixed:{schemaVersion:"0.1"}},
+  {name:"vua_amf_release",description:"Read a finished AMF Avatar's release state: whether its 60-frame turntable is baked and current, whether Unity holds its project, and its last uploads with stage, VRChat Avatar ID or the SDK's reason.",inputSchema:object({runId:id}),title:"Read Avatar release",next:"Explain the upload state; request an upload only for a finished Avatar the player wants on VRChat.",expected:"Recorded turntable and upload facts; an upload record is not proof the Avatar is live in VRChat.",method:"amf.production.releaseState",fixed:{schemaVersion:"0.1"}},
+  {name:"vua_request_amf_upload",description:"Queue a managed VRChat SDK build-and-upload of a finished AMF Avatar. The player names a new Avatar and confirms the content rights statement on VUA's Release page; the VRChat sign-in and the SDK's ownership agreement stay inside the SDK panel in Unity.",inputSchema:object({runId:id}),title:"Upload this Avatar to VRChat",next:"Ask the player to confirm the upload on the Release page, then read vua_amf_release for its stage and result.",expected:"An upload task ending with a VRChat Avatar ID or the SDK's reason in plain words.",method:"amf.production.upload",command:true,fixed:{schemaVersion:"0.1"}},
   {name:"vua_action_status",description:"Read a queued local-approval request. Accepted means dispatched, not task completion. Does not approve a request.",inputSchema:object({approvalId:id}),title:"Read player approval",next:"If accepted, inspect the returned task ID or observed status.",expected:"The actual local approval state and dispatch receipt."},
   {name:"vua_withdraw_request",description:"Withdraw a request still waiting for the player when it is no longer wanted. Requests wait until the player decides; decided requests stay as they are.",inputSchema:object({approvalId:id}),title:"Withdraw a waiting request",next:"Read current facts before proposing a new request.",expected:"The request no longer waits for the player."},
 ];
@@ -45,6 +51,11 @@ export function aiGatewayRequest(spec:AiToolSpec,args:Record<string,unknown>,req
   if(spec.name==="vua_request_play") {method=args.action==="start"?"environment.startPlay":"environment.stopPlay";params={route:args.route,commandId:requestId};}
   if(method==="environment.executeDeployment"||method==="task.requestCancellation"||method==="tools.actConnection") params.commandId=requestId;
   const request={schemaVersion:1,requestId,method,params};
+  // An upload request waits for the player's confirmation; it is checked as it will be dispatched.
+  if(spec.name==="vua_request_amf_upload"){
+    if(!isDesktopGatewayRequestV1(withUploadConfirmation(request as DesktopGatewayRequestV1,{avatarName:"Avatar",rightsConfirmed:true})))throw new Error("The parameters are not supported by this VUA version. Read the tool schema and current facts again.");
+    return request as DesktopGatewayRequestV1;
+  }
   if(!isDesktopGatewayRequestV1(request))throw new Error("The parameters are not supported by this VUA version. Read the tool schema and current facts again.");
   return request;
 }

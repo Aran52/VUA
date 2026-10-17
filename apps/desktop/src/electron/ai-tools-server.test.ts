@@ -147,6 +147,24 @@ describe("built-in MCP, using the official HTTP client", () => {
     await second.resolve(waiting.id, "approve");
     expect(second.snapshot().requests[0]!.state).toBe("accepted");
   });
+  it("runs an upload request only with the player's rights confirmation", async () => {
+    const { client, calls, service } = await setup();
+    const queued = data(await client.callTool({ name: "vua_request_amf_upload", arguments: { runId: "n3-test" } }));
+    expect(queued.whatHappened).toContain("waiting for the player");
+    const request = service.snapshot().requests[0]!;
+    expect(request.details.parameters).toEqual({ runId: "n3-test", schemaVersion: "0.1" });
+    expect(calls.map(call => call.method)).toEqual(["amf.production.get"]);
+    await expect(service.resolve(request.id, "approve")).rejects.toThrow("upload_confirmation_required");
+    await expect(service.resolve(request.id, "approve", { avatarName: " Meiyun", rightsConfirmed: true })).rejects.toThrow("upload_confirmation_required");
+    expect(service.snapshot().requests[0]!.state).toBe("pending");
+    await service.resolve(request.id, "approve", { avatarName: "Meiyun", rightsConfirmed: true });
+    expect(service.snapshot().requests[0]!.state).toBe("accepted");
+    expect(calls.at(-1)).toMatchObject({ method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "n3-test", avatarName: "Meiyun", rightsConfirmed: true } });
+    const play = data(await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } }));
+    expect(play.data).toBeTruthy();
+    const other = service.snapshot().requests.find(r => r.tool === "vua_request_play")!;
+    await expect(service.resolve(other.id, "approve", { avatarName: "Meiyun", rightsConfirmed: true })).rejects.toThrow("upload_confirmation_required");
+  });
   it("returns a run's previews as labelled image content", async () => {
     const front = ".vua/previews/n3-test-1/front.png", coat = ".vua/previews/n3-test-0/candidate-000.png";
     const { client, calls } = await setup(async request => {
@@ -171,7 +189,7 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
   });

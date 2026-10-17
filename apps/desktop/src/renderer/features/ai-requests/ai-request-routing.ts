@@ -8,6 +8,7 @@ const PLAY_PURPOSES = new Set(["desktop_play", "pico_pcvr"]);
 /** The page where the player confirms this request: the page that owns what the request changes. */
 export function requestPage(request: AiActionRequestV01, taskOrigin: (taskId: string) => PageId | undefined = () => undefined): PageId {
   const params = parameters(request);
+  if (request.tool === "vua_request_amf_upload") return "release";
   if (request.tool.startsWith("vua_request_amf_")) return "workshop";
   if (request.tool === "vua_request_play") return "env-play";
   if (request.tool === "vua_request_tool") return "tools-discover";

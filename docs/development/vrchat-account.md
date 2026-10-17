@@ -1,7 +1,7 @@
 # VRChat sign-in, the SDK panel and upload checks
 
 > Updated: 2026-10-18
-> Status: approved by the author on 2026-10-18
+> Status: approved by the author on 2026-10-18; steps 2–4 built on `slice/vrchat-signin`, awaiting the author's real-account checks
 
 The first managed upload (2026-10-17, "AMF test1") worked, but the author had to sign in to the
 VRChat SDK again and was handed the full SDK panel. This document records what the SDK does, what
@@ -80,3 +80,18 @@ with "Remember my password"; the [product boundary](../product-boundary.md) reco
 2. Experimental VRChat sign-in with consent, encrypted storage, sign-out and forgetting.
 3. SDK session handoff before uploads.
 4. Upload check against the Avatar list.
+
+Steps 2–4 are implemented on `slice/vrchat-signin` as the Candidate
+[vrchat-session v0.1](../protocols/vrchat-session-v0.1.md): the Settings → Experimental card with
+the risk consent, the sign-in with all three verification methods and the email resend, the
+sealed storage, sign-out and forgetting, the one-time `.vua/bridge/vrchat-session.json` handoff
+the Editor consumes before the SDK panel opens, and the Avatar-list check beside the release
+page's upload record with the SDK sign-in source on each upload. Synthetic tests cover the mock
+API, the sealed storage, the boundary and the handoff file; the real-account checks that remain
+for the author:
+
+1. Sign in with an emailed code in VUA.
+2. Start a managed upload and see Unity's SDK panel already signed in (the upload record then
+   reads "signed in with the VUA session").
+3. See the upload check find the Avatar ("AMF test1", `avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a`).
+4. Sign out and forget the account, and confirm the local files hold neither session nor password.

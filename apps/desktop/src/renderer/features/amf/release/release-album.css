@@ -235,3 +235,10 @@
 .vua-release-guide__field--code { border-color: var(--room); color: var(--vua-text-strong); }
 .vua-release-guide__button { justify-self: start; padding: 3px 10px; border-radius: 4px; background: var(--room); color: var(--vua-on-status); font-weight: 650; }
 @media (max-width: 720px) { .vua-release-guide__body { grid-template-columns: minmax(0, 1fr); } }
+
+/* Upload check against the account's Avatar list (vrchat-session v0.1). */
+.vua-vrchat-check { display: grid; gap: var(--vua-space-1); padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); font: var(--vua-font-caption); }
+.vua-vrchat-check__title { display: inline-flex; align-items: center; gap: 6px; color: var(--vua-text-secondary); font-weight: 650; }
+.vua-vrchat-check dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px var(--vua-space-2); margin: 0; }
+.vua-vrchat-check dt { color: var(--vua-text-secondary); }
+.vua-vrchat-check dd { margin: 0; color: var(--vua-text-strong); overflow-wrap: anywhere; }

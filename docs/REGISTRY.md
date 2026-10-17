@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -13,7 +13,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/protocols/ai-tools-v0.1.md | 0.4.0 | Candidate | Integration | 2026-10-17 |
-| docs/protocols/amf-production-v0.1.md | 0.10.0 | Candidate | AMF | 2026-10-17 |
+| docs/protocols/amf-production-v0.1.md | 0.11.0 | Candidate | AMF | 2026-10-18 |
 | docs/protocols/amf-recipe-v0.4.md | 0.3.0 | Candidate | AMF | 2026-10-15 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
@@ -81,6 +81,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/superseded/bdl-queries-v0.3.md | 0.3 | Superseded | Data | 2026-09-06 |
 | docs/protocols/superseded/project-ops-v0.1.md | 0.1 | Superseded | Environment | 2026-09-09 |
 | docs/protocols/task-store-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
+| docs/protocols/vrchat-session-v0.1.md | 0.1.1 | Candidate | Integration | 2026-10-18 |
 | docs/protocols/unity-bridge-v1.md | v1 | Accepted | Production | 2026-09-06 |
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |

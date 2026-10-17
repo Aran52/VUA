@@ -103,6 +103,7 @@ fn read_receipt(path: &Path, run: &ProductionRun, request: &UploadRequest) -> Re
         reason: text("reason"),
         detail: text("detail").unwrap_or_default(),
         errors: value["errors"].as_array().into_iter().flatten().filter_map(|error| error.as_str().map(str::to_owned)).take(32).collect(),
+        sdk_sign_in: text("sdkSignIn").filter(|source| source == "vua_session" || source == "panel"),
     }))
 }
 
@@ -196,11 +197,16 @@ mod tests {
         fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","outcome":"done"}"#).unwrap();
         assert_eq!(read_receipt(&receipt, &run, &request).unwrap_err().code, "vua.amf_production.receipt_invalid");
         fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","outcome":"failed","blueprintId":"","reason":"validation",
-            "detail":"Avatar validation failed","errors":["Too many materials", 7],"firstUpload":true,"sceneSaved":false}"#).unwrap();
+            "detail":"Avatar validation failed","errors":["Too many materials", 7],"firstUpload":true,"sceneSaved":false,"sdkSignIn":"vua_session"}"#).unwrap();
         let read = read_receipt(&receipt, &run, &request).unwrap().unwrap();
         assert_eq!((read.outcome.as_str(), read.reason.as_deref(), read.blueprint_id), ("failed", Some("validation"), None));
         assert_eq!(read.errors, vec!["Too many materials".to_owned()]);
         assert!(read.first_upload);
+        assert_eq!(read.sdk_sign_in.as_deref(), Some("vua_session"));
+        fs::write(&receipt, br#"{"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1","outcome":"succeeded","blueprintId":"avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a",
+            "sdkSignIn":"somewhere_else"}"#).unwrap();
+        let read = read_receipt(&receipt, &run, &request).unwrap().unwrap();
+        assert_eq!(read.sdk_sign_in, None, "an unknown sign-in source stays unsaid");
         fs::write(&receipt, vec![b' '; MAX_FILE as usize + 1]).unwrap();
         assert_eq!(read_receipt(&receipt, &run, &request).unwrap(), None, "an oversized file is no answer");
 

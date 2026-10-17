@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::path::Path;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -97,7 +96,7 @@ impl AmfProductionEngine {
         if !matches!(run.phase.as_str(), "ready" | "succeeded") {
             return Err(production_error("inspect_required", "Reinspect the retained Avatar before applying a Recipe."));
         }
-        if self.platform.fingerprint(Path::new(&run.project_root))? != run.project_fingerprint {
+        if !self.project_state(&run)?.0 {
             return Err(production_error("project_drift", "The project changed. Reinspect it before comparing the Recipe."));
         }
         let stored = self.get_recipe(recipe_id)?;

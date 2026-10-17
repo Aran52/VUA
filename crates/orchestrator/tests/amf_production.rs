@@ -157,6 +157,11 @@ impl AmfProductionPlatform for TestPlatform {
         fs::read_to_string(project.join("Assets/state"))
             .map_err(|e| production_error("test_io", e.to_string()))
     }
+    /// The v1 analog of this platform's fingerprint: the same state under the old prefix,
+    /// as a record written before the cached value would carry it.
+    fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
+        Ok(format!("sha256:{}", self.fingerprint(project)?))
+    }
     fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         let mut observed = self.assemble(run, selection, watch)?;
         observed.result["facts"]["observedSelection"] = serde_json::to_value(selection).unwrap();
@@ -750,4 +755,48 @@ fn every_step_the_engine_records_is_in_the_published_status_schema() {
     for key in keys {
         assert!(text.contains(&format!("\"{key}\"")), "status.schema.json lists the step key {key}");
     }
+}
+
+#[test]
+fn a_v1_record_compares_by_computing_v1_once_and_then_carries_the_current_value() {
+    let h = Harness::new();
+    h.prepared();
+    let record = h.root.join("production/runs/n3-test.json");
+    let carry = |value: &str| {
+        let mut run: serde_json::Value = serde_json::from_slice(&fs::read(&record).unwrap()).unwrap();
+        run["projectFingerprint"] = value.into();
+        run["snapshotId"] = "n3-snap".into();
+        fs::write(&record, serde_json::to_vec_pretty(&run).unwrap()).unwrap();
+    };
+    // A record from before the cached fingerprint, on a project nobody touched.
+    carry("sha256:before");
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    assert_eq!(plan["currentChanged"], false, "a new algorithm must not read as a changed project");
+    // The gate passes and upgrades the record; this synthetic run has not been assembled,
+    // so building the Recipe itself declines for its own reason.
+    let refused = h.engine.save_recipe("n3-test", "recipe-migrated", "Migrated").unwrap_err();
+    assert_ne!(refused.code, "vua.amf_production.inspect_required", "the fingerprint gate accepted the legacy value");
+    assert_eq!(h.engine.get("n3-test").unwrap().project_fingerprint, "before", "the record carries the current value after the match");
+    // A record whose project really changed still reports the change, in either algorithm.
+    carry("sha256:before");
+    fs::write(h.root.join("production/projects/n3-test/Assets/state"), "external edit").unwrap();
+    assert_eq!(h.engine.rollback_plan("n3-test").unwrap()["currentChanged"], true);
+    assert_eq!(h.engine.save_recipe("n3-test", "recipe-stale", "Stale").unwrap_err().code, "vua.amf_production.inspect_required");
+}
+
+#[test]
+fn the_after_unity_project_check_shows_as_its_own_stage() {
+    let h = Harness::new();
+    h.prepared();
+    let events = h.runtime.subscribe();
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let mut stages = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if event.kind == vua_orchestrator::TaskEventKind::Progress
+            && event.payload.get("unity").is_some()
+        {
+            stages.push(event.payload["unity"]["stage"].clone());
+        }
+    }
+    assert_eq!(stages, vec![serde_json::json!("fingerprint")], "the check is a named stage, and the only Unity stage of a synthetic reinspection");
 }

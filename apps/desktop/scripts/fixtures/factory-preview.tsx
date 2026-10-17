@@ -8,10 +8,13 @@ import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import { controlPreview } from "./control-center-preview.tsx";
 import type { AmfProductionPort, AmfProductionRun } from "../../src/renderer/gateway/index.ts";
-import { ReleasePreview, releasePorts } from "./release-preview.tsx";
+import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
+import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
+import { Card } from "../../src/renderer/components/primitives/Card.tsx";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/app-shell.css";
+import "../../src/renderer/features/settings/settings.css";
 
 const view = location.hash.slice(1) || "map";
 const sources = [
@@ -50,8 +53,20 @@ const runOf = selected.replace(/-auto$/u, "");
 try { localStorage.setItem("vua-amf-production-run-v01", runOf); } catch { /* preview only */ }
 const control = view.startsWith("control-") ? controlPreview(view, { ...gateway, amfProduction: api }, api) : null;
 const release = view.startsWith("release-") ? releasePorts(view) : null;
-createRoot(document.getElementById("root")!).render(release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release }}>
+const signedIn = view === "release-check" || view === "release-uploaded";
+const vrchatOfRelease = signedIn ? vrchatPreviewPort({ enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true }) : undefined;
+const settingsVrchat = view.startsWith("settings-vrchat")
+  ? vrchatPreviewPort(view === "settings-vrchat-account"
+    ? { enabled: true, state: "signed_in", account: { displayName: "Aran", thumbnail: pixel }, rememberPassword: true, pendingMethods: [], canCheckUploads: true }
+    : { enabled: true, state: "signed_out", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: false })
+  : undefined;
+createRoot(document.getElementById("root")!).render(release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release, ...(vrchatOfRelease ? { vrchat: vrchatOfRelease } : {}) }}>
   <ReleasePreview view={view} />
+</GatewayProvider> : view.startsWith("settings-") ? <GatewayProvider gateway={{ ...gateway, ...(settingsVrchat ? { vrchat: settingsVrchat } : {}) }}>
+  <div className="vua-page" style={{ maxWidth: 760 }}>
+    <section className="vua-page__hero"><h1 className="vua-title">设置 · 实验性</h1></section>
+    <Card><VrchatSignInSection /></Card>
+  </div>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
 </GatewayProvider>);

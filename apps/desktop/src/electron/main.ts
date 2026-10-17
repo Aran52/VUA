@@ -25,7 +25,8 @@ import type {
 } from "@vua/contracts";
 import { APPLICATION_CONTRACT_VERSION, DESKTOP_BROWSER_SITES_V1, desktopBrowserSite, desktopBrowserDisplayUrl, isDesktopBrowserViewportV1, accountGuideDestination, isGameWindowObservationResult, isLibraryDownloadParamsV01, isLibraryDownloadSnapshotV01, isAiUploadConfirmationV01 } from "@vua/contracts";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
-import { routeDesktopGatewayInvoke } from "./gateway-router.js";
+import { routeDesktopGatewayInvoke, type DesktopGatewayRouteContext } from "./gateway-router.js";
+import { vrchatSession, writeSdkSessionFile, type VrchatSessionService } from "./vrchat-session.js";
 import { DownloadPort } from "./download-port.js";
 import { createSilentDownloadQueue } from "./silent-download.js";
 import { createDownloadEventSink } from "./download-ingest.js";
@@ -151,6 +152,8 @@ if (desktopProfile.kind !== "release") {
 const packagedSmoke = preparePackagedSmoke();
 let mainWindow: BrowserWindow | null = null;
 let aiTools: AiToolsServer | null = null;
+/** Experimental VRChat sign-in (vrchat-session v0.1), held by Electron Main. */
+let vrchatService: VrchatSessionService | null = null;
 let startupWindow: BrowserWindow | null = null;
 let startupFallback: ReturnType<typeof setTimeout> | null = null;
 
@@ -399,6 +402,44 @@ function resolveAmfEndpoint(): DesktopProviderEndpoint {
     unityEditorPath: readEditorSettingsFromFile(editorSettingsPath()).confirmedEditor?.path ?? null };
 }
 
+/** vrchat-session v0.1 的路由面:Gateway 方法与上传前的 SDK 会话交接。 */
+function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteContext["vrchat"]> {
+  /** Before the provider accepts the upload: when the player is signed in, place the
+   *  one-time session file beside the Bridge files of the run's work project. */
+  const writeSdkHandoff = async (runId: string): Promise<void> => {
+    const service = vrchatService;
+    if (service === null) return;
+    const session = service.sdkSession();
+    if (session === null) return;
+    const response = await host.invoke({
+      contractVersion: APPLICATION_CONTRACT_VERSION,
+      requestId: `vrchat-handoff-${crypto.randomUUID()}`,
+      correlationId: `vrchat-handoff-${crypto.randomUUID()}`,
+      kind: "query",
+      method: "amf.production.get",
+      params: { schemaVersion: "0.1", runId },
+    });
+    const value: unknown = response.ok ? response.value : undefined;
+    const projectRoot = typeof value === "object" && value !== null
+      && typeof (value as { projectRoot?: unknown }).projectRoot === "string"
+      ? (value as { projectRoot: string }).projectRoot
+      : null;
+    if (projectRoot === null || projectRoot.length === 0 || path.isAbsolute(projectRoot) === false) return;
+    const file = await writeSdkSessionFile(projectRoot, session);
+    service.noteSdkHandoff(file);
+  };
+  return {
+    handle: request => {
+      const service = vrchatService;
+      if (service === null) throw new Error("vrchat_unavailable");
+      return service.handle(request);
+    },
+    snapshot: () => vrchatService?.snapshot() ?? { experimentalEnabled: false, signedIn: false },
+    writeSdkHandoff,
+    discardSdkHandoff: () => vrchatService?.clearSdkHandoffs(),
+  };
+}
+
 function registerIpc(provider: ModuleProvider): void {
   // Pairing and approval are restricted to the local Main frame; overlays and
   // embedded websites cannot read a token or approve an Agent's proposed write.
@@ -453,6 +494,7 @@ function registerIpc(provider: ModuleProvider): void {
       rendererUrl,
       resolveMaterialSource: resolveProductionContext,
       launchAmfEditor: runId => launchAmfEditor(provider, runId),
+      vrchat: vrchatRouteFace(provider),
     },
     senderFrameUrl(event),
     request,
@@ -1845,7 +1887,8 @@ app.whenReady().then(async () => {
     version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage), ...aiRequestStore(app.getPath("userData")),
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
       platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
-      resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId) },
+      resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId),
+      vrchat: vrchatRouteFace(provider!) },
       mainWindow?.webContents.getURL() ?? "", request),
   });
   aiTools.subscribe(snapshot => {
@@ -1853,8 +1896,11 @@ app.whenReady().then(async () => {
   });
   registerIpc(provider);
   systemUsage.start(desktopRuntime.providerExecutable);
+  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage });
   await createWindow();
   if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
+  // 启动会话检查(尽力而为):VRChat 结束的会话在此被发现;记住的密码可续登
+  if (!packagedSmoke) void vrchatService.refresh().catch(() => {});
   if (packagedSmoke && mainWindow) {
     await packagedSmoke.verify(mainWindow, provider);
     return;
@@ -1887,6 +1933,7 @@ app.on("will-quit", () => { systemTray?.dispose(); systemTray = null; });
 app.on("before-quit", (event) => {
   systemUsage.stop();
   stopGameGuideFollowTimer();
+  vrchatService?.clearSdkHandoffs();
   void aiTools?.dispose();
   if (provider === null || shutdownStarted || provider.status().state === "stopped") return;
   event.preventDefault();

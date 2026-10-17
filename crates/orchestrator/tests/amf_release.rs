@@ -130,7 +130,8 @@ impl Harness {
     fn upload(&self, name: &'static str) -> Result<(), String> { self.job(move |engine, ctx| engine.upload(RUN, name, ctx)) }
     fn receipt(&self, outcome: &str, blueprint: Option<&str>, reason: Option<&str>) {
         *self.platform.receipt.lock().unwrap() = Some(UploadReceipt { outcome: outcome.into(), blueprint_id: blueprint.map(str::to_owned),
-            first_upload: true, reason: reason.map(str::to_owned), detail: "SDK said\u{0000} so".into(), errors: vec!["Too many materials".into()] });
+            first_upload: true, reason: reason.map(str::to_owned), detail: "SDK said\u{0000} so".into(), errors: vec!["Too many materials".into()],
+            sdk_sign_in: Some("panel".into()) });
     }
 }
 impl Drop for Harness {

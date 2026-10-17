@@ -55,6 +55,11 @@ export interface AppSnapshotV1 {
     readonly remoteBrowser: boolean;
     readonly operations: readonly CapabilityOperationV01[];
   };
+  /** vrchat-session v0.1:MCP `vua_status` 最多读到这两个布尔;账号事实与机密不入快照。 */
+  readonly vrchat: {
+    readonly experimentalEnabled: boolean;
+    readonly signedIn: boolean;
+  };
 }
 
 /**
@@ -995,6 +1000,67 @@ export interface PackagesCreateProjectRequestV1 {
 export interface GatewayDeploymentPlanRequest { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.planDeployment"; readonly params: DeploymentPlanParams }
 export interface GatewayDeploymentExecuteRequest { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.executeDeployment"; readonly params: DeploymentExecuteParams & { readonly commandId: string } }
 
+/**
+ * vrchat-session v0.1(实验性 VRChat 登录,作者裁决 2026-10-18):会话由
+ * Electron Main 持有,方法在 Kernel 路由分流,不进 Provider。机密(密码、
+ * cookie)只存在于请求参数(Main 侧消费)与 Main 的加密存储;Gateway 返回、
+ * 任务记录、日志与 MCP 输出只含登录态与展示事实。
+ */
+export type VrchatTwoFactorMethodV1 = "emailotp" | "totp" | "otp";
+export interface VrchatAccountViewV1 {
+  readonly displayName: string;
+  /** 头像缩略图,`data:` URL,取不到为 null;渲染层不发起远程请求。 */
+  readonly thumbnail: string | null;
+}
+export type VrchatSessionStateV1 = "signed_in" | "needs_code" | "signed_out";
+export interface VrchatStatusValueV1 {
+  readonly schemaVersion: "0.1";
+  /** 实验开关(风险确认)是否已接受。 */
+  readonly enabled: boolean;
+  readonly state: VrchatSessionStateV1;
+  readonly account: VrchatAccountViewV1 | null;
+  /** 玩家另勾选的「记住密码」;会话 cookie 总是保存。 */
+  readonly rememberPassword: boolean;
+  /** 进行中的登录等待哪种二步验证码。 */
+  readonly pendingMethods: readonly VrchatTwoFactorMethodV1[];
+  /** 会话可用时可做上传核对。 */
+  readonly canCheckUploads: boolean;
+}
+export type VrchatCommandOutcomeV1 =
+  | "signed_in" | "two_factor_required" | "invalid_credentials" | "invalid_code"
+  | "not_enabled" | "no_sign_in_in_progress" | "resend_too_soon" | "sent"
+  | "network" | "rate_limited" | "server";
+export interface VrchatSignInValueV1 {
+  readonly outcome: VrchatCommandOutcomeV1;
+  readonly methods?: readonly VrchatTwoFactorMethodV1[];
+}
+export interface VrchatAvatarCheckValueV1 {
+  readonly schemaVersion: "0.1";
+  readonly blueprintId: string;
+  readonly state: "found" | "not_found" | "signed_out" | "error";
+  readonly checkedAt: string | null;
+  readonly avatar: {
+    readonly name: string;
+    readonly releaseStatus: string;
+    readonly platforms: readonly string[];
+    readonly updatedAt: string;
+  } | null;
+}
+export interface VrchatStatusRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.status"; readonly params: Record<string, never> }
+export interface VrchatSetExperimentalRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.setExperimental"; readonly params: { readonly enabled: boolean; readonly commandId: string } }
+export interface VrchatSignInRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.signIn"; readonly params: { readonly username: string; readonly password: string; readonly rememberPassword: boolean; readonly commandId: string } }
+export interface VrchatReloginRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.relogin"; readonly params: { readonly commandId: string } }
+export interface VrchatVerifyCodeRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.verifyCode"; readonly params: { readonly method: VrchatTwoFactorMethodV1; readonly code: string; readonly commandId: string } }
+export interface VrchatResendEmailCodeRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.resendEmailCode"; readonly params: { readonly commandId: string } }
+export interface VrchatSignOutRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.signOut"; readonly params: { readonly commandId: string } }
+export interface VrchatForgetRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.forget"; readonly params: { readonly commandId: string } }
+export interface VrchatAvatarCheckRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.avatarCheck"; readonly params: { readonly blueprintId: string; readonly refresh?: boolean } }
+export type VrchatGatewayRequestV1 =
+  | VrchatStatusRequestV1 | VrchatSetExperimentalRequestV1 | VrchatSignInRequestV1 | VrchatReloginRequestV1
+  | VrchatVerifyCodeRequestV1 | VrchatResendEmailCodeRequestV1 | VrchatSignOutRequestV1 | VrchatForgetRequestV1
+  | VrchatAvatarCheckRequestV1;
+export type VrchatGatewayValueV1 = VrchatStatusValueV1 | VrchatSignInValueV1 | VrchatAvatarCheckValueV1;
+
 export type DesktopGatewayRequestV1 =
   | AmfProductionRequestV1
   | ScenarioEnvironmentRequestV1
@@ -1085,7 +1151,8 @@ export type DesktopGatewayRequestV1 =
   | PackagesCreateProjectRequestV1
   | PackagesEnableRepoRequestV1
   | PackagesDisableRepoRequestV1
-  | PackagesRefreshRepoRequestV1;
+  | PackagesRefreshRepoRequestV1
+  | VrchatGatewayRequestV1;
 
 /** 方法 → 应用语义:Kernel 路由用;未知方法返回 undefined */
 export const DESKTOP_GATEWAY_METHOD_KINDS = {
@@ -1213,6 +1280,17 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "packages.enableRepo": "command",
   "packages.disableRepo": "command",
   "packages.refreshRepo": "command",
+  // vrchat-session v0.1(实验性 VRChat 登录):Kernel 分流到 Electron Main,
+  // 会话机密不进 Provider;signIn/verifyCode 的参数经本地 IPC 单程传递
+  "vrchat.status": "query",
+  "vrchat.setExperimental": "command",
+  "vrchat.signIn": "command",
+  "vrchat.relogin": "command",
+  "vrchat.verifyCode": "command",
+  "vrchat.resendEmailCode": "command",
+  "vrchat.signOut": "command",
+  "vrchat.forget": "command",
+  "vrchat.avatarCheck": "query",
 } as const satisfies Readonly<Record<string, "query" | "command">>;
 
 export type DesktopGatewayMethodV1 = keyof typeof DESKTOP_GATEWAY_METHOD_KINDS;
@@ -1220,7 +1298,7 @@ export type DesktopGatewayMethodV1 = keyof typeof DESKTOP_GATEWAY_METHOD_KINDS;
 /**
  * 各方法的成功返回值:应用契约值原样透传,外加 Kernel 派生的 app.snapshot。
  */
-export type DesktopGatewaySuccessValueV1 = AppSnapshotV1 | ApplicationSuccessValueV01;
+export type DesktopGatewaySuccessValueV1 = AppSnapshotV1 | VrchatGatewayValueV1 | ApplicationSuccessValueV01;
 
 /**
  * Gateway 错误:Kernel 自身的三种失败用 code + messageKey;Provider 的应用
@@ -1873,6 +1951,11 @@ function isProductionRiskChoiceV02(value: unknown): boolean {
 
 const REQUEST_KEYS = ["schemaVersion", "requestId", "method", "params"] as const;
 
+/** VRChat Avatar ID(`avtr_` + 十六进制 UUID),与 AMF 生产记录一致。 */
+function isVrchatBlueprintId(value: unknown): value is string {
+  return typeof value === "string" && /^avtr_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/u.test(value);
+}
+
 export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatewayRequestV1 {
   if (!isRecord(value)) return false;
   if (value.schemaVersion !== DESKTOP_GATEWAY_VERSION) return false;
@@ -1882,6 +1965,27 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
   if (!isRecord(value.params)) return false;
 
   switch (value.method) {
+    case "vrchat.status":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, []);
+    case "vrchat.setExperimental":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["enabled", "commandId"])
+        && typeof value.params.enabled === "boolean" && isIdentifier(value.params.commandId);
+    case "vrchat.signIn":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["username", "password", "rememberPassword", "commandId"])
+        && typeof value.params.username === "string" && value.params.username.length >= 1 && value.params.username.length <= 128
+        && typeof value.params.password === "string" && value.params.password.length >= 1 && value.params.password.length <= 256
+        && typeof value.params.rememberPassword === "boolean" && isIdentifier(value.params.commandId);
+    case "vrchat.relogin": case "vrchat.resendEmailCode": case "vrchat.signOut": case "vrchat.forget":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["commandId"]) && isIdentifier(value.params.commandId);
+    case "vrchat.verifyCode":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["method", "code", "commandId"])
+        && ["emailotp", "totp", "otp"].includes(String(value.params.method))
+        && typeof value.params.code === "string" && value.params.code.length >= 1 && value.params.code.length <= 32
+        && isIdentifier(value.params.commandId);
+    case "vrchat.avatarCheck":
+      return hasExactKeys(value, REQUEST_KEYS) && (hasExactKeys(value.params, ["blueprintId"]) || hasExactKeys(value.params, ["blueprintId", "refresh"]))
+        && isVrchatBlueprintId(value.params.blueprintId)
+        && (value.params.refresh === undefined || typeof value.params.refresh === "boolean");
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
     case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.turntableFrame":

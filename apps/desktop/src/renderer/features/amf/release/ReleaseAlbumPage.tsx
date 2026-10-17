@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import type { AiUploadConfirmationV01 } from "@vua/contracts";
-import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfProductionRun, type AmfReleasePort, type AmfReleaseState } from "../../../gateway/index.ts";
+import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfProductionRun, type AmfReleasePort, type AmfReleaseState, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import type { PageId } from "../../../app/nav-model.ts";
 import { EmptyState } from "../../../components/primitives/EmptyState.tsx";
 import { format, formatDateTime, formatShortDateTime, strings, termLabel } from "../../../i18n/index.ts";
@@ -93,6 +93,7 @@ function useAlbumData(production: AmfProductionPort, release: AmfReleasePort, fo
 
 function Album({ production, release, onNavigate }: { production: AmfProductionPort; release: AmfReleasePort; onNavigate: (page: PageId) => void }) {
   const gateway = useGateway();
+  const vrchat = gateway.vrchat;
   const ai = useAiRequests();
   const [focus, setFocus] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -106,6 +107,37 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
   const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload"; error: unknown } | null>(null);
   const busy = list?.busy ?? false;
   const requests = (ai.snapshot?.requests ?? []).filter(request => request.tool === "vua_request_amf_upload" && request.state === "pending");
+
+  // 上传核对(vrchat-session v0.1):玩家开启实验性登录后才读;结果按 Avatar ID 记住
+  const [checksEnabled, setChecksEnabled] = useState(false);
+  const [avatarChecks, setAvatarChecks] = useState<Readonly<Record<string, VrchatAvatarCheck>>>({});
+  const [checkBusy, setCheckBusy] = useState(false);
+  useEffect(() => {
+    if (vrchat === undefined) { setChecksEnabled(false); return; }
+    let active = true;
+    void vrchat.status().then(value => { if (active) setChecksEnabled(value.enabled); }, () => { if (active) setChecksEnabled(false); });
+    return () => { active = false; };
+  }, [vrchat]);
+  const rememberCheck = (id: string, read: () => Promise<VrchatAvatarCheck>) => {
+    void read().then(
+      check => setAvatarChecks(previous => ({ ...previous, [id]: check })),
+      () => setAvatarChecks(previous => ({ ...previous, [id]: { blueprintId: id, state: "error", checkedAt: null, avatar: null } })),
+    );
+  };
+  const shownIds = ids.map(id => uploadedAvatarId(states[id] ?? null)).filter((id): id is string => id !== null);
+  const focusCheckId = shownIds[index] ?? null;
+  useEffect(() => {
+    if (vrchat === undefined || !checksEnabled || focusCheckId === null || avatarChecks[focusCheckId] !== undefined) return;
+    rememberCheck(focusCheckId, () => vrchat.avatarCheck(focusCheckId, false));
+  }, [vrchat, checksEnabled, focusCheckId, avatarChecks]);
+  const refreshCheck = (id: string) => {
+    if (vrchat === undefined || checkBusy) return;
+    setCheckBusy(true);
+    void vrchat.avatarCheck(id, true).then(
+      check => { setAvatarChecks(previous => ({ ...previous, [id]: check })); setCheckBusy(false); },
+      () => { setCheckBusy(false); },
+    );
+  };
 
   const act = (runId: string, kind: "bake" | "upload", work: () => Promise<unknown>) => {
     setActionError(null);
@@ -149,6 +181,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
       </span>
     </div>;
     const error = actionError?.runId === runId ? actionError : null;
+    const avatarId = uploadedAvatarId(state);
     return {
       key: runId, tab,
       left: live => run ? <div className="vua-album__left">
@@ -162,7 +195,9 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),
-        }} />
+        }}
+          avatarCheck={checksEnabled && avatarId !== null ? avatarChecks[avatarId] ?? null : null}
+          {...(checksEnabled && avatarId !== null ? { onRefreshAvatarCheck: () => refreshCheck(avatarId) } : {})} />
         {live && error?.kind === "upload" && <ActionError error={error.error} onCheckAgain={() => checkAgain(runId)} />}
       </> : <p className="vua-text-secondary">{copy.loading}</p>,
     };

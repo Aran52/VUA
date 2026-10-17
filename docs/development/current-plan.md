@@ -37,8 +37,8 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
 - The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
   hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
-  The [experimental VRChat sign-in](vrchat-account.md) in VUA (approved 2026-10-18) is being built
-  on `slice/vrchat-signin`.
+  The [experimental VRChat sign-in](vrchat-account.md) in VUA (approved 2026-10-18) is built on
+  `slice/vrchat-signin` (Aran52/VUA#5) and awaits the author's real-account checks.
 
 ## Order
 
@@ -62,7 +62,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 16 | Eval runs | all `ready` cases | |
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
-| 19 | Experimental VRChat sign-in | P-02 | in progress on `slice/vrchat-signin` |
+| 19 | Experimental VRChat sign-in | P-02 | built on `slice/vrchat-signin` (Aran52/VUA#5); awaits the real-account checks |
 | 20 | Start production from the materials room | P-02 | |
 | 21 | Faster project fingerprints | — | |
 | 22 | Motion setting | — | needs the author's decision |
@@ -212,6 +212,9 @@ in bright and dark worlds, without visible loss the author objects to.
 SDK 3.10.5 hands out its builder only while the SDK control panel is open and signed in, and
 shows VRChat's ownership agreement in that panel, so the upload runs in the Editor's interface
 through the [Bridge v5 handoff](../protocols/unity-bridge-v5.md#managed-upload-in-the-open-editor).
+The player's experimental [VRChat sign-in inside VUA](vrchat-account.md) hands its session to
+the open Editor before an upload ([vrchat-session v0.1](../protocols/vrchat-session-v0.1.md)),
+so the panel starts signed in, and each upload record names where its sign-in came from.
 
 **Done when** the P-02 result uploads from VUA with the player's confirmation.
 

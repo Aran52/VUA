@@ -66,6 +66,7 @@ import {
   downloadDiagnostics,
 } from "./features/settings/diagnostics.ts";
 import { ExperimentalCommands } from "./features/settings/experimental-commands.tsx";
+import { VrchatSignInSection } from "./features/settings/vrchat-sign-in.tsx";
 import { AccountSettingsPage } from "./features/settings/AccountSettingsPage.tsx";
 import { EnvironmentSettingsPage } from "./features/settings/environment-page.tsx";
 import { useAutoDeleteOriginals } from "./app/delete-originals-auto.ts";
@@ -198,6 +199,7 @@ function ExperimentalSettingsPage() {
   return <div className="vua-page">
     <section className="vua-page__hero"><h1 className="vua-title">{strings.nav.pages.settingsExperimental}</h1></section>
     <AmfExperimentalCommands />
+    <Card><VrchatSignInSection /></Card>
     <Card><div className="vua-page__stack">
       <h3>{copy.taskDiagnosticsTitle}</h3><p className="vua-text-secondary">{copy.taskDiagnosticsDesc}</p>
       <Button disabled={window.vua?.window === undefined} onClick={() => void window.vua?.window.showOverlay("status")} data-nav-id="experimental-task-diagnostics">{copy.taskDiagnosticsOpen}</Button>

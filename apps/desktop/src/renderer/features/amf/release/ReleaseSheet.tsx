@@ -1,11 +1,12 @@
 /** The right album page: what the Avatar is, its checks, and its upload to VRChat. */
 import { useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
-import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfUpload } from "../../../gateway/index.ts";
+import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
 import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
+const vrchatCopy = strings.vrchat.release;
 const time = (iso: string | null | undefined) => (iso && !Number.isNaN(Date.parse(iso)) ? formatDateTime(iso) : "");
 
 export interface SheetActions {
@@ -13,6 +14,34 @@ export interface SheetActions {
   readonly onUpload: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
+}
+
+/** How this upload's SDK sign-in happened, as one plain line; unknown stays unsaid. */
+function SdkSignInLine({ upload }: { upload: AmfUpload }) {
+  if (upload.sdkSignIn == null) return null;
+  return <small className="vua-text-secondary">{vrchatCopy.sdkSignIn[upload.sdkSignIn]}</small>;
+}
+
+/** The uploaded Avatar as VRChat lists it: found, waiting to appear, or unreadable. */
+function AvatarCheckBlock({ check, onRefresh, busy }: { check: VrchatAvatarCheck | null; onRefresh?: () => void; busy: boolean }) {
+  const fields = vrchatCopy.fields;
+  return <div className="vua-vrchat-check" data-state={check?.state ?? "waiting"} role="status">
+    <span className="vua-vrchat-check__title"><Icon name="cloud" size={16} />{vrchatCopy.onVrchat}</span>
+    {check === null ? <span className="vua-text-secondary">{vrchatCopy.checking}</span> : check.state === "found" && check.avatar ? <>
+      <strong>{vrchatCopy.found}</strong>
+      <dl>
+        <div><dt>{fields.name}</dt><dd>{check.avatar.name}</dd></div>
+        <div><dt>{fields.releaseStatus}</dt><dd>{vrchatCopy.releaseStatus[check.avatar.releaseStatus as keyof typeof vrchatCopy.releaseStatus] ?? check.avatar.releaseStatus}</dd></div>
+        {check.avatar.platforms.length > 0 ? <div><dt>{fields.platforms}</dt>
+          <dd>{check.avatar.platforms.map(platform => vrchatCopy.platform[platform as keyof typeof vrchatCopy.platform] ?? platform).join(" · ")}</dd></div> : null}
+        <div><dt>{fields.updatedAt}</dt><dd>{time(check.avatar.updatedAt)}</dd></div>
+        <div><dt>{fields.checkedAt}</dt><dd>{time(check.checkedAt)}</dd></div>
+      </dl>
+    </> : check.state === "not_found" ? <span className="vua-text-secondary">{vrchatCopy.notFound}</span>
+      : check.state === "signed_out" ? <span className="vua-text-secondary">{vrchatCopy.signedOut}</span>
+        : <span className="vua-text-secondary">{vrchatCopy.checkError}</span>}
+    {onRefresh && <button type="button" className="vua-release-upload__link" onClick={onRefresh} disabled={busy}>{vrchatCopy.refresh}</button>}
+  </div>;
 }
 
 function checkText(check: CheckLine): string {
@@ -70,13 +99,17 @@ function CopyId({ id }: { id: string }) {
   }}>{copied ? copy.upload.copied : copy.upload.copyId}</button>;
 }
 
-function UploadResult({ upload, onCheckAgain }: { upload: AmfUpload; onCheckAgain?: () => void }) {
+function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, busy }: {
+  upload: AmfUpload; onCheckAgain?: () => void; check: VrchatAvatarCheck | null; onRefreshCheck?: () => void; busy: boolean;
+}) {
   if (upload.state === "succeeded" && upload.blueprintId) {
     return <div className="vua-release-upload__result" data-tone="success" role="status">
       <strong><Icon name="check" size={16} />{copy.upload.uploaded}</strong>
       <span className="vua-text-secondary">{time(upload.endedAt)}</span>
       <span className="vua-release-upload__id"><span>{copy.upload.avatarId}</span><code>{upload.blueprintId}</code><CopyId id={upload.blueprintId} /></span>
+      <SdkSignInLine upload={upload} />
       {upload.detail && <small className="vua-text-secondary">{upload.detail}</small>}
+      {check !== null || onRefreshCheck !== undefined ? <AvatarCheckBlock check={check} {...(onRefreshCheck !== undefined ? { onRefresh: onRefreshCheck } : {})} busy={busy} /> : null}
     </div>;
   }
   const reason = upload.reason ?? "unknown";
@@ -90,8 +123,9 @@ function UploadResult({ upload, onCheckAgain }: { upload: AmfUpload; onCheckAgai
 }
 
 /** The right page. A turning page shows the same content without its controls. */
-export function ReleaseSheet({ run, state, number, live, actions, notice }: {
+export function ReleaseSheet({ run, state, number, live, actions, notice, avatarCheck, onRefreshAvatarCheck }: {
   run: AmfProductionRun; state: AmfReleaseState | null; number: number; live: boolean; actions?: SheetActions; notice?: ReactNode;
+  avatarCheck?: VrchatAvatarCheck | null; onRefreshAvatarCheck?: () => void;
 }) {
   const outfits = outfitLines(run);
   const checks = releaseChecks(run);
@@ -124,7 +158,10 @@ export function ReleaseSheet({ run, state, number, live, actions, notice }: {
         <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}
           onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
         <small className="vua-text-secondary">{actions?.busy ? copy.upload.busy : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>
-        {latest && latest.state !== "running" && <UploadResult upload={latest} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
+        {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
+          {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}
+          busy={live && actions ? actions.busy : false}
+          {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
       </>}
       {earlier.length > 0 && <details className="vua-release-upload__history"><summary>{copy.upload.history}</summary>
         <ul>{earlier.map(upload => <li key={upload.uploadId}>{format(copy.upload.historyLine, { time: time(upload.endedAt ?? upload.startedAt), result: copy.upload.results[upload.state] })}

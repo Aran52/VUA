@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.10.0
+> Document version: 0.11.0
 > Status: Candidate
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -205,7 +205,10 @@ run's last check; with Unity open, the SDK uploads the scene as it is there. The
 upload to the [open Editor](unity-bridge-v5.md#managed-upload-in-the-open-editor), records each
 upload's `stage`, upload `progress` and SDK `status` while it runs, and ends with `state`
 `succeeded` and the VRChat `blueprintId` (`avtr_<uuid>`), or `failed`/`cancelled` with a
-`reason`, the SDK's `detail` and its validation `errors`. Task cancellation stops the upload. An
+`reason`, the SDK's `detail` and its validation `errors`. Each upload record also names
+`sdkSignIn` — `vua_session` when the SDK panel started signed in from the player's experimental
+[VRChat session in VUA](vrchat-session-v0.1.md), `panel` when the sign-in happened inside the
+panel; older records carry nothing. Task cancellation stops the upload. An
 upload still marked running when a new one starts ended with VUA and reads `interrupted`. The
 VRChat sign-in and the SDK's own ownership agreement stay inside the SDK; VUA reports only
 `sdkSignedIn` from its facts. An AI Agent requests an upload as a pending request that the player
@@ -237,6 +240,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
 - 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.9.0 of the parallel progress-and-stop change.
 - 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
 - 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.

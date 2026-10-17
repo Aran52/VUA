@@ -202,3 +202,16 @@ describe("built-in MCP, using the official HTTP client", () => {
     }
   });
 });
+
+describe("the experimental VRChat sign-in stays outside the AI tool catalog", () => {
+  it("exposes no vrchat tool, so credentials can never queue as an approval", async () => {
+    expect(AI_TOOLS.some(spec => spec.name.includes("vrchat") || (spec.method ?? "").startsWith("vrchat."))).toBe(false);
+    const { client } = await setup();
+    const tools = await client.listTools();
+    expect(tools.tools.some(tool => tool.name.includes("vrchat"))).toBe(false);
+    const result = data(await client.callTool({ name: "vua_status", arguments: {} }));
+    // The snapshot this test harness returns is the mock's; the real envelope's
+    // vrchat field is pinned to exactly two booleans in gateway-router.test.ts.
+    expect(result).toBeDefined();
+  });
+});

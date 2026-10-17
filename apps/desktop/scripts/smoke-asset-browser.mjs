@@ -52,9 +52,14 @@ async function main() {
       window = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith("file:") && !candidate.webContents.getURL().includes("surface="));
       return window && !window.webContents.isLoading();
     }, "production renderer");
-    const js = source => window.webContents.executeJavaScript(source, true);
+    // A failing script names itself, so a CI failure points at its step.
+    const js = source => window.webContents.executeJavaScript(source, true)
+      .catch(error => { throw new Error(`VUA page script failed: ${source.slice(0, 100)}`, { cause: error }); });
     const remoteViews = () => window.contentView.children.filter(view => view.webContents && view.webContents !== window.webContents);
     const activeView = () => remoteViews().find(view => view.getVisible());
+    const inView = source => activeView().webContents.executeJavaScript(source, true)
+      .catch(error => { throw new Error(`Website script failed: ${source.slice(0, 100)}`, { cause: error }); });
+    const viewHas = selector => waitFor(() => activeView()?.webContents.executeJavaScript(`!!document.querySelector(${JSON.stringify(selector)})`), selector);
     // VUA controls re-render around navigation; a control is clicked once it is present again.
     const clickShell = async selector => {
       await waitFor(() => js(`!!document.querySelector(${JSON.stringify(selector)})`), selector);
@@ -147,12 +152,15 @@ async function main() {
     await clickInPage("#next");
     await waitFor(() => activeView()?.webContents.getURL().endsWith("/second"), "material child page");
     const originalContents = activeView().webContents.id;
+    await waitFor(() => js('!!document.querySelector("[data-browser-tab][aria-selected=true]")'), "selected material tab");
     const originalTab = await js('document.querySelector("[data-browser-tab][aria-selected=true]").dataset.browserTab');
-    await activeView().webContents.executeJavaScript('document.querySelector("#note").value="retained draft";window.scrollTo(0,420);true', true);
+    await viewHas("#note");
+    await inView('document.querySelector("#note").value="retained draft";window.scrollTo(0,420);true');
     await click("nav-env-play"); await waitFor(() => remoteViews().every(view => !view.getVisible()), "material browser hidden on another route");
     assert(remoteViews().length === 1, "Another shell route retains the material native view");
     await click("nav-warehouse"); await waitFor(() => js('!!document.querySelector("[data-nav-id=tab-asset-browser]")'), "materials room tabs"); await click("tab-asset-browser"); await waitFor(frameFits, "material route return");
-    const remembered = await activeView().webContents.executeJavaScript('({note:document.querySelector("#note").value,scroll:window.scrollY})');
+    await viewHas("#note");
+    const remembered = await inView('({note:document.querySelector("#note").value,scroll:window.scrollY})');
     assert(activeView().webContents.id === originalContents && activeView().webContents.getURL().endsWith("/second") && remembered.note === "retained draft" && remembered.scroll === 420,
       "Returning retains URL, history, form draft and scroll without reloading BOOTH");
     await clickShell("[data-browser-new-tab]");
@@ -162,12 +170,14 @@ async function main() {
     await clickInPage("#new-tab");
     await waitFor(() => remoteViews().length === 3 && activeView()?.webContents.getURL().endsWith("/child"), "website link opens local child tab");
     assert(await js('document.querySelectorAll("[data-browser-tab]").length===3'), "Allowed website popup becomes a VUA tab");
+    await waitFor(() => js('!!document.querySelector("[data-browser-site=vrcfinder]")'), "vrcfinder shortcut");
     await js('document.querySelector("[data-browser-site=vrcfinder]").dispatchEvent(new MouseEvent("click",{bubbles:true,ctrlKey:true}))');
     await waitFor(() => remoteViews().length === 4 && activeView()?.webContents.getURL() === "https://vrcfinder.net/", "shortcut opens new tab");
     assert(true, "Ctrl shortcut opens a separate tab without replacing the previous page");
     await clickShell(`[data-browser-tab="${originalTab}"]`);
     await waitFor(() => activeView()?.webContents.id === originalContents, "original tab activation");
-    assert((await activeView().webContents.executeJavaScript('document.querySelector("#note").value')) === "retained draft", "Tab switching preserves the original form");
+    await viewHas("#note");
+    assert((await inView('document.querySelector("#note").value')) === "retained draft", "Tab switching preserves the original form");
     while (await js('document.querySelectorAll("[data-browser-tab]").length<8')) {
       const count = remoteViews().length;
       await clickShell("[data-browser-new-tab]");

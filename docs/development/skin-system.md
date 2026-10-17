@@ -15,7 +15,7 @@ community-skin direction.
 | Layer | Contents | How the app consumes it |
 | --- | --- | --- |
 | Color | surfaces, text, borders, the two module accents, the four room colors, status colors, per dark and light | CSS custom properties (`--vua-*`) |
-| Type | font families (bundled WOFF2 with its license), the type scale | `--vua-font-*` shorthands, used with `font:` |
+| Type | font families (bundled WOFF2 with its license), the type scale | `--vua-font-*` shorthands, used with `font:`; the default families follow a skin's fonts for any glyph they lack, so all four UI languages render |
 | Shape | corner style (cut, round, scalloped, lace edge), radii, border weights | shape tokens; clip-path and mask presets chosen by name |
 | Motion | durations, easing, camera flight time, ambient motion strength | `--vua-motion-*` tokens and the scene engine |
 | Effects | glow, gradients, surface textures, background pattern | existing `--vua-glow-*`, `--vua-aurora-*`, `--vua-shine` plus a pattern slot |
@@ -35,9 +35,10 @@ A skin is a folder or a `.vuaskin` zip with a manifest:
 - `manifest.json`: `schemaVersion`, `id`, `version`, names and descriptions in the four UI
   languages, author, SPDX license and a rights statement for every asset, minimum VUA version,
   preview images;
-- `tokens.dark.json` and `tokens.light.json`: values for the documented token set only, each
+- `tokens.dark.json` and/or `tokens.light.json`: values for the documented token set only, each
   typed (color, length, duration, easing, enum) and range-checked; a skin omits what it keeps
-  from the default;
+  from the default. A skin may provide one mode only (Y2K is light only); while it is active,
+  Appearance shows the theme switch locked to that mode and Windows' theme does not change it;
 - `motifs/`, `icons/`, `fonts/`, `scenes/`: images (PNG, WebP, sanitized SVG), WOFF2 fonts,
   scene packs.
 
@@ -131,4 +132,6 @@ The author decided on 2026-10-17:
 - Community skins start with local import; a shared catalog with review is decided later.
 - Community skins may replace the factory scenes through scene packs.
 
-Open: whether a skin chooses its own fonts, given the four UI languages need CJK coverage.
+- A skin may bring its own fonts; VUA's default font families stay behind them as fallbacks for
+  missing glyphs, and the four-language review checks each skin's text.
+- A skin may support one mode only; the theme switch is then locked to that mode.

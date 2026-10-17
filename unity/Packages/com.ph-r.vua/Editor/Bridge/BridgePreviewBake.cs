@@ -257,6 +257,16 @@ namespace Vua.Editor.Bridge
             }
         }
 
+        /// <summary>
+        /// Renders the 60-frame turntable of an AMF result (Bridge v5 amf_turntable): the same camera
+        /// orbit as Bake, yaw 0° (the Avatar's front) and then 360°/frames per frame, rendered with the
+        /// RenderStills rig so the turntable matches the front, side and back views.
+        /// </summary>
+        internal static void RenderTurntable(GameObject source, int size, int frames, Func<int, string> pathFor)
+        {
+            RenderStills(source, size, Enumerable.Range(0, frames).Select(i => (pathFor(i), i * (360f / frames))).ToArray());
+        }
+
         /// 收据版本回显命令协议版本(execute_production_job 先例,proposal 016):
         /// v4 命令的 build_preview 收据标 v4,绝不用默认标签冒充。
         private static BridgeResult Labeled(BridgeCommand command, BridgeResult result)

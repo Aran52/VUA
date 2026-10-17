@@ -228,6 +228,7 @@ export function createElectronGateway(
     amfModule: createAmfModulePort(host?.amfModule),
     aiTools: host?.aiTools,
     amfProduction: createAmfProductionPort(client),
+    amfRelease: createAmfReleasePort(client),
     distribution: createDistributionPort(host?.distribution),
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
@@ -268,3 +269,4 @@ export function createElectronGateway(
   };
 }
 import { createAmfProductionPort } from "./amf-production-port.ts";
+import { createAmfReleasePort } from "./amf-release-port.ts";

@@ -3,8 +3,8 @@ import { createServer, type IncomingMessage, type Server as HttpServer, type Ser
 import { Server, type Tool, type CallToolResult } from "@modelcontextprotocol/server";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/server/validators/ajv";
 import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
-import type { AiActionRequestV01, AiConnectionLocale, AiToolsSnapshotV01, DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
-import { AI_TOOLS, aiGatewayRequest, type AiToolSpec } from "./ai-tool-catalog.js";
+import { isAiUploadConfirmationV01, isDesktopGatewayRequestV1, type AiActionRequestV01, type AiConnectionLocale, type AiToolsSnapshotV01, type AiUploadConfirmationV01, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1 } from "@vua/contracts";
+import { AI_TOOLS, aiGatewayRequest, withUploadConfirmation, type AiToolSpec } from "./ai-tool-catalog.js";
 import { aiConnectionPrompt } from "./ai-connection-prompt.js";
 
 /** A queued request and the exact typed call it dispatches once the player confirms. */
@@ -293,7 +293,7 @@ export class AiToolsServer {
         || !editors.some(v => record(v) && v.path === request.params.editorPath)) throw new Error("material_or_editor_no_longer_available");
       reviewed = { sources: sources.filter(v => record(v) && request.params.sources.some(s => s.sourceId === v.sourceId)),
         editors: editors.filter(v => record(v) && v.path === request.params.editorPath) };
-    } else if (request.method === "amf.production.reinspect" || request.method === "amf.production.open") {
+    } else if (request.method === "amf.production.reinspect" || request.method === "amf.production.open" || request.method === "amf.production.upload") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.get", params: { schemaVersion: "0.1", runId: request.params.runId } });
       if (record(reviewed)) reviewed = { runId: reviewed.runId, phase: reviewed.phase, projectRoot: reviewed.projectRoot,
         editor: reviewed.editor, sources: reviewed.sources, selection: reviewed.selection };
@@ -318,12 +318,17 @@ export class AiToolsServer {
     this.changed(); return structuredClone(view);
   }
   /** Only the local, verified Main-window IPC can reach this method. */
-  async resolve(id: string, decision: "approve" | "reject"): Promise<AiToolsSnapshotV01> {
+  async resolve(id: string, decision: "approve" | "reject", confirmation?: AiUploadConfirmationV01): Promise<AiToolsSnapshotV01> {
     const approval = this.approvals.get(id);
     if (!approval || approval.view.state !== "pending" || this.disposed || !this.enabled) throw new Error("approval_resolved_or_withdrawn");
     if (decision === "reject") { approval.view = { ...approval.view, state: "rejected" }; this.changed(); return this.snapshot(); }
+    // An upload runs only with the player's rights confirmation from the Release page; no other request takes one.
+    const upload = approval.view.tool === "vua_request_amf_upload";
+    if (upload !== (confirmation !== undefined) || (confirmation !== undefined && !isAiUploadConfirmationV01(confirmation))) throw new Error("upload_confirmation_required");
+    const request = upload && confirmation ? withUploadConfirmation(approval.request, confirmation) : approval.request;
+    if (!isDesktopGatewayRequestV1(request)) throw new Error("upload_confirmation_required");
     approval.view = { ...approval.view, state: "running" }; this.changed();
-    try { const result = await this.invoke(approval.request); approval.view = { ...approval.view, state: "accepted", result }; }
+    try { const result = await this.invoke(request); approval.view = { ...approval.view, state: "accepted", result }; }
     catch (error) { approval.view = { ...approval.view, state: "failed", error: error instanceof Error ? error.message : "request_failed" }; }
     this.changed(); return this.snapshot();
   }

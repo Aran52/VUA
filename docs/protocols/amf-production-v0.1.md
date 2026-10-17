@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.9.0
+> Document version: 0.10.0
 > Status: Candidate
 > Updated: 2026-10-17
 > Owner: AMF
@@ -37,6 +37,10 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.recipeApplyPlan` | Query | `runId`, `recipeId`, optional `avatarGlobalObjectId` | Observed differences, retained outfits, selectable owned Avatars, target identity and digest |
 | `amf.production.applyRecipe` | Command | `runId`, `recipeId`, `planDigest`, `choice`, optional `avatarGlobalObjectId` | Durable overlay or same-project new-Avatar task |
 | `amf.production.previewImage` | Query | `runId`, `path` | One preview PNG that the run reports, as `mediaType: "image/png"` and base64 `data` |
+| `amf.production.releaseState` | Query | `runId` | The run's turntable (`frames`, `size`, `bakedAt`, `current`), its last 10 uploads newest first and `editorOpen` |
+| `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
+| `amf.production.bakeTurntable` | Command | `runId` | Durable task baking the 60-frame turntable of the finished Avatar |
+| `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
 
 Roles: `auto`, `avatar`, `outfit`, `dependency`. The player path starts with `auto` sources.
 Unity discovers actual prefabs; a unique Avatar/outfit candidate is preselected, while ambiguity
@@ -180,6 +184,33 @@ picture per candidate while choosing prefabs; the [AI tools](ai-tools-v0.1.md) r
 image content. A preview is a visual aid for the player and the agent; the observed facts above
 remain the record of what was assembled.
 
+## Release
+
+A finished run (`succeeded`) leaves the factory through the release room. Its record lives beside
+the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. Both
+release commands share the production busy state, add a `turntable` or `upload` step to the
+run while they work, and end that step as `succeeded` or `failed` with the reason in its detail.
+
+`amf.production.bakeTurntable` runs [Bridge v5](unity-bridge-v5.md#turntable) `amf_turntable`
+for a finished run whose work project Unity does not hold and whose fingerprint matches the run's
+last check (`project_open` and `project_drift` otherwise). The turntable is recorded with the
+Unity scene fingerprint it shows; `releaseState` reports it as `current` while the run's scene
+fingerprint is the same. `amf.production.turntableFrame` serves only the recorded command's
+frames, after the containment, size and PNG checks of previews.
+
+`amf.production.upload` requires `rightsConfirmed: true`: the player confirmed the content rights
+statement in VUA for this upload. `avatarName` (trimmed, 1–64 characters) names a new VRChat
+Avatar; an Avatar already on VRChat keeps its name. With Unity closed, the project must match the
+run's last check; with Unity open, the SDK uploads the scene as it is there. The task hands the
+upload to the [open Editor](unity-bridge-v5.md#managed-upload-in-the-open-editor), records each
+upload's `stage`, upload `progress` and SDK `status` while it runs, and ends with `state`
+`succeeded` and the VRChat `blueprintId` (`avtr_<uuid>`), or `failed`/`cancelled` with a
+`reason`, the SDK's `detail` and its validation `errors`. Task cancellation stops the upload. An
+upload still marked running when a new one starts ended with VUA and reads `interrupted`. The
+VRChat sign-in and the SDK's own ownership agreement stay inside the SDK; VUA reports only
+`sdkSignedIn` from its facts. An AI Agent requests an upload as a pending request that the player
+approves on the release page with the same rights confirmation (see [AI tools](ai-tools-v0.1.md)).
+
 ## Unity producing face
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
@@ -206,6 +237,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.9.0 of the parallel progress-and-stop change.
 - 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
 - 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
 - 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.

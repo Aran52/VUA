@@ -13,7 +13,7 @@ using UnityEngine.SceneManagement;
 namespace Vua.Editor.Bridge
 {
     // Candidate v5 requires real SDK/MA packages. Legacy conversion scaffolds exclude this directory.
-    internal static class AmfProductionEntryPoint
+    internal static partial class AmfProductionEntryPoint
     {
         private const string ScenePath = "Assets/VUA/Production.unity";
         // VUA reads the stage of a batch run from the log; the stage names form a closed set.
@@ -60,6 +60,7 @@ namespace Vua.Editor.Bridge
             public List<string> missingShaderMaterials = new List<string>();
             public string sdkSignedIn = "unknown";
             public List<PreviewImage> previews = new List<PreviewImage>();
+            public TurntableFacts turntable = new TurntableFacts();
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -107,7 +108,7 @@ namespace Vua.Editor.Bridge
                 throw new InvalidOperationException("AMF requires Bridge v5 and bound command/project identities.");
             if (Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
                 throw new InvalidOperationException("Unsupported actual Editor version: " + Application.unityVersion);
-            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble")
+            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable")
                 throw new InvalidOperationException("Unknown AMF operation.");
             if (command.dryRun != (command.operation == "amf_inspect")) throw new InvalidOperationException("Invalid operation write mode.");
             var root = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
@@ -161,7 +162,8 @@ namespace Vua.Editor.Bridge
             if (command.operation == "amf_assemble" && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
             result.data.projectFingerprint = ProjectFingerprint.Compute();
-            if (command.operation != "amf_prepare") RenderPreviews(command, result, root);
+            if (command.operation == "amf_turntable") BakeTurntable(command, result, root);
+            else if (command.operation != "amf_prepare") RenderPreviews(command, result, root);
         }
 
         // The active Avatar from three sides, and during inspection each prefab candidate. A failed

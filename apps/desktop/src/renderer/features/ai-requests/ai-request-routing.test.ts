@@ -14,6 +14,11 @@ describe("AI requests are confirmed on the page they change", () => {
     expect(requestRunId(assemble)).toBe("n3-run");
     expect(requestRunId(request("vua_request_play", { runId: "n3-run" }))).toBeNull();
   });
+  it("routes an upload to the release room, where the player confirms the rights", () => {
+    const upload = request("vua_request_amf_upload", { runId: "n3-run" });
+    expect(requestPage(upload)).toBe("release");
+    expect(requestRunId(upload)).toBe("n3-run");
+  });
   it("routes play, tools and installation by what they prepare", () => {
     expect(requestPage(request("vua_request_play", { route: "pico_pcvr" }))).toBe("env-play");
     expect(requestPage(request("vua_request_tool", { toolId: "vrcft" }))).toBe("tools-discover");

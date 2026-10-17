@@ -1,6 +1,6 @@
 # External Agent tools v0.1
 
-> Document version: 0.3.0
+> Document version: 0.4.0
 > Status: Candidate
 > Updated: 2026-10-17
 > Owner: Integration
@@ -50,8 +50,9 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
 | `vua_tool_status`, `vua_request_tool` | Candidate VRCFT connection; no invented hardware/module acceptance |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
-| `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan` | Candidate material-first read/plan facts |
+| `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
 | `vua_request_amf_prepare`, `vua_request_amf_assemble`, `vua_request_amf_reinspect`, `vua_request_amf_open` | Existing [AMF production](amf-production-v0.1.md) authority and Bridge v5 |
+| `vua_request_amf_upload` | [Managed upload](amf-production-v0.1.md#release); confirmed on the release page with the player's rights confirmation |
 | `vua_request_cancel_task` | Existing revision-bound cancellation request |
 | `vua_action_status` | Local approval receipt; never grants approval |
 | `vua_withdraw_request` | Withdraws a request still waiting for the player; nothing runs |
@@ -86,10 +87,17 @@ before asking the player. While a step runs, `vua_amf_run` data carries its
 [progress](amf-production-v0.1.md#progress-stop-and-continue): the step, its elapsed and usual
 seconds and, inside Unity, the Unity stage, imported count and last log activity.
 
+An upload request from `vua_request_amf_upload` carries only the run. Its confirmation is the
+release page's upload dialog: the player names a new Avatar and confirms the content rights
+statement, and only that confirmation completes and dispatches `amf.production.upload`. The
+generic **Confirm this action** cannot dispatch it, and an Agent cannot supply the confirmation.
+
 ## Desktop control face
 
 `VuaDesktopApiV4.aiTools` is an optional additive Candidate control face. `snapshot`, `setEnabled`,
 `prompt`, `copyPrompt`, `resolve` and `subscribe` are available through the typed renderer Gateway.
+`resolve` takes the player's upload confirmation `{avatarName, rightsConfirmed: true}` as a third
+argument for `vua_request_amf_upload` and refuses it for every other request.
 Its state/version is `0.1`; prior V1–V3 browser/window/distribution behavior remains intact.
 The prompt token is intentionally absent from `AiToolsSnapshotV01` and approval history.
 
@@ -103,6 +111,7 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
+- 0.4.0 (2026-10-17): read a finished Avatar's release state with `vua_amf_release`, and request a managed upload with `vua_request_amf_upload`, confirmed on the release page with the player's rights confirmation.3.0 of the parallel progress-and-stop change.
 - 0.3.0 (2026-10-17): report the running AMF step, its Unity stage and elapsed and usual seconds through `vua_amf_run`.
 - 0.2.0 (2026-10-16): return AMF result and candidate previews as image content from `vua_amf_run`.
 - 0.1.0 (2026-10-13): add authenticated local MCP over the existing host/AMF execution authorities with explicit player approval.

@@ -46,3 +46,17 @@ fn native_consumer_retains_exact_c1_facts_and_never_upgrades_sdk_checks() {
     assert_eq!(result.data["officialSdkChecks"], "not_run");
     assert_eq!(result.data["instances"][0]["menuModified"], true);
 }
+
+#[test]
+fn turntable_command_writes_into_the_project_and_reports_its_fixed_frame_set() {
+    let command: UnityCommand =
+        serde_json::from_value(read("examples/turntable.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfTurntable);
+    assert!(!command.dry_run);
+    assert!(command.operation.is_mutating());
+    let result: UnityResult =
+        serde_json::from_value(read("examples/turntable.valid.result.json")).unwrap();
+    assert_eq!(result.command_id, command.command_id);
+    assert_eq!(result.data["turntable"]["frames"], 60);
+    assert_eq!(result.data["turntable"]["size"], 512);
+}

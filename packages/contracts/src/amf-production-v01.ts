@@ -18,6 +18,9 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.getRecipe" | "amf.production.recipeSharePlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string } }
   | { readonly method: "amf.production.saveRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly title: string } }
   | { readonly method: "amf.production.previewImage"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly path: string } }
+  | { readonly method: "amf.production.releaseState" | "amf.production.bakeTurntable"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
+  | { readonly method: "amf.production.turntableFrame"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly index: number } }
+  | { readonly method: "amf.production.upload"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly avatarName: string; readonly rightsConfirmed: true } }
   | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
@@ -100,6 +103,12 @@ export function isAmfPreviewPath(value: unknown): value is string {
   return typeof value === "string" && value.length <= 512 && /^\.vua\/previews\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.png$/u.test(value)
     && !value.split("/").includes("..");
 }
+/** Frames in a baked AMF turntable, camera yaw 0° to 354° in 6° steps. */
+export const AMF_TURNTABLE_FRAMES = 60;
+/** A name VRChat shows for a new Avatar: trimmed, 1 to 64 characters, no control characters. */
+export function isAmfAvatarName(value: unknown): value is string {
+  return typeof value === "string" && value.trim() === value && [...value].length >= 1 && [...value].length <= 64 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
+}
 export function isAmfAssemblySelection(value: unknown): value is AmfAssemblySelection {
   if (!record(value) || !exact(value, ["avatarPrefab", "outfits"]) || !text(value.avatarPrefab) || !Array.isArray(value.outfits) || value.outfits.length < 1 || value.outfits.length > 64) return false;
   return value.outfits.every(outfit => record(outfit) && exact(outfit, ["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"])
@@ -125,6 +134,13 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
       && typeof value.title === "string" && value.title.trim().length > 0 && [...value.title].length <= 120 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value.title);
     case "amf.production.previewImage": return exact(value, ["schemaVersion", "runId", "path"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && text(value.path,512) && isAmfPreviewPath(value.path);
+    case "amf.production.releaseState": case "amf.production.bakeTurntable":
+      return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.turntableFrame": return exact(value, ["schemaVersion", "runId", "index"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+      && Number.isInteger(value.index) && Number(value.index) >= 0 && Number(value.index) < AMF_TURNTABLE_FRAMES;
+    // The player confirms the content rights statement in VUA for each upload.
+    case "amf.production.upload": return exact(value, ["schemaVersion", "runId", "avatarName", "rightsConfirmed"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+      && isAmfAvatarName(value.avatarName) && value.rightsConfirmed === true;
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);

@@ -37,7 +37,10 @@ export function ReleaseUploadDialog({ proposedName, avatarId, picture, requested
           <input type="checkbox" checked={rights} onChange={event => setRights(event.target.checked)} data-nav-id="release-rights" />
           <span>{copy.dialog.rights}</span>
         </label>
-        <p className="vua-caption vua-text-secondary">{copy.dialog.whatHappens}</p>
+        <div className="vua-release-dialog__unity">
+          <strong>{copy.dialog.inUnity}</strong>
+          <ol>{[copy.dialog.inUnity1, copy.dialog.inUnity2, copy.dialog.inUnity3].map(step => <li key={step}>{step}</li>)}</ol>
+        </div>
         {error}
         <div className="vua-release-dialog__actions">
           <Button variant="subtle" onClick={onClose}>{copy.dialog.cancel}</Button>

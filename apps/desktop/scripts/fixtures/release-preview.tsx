@@ -64,13 +64,14 @@ const upload = (patch: Partial<AmfUpload>): AmfUpload => ({ uploadId: "upload-1"
   state: "succeeded", stage: "finishing", progress: 1, status: "", blueprintId: avatarId, firstUpload: true, reason: null, detail: "", errors: [], ...patch });
 
 export function releaseViewNames(): string[] {
-  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-uploading", "release-uploaded", "release-failed", "release-empty"];
+  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-failed", "release-empty"];
 }
 
 export function releasePorts(view: string): { production: AmfProductionPort; release: AmfReleasePort } {
   const state = (runId: string): AmfReleaseState => {
     const first = runId === runs[0]!.runId;
     const uploads: AmfUpload[] = !first ? [] : view === "release-uploading" ? [upload({ uploadId: "upload-2", state: "running", stage: "uploading", progress: 0.46, endedAt: null, blueprintId: null, firstUpload: null, status: "Uploading the Avatar bundle" })]
+      : view === "release-signin" ? [upload({ uploadId: "upload-2", state: "running", stage: "sign_in", progress: null, endedAt: null, blueprintId: null, firstUpload: null, status: "" })]
       : view === "release-uploaded" ? [upload({}), upload({ uploadId: "upload-0", state: "failed", blueprintId: null, reason: "sign_in_required", startedAt: "2026-10-17T05:40:00Z", endedAt: "2026-10-17T05:41:00Z" })]
       : view === "release-failed" ? [upload({ state: "failed", stage: "building", blueprintId: null, reason: "validation", detail: "Avatar validation failed",
         errors: ["This avatar uses 3 materials with the same name.", "Polygon count is over the Poor limit for PC (70,000)."] })]

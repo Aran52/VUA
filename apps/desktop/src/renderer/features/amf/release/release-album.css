@@ -218,3 +218,20 @@
 }
 .vua-album[data-narrow] .vua-album__tabs button { transform-origin: center bottom; }
 .vua-album[data-narrow] .vua-album__tabs { padding-inline-end: 0; padding-block: 6px; }
+
+/* Upload dialog: what happens in Unity. */
+.vua-release-dialog__unity { display: grid; gap: var(--vua-space-1); padding: var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-elevated); }
+.vua-release-dialog__unity strong { font: var(--vua-font-body); font-weight: 650; }
+.vua-release-dialog__unity ol { margin: 0; padding-inline-start: 1.2em; display: grid; gap: var(--vua-space-1); font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+
+/* Sign-in guide during the upload's sign-in stage. */
+.vua-release-guide { display: grid; gap: var(--vua-space-2); padding: var(--vua-space-3); border: 1px solid var(--room); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--room) 8%, var(--vua-bg-panel)); }
+.vua-release-guide > strong { font: var(--vua-font-body); font-weight: 650; }
+.vua-release-guide__body { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: var(--vua-space-3); align-items: start; }
+.vua-release-guide__body ol { margin: 0; padding-inline-start: 1.2em; display: grid; gap: var(--vua-space-2); font: var(--vua-font-caption); }
+.vua-release-guide__panel { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--vua-border-strong); border-radius: var(--vua-radius-control); background: var(--vua-bg-elevated); font: var(--vua-font-caption); }
+.vua-release-guide__bar { color: var(--vua-text-secondary); font-weight: 650; }
+.vua-release-guide__field { padding: 4px 6px; border: 1px solid var(--vua-border); border-radius: 4px; color: var(--vua-text-secondary); background: var(--vua-bg-panel); }
+.vua-release-guide__field--code { border-color: var(--room); color: var(--vua-text-strong); }
+.vua-release-guide__button { justify-self: start; padding: 3px 10px; border-radius: 4px; background: var(--room); color: var(--vua-on-status); font-weight: 650; }
+@media (max-width: 720px) { .vua-release-guide__body { grid-template-columns: minmax(0, 1fr); } }

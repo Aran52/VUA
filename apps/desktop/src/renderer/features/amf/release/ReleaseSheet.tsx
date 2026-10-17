@@ -28,6 +28,25 @@ function checkText(check: CheckLine): string {
   }
 }
 
+/** The SDK panel's sign-in in three steps, with a simple drawing of its sign-in screen (its labels are the SDK's own). */
+function SignInGuide() {
+  const guide = copy.signInGuide;
+  return <div className="vua-release-guide">
+    <strong>{guide.title}</strong>
+    <div className="vua-release-guide__body">
+      <ol>{[guide.step1, guide.step2, guide.step3].map(step => <li key={step}>{step}</li>)}</ol>
+      <div className="vua-release-guide__panel" aria-hidden="true">
+        <span className="vua-release-guide__bar">VRChat SDK</span>
+        <span className="vua-release-guide__field">{guide.panel.user}</span>
+        <span className="vua-release-guide__field">{guide.panel.password}</span>
+        <span className="vua-release-guide__button">{guide.panel.signIn}</span>
+        <span className="vua-release-guide__field vua-release-guide__field--code">{guide.panel.code}</span>
+      </div>
+    </div>
+    <p className="vua-release-upload__hint">{guide.after}</p>
+  </div>;
+}
+
 function UploadProgress({ upload, onStop }: { upload: AmfUpload; onStop?: () => void }) {
   const stages = AMF_UPLOAD_STAGES.filter(stage => stage !== "finishing");
   const at = Math.min(AMF_UPLOAD_STAGES.indexOf(upload.stage), stages.length - 1);
@@ -36,7 +55,7 @@ function UploadProgress({ upload, onStop }: { upload: AmfUpload; onStop?: () => 
     <ol className="vua-release-upload__stages" aria-hidden="true">
       {stages.map((stage, index) => <li key={stage} title={copy.stages[stage]} data-state={index < at ? "done" : index === at ? "current" : "todo"} />)}
     </ol>
-    <p className="vua-release-upload__hint">{copy.stageHints[upload.stage]}</p>
+    {upload.stage === "sign_in" ? <SignInGuide/> : <p className="vua-release-upload__hint">{copy.stageHints[upload.stage]}</p>}
     {upload.stage === "uploading" && upload.progress !== null && <span className="vua-release-upload__bar" role="progressbar"
       aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(upload.progress * 100)}><span style={{ width: `${Math.round(upload.progress * 100)}%` }} /></span>}
     {upload.status && <small className="vua-text-secondary">{upload.status}</small>}

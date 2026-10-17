@@ -7,6 +7,7 @@ import { FactoryMap, type Room } from "../../src/renderer/features/amf/FactoryMa
 import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import type { AmfProductionPort, AmfProductionRun } from "../../src/renderer/gateway/index.ts";
+import { ReleasePreview, releasePorts } from "./release-preview.tsx";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/app-shell.css";
@@ -44,6 +45,9 @@ const selected = view.startsWith("workshop-") ? view.slice("workshop-".length) :
 try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-automation-level-v01", view.endsWith("auto") ? "auto" : "semi"); } catch { /* preview only */ }
 const runOf = selected.replace(/-auto$/u, "");
 try { localStorage.setItem("vua-amf-production-run-v01", runOf); } catch { /* preview only */ }
-createRoot(document.getElementById("root")!).render(<GatewayProvider gateway={{ ...gateway, amfProduction: api }}>
+const release = view.startsWith("release-") ? releasePorts(view) : null;
+createRoot(document.getElementById("root")!).render(release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release }}>
+  <ReleasePreview view={view} />
+</GatewayProvider> : <GatewayProvider gateway={{ ...gateway, amfProduction: api }}>
   {view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
 </GatewayProvider>);

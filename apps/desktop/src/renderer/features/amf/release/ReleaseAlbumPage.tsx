@@ -14,7 +14,7 @@ import { ReleaseAlbum, type AlbumSpread } from "./ReleaseAlbum.tsx";
 import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
 import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
-import { avatarTitle, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, uploadedAvatarId } from "./release-model.ts";
+import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, uploadedAvatarId } from "./release-model.ts";
 import "./release-album.css";
 
 const copy = strings.releaseRoom;
@@ -134,7 +134,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
   const spreads: AlbumSpread[] = ids.map((runId, at) => {
     const run = runs[runId];
     const state = states[runId] ?? null;
-    const title = run ? avatarTitle(run) : list?.runs.find(item => item.runId === runId)?.sourceNames.join(" + ") ?? runId;
+    const title = run ? avatarTitle(run) : baseName(list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runId);
     const request = requests.find(item => requestRunId(item) === runId) ?? null;
     const notice: ReactNode = request && <div className="vua-album__ai" role="status">
       <strong><Icon name="bell" size={16} />{copy.aiRequest.title}</strong>
@@ -152,7 +152,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
           onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
-        <ReleaseSheet run={run} state={state} number={ids.length - at} live={live} notice={live ? notice : null} actions={{
+        <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null} actions={{
           busy: busy || runBusy(run),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },

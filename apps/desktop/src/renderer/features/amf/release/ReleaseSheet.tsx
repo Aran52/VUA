@@ -29,11 +29,12 @@ function checkText(check: CheckLine): string {
 }
 
 function UploadProgress({ upload, onStop }: { upload: AmfUpload; onStop?: () => void }) {
-  const at = AMF_UPLOAD_STAGES.indexOf(upload.stage);
+  const stages = AMF_UPLOAD_STAGES.filter(stage => stage !== "finishing");
+  const at = Math.min(AMF_UPLOAD_STAGES.indexOf(upload.stage), stages.length - 1);
   return <div className="vua-release-upload__progress" role="status">
-    <ol className="vua-release-upload__stages">
-      {AMF_UPLOAD_STAGES.filter(stage => stage !== "finishing").map((stage, index) => <li key={stage}
-        data-state={index < at ? "done" : index === at ? "current" : "todo"}>{copy.stages[stage]}</li>)}
+    <div className="vua-release-upload__now"><strong>{copy.stages[upload.stage]}</strong><span>{format(copy.pageOf, { page: at + 1, total: stages.length })}</span></div>
+    <ol className="vua-release-upload__stages" aria-hidden="true">
+      {stages.map((stage, index) => <li key={stage} title={copy.stages[stage]} data-state={index < at ? "done" : index === at ? "current" : "todo"} />)}
     </ol>
     <p className="vua-release-upload__hint">{copy.stageHints[upload.stage]}</p>
     {upload.stage === "uploading" && upload.progress !== null && <span className="vua-release-upload__bar" role="progressbar"
@@ -101,9 +102,9 @@ export function ReleaseSheet({ run, state, number, live, actions, notice }: {
     </section>}
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
-        <button type="button" className="vua-release-upload__button" disabled={!live || !actions || actions.busy} tabIndex={live ? 0 : -1}
+        <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}
           onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
-        <small className="vua-text-secondary">{actions?.busy ? copy.upload.busy : state?.editorOpen ? copy.upload.unityOpen : copy.upload.privateNote}</small>
+        <small className="vua-text-secondary">{actions?.busy ? copy.upload.busy : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>
         {latest && latest.state !== "running" && <UploadResult upload={latest} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
       </>}
       {earlier.length > 0 && <details className="vua-release-upload__history"><summary>{copy.upload.history}</summary>

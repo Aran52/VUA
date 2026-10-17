@@ -1,5 +1,5 @@
-// Renders the AMF base map and workshop with synthetic data and saves screenshots for visual review.
-// Usage: pnpm preview:factory [output-dir] [locale] [theme]
+// Renders the AMF base map, workshop and release room with synthetic data and saves screenshots for visual review.
+// Usage: pnpm preview:factory [output-dir] [locale] [theme] [--only=<view prefix>]
 import { app, BrowserWindow } from "electron";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
@@ -10,7 +10,9 @@ import os from "node:os";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [output = path.join(os.tmpdir(), "vua-preview-factory"), locale = "zh-CN", theme = "dark"] = process.argv.slice(2).filter(arg => !arg.startsWith("--"));
-const views = ["map", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished"];
+const views = ["map", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished",
+  "release-album", "release-stills", "release-turn", "release-confirm", "release-uploading", "release-uploaded", "release-failed", "release-empty"];
+const only = process.argv.find(arg => arg.startsWith("--only="))?.slice("--only=".length) ?? "";
 let server;
 app.on("window-all-closed", () => {});
 async function main() {
@@ -25,8 +27,8 @@ try {
   await server.listen();
   await mkdir(output, { recursive: true });
   const port = server.httpServer.address().port;
-  for (const view of views) {
-    const window = new BrowserWindow({ show: false, width: 1280, height: 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
+  for (const view of views.filter(name => name.startsWith(only))) {
+    const window = new BrowserWindow({ show: false, width: 1280, height: view.startsWith("release-") ? 1000 : 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
     window.webContents.on("console-message", event => { if (event.level === "error") console.error(view, event.message); });
     await window.loadURL(`http://127.0.0.1:${port}/__factory#${view}`);
     await new Promise(resolve => setTimeout(resolve, 2500));

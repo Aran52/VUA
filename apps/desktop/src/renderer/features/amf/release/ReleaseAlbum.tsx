@@ -143,7 +143,7 @@ export function ReleaseAlbum({ spreads, index, onIndex }: { spreads: readonly Al
       <AlbumBook spreads={spreads} index={index} turn={turn} progress={progress.current} bookRef={book} onCorner={onCorner} fadeKey={fadeKey} onStep={steps => go(index + steps)} />
       {spreads.length > 1 && <ol className="vua-album__tabs" aria-label={copy.albumLabel}>
         {spreads.map((spread, at) => <li key={spread.key}><button type="button" aria-current={at === index || undefined} title={spread.tab}
-          onClick={() => go(at)}><span>{String(at + 1).padStart(2, "0")}</span>{spread.tab}</button></li>)}
+          onClick={() => go(at)}><span>{String(at + 1).padStart(2, "0")}</span><span>{spread.tab}</span></button></li>)}
       </ol>}
     </div>
     <nav className="vua-album__nav" aria-label={copy.albumLabel}>

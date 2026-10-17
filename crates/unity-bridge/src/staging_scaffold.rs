@@ -26,6 +26,8 @@ pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
     ("Editor/Amf/AmfProductionEntryPoint.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Release.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Release.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Release.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Release.cs.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.SdkReview.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.SdkReview.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.SdkReview.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.SdkReview.cs.meta")),
 ];
 
 pub const MA_STUB_PACKAGE_JSON: &str =
@@ -182,4 +184,32 @@ pub fn write_scaffold(packages_root: &std::path::Path) -> std::io::Result<()> {
     )?;
     std::fs::write(stub_root.join("StubComponents.cs"), MA_STUB_COMPONENTS_CS)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod package_coverage {
+    use super::{AMF_PRODUCTION_BRIDGE_FILES, BRIDGE_PACKAGE_FILES};
+    use std::path::Path;
+
+    /// Every file the package keeps in a folder, relative to the package root.
+    fn package_files(folder: &str) -> Vec<String> {
+        let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../unity/Packages/com.ph-r.vua");
+        let mut files: Vec<String> = std::fs::read_dir(package.join(folder))
+            .unwrap()
+            .map(|entry| format!("{folder}/{}", entry.unwrap().file_name().to_string_lossy()))
+            .collect();
+        files.sort();
+        files
+    }
+
+    /// A work project receives only the listed files, so a package file left off the list
+    /// leaves Unity without code the rest of the package calls.
+    #[test]
+    fn every_bridge_and_amf_package_file_reaches_the_work_project() {
+        for (folder, list) in [("Editor/Amf", AMF_PRODUCTION_BRIDGE_FILES), ("Editor/Bridge", BRIDGE_PACKAGE_FILES)] {
+            for file in package_files(folder) {
+                assert!(list.iter().any(|(relative, _)| *relative == file), "{file} is missing from the embedded package files");
+            }
+        }
+    }
 }

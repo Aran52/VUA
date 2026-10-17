@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-sdk-fix",
+  "projectId": "n3-vector",
+  "operation": "amf_sdk_fix",
+  "dryRun": false,
+  "payload": {
+    "planRef": ".vua/bridge/n3-vector-sdk-fix.amf-plan.json",
+    "planHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

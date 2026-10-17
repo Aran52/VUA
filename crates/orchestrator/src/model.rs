@@ -81,6 +81,8 @@ pub enum UnityOperation {
     AmfAssemble,
     /// Bakes the 60-frame turntable of the assembled AMF Avatar into the work project (v5).
     AmfTurntable,
+    /// Runs the VRChat SDK's own Auto Fix for the items the player chose from its Avatar check (v5).
+    AmfSdkFix,
 }
 
 impl UnityOperation {
@@ -98,6 +100,7 @@ impl UnityOperation {
                 | Self::AmfPrepare
                 | Self::AmfAssemble
                 | Self::AmfTurntable
+                | Self::AmfSdkFix
         )
     }
 }

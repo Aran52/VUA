@@ -165,7 +165,8 @@
         "protect_current",
         "restore",
         "turntable",
-        "upload"
+        "upload",
+        "sdk_fix"
       ]
     },
     "timestamp": {

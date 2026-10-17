@@ -284,6 +284,23 @@ impl Drop for FingerprintCheck<'_> {
     }
 }
 
+/// Whether the run assembled successfully before and Unity now observes the same Avatar and
+/// outfits it assembled.
+fn still_assembled(run: &ProductionRun) -> bool {
+    let assembled = run.completed_at.is_some()
+        || run.steps.iter().any(|step| step.key == "assembly" && step.state == "succeeded");
+    let observed: Option<AssemblySelection> =
+        serde_json::from_value(run.result["facts"]["observedSelection"].clone()).ok();
+    match (assembled, run.selection.as_ref(), observed) {
+        (true, Some(selection), Some(observed)) => {
+            observed.avatar_prefab == selection.avatar_prefab
+                && observed.outfits.len() == selection.outfits.len()
+                && selection.outfits.iter().all(|outfit| observed.outfits.contains(outfit))
+        }
+        _ => false,
+    }
+}
+
 /// The task progress payload of a step: `step` is the step key, `name` what it works on.
 pub fn step_progress(run_id: &str, step: &ProductionStep) -> serde_json::Value {
     serde_json::json!({"operation":"amf.production","runId":run_id,"step":step.key,"name":step.name,
@@ -904,7 +921,9 @@ impl AmfProductionEngine {
                 "Reinspect the retained work project",
             )?;
             self.update_observations(&mut run, ctx)?;
-            run.phase = "ready".into();
+            // A finished Avatar stays finished while Unity still observes what was assembled;
+            // a changed scene goes back to planning.
+            run.phase = if still_assembled(&run) { "succeeded" } else { "ready" }.into();
             run.confirmed_digest = None;
             Ok(())
         })();

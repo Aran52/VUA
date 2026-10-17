@@ -354,6 +354,19 @@ fn project_drift_refuses_before_snapshot_or_mutation() {
     );
 }
 #[test]
+fn a_reinspected_finished_avatar_stays_finished_until_its_scene_changes() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "succeeded");
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let checked = h.engine.get("n3-test").unwrap();
+    assert_eq!(checked.phase, "succeeded", "Unity still observes the assembled Avatar");
+    assert!(checked.confirmed_digest.is_none());
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-change").unwrap();
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "ready", "a changed scene goes back to planning");
+}
+#[test]
 fn failure_restores_and_requires_explicit_reinspection() {
     let h = Harness::new();
     h.prepared();

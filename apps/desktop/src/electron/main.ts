@@ -419,9 +419,10 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
       method: "amf.production.get",
       params: { schemaVersion: "0.1", runId },
     });
-    const projectRoot = response.ok && response.value !== undefined && typeof response.value === "object"
-      && typeof (response.value as { projectRoot?: unknown }).projectRoot === "string"
-      ? (response.value as { projectRoot: string }).projectRoot
+    const value: unknown = response.ok ? response.value : undefined;
+    const projectRoot = typeof value === "object" && value !== null
+      && typeof (value as { projectRoot?: unknown }).projectRoot === "string"
+      ? (value as { projectRoot: string }).projectRoot
       : null;
     if (projectRoot === null || projectRoot.length === 0 || path.isAbsolute(projectRoot) === false) return;
     const file = await writeSdkSessionFile(projectRoot, session);

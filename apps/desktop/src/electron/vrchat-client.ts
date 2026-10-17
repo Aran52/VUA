@@ -126,6 +126,7 @@ export function vrchatClient(deps: VrchatClientDeps): VrchatClient {
       const gap = lastRequestAt + minInterval - now();
       if (gap > 0) await sleep(gap);
       lastRequestAt = now();
+      const backoffWait = backoff[attempt];
       let response: Response;
       const headers: Record<string, string> = { "User-Agent": userAgent, Accept: "application/json" };
       if (init.auth) {
@@ -140,15 +141,15 @@ export function vrchatClient(deps: VrchatClientDeps): VrchatClient {
         body = JSON.stringify(init.json);
       }
       try {
-        response = await doFetch(`${baseUrl}${path}`, { method, headers, body });
+        response = await doFetch(`${baseUrl}${path}`, { method, headers, ...(body !== undefined ? { body } : {}) });
       } catch {
-        if (attempt < backoff.length) { await sleep(backoff[attempt]); attempt++; continue; }
+        if (backoffWait !== undefined) { await sleep(backoffWait); attempt++; continue; }
         throw new VrchatRequestError("network", "VRChat could not be reached.");
       }
       const retryAfter = Number.parseFloat(response.headers.get("retry-after") ?? "");
       const retryAfterMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : null;
-      if ((response.status === 429 || response.status >= 500) && attempt < backoff.length) {
-        await sleep(retryAfterMs ?? backoff[attempt]);
+      if ((response.status === 429 || response.status >= 500) && backoffWait !== undefined) {
+        await sleep(retryAfterMs ?? backoffWait);
         attempt++;
         continue;
       }

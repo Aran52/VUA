@@ -45,7 +45,7 @@ export const factoryCopy = {
     automation: "Permission mode",
     levels: {
       ask: { name: "Manual review", hint: "Asks before every step and plan" },
-      smart: { name: "Default auto", hint: "Asks only at the assembly plan and the release check" },
+      smart: { name: "Limited auto", hint: "Asks only at the assembly plan and the release check" },
       full: { name: "Full auto", hint: "Runs every step directly, without asking" },
     },
     fullAccess: {
@@ -103,7 +103,7 @@ export const factoryCopy = {
     automation: "权限模式",
     levels: {
       ask: { name: "手动审阅", hint: "每次操作和计划前先询问" },
-      smart: { name: "默认自动", hint: "只在装配方案和出厂检查询问" },
+      smart: { name: "有限自动", hint: "只在装配方案和出厂检查询问" },
       full: { name: "完全自动", hint: "所有操作直接执行，不再询问" },
     },
     fullAccess: {
@@ -161,7 +161,7 @@ export const factoryCopy = {
     automation: "権限モード",
     levels: {
       ask: { name: "手動レビュー", hint: "操作とプランのたびに先に確認します" },
-      smart: { name: "標準オート", hint: "組み立てプランと出荷チェックでだけ確認します" },
+      smart: { name: "限定オート", hint: "組み立てプランと出荷チェックでだけ確認します" },
       full: { name: "フルオート", hint: "すべての操作をそのまま実行し、確認しません" },
     },
     fullAccess: {
@@ -219,7 +219,7 @@ export const factoryCopy = {
     automation: "권한 모드",
     levels: {
       ask: { name: "수동 검토", hint: "모든 작업과 계획 전에 먼저 물어봐요" },
-      smart: { name: "기본 자동", hint: "조립 계획과 출고 검사에서만 물어봐요" },
+      smart: { name: "제한 자동", hint: "조립 계획과 출고 검사에서만 물어봐요" },
       full: { name: "완전 자동", hint: "모든 작업을 바로 실행하고 묻지 않아요" },
     },
     fullAccess: {

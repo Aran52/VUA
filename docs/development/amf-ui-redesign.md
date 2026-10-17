@@ -63,7 +63,7 @@ its name and one line of explanation, and a check mark at the right of the mode 
 | Mode | Stops at |
 | --- | --- |
 | Manual review, hand icon (default) | every station; each step and plan waits for the player's OK |
-| Default auto, checked box | the assembly plan and the release check |
+| Limited auto, checked box | the assembly plan and the release check |
 | Full auto, shield | nowhere; a prepared line that was never assembled assembles by itself |
 
 Choosing full auto first explains that VUA will change the work project without asking and

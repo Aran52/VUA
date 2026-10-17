@@ -10,58 +10,78 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 
 - `main` carries the Ibis releases (v0.6.7).
 - `slice/north-star` (VUA-Project/VUA#83) adds the north star, the Eval and the documentation rules.
-- `slice/n3-n4-ma-production` (VUA-Project/VUA#84) adds the material-first AMF production path,
-  Recipe v0.4, the local MCP adapter and six Steam tool connections, plus the fixes and features
-  from the first real run:
-  - Unity's package manager starts in the managed project; leftover Unity lock files and
-    retained Bridge copies are handled; assembly runs without a Recipe target;
-  - lilToon installs from its official VPM feed in place of bundled copies;
-  - each AI request is confirmed on the page it changes, waits until the player decides (also
-    across restarts), can be withdrawn by the AI, and explains a stale state in plain words;
-  - the bell offers waiting requests; the tray icon and taskbar signal them in the background.
-- VUA-Project/VUA#85 detects the packaged (MSIX) Unity Hub; VUA-Project/VUA#86 keeps notification
-  rows in place while downloads progress.
-- First real run (P-02, Meiyun with the T-shirt & shorts): assembly succeeded on 2026-10-16, and
-  with lilToon 2.3.4 from VPM the author confirmed correct shading in Unity. The author's review
-  also found texture memory, lilToon brightness limits, the SDK panel's difficulty for newcomers,
-  and an SDK sign-in that each new work project asked for again.
-- The Meiyun result is saved as the Recipe "Meiyun T恤短裤" (2026-10-16). P-01 passed on 2026-10-17:
-  with the outfit's bundled lilToon left out, VUA installed lilToon 2.3.4 from its feed, and the
-  Bridge re-check and assembly reported no material without its shader. In the same run, with
-  Unity Hub quit, VUA started Hub and Unity received its license.
+- `slice/n3-n4-ma-production` (VUA-Project/VUA#84) carries the AMF production work. Since the
+  first real run it also holds the MSIX Hub detection (#85) and these changes, reviewed on the
+  Aran52 fork (Aran52/VUA#1–#4) and checked in real runs:
+  - the material-first production path with Recipe v0.4, the local MCP adapter, six Steam tool
+    connections, and the fixes from the first real runs;
+  - Unity Hub starts before Unity work; work projects share the product `VUA Avatar Work`, so
+    the SDK sign-in is shared; the Bridge reports SDK sign-in and materials without their shader;
+  - lilToon installs from its feed for bundled copies and for lilToon materials whose shader is
+    absent;
+  - result and candidate previews; live Unity progress with Stop and Continue and usual
+    durations on this computer;
+  - the AMF interface as an Avatar factory: a base map with animated rooms and a camera, the
+    workshop's production lines with stations and automation levels, the control center with
+    the Recipe graph and a VCC-style package manager, and the release room's album with the
+    60-frame turntable and managed upload;
+  - token groundwork for the [skin system](skin-system.md).
+- VUA-Project/VUA#86 keeps notification rows in place while downloads progress.
+- Real runs on 2026-10-16/17, with evidence in `_local_eval/`:
+  - P-02 (Meiyun with the T-shirt & shorts) assembled with correct shading (lilToon 2.3.4); its
+    Recipe "Meiyun T恤短裤" is saved; the result uploaded through the SDK as the private Avatar
+    "AMF test1" (`avtr_7ce0e209…`), so the SDK build passed;
+  - P-01 passed: VUA installed lilToon for the outfit's lilToon materials and found no material
+    without its shader;
+  - with Unity Hub quit, VUA started Hub and Unity received its license;
+  - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
+- The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
+  hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
+  The [experimental VRChat sign-in](vrchat-account.md) in VUA (approved 2026-10-18) is built on
+  `slice/vrchat-signin` (Aran52/VUA#5) and awaits the author's real-account checks.
 
 ## Order
 
 | # | Slice | Eval | State |
 | --- | --- | --- | --- |
-| 1 | Integrate | — | in progress |
-| 2 | Finish the first real production runs | P-02, P-01 | P-01 passed; P-02 needs the SDK build check (slice 6) |
-| 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; SDK sign-in carry-over to verify |
-| 4 | Result previews | P-02 | in review |
+| 1 | Integrate | — | next |
+| 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
+| 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; the shared SDK sign-in awaits one reinspection of a second work project |
+| 4 | Result previews | P-02 | done |
 | 5 | Unity editor handoff | P-02 | |
-| 6 | SDK step for newcomers | P-02 | |
-| 7 | Unity familiarity levels and simpler choices | P-02, P-03 | |
-| 8 | Known packages | P-01, P-03 | |
+| 6 | SDK step for newcomers | P-02 | next: the sign-in guide is in; the SDK checks in plain words remain |
+| 7 | Unity familiarity levels and simpler choices | P-02, P-03 | automation levels in the workshop; recommendations and the image confirmation remain |
+| 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table remains |
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |
 | 11 | Unity sign-in and license | A-01 | |
-| 12 | Managed upload | P-02 | first upload done 2026-10-17; the experimental [VRChat sign-in](vrchat-account.md) is built on `slice/vrchat-signin` and awaits real-account checks |
-| 13 | Appearance and one-click styles | — | needs a design session |
+| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 |
+| 13 | Appearance and one-click styles | — | architecture and tokens ready; needs a design session |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
 | 16 | Eval runs | all `ready` cases | |
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
+| 19 | Experimental VRChat sign-in | P-02 | built on `slice/vrchat-signin` (Aran52/VUA#5); awaits the real-account checks |
+| 20 | Start production from the materials room | P-02 | |
+| 21 | Faster project fingerprints | — | |
+| 22 | Motion setting | — | needs the author's decision |
+| 23 | Base map art | — | with slice 13 |
+| 24 | Finer usual durations | — | when the estimates prove too rough |
+
+Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Familiarity
+levels. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
+gaps a newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
 
 ## 1 — Integrate
 
-1. Merge #83, then #84, into `main`; merge #85 and #86.
+1. Merge #83, then #84 (which now carries #85 and Aran52/VUA#1–#4), into `main`; merge #86.
 2. Keep CI green on each pull request.
 
-**Done when** all four are on `main`.
+**Done when** all of them are on `main`.
 
 ## 2 — Finish the first real production runs
 
@@ -258,6 +278,61 @@ channels.
 3. Test installation from a mainland China network on the author's remote host.
 
 **Eval:** C-01, C-02. **Done when** both pass, including the mainland China run.
+
+## 19 — Experimental VRChat sign-in
+
+Designed in [VRChat sign-in](vrchat-account.md) (author decision, 2026-10-18).
+
+1. An Experimental setting, off by default, with the risk explained before the first sign-in;
+   sign-in in VUA with VRChat's two-factor step; the session kept, the password only with
+   "Remember my password", both encrypted per Windows user.
+2. Before a managed upload, the SDK in the open Editor receives the session and starts signed in.
+3. After an upload, VUA checks the Avatar against the player's Avatar list.
+
+**Done when** the author signs in once in VUA, an upload starts with the SDK already signed in, and
+the upload check finds "AMF test1".
+
+## 20 — Start production from the materials room
+
+1. Choosing an Avatar in the library offers "Start production", with the outfits that fit it
+   marked, and opens a new production line with them selected.
+
+**Done when** P-02 starts from the materials room without visiting the workshop's selection.
+
+## 21 — Faster project fingerprints
+
+After each Unity run VUA fingerprints the whole work project; on the development machine this takes
+about 40 seconds for the Meiyun project (about 4,200 files).
+
+1. Cache each file's hash by path, size and modification time, and hash only changed files.
+2. Show the check as its own stage in the line view.
+
+**Done when** the check after an unchanged reinspection takes a few seconds.
+
+## 22 — Motion setting
+
+VUA follows Windows' animation setting, which flattens CSS motion on the development machine; the
+factory camera, page turns and album tabs are scripted and follow resource-saving mode instead.
+
+1. The author decides whether all VUA motion follows its own resource-saving mode, with Windows'
+   setting as the default for new installs.
+
+**Done when** the chosen rule applies to every animated screen.
+
+## 23 — Base map art
+
+The base map's rooms are drawn in code from simple shapes. Art for the default and native skins
+(sprites or skeletal animation for workers, props and stages) comes with slice 13's design session,
+in the scene-pack format of the [skin system](skin-system.md).
+
+**Done when** the default skin's rooms use their art pack, with the code-drawn scenes as fallback.
+
+## 24 — Finer usual durations
+
+"Usually … on this computer" is the median of earlier steps of the same kind. If the estimates
+prove too rough, group them by project or by the number of imported assets.
+
+**Done when** the shown usual time lands within a third of the actual time for most steps.
 
 ## Open decisions
 

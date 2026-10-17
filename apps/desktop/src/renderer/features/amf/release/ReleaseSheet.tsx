@@ -1,12 +1,13 @@
 /** The right album page: what the Avatar is, its checks, and its upload to VRChat. */
 import { useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
-import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
+import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
-import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, uploadedAvatarId, type CheckLine } from "./release-model.ts";
+import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
 const vrchatCopy = strings.vrchat.release;
+const sdkCopy = strings.sdkReview;
 const time = (iso: string | null | undefined) => (iso && !Number.isNaN(Date.parse(iso)) ? formatDateTime(iso) : "");
 
 export interface SheetActions {
@@ -42,6 +43,48 @@ function AvatarCheckBlock({ check, onRefresh, busy }: { check: VrchatAvatarCheck
         : <span className="vua-text-secondary">{vrchatCopy.checkError}</span>}
     {onRefresh && <button type="button" className="vua-release-upload__link" onClick={onRefresh} disabled={busy}>{vrchatCopy.refresh}</button>}
   </div>;
+}
+
+/** SDK items in the SDK's own (English) words. */
+function SdkIssues({ issues, icon }: { issues: readonly AmfSdkIssue[]; icon: "error-circle" | "warning" | "question" }) {
+  return <ul className="vua-album__checks">{issues.map(issue => <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
+    <Icon name={icon} size={16} /><span><span lang="en">{issue.text}</span>
+      {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span></li>)}</ul>;
+}
+
+/** The SDK panel's own checks and performance rank, grouped by what the player does next. */
+function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
+  const view = sdkReviewView(run);
+  if (!view) return null;
+  const clear = view.mustFix.length === 0 && view.reminders.length === 0;
+  return <section className="vua-album__block vua-sdk-review">
+    <h3>{sdkCopy.title}</h3>
+    {view.state === "not_run" ? <p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p> : <>
+      {view.overall && <div className="vua-sdk-review__rank" data-rating={view.overall}>
+        <Icon name="gauge" size={20} />
+        <span><strong>{format(sdkCopy.rank, { platform: sdkCopy.platforms[view.platform], rating: sdkCopy.ratings[view.overall] })}</strong>
+          <small>{sdkCopy.rankMeaning[view.overall]}</small></span>
+      </div>}
+      {view.state === "unavailable" ? <p className="vua-caption vua-text-secondary">{sdkCopy.unavailable}</p> : <>
+        {view.mustFix.length > 0 && <div className="vua-sdk-review__group" data-group="must-fix">
+          <h4>{sdkCopy.mustFix}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.mustFixHint}</p>
+          <SdkIssues issues={view.mustFix} icon="error-circle" /></div>}
+        {view.reminders.length > 0 && <div className="vua-sdk-review__group" data-group="reminders">
+          <h4>{sdkCopy.reminders}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.remindersHint}</p>
+          <SdkIssues issues={view.reminders} icon="warning" /></div>}
+        {clear && <p className="vua-sdk-review__clear"><Icon name="check" size={16} />{sdkCopy.allClear}</p>}
+        {view.state === "partial" && <p className="vua-caption vua-text-secondary">{sdkCopy.partial}</p>}
+      </>}
+      {view.rankItems.length > 0 && <div className="vua-sdk-review__group" data-group="rank">
+        <h4>{sdkCopy.rankItems}</h4>
+        <ul className="vua-album__checks">{view.rankItems.map(stat => <li key={stat.category} data-state="attention" data-rating={stat.rating}>
+          <Icon name="gauge" size={16} /><span><strong>{sdkCopy.categories[stat.category] ?? stat.category}</strong> · {sdkCopy.ratings[stat.rating]}
+            {stat.text && <small lang="en">{stat.text}</small>}</span></li>)}</ul>
+      </div>}
+      {view.notes.length > 0 && <details className="vua-sdk-review__notes"><summary>{sdkCopy.notes}</summary>
+        <SdkIssues issues={view.notes} icon="question" /></details>}
+    </>}
+  </section>;
 }
 
 function checkText(check: CheckLine): string {
@@ -153,6 +196,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
       <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
+    <SdkReviewBlock run={run} />
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
         <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}

@@ -15,7 +15,7 @@ import { ReleaseAlbum, type AlbumSpread } from "./ReleaseAlbum.tsx";
 import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
 import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
-import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, uploadedAvatarId } from "./release-model.ts";
+import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId } from "./release-model.ts";
 import "./release-album.css";
 
 const copy = strings.releaseRoom;
@@ -220,6 +220,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
     {dialog && dialogRun && <ReleaseUploadDialog proposedName={proposedUploadName(dialogRun)} avatarId={uploadedAvatarId(states[dialog.runId] ?? null)}
       picture={<StagePhoto port={production} run={dialogRun} label={avatarTitle(dialogRun)} />} requestedByAi={dialog.requestId !== null}
       error={<ActionError error={dialogError} onCheckAgain={() => { setDialog(null); checkAgain(dialog.runId); }} />} starting={starting}
+      sdkMustFix={sdkReviewView(dialogRun)?.mustFix.length ?? 0}
       onConfirm={confirmation => { void confirm(confirmation); }} onClose={() => setDialog(null)} />}
   </>;
 }

@@ -57,14 +57,26 @@ function finished(index: number, name: string, outfit: string, toggle: string, e
       previews: (["front", "side", "back"] as const).map(view => ({ view, path: `.vua/previews/${runId}/${view}.png` })), ...extra } },
   };
 }
-const runs = [finished(0, "Meiyun", "TshirtShorts", "T-shirt"), finished(1, "Karin", "SailorDress", "Sailor dress", { sdkSignedIn: "no", missingShaderMaterials: ["Assets/Karin/Ribbon.mat"] }), finished(2, "Rusk", "Hoodie", "")];
+const runs = [finished(0, "Meiyun", "TshirtShorts", "T-shirt", { sdkReview: { state: "checked", platform: "pc", overall: "Good", detail: "", issues: [], stats: [{ category: "PolyCount", rating: "Good", text: "Triangles: 52000 (Recommended: 32000)" }] } }), finished(1, "Karin", "SailorDress", "Sailor dress", { sdkSignedIn: "no", missingShaderMaterials: ["Assets/Karin/Ribbon.mat"], sdkReview: {
+  state: "checked", platform: "pc", overall: "VeryPoor", detail: "",
+  issues: [
+    { level: "error", text: "This avatar has no pipeline manager component. Click Auto Fix to add one.", canFix: true },
+    { level: "warning", text: "This avatar uses Unity constraints. Consider using VRChat constraints instead.", canFix: true },
+    { level: "info", text: "Other users may choose to block this avatar due to performance. Your fallback will be shown instead.", canFix: false },
+  ],
+  stats: [
+    { category: "PolyCount", rating: "Good", text: "Triangles: 64000 (Recommended: 32000)" },
+    { category: "MaterialCount", rating: "Poor", text: "Material Slots: 24 - Please try to reduce your avatar material slots to less than 8 (Recommended: 4)" },
+    { category: "PhysBoneTransformCount", rating: "VeryPoor", text: "PhysBones Affected Transforms: 320 - This avatar has too many PhysBones affected transforms." },
+  ],
+} }), finished(2, "Rusk", "Hoodie", "")];
 const lookOf = (runId: string) => Math.max(0, runs.findIndex(run => run.runId === runId));
 
 const upload = (patch: Partial<AmfUpload>): AmfUpload => ({ uploadId: "upload-1", avatarName: "Meiyun TshirtShorts", startedAt: "2026-10-17T06:00:00Z", endedAt: "2026-10-17T06:07:00Z",
   state: "succeeded", stage: "finishing", progress: 1, status: "", blueprintId: avatarId, firstUpload: true, reason: null, detail: "", errors: [], sdkSignIn: "vua_session", ...patch });
 
 export function releaseViewNames(): string[] {
-  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty"];
+  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk"];
 }
 
 export function releasePorts(view: string): { production: AmfProductionPort; release: AmfReleasePort } {
@@ -128,10 +140,10 @@ function TurningAlbum({ production, release }: { production: AmfProductionPort; 
 export function ReleasePreview({ view }: { view: string }) {
   const { production, release } = releasePorts(view);
   React.useEffect(() => {
-    if (view !== "release-stills") return;
-    // Turns to the third Avatar, which has its three views and no turntable yet.
+    if (view !== "release-stills" && view !== "release-sdk") return;
+    // Stills: the third Avatar, with its three views and no turntable yet. SDK: the second, with SDK findings.
     const timer = setInterval(() => {
-      const tab = document.querySelector<HTMLButtonElement>(".vua-album__tabs li:nth-child(3) button");
+      const tab = document.querySelector<HTMLButtonElement>(`.vua-album__tabs li:nth-child(${view === "release-sdk" ? 2 : 3}) button`);
       if (!tab) return;
       clearInterval(timer);
       tab.click();

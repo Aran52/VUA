@@ -1,5 +1,5 @@
 /** The release room's view of finished Avatars: names, outfits, checks, uploads and page turns. */
-import type { AmfProductionList, AmfProductionRun, AmfReleaseState, AmfUpload } from "../../../gateway/index.ts";
+import { AMF_SDK_RATINGS, type AmfProductionList, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfSdkRating, type AmfSdkReview, type AmfSdkStat, type AmfUpload } from "../../../gateway/index.ts";
 
 /** "Meiyun_v2.1.0/Meiyun.unitypackage" → "Meiyun". */
 export const baseName = (value: string) => value.split(/[\\/]/u).pop()!.replace(/\.(unitypackage|zip|prefab)$/iu, "");
@@ -52,6 +52,34 @@ export function releaseChecks(run: AmfProductionRun): CheckLine[] {
     { key: "shaders", state: missingShaders === 0 ? "ok" : "attention", count: missingShaders },
     { key: "signIn", state: signIn === "yes" ? "ok" : "info", signIn },
   ];
+}
+
+export interface SdkReviewView {
+  readonly state: Exclude<AmfSdkReview["state"], "not_run"> | "not_run";
+  readonly platform: "pc" | "android";
+  readonly overall: AmfSdkRating | null;
+  /** The SDK refuses the upload while these remain. */
+  readonly mustFix: readonly AmfSdkIssue[];
+  readonly reminders: readonly AmfSdkIssue[];
+  readonly notes: readonly AmfSdkIssue[];
+  /** Categories rated below Good, worst first: what pulls the rank down. */
+  readonly rankItems: readonly AmfSdkStat[];
+}
+const rank = (rating: AmfSdkRating) => AMF_SDK_RATINGS.indexOf(rating);
+/** The SDK's own checks of the finished Avatar, grouped the way a player acts on them. */
+export function sdkReviewView(run: AmfProductionRun): SdkReviewView | null {
+  const review = run.result?.facts?.sdkReview;
+  if (!review) return null;
+  const overall = review.overall === "" || review.overall === "None" ? null : review.overall;
+  return {
+    state: review.state,
+    platform: review.platform === "android" ? "android" : "pc",
+    overall,
+    mustFix: review.issues.filter(issue => issue.level === "error"),
+    reminders: review.issues.filter(issue => issue.level === "warning"),
+    notes: review.issues.filter(issue => issue.level === "info"),
+    rankItems: review.stats.filter(stat => rank(stat.rating) > rank("Good")).sort((a, b) => rank(b.rating) - rank(a.rating)),
+  };
 }
 
 export const runningUpload = (state: AmfReleaseState | null): AmfUpload | null => state?.uploads.find(upload => upload.state === "running") ?? null;

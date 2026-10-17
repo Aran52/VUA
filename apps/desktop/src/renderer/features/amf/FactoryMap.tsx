@@ -6,7 +6,7 @@ import { useGateway, type AmfProductionList, type AmfProductionRun } from "../..
 import type { PageId } from "../../app/nav-model.ts";
 import { strings, format } from "../../i18n/index.ts";
 import { currentStation, lineBusy, lineStations, lineStatus, phaseStatus, STATIONS, type LineStatus } from "./factory-model.ts";
-import { RoomCanvas, useEffectsOn } from "./RoomCanvas.tsx";
+import { RoomCanvas, token, useEffectsOn } from "./RoomCanvas.tsx";
 import type { SceneFacts } from "./factory-scenes.ts";
 import { between, cameraOn, neighbors, OVERVIEW, transformOf, type Camera, type Direction } from "./factory-camera.ts";
 import "./factory.css";
@@ -17,7 +17,6 @@ export const ROOM_PAGES: Record<Room, PageId> = { materials: "warehouse", worksh
 const ROOM_ICONS = { materials: "folder", workshop: "avatar", control: "edit", release: "anim" } as const;
 const FLOORS: readonly (readonly [Room, Room])[] = [["control", "materials"], ["release", "workshop"]];
 const DIRECTION_ICONS = { left: "arrow-left", right: "arrow-right", up: "arrow-up", down: "chevron-down" } as const;
-const CAMERA_MS = 650;
 const PRIORITY: readonly LineStatus[] = ["running", "waiting", "attention", "finished", "stopped", "idle"];
 const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
 
@@ -90,9 +89,9 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
     setZoom(goal.scale);
     cancelAnimationFrame(flight.current);
     if (instant || !animated) { place(goal); return; }
-    const from = camera.current; const start = performance.now();
+    const from = camera.current; const start = performance.now(); const duration = token("--vua-motion-camera", 650);
     const step = (now: number) => {
-      const t = (now - start) / CAMERA_MS; place(between(from, goal, t));
+      const t = (now - start) / duration; place(between(from, goal, t));
       if (t < 1) flight.current = requestAnimationFrame(step);
     };
     flight.current = requestAnimationFrame(step);

@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { SCENE_HEIGHT, SCENE_WIDTH, SCENES, type Palette, type SceneFacts } from "./factory-scenes.ts";
 
-const FRAME_MS = 1000 / 30;
+/** Reads a token from the document root, so skins set scene timing and colors in one place. */
+export function token(name: string, fallback: number): number {
+  const value = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
 
 /** True while resource-saving mode is off (it sets data-effects="off" on the document). */
 export function useEffectsOn(): boolean {
@@ -24,7 +28,7 @@ function palette(element: Element): Palette {
     room: v("--room", "#ff7a45"), panel: v("--vua-bg-panel", "#16141f"), elevated: v("--vua-bg-elevated", "#1f1c2b"),
     border: v("--vua-border-strong", "#3a3550"), strong: v("--vua-text-strong", "#f3f2f8"), text: v("--vua-text-secondary", "#a9a6b8"),
     muted: v("--vua-border", "#2a2638"), success: v("--vua-success", "#4ade80"), warning: v("--vua-warning", "#facc15"),
-    error: v("--vua-error", "#f87171"), accent: v("--vua-accent", "#ff7a45"), skin: "#f4cdb0", hair: v("--vua-text-strong", "#f3f2f8"),
+    error: v("--vua-error", "#f87171"), accent: v("--vua-accent", "#ff7a45"), skin: v("--vua-scene-skin", "#f4cdb0"), hair: v("--vua-text-strong", "#f3f2f8"),
   };
 }
 
@@ -58,10 +62,11 @@ export function RoomCanvas({ room, facts, zoom = 1 }: { room: keyof typeof SCENE
       SCENES[room](ctx, colors, latest.current, now / 1000, -offsetY / fit);
     };
     if (!animated) { draw(0); return; }
+    const frameMs = 1000 / token("--vua-scene-fps", 30);
     let frame = 0; let last = 0;
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
-      if (document.hidden || now - last < FRAME_MS) return;
+      if (document.hidden || now - last < frameMs) return;
       last = now; draw(now);
     };
     frame = requestAnimationFrame(loop);

@@ -167,6 +167,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
   if (list === null) return <p className="vua-text-secondary vua-release-room__loading">{failed ? copy.loadFailed : copy.loading}</p>;
   if (ids.length === 0) {
     return <div className="vua-album__cover">
+      <span className="vua-album__ornament" data-place="top" data-skin-slot="album-cover" />
       <Icon name="avatar" size={24} />
       <h2>{copy.emptyTitle}</h2>
       <p className="vua-text-secondary">{copy.emptyHint}</p>

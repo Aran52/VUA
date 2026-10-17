@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AmfProductionRun, AmfReleaseState } from "../../../gateway/index.ts";
-import { avatarTitle, dragProgress, easeInOut, finishedRunIds, materialsLine, outfitLines, proposedUploadName, releaseChecks, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
+import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, materialsLine, outfitLines, proposedUploadName, releaseChecks, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
 
 const run = {
   schemaVersion: "0.1", runId: "n3-a", phase: "succeeded", taskId: "t", editor: { path: "Unity.exe", version: "2022.3.22f1" }, projectRoot: "C:/w", choices: [],
@@ -56,6 +56,17 @@ describe("release room facts", () => {
     expect(turnCompletes(0.2)).toBe(false);
     expect(turnCompletes(0.5)).toBe(true);
     expect([easeInOut(0), easeInOut(0.5), easeInOut(1)]).toEqual([0, 0.5, 1]);
+  });
+  it("follows the motion tokens for duration and easing", () => {
+    expect(durationOf("560ms", 1)).toBe(560);
+    expect(durationOf(" 0.3s", 1)).toBe(300);
+    expect(durationOf("", 420)).toBe(420);
+    const ease = easingOf("cubic-bezier(0.2, 0.8, 0.2, 1)");
+    expect(ease(0)).toBe(0);
+    expect(ease(1)).toBe(1);
+    expect(ease(0.5)).toBeGreaterThan(0.8);
+    expect(easingOf("ease")(0.5)).toBe(0.5);
+    expect(cubicBezier(0, 0, 1, 1)(0.25)).toBeCloseTo(0.25, 3);
   });
   it("steps through the still views both ways", () => {
     expect(viewAfter(["front", "side", "back"], "front", 1)).toBe("side");

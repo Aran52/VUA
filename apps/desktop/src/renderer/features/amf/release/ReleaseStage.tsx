@@ -4,10 +4,9 @@ import { Icon } from "@vua/design-system";
 import { TurntablePlayer, type BakeManifest } from "../../../components/preview/TurntablePlayer.tsx";
 import type { AmfProductionPort, AmfProductionRun, AmfReleasePort, AmfTurntable } from "../../../gateway/index.ts";
 import { format, strings } from "../../../i18n/index.ts";
-import { STILL_VIEWS, viewAfter, type StillView } from "./release-model.ts";
+import { ALBUM_MOTION, STILL_VIEWS, viewAfter, type StillView } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
-const DRAG_PIXELS_PER_VIEW = 70;
 const FRAME_LOADS_AT_ONCE = 6;
 
 // Recently shown pictures, so turning back to a page shows it at once.
@@ -107,7 +106,7 @@ function StillsStage({ production, run, title }: { production: AmfProductionPort
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const current = drag.current;
     if (!current || current.pointer !== event.pointerId) return;
-    setView(viewAfter(views, current.from, Math.round((event.clientX - current.x) / DRAG_PIXELS_PER_VIEW)));
+    setView(viewAfter(views, current.from, Math.round((event.clientX - current.x) / ALBUM_MOTION.pixelsPerView)));
   };
   const onPointerEnd = (event: PointerEvent<HTMLDivElement>) => { if (drag.current?.pointer === event.pointerId) drag.current = null; };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -134,9 +133,11 @@ export function ReleaseStage({ production, release, run, turntable, title, live 
 }) {
   const current = turntable?.current ? turntable : null;
   return <figure className="vua-album__photo" data-stage>
-    <span className="vua-album__corner" data-corner="tl" /><span className="vua-album__corner" data-corner="tr" />
-    <span className="vua-album__corner" data-corner="bl" /><span className="vua-album__corner" data-corner="br" />
+    <span className="vua-album__corners" data-skin-slot="album-photo-corners">
+      <span data-corner="tl" /><span data-corner="tr" /><span data-corner="bl" /><span data-corner="br" />
+    </span>
     <div className="vua-album__print">
+      <span className="vua-album__backdrop" data-skin-slot="album-stage-backdrop" />
       {!live ? <StagePhoto port={production} run={run} label={title} />
         : current ? <TurntableStage production={production} release={release} run={run} turntable={current} title={title} />
         : <StillsStage production={production} run={run} title={title} />}

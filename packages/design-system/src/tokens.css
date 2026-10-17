@@ -136,6 +136,21 @@
   --vua-scene-fps: 30;
   /* Factory scene figures */
   --vua-scene-skin: #f4cdb0;
+
+  /* ---- Release room album: paper, its pattern, the binding and the shades of pages and prints; skins may change them ---- */
+  --vua-album-paper: color-mix(in srgb, var(--vua-room-release) 4%, var(--vua-bg-panel));
+  --vua-album-pattern: radial-gradient(color-mix(in srgb, var(--vua-room-release) 9%, transparent) 1px, transparent 1.2px) 0 0 / 18px 18px;
+  --vua-album-binding: color-mix(in srgb, var(--vua-room-release) 13%, var(--vua-bg-elevated));
+  --vua-album-rule: color-mix(in srgb, var(--vua-room-release) 24%, var(--vua-border));
+  --vua-album-shade: color-mix(in srgb, var(--vua-on-status) 42%, transparent);
+  --vua-album-print: var(--vua-bg-elevated);
+  --vua-album-backdrop: color-mix(in srgb, var(--vua-text-disabled) 50%, var(--vua-bg-elevated));
+  --vua-album-lift: 34px;
+  --vua-shadow-album: 0 18px 40px -18px var(--vua-album-shade);
+  --vua-shadow-album-spine-left: inset -30px 0 30px -28px var(--vua-album-shade);
+  --vua-shadow-album-spine-right: inset 30px 0 30px -28px var(--vua-album-shade);
+  --vua-shadow-print: 0 10px 24px -8px color-mix(in srgb, var(--vua-on-status) 18%, transparent);
+  --vua-shadow-release: 0 10px 24px -10px color-mix(in srgb, var(--vua-room-release) 70%, transparent);
 }
 
 /* ---- 颜色辖区:别名由 data-module 切换,组件只消费别名。
@@ -323,6 +338,16 @@
   --vua-aurora-1: none;
   --vua-aurora-2: none;
   --vua-shine: none;
+  --vua-album-paper: #000000;
+  --vua-album-pattern: none;
+  --vua-album-binding: #000000;
+  --vua-album-rule: #ffffff;
+  --vua-album-print: #000000;
+  --vua-shadow-album: none;
+  --vua-shadow-album-spine-left: none;
+  --vua-shadow-album-spine-right: none;
+  --vua-shadow-print: none;
+  --vua-shadow-release: none;
 }
 
 /* ---- 特效总开关(S-VFX-5,VR/省资源地基):装饰 token 全部置 none。

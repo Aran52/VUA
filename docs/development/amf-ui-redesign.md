@@ -62,6 +62,26 @@ Asked on the first visit to the workshop and changeable on every line:
 | Semi-automatic | the assembly plan and the quality check; candidates and switches are shown |
 | Manual | every station; every setting is open |
 
+## Release room
+
+The release room is an album of finished Avatars, one spread each, newest first (author request,
+2026-10-17). A page turns over the spine from the arrows, the arrow keys, the index tabs or a
+dragged page corner; with reduced motion or stacked pages the next spread fades in, and
+resource-saving mode cuts to it. The motion is scripted from the motion tokens.
+
+- **Left page:** the Avatar mounted as a photo. Dragging turns it through the 60-frame turntable
+  while the turntable shows the current scene, otherwise through the front, side and back views.
+  Below it the turntable is baked or baked again.
+- **Right page:** the Avatar's name and materials, its outfits with their switches, VUA's checks,
+  and **Upload to VRChat** in the room's color. The upload dialog asks for the name on VRChat
+  and the player's content rights statement; the page then follows the stages from opening Unity
+  to uploading, offers Stop, and shows the VRChat Avatar ID or the SDK's reason in plain words.
+- An AI agent's upload request appears on its Avatar's page and opens the same dialog.
+- The earlier production records stay under their own tab.
+
+Paper, binding, pattern and shades are the `--vua-album-*` tokens; the photo corners, the stage
+backdrop, page ornaments and the cover are `data-skin-slot` elements.
+
 ## How the later slices land here
 
 | Slice | Where |
@@ -84,8 +104,9 @@ Asked on the first visit to the workshop and changeable on every line:
    stations, the stop control, the needs-attention card and the automation levels.
 3. **Live progress in the line** once delivery 1 lands.
 4. **Materials:** "Start production" from a chosen Avatar in the library.
-5. **Release:** finished Avatars with the 60-frame turntable baked for AMF results, then the SDK
-   step (slice 6) and upload (slice 12).
+5. **Release:** the album with the 60-frame turntable baked for AMF results and managed upload
+   (slice 12, brought forward on 2026-10-17); then the SDK step (slice 6).
 
 `pnpm --filter @vua/desktop preview:factory [dir] [locale] [theme]`
-renders the map and the workshop states with sample data for review.
+renders the map, the workshop states and the release room with sample data for review;
+`--only=<prefix>` renders a subset, for example `--only=release`.

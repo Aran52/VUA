@@ -17,9 +17,30 @@ import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedP
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
 import { AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
 import "./factory.css";
+import type { AmfRunProgress } from "../../gateway/index.ts";
+import { formatDuration } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
+/** The running step's live state: Unity's stage and count, a running clock, the usual time on this computer, and Unity's silence. */
+function LiveProgress({ progress }: { progress: AmfRunProgress }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const started = Date.parse(progress.startedAt);
+  const elapsed = Math.max(progress.elapsedSeconds * 1000, Number.isFinite(started) ? now - started : 0);
+  const usual = progress.usualSeconds === null ? null : progress.usualSeconds * 1000;
+  const unity = progress.unity;
+  const quietSince = unity ? Date.parse(unity.lastActivityAt) : NaN;
+  const quiet = Number.isFinite(quietSince) && now - quietSince > 120_000;
+  const count = unity?.current !== undefined ? (unity.total !== undefined ? format(factory.count, { current: unity.current, total: unity.total }) : String(unity.current)) : null;
+  return <div className="vua-line__progress">
+    <span className="vua-line__stage">{unity ? factory.stage[unity.stage] : factory.checkingProject}{count && unity?.stage === "importing" ? ` · ${count}` : ""}</span>
+    <span className="vua-line__clock">{format(factory.elapsed, { time: formatDuration(elapsed) })}{usual !== null ? ` · ${format(factory.usual, { time: formatDuration(usual) })}` : ""}</span>
+    {usual !== null && <span className="vua-line__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(95, Math.round(elapsed / usual * 100))}>
+      <span style={{ width: `${Math.min(95, elapsed / usual * 100)}%` }}/></span>}
+    {quiet && <span className="vua-line__quiet">{format(factory.quiet, { time: new Date(quietSince).toLocaleTimeString() })}</span>}
+  </div>;
+}
 function StatusChip({ status }: { status: LineStatus }) {
   return <span className="vua-line__status" data-status={status}>{factory.status[status]}</span>;
 }
@@ -92,7 +113,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           initialized.current = runId; setSelection(initialProductionSelection(loaded));
         }
         // A reinspection keeps the previous phase until it ends; a running step still needs fresh facts.
-        if (["preparing", "assembling", "restoring"].includes(loaded.phase) || loaded.steps.some(step => step.state === "running") || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
+        if (["preparing", "inspecting", "assembling", "restoring"].includes(loaded.phase) || loaded.steps.some(step => step.state === "running") || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
       } catch (e) { if (alive) { setError(e instanceof Error ? e.message : unavailable); timer = setTimeout(() => { void load(); }, 2000); } }
     };
     void load();
@@ -119,7 +140,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const edit = (next: AmfAssemblySelection) => { setSelection(next); setPlan(null); setError(null); };
   const outfit = (id: string, patch: Partial<AmfOutfitSelection> | null) => edit(updateOutfitSelection(selection, id, patch));
-  const busy = requesting || taskId !== null || (run !== null && ["preparing", "assembling", "restoring"].includes(run.phase));
+  const busy = requesting || taskId !== null || (run !== null && ["preparing", "inspecting", "assembling", "restoring"].includes(run.phase));
   const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open") => {
     if (!port || busy) return;
     if ((action === "assemble" && !plan) || (action === "rollback" && !restorePlan)) return;
@@ -228,6 +249,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <div className="vua-line__live-head"><span className="vua-n3__spinner" aria-hidden="true"/>
           <strong>{runningStep ? copy.step[runningStep.key as keyof typeof copy.step] ?? runningStep.name : run.phase === "assembling" ? copy.assembling : run.phase === "restoring" ? copy.restoring : copy.preparing}</strong></div>
         {runningStep?.detail && <p className="vua-caption vua-text-secondary">{runningStep.detail}</p>}
+        {run.progress && <LiveProgress progress={run.progress}/>}
         <div className="vua-n3__actions"><p className="vua-caption vua-text-secondary">{factory.stopHint}</p>
           <Button variant="subtle" disabled={!taskId && !run.taskId} onClick={() => { void gateway.task.cancel(taskId ?? run.taskId); }}>{factory.stop}</Button></div>
       </Card>}

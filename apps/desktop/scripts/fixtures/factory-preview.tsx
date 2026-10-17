@@ -27,7 +27,9 @@ const base = (runId: string, phase: AmfProductionRun["phase"], steps: [string, s
   steps: steps.map(([key, state, detail]) => ({ key, name: key, state, detail: detail ?? "" })), selection: null, error: null, recovery: null, result: null, snapshotId: null,
 });
 const runs: Record<string, AmfProductionRun> = {
-  running: base("running", "preparing", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "running"]], "costume"),
+  running: { ...base("running", "preparing", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "running"]], "costume"),
+    progress: { step: "inspect", name: "Read actual prefabs", startedAt: new Date(Date.now() - 161_000).toISOString(), elapsedSeconds: 161, usualSeconds: 310,
+      unity: { stage: "importing", current: 123, total: 379, lastActivityAt: new Date().toISOString() } } } as AmfProductionRun,
   waiting: base("waiting", "ready", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"]]),
   attention: { ...base("attention", "failed", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "failed", "Unity could not get a license."]]), error: "vua.amf_production.unity_license_unavailable — detail: Activate this Editor's license in Unity Hub, then retry preparation. Selected materials are retained." },
   finished: { ...base("finished", "succeeded", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "succeeded"]]),

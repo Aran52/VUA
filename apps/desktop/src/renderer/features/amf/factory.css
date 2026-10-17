@@ -170,3 +170,11 @@ button.vua-factory__alert { cursor: pointer; }
   .vua-workshop__rail { position: static; }
   .vua-line__stations { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
 }
+
+/* Live progress of the running step. */
+.vua-line__progress { display: grid; gap: var(--vua-space-2); margin-top: var(--vua-space-3); }
+.vua-line__stage { font: var(--vua-font-body); color: var(--vua-text-strong); }
+.vua-line__clock, .vua-line__quiet { font: var(--vua-font-caption); color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }
+.vua-line__quiet { color: var(--vua-warning); }
+.vua-line__bar { display: block; height: 6px; background: var(--vua-bg-elevated); border-radius: var(--vua-radius-pill); overflow: hidden; }
+.vua-line__bar > span { display: block; height: 100%; background: var(--vua-accent); border-radius: inherit; transition: width var(--vua-motion-slow) linear; }

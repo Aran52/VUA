@@ -36,6 +36,15 @@ describe("AMF production line stations", () => {
     expect(lineStations(line).inspect).toBe("failed");
     expect(lineStatus(line)).toBe("attention");
     expect(phaseStatus("cancelled")).toBe("stopped");
+    expect(phaseStatus("stopped")).toBe("stopped");
+  });
+
+  it("shows a stopped step as stopped and keeps the line at that station", () => {
+    const line = { phase: "stopped" as const, steps: steps(["project", "succeeded"], ["materials", "succeeded"], ["inspect", "stopped"]) };
+    expect(lineStations(line).inspect).toBe("stopped");
+    expect(currentStation(lineStations(line))).toBe("inspect");
+    expect(lineStatus(line)).toBe("stopped");
+    expect(lineStatus({ phase: "inspecting" as const, steps: steps(["reinspect", "running"]) })).toBe("running");
   });
 
   it("stops at more stations as the automation level lowers", () => {

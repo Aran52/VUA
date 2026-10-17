@@ -3,7 +3,7 @@ import type { AmfRunPhase } from "../../gateway/index.ts";
 
 export const STATIONS = ["prepare", "inspect", "plan", "assemble", "check"] as const;
 export type StationKey = typeof STATIONS[number];
-export type StationState = "todo" | "running" | "waiting" | "done" | "failed";
+export type StationState = "todo" | "running" | "waiting" | "done" | "failed" | "stopped";
 export type LineStatus = "running" | "waiting" | "attention" | "finished" | "stopped" | "idle";
 export type AutomationLevel = "auto" | "semi" | "manual";
 export const AUTOMATION_LEVELS: readonly AutomationLevel[] = ["auto", "semi", "manual"];
@@ -11,7 +11,7 @@ export const AUTOMATION_LEVELS: readonly AutomationLevel[] = ["auto", "semi", "m
 interface Step { readonly key: string; readonly state: string }
 export interface LineFacts { readonly phase: AmfRunPhase; readonly steps: readonly Step[] }
 
-const BUSY: readonly AmfRunPhase[] = ["preparing", "assembling", "restoring"];
+const BUSY: readonly AmfRunPhase[] = ["preparing", "inspecting", "assembling", "restoring"];
 const stationOf: Record<string, StationKey> = {
   project: "prepare", materials: "prepare",
   inspect: "inspect", reinspect: "inspect",
@@ -28,7 +28,7 @@ export function phaseStatus(phase: AmfRunPhase): LineStatus {
   if (BUSY.includes(phase)) return "running";
   if (phase === "ready") return "waiting";
   if (phase === "succeeded") return "finished";
-  if (phase === "cancelled") return "stopped";
+  if (phase === "cancelled" || phase === "stopped") return "stopped";
   return "attention";
 }
 
@@ -42,19 +42,20 @@ export function lineStations(line: LineFacts): Record<StationKey, StationState> 
   for (const step of line.steps) {
     const station = stationOf[step.key];
     if (!station) continue;
-    states[station] = step.state === "running" ? "running" : step.state === "failed" ? "failed" : step.state === "succeeded" ? "done" : states[station];
+    states[station] = step.state === "running" ? "running" : step.state === "failed" ? "failed" : step.state === "succeeded" ? "done"
+      : step.state === "stopped" || step.state === "interrupted" ? "stopped" : states[station];
   }
   const busy = lineBusy(line);
   if (line.phase === "ready" && !busy) states.plan = "waiting";
   if (line.phase === "assembling" || states.assemble !== "todo" || line.phase === "succeeded") states.plan = "done";
   if (line.phase === "succeeded" && !busy) { states.assemble = "done"; states.check = "done"; }
-  if (line.phase === "cancelled") for (const key of STATIONS) if (states[key] === "running") states[key] = "failed";
+  if (line.phase === "cancelled" || line.phase === "stopped") for (const key of STATIONS) if (states[key] === "running") states[key] = "stopped";
   return states;
 }
 
 /** The station the line is at: the first one running, waiting or failed, else the last one done. */
 export function currentStation(states: Record<StationKey, StationState>): StationKey {
-  const active = STATIONS.find(key => ["running", "waiting", "failed"].includes(states[key]));
+  const active = STATIONS.find(key => ["running", "waiting", "failed", "stopped"].includes(states[key]));
   if (active) return active;
   return [...STATIONS].reverse().find(key => states[key] === "done") ?? "prepare";
 }

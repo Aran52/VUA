@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentStation, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
+import { assemblesWithoutAsking, currentStation, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
 
 const steps = (...pairs: [string, string][]) => pairs.map(([key, state]) => ({ key, state }));
 
@@ -48,9 +48,9 @@ describe("AMF production line stations", () => {
   });
 
   it("stops at more stations as the automation level lowers", () => {
-    expect([...stopsAt("auto")]).toEqual(["plan"]);
-    expect([...stopsAt("semi")]).toEqual(["plan", "check"]);
-    expect(stopsAt("manual").size).toBe(5);
+    expect(stopsAt("ask").size).toBe(5);
+    expect([...stopsAt("smart")]).toEqual(["plan", "check"]);
+    expect(stopsAt("full").size).toBe(0);
   });
 
   it("formats durations as minutes and seconds", () => {
@@ -76,5 +76,22 @@ describe("telling production lines apart", () => {
     expect(labels.get("n3-01a14184-826d-7000-a900-000100000000")?.extra).not.toContain("#");
     expect(labels.get("n3-01a1455e-7790-7006-a7c0-000100000003")?.extra).toMatch(/#1$/u);
     expect(labels.get("n3-01a1455e-7791-7006-a7c0-000100000004")?.extra).toMatch(/#2$/u);
+  });
+});
+
+describe("full access", () => {
+  const prepared = { phase: "ready" as const, steps: [{ key: "inspect", state: "succeeded" }] };
+  const go = { busy: false, chosen: true };
+  it("assembles a prepared, never assembled line by itself", () => {
+    expect(assemblesWithoutAsking("full", prepared, go)).toBe(true);
+    expect(assemblesWithoutAsking("smart", prepared, go)).toBe(false);
+    expect(assemblesWithoutAsking("ask", prepared, go)).toBe(false);
+  });
+  it("leaves finished, busy and undecided lines to the player", () => {
+    expect(assemblesWithoutAsking("full", { ...prepared, steps: [...prepared.steps, { key: "assembly", state: "succeeded" }] }, go)).toBe(false);
+    expect(assemblesWithoutAsking("full", { ...prepared, completedAt: "2026-10-18T00:00:00Z" }, go)).toBe(false);
+    expect(assemblesWithoutAsking("full", prepared, { busy: true, chosen: true })).toBe(false);
+    expect(assemblesWithoutAsking("full", prepared, { busy: false, chosen: false })).toBe(false);
+    expect(assemblesWithoutAsking("full", { ...prepared, phase: "preparing" as const }, go)).toBe(false);
   });
 });

@@ -57,7 +57,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 4 | Result previews | P-02 | done |
 | 5 | Unity editor handoff | P-02 | |
 | 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide and the SDK's own checks are in; one-click fixes, plain-word messages and the build guide remain |
-| 7 | Unity familiarity levels and simpler choices | P-02, P-03 | automation levels in the workshop; recommendations and the image confirmation remain |
+| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes in the workshop; recommendations and the image confirmation remain |
 | 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table is assigned |
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |
@@ -78,9 +78,11 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 25 | Production records in Settings | — | |
 | 26 | VRChat Avatar list in the release room | P-02 | after the real-account checks of slice 19 |
 | 27 | Queue factory work | P-02 | |
+| 28 | Quitting during a task | — | proposed |
+| 29 | Restore after an interrupted assembly | — | proposed |
 
-Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Familiarity
-levels. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
+Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Permission
+modes. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
 gaps a newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
@@ -152,11 +154,12 @@ most common SDK messages, and the build and upload guide.
 **Eval:** P-02 outside-help count. **Done when** the author uploads the P-02 result guided by
 VUA alone.
 
-## 7 — Unity familiarity levels and simpler choices
+## 7 — Permission modes and simpler choices
 
-1. On first entry to Avatar production VUA asks how familiar the player is with Unity: fully
-   automatic, semi-automatic or fully manual; the choice is changeable in settings and sets how
-   much each step asks and shows.
+1. The workshop offers three permission modes, like an AI agent's (author ruling 2026-10-18):
+   ask before changes (default), decide on its own, and full access, which warns first that it
+   may mess up the Avatar. The modes share one layout and differ in where the line stops; they
+   describe what the player wants to hand over, not their experience with Unity.
 2. VUA recommends the Avatar and outfit prefabs with stated rules (name match with the outfit's
    target, top-level prefab, the creator's base for outfits) and asks only when two candidates
    are equally plausible.
@@ -164,8 +167,8 @@ VUA alone.
    the previews from slice 4 for prefabs; binding details sit under "Adjust".
 4. `vua_amf_plan` without a selection returns the recommendation.
 
-**Done when** the author completes P-02 at the fully automatic level with one confirmation per
-change, and at the manual level with every detail adjustable.
+**Done when** the author completes P-02 in full access without a confirmation, and in "ask before
+changes" confirming each change with every detail adjustable.
 
 ## 8 — Known packages
 
@@ -179,9 +182,9 @@ change, and at the manual level with every detail adjustable.
    - then VRChat SDK (official source), Modular Avatar with NDMF.
 2. Bundled copies are recognized from each package's `legacyFolders` and `legacyFiles`
    (lilToon declares `Assets\lilToon`), generalizing the lilToon rule.
-3. The package page follows the familiarity levels: fully automatic resolves dependencies
-   without showing it; semi-automatic shows it with "Next step" and "Handle dependencies for me";
-   fully manual shows every package, version and feed.
+3. The package page follows the permission modes: full access resolves dependencies without
+   asking; "decide on its own" shows it with "Next step" and "Handle dependencies for me"; "ask
+   before changes" shows every package, version and feed.
 4. The package page lists work projects with installed versions, updates and Recipe pins.
 
 **Done when** P-01 resolves its missing shader through a known package.
@@ -193,8 +196,8 @@ change, and at the manual level with every detail adjustable.
    snapshot.
 2. lilToon brightness limits: align the outfit materials' lower and upper brightness limits with
    the Avatar's, so the outfit and body brighten and darken together across worlds.
-3. Both follow the familiarity levels: applied toward a target (fully automatic), as a reviewed
-   list (semi-automatic) or per material and texture (manual).
+3. Both follow the permission modes: applied toward a target (full access), as a reviewed list
+   (decide on its own) or per material and texture (ask before changes).
 4. Evaluate lilAvatarUtils (MIT) first; integrate it when it covers these steps.
 
 **Done when** the P-02 result reaches a chosen rank, and its outfit and body match in brightness
@@ -380,6 +383,27 @@ interactive Editor. Today a second request is refused while a task runs.
 
 **Done when** an upload requested during a reinspection starts by itself when the reinspection
 ends.
+
+## 28 — Quitting during a task
+
+Quitting VUA from the tray during an AMF task stops the task and Unity without asking. A crash or
+a forced end stops Unity too: the AMF provider keeps Unity in a Windows job that ends with it.
+
+1. Quitting while a task runs asks first: stop the task and quit, keep VUA running in the tray,
+   or cancel.
+
+**Done when** quitting during a reinspection offers the three choices.
+
+## 29 — Restore after an interrupted assembly
+
+After a forced end, a line whose assembly was running shows "needs a new check", and its work
+project may be half assembled. The restore point taken before that assembly is kept; today the
+player reinspects first and then restores from the workshop.
+
+1. At the next start, such a line offers "Restore to before this assembly" directly, next to
+   "Continue".
+
+**Done when** a line interrupted during assembly returns to its pre-assembly state in one step.
 
 ## Open decisions
 

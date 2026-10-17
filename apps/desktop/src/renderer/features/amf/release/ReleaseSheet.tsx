@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
+import { sdkMessageKey } from "./sdk-messages.ts";
 import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
@@ -47,11 +48,15 @@ function AvatarCheckBlock({ check, onRefresh, busy }: { check: VrchatAvatarCheck
   </div>;
 }
 
-/** SDK items in the SDK's own (English) words. */
+/** SDK items in plain words where VUA knows the message, with the SDK's own sentence one click away. */
 function SdkIssues({ issues, icon }: { issues: readonly AmfSdkIssue[]; icon: "error-circle" | "warning" | "question" }) {
-  return <ul className="vua-album__checks">{issues.map(issue => <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
-    <Icon name={icon} size={16} /><span><span lang="en">{issue.text}</span>
-      {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span></li>)}</ul>;
+  return <ul className="vua-album__checks">{issues.map(issue => {
+    const plain = sdkMessageKey(issue.text);
+    return <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
+      <Icon name={icon} size={16} /><span><span>{plain ? sdkCopy.messages[plain] : <span lang="en">{issue.text}</span>}
+        {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span>
+        {plain && <details className="vua-sdk-review__original"><summary>{sdkCopy.original}</summary><span lang="en">{issue.text}</span></details>}</span></li>;
+  })}</ul>;
 }
 
 /** The SDK's Auto Fix for the items it offers one for, after the player reads what happens. */

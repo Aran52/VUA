@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.13.0
+> Document version: 0.14.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -244,6 +244,14 @@ performance rank for the build target, the items the SDK refuses an upload with,
 and the categories rated below Good. The upload confirmation names how many items the SDK
 refuses an upload with; the SDK's own check during the upload decides.
 
+`amf.production.sdkFix` (`runId`, `fixes`) runs the SDK's own Auto Fix for items its last check
+offers one for, named by the SDK's exact words (1 to 16). A ready or finished run takes a restore
+point (step `snapshot`), then runs the fix in Unity (step `sdk_fix`) and keeps its phase; the
+facts read the SDK check again and list `sdkFixesApplied`. Items the last check does not offer a
+fix for are refused with `vua.amf_production.sdk_fix_unavailable` before any restore point; a
+failure restores the project. The release page offers it as "Fix with the SDK" after the player
+reads what happens.
+
 ## Unity producing face
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
@@ -270,6 +278,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.
 - 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
 - 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.
 - 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).

@@ -266,3 +266,6 @@
 .vua-sdk-review__fix-confirm p, .vua-sdk-review__fix-confirm ul { margin: 0; }
 .vua-sdk-review__fix-confirm ul { padding-inline-start: var(--vua-space-4); font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-sdk-review__fix-actions { display: flex; align-items: center; gap: var(--vua-space-3); }
+.vua-sdk-review__original summary { cursor: pointer; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-sdk-review__original > span { display: block; margin-top: 2px; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-sdk-review li small.vua-sdk-review__fix { display: inline-block; margin-inline-start: var(--vua-space-2); padding: 0 6px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-pill); vertical-align: 1px; }

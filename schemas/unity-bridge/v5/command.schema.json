@@ -29,7 +29,8 @@
         "amf_prepare",
         "amf_inspect",
         "amf_assemble",
-        "amf_turntable"
+        "amf_turntable",
+        "amf_sdk_fix"
       ]
     },
     "dryRun": {
@@ -101,7 +102,10 @@
       "if": {
         "properties": {
           "operation": {
-            "const": "amf_assemble"
+            "enum": [
+              "amf_assemble",
+              "amf_sdk_fix"
+            ]
           }
         }
       },

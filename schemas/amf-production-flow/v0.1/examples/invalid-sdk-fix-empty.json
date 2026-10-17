@@ -1,0 +1,9 @@
+{
+  "method": "amf.production.sdkFix",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-example",
+    "fixes": []
+  }
+}

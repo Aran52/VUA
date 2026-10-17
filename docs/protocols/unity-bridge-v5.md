@@ -1,6 +1,6 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.9.0
+> Document version: 0.10.0
 > Status: Candidate
 > Updated: 2026-10-18
 
@@ -100,6 +100,17 @@ is a plain command name under `.vua/turntables/`. The turntable stays bound to t
 the scene changes, the release room shows the three views and offers to bake again. Earlier
 turntable folders are removed after each bake.
 
+## SDK fixes
+
+`amf_sdk_fix` runs the VRChat SDK's own Auto Fix for items of its Avatar check. It writes, so it
+is not a dry run and carries `expectedProjectFingerprint`, like assembly. The request names the
+items in `sdkFixes` by the SDK's exact words (1 to 16 items, each up to 600 characters, as
+`sdkReview.issues[].text` reported them). The Bridge runs the SDK check again on the active owned
+Avatar, invokes the Auto Fix of each named item the SDK still offers one for, saves the work
+scene and assets, and then observes the scene and reads `sdkReview` again. `sdkFixesApplied`
+lists the items it fixed; `amf.sdk.fix_unavailable` names how many chosen items no longer offer a
+fix, and `amf.sdk.fix_failed` carries each fix the SDK could not complete.
+
 ## Managed upload in the open Editor
 
 The official VRChat SDK builds and uploads an Avatar through its public builder API,
@@ -151,6 +162,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.10.0 (2026-10-18): `amf_sdk_fix` runs the SDK's own Auto Fix for chosen items of its Avatar check.
 - 0.9.0 (2026-10-18): read the VRChat SDK's own Avatar checks and performance ratings into `sdkReview` after inspection and assembly.
 - 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA.
 - 0.7.0 (2026-10-17): write bridge, previews and finishing stage lines to the run log.

@@ -1158,7 +1158,7 @@ export type DesktopGatewayRequestV1 =
 export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query", "amf.production.previewImage": "query", "amf.production.releaseState": "query", "amf.production.turntableFrame": "query",
   "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
-  "amf.production.prepare": "command", "amf.production.assemble": "command", "amf.production.reinspect": "command", "amf.production.open": "command", "amf.production.rollback": "command", "amf.production.saveRecipe": "command", "amf.production.prepareRecipe": "command", "amf.production.exportRecipe": "command", "amf.production.importRecipe": "command", "amf.production.applyRecipe": "command", "amf.production.bakeTurntable": "command", "amf.production.upload": "command",
+  "amf.production.prepare": "command", "amf.production.assemble": "command", "amf.production.reinspect": "command", "amf.production.open": "command", "amf.production.rollback": "command", "amf.production.saveRecipe": "command", "amf.production.prepareRecipe": "command", "amf.production.exportRecipe": "command", "amf.production.importRecipe": "command", "amf.production.applyRecipe": "command", "amf.production.bakeTurntable": "command", "amf.production.upload": "command", "amf.production.sdkFix": "command",
   "app.snapshot": "query",
   "task.list": "query",
   "task.get": "query",
@@ -1989,7 +1989,7 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
     case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.turntableFrame":
-    case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload":
+    case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.sdkFix":
       return hasExactKeys(value, REQUEST_KEYS) && isAmfProductionParams(value.method, value.params);
     case "app.snapshot":
     case "task.list":

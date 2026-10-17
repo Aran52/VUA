@@ -280,7 +280,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)}>{factory.adjust}</Button>
+        <div className="vua-n3__actions"><Button variant="subtle" disabled={busy} onClick={() => { void command("reinspect"); }}>{copy.reinspect}</Button><Button variant="subtle" onClick={() => setAdjusting(true)}>{factory.adjust}</Button>
           <Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
       </Card>}
       {run.phase === "ready" && !busy && plan === null && restorePlan === null && showDetails && <>
@@ -310,7 +310,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             </div>}</div></Card>;
         })}
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{copy.newPreparation}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{copy.newPreparation}</Button><Button variant="subtle" disabled={busy} onClick={() => { void command("reinspect"); }}>{copy.reinspect}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
           if (!port) return; setRequesting(true); setError(null);
           void port.plan(runId,selection).then(setPlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
         }}>{copy.reviewCta}</Button></div>

@@ -53,9 +53,12 @@ function SdkIssues({ issues, icon }: { issues: readonly AmfSdkIssue[]; icon: "er
 }
 
 /** The SDK panel's own checks and performance rank, grouped by what the player does next. */
-function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
+function SdkReviewBlock({ run, busy, onCheckAgain }: { run: AmfProductionRun; busy: boolean; onCheckAgain?: () => void }) {
   const view = sdkReviewView(run);
-  if (!view) return null;
+  const again = onCheckAgain && <button type="button" className="vua-release-upload__link" disabled={busy} onClick={onCheckAgain} data-nav-id="release-sdk-recheck">{sdkCopy.checkAgain}</button>;
+  // An Avatar checked before the SDK checks existed reads them at its next check.
+  if (!view) return run.result?.facts ? <section className="vua-album__block vua-sdk-review">
+    <h3>{sdkCopy.title}</h3><p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p>{again}</section> : null;
   const clear = view.mustFix.length === 0 && view.reminders.length === 0;
   return <section className="vua-album__block vua-sdk-review">
     <h3>{sdkCopy.title}</h3>
@@ -84,6 +87,7 @@ function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
       {view.notes.length > 0 && <details className="vua-sdk-review__notes"><summary>{sdkCopy.notes}</summary>
         <SdkIssues issues={view.notes} icon="question" /></details>}
     </>}
+    {again}
   </section>;
 }
 
@@ -196,7 +200,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
       <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
-    <SdkReviewBlock run={run} />
+    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
         <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}

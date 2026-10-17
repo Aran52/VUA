@@ -75,6 +75,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
 | 24 | Finer usual durations | — | when the estimates prove too rough |
+| 25 | Production records in Settings | — | |
+| 26 | VRChat Avatar list in the release room | P-02 | after the real-account checks of slice 19 |
+| 27 | Queue factory work | P-02 | |
 
 Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Familiarity
 levels. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
@@ -347,6 +350,36 @@ in the scene-pack format of the [skin system](skin-system.md).
 prove too rough, group them by project or by the number of imported assets.
 
 **Done when** the shown usual time lands within a third of the actual time for most steps.
+
+## 25 — Production records in Settings
+
+The release room's "Production records" tab lists runs and their records for diagnosis.
+
+1. Move it into Settings as debugging information; the release room keeps the album of
+   finished Avatars.
+
+**Done when** the release room shows only the album, and Settings shows the production records.
+
+## 26 — VRChat Avatar list in the release room
+
+1. With the [experimental VRChat sign-in](vrchat-account.md), the release room shows the
+   account's own Avatars: name, image, release status, platforms and last update.
+2. Finished Avatars link to their VRChat entry, and the list marks the Avatars VUA uploaded.
+
+**Done when** the author sees "AMF test1" in the list with its current state on VRChat.
+
+## 27 — Queue factory work
+
+The factory runs one Unity task at a time. Unity itself can open several projects at once;
+VUA keeps to one because each Unity run uses most of the machine and an upload uses the
+interactive Editor. Today a second request is refused while a task runs.
+
+1. Uploads and other Unity work requested while a task runs wait in a visible queue and start
+   in order; the player can remove a waiting item.
+2. Later, on machines with enough memory, work on different projects may run side by side.
+
+**Done when** an upload requested during a reinspection starts by itself when the reinspection
+ends.
 
 ## Open decisions
 

@@ -23,7 +23,8 @@ export const sdkReviewCopy = {
     allClear: "The SDK reports nothing to fix.",
     partial: "VUA read part of the SDK's checks; the SDK panel shows all of them during the upload.",
     unavailable: "The SDK panel shows its checks during the upload.",
-    notRun: "Check the work project again to read the SDK's checks.",
+    notRun: "Check the Avatar again to read the SDK's checks.",
+    checkAgain: "Check again",
     sdkWords: "The SDK says:",
     uploadWarning: "The SDK lists {count} items to fix before uploading. The upload stops at the SDK's check until they are fixed.",
     categories: {
@@ -61,7 +62,8 @@ export const sdkReviewCopy = {
     allClear: "SDK 没有发现需要修的问题。",
     partial: "VUA 读到了 SDK 的部分检查；上传时 SDK 面板会显示全部。",
     unavailable: "上传时 SDK 面板会显示它的检查结果。",
-    notRun: "重新检查工作工程后，这里会显示 SDK 的检查结果。",
+    notRun: "重新检查后，这里会显示 SDK 的检查结果。",
+    checkAgain: "重新检查",
     sdkWords: "SDK 原文：",
     uploadWarning: "SDK 列出了 {count} 个上传前要修好的问题。修好之前，上传会停在 SDK 的检查这一步。",
     categories: {
@@ -99,7 +101,8 @@ export const sdkReviewCopy = {
     allClear: "SDK が直すべき項目は見つかりませんでした。",
     partial: "VUA は SDK のチェックの一部を読み取りました。アップロード時に SDK パネルですべて確認できます。",
     unavailable: "SDK のチェック結果はアップロード時に SDK パネルに表示されます。",
-    notRun: "作業プロジェクトを再チェックすると、ここに SDK のチェック結果が表示されます。",
+    notRun: "もう一度チェックすると、ここに SDK のチェック結果が表示されます。",
+    checkAgain: "もう一度チェック",
     sdkWords: "SDK の原文：",
     uploadWarning: "SDK がアップロード前に直す項目を {count} 件挙げています。直すまで、アップロードは SDK のチェックで止まります。",
     categories: {
@@ -137,7 +140,8 @@ export const sdkReviewCopy = {
     allClear: "SDK에서 고칠 항목이 나오지 않았어요.",
     partial: "VUA가 SDK 검사의 일부를 읽었어요. 업로드할 때 SDK 패널에서 전부 볼 수 있어요.",
     unavailable: "SDK 검사 결과는 업로드할 때 SDK 패널에 표시돼요.",
-    notRun: "작업 프로젝트를 다시 확인하면 여기에 SDK 검사 결과가 표시돼요.",
+    notRun: "다시 확인하면 여기에 SDK 검사 결과가 표시돼요.",
+    checkAgain: "다시 확인",
     sdkWords: "SDK 원문:",
     uploadWarning: "SDK가 업로드 전에 고칠 항목을 {count}개 알려 줬어요. 고칠 때까지 업로드는 SDK 검사에서 멈춰요.",
     categories: {

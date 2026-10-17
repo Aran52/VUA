@@ -1,6 +1,6 @@
 # AMF interface: the Avatar factory
 
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 > Status: structure approved by the author on 2026-10-17; delivery in progress
 
 The AMF module is one factory. Materials come in, the workshop assembles them on production
@@ -26,7 +26,8 @@ what needs attention.
 | 1F | **Release** | finished Avatars, the 60-frame turntable, SDK and upload | finished count, latest |
 | 1F | **Workshop** | production lines and checks (tabs) | running / waiting / attention counts and the busiest line's stations |
 
-The sidebar lists the four rooms. Each room page has a bar with the room's plate, a way back to
+The sidebar lists the four rooms under AMF: control center, materials, workshop and release.
+Each room page has a bar with the room's plate, a way back to
 the map and its tabs. Existing page addresses stay valid; each opens its room and tab.
 
 ## A production line

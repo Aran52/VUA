@@ -1,14 +1,14 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.6.0
+> Document version: 0.8.0
 > Status: Candidate
-> Updated: 2026-10-16
+> Updated: 2026-10-17
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect` and `amf_assemble`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble` and `amf_turntable`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
@@ -63,6 +63,67 @@ work scene and its lighting stay unchanged. Images are opaque PNG files under
 `-batchmode` with a graphics device. A failed render adds the warning `amf.preview.failed` and the
 operation continues with its facts.
 
+## Turntable
+
+`amf_turntable` bakes the release turntable of the finished Avatar. It takes the same request file
+as inspection (`dryRun` false, no `expectedProjectFingerprint`), opens the saved work scene,
+observes it like inspection and renders the active owned Avatar 60 times at 512×512, camera yaw
+0° to 354° in 6° steps, with the rig and background of the three views above. The frames are
+`frame-00.png` … `frame-59.png` under `.vua/turntables/<commandId>/`, and `data.turntable` reports
+`{folder, frames: 60, size: 512}`; other operations report an empty folder with zero frames and
+size. The operation renders no previews and leaves the work scene unsaved and unchanged. A render
+failure fails the operation.
+
+The caller bakes only for a finished run whose project Unity does not hold and whose fingerprint
+matches the run's last check. It records the turntable when the observed scene fingerprint equals
+the run's, every frame is a regular PNG of at most 640 KiB inside the work project, and the folder
+is a plain command name under `.vua/turntables/`. The turntable stays bound to that scene; once
+the scene changes, the release room shows the three views and offers to bake again. Earlier
+turntable folders are removed after each bake.
+
+## Managed upload in the open Editor
+
+The official VRChat SDK builds and uploads an Avatar through its public builder API,
+`VRC.SDK3A.Editor.IVRCSdkAvatarBuilderApi.BuildAndUpload(target, avatar, thumbnailPath,
+cancellationToken)`. SDK 3.10.5 hands out the builder (`VRCSdkControlPanel.TryGetBuilder`) only
+while its control panel window is open, requires a signed-in account allowed to publish Avatars
+(`APIUser.CurrentUser.canPublishAvatars`) and shows VRChat's copyright ownership agreement inside
+that panel once per session and Avatar. Upload therefore runs in the Editor's interface, not in
+batch mode. The Bridge reaches these SDK types by reflection, so the package compiles in every
+project it is installed into.
+
+1. The player confirms the content rights statement in VUA for this upload and, for a new
+   Avatar, its name. VUA then writes `.vua/bridge/amf-upload.json`:
+   `{schemaVersion: "0.1", runId, uploadId, avatarGlobalObjectId, avatarName, thumbnail,
+   rightsConfirmed: true}`. `thumbnail` is the front preview under `.vua/previews/`.
+2. When no Editor holds the project, VUA starts Unity Hub and opens the project, as for the SDK
+   handoff. The Editor's VUA observer (interface mode only) reads the request when the run marker
+   matches, opens the work scene, selects the owned Avatar and opens the SDK control panel.
+3. The observer waits for the builder and the VRChat sign-in, which stay entirely inside the SDK
+   panel. It adds a `PipelineManager` when the Avatar has none. An Avatar without a blueprint ID
+   is a new VRChat Avatar: it gets the player's name, an empty description, private release
+   status and the front preview as thumbnail. An Avatar with a blueprint ID keeps its details on
+   VRChat, read through `VRCApi.GetAvatar`, and its thumbnail.
+4. It calls `BuildAndUpload` and writes `.vua/bridge/amf-upload.progress.json` lines
+   `{runId, uploadId, stage, progress, status}` from the builder's build and upload events. Stages
+   are `sdk_panel`, `sign_in`, `checking`, `building`, `uploading` and `finishing`; VUA adds
+   `starting` before the Editor answers. `progress` is the upload share from 0 to 1, or -1.
+5. It ends with one `.vua/bridge/amf-upload.result.json`: `{runId, uploadId, outcome, blueprintId,
+   reason, detail, errors, firstUpload, sceneSaved}`. `outcome` is `succeeded`, `failed` or
+   `cancelled`. `reason` names why an upload did not succeed: `sign_in_required`,
+   `no_publish_permission`, `validation` (with the SDK's `errors`), `ownership`,
+   `agreement_declined`, `build`, `build_blocked`, `upload`, `thumbnail_missing`, `avatar_missing`,
+   `scene_not_saved`, `interrupted`, `editor_unavailable`, `timeout`, `cancelled` or `unknown`;
+   `detail` carries the SDK's own message. After a first upload the SDK writes the new blueprint ID
+   into the scene, and the observer saves the work scene so later uploads update the same Avatar.
+
+Stop writes `.vua/bridge/amf-upload.cancel` with the upload ID; the observer cancels the SDK's
+token and answers `cancelled`. A domain reload ends a running upload: the observer remembers the
+started upload in `.vua/bridge/amf-upload.started` and answers `interrupted` instead of building it
+twice. VUA accepts only answers bound to its run and upload ID, of at most 256 KiB, and a success
+only with a VRChat Avatar ID of the form `avtr_<uuid>`. It waits up to 10 minutes for the Editor to
+pick up the request and up to 90 minutes in all.
+
 Requests and results are atomically written under the controlled Bridge directory. File hash,
 run binding, exact Editor pair, allowed operations and path containment are checked by Unity.
 The caller additionally validates schema version, operation, command identity and receipt status.
@@ -71,6 +132,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA. Numbered after 0.7.0 of the parallel progress-and-stop change.
 - 0.6.0 (2026-10-16): render the active Avatar from three sides after inspection and assembly, and each prefab candidate during inspection.
 - 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.
 - 0.4.0 (2026-10-15): bind Recipe application to observed Avatar identities, support independent same-scene Avatar scopes, and observe retained Avatars separately.

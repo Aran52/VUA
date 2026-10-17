@@ -61,6 +61,11 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-apply-cancel-command.json"),
         read("examples/invalid-apply-empty-avatar.json"),
         read("examples/invalid-preview-path.json"),
+        read("examples/invalid-upload-unconfirmed.json"),
+        read("examples/invalid-upload-as-query.json"),
+        read("examples/invalid-upload-name.json"),
+        read("examples/invalid-turntable-frame-index.json"),
+        read("examples/invalid-bake-turntable-query.json"),
     ];
     let mut lines = String::new();
     for (index, case) in cases.iter().enumerate() {

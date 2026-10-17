@@ -14,6 +14,8 @@ use vua_orchestrator::{
 };
 use vua_unity_bridge::UnityBatchBridge;
 
+mod release_handoff;
+
 pub struct NativeAmfProduction {
     pub bdl: Arc<BdlStore>,
     pub root: PathBuf,
@@ -934,6 +936,15 @@ impl AmfProductionPlatform for NativeAmfProduction {
             "sdk_handoff_timeout",
             "Unity has not confirmed Avatar selection and SDK panel opening.",
         ))
+    }
+    fn turntable(&self, run: &ProductionRun) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge(run, UnityOperation::AmfTurntable, None)
+    }
+    fn upload(&self, run: &ProductionRun, request: &UploadRequest, ctx: &TaskContext, progress: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
+        release_handoff::upload(self, run, request, ctx, progress)
+    }
+    fn editor_open(&self, project: &Path) -> bool {
+        editor_holds_project(project)
     }
 }
 

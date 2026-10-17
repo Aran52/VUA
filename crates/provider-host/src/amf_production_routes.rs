@@ -98,6 +98,9 @@ fn route(
     method: &str,
     request: &Value,
 ) -> Result<Value, vua_orchestrator::AppErrorV1> {
+    if let Some(result) = super::amf_release_routes::route(&service, method, request) {
+        return result;
+    }
     let query = matches!(
         method,
         "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage"

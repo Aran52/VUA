@@ -25,7 +25,8 @@
       "enum": [
         "amf_prepare",
         "amf_inspect",
-        "amf_assemble"
+        "amf_assemble",
+        "amf_turntable"
       ]
     },
     "status": {
@@ -132,7 +133,7 @@
               },
               "path": {
                 "type": "string",
-              "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
+                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
               },
               "name": {
                 "type": "string",
@@ -187,7 +188,7 @@
               },
               "prefabPath": {
                 "type": "string",
-              "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
+                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
               },
               "globalObjectId": {
                 "type": "string",
@@ -225,6 +226,33 @@
         "missingReferences": {
           "type": "integer",
           "minimum": 0
+        },
+        "turntable": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "folder",
+            "frames",
+            "size"
+          ],
+          "properties": {
+            "folder": {
+              "type": "string",
+              "pattern": "^(|\\.vua/turntables/[A-Za-z0-9][A-Za-z0-9_-]{0,159})$"
+            },
+            "frames": {
+              "enum": [
+                0,
+                60
+              ]
+            },
+            "size": {
+              "enum": [
+                0,
+                512
+              ]
+            }
+          }
         }
       }
     }

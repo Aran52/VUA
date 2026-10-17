@@ -26,7 +26,19 @@ export async function launchAmfEditor(provider: OrchestratorProviderV01, runId: 
   });
   if (!success) {
     fs.writeFileSync(path.join(run.projectRoot,".vua","bridge","amf-open.result.json"),JSON.stringify({schemaVersion:"0.1",runId,avatarSelected:false,sdkPanelRequested:false}));
+    failUpload(run.projectRoot, runId);
   }
+}
+
+/** A pending managed upload ends at once when Unity cannot start, so the release room shows why. */
+function failUpload(projectRoot: string, runId: string): void {
+  const bridge = path.join(projectRoot,".vua","bridge");
+  let request: unknown;
+  try { request = JSON.parse(fs.readFileSync(path.join(bridge,"amf-upload.json"),"utf8")); } catch { return; }
+  if (!request || typeof request !== "object" || (request as Record<string,unknown>).runId !== runId) return;
+  const uploadId = (request as Record<string,unknown>).uploadId;
+  if (typeof uploadId !== "string" || !/^[A-Za-z0-9-]{1,100}$/u.test(uploadId)) return;
+  fs.writeFileSync(path.join(bridge,"amf-upload.result.json"),JSON.stringify({schemaVersion:"0.1",runId,uploadId,outcome:"failed",reason:"editor_unavailable",detail:"Unity could not start.",errors:[]}));
 }
 
 export function editorEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {

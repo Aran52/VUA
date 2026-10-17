@@ -28,7 +28,8 @@
       "enum": [
         "amf_prepare",
         "amf_inspect",
-        "amf_assemble"
+        "amf_assemble",
+        "amf_turntable"
       ]
     },
     "dryRun": {

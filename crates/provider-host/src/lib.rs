@@ -32,4 +32,5 @@ mod network_routes;
 mod amf_production_adapter;
 mod unity_hub;
 mod amf_production_routes;
+mod amf_release_routes;
 mod scenario_routes;

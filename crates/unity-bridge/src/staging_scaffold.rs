@@ -24,6 +24,8 @@ pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
     ("Editor/Amf.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.Release.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Release.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.Release.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Release.cs.meta")),
 ];
 
 pub const MA_STUB_PACKAGE_JSON: &str =

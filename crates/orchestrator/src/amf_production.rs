@@ -9,6 +9,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+mod release;
+pub use release::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SourceChoice {
@@ -226,6 +229,16 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1>;
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
         -> Result<serde_json::Value, AppErrorV1>;
+    /// Bakes the 60-frame turntable of the assembled Avatar into the work project.
+    fn turntable(&self, _: &ProductionRun) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("turntable_unavailable", "Turntable baking is unavailable on this platform."))
+    }
+    /// Hands one build-and-upload to the official VRChat SDK in the open Editor and waits for its receipt.
+    fn upload(&self, _: &ProductionRun, _: &UploadRequest, _: &TaskContext, _: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
+        Err(production_error("upload_unavailable", "Managed upload is unavailable on this platform."))
+    }
+    /// Whether a Unity Editor holds the work project now.
+    fn editor_open(&self, _: &Path) -> bool { false }
 }
 
 pub struct AmfProductionEngine {

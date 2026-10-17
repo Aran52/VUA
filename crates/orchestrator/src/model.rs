@@ -79,6 +79,8 @@ pub enum UnityOperation {
     AmfPrepare,
     AmfInspect,
     AmfAssemble,
+    /// Bakes the 60-frame turntable of the assembled AMF Avatar into the work project (v5).
+    AmfTurntable,
 }
 
 impl UnityOperation {
@@ -95,6 +97,7 @@ impl UnityOperation {
                 | Self::BuildPreview
                 | Self::AmfPrepare
                 | Self::AmfAssemble
+                | Self::AmfTurntable
         )
     }
 }

@@ -261,5 +261,6 @@ fn label(operation: UnityOperation) -> &'static str {
         UnityOperation::AmfPrepare => "Prepare AMF work scene",
         UnityOperation::AmfInspect => "Inspect AMF material candidates",
         UnityOperation::AmfAssemble => "Assemble AMF Avatar",
+        UnityOperation::AmfTurntable => "Bake the AMF Avatar turntable",
     }
 }

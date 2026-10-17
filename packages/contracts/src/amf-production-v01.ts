@@ -41,8 +41,8 @@ export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "s
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
-/** Stages of a Unity batch run, read from the Editor log. The set is closed. */
-export const AMF_UNITY_STAGES = ["starting", "license", "packages", "importing", "compiling", "bridge", "previews", "finishing"] as const;
+/** Stages of a Unity batch run, read from the Editor log, plus `fingerprint`: VUA's own project-file check after the Editor exits. The set is closed. */
+export const AMF_UNITY_STAGES = ["starting", "license", "packages", "importing", "compiling", "bridge", "previews", "finishing", "fingerprint"] as const;
 export type AmfUnityStage = typeof AMF_UNITY_STAGES[number];
 /** Unity's live progress: its stage, imported work-project assets and its last log activity. No log text or paths. */
 export interface AmfUnityProgress { readonly stage: AmfUnityStage; readonly current?: number; readonly total?: number; readonly lastActivityAt: string }

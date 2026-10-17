@@ -103,8 +103,9 @@ pub use environment::{
     EMBEDDED_VRC_GET_VPM_VERSION,
 };
 pub use filesystem::{
-    project_tree_fingerprint, FileSystemProjectStore, FileSystemSnapshotStore,
-    SnapshotManifestEntry, SnapshotManifestV1, VerifiedSnapshot,
+    project_tree_fingerprint, project_tree_fingerprint_cached, FileSystemProjectStore,
+    FileSystemSnapshotStore, SnapshotManifestEntry, SnapshotManifestV1, VerifiedSnapshot,
+    FINGERPRINT_V1_PREFIX, FINGERPRINT_V2_PREFIX,
 };
 pub use journal::{
     recover_from_journal, JournalEntryKind, JournalEntryV1, JournalError, JournalPayload,

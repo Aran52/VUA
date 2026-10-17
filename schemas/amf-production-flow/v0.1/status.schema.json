@@ -190,7 +190,8 @@
             "compiling",
             "bridge",
             "previews",
-            "finishing"
+            "finishing",
+            "fingerprint"
           ]
         },
         "current": {

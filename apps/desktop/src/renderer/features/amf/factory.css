@@ -17,7 +17,7 @@ button.vua-factory__alert { cursor: pointer; }
   background-image: linear-gradient(var(--vua-factory-grid) 1px, transparent 1px), linear-gradient(90deg, var(--vua-factory-grid) 1px, transparent 1px);
   background-size: 24px 24px;
 }
-.vua-factory__building { position: relative; display: grid; gap: 14px; padding: 18px 18px 18px 52px; transform-origin: 0 0; transition: transform 560ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.vua-factory__building { position: relative; display: grid; gap: 14px; padding: 18px 18px 18px 52px; transform-origin: 0 0; will-change: transform; }
 .vua-factory__floor { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 14px; }
 .vua-factory__floor::before {
   content: attr(data-floor) "F"; position: absolute; inset-inline-start: -40px; top: 6px;
@@ -38,14 +38,15 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__room[data-room="workshop"] { --room: var(--vua-orange); }
 .vua-factory__room[data-room="control"] { --room: var(--vua-purple); }
 .vua-factory__room[data-room="release"] { --room: var(--vua-success); }
-.vua-factory__scene { position: absolute; inset: 52px 14px 10px 40%; display: flex; align-items: flex-end; opacity: 0.32; transition: opacity 400ms, inset 400ms; pointer-events: none; }
-.vua-factory__room[data-wide] .vua-factory__scene { inset-inline-start: 56%; }
-.vua-factory__label { position: relative; z-index: 1; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 6px; height: 100%; box-sizing: border-box; padding: 16px 18px 14px 22px; transition: opacity 300ms; }
+.vua-factory__scene { position: absolute; inset: 0; opacity: 0.85; transition: opacity 400ms; pointer-events: none; }
+.vua-factory__canvas { display: block; }
+.vua-factory__label { position: relative; z-index: 1; background: linear-gradient(90deg, color-mix(in srgb, var(--vua-bg-panel) 94%, transparent) 0, color-mix(in srgb, var(--vua-bg-panel) 80%, transparent) 46%, transparent 72%); display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 6px; height: 100%; box-sizing: border-box; padding: 16px 18px 14px 22px; transition: opacity 300ms; }
 
 .vua-factory__viewport[data-zoomed] .vua-factory__room { cursor: pointer; }
-.vua-factory__viewport[data-zoomed] .vua-factory__room:not([data-zoomed]) { opacity: 0.25; }
+.vua-factory__viewport[data-zoomed] .vua-factory__room:not([data-zoomed]) { opacity: 0.5; }
 .vua-factory__viewport[data-zoomed] .vua-factory__label { opacity: 0; pointer-events: none; }
-.vua-factory__room[data-zoomed] .vua-factory__scene { inset: 46px 12px 6px 12px; opacity: 1; }
+.vua-factory__viewport[data-zoomed] .vua-factory__floor::before { opacity: 0; }
+.vua-factory__room[data-zoomed] .vua-factory__scene { opacity: 1; }
 .vua-factory__room[data-zoomed] { cursor: default; }
 
 .vua-factory__plate { display: flex; align-items: center; justify-content: space-between; color: var(--room); }
@@ -72,34 +73,19 @@ button.vua-factory__alert { cursor: pointer; }
 @keyframes vua-factory-panel { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 .vua-factory__tip { margin: 0; }
 
-/* Interiors */
-.vua-interior { width: 100%; height: 100%; overflow: visible; }
-.vua-interior__floor { stroke: var(--vua-border-strong); stroke-width: 2; }
-.vua-interior__line { fill: var(--vua-border-strong); }
-.vua-interior__surface { fill: var(--vua-text-secondary); }
-.vua-interior__wall { fill: color-mix(in srgb, var(--room) 12%, var(--vua-bg-elevated)); stroke: var(--room); stroke-width: 1.5; }
-.vua-interior__graph line { stroke: var(--room); stroke-width: 1.5; opacity: 0.7; }
-.vua-interior__graph circle { fill: var(--room); }
-.vua-interior__screen { fill: color-mix(in srgb, var(--room) 35%, var(--vua-bg-elevated)); stroke: var(--room); stroke-width: 1.5; animation: vua-interior-blink 3.2s ease-in-out infinite; }
-.vua-interior__chair { fill: none; stroke: var(--vua-text-secondary); stroke-width: 3; stroke-linecap: round; }
-.vua-interior__box { fill: color-mix(in srgb, var(--room) 45%, var(--vua-bg-elevated)); stroke: var(--room); stroke-width: 1.2; }
-.vua-interior__curtain { fill: color-mix(in srgb, var(--room) 30%, var(--vua-bg-elevated)); }
-.vua-interior__light { fill: var(--room); opacity: 0.14; }
-.vua-interior__figure { fill: var(--vua-text-secondary); }
-.vua-interior__stage { fill: color-mix(in srgb, var(--room) 25%, var(--vua-bg-elevated)); stroke: var(--room); stroke-width: 1.5; }
-.vua-interior__machine > rect:first-child { fill: var(--vua-bg-elevated); stroke: var(--vua-border-strong); stroke-width: 1.5; }
-.vua-interior__machine text { fill: var(--vua-text-secondary); font-size: 10px; }
-.vua-interior__lamp { fill: var(--vua-border-strong); }
-.vua-interior__machine[data-state="done"] .vua-interior__lamp { fill: var(--vua-success); }
-.vua-interior__machine[data-state="running"] .vua-interior__lamp { fill: var(--vua-accent); animation: vua-interior-blink 1s ease-in-out infinite; }
-.vua-interior__machine[data-state="waiting"] .vua-interior__lamp { fill: var(--vua-warning); }
-.vua-interior__machine[data-state="failed"] .vua-interior__lamp { fill: var(--vua-error); }
-.vua-interior__machine[data-state="running"] > rect:first-child { stroke: var(--vua-accent); }
-.vua-interior__belt { fill: var(--vua-bg-elevated); stroke: var(--vua-border-strong); stroke-width: 1.5; }
-.vua-interior__belt-flow { stroke: var(--vua-text-secondary); stroke-width: 2; stroke-dasharray: 6 10; }
-.vua-interior[data-running] .vua-interior__belt-flow { animation: vua-interior-belt 900ms linear infinite; }
-@keyframes vua-interior-blink { 50% { opacity: 0.55; } }
-@keyframes vua-interior-belt { to { stroke-dashoffset: -16; } }
+/* Doors to the neighboring rooms while zoomed. */
+.vua-factory__door { --room: var(--vua-accent); position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--room); background: color-mix(in srgb, var(--vua-bg-panel) 90%, transparent); color: var(--vua-text-strong); font: inherit; font-size: var(--vua-font-caption); font-weight: 650; cursor: pointer; animation: vua-factory-panel 300ms 300ms both ease-out; }
+.vua-factory__door:hover { background: var(--room); color: var(--vua-on-status); }
+.vua-factory__door:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-factory__door[data-room="materials"] { --room: var(--vua-info); }
+.vua-factory__door[data-room="workshop"] { --room: var(--vua-orange); }
+.vua-factory__door[data-room="control"] { --room: var(--vua-purple); }
+.vua-factory__door[data-room="release"] { --room: var(--vua-success); }
+.vua-factory__door[data-direction="left"] { inset-inline-start: 10px; top: 50%; translate: 0 -50%; }
+.vua-factory__door[data-direction="right"] { inset-inline-end: 10px; top: 50%; translate: 0 -50%; flex-direction: row-reverse; }
+.vua-factory__door[data-direction="up"] { inset-inline-end: 14px; top: 92px; }
+.vua-factory__door[data-direction="down"] { left: 50%; bottom: 10px; translate: -50% 0; }
+
 
 .vua-factory__counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--vua-font-caption); }
 .vua-factory__counts [data-tone="running"] { color: var(--vua-accent); }
@@ -122,10 +108,9 @@ button.vua-factory__alert { cursor: pointer; }
   .vua-factory__building { padding-inline-start: 18px; }
   .vua-factory__floor::before { display: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .vua-factory__room, .vua-factory__building, .vua-factory__scene { transition: none; }
-  .vua-factory__panel, .vua-interior__screen, .vua-interior__lamp, .vua-interior__belt-flow { animation: none !important; }
-}
+/* Resource-saving mode holds the factory still: scenes draw one frame and the camera cuts. */
+[data-effects="off"] .vua-factory__room, [data-effects="off"] .vua-factory__scene { transition: none; }
+[data-effects="off"] .vua-factory__panel, [data-effects="off"] .vua-factory__door { animation: none; }
 
 /* Room frame: the room's plate and its tabs above the pages it holds. */
 .vua-room { --room: var(--vua-accent); display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin-inline: auto; }

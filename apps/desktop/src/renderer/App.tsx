@@ -561,6 +561,11 @@ function renderPage(
       return (
         <ExperimentalSettingsPage />
       );
+    case "settings-debug":
+      return amf.installed && amf.state === "ready"
+        ? <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<p role="status">{format(strings.amfModule.loading, { amf: TERMS.amf })}</p>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>
+        : <div className="vua-page"><section className="vua-page__hero"><h1 className="vua-title">{strings.nav.pages.settingsDebug}</h1>
+          <p className="vua-text-secondary">{strings.settings.debug.unavailable}</p></section></div>;
     case "settings-about":
       return <AboutPage />;
   }

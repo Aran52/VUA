@@ -18,6 +18,7 @@ import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedP
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
 import { assemblesWithoutAsking, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
 import "./factory.css";
+import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
 import { formatDuration, lineLabels } from "./factory-model.ts";
 
@@ -259,9 +260,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <h1 className="vua-title">{lineName(run.sources.map(source => source.itemName)) || run.runId}</h1>
         {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
         {status && <StatusChip status={status}/>}
-        <label className="vua-line__level">{factory.automation}<select value={effective} onChange={e => chooseLevel(e.target.value as AutomationLevel)}>
-          {AUTOMATION_LEVELS.map(option => <option key={option} value={option}>{factory.levels[option].name}</option>)}</select>
-          <small className="vua-caption vua-text-secondary">{factory.levels[effective].hint}</small></label>
+        <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
       {states && <ol className="vua-line__stations" aria-label={factory.stations[currentStation(states)]}>{STATIONS.map(key => <li key={key} className="vua-line__station" data-state={states[key]} aria-current={currentStation(states) === key ? "step" : undefined}>
         <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>

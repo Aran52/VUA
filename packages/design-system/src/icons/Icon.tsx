@@ -35,7 +35,10 @@ export type IconName =
   | "home"
   | "bell"
   | "gauge"
-  | "add";
+  | "add"
+  | "hand"
+  | "square-check"
+  | "shield";
 
 const paths: Record<IconName, string> = {
   file: "M6 3h8l4 4v14H6ZM14 3v5h4M9 12h6M9 16h6",
@@ -76,6 +79,10 @@ const paths: Record<IconName, string> = {
   gauge: "M3.5 17.5a9 9 0 1 1 17 0 M12 13.5l3.6-4.8 M12 16.8v.5",
   // 标准加号(部署页网站测试的「添加网站」入口)
   add: "M12 5v14M5 12h14",
+  // Permission modes (AMF workshop): an open hand asks first, a checked box runs routine steps, a shield runs everything
+  hand: "M8.5 12V5.75a1.25 1.25 0 0 1 2.5 0V11M11 11V4.25a1.25 1.25 0 0 1 2.5 0V11M13.5 11V5.25a1.25 1.25 0 0 1 2.5 0v6.25M16 11.5V7.75a1.25 1.25 0 0 1 2.5 0V15a6 6 0 0 1-6 6h-1a5.5 5.5 0 0 1-4.6-2.5L4.3 14.3a1.3 1.3 0 0 1 2-1.7L8.5 15v-3",
+  "square-check": "M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4ZM8.5 12.2l2.5 2.5 4.8-5",
+  shield: "M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6L12 3Z",
 };
 
 export interface IconProps {

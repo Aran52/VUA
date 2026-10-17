@@ -56,15 +56,17 @@ detail under "Details". A license failure links to the Unity sign-in and license
 
 The workshop works like an AI agent's permission modes (author ruling, 2026-10-18): the player
 chooses how much to hand over, whatever their experience with Unity. All three modes share one
-layout; they differ in where the line stops. The mode menu on each line lists them in this order:
+layout; they differ in where the line stops. Each line shows its mode as a button with the mode's
+icon and name; the button opens a card below it that lists the three modes, each with a line icon,
+its name and one line of explanation, and a check mark at the right of the mode in effect:
 
 | Mode | Stops at |
 | --- | --- |
-| Ask before changes (default) | every station; each change to the Avatar waits for the player's OK |
-| Decide on its own | the assembly plan and the quality check |
-| Full access | nowhere; a prepared line that was never assembled assembles by itself |
+| Manual review, hand icon (default) | every station; each step and plan waits for the player's OK |
+| Default auto, checked box | the assembly plan and the release check |
+| Full auto, shield | nowhere; a prepared line that was never assembled assembles by itself |
 
-Choosing full access first explains that VUA will change the work project without asking and
+Choosing full auto first explains that VUA will change the work project without asking and
 that this can mess up the Avatar; a restore point before each assembly lets the workshop bring it
 back. Uploads to VRChat ask in every mode.
 

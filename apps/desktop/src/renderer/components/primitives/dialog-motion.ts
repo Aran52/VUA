@@ -16,8 +16,9 @@ const milliseconds = (value: string, fallback: number) => {
 const canAnimate = (element: HTMLElement | null): element is HTMLElement =>
   element !== null && typeof element.animate === "function";
 
-/** Whether to render the dialog: it stays on screen while it moves out after `open` turns false. */
-export function useDialogMotion(open: boolean, overlay: RefObject<HTMLElement | null>, panel: RefObject<HTMLElement | null>): boolean {
+/** Whether to render the dialog: it stays on screen while it moves out after `open` turns false.
+ * `rise` is how far the panel travels in pixels: positive rises from below, negative drops from above. */
+export function useDialogMotion(open: boolean, overlay: RefObject<HTMLElement | null>, panel: RefObject<HTMLElement | null>, rise = 14): boolean {
   const [shown, setShown] = useState(open);
   if (open && !shown) setShown(true);
 
@@ -26,12 +27,12 @@ export function useDialogMotion(open: boolean, overlay: RefObject<HTMLElement | 
     const duration = milliseconds(token("--vua-motion-base", "300ms"), 300);
     const easing = token("--vua-motion-ease", "ease-out");
     const fade = overlay.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration, easing });
-    const rise = panel.current.animate(
-      [{ opacity: 0, transform: "translateY(14px) scale(0.97)" }, { opacity: 1, transform: "none" }],
+    const lift = panel.current.animate(
+      [{ opacity: 0, transform: `translateY(${rise}px) scale(0.97)` }, { opacity: 1, transform: "none" }],
       { duration, easing },
     );
-    return () => { fade?.cancel(); rise.cancel(); };
-  }, [open, overlay, panel]);
+    return () => { fade?.cancel(); lift.cancel(); };
+  }, [open, overlay, panel, rise]);
 
   useEffect(() => {
     if (open || !shown) return;
@@ -40,7 +41,7 @@ export function useDialogMotion(open: boolean, overlay: RefObject<HTMLElement | 
     const options = { duration, easing: "ease-in", fill: "forwards" as const };
     const fade = overlay.current?.animate([{ opacity: 1 }, { opacity: 0 }], options);
     const sink = panel.current.animate(
-      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(8px) scale(0.98)" }],
+      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translateY(${Math.round(rise / 2)}px) scale(0.98)` }],
       options,
     );
     let active = true;
@@ -48,7 +49,7 @@ export function useDialogMotion(open: boolean, overlay: RefObject<HTMLElement | 
     sink.finished.then(done, done);
     // Opening again while moving out keeps the dialog and drops the exit.
     return () => { active = false; fade?.cancel(); sink.cancel(); };
-  }, [open, shown, overlay, panel]);
+  }, [open, shown, overlay, panel, rise]);
 
   return shown;
 }

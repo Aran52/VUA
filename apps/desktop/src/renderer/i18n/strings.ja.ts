@@ -9,6 +9,7 @@ import { amfProductionCopy } from "./amf-production-copy.ts";
 import { factoryCopy } from "./factory-copy.ts";
 import { controlCenterCopy } from "./control-center-copy.ts";
 import { releaseRoomCopy } from "./release-room-copy.ts";
+import { sdkReviewCopy } from "./sdk-review-copy.ts";
 import { aiToolsCopy } from "./ai-tools-copy.ts";
 import { scenarioCopy } from "./scenario-copy.ts";
 import { unityLicenseCopy } from "./unity-license-copy.ts";
@@ -36,6 +37,7 @@ export const strings: Strings = {
   factory: factoryCopy.ja,
   controlCenter: controlCenterCopy.ja,
   releaseRoom: releaseRoomCopy.ja,
+  sdkReview: sdkReviewCopy.ja,
   aiTools: aiToolsCopy.ja,
   scenarioEnvironment: scenarioCopy.ja,
   unityLicense: unityLicenseCopy.ja,

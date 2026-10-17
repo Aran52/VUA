@@ -18,6 +18,16 @@ describe("AMF production response boundary", () => {
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,observedSelection:{...selection,outfits:[{...selection.outfits[0],active:"false"}]}}}})).toBe(false);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,hasMissingScripts:"none"}}})).toBe(false);
   });
+  it("accepts the SDK's own checks only in their published shape", () => {
+    const sdkReview = { state: "checked", platform: "pc", overall: "Poor", detail: "",
+      issues: [{ level: "error", text: "This avatar has no pipeline manager component.", canFix: true }],
+      stats: [{ category: "BoneCount", rating: "Poor", text: "Bones: 300" }] };
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,sdkReview}}})).toBe(true);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,sdkReview:{...sdkReview,overall:"None",state:"unavailable"}}}})).toBe(true);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,sdkReview:{...sdkReview,state:"done"}}}})).toBe(false);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,sdkReview:{...sdkReview,stats:[{category:"BoneCount",rating:"Bad",text:""}]}}}})).toBe(false);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,sdkReview:{...sdkReview,issues:[{level:"error",text:"x",canFix:"yes"}]}}}})).toBe(false);
+  });
   it("accepts previews only inside the work project's preview folder", () => {
     const previews = [{view:"front",path:".vua/previews/n3-test-1/front.png"},{view:"side",path:".vua/previews/n3-test-1/side.png"}];
     const prefab = {sourceId:"coat",path:"Assets/Coat.prefab",name:"Coat",isAvatar:false,hasSkinnedMesh:true,hasMergeArmature:true,hasMissingScripts:false,humanoidBones:[]};

@@ -61,6 +61,7 @@ namespace Vua.Editor.Bridge
             public string sdkSignedIn = "unknown";
             public List<PreviewImage> previews = new List<PreviewImage>();
             public TurntableFacts turntable = new TurntableFacts();
+            public SdkReview sdkReview = new SdkReview();
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -161,6 +162,8 @@ namespace Vua.Editor.Bridge
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.shaders.missing", result.data.missingShaderMaterials.Count + " materials use a shader that is not in the project."));
             if (command.operation == "amf_assemble" && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
+            if (command.operation == "amf_inspect" || command.operation == "amf_assemble")
+                result.data.sdkReview = ReviewWithSdk(string.IsNullOrEmpty(result.data.avatarGlobalObjectId) ? null : FindOwned(result.data.avatarGlobalObjectId));
             result.data.projectFingerprint = ProjectFingerprint.Compute();
             if (command.operation == "amf_turntable") BakeTurntable(command, result, root);
             else if (command.operation != "amf_prepare") RenderPreviews(command, result, root);

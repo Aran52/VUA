@@ -194,6 +194,7 @@
 .vua-release-dialog__fields { display: grid; align-content: start; gap: 14px; }
 .vua-release-dialog__fields p { margin: 0; }
 .vua-release-dialog__ai { padding: 6px var(--vua-space-2); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--room) 10%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
+.vua-release-dialog__sdk { margin: 0; padding: 6px var(--vua-space-2); border-inline-start: 3px solid var(--vua-error); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--vua-error) 8%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
 .vua-release-dialog__name { display: grid; gap: 6px; }
 .vua-release-dialog__name small { font: var(--vua-font-caption); }
 .vua-release-dialog__name input { min-height: var(--vua-control-height); padding: 6px var(--vua-space-2); border: 1px solid var(--vua-border-strong); border-radius: var(--vua-radius-control); background: var(--vua-bg-canvas); color: var(--vua-text-strong); font: var(--vua-font-body); }
@@ -242,3 +243,20 @@
 .vua-vrchat-check dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px var(--vua-space-2); margin: 0; }
 .vua-vrchat-check dt { color: var(--vua-text-secondary); }
 .vua-vrchat-check dd { margin: 0; color: var(--vua-text-strong); overflow-wrap: anywhere; }
+
+/* The VRChat SDK's own checks and performance rank. */
+.vua-sdk-review { display: grid; gap: var(--vua-space-3); }
+.vua-sdk-review__rank { display: flex; align-items: flex-start; gap: var(--vua-space-2); padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-panel); }
+.vua-sdk-review__rank > span { display: grid; gap: 2px; font: var(--vua-font-body); }
+.vua-sdk-review__rank small, .vua-sdk-review li small { display: block; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-sdk-review__rank[data-rating="Excellent"] svg, .vua-sdk-review__rank[data-rating="Good"] svg { color: var(--vua-success); }
+.vua-sdk-review__rank[data-rating="Medium"] svg, .vua-sdk-review__rank[data-rating="Poor"] svg { color: var(--vua-warning); }
+.vua-sdk-review__rank[data-rating="VeryPoor"] svg { color: var(--vua-error); }
+.vua-sdk-review__group { display: grid; gap: var(--vua-space-1); }
+.vua-sdk-review__group h4 { margin: 0; font: var(--vua-font-body); font-weight: 650; }
+.vua-sdk-review__group p { margin: 0; }
+.vua-sdk-review__group[data-group="must-fix"] svg, .vua-sdk-review li[data-rating="VeryPoor"] svg { color: var(--vua-error); }
+.vua-sdk-review__clear { display: flex; align-items: center; gap: var(--vua-space-2); margin: 0; font: var(--vua-font-caption); }
+.vua-sdk-review__clear svg { color: var(--vua-success); }
+.vua-sdk-review__notes summary { cursor: pointer; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-sdk-review__notes .vua-album__checks { margin-top: var(--vua-space-2); }

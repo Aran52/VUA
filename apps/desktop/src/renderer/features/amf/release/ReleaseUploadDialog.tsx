@@ -7,7 +7,7 @@ import { format, strings } from "../../../i18n/index.ts";
 
 const copy = strings.releaseRoom;
 
-export function ReleaseUploadDialog({ proposedName, avatarId, picture, requestedByAi, error, starting, onConfirm, onClose }: {
+export function ReleaseUploadDialog({ proposedName, avatarId, picture, requestedByAi, error, starting, sdkMustFix = 0, onConfirm, onClose }: {
   proposedName: string;
   /** The VRChat Avatar this upload updates, when an earlier upload created it. */
   avatarId: string | null;
@@ -15,6 +15,8 @@ export function ReleaseUploadDialog({ proposedName, avatarId, picture, requested
   requestedByAi: boolean;
   error: ReactNode;
   starting: boolean;
+  /** Items the SDK listed to fix before uploading, at the workshop's last check. */
+  sdkMustFix?: number;
   onConfirm: (confirmation: AiUploadConfirmationV01) => void;
   onClose: () => void;
 }) {
@@ -28,6 +30,7 @@ export function ReleaseUploadDialog({ proposedName, avatarId, picture, requested
       <div className="vua-release-dialog__picture">{picture}</div>
       <div className="vua-release-dialog__fields">
         {requestedByAi && <p className="vua-release-dialog__ai">{copy.dialog.requestedByAi}</p>}
+        {sdkMustFix > 0 && <p className="vua-release-dialog__sdk" role="note">{format(strings.sdkReview.uploadWarning, { count: String(sdkMustFix) })}</p>}
         {avatarId === null ? <label htmlFor={nameId} className="vua-release-dialog__name">
           <span>{copy.dialog.name}</span>
           <input id={nameId} value={name} maxLength={128} onChange={event => setName(event.target.value)} aria-describedby={`${nameId}-hint`} />

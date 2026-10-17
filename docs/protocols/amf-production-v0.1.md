@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.12.0
+> Document version: 0.13.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -111,14 +111,15 @@ each file's sorted path, length and content hash and carries the prefix
 The cache lives in `.vua/fingerprint-cache.json` inside the work project, outside the
 fingerprinted scopes. It names its `version`, is written atomically (`.pending`, then
 rename) and bounded in size; a missing, damaged, future-version or oversized cache
-counts as no cache. The value never depends on the cache: a changed file's content,
-size, or an added, deleted or renamed file always moves it, and the cache only decides
-whether a file's bytes are read.
+counts as no cache. The cache decides only whether a file's bytes are read again: a file
+is re-read when its size or modification time differs from its cached entry, and every
+write moves the modification time on NTFS, where work projects live. An added, deleted or
+renamed file always moves the value.
 
 A run record that still carries a v1 value is compared by computing v1 once for that
 comparison; an unchanged project is never reported as changed because the algorithm
-moved on. Once the record matches, it is rewritten with the v2 value, so the legacy
-scan happens at most once per record.
+moved on. Once the record matches, saving a Recipe, assembly and the next check rewrite it
+with the v2 value; until then the turntable and upload checks repeat the v1 comparison.
 
 ## Facts and recovery
 
@@ -237,6 +238,11 @@ upload still marked running when a new one starts ended with VUA and reads `inte
 VRChat sign-in and the SDK's own ownership agreement stay inside the SDK; VUA reports only
 `sdkSignedIn` from its facts. An AI Agent requests an upload as a pending request that the player
 approves on the release page with the same rights confirmation (see [AI tools](ai-tools-v0.1.md)).
+The release page shows the SDK's own checks of the finished Avatar from the run facts
+(`sdkReview`, read by [Bridge v5](unity-bridge-v5.md) during inspection and assembly): the
+performance rank for the build target, the items the SDK refuses an upload with, its reminders,
+and the categories rated below Good. The upload confirmation names how many items the SDK
+refuses an upload with; the SDK's own check during the upload decides.
 
 ## Unity producing face
 
@@ -264,9 +270,10 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
-- 0.12.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
+- 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
+- 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.
 - 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
-- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.9.0 of the parallel progress-and-stop change.
+- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.
 - 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
 - 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
 - 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.

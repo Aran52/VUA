@@ -37,8 +37,24 @@ export interface AmfProductionRun {
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
     readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
-    readonly previews?: readonly AmfPreviewImage[] };
+    readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview };
     readonly diagnostics?: readonly { readonly code: string; readonly severity: string; readonly message: string }[] } | null;
+}
+/** VRChat SDK performance ratings, best first. */
+export const AMF_SDK_RATINGS = ["Excellent", "Good", "Medium", "Poor", "VeryPoor"] as const;
+export type AmfSdkRating = (typeof AMF_SDK_RATINGS)[number];
+/** One item of the SDK panel's own Avatar checks, in the SDK's words. */
+export interface AmfSdkIssue { readonly level: "error" | "warning" | "info"; readonly text: string; readonly canFix: boolean }
+/** One performance category the SDK rated, e.g. `PolyCount`, with the SDK's own line. */
+export interface AmfSdkStat { readonly category: string; readonly rating: AmfSdkRating; readonly text: string }
+/** The SDK panel's checks and performance estimate, read by the Bridge without opening the panel. */
+export interface AmfSdkReview {
+  readonly state: "checked" | "partial" | "unavailable" | "not_run";
+  readonly platform: "pc" | "android" | "";
+  readonly overall: AmfSdkRating | "None" | "";
+  readonly issues: readonly AmfSdkIssue[];
+  readonly stats: readonly AmfSdkStat[];
+  readonly detail: string;
 }
 export interface AmfProductionList {
   readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[]; readonly busy: boolean;
@@ -108,6 +124,15 @@ const source = (v: unknown): v is AmfProductionSource => record(v) && [v.sourceI
 const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path, v.name].every(text)
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview));
+const ratings: readonly string[] = AMF_SDK_RATINGS;
+export function isAmfSdkReview(v: unknown): v is AmfSdkReview {
+  return record(v) && ["checked", "partial", "unavailable", "not_run"].includes(String(v.state))
+    && ["pc", "android", ""].includes(String(v.platform)) && (v.overall === "" || v.overall === "None" || ratings.includes(String(v.overall)))
+    && text(v.detail) && Array.isArray(v.issues) && v.issues.length <= 64
+    && v.issues.every(i => record(i) && ["error", "warning", "info"].includes(String(i.level)) && text(i.text) && typeof i.canFix === "boolean")
+    && Array.isArray(v.stats) && v.stats.length <= 64
+    && v.stats.every(stat => record(stat) && text(stat.category) && ratings.includes(String(stat.rating)) && text(stat.text));
+}
 function result(v: unknown): boolean {
   if (v === null) return true;
   if (!record(v)) return false;
@@ -119,6 +144,7 @@ function result(v: unknown): boolean {
     && (facts.hasMissingScripts === undefined || typeof facts.hasMissingScripts === "boolean")
     && (facts.missingShaderMaterials === undefined || texts(facts.missingShaderMaterials))
     && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
+    && (facts.sdkReview === undefined || isAmfSdkReview(facts.sdkReview))
     && (facts.previews === undefined || (Array.isArray(facts.previews) && facts.previews.length <= 3 && facts.previews.every(p => record(p) && ["front","side","back"].includes(String(p.view)) && isAmfPreviewPath(p.path))))
     && facts.instances.every(i => record(i) && text(i.sourceId) && typeof i.bindingVerified === "boolean" && typeof i.menuVerified === "boolean"
       && (i.menuModified === undefined || typeof i.menuModified === "boolean"))))

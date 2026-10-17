@@ -10,7 +10,9 @@ import os from "node:os";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [output = path.join(os.tmpdir(), "vua-preview-factory"), locale = "zh-CN", theme = "dark"] = process.argv.slice(2).filter(arg => !arg.startsWith("--"));
-const views = ["map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished"];
+const views = ["map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished",
+  "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part", "control-recipes-list", "control-recipes-many", "control-recipes-empty",
+  "control-packages", "control-packages-project", "control-packages-unlisted", "control-packages-repos"].filter(view => view.startsWith(process.argv.find(arg => arg.startsWith("--only="))?.slice(7) ?? ""));
 let server;
 app.on("window-all-closed", () => {});
 async function main() {
@@ -29,7 +31,7 @@ try {
     const window = new BrowserWindow({ show: false, width: 1280, height: 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
     window.webContents.on("console-message", event => { if (event.level === "error") console.error(view, event.message); });
     await window.loadURL(`http://127.0.0.1:${port}/__factory#${view}`);
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    await new Promise(resolve => setTimeout(resolve, view.startsWith("control-recipes") ? 4500 : 2500));
     await writeFile(path.join(output, `${view}.png`), (await window.webContents.capturePage()).toPNG());
     console.log("captured", view);
     window.destroy();

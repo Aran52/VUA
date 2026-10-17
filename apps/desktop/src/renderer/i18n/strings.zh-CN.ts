@@ -7,6 +7,7 @@ import { distributionCopy } from "./distribution-copy.ts";
 import { moduleCopy } from "./module-copy.ts";
 import { amfProductionCopy } from "./amf-production-copy.ts";
 import { factoryCopy } from "./factory-copy.ts";
+import { controlCenterCopy } from "./control-center-copy.ts";
 import { aiToolsCopy } from "./ai-tools-copy.ts";
 import { scenarioCopy } from "./scenario-copy.ts";
 import { unityLicenseCopy } from "./unity-license-copy.ts";
@@ -36,6 +37,7 @@ export const strings: Strings = {
   amfModule: moduleCopy["zh-CN"],
   amfProduction: amfProductionCopy["zh-CN"],
   factory: factoryCopy["zh-CN"],
+  controlCenter: controlCenterCopy["zh-CN"],
   aiTools: aiToolsCopy["zh-CN"],
   scenarioEnvironment: scenarioCopy["zh-CN"],
   unityLicense: unityLicenseCopy["zh-CN"],

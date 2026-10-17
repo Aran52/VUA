@@ -24,6 +24,7 @@ import type { DataSource } from "./types.ts";
 export interface VuaGateway {
   readonly aiTools?: import("@vua/contracts").DesktopAiToolsApiV01 | undefined;
   readonly amfProduction?: import("./amf-production-port.ts").AmfProductionPort | undefined;
+  readonly amfRelease?: import("./amf-release-port.ts").AmfReleasePort | undefined;
   readonly distribution?: import("@vua/contracts").DesktopDistributionApiV01 | undefined;
   readonly amfModule: import("@vua/contracts").AmfModuleApiV01;
   readonly environment: EnvironmentPort;

@@ -4,7 +4,7 @@ import { WarehousePage } from "../warehouse/WarehousePage.tsx";
 import { RecipePage } from "../recipe/RecipePage.tsx";
 import { AmfProductionPage } from "./AmfProductionPage.tsx";
 import { InspectionPage } from "../inspection/InspectionPage.tsx";
-import { ReleasePage } from "../release/ReleasePage.tsx";
+import { ReleaseAlbumPage } from "./release/ReleaseAlbumPage.tsx";
 import { PackagesPage } from "../packages/PackagesPage.tsx";
 import { AssetBrowserPage } from "./AssetBrowserPage.tsx";
 import { FactoryMap } from "./FactoryMap.tsx";
@@ -23,7 +23,7 @@ function RoomPage({ page, navigate, prepareEnv }: { page: PageId; navigate: (pag
     case "recipe": return <RecipePage onNavigate={navigate} />;
     case "workshop": return <AmfProductionPage onPrepareEnv={prepareEnv} onNavigate={navigate} />;
     case "inspection": return <InspectionPage />;
-    case "release": return <ReleasePage onNavigate={navigate} />;
+    case "release": return <ReleaseAlbumPage onNavigate={navigate} />;
     case "packages": return <PackagesPage />;
     default: return null;
   }

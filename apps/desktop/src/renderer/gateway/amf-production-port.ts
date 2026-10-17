@@ -22,6 +22,8 @@ export interface AmfProductionRun {
   readonly steps: readonly { readonly key: string; readonly name: string; readonly state: string; readonly detail: string }[];
   readonly selection: AmfAssemblySelection | null; readonly error: string | null; readonly recovery: string | null;
   readonly snapshotId: string | null;
+  /** When assembly finished the Avatar. */
+  readonly completedAt?: string | null;
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;

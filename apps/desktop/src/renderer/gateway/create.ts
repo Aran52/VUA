@@ -60,6 +60,7 @@ function assembleDevGateway(
     // 基线(无宿主时为 not-run 诚实不可用),开发切档不产生演示生产数据
     productionChain: live.productionChain,
     amfProduction: live.amfProduction,
+    amfRelease: live.amfRelease,
     // 029 B 面环 4:配方导出同观察事实纪律(草稿不模拟)——恒 live 基线,
     // 无宿主时诚实缺席;转正走既有保存链,开发切档不产生演示草稿
     recipeExport: live.recipeExport,

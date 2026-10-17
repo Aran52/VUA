@@ -1,7 +1,10 @@
-import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice } from "@vua/contracts";
-import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare } from "@vua/contracts";
+import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
+  AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01 } from "@vua/contracts";
+import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
+  AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
+import type { Unsubscribe } from "./types.ts";
 import { strings } from "../i18n/index.ts";
 
 export interface AmfProductionSource { readonly sourceId: string; readonly itemId: string; readonly itemName: string; readonly name: string }
@@ -13,13 +16,19 @@ export interface AmfPrefab {
   readonly preview?: string;
 }
 export interface AmfPreviewImage { readonly view: "front" | "side" | "back"; readonly path: string }
-export type AmfRunPhase = "preparing" | "ready" | "assembling" | "restoring" | "succeeded" | "failed" | "cancelled" | "inspect_required";
+export type AmfRunPhase = AmfRunPhaseV01;
+export type { AmfStepV01 as AmfStep, AmfUsualDurations, AmfRunProgressV01 as AmfRunProgress, AmfProductionProgressV01 as AmfProductionProgress } from "@vua/contracts";
 export interface AmfProductionRun {
   readonly schemaVersion: "0.1"; readonly runId: string; readonly phase: AmfRunPhase; readonly taskId: string;
   readonly editor: AmfProductionEditor; readonly projectRoot: string; readonly choices: readonly AmfSourceChoice[];
   readonly sources: readonly { readonly sourceId: string; readonly role: AmfSourceRole; readonly itemName: string; readonly name: string; readonly sha256: string }[];
   readonly prefabs: readonly AmfPrefab[];
-  readonly steps: readonly { readonly key: string; readonly name: string; readonly state: string; readonly detail: string }[];
+  /** Steps with their times; an unfinished step of work that no longer runs reads `interrupted`. */
+  readonly steps: readonly AmfStepV01[];
+  /** Median seconds of each step kind on this computer. `amf.production.get` always reports it. */
+  readonly usualDurations?: AmfUsualDurations;
+  /** The running step while a task works on the run, otherwise `null`. `amf.production.get` always reports it. */
+  readonly progress?: AmfRunProgressV01 | null;
   readonly selection: AmfAssemblySelection | null; readonly error: string | null; readonly recovery: string | null;
   readonly snapshotId: string | null;
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
@@ -78,12 +87,17 @@ export interface AmfProductionPort {
   open(runId: string): Promise<AmfProductionAccepted>;
   /** A `data:image/png` URL for one preview the run reports. */
   previewImage(runId: string, path: string): Promise<string>;
+  /** Stop: VUA ends Unity and keeps the work project and its materials; the run becomes `stopped`.
+   * Continue with `reinspect`. Work between Unity steps stops at the next step boundary. */
+  stop(run: Pick<AmfProductionRun, "taskId">): Promise<void>;
+  /** Live progress of every AMF production task, read from task progress events. */
+  onProgress(listener: (progress: AmfProductionProgressV01) => void): Unsubscribe;
 }
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string => typeof v === "string";
 const texts = (v: unknown): v is string[] => Array.isArray(v) && v.every(text);
-const phases: readonly string[] = ["preparing", "ready", "assembling", "restoring", "succeeded", "failed", "cancelled", "inspect_required"];
+const phases: readonly string[] = AMF_RUN_PHASES;
 const roles = ["auto", "avatar", "outfit", "dependency"];
 const savedRecipe = (v: unknown): v is AmfSavedRecipe => record(v) && isAmfRecipeDocument(v.recipe) && Number.isSafeInteger(v.revision) && Number(v.revision) > 0 && text(v.updatedAt);
 const choice = (v: unknown) => record(v) && text(v.sourceId) && roles.includes(String(v.role));
@@ -111,7 +125,9 @@ function result(v: unknown): boolean {
 export function isAmfProductionRun(v: unknown): v is AmfProductionRun {
   return record(v) && v.schemaVersion === "0.1" && text(v.runId) && typeof v.phase === "string" && phases.includes(v.phase) && text(v.taskId) && editor(v.editor) && text(v.projectRoot)
     && Array.isArray(v.choices) && v.choices.every(choice) && Array.isArray(v.sources) && v.sources.every(s => choice(s) && record(s) && [s.itemName, s.name, s.sha256].every(text))
-    && Array.isArray(v.prefabs) && v.prefabs.every(prefab) && Array.isArray(v.steps) && v.steps.every(s => record(s) && [s.key, s.name, s.state, s.detail].every(text))
+    && Array.isArray(v.prefabs) && v.prefabs.every(prefab) && Array.isArray(v.steps) && v.steps.every(isAmfStep)
+    && (v.usualDurations === undefined || isAmfUsualDurations(v.usualDurations))
+    && (v.progress === undefined || v.progress === null || isAmfRunProgress(v.progress))
     && (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))
     && (v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0))
     && (v.selection === null || isAmfAssemblySelection(v.selection)) && result(v.result);
@@ -229,5 +245,17 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       return `data:image/png;base64,${v.data}`;
     },
     async open(runId) { return accepted(await call({ method: "amf.production.open", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.opening); },
+    async stop(run) {
+      if (!text(run.taskId) || run.taskId.length === 0) throw new Error("amf_production_not_running");
+      const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "task.requestCancellation", params: { taskId: run.taskId, commandId: crypto.randomUUID() } });
+      if (!response.ok) throw new Error(response.error.kind === "application" ? response.error.error.code : response.error.kind);
+    },
+    onProgress(listener) {
+      return client.subscribe(event => {
+        if (event.kind !== "task.progressed") return;
+        const progress = readAmfProductionProgress(event.payload);
+        if (progress !== null) listener(progress);
+      });
+    },
   };
 }

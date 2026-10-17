@@ -59,16 +59,22 @@ pub(crate) fn request(
         ),
     })
 }
+/// The run as the player sees it now. Work whose task no longer runs (VUA or its AMF process
+/// ended mid-step) needs inspection, and its unfinished step reads as interrupted.
 fn project_view(mut run: ProductionRun, service: &AmfProductionServices) -> ProductionRun {
-    if matches!(run.phase.as_str(), "preparing" | "assembling" | "restoring")
-        && !service.busy.load(Ordering::SeqCst)
-    {
-        let active = service
-            .runtime
-            .snapshot(&run.task_id)
-            .is_some_and(|task| !task.state.is_terminal());
-        if !active {
+    if service.busy.load(Ordering::SeqCst) {
+        return run;
+    }
+    let active = service
+        .runtime
+        .snapshot(&run.task_id)
+        .is_some_and(|task| !task.state.is_terminal());
+    if !active {
+        if ACTIVE_PHASES.contains(&run.phase.as_str()) {
             run.phase = "inspect_required".into();
+        }
+        if let Some(step) = run.steps.last_mut().filter(|step| step.state == "running") {
+            step.state = "interrupted".into();
         }
     }
     run
@@ -185,10 +191,15 @@ fn route(
         return Ok(json!({"schemaVersion":"0.1","runId":run_id,"path":path,"mediaType":"image/png","data":standard_base64(&bytes)}));
     }
     if method == "amf.production.get" {
-        return Ok(wire_run(project_view(
-            service.engine.get(&string("runId")?)?,
-            &service,
-        )));
+        let run = project_view(service.engine.get(&string("runId")?)?, &service);
+        let progress = ACTIVE_PHASES
+            .contains(&run.phase.as_str())
+            .then(|| service.engine.progress(&run))
+            .flatten();
+        let mut value = wire_run(run);
+        value["usualDurations"] = json!(service.engine.usual_durations());
+        value["progress"] = progress.unwrap_or(Value::Null);
+        return Ok(value);
     }
     if method == "amf.production.listRecipes" {
         return Ok(json!({"schemaVersion":"0.1", "recipes":service.engine.list_recipes()?}));
@@ -327,4 +338,46 @@ fn route(
         }),
     })?;
     Ok(json!({"schemaVersion":"0.1","operation":method,"runId":run_id,"taskId":accepted.task_id}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use vua_orchestrator::{NanosTaskIdGenerator, SqliteTaskStore, SystemClock};
+
+    #[test]
+    fn work_whose_task_ended_reads_interrupted_with_its_usual_durations() {
+        let root = std::env::temp_dir().join(format!("vua-amf-routes-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("amf/runs")).unwrap();
+        let platform = crate::amf_production_adapter::NativeAmfProduction {
+            bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
+        };
+        let service = Arc::new(AmfProductionServices {
+            engine: AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
+            runtime: TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
+                Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap(),
+            busy: Arc::new(AtomicBool::new(false)),
+        });
+        let step = |key: &str, state: &str, start: &str, end: Option<&str>| json!({"key":key,"name":key,"state":state,"detail":"",
+            "startedAt":format!("2026-10-17T{start}.000Z"),"endedAt":end.map(|end| format!("2026-10-17T{end}.000Z"))});
+        let record = json!({"schemaVersion":"0.1","runId":"n3-routes","phase":"inspecting","taskId":"task-ended",
+            "editor":{"path":"Unity.exe","version":"2022.3.22f1"},"projectRoot":root.join("amf/projects/n3-routes"),
+            "choices":[],"sources":[],"prefabs":[],"projectFingerprint":"","unityFingerprint":"",
+            "steps":[step("inspect","succeeded","08:00:00",Some("08:06:52")), step("reinspect","running","09:00:00",None)],
+            "selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null});
+        std::fs::write(root.join("amf/runs/n3-routes.json"), serde_json::to_vec(&record).unwrap()).unwrap();
+
+        let view = route(service, "amf.production.get", &json!({"kind":"query","params":{"schemaVersion":"0.1","runId":"n3-routes"}})).unwrap();
+        assert_eq!(view["phase"], "inspect_required");
+        assert_eq!(view["steps"][1]["state"], "interrupted");
+        assert_eq!(view["steps"][1]["endedAt"], Value::Null);
+        assert_eq!(view["usualDurations"], json!({"inspect":412}));
+        assert_eq!(view["progress"], Value::Null, "work that no longer runs has no live progress");
+        let schema = serde_json::from_slice(&std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../schemas/amf-production-flow/v0.1/status.schema.json")).unwrap()).unwrap();
+        assert!(jsonschema::validator_for(&schema).unwrap().is_valid(&view), "{view}");
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 }

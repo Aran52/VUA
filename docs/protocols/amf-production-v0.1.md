@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.8.0
+> Document version: 0.9.0
 > Status: Candidate
-> Updated: 2026-10-16
+> Updated: 2026-10-17
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -18,11 +18,11 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | Method | Kind | Additional params | Result |
 | --- | --- | --- | --- |
 | `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, and retained run summaries |
-| `amf.production.get` | Query | `runId` | Run facts, actual candidates, steps, checks and recovery state |
+| `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, usual step durations and the running step's progress |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
 | `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection and effective input roles |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
-| `amf.production.reinspect` | Command | `runId` | Durable task acceptance; never automatically resumes an interrupted assembly |
+| `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
 | `amf.production.rollbackPlan` | Query | `runId` | Digest-bound restore point, current drift notice and current-state preservation promise |
 | `amf.production.rollback` | Command | `runId`, `planDigest` | Durable task acceptance; protect current state, restore, then inspect in Unity |
 | `amf.production.open` | Command | `runId` | Durable task acceptance; open project, select result and request official SDK panel |
@@ -96,10 +96,11 @@ Candidate Bridge and reinspection before this new capability can be used.
 
 ## Facts and recovery
 
-Run phases: `preparing`, `ready`, `assembling`, `restoring`, `succeeded`, `failed`, `cancelled`,
-`inspect_required`. Steps have stable keys, readable input names and actual outcomes.
-Persisted nonterminal work becomes `inspect_required` after restart; reinspection or a new
-preparation is an explicit action. Cancellation is cooperative at safe step boundaries.
+Run phases: `preparing`, `inspecting`, `ready`, `assembling`, `restoring`, `succeeded`, `failed`,
+`cancelled`, `stopped`, `inspect_required`. Steps have stable keys, readable input names, actual
+outcomes and their times. Persisted nonterminal work becomes `inspect_required` after restart;
+reinspection or a new preparation is an explicit action. [Stop](#progress-stop-and-continue) ends
+a running Unity batch run at once; other work stops at the next step boundary.
 
 Before assembly, the managed project is snapshotted and the exact confirmation/input facts are
 rechecked. Failures retain sources and records, report restoration separately, and do not delete
@@ -117,6 +118,50 @@ must succeed before the run becomes `ready`; partial restore, cancellation or fa
 attempts recovery to the protected current state and reports its outcome separately. The
 protected state remains the next restore point, making restoration itself reversible. Interrupted
 restoration requires explicit reinspection. Original library inputs are never restoration targets.
+
+## Progress, stop and continue
+
+Step keys are `project`, `materials`, `inspect`, `reinspect`, `snapshot`, `assembly`,
+`protect_current` and `restore`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
+times; records written before step times carry `null`. Step states are `running`, `succeeded`,
+`failed` and `stopped`. `amf.production.get` shows the unfinished step of work whose task no
+longer runs as `interrupted`, next to the run phase `inspect_required`.
+
+`amf.production.get` also reports `usualDurations`: for each step key, the median in whole
+seconds of the succeeded steps of the 30 most recent runs on this computer. `progress` is `null`
+unless a task works on the run (`preparing`, `inspecting`, `assembling`, `restoring`); then it
+names the running `step` with its `name`, `startedAt`, `elapsedSeconds`, `usualSeconds` (`null`
+before a step of that kind has finished here) and, during a Unity batch run, `unity`.
+
+Task progress events of an `amf.production` task carry `operation: "amf.production"`, `runId`,
+`step`, `name`, `startedAt` and, during a Unity batch run, `unity`. During `materials`, `name` is
+the material being imported. `step: "open"` marks the Editor opening for the SDK handoff; the
+Editor shows its own progress window there.
+
+`unity` comes from the batch run's own log `.vua/logs/<commandId>.log`, read every half second.
+`stage` is one of `starting`, `license`, `packages`, `importing`, `compiling`, `bridge`,
+`previews` and `finishing`, from Unity's own messages, the [Bridge v5](unity-bridge-v5.md) stage
+lines, the preview folder and the result file. Stages move forward; importing and compiling
+alternate. While importing, `current` counts the work-project assets Unity has started to import,
+and during the first preparation `total` is the number of material files and their folders.
+`lastActivityAt` is when the log last grew, or when Unity started until it writes. A page says
+Unity has been quiet since that time after two minutes without growth. An event goes out when the
+stage changes, when the count moves (at most once a second) and when the activity time moves (at
+most every 15 seconds). Events and `get` carry stages, counts and times; log text and paths stay
+in the log. The [progress](../../schemas/amf-production-flow/v0.1/progress.schema.json) and
+[status](../../schemas/amf-production-flow/v0.1/status.schema.json) schemas carry the vectors.
+
+Stop is task cancellation through `task.requestCancellation`. During a Unity batch run, VUA ends
+Unity's whole process tree through its Windows job object within half a second. The work
+project, its imported materials and the log stay. A stopped assembly or restoration recovers the
+protected project state, as a failure does. The run becomes `stopped` once its materials are in
+the work project, otherwise `cancelled`, which a new preparation follows. Continue is
+`amf.production.reinspect`: the run is `inspecting` while Unity reinspects the retained project,
+preparing its work scene when the stopped run had none, and `ready` afterwards. Confirmations
+from before the stop are invalid. Unity's batch mode has no pause, so Stop and Continue serve as
+pause, as the author approved on 2026-10-17. Before and after each batch run, VUA removes a
+`Temp/UnityLockfile` that no Editor holds, so the next run and the SDK handoff find the project
+closed.
 
 ## Previews
 
@@ -161,6 +206,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
 - 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
 - 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.
 - 0.6.0 (2026-10-15): add observed Recipe differences, reviewed priority choices, same-project new Avatars and preserved unmentioned outfits.

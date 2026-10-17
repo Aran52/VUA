@@ -26,10 +26,74 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection } };
 export type AmfProductionRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & AmfProductionBodyV01;
 
+/** Run phases. `inspecting` covers reinspection ("continue"); `stopped` keeps the work project and its materials. */
+export const AMF_RUN_PHASES = ["preparing", "inspecting", "ready", "assembling", "restoring", "succeeded", "failed", "cancelled", "stopped", "inspect_required"] as const;
+export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
+/** Phases during which a task works on the run. */
+export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
+/** Recorded steps, in the order a production meets them. */
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore"] as const;
+export type AmfStepKey = typeof AMF_STEP_KEYS[number];
+export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
+export type AmfStepState = typeof AMF_STEP_STATES[number];
+/** Stages of a Unity batch run, read from the Editor log. The set is closed. */
+export const AMF_UNITY_STAGES = ["starting", "license", "packages", "importing", "compiling", "bridge", "previews", "finishing"] as const;
+export type AmfUnityStage = typeof AMF_UNITY_STAGES[number];
+/** Unity's live progress: its stage, imported work-project assets and its last log activity. No log text or paths. */
+export interface AmfUnityProgress { readonly stage: AmfUnityStage; readonly current?: number; readonly total?: number; readonly lastActivityAt: string }
+export interface AmfStepV01 { readonly key: AmfStepKey; readonly name: string; readonly state: AmfStepState; readonly detail: string; readonly startedAt: string | null; readonly endedAt: string | null }
+/** Payload of a task progress event of an `amf.production` task. `step` is `open` while the Editor opens for the SDK. */
+export interface AmfProductionProgressV01 {
+  readonly operation: "amf.production"; readonly runId: string; readonly step: AmfStepKey | "open"; readonly name: string;
+  readonly startedAt: string; readonly unity?: AmfUnityProgress;
+}
+/** The running step in `amf.production.get`: elapsed and usual seconds on this computer, and Unity's progress inside Unity. */
+export interface AmfRunProgressV01 {
+  readonly step: AmfStepKey; readonly name: string; readonly startedAt: string; readonly elapsedSeconds: number;
+  readonly usualSeconds: number | null; readonly unity?: AmfUnityProgress;
+}
+/** Median seconds of each step kind that finished on this computer. */
+export type AmfUsualDurations = Readonly<Partial<Record<AmfStepKey, number>>>;
+
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const text = (value: unknown, limit = 4096): value is string => typeof value === "string" && value.length > 0 && value.length <= limit && !value.includes("\0");
 const exact = (value: Record<string, unknown>, keys: readonly string[]) => Object.keys(value).length === keys.length && keys.every(key => key in value);
 const roles: readonly string[] = ["auto", "avatar", "outfit", "dependency"];
+
+const count = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+const runId = (value: unknown): value is string => text(value, 100) && /^[A-Za-z0-9-]+$/u.test(value);
+/** A UTC timestamp as VUA writes it, `YYYY-MM-DDTHH:MM:SS.fffZ`. */
+export function isAmfTimestamp(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$/u.test(value) && !Number.isNaN(Date.parse(value));
+}
+export function isAmfUnityProgress(value: unknown): value is AmfUnityProgress {
+  return record(value) && Object.keys(value).every(key => ["stage", "current", "total", "lastActivityAt"].includes(key))
+    && (AMF_UNITY_STAGES as readonly unknown[]).includes(value.stage) && isAmfTimestamp(value.lastActivityAt)
+    && (value.current === undefined || count(value.current)) && (value.total === undefined || count(value.total));
+}
+export function isAmfStep(value: unknown): value is AmfStepV01 {
+  return record(value) && exact(value, ["key", "name", "state", "detail", "startedAt", "endedAt"])
+    && (AMF_STEP_KEYS as readonly unknown[]).includes(value.key) && typeof value.name === "string" && typeof value.detail === "string"
+    && (AMF_STEP_STATES as readonly unknown[]).includes(value.state)
+    && (value.startedAt === null || isAmfTimestamp(value.startedAt)) && (value.endedAt === null || isAmfTimestamp(value.endedAt));
+}
+export function isAmfUsualDurations(value: unknown): value is AmfUsualDurations {
+  return record(value) && Object.entries(value).every(([key, seconds]) => (AMF_STEP_KEYS as readonly string[]).includes(key) && count(seconds));
+}
+export function isAmfRunProgress(value: unknown): value is AmfRunProgressV01 {
+  return record(value) && Object.keys(value).every(key => ["step", "name", "startedAt", "elapsedSeconds", "usualSeconds", "unity"].includes(key))
+    && (AMF_STEP_KEYS as readonly unknown[]).includes(value.step) && text(value.name, 1024) && isAmfTimestamp(value.startedAt)
+    && count(value.elapsedSeconds) && (value.usualSeconds === null || count(value.usualSeconds))
+    && (value.unity === undefined || isAmfUnityProgress(value.unity));
+}
+/** Reads the payload of an `amf.production` task progress event; anything else is `null`. */
+export function readAmfProductionProgress(payload: unknown): AmfProductionProgressV01 | null {
+  if (!record(payload) || payload.operation !== "amf.production"
+    || !Object.keys(payload).every(key => ["operation", "runId", "step", "name", "startedAt", "unity"].includes(key))) return null;
+  const valid = runId(payload.runId) && ([...AMF_STEP_KEYS, "open"] as readonly unknown[]).includes(payload.step) && text(payload.name, 1024)
+    && isAmfTimestamp(payload.startedAt) && (payload.unity === undefined || isAmfUnityProgress(payload.unity));
+  return valid ? payload as unknown as AmfProductionProgressV01 : null;
+}
 
 /** A Bridge preview inside the work project: `.vua/previews/<command>/<name>.png`. */
 export function isAmfPreviewPath(value: unknown): value is string {

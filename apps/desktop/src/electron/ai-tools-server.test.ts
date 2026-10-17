@@ -162,6 +162,14 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(calls.map(request => [request.method, request.params])).toEqual([["amf.production.get", { schemaVersion: "0.1", runId: "n3-test" }],
       ["amf.production.previewImage", { schemaVersion: "0.1", runId: "n3-test", path: front }], ["amf.production.previewImage", { schemaVersion: "0.1", runId: "n3-test", path: coat }]]);
   });
+  it("reports a running run's Unity stage and elapsed time", async () => {
+    const progress = { step: "inspect", name: "Identify actual Avatar and outfit prefabs", startedAt: "2026-10-17T08:00:00.000Z", elapsedSeconds: 221, usualSeconds: 412,
+      unity: { stage: "importing", current: 123, total: 379, lastActivityAt: "2026-10-17T08:03:41.000Z" } };
+    const { client } = await setup(async request => envelope(request, { runId: "n3-test", phase: "preparing", prefabs: [], result: null, usualDurations: { inspect: 412 }, progress }));
+    const result = await client.callTool({ name: "vua_amf_run", arguments: { runId: "n3-test" } });
+    expect(result.isError).toBeFalsy();
+    expect((result.structuredContent as { data: { progress: unknown } }).data.progress).toEqual(progress);
+  });
   it("rejects invented methods and parameter injection before touching the Gateway", async () => {
     const { client, calls } = await setup();
     for (const request of [

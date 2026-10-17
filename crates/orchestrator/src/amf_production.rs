@@ -7,7 +7,8 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -141,8 +142,103 @@ pub struct PreparedSource {
 pub struct ProductionStep {
     pub key: String,
     pub name: String,
+    /// `running`, `succeeded`, `failed` or `stopped`.
     pub state: String,
     pub detail: String,
+    /// When the step started and ended. Records written before step times carry neither.
+    #[serde(default)]
+    pub started_at: Option<String>,
+    #[serde(default)]
+    pub ended_at: Option<String>,
+}
+
+/// A stage of a Unity batch run, read from the Editor's own log. The set is closed.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum UnityStage {
+    Starting,
+    License,
+    Packages,
+    Importing,
+    Compiling,
+    Bridge,
+    Previews,
+    Finishing,
+}
+
+/// What a running Unity batch run shows: its stage, how many of the run's assets Unity has
+/// imported, and when Unity last wrote to its log. It carries no log text and no paths.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UnityProgress {
+    pub stage: UnityStage,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total: Option<u32>,
+    /// When Unity last wrote to its log; its start time until it writes.
+    pub last_activity_at: String,
+}
+
+/// The running task as a platform's Unity step sees it: whether the player asked to stop, and
+/// where the step's live progress goes.
+pub struct UnityWatch<'a> {
+    ctx: &'a TaskContext,
+    engine: &'a AmfProductionEngine,
+    run_id: String,
+    step: ProductionStep,
+    emitted: Mutex<Option<(UnityProgress, Instant)>>,
+}
+
+impl UnityWatch<'_> {
+    /// True once the player asked to stop this task.
+    pub fn stop_requested(&self) -> bool {
+        self.ctx.check_cancel()
+    }
+    /// The typed result of a stop, for a Unity run that ended because the player asked.
+    pub fn stopped(&self) -> AppErrorV1 {
+        self.ctx.cancellation_error("amf-production").unwrap_or_else(|| {
+            AppErrorV1::new(crate::runtime::error_codes::CANCELLED, ErrorCategory::Cancelled, "errors.task.cancelled", "amf-production")
+                .with_recoverable(true)
+        })
+    }
+    /// Keeps the Unity run's progress for `amf.production.get` and emits a task progress event
+    /// when the stage changes, the import count moves (at most once a second) or Unity's last
+    /// activity moves on (at most every 15 seconds).
+    pub fn report(&self, progress: UnityProgress) {
+        self.engine.live.lock().expect("AMF progress poisoned").insert(self.run_id.clone(), progress.clone());
+        let mut emitted = self.emitted.lock().expect("AMF progress poisoned");
+        let due = match emitted.as_ref() {
+            None => true,
+            Some((previous, at)) => previous.stage != progress.stage
+                || ((previous.current, previous.total) != (progress.current, progress.total) && at.elapsed() >= Duration::from_secs(1))
+                || (previous.last_activity_at != progress.last_activity_at && at.elapsed() >= Duration::from_secs(15)),
+        };
+        if due {
+            let mut payload = step_progress(&self.run_id, &self.step);
+            payload["unity"] = serde_json::to_value(&progress).expect("Unity progress serialization");
+            self.ctx.emit_progress(payload);
+            *emitted = Some((progress, Instant::now()));
+        }
+    }
+    /// The key of the step this Unity run belongs to.
+    pub fn step_key(&self) -> &str {
+        &self.step.key
+    }
+}
+
+impl Drop for UnityWatch<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut live) = self.engine.live.lock() {
+            live.remove(&self.run_id);
+        }
+    }
+}
+
+/// The task progress payload of a step: `step` is the step key, `name` what it works on.
+pub fn step_progress(run_id: &str, step: &ProductionStep) -> serde_json::Value {
+    serde_json::json!({"operation":"amf.production","runId":run_id,"step":step.key,"name":step.name,
+        "startedAt":step.started_at.clone().unwrap_or_default()})
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -207,17 +303,20 @@ pub trait AmfProductionPlatform: Send + Sync {
         run: &ProductionRun,
         ctx: &TaskContext,
     ) -> Result<Vec<PreparedSource>, AppErrorV1>;
-    fn inspect(&self, run: &ProductionRun) -> Result<ObservedProject, AppErrorV1>;
+    /// Unity steps report their progress through `watch` and end Unity when it asks to stop.
+    fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1>;
     fn assemble(
         &self,
         run: &ProductionRun,
         selection: &AssemblySelection,
+        watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1>;
     fn apply_recipe(
         &self,
         _: &ProductionRun,
         _: &AssemblySelection,
         _: &crate::amf_recipe_apply::RecipeApplyTarget,
+        _: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("recipe_apply_unavailable", "Recipe application is unavailable on this platform."))
     }
@@ -231,7 +330,17 @@ pub trait AmfProductionPlatform: Send + Sync {
 pub struct AmfProductionEngine {
     pub(crate) root: PathBuf,
     pub(crate) platform: Arc<dyn AmfProductionPlatform>,
+    /// Live progress of each run's Unity step, while it runs.
+    live: Mutex<BTreeMap<String, UnityProgress>>,
+    /// Usual step durations, with the signature of the run records they were read from.
+    usual: Mutex<Option<(RecordSignature, BTreeMap<String, u64>)>>,
 }
+
+/// Name, length and modification time of each run record, in name order.
+type RecordSignature = Vec<(std::ffi::OsString, u64, Option<SystemTime>)>;
+
+/// Run phases during which a task works on the run.
+pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "restoring"];
 
 pub fn production_error(code: &str, detail: impl Into<String>) -> AppErrorV1 {
     AppErrorV1::new(
@@ -284,7 +393,84 @@ pub fn validate_choices(choices: &[SourceChoice]) -> Result<(), AppErrorV1> {
 
 impl AmfProductionEngine {
     pub fn new(root: PathBuf, platform: Arc<dyn AmfProductionPlatform>) -> Self {
-        Self { root, platform }
+        Self { root, platform, live: Mutex::new(BTreeMap::new()), usual: Mutex::new(None) }
+    }
+    fn watch<'a>(&'a self, run: &ProductionRun, ctx: &'a TaskContext) -> UnityWatch<'a> {
+        UnityWatch {
+            ctx,
+            engine: self,
+            run_id: run.run_id.clone(),
+            step: run.steps.last().cloned().expect("a Unity step runs inside a recorded step"),
+            emitted: Mutex::new(None),
+        }
+    }
+    /// The median duration in whole seconds of each step kind that finished on this computer,
+    /// read from the retained runs.
+    pub fn usual_durations(&self) -> BTreeMap<String, u64> {
+        let signature = self.record_signature();
+        let mut cache = self.usual.lock().expect("AMF durations poisoned");
+        if let Some((read_from, durations)) = cache.as_ref() {
+            if *read_from == signature {
+                return durations.clone();
+            }
+        }
+        let mut samples: BTreeMap<String, Vec<i64>> = BTreeMap::new();
+        for run in self.retained_runs() {
+            for step in run.steps.iter().filter(|step| step.state == "succeeded") {
+                let times = step.started_at.as_deref().and_then(crate::rfc3339_millis)
+                    .zip(step.ended_at.as_deref().and_then(crate::rfc3339_millis));
+                if let Some((start, end)) = times.filter(|(start, end)| end >= start) {
+                    samples.entry(step.key.clone()).or_default().push(end - start);
+                }
+            }
+        }
+        let durations = samples.into_iter().map(|(key, mut values)| {
+            values.sort_unstable();
+            let middle = values.len() / 2;
+            let median = if values.len().is_multiple_of(2) { (values[middle - 1] + values[middle]) / 2 } else { values[middle] };
+            (key, ((median + 500) / 1000) as u64)
+        }).collect::<BTreeMap<_, _>>();
+        *cache = Some((signature, durations.clone()));
+        durations
+    }
+    /// Each run record's name, length and modification time. A record written within the same
+    /// timestamp tick still changes its name or length.
+    fn record_signature(&self) -> RecordSignature {
+        let Ok(entries) = fs::read_dir(self.root.join("runs")) else { return Vec::new(); };
+        let mut signature = entries.flatten()
+            .filter(|entry| entry.path().extension().and_then(|p| p.to_str()) == Some("json"))
+            .filter_map(|entry| entry.metadata().ok().map(|m| (entry.file_name(), m.len(), m.modified().ok())))
+            .collect::<RecordSignature>();
+        signature.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        signature
+    }
+    /// The most recent retained runs; unreadable records are skipped.
+    fn retained_runs(&self) -> Vec<ProductionRun> {
+        let Ok(entries) = fs::read_dir(self.root.join("runs")) else { return Vec::new(); };
+        let mut ids = entries.flatten().filter_map(|entry| {
+            let path = entry.path();
+            (path.extension().and_then(|p| p.to_str()) == Some("json"))
+                .then(|| path.file_stem().and_then(|p| p.to_str()).map(str::to_owned))?
+        }).collect::<Vec<_>>();
+        ids.sort_unstable_by(|a, b| b.cmp(a));
+        ids.into_iter().take(30).filter_map(|id| self.get(&id).ok()).collect()
+    }
+    /// The running step of an active run: when it started, how long it has run, its usual
+    /// duration on this computer and, inside Unity, the live Unity progress.
+    pub fn progress(&self, run: &ProductionRun) -> Option<serde_json::Value> {
+        let step = run.steps.last().filter(|step| step.state == "running")?;
+        let started = step.started_at.as_deref().and_then(crate::rfc3339_millis)?;
+        let now = crate::rfc3339_millis(&SystemClock.now_rfc3339())?;
+        let mut view = step_progress(&run.run_id, step);
+        let object = view.as_object_mut().expect("progress object");
+        object.remove("operation");
+        object.remove("runId");
+        object.insert("elapsedSeconds".into(), ((now - started).max(0) / 1000).into());
+        object.insert("usualSeconds".into(), self.usual_durations().get(&step.key).copied().into());
+        if let Some(unity) = self.live.lock().expect("AMF progress poisoned").get(&run.run_id) {
+            object.insert("unity".into(), serde_json::to_value(unity).expect("Unity progress serialization"));
+        }
+        Some(view)
     }
     pub fn sources(&self) -> Result<Vec<ProductionSource>, AppErrorV1> {
         self.platform.sources()
@@ -312,7 +498,10 @@ impl AmfProductionEngine {
         fs::create_dir_all(path.parent().expect("run parent")).map_err(io_error)?;
         let pending = path.with_extension("pending");
         fs::write(&pending, serde_json::to_vec_pretty(run).map_err(io_error)?).map_err(io_error)?;
-        fs::rename(&pending, path).map_err(io_error)
+        fs::rename(&pending, path).map_err(io_error)?;
+        // A saved step can change the medians; the next read computes them again.
+        *self.usual.lock().expect("AMF durations poisoned") = None;
+        Ok(())
     }
     pub fn get(&self, run_id: &str) -> Result<ProductionRun, AppErrorV1> {
         let path = self.run_file(run_id)?;
@@ -448,9 +637,11 @@ impl AmfProductionEngine {
         if let Some(error) = ctx.cancellation_error("amf-production") {
             return Err(error);
         }
+        let now = SystemClock.now_rfc3339();
         if let Some(previous) = run.steps.last_mut() {
             if previous.state == "running" {
                 previous.state = "succeeded".into();
+                previous.ended_at = Some(now.clone());
             }
         }
         run.steps.push(ProductionStep {
@@ -458,10 +649,19 @@ impl AmfProductionEngine {
             name: name.into(),
             state: "running".into(),
             detail: String::new(),
+            started_at: Some(now),
+            ended_at: None,
         });
         self.save(run)?;
-        ctx.emit_progress(serde_json::json!({"operation":"amf.production", "runId":run.run_id, "stage":key, "name":name}));
+        ctx.emit_progress(step_progress(&run.run_id, run.steps.last().expect("step just recorded")));
         Ok(())
+    }
+    /// Ends the running step with `state`.
+    fn close_step(run: &mut ProductionRun, state: &str) {
+        if let Some(step) = run.steps.last_mut().filter(|step| step.state == "running") {
+            step.state = state.into();
+            step.ended_at = Some(SystemClock.now_rfc3339());
+        }
     }
     fn finish(
         &self,
@@ -470,10 +670,22 @@ impl AmfProductionEngine {
     ) -> Result<(), AppErrorV1> {
         match result {
             Ok(()) => {
-                if let Some(step) = run.steps.last_mut() {
-                    step.state = "succeeded".into();
-                }
+                Self::close_step(run, "succeeded");
                 self.save(run)
+            }
+            // A stop keeps the work project and its imported materials; reinspection continues
+            // from there. Before the materials are in place, preparation starts again instead.
+            Err(error) if error.category == ErrorCategory::Cancelled => {
+                Self::close_step(run, "stopped");
+                if run.sources.is_empty() {
+                    run.phase = "cancelled".into();
+                    run.error = Some(error.code.clone());
+                } else {
+                    run.phase = "stopped".into();
+                    run.error = None;
+                }
+                self.save(run)?;
+                Err(error)
             }
             Err(error) => {
                 let detail = error
@@ -492,16 +704,12 @@ impl AmfProductionEngine {
                     .filter(|s| !s.is_empty())
                     .map(|detail| format!("{} — {detail}", error.code))
                     .unwrap_or_else(|| error.code.clone());
+                Self::close_step(run, "failed");
                 if let Some(step) = run.steps.last_mut() {
                     step.state = "failed".into();
                     step.detail = detail.clone();
                 }
-                run.phase = if error.category == ErrorCategory::Cancelled {
-                    "cancelled"
-                } else {
-                    "failed"
-                }
-                .into();
+                run.phase = "failed".into();
                 run.error = Some(detail);
                 self.save(run)?;
                 Err(error)
@@ -528,7 +736,7 @@ impl AmfProductionEngine {
                 "inspect",
                 "Identify actual Avatar and outfit prefabs",
             )?;
-            self.update_observations(&mut run)?;
+            self.update_observations(&mut run, ctx)?;
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 return Err(error);
             }
@@ -545,8 +753,8 @@ impl AmfProductionEngine {
         })();
         self.finish(&mut run, result)
     }
-    fn update_observations(&self, run: &mut ProductionRun) -> Result<(), AppErrorV1> {
-        let observed = self.platform.inspect(run)?;
+    fn update_observations(&self, run: &mut ProductionRun, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let observed = self.platform.inspect(run, &self.watch(run, ctx))?;
         if observed.editor_version != run.editor.version {
             return Err(production_error(
                 "editor_drift",
@@ -573,6 +781,8 @@ impl AmfProductionEngine {
         }
         run.task_id = ctx.task_id().into();
         run.error = None;
+        // A stopped run continues here: Unity reinspects the retained project and its materials.
+        run.phase = "inspecting".into();
         let result = (|| {
             self.step(
                 &mut run,
@@ -580,7 +790,7 @@ impl AmfProductionEngine {
                 "reinspect",
                 "Reinspect the retained work project",
             )?;
-            self.update_observations(&mut run)?;
+            self.update_observations(&mut run, ctx)?;
             run.phase = "ready".into();
             run.confirmed_digest = None;
             Ok(())
@@ -693,8 +903,8 @@ impl AmfProductionEngine {
                 "Bind selected materials and create their switches",
             )?;
             let observed = match &target {
-                Some(target) => self.platform.apply_recipe(&run, &selection, target)?,
-                None => self.platform.assemble(&run, &selection)?,
+                Some(target) => self.platform.apply_recipe(&run, &selection, target, &self.watch(&run, ctx))?,
+                None => self.platform.assemble(&run, &selection, &self.watch(&run, ctx))?,
             };
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 return Err(error);
@@ -723,9 +933,7 @@ impl AmfProductionEngine {
             run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
             run.phase = "succeeded".into();
             run.completed_at = Some(SystemClock.now_rfc3339());
-            if let Some(step) = run.steps.last_mut() {
-                step.state = "succeeded".into();
-            }
+            Self::close_step(&mut run, "succeeded");
             let record =
                 self.root
                     .join("records")
@@ -751,7 +959,7 @@ impl AmfProductionEngine {
     }
     pub fn rollback_plan(&self, run_id: &str) -> Result<serde_json::Value, AppErrorV1> {
         let run = self.get(run_id)?;
-        if !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "cancelled") {
+        if !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "cancelled" | "stopped") {
             return Err(production_error(
                 "inspect_required",
                 "Reinspect interrupted work before reviewing a restore.",
@@ -801,7 +1009,7 @@ impl AmfProductionEngine {
             mutated = true;
             self.platform.restore(&run, &target)?;
             self.step(&mut run, ctx, "reinspect", "Verify the restored project in Unity")?;
-            self.update_observations(&mut run)?;
+            self.update_observations(&mut run, ctx)?;
             if let Some(error) = ctx.cancellation_error("amf-production") { return Err(error); }
             run.selection = target_selection;
             run.phase = "ready".into();

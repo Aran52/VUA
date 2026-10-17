@@ -19,8 +19,23 @@ struct TestPlatform {
     fail_restore: AtomicBool,
     fail_inspect: AtomicBool,
     change_recipe_input: AtomicBool,
+    /// The next Unity step reports progress and runs until the player stops it.
+    wait_for_stop: AtomicBool,
     snapshots: AtomicUsize,
     root: PathBuf,
+}
+/// A Unity step that imports until the player asks to stop, then ends as Unity would.
+fn unity_until_stopped(watch: &UnityWatch) -> AppErrorV1 {
+    let started = std::time::Instant::now();
+    let mut current = 0;
+    while !watch.stop_requested() {
+        assert!(started.elapsed() < Duration::from_secs(10), "the stop request never reached the Unity step");
+        current = (current + 1).min(379);
+        watch.report(UnityProgress { stage: UnityStage::Importing, current: Some(current), total: Some(379),
+            last_activity_at: "2026-10-17T08:00:00.000Z".into() });
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    watch.stopped()
 }
 fn candidates() -> Vec<PrefabCandidate> {
     vec![
@@ -101,7 +116,10 @@ impl AmfProductionPlatform for TestPlatform {
             })
             .collect())
     }
-    fn inspect(&self, run: &ProductionRun) -> Result<ObservedProject, AppErrorV1> {
+    fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        if self.wait_for_stop.swap(false, Ordering::SeqCst) {
+            return Err(unity_until_stopped(watch));
+        }
         if self.fail_inspect.swap(false, Ordering::SeqCst) {
             return Err(production_error("test_inspect", "Synthetic inspection failed."));
         }
@@ -124,6 +142,7 @@ impl AmfProductionPlatform for TestPlatform {
         &self,
         run: &ProductionRun,
         _: &AssemblySelection,
+        watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         fs::write(Path::new(&run.project_root).join("Assets/state"), "after").unwrap();
         if self.fail.load(Ordering::SeqCst) {
@@ -132,14 +151,14 @@ impl AmfProductionPlatform for TestPlatform {
                 "Synthetic failure after a mutation.",
             ));
         }
-        self.inspect(run)
+        self.inspect(run, watch)
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         fs::read_to_string(project.join("Assets/state"))
             .map_err(|e| production_error("test_io", e.to_string()))
     }
-    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget) -> Result<ObservedProject, AppErrorV1> {
-        let mut observed = self.assemble(run, selection)?;
+    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        let mut observed = self.assemble(run, selection, watch)?;
         observed.result["facts"]["observedSelection"] = serde_json::to_value(selection).unwrap();
         observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
         Ok(observed)
@@ -203,6 +222,7 @@ impl Harness {
             fail_restore: AtomicBool::new(false),
             fail_inspect: AtomicBool::new(false),
             change_recipe_input: AtomicBool::new(false),
+            wait_for_stop: AtomicBool::new(false),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
         });
@@ -560,4 +580,153 @@ fn recipe_application_binds_current_facts_and_recovers_failed_mutations() {
     assert!(!h.job(move|engine,ctx|engine.apply_recipe("n3-test","recipe-apply",RecipeApplyChoice::NewAvatar,&plan.plan_digest,ctx)));
     let run=h.engine.get("n3-test").unwrap();assert_eq!(run.recovery.as_deref(),Some("restored"));
     assert_eq!(h.platform.fingerprint(Path::new(&run.project_root)).unwrap(),"after");
+}
+
+fn flow_schema(name: &str) -> jsonschema::Validator {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-production-flow/v0.1").join(name);
+    jsonschema::validator_for(&serde_json::from_slice(&fs::read(path).unwrap()).unwrap()).unwrap()
+}
+
+#[test]
+fn progress_and_status_vectors_accept_stage_facts_and_refuse_log_text() {
+    for (schema, folder) in [("progress.schema.json", "progress-examples"), ("status.schema.json", "status-examples")] {
+        let validator = flow_schema(schema);
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-production-flow/v0.1").join(folder);
+        for entry in fs::read_dir(root).unwrap() {
+            let path = entry.unwrap().path();
+            let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            let valid = path.file_name().unwrap().to_string_lossy().contains(".valid.");
+            assert_eq!(validator.is_valid(&value), valid, "{}", path.display());
+        }
+    }
+}
+
+/// Starts a job and returns its task identity and a receiver for its outcome.
+fn started(
+    h: &Harness,
+    action: impl FnOnce(&AmfProductionEngine, &TaskContext) -> Result<(), AppErrorV1> + Send + 'static,
+) -> (String, std::sync::mpsc::Receiver<Result<(), AppErrorV1>>) {
+    let engine = h.engine.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let accepted = h.runtime.submit(SubmitRequest {
+        correlation_id: None,
+        timeout: None,
+        job: Box::new(move |ctx| {
+            let result = action(&engine, ctx);
+            tx.send(result.clone()).unwrap();
+            result.map(|()| TaskExit::Done(serde_json::json!({"synthetic":true})))
+        }),
+    }).unwrap();
+    (accepted.task_id, rx)
+}
+
+/// Waits for the job's first Unity progress event and returns its payload.
+fn unity_event(events: &std::sync::mpsc::Receiver<vua_orchestrator::TaskEventV1>) -> serde_json::Value {
+    loop {
+        let event = events.recv_timeout(Duration::from_secs(5)).expect("Unity progress");
+        if event.kind == vua_orchestrator::TaskEventKind::Progress && event.payload.get("unity").is_some() {
+            return event.payload;
+        }
+    }
+}
+
+#[test]
+fn a_stopped_unity_step_keeps_the_project_and_continue_reinspects_it() {
+    let h = Harness::new();
+    h.prepared();
+    let prepared = h.engine.get("n3-test").unwrap();
+    let state = Path::new(&prepared.project_root).join("Assets/state");
+    let events = h.runtime.subscribe();
+    h.platform.wait_for_stop.store(true, Ordering::SeqCst);
+    let (task, outcome) = started(&h, |engine, ctx| engine.reinspect("n3-test", ctx));
+
+    let payload = unity_event(&events);
+    assert!(flow_schema("progress.schema.json").is_valid(&payload), "{payload}");
+    assert_eq!((payload["step"].as_str(), payload["unity"]["stage"].as_str()), (Some("reinspect"), Some("importing")));
+    let running = h.engine.get("n3-test").unwrap();
+    assert_eq!(running.phase, "inspecting");
+    let progress = h.engine.progress(&running).expect("the running step's progress");
+    assert_eq!(progress["step"], "reinspect");
+    assert_eq!(progress["unity"]["total"], 379);
+    assert!(progress["elapsedSeconds"].as_u64().is_some());
+    assert!(progress["usualSeconds"].is_null(), "no earlier reinspection finished on this computer");
+
+    h.runtime.cancel(&task).unwrap();
+    let error = outcome.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
+    assert_eq!(error.code, "vua.task.cancelled");
+    let stopped = h.engine.get("n3-test").unwrap();
+    assert_eq!(stopped.phase, "stopped");
+    assert_eq!(stopped.error, None);
+    let step = stopped.steps.last().unwrap();
+    assert_eq!((step.key.as_str(), step.state.as_str()), ("reinspect", "stopped"));
+    assert!(step.ended_at.is_some());
+    assert!(h.engine.progress(&stopped).is_none(), "a stopped run has no running step");
+    assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the work project stays");
+    assert_eq!(stopped.sources.len(), 2, "the imported materials stay");
+    assert!(h.engine.rollback_plan("n3-test").is_err(), "preparation alone has no restore point");
+
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)), "continue reinspects the retained project");
+    let continued = h.engine.get("n3-test").unwrap();
+    assert_eq!(continued.phase, "ready");
+    assert_eq!(continued.steps.last().unwrap().state, "succeeded");
+    assert!(h.engine.plan("n3-test", &selection()).is_ok());
+}
+
+#[test]
+fn stopping_assembly_restores_the_protected_project() {
+    let h = Harness::new();
+    h.prepared();
+    let run = h.engine.get("n3-test").unwrap();
+    let digest = plan_digest(&run, &selection()).unwrap();
+    let events = h.runtime.subscribe();
+    h.platform.wait_for_stop.store(true, Ordering::SeqCst);
+    let (task, outcome) = started(&h, move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx));
+    assert_eq!(unity_event(&events)["step"], "assembly");
+    h.runtime.cancel(&task).unwrap();
+    assert!(outcome.recv_timeout(Duration::from_secs(5)).unwrap().is_err());
+    let stopped = h.engine.get("n3-test").unwrap();
+    assert_eq!(stopped.phase, "stopped");
+    assert_eq!(stopped.recovery.as_deref(), Some("restored"));
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "before");
+    assert!(h.engine.plan("n3-test", &selection()).is_err(), "a stopped assembly needs reinspection before a new plan");
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "ready");
+}
+
+#[test]
+fn steps_record_their_times_and_usual_durations_take_the_median_of_finished_steps() {
+    let h = Harness::new();
+    h.prepared();
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.steps.iter().map(|s| s.key.as_str()).collect::<Vec<_>>(), ["project", "materials", "inspect"]);
+    let millis = |text: &Option<String>| text.as_deref().and_then(vua_orchestrator::rfc3339_millis).unwrap();
+    for step in &run.steps {
+        assert!(millis(&step.started_at) <= millis(&step.ended_at));
+    }
+    let mut view = serde_json::to_value(&run).unwrap();
+    view["usualDurations"] = serde_json::to_value(h.engine.usual_durations()).unwrap();
+    view["progress"] = serde_json::Value::Null;
+    assert!(flow_schema("status.schema.json").is_valid(&view), "{view}");
+    let usual = h.engine.usual_durations();
+    assert_eq!(usual.keys().map(String::as_str).collect::<Vec<_>>(), ["inspect", "materials", "project"]);
+
+    // Earlier runs on this computer: inspections of 60, 300 and 120 seconds, and steps that do
+    // not count — a failed one, a stopped one and one recorded before step times existed.
+    let record = |id: &str, steps: serde_json::Value| {
+        let mut other = serde_json::to_value(&run).unwrap();
+        other["runId"] = id.into();
+        other["projectRoot"] = h.root.join("production/projects").join(id).to_string_lossy().into_owned().into();
+        other["steps"] = steps;
+        fs::write(h.root.join("production/runs").join(format!("{id}.json")), serde_json::to_vec(&other).unwrap()).unwrap();
+    };
+    let step = |state: &str, start: &str, end: &str| serde_json::json!({"key":"inspect","name":"Inspect","state":state,"detail":"",
+        "startedAt":format!("2026-10-17T{start}.000Z"),"endedAt":format!("2026-10-17T{end}.000Z")});
+    record("n3-earlier-1", serde_json::json!([step("succeeded", "08:00:00", "08:01:00"), step("failed", "09:00:00", "10:00:00")]));
+    record("n3-earlier-2", serde_json::json!([step("succeeded", "08:00:00", "08:05:00"), step("stopped", "09:00:00", "09:30:00")]));
+    record("n3-earlier-3", serde_json::json!([step("succeeded", "08:00:00", "08:02:00"), {"key":"inspect","name":"Inspect","state":"succeeded","detail":""}]));
+    // This run's own inspection took well under a minute, so it is the shortest of four.
+    assert_eq!(h.engine.usual_durations()["inspect"], 90, "the median of four finished inspections");
+    record("n3-earlier-4", serde_json::json!([step("succeeded", "08:00:00", "08:10:00")]));
+    assert_eq!(h.engine.usual_durations()["inspect"], 120, "a new record replaces the cached medians");
+    assert!(h.engine.get("n3-earlier-3").unwrap().steps[1].started_at.is_none(), "records without step times still read");
 }

@@ -91,7 +91,7 @@ export const amfProductionCopy = {
     previewTitle: "How the Avatar looks", previewHint: "Rendered in Unity from the front, side and back under neutral light.", previewViews: {"front":"Front","side":"Side","back":"Back"},
     warning: "There are warnings to review in Unity.", recovered: "The prepared project was restored. Reinspect it before retrying.", recoveryFailed: "Restoration needs attention. Keep this project and start a separate preparation.",
     history: "Recent preparations", selected: "{count} package(s) selected", preparedAvatar: "Avatar: {name}", taskFailed: "The operation failed. Your selections have been kept.",
-    phase: { preparing: "Preparing", ready: "Ready to review", assembling: "Assembling", restoring: "Restoring", succeeded: "Assembled", failed: "Needs attention", cancelled: "Cancelled", inspect_required: "Reinspection required" },
+    phase: { preparing: "Preparing", ready: "Ready to review", assembling: "Assembling", restoring: "Restoring", succeeded: "Assembled", failed: "Needs attention", cancelled: "Cancelled", inspect_required: "Reinspection required", inspecting: "Checking in Unity", stopped: "Stopped" },
     step: { project: "Prepare work project and dependencies", materials: "Import selected materials", inspect: "Read actual prefabs", snapshot: "Protect the prepared project", assembly: "Assemble materials and switches", reinspect: "Reinspect the project", protect_current: "Protect your current work", restore: "Restore the reviewed state" },
   },
   "zh-CN": {
@@ -186,7 +186,7 @@ export const amfProductionCopy = {
     previewTitle: "Avatar 外观", previewHint: "在 Unity 中用中性光照从正面、侧面和背面渲染。", previewViews: {"front":"正面","side":"侧面","back":"背面"},
     warning: "还有警告需要在 Unity 中查看。", recovered: "已恢复装配前的工程。重试前请重新检查。", recoveryFailed: "工程恢复还需要处理。请保留现场，另起一次准备。",
     history: "最近的准备记录", selected: "已选 {count} 个素材包", preparedAvatar: "素体：{name}", taskFailed: "这次操作没有完成，你的选择已保留。",
-    phase: { preparing: "正在准备", ready: "可以确认计划", assembling: "正在装配", restoring: "正在恢复", succeeded: "已装配", failed: "需要处理", cancelled: "已取消", inspect_required: "需要重新检查" },
+    phase: { preparing: "正在准备", ready: "可以确认计划", assembling: "正在装配", restoring: "正在恢复", succeeded: "已装配", failed: "需要处理", cancelled: "已取消", inspect_required: "需要重新检查", inspecting: "正在 Unity 中检查", stopped: "已停止" },
     step: { project: "准备工作工程与依赖", materials: "导入已选素材", inspect: "读取实际 Prefab", snapshot: "保护装配前的工程", assembly: "装配素材与菜单开关", reinspect: "重新检查工程", protect_current: "保护当前编辑进度", restore: "恢复已确认的状态" },
   },
   ja: {
@@ -281,7 +281,7 @@ export const amfProductionCopy = {
     previewTitle: "Avatar の見た目", previewHint: "Unity でニュートラルな照明のもと、正面・側面・背面から描画しました。", previewViews: {"front":"正面","side":"側面","back":"背面"},
     warning: "Unity で確認する警告があります。", recovered: "組み立て前の状態に復元しました。再試行前に再確認してください。", recoveryFailed: "復元に対応が必要です。このプロジェクトを残し、別の準備を開始してください。",
     history: "最近の準備", selected: "{count} 個のパッケージを選択", preparedAvatar: "Avatar：{name}", taskFailed: "完了できませんでした。選択内容は保持されています。",
-    phase: { preparing: "準備中", ready: "確認できます", assembling: "組み立て中", restoring: "復元中", succeeded: "組み立て済み", failed: "要対応", cancelled: "キャンセル済み", inspect_required: "再確認が必要" },
+    phase: { preparing: "準備中", ready: "確認できます", assembling: "組み立て中", restoring: "復元中", succeeded: "組み立て済み", failed: "要対応", cancelled: "キャンセル済み", inspect_required: "再確認が必要", inspecting: "Unity で確認中", stopped: "停止済み" },
     step: { project: "作業プロジェクトと依存関係の準備", materials: "素材をインポート", inspect: "実際の Prefab を確認", snapshot: "作業状態を保護", assembly: "素材とスイッチを組み立て", reinspect: "プロジェクトを再確認", protect_current: "現在の編集内容を保護", restore: "確認した状態に復元" },
   },
   ko: {
@@ -376,7 +376,7 @@ export const amfProductionCopy = {
     previewTitle: "Avatar 모습", previewHint: "Unity에서 중립 조명으로 정면, 측면, 뒷면을 렌더링했어요.", previewViews: {"front":"정면","side":"측면","back":"뒷면"},
     warning: "Unity에서 확인할 경고가 있어요.", recovered: "조립 전 프로젝트로 복원했어요. 다시 시도하기 전에 검사하세요.", recoveryFailed: "복원에 확인이 필요해요. 이 프로젝트를 보존하고 별도로 준비하세요.",
     history: "최근 준비 기록", selected: "패키지 {count}개 선택됨", preparedAvatar: "Avatar: {name}", taskFailed: "완료하지 못했어요. 선택 내용은 유지돼요.",
-    phase: { preparing: "준비 중", ready: "확인 가능", assembling: "조립 중", restoring: "복원 중", succeeded: "조립됨", failed: "확인 필요", cancelled: "취소됨", inspect_required: "다시 검사 필요" },
+    phase: { preparing: "준비 중", ready: "확인 가능", assembling: "조립 중", restoring: "복원 중", succeeded: "조립됨", failed: "확인 필요", cancelled: "취소됨", inspect_required: "다시 검사 필요", inspecting: "Unity에서 확인 중", stopped: "중지됨" },
     step: { project: "작업 프로젝트와 의존성 준비", materials: "에셋 가져오기", inspect: "실제 Prefab 확인", snapshot: "작업 상태 보호", assembly: "에셋과 스위치 조립", reinspect: "프로젝트 다시 검사", protect_current: "현재 편집 내용 보호", restore: "확인한 상태로 복원" },
   },
 };

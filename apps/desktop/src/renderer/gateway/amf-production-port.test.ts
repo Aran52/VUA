@@ -27,6 +27,39 @@ describe("AMF production response boundary", () => {
     expect(isAmfProductionRun({...run,prefabs:[{...prefab,preview:".vua/previews/../../Assets/x.png"}]})).toBe(false);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,previews:[{view:"top",path:previews[0]?.path}]}}})).toBe(false);
   });
+  it("accepts a stopped run with step times, usual durations and live progress", () => {
+    const steps = [{key:"inspect",name:"Identify actual Avatar and outfit prefabs",state:"stopped",detail:"",startedAt:"2026-10-17T08:00:00.000Z",endedAt:"2026-10-17T08:04:10.000Z"}];
+    const stopped = {...run,phase:"stopped",steps,usualDurations:{inspect:412},progress:null};
+    expect(isAmfProductionRun(stopped)).toBe(true);
+    const progress = {step:"reinspect",name:"Reinspect the retained work project",startedAt:"2026-10-17T08:10:00.000Z",elapsedSeconds:95,usualSeconds:null,
+      unity:{stage:"importing",current:240,total:379,lastActivityAt:"2026-10-17T08:11:33.000Z"}};
+    expect(isAmfProductionRun({...stopped,phase:"inspecting",progress})).toBe(true);
+    expect(isAmfProductionRun({...stopped,phase:"paused"})).toBe(false);
+    expect(isAmfProductionRun({...stopped,steps:[{...steps[0],startedAt:undefined}]})).toBe(false);
+    expect(isAmfProductionRun({...stopped,steps:[{...steps[0],state:"waiting"}]})).toBe(false);
+    expect(isAmfProductionRun({...stopped,usualDurations:{inspect:-1}})).toBe(false);
+    expect(isAmfProductionRun({...stopped,progress:{...progress,unity:{...progress.unity,line:"Start importing Assets/Coat.prefab"}}})).toBe(false);
+    expect(isAmfProductionRun({...stopped,progress:{...progress,unity:{...progress.unity,stage:"downloading"}}})).toBe(false);
+  });
+  it("stops through task cancellation and reads only AMF progress events", async () => {
+    const requests: unknown[] = [];
+    let emit: (event: unknown) => void = () => {};
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:{} as DesktopGatewaySuccessValueV1};},
+      subscribe(listener){emit = event => listener(event as Parameters<typeof listener>[0]);return()=>{};}};
+    const port = createAmfProductionPort(client);
+    await port.stop({taskId:"task-amf"});
+    expect(requests[0]).toMatchObject({method:"task.requestCancellation",params:{taskId:"task-amf"}});
+    await expect(port.stop({taskId:""})).rejects.toThrow("not_running");
+    const seen: unknown[] = [];
+    port.onProgress(progress => seen.push(progress));
+    const payload = {operation:"amf.production",runId:"n3-test",step:"inspect",name:"Identify actual Avatar and outfit prefabs",startedAt:"2026-10-17T08:00:00.000Z",
+      unity:{stage:"importing",current:12,total:379,lastActivityAt:"2026-10-17T08:01:00.000Z"}};
+    emit({kind:"task.progressed",taskId:"task-amf",payload});
+    emit({kind:"task.progressed",taskId:"task-download",payload:{completed:1,messageKey:"tasks.download.transfer"}});
+    emit({kind:"task.progressed",taskId:"task-amf",payload:{...payload,unity:{...payload.unity,log:"[Licensing::Client] ..."}}});
+    emit({kind:"task.stateChanged",taskId:"task-amf",payload:{}});
+    expect(seen).toEqual([payload]);
+  });
   it("turns a reported preview into a PNG data URL", async () => {
     const path = ".vua/previews/n3-test-1/front.png";
     let response: unknown = {schemaVersion:"0.1",runId:"n3-test",path,mediaType:"image/png",data:"iVBORw0KGgoAAAANSUhEUg=="};

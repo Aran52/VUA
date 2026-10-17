@@ -146,7 +146,8 @@ pub use state_file::{
     StateFile, StateFileError, StateLoad, StateRecoveryReason, STATE_FILE_SCHEMA_VERSION,
 };
 pub use time::{
-    Clock, FixedClock, FixedIdGenerator, NanosTaskIdGenerator, SystemClock, TaskIdGenerator,
+    rfc3339, rfc3339_millis, Clock, FixedClock, FixedIdGenerator, NanosTaskIdGenerator,
+    SystemClock, TaskIdGenerator,
 };
 pub use tools::{
     registry_ids, ProbeRoot, ToolCardV1, ToolProbe, ToolRegistration, ToolsEngine, ToolsRoots,

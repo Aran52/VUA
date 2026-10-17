@@ -16,6 +16,8 @@ namespace Vua.Editor.Bridge
     internal static class AmfProductionEntryPoint
     {
         private const string ScenePath = "Assets/VUA/Production.unity";
+        // VUA reads the stage of a batch run from the log; the stage names form a closed set.
+        private static void LogStage(string stage) => Debug.LogFormat(LogType.Log, LogOption.NoStacktrace, null, "[VUA] stage={0}", stage);
         private const string OwnershipPath = "Assets/VUA/Ownership.json";
         // Unity keeps the VRChat SDK sign-in per company and product, so every work project shares both.
         private const string WorkCompany = "VUA";
@@ -93,12 +95,14 @@ namespace Vua.Editor.Bridge
             {
                 result.diagnostics.Add(BridgeDiagnostic.Error("amf.production.failed", error.GetType().Name + ": " + error.Message));
             }
+            LogStage("finishing");
             if (output != null) AtomicWrite(output, JsonUtility.ToJson(result, true));
             if (Application.isBatchMode) EditorApplication.Exit(result.status == "succeeded" ? 0 : 1);
         }
 
         private static void Process(BridgeCommand command, Result result)
         {
+            LogStage("bridge");
             if (command.schemaVersion != 5 || string.IsNullOrEmpty(command.commandId) || string.IsNullOrEmpty(command.projectId))
                 throw new InvalidOperationException("AMF requires Bridge v5 and bound command/project identities.");
             if (Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
@@ -164,6 +168,7 @@ namespace Vua.Editor.Bridge
         // render becomes a warning; the inspected and assembled facts stand on their own.
         private static void RenderPreviews(BridgeCommand command, Result result, string root)
         {
+            LogStage("previews");
             if (command.commandId.Length > 160 || !command.commandId.All(c => (c < 128 && char.IsLetterOrDigit(c)) || c == '-' || c == '_'))
             {
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.preview.failed", "Previews need a plain command identity."));

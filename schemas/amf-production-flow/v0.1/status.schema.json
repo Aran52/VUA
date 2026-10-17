@@ -163,7 +163,9 @@
         "snapshot",
         "assembly",
         "protect_current",
-        "restore"
+        "restore",
+        "turntable",
+        "upload"
       ]
     },
     "timestamp": {

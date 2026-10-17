@@ -35,7 +35,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];

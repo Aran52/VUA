@@ -730,3 +730,24 @@ fn steps_record_their_times_and_usual_durations_take_the_median_of_finished_step
     assert_eq!(h.engine.usual_durations()["inspect"], 120, "a new record replaces the cached medians");
     assert!(h.engine.get("n3-earlier-3").unwrap().steps[1].started_at.is_none(), "records without step times still read");
 }
+
+#[test]
+fn every_step_the_engine_records_is_in_the_published_status_schema() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let schema: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join("../../schemas/amf-production-flow/v0.1/status.schema.json")).unwrap()).unwrap();
+    let text = schema.to_string();
+    let mut sources = vec![root.join("src/amf_production.rs")];
+    sources.extend(fs::read_dir(root.join("src/amf_production")).unwrap().map(|entry| entry.unwrap().path()));
+    let marker = "self.step(&mut run, ctx, \"";
+    let mut keys = Vec::new();
+    for source in sources {
+        let code = fs::read_to_string(source).unwrap();
+        for part in code.split(marker).skip(1) {
+            keys.push(part.split('"').next().unwrap().to_owned());
+        }
+    }
+    assert!(keys.len() >= 8, "found the engine's steps: {keys:?}");
+    for key in keys {
+        assert!(text.contains(&format!("\"{key}\"")), "status.schema.json lists the step key {key}");
+    }
+}

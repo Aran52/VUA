@@ -46,6 +46,8 @@
         "assembly",
         "protect_current",
         "restore",
+        "turntable",
+        "upload",
         "open"
       ]
     },

@@ -52,4 +52,9 @@ describe("AMF material-first Candidate boundary", () => {
     expect(isApplicationRequestV01({contractVersion:"0.1",requestId:"req",correlationId:"corr",kind:"query",method:"amf.production.open",params:{schemaVersion:"0.1",runId:"n3-test"}})).toBe(false);
     expect(isAmfProductionParams("amf.production.get",{schemaVersion:"0.1",runId:"../other"})).toBe(false);
   });
+
+  it("accepts every step the AMF engine records, including release steps", () => {
+    for (const key of ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"])
+      expect(isAmfStep({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-17T15:00:00.000Z", endedAt: "2026-10-17T15:01:00.000Z" }), key).toBe(true);
+  });
 });

@@ -138,10 +138,6 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-workshop__line[aria-current] { border-color: var(--vua-accent); background: color-mix(in srgb, var(--vua-accent) 9%, var(--vua-bg-panel)); }
 .vua-workshop__line:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
 .vua-workshop__main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-.vua-workshop__levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; margin-block: 12px; }
-.vua-workshop__levels button { display: grid; gap: 6px; padding: 14px; text-align: start; font: inherit; color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); cursor: pointer; }
-.vua-workshop__levels button:hover { border-color: var(--vua-accent); }
-.vua-workshop__levels span { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 
 .vua-line__status { display: inline-flex; align-items: center; padding: 2px 10px; border: 1px solid currentColor; border-radius: var(--vua-radius-pill); font-size: 12px; color: var(--vua-text-secondary); white-space: nowrap; }
 .vua-line__status[data-status="running"] { color: var(--vua-accent); }
@@ -150,8 +146,21 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-line__status[data-status="finished"] { color: var(--vua-success); }
 .vua-line__header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .vua-line__header h1 { margin: 0; overflow-wrap: anywhere; }
-.vua-line__level { display: flex; align-items: center; gap: 10px; margin-inline-start: auto; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
-.vua-n3 .vua-line__level select { width: auto; min-height: 34px; padding-block: 4px; }
+/* Permission mode: a button naming the mode in effect, and a card of the three modes below it. */
+.vua-mode-picker { position: relative; display: inline-flex; margin-inline-start: auto; }
+.vua-mode-picker__button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 10px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-body); cursor: pointer; }
+.vua-mode-picker__button:hover, .vua-mode-picker__button[aria-expanded="true"] { border-color: var(--vua-border-strong); }
+.vua-mode-picker__button > svg:last-child { color: var(--vua-text-secondary); }
+.vua-mode-picker__card { position: absolute; top: calc(100% + 6px); inset-inline-end: 0; z-index: 30; display: grid; gap: 2px; width: max-content; max-width: min(380px, calc(100vw - 32px)); padding: 6px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-elevated); box-shadow: 0 10px 30px color-mix(in srgb, var(--vua-bg-canvas) 55%, transparent); }
+.vua-mode-picker__card[data-closing] { pointer-events: none; }
+.vua-mode-picker__item { display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: 12px; padding: 9px 10px; border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-strong); font: inherit; text-align: start; cursor: pointer; }
+.vua-mode-picker__item:hover { background: color-mix(in srgb, var(--vua-text-strong) 6%, transparent); }
+.vua-mode-picker__item:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
+.vua-mode-picker__item > svg { color: var(--vua-text-secondary); }
+.vua-mode-picker__text { display: grid; gap: 2px; }
+.vua-mode-picker__text strong { font: var(--vua-font-body); font-weight: 650; }
+.vua-mode-picker__text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); white-space: nowrap; }
+.vua-mode-picker__mark { display: grid; place-items: center; color: var(--vua-text-strong); }
 .vua-line__stations { margin: 0; padding: 0; list-style: none; }
 .vua-line__station { position: relative; display: grid; gap: 4px; padding: 10px 12px 12px; border: 1px solid var(--vua-border); color: var(--vua-text-secondary); background: var(--vua-bg-panel); clip-path: var(--vua-shape-step); }
 .vua-line__station strong { color: inherit; font: var(--vua-font-caption); }

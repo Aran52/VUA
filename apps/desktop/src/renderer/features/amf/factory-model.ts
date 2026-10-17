@@ -5,8 +5,13 @@ export const STATIONS = ["prepare", "inspect", "plan", "assemble", "check"] as c
 export type StationKey = typeof STATIONS[number];
 export type StationState = "todo" | "running" | "waiting" | "done" | "failed" | "stopped";
 export type LineStatus = "running" | "waiting" | "attention" | "finished" | "stopped" | "idle";
-export type AutomationLevel = "auto" | "semi" | "manual";
-export const AUTOMATION_LEVELS: readonly AutomationLevel[] = ["auto", "semi", "manual"];
+/** How much the player hands over, like an AI agent's permission mode: every change asks, VUA decides routine
+ * steps itself, or VUA changes the work project without asking. It is about what the player wants to hand over,
+ * not how well they know Unity (author ruling 2026-10-18). */
+export type AutomationLevel = "ask" | "smart" | "full";
+/** Listed in this order; asking before changes is the default. */
+export const AUTOMATION_LEVELS: readonly AutomationLevel[] = ["ask", "smart", "full"];
+export const DEFAULT_AUTOMATION_LEVEL: AutomationLevel = "ask";
 
 interface Step { readonly key: string; readonly state: string }
 export interface LineFacts { readonly phase: AmfRunPhase; readonly steps: readonly Step[] }
@@ -60,9 +65,16 @@ export function currentStation(states: Record<StationKey, StationState>): Statio
   return [...STATIONS].reverse().find(key => states[key] === "done") ?? "prepare";
 }
 
-/** Where the line stops for the player at each automation level. */
+/** Where the line stops for the player in each mode. */
 export function stopsAt(level: AutomationLevel): ReadonlySet<StationKey> {
-  return new Set<StationKey>(level === "auto" ? ["plan"] : level === "semi" ? ["plan", "check"] : STATIONS);
+  return new Set<StationKey>(level === "full" ? [] : level === "smart" ? ["plan", "check"] : STATIONS);
+}
+
+/** Full access assembles a prepared line without asking, once, when it was never assembled and VUA found an
+ * Avatar and at least one outfit to put on it. A finished or changed line keeps waiting for the player. */
+export function assemblesWithoutAsking(level: AutomationLevel, line: LineFacts & { readonly completedAt?: string | null }, ready: { readonly busy: boolean; readonly chosen: boolean }): boolean {
+  return level === "full" && line.phase === "ready" && !ready.busy && ready.chosen && !line.completedAt
+    && !line.steps.some(step => step.key === "assembly" && step.state === "succeeded");
 }
 
 export function formatDuration(ms: number): string {
@@ -71,9 +83,10 @@ export function formatDuration(ms: number): string {
   return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-const levelKey = "vua-amf-automation-level-v01";
-export function storedAutomationLevel(): AutomationLevel | null {
-  try { const value = localStorage.getItem(levelKey); return AUTOMATION_LEVELS.includes(value as AutomationLevel) ? value as AutomationLevel : null; } catch { return null; }
+// A new key: every player starts asking before changes, whatever the earlier familiarity choice was.
+const levelKey = "vua-amf-permission-mode-v01";
+export function storedAutomationLevel(): AutomationLevel {
+  try { const value = localStorage.getItem(levelKey); return AUTOMATION_LEVELS.includes(value as AutomationLevel) ? value as AutomationLevel : DEFAULT_AUTOMATION_LEVEL; } catch { return DEFAULT_AUTOMATION_LEVEL; }
 }
 export function rememberAutomationLevel(level: AutomationLevel): void {
   try { localStorage.setItem(levelKey, level); } catch { /* The level applies to this session. */ }

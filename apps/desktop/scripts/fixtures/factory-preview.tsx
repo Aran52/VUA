@@ -48,8 +48,22 @@ const api = {
 } as unknown as AmfProductionPort;
 const gateway = emptyGateway(null);
 const selected = view.startsWith("workshop-") ? view.slice("workshop-".length) : "";
-try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-automation-level-v01", view.endsWith("auto") ? "auto" : "semi"); } catch { /* preview only */ }
-const runOf = selected.replace(/-auto$/u, "");
+try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("auto") ? "full" : "ask"); } catch { /* preview only */ }
+const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : selected.replace(/-auto$/u, "");
+// Opens the line's mode menu the way the player does, and for full access chooses it to show the warning.
+function ChooseMode({ full }: { full: boolean }) {
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      const button = document.querySelector<HTMLButtonElement>("[data-nav-id=workshop-mode]");
+      if (!button) return;
+      clearInterval(timer);
+      button.click();
+      if (full) setTimeout(() => document.querySelector<HTMLButtonElement>("[data-nav-id=workshop-mode-full]")?.click(), 400);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [full]);
+  return null;
+}
 try { localStorage.setItem("vua-amf-production-run-v01", runOf); } catch { /* preview only */ }
 const control = view.startsWith("control-") ? controlPreview(view, { ...gateway, amfProduction: api }, api) : null;
 const release = view.startsWith("release-") ? releasePorts(view) : null;
@@ -68,7 +82,7 @@ createRoot(document.getElementById("root")!).render(release ? <GatewayProvider g
     <Card><VrchatSignInSection /></Card>
   </div>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
-  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
+  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}</AmfRoom>}
 </GatewayProvider>);
 
 // Mid-flight frame: the capture runs 2.5 s after load; the camera move takes 0.65 s.

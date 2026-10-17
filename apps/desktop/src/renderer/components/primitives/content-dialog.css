@@ -59,3 +59,8 @@
   overflow-y: auto;
   padding: var(--vua-space-3);
 }
+
+/* A closing dialog moves out without taking clicks. */
+.vua-content-dialog__overlay[data-closing] {
+  pointer-events: none;
+}

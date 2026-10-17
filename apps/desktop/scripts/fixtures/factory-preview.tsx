@@ -3,7 +3,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx";
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
-import { FactoryMap } from "../../src/renderer/features/amf/FactoryMap.tsx";
+import { FactoryMap, type Room } from "../../src/renderer/features/amf/FactoryMap.tsx";
 import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import type { AmfProductionPort, AmfProductionRun } from "../../src/renderer/gateway/index.ts";
@@ -45,5 +45,5 @@ try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage
 const runOf = selected.replace(/-auto$/u, "");
 try { localStorage.setItem("vua-amf-production-run-v01", runOf); } catch { /* preview only */ }
 createRoot(document.getElementById("root")!).render(<GatewayProvider gateway={{ ...gateway, amfProduction: api }}>
-  {view === "map" ? <FactoryMap navigate={() => {}} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
+  {view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
 </GatewayProvider>);

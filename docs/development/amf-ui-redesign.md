@@ -15,7 +15,7 @@ ask them; the stations are the same for everyone.
 
 ## Base map
 
-Selecting AMF opens the base map: a two-floor building in the style of a base-management game.
+Selecting AMF opens the base map: a two-floor building in the style of a base-management game. A click on a room zooms the camera into it and shows its interior (control center: desks and computers; materials: shelves; release: a stage with the latest finished Avatar; workshop: the production line); the room's Enter button or a double click opens its page.
 Each room shows its live state. A banner gathers what waits for the player and
 what needs attention.
 

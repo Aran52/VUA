@@ -84,6 +84,27 @@ export function AlbumBook({ spreads, index, turn, progress, bookRef, onCorner, o
   </div>;
 }
 
+/** An index tab: the spread being viewed grows out of the album and settles back when the reader moves on.
+ * Scripted with the Web Animations API, so Windows' animation setting does not flatten it; resource-saving mode sets the size at once. */
+function AlbumTab({ active, title, number, onSelect }: { active: boolean; title: string; number: number; onSelect: () => void }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const effects = useEffectsOn();
+  const shown = useRef<boolean | null>(null);
+  useLayoutEffect(() => {
+    const element = button.current; if (!element) return;
+    const scale = (on: boolean) => on ? `scale(${ALBUM_MOTION.tabScale})` : "scale(1)";
+    const first = shown.current === null; shown.current = active;
+    if (first || !effects || typeof element.animate !== "function") { element.style.transform = scale(active); return; }
+    const style = getComputedStyle(document.documentElement);
+    const animation = element.animate([{ transform: getComputedStyle(element).transform === "none" ? scale(!active) : getComputedStyle(element).transform }, { transform: scale(active) }],
+      { duration: durationOf(style.getPropertyValue(ALBUM_MOTION.fadeDuration), 300), easing: style.getPropertyValue(ALBUM_MOTION.easing).trim() || "ease-out", fill: "forwards" });
+    animation.onfinish = () => { element.style.transform = scale(active); animation.cancel(); };
+    return () => animation.cancel();
+  }, [active, effects]);
+  return <button ref={button} type="button" aria-current={active || undefined} title={title} onClick={onSelect}>
+    <span>{String(number).padStart(2, "0")}</span><span>{title}</span></button>;
+}
+
 export function ReleaseAlbum({ spreads, index, onIndex }: { spreads: readonly AlbumSpread[]; index: number; onIndex: (index: number) => void }) {
   const effects = useEffectsOn();
   const reduced = useReducedMotion();
@@ -189,8 +210,7 @@ export function ReleaseAlbum({ spreads, index, onIndex }: { spreads: readonly Al
     <div className="vua-album__binder">
       <AlbumBook spreads={spreads} index={index} turn={turn} progress={progress.current} bookRef={book} onCorner={onCorner} onStep={steps => go(index + steps)} />
       {spreads.length > 1 && <ol className="vua-album__tabs" aria-label={copy.albumLabel}>
-        {spreads.map((spread, at) => <li key={spread.key}><button type="button" aria-current={at === index || undefined} title={spread.tab}
-          onClick={() => go(at)}><span>{String(at + 1).padStart(2, "0")}</span><span>{spread.tab}</span></button></li>)}
+        {spreads.map((spread, at) => <li key={spread.key}><AlbumTab active={at === index} title={spread.tab} number={at + 1} onSelect={() => go(at)}/></li>)}
       </ol>}
     </div>
     <nav className="vua-album__nav" aria-label={copy.albumLabel}>

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Icon } from "@vua/design-system";
 import { useGateway, type AmfProductionList, type AmfProductionRun } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
-import { strings, format } from "../../i18n/index.ts";
-import { currentStation, lineBusy, lineStations, lineStatus, phaseStatus, STATIONS, type LineStatus } from "./factory-model.ts";
+import { strings, format, formatShortDateTime } from "../../i18n/index.ts";
+import { currentStation, lineBusy, lineLabels, lineStations, lineStatus, phaseStatus, STATIONS, type LineStatus } from "./factory-model.ts";
 import { RoomCanvas, token, useEffectsOn } from "./RoomCanvas.tsx";
 import type { SceneFacts } from "./factory-scenes.ts";
 import { between, cameraOn, neighbors, OVERVIEW, transformOf, type Camera, type Direction } from "./factory-camera.ts";
@@ -113,6 +113,8 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
   const count = (status: LineStatus) => statuses.filter(item => (item.run.runId === line?.runId ? lineStatus(line) : item.status) === status).length;
   const running = count("running"); const waiting = count("waiting"); const attention = count("attention");
   const stations = line ? lineStations(line) : null;
+  const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
+  const label = (runId: string, fallback: string) => { const found = labels.get(runId); return found ? (found.extra ? `${found.name} · ${found.extra}` : found.name) : fallback; };
   const facts: SceneFacts = {
     recipes: recipes ?? 0, packages: list?.sources.length ?? 0, image: stage, running: line !== null && lineBusy(line),
     stations: stations ? STATIONS.map(key => ({ key, label: copy.stations[key], state: stations[key] })) : null,
@@ -124,7 +126,7 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
     materials: { status: <span>{list === null ? "—" : format(copy.materialsCount, { count: list.sources.length })}</span>, interior: <RoomCanvas room="materials" facts={facts} zoom={zoomed === "materials" ? zoom : 1}/> },
     release: {
       status: <><span>{format(copy.finishedCount, { count: finished.length })}</span>
-        {finished[0] && <span className="vua-factory__muted">{format(copy.latestFinished, { name: lineName(finished[0].run.sourceNames) || finished[0].run.runId })}</span>}</>,
+        {finished[0] && <span className="vua-factory__muted">{format(copy.latestFinished, { name: label(finished[0].run.runId, lineName(finished[0].run.sourceNames)) })}</span>}</>,
       interior: <RoomCanvas room="release" facts={facts} zoom={zoomed === "release" ? zoom : 1}/>,
     },
     workshop: {
@@ -136,7 +138,7 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
           {running + waiting + attention === 0 && <span className="vua-factory__muted">{copy.linesIdle}</span>}
         </span>
         {line && stations && <span className="vua-factory__line">
-          <span className="vua-factory__line-name">{lineName(line.sources.map(source => source.itemName))}</span>
+          <span className="vua-factory__line-name">{label(line.runId, lineName(line.sources.map(source => source.itemName)))}</span>
           <span className="vua-factory__stations" aria-label={copy.stations[currentStation(stations)]}>
             {STATIONS.map(key => <span key={key} data-state={stations[key]} data-current={currentStation(stations) === key || undefined}>{copy.stations[key]}</span>)}
           </span>

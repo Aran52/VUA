@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentStation, formatDuration, lineStations, lineStatus, phaseStatus, stopsAt } from "./factory-model.ts";
+import { currentStation, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
 
 const steps = (...pairs: [string, string][]) => pairs.map(([key, state]) => ({ key, state }));
 
@@ -56,5 +56,25 @@ describe("AMF production line stations", () => {
   it("formats durations as minutes and seconds", () => {
     expect(formatDuration(161_000)).toBe("2:41");
     expect(formatDuration(3_725_000)).toBe("1:02:05");
+  });
+});
+
+describe("telling production lines apart", () => {
+  const time = (date: Date) => date.toISOString().slice(5, 16).replace("T", " ");
+  it("reads the start time from the run ID", () => {
+    expect(runStartedAt("n3-01a1455e-7790-7006-a7c0-000100000003")?.toISOString()).toBe(new Date(0x01a1455e7790).toISOString());
+    expect(runStartedAt("not-a-run")).toBeNull();
+  });
+  it("adds the start time only where names repeat, and a number within one minute", () => {
+    const labels = lineLabels([
+      { runId: "n3-01a14184-826d-7000-a900-000100000000", sourceNames: ["Meiyun_v2.1.0.zip", "TshirtShorts.zip"] },
+      { runId: "n3-01a1455e-7790-7006-a7c0-000100000003", sourceNames: ["Meiyun_v2.1.0.zip", "TshirtShorts.zip"] },
+      { runId: "n3-01a1455e-7791-7006-a7c0-000100000004", sourceNames: ["Meiyun_v2.1.0.zip", "TshirtShorts.zip"] },
+      { runId: "n3-01a14445-0b30-7000-a140-000100000000", sourceNames: ["Meiyun_v2.1.0.zip", "Costume4.zip"] },
+    ], time);
+    expect(labels.get("n3-01a14445-0b30-7000-a140-000100000000")).toEqual({ name: "Meiyun_v2.1.0 + Costume4", extra: null });
+    expect(labels.get("n3-01a14184-826d-7000-a900-000100000000")?.extra).not.toContain("#");
+    expect(labels.get("n3-01a1455e-7790-7006-a7c0-000100000003")?.extra).toMatch(/#1$/u);
+    expect(labels.get("n3-01a1455e-7791-7006-a7c0-000100000004")?.extra).toMatch(/#2$/u);
   });
 });

@@ -8,7 +8,7 @@ import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
-import { strings, format, termLabel } from "../../i18n/index.ts";
+import { strings, format, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
@@ -18,7 +18,7 @@ import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.t
 import { AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
 import "./factory.css";
 import type { AmfRunProgress } from "../../gateway/index.ts";
-import { formatDuration } from "./factory-model.ts";
+import { formatDuration, lineLabels } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
@@ -194,6 +194,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const stops = stopsAt(effective);
   const showDetails = effective !== "auto" || adjusting;
   const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
+  const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
 
   return <div className="vua-page vua-n3 vua-workshop">
@@ -201,7 +202,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       <Button variant="primary" onClick={newPreparation}>{factory.newLine}</Button>
       {list !== null && list.runs.length === 0 && <p className="vua-caption vua-text-secondary">{factory.lineEmpty}</p>}
       {list?.runs.map(recent => <button type="button" key={recent.runId} className="vua-workshop__line" aria-current={recent.runId === runId || undefined} onClick={() => selectLine(recent.runId)}>
-        <span>{lineName(recent.sourceNames) || recent.runId}</span>
+        <span>{labels.get(recent.runId)?.name ?? recent.runId}</span>
+        {labels.get(recent.runId)?.extra && <small className="vua-workshop__line-extra">{labels.get(recent.runId)?.extra}</small>}
         <StatusChip status={recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase)}/>
       </button>)}
     </aside>
@@ -238,6 +240,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     </> : <>
       <header className="vua-line__header">
         <h1 className="vua-title">{lineName(run.sources.map(source => source.itemName)) || run.runId}</h1>
+        {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
         {status && <StatusChip status={status}/>}
         <label className="vua-line__level">{factory.automation}<select value={effective} onChange={e => chooseLevel(e.target.value as AutomationLevel)}>
           {AUTOMATION_LEVELS.map(option => <option key={option} value={option}>{factory.levels[option].name}</option>)}</select></label>

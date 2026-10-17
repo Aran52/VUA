@@ -6,7 +6,8 @@ import type { AiUploadConfirmationV01 } from "@vua/contracts";
 import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfProductionRun, type AmfReleasePort, type AmfReleaseState } from "../../../gateway/index.ts";
 import type { PageId } from "../../../app/nav-model.ts";
 import { EmptyState } from "../../../components/primitives/EmptyState.tsx";
-import { format, formatDateTime, strings, termLabel } from "../../../i18n/index.ts";
+import { format, formatDateTime, formatShortDateTime, strings, termLabel } from "../../../i18n/index.ts";
+import { runStartedAt } from "../factory-model.ts";
 import { ReleasePage } from "../../release/ReleasePage.tsx";
 import { useAiRequests } from "../../ai-requests/use-ai-requests.ts";
 import { requestRunId } from "../../ai-requests/ai-request-routing.ts";
@@ -131,10 +132,14 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
     }
   };
 
+  const titleOf = (runId: string) => { const run = runs[runId]; return run ? avatarTitle(run) : baseName(list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runId); };
   const spreads: AlbumSpread[] = ids.map((runId, at) => {
     const run = runs[runId];
     const state = states[runId] ?? null;
-    const title = run ? avatarTitle(run) : baseName(list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runId);
+    const title = titleOf(runId);
+    // Finished Avatars with the same name are told apart by when their line started.
+    const started = runStartedAt(runId);
+    const tab = started && ids.some(other => other !== runId && titleOf(other) === title) ? `${title} · ${formatShortDateTime(started)}` : title;
     const request = requests.find(item => requestRunId(item) === runId) ?? null;
     const notice: ReactNode = request && <div className="vua-album__ai" role="status">
       <strong><Icon name="bell" size={16} />{copy.aiRequest.title}</strong>
@@ -145,7 +150,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
     </div>;
     const error = actionError?.runId === runId ? actionError : null;
     return {
-      key: runId, tab: title,
+      key: runId, tab,
       left: live => run ? <div className="vua-album__left">
         <ReleaseStage production={production} release={release} run={run} turntable={state?.turntable ?? null} title={title} live={live} />
         {live && <TurntableBar run={run} state={state} busy={busy} error={error?.kind === "bake" ? error.error : null}

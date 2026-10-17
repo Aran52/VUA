@@ -61,13 +61,13 @@
 .vua-album__dogear[data-side="right"]:hover, .vua-album__dogear[data-side="right"]:focus-visible { background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--room) 32%, var(--vua-bg-elevated)) 50%); }
 .vua-album__dogear[data-side="left"]:hover, .vua-album__dogear[data-side="left"]:focus-visible { background: linear-gradient(225deg, transparent 50%, color-mix(in srgb, var(--room) 32%, var(--vua-bg-elevated)) 50%); }
 
-.vua-album__tabs { display: flex; flex-direction: column; gap: 6px; margin: 18px 0 0; padding: 0; list-style: none; }
-.vua-album__tabs button { display: flex; align-items: baseline; gap: var(--vua-space-2); max-width: 150px; padding: var(--vua-space-2) var(--vua-space-3) var(--vua-space-2) 14px; border: 1px solid var(--vua-album-rule); border-inline-start: 0;
+.vua-album__tabs { display: flex; flex-direction: column; gap: 8px; margin: 18px 0 0; padding: 0; padding-inline-end: 30px; list-style: none; }
+.vua-album__tabs button { transform-origin: left center; display: flex; align-items: baseline; gap: var(--vua-space-2); max-width: 150px; padding: var(--vua-space-2) var(--vua-space-3) var(--vua-space-2) 14px; border: 1px solid var(--vua-album-rule); border-inline-start: 0;
   border-start-end-radius: var(--vua-radius-control); border-end-end-radius: var(--vua-radius-control); background: var(--vua-album-binding); color: var(--vua-text-secondary);
   font: var(--vua-font-caption); text-align: start; white-space: nowrap; cursor: pointer; }
 .vua-album__tabs button span:first-child { flex: none; font-weight: 700; color: var(--room); }
 .vua-album__tabs button span + span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.vua-album__tabs button[aria-current] { color: var(--vua-text-strong); background: var(--vua-album-paper); box-shadow: inset 3px 0 0 var(--room); }
+.vua-album__tabs button[aria-current] { position: relative; z-index: 1; color: var(--vua-text-strong); background: var(--vua-album-paper); box-shadow: inset 4px 0 0 var(--room), var(--vua-shadow-print); font-weight: 650; }
 .vua-album__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
 .vua-album__nav { display: flex; align-items: center; gap: var(--vua-space-3); padding-inline: var(--vua-space-1); }
 .vua-album__nav button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-pill); background: var(--vua-bg-panel); color: var(--vua-text-strong); cursor: pointer; }
@@ -79,7 +79,7 @@
 
 /* Left page: the photo on its stage, and the turntable below it. */
 .vua-album__left { display: flex; flex-direction: column; align-items: center; gap: 18px; height: 100%; }
-.vua-album__photo { position: relative; width: min(100%, 440px); margin: 6px 0 0; padding: var(--vua-space-3) var(--vua-space-3) var(--vua-space-2); background: var(--vua-album-print); box-shadow: var(--vua-shadow-print), 0 1px 0 var(--vua-album-rule); transform: rotate(-0.7deg); }
+.vua-album__photo { position: relative; width: min(100%, 440px); margin: 6px 0 0; padding: var(--vua-space-3) var(--vua-space-3) var(--vua-space-2); background: var(--vua-album-print); box-shadow: var(--vua-shadow-print), 0 1px 0 var(--vua-album-rule); }
 /* Default motif in the photo-corners slot: four triangles drawn as gradients. */
 .vua-album__corners { position: absolute; inset: -4px; z-index: 2; }
 .vua-album__corners > span { position: absolute; width: 22px; height: 22px; --corner: color-mix(in srgb, var(--room) 38%, var(--vua-bg-panel)); }
@@ -216,3 +216,5 @@
 @media (prefers-reduced-motion: reduce) {
   .vua-album__working::before, .vua-release-upload__stages [data-state="current"] { animation: none; }
 }
+.vua-album[data-narrow] .vua-album__tabs button { transform-origin: center bottom; }
+.vua-album[data-narrow] .vua-album__tabs { padding-inline-end: 0; padding-block: 6px; }

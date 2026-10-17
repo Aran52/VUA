@@ -78,3 +78,28 @@ export function storedAutomationLevel(): AutomationLevel | null {
 export function rememberAutomationLevel(level: AutomationLevel): void {
   try { localStorage.setItem(levelKey, level); } catch { /* The level applies to this session. */ }
 }
+
+/** When a run started: AMF run IDs are `n3-` plus a UUIDv7, whose first 48 bits are milliseconds since 1970. */
+export function runStartedAt(runId: string): Date | null {
+  const hex = runId.replace(/^n3-/u, "").replace(/-/gu, "").slice(0, 12);
+  if (!/^[0-9a-f]{12}$/iu.test(hex)) return null;
+  const date = new Date(Number.parseInt(hex, 16));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** A line's name and, when other lines share it, what tells them apart: the start time, plus a number within the same minute. */
+export function lineLabels(runs: readonly { runId: string; sourceNames: readonly string[] }[], time: (date: Date) => string): Map<string, { name: string; extra: string | null }> {
+  const nameOf = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
+  const named = runs.map(run => ({ run, name: nameOf(run.sourceNames) || run.runId }));
+  const labels = new Map<string, { name: string; extra: string | null }>();
+  for (const { run, name } of named) {
+    const twins = named.filter(other => other.name === name);
+    if (twins.length < 2) { labels.set(run.runId, { name, extra: null }); continue; }
+    const started = runStartedAt(run.runId);
+    const stamp = started ? time(started) : run.runId.slice(-6);
+    const sameStamp = twins.filter(other => { const at = runStartedAt(other.run.runId); return (at ? time(at) : other.run.runId.slice(-6)) === stamp; })
+      .sort((a, b) => a.run.runId.localeCompare(b.run.runId));
+    labels.set(run.runId, { name, extra: sameStamp.length > 1 ? `${stamp} · #${sameStamp.findIndex(other => other.run.runId === run.runId) + 1}` : stamp });
+  }
+  return labels;
+}

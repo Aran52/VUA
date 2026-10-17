@@ -84,6 +84,8 @@ export const ALBUM_MOTION = {
   /** The next spread fading in with reduced motion or stacked pages. */
   fadeDuration: "--vua-motion-base",
   easing: "--vua-motion-ease",
+  /** How much the index tab of the shown spread grows. */
+  tabScale: 1.18,
   /** Opacity the fading spread starts from. */
   fadeFrom: 0.35,
   /** A released corner completes its turn past this share of the way. */

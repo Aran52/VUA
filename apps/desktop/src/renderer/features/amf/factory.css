@@ -178,3 +178,4 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-line__quiet { color: var(--vua-warning); }
 .vua-line__bar { display: block; height: 6px; background: var(--vua-bg-elevated); border-radius: var(--vua-radius-pill); overflow: hidden; }
 .vua-line__bar > span { display: block; height: 100%; background: var(--vua-accent); border-radius: inherit; transition: width var(--vua-motion-slow) linear; }
+.vua-workshop__line-extra { font: var(--vua-font-caption); color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }

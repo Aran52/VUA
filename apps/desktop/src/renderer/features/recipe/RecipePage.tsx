@@ -750,7 +750,7 @@ export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void
 }
 
 /** Selection drafts and their graph remain available separately from saved production Recipes. */
-function RecipeWorkspace() {
+export function RecipeWorkspace() {
   const gateway = useGateway();
   const isFixture = useDataSource() === "fixture";
   const [graph, setGraph] = useState<RecipeGraphView | null>(null);

@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.8.0
+> Document version: 0.9.0
 > Status: Candidate
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -50,6 +50,19 @@ project. `sdkSignedIn` is `yes` when the SDK holds a saved sign-in for that prod
 holds none and `unknown` when the SDK cannot be asked. `missingShaderMaterials` lists the selected
 sources' materials and the active Avatar's renderer materials that Unity draws with its error
 shader because their shader is absent, with the warning `amf.shaders.missing`.
+
+After inspection and assembly, `sdkReview` carries the VRChat SDK's own checks of the active owned
+Avatar. The Bridge runs the SDK control panel's Avatar check (the avatar builder's
+`OnGUIAvatarCheck` in SDK 3.10.5) against a hidden panel instance, without opening the panel, and
+reads the panel's error, warning and information lists into `issues` as `{level, text, canFix}`:
+`level` is `error`, `warning` or `info`, `text` is the SDK's own sentence and `canFix` names an
+item the SDK offers Auto Fix for. `stats` lists each performance category the SDK rates as
+`{category, rating, text}`, computed with the SDK's performance calculation for the project's
+build target (`platform` `pc` or `android`); `rating` runs from `Excellent` to `VeryPoor` and
+`overall` is the SDK's overall rating. `state` is `checked`; `partial` when the SDK stopped
+part-way, keeping the items found before; `unavailable` when the SDK offers no check, with
+`detail`; and `not_run` for preparation and the turntable bake. The check only reads: the scene,
+assets and settings stay as they are. At most 64 items are kept, each text up to 600 characters.
 
 After inspection and assembly, the Bridge renders the active owned Avatar at 512×512 from the
 front, side and back (camera yaw 0°, 90° and 180°) and lists them in `previews` as
@@ -138,7 +151,8 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
-- 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA.7.0 of the parallel progress-and-stop change.
+- 0.9.0 (2026-10-18): read the VRChat SDK's own Avatar checks and performance ratings into `sdkReview` after inspection and assembly.
+- 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA.
 - 0.7.0 (2026-10-17): write bridge, previews and finishing stage lines to the run log.
 - 0.6.0 (2026-10-16): render the active Avatar from three sides after inspection and assembly, and each prefab candidate during inspection.
 - 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.

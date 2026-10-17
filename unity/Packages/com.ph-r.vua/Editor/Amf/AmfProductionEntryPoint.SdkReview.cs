@@ -150,6 +150,7 @@ namespace Vua.Editor.Bridge
                 Type[] types;
                 try { types = assembly.GetTypes(); }
                 catch (ReflectionTypeLoadException partial) { types = partial.Types.Where(t => t != null).ToArray(); }
+                catch (Exception) { continue; }
                 var match = types.FirstOrDefault(t => t.Name == simple);
                 if (match != null) return match;
             }

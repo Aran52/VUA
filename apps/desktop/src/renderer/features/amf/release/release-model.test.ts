@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AmfProductionRun, AmfReleaseState } from "../../../gateway/index.ts";
-import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, materialsLine, outfitLines, proposedUploadName, releaseChecks, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
+import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, materialsLine, outfitLines, proposedUploadName, releaseChecks, sdkReviewView, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
 
 const run = {
   schemaVersion: "0.1", runId: "n3-a", phase: "succeeded", taskId: "t", editor: { path: "Unity.exe", version: "2022.3.22f1" }, projectRoot: "C:/w", choices: [],
@@ -72,5 +72,34 @@ describe("release room facts", () => {
     expect(viewAfter(["front", "side", "back"], "front", 1)).toBe("side");
     expect(viewAfter(["front", "side", "back"], "front", -1)).toBe("back");
     expect(viewAfter(["front", "back"], "side", 1)).toBe("back");
+  });
+});
+
+describe("the SDK's own checks", () => {
+  const withReview = (sdkReview: unknown) => ({ ...run, result: { facts: { ...run.result!.facts!, sdkReview } } }) as unknown as AmfProductionRun;
+  it("groups the SDK's items the way a player acts on them", () => {
+    const view = sdkReviewView(withReview({
+      state: "checked", platform: "pc", overall: "Poor", detail: "",
+      issues: [
+        { level: "error", text: "This avatar has no pipeline manager component.", canFix: true },
+        { level: "warning", text: "This avatar uses Unity constraints.", canFix: true },
+        { level: "info", text: "This avatar can be used as a custom fallback.", canFix: false },
+      ],
+      stats: [
+        { category: "PolyCount", rating: "Good", text: "Triangles: 60000" },
+        { category: "MaterialCount", rating: "Medium", text: "Material Slots: 12" },
+        { category: "BoneCount", rating: "Poor", text: "Bones: 300" },
+      ],
+    }));
+    expect(view?.overall).toBe("Poor");
+    expect(view?.mustFix.map(issue => issue.text)).toEqual(["This avatar has no pipeline manager component."]);
+    expect(view?.reminders).toHaveLength(1);
+    expect(view?.notes).toHaveLength(1);
+    expect(view?.rankItems.map(stat => stat.category)).toEqual(["BoneCount", "MaterialCount"]);
+  });
+  it("reads an older run or an unrated estimate as nothing yet", () => {
+    expect(sdkReviewView(run)).toBeNull();
+    const unrated = sdkReviewView(withReview({ state: "unavailable", platform: "", overall: "None", detail: "x", issues: [], stats: [] }));
+    expect(unrated).toMatchObject({ state: "unavailable", platform: "pc", overall: null, mustFix: [], rankItems: [] });
   });
 });

@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.11.0
+> Document version: 0.12.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -213,6 +213,11 @@ upload still marked running when a new one starts ended with VUA and reads `inte
 VRChat sign-in and the SDK's own ownership agreement stay inside the SDK; VUA reports only
 `sdkSignedIn` from its facts. An AI Agent requests an upload as a pending request that the player
 approves on the release page with the same rights confirmation (see [AI tools](ai-tools-v0.1.md)).
+The release page shows the SDK's own checks of the finished Avatar from the run facts
+(`sdkReview`, read by [Bridge v5](unity-bridge-v5.md) during inspection and assembly): the
+performance rank for the build target, the items the SDK refuses an upload with, its reminders,
+and the categories rated below Good. The upload confirmation names how many items the SDK
+refuses an upload with; the SDK's own check during the upload decides.
 
 ## Unity producing face
 
@@ -240,8 +245,9 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.
 - 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
-- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.9.0 of the parallel progress-and-stop change.
+- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.
 - 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
 - 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
 - 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.

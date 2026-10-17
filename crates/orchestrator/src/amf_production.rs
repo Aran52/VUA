@@ -332,9 +332,12 @@ pub struct AmfProductionEngine {
     pub(crate) platform: Arc<dyn AmfProductionPlatform>,
     /// Live progress of each run's Unity step, while it runs.
     live: Mutex<BTreeMap<String, UnityProgress>>,
-    /// Usual step durations, with the modification time of the run folder they were read at.
-    usual: Mutex<Option<(SystemTime, BTreeMap<String, u64>)>>,
+    /// Usual step durations, with the signature of the run records they were read from.
+    usual: Mutex<Option<(RecordSignature, BTreeMap<String, u64>)>>,
 }
+
+/// Name, length and modification time of each run record, in name order.
+type RecordSignature = Vec<(std::ffi::OsString, u64, Option<SystemTime>)>;
 
 /// Run phases during which a task works on the run.
 pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "restoring"];
@@ -404,11 +407,10 @@ impl AmfProductionEngine {
     /// The median duration in whole seconds of each step kind that finished on this computer,
     /// read from the retained runs.
     pub fn usual_durations(&self) -> BTreeMap<String, u64> {
-        let folder = self.root.join("runs");
-        let modified = fs::metadata(&folder).and_then(|m| m.modified()).ok();
+        let signature = self.record_signature();
         let mut cache = self.usual.lock().expect("AMF durations poisoned");
-        if let (Some(modified), Some((at, durations))) = (modified, cache.as_ref()) {
-            if *at == modified {
+        if let Some((read_from, durations)) = cache.as_ref() {
+            if *read_from == signature {
                 return durations.clone();
             }
         }
@@ -428,10 +430,19 @@ impl AmfProductionEngine {
             let median = if values.len().is_multiple_of(2) { (values[middle - 1] + values[middle]) / 2 } else { values[middle] };
             (key, ((median + 500) / 1000) as u64)
         }).collect::<BTreeMap<_, _>>();
-        if let Some(modified) = modified {
-            *cache = Some((modified, durations.clone()));
-        }
+        *cache = Some((signature, durations.clone()));
         durations
+    }
+    /// Each run record's name, length and modification time. A record written within the same
+    /// timestamp tick still changes its name or length.
+    fn record_signature(&self) -> RecordSignature {
+        let Ok(entries) = fs::read_dir(self.root.join("runs")) else { return Vec::new(); };
+        let mut signature = entries.flatten()
+            .filter(|entry| entry.path().extension().and_then(|p| p.to_str()) == Some("json"))
+            .filter_map(|entry| entry.metadata().ok().map(|m| (entry.file_name(), m.len(), m.modified().ok())))
+            .collect::<RecordSignature>();
+        signature.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        signature
     }
     /// The most recent retained runs; unreadable records are skipped.
     fn retained_runs(&self) -> Vec<ProductionRun> {
@@ -487,7 +498,10 @@ impl AmfProductionEngine {
         fs::create_dir_all(path.parent().expect("run parent")).map_err(io_error)?;
         let pending = path.with_extension("pending");
         fs::write(&pending, serde_json::to_vec_pretty(run).map_err(io_error)?).map_err(io_error)?;
-        fs::rename(&pending, path).map_err(io_error)
+        fs::rename(&pending, path).map_err(io_error)?;
+        // A saved step can change the medians; the next read computes them again.
+        *self.usual.lock().expect("AMF durations poisoned") = None;
+        Ok(())
     }
     pub fn get(&self, run_id: &str) -> Result<ProductionRun, AppErrorV1> {
         let path = self.run_file(run_id)?;

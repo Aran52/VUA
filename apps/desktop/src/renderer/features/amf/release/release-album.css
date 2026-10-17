@@ -260,3 +260,9 @@
 .vua-sdk-review__clear svg { color: var(--vua-success); }
 .vua-sdk-review__notes summary { cursor: pointer; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-sdk-review__notes .vua-album__checks { margin-top: var(--vua-space-2); }
+.vua-sdk-review__fix-button { display: inline-flex; align-items: center; gap: var(--vua-space-1); justify-self: start; padding: 6px var(--vua-space-3); border: 1px solid var(--vua-border-strong); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-body); cursor: pointer; }
+.vua-sdk-review__fix-button:disabled { opacity: 0.55; cursor: default; }
+.vua-sdk-review__fix-confirm { display: grid; gap: var(--vua-space-2); padding: var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-panel); }
+.vua-sdk-review__fix-confirm p, .vua-sdk-review__fix-confirm ul { margin: 0; }
+.vua-sdk-review__fix-confirm ul { padding-inline-start: var(--vua-space-4); font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-sdk-review__fix-actions { display: flex; align-items: center; gap: var(--vua-space-3); }

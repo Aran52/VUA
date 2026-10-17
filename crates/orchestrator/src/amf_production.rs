@@ -155,6 +155,9 @@ pub struct ProductionStep {
     pub ended_at: Option<String>,
 }
 
+/// SDK items one fix request may name.
+pub const SDK_FIX_LIMIT: usize = 16;
+
 /// A stage of a Unity batch run, read from the Editor's own log. The set is closed.
 /// `Fingerprint` is VUA's own final stage: the project-file check after the Editor exits.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -371,6 +374,15 @@ pub trait AmfProductionPlatform: Send + Sync {
     /// The same project under the uncached v1 algorithm, kept only to compare run
     /// records that were written before the cached value existed.
     fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1>;
+    /// Runs the VRChat SDK's own Auto Fix for the chosen items, named by the SDK's exact words.
+    fn sdk_fix(
+        &self,
+        _run: &ProductionRun,
+        _fixes: &[String],
+        _watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
+    }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1>;
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
@@ -896,6 +908,64 @@ impl AmfProductionEngine {
             run.confirmed_digest = None;
             Ok(())
         })();
+        self.finish(&mut run, result)
+    }
+    /// Runs the SDK's own Auto Fix for items its Avatar check offers one for. The fix changes
+    /// the work scene and assets, so a restore point comes first and is restored on failure;
+    /// the run keeps its phase and reads the SDK's check again.
+    pub fn sdk_fix(&self, run_id: &str, fixes: Vec<String>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let mut run = self.get(run_id)?;
+        if !matches!(run.phase.as_str(), "ready" | "succeeded") {
+            return Err(production_error("inspect_required", "Check the work project again before fixing it with the SDK."));
+        }
+        let offered: Vec<&str> = run.result["facts"]["sdkReview"]["issues"].as_array().into_iter().flatten()
+            .filter(|issue| issue["canFix"].as_bool() == Some(true))
+            .filter_map(|issue| issue["text"].as_str())
+            .collect();
+        let unique: std::collections::BTreeSet<&String> = fixes.iter().collect();
+        if fixes.is_empty() || fixes.len() > SDK_FIX_LIMIT || unique.len() != fixes.len()
+            || fixes.iter().any(|fix| !offered.contains(&fix.as_str())) {
+            return Err(production_error("sdk_fix_unavailable", "Choose items the SDK's last check offers a fix for. Check the work project again if it changed."));
+        }
+        self.ensure_project_matches(&mut run)?;
+        let phase = run.phase.clone();
+        run.task_id = ctx.task_id().into();
+        run.phase = "assembling".into();
+        run.error = None;
+        run.recovery = None;
+        let mut snapshot = None;
+        let result = (|| {
+            self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
+            snapshot = Some(self.platform.snapshot(&run)?);
+            run.snapshot_id = snapshot.clone();
+            run.snapshot_selection = run.selection.clone();
+            self.step(&mut run, ctx, "sdk_fix", "Run the VRChat SDK's Auto Fix")?;
+            let observed = self.platform.sdk_fix(&run, &fixes, &self.watch(&run, ctx))?;
+            if let Some(error) = ctx.cancellation_error("amf-production") {
+                return Err(error);
+            }
+            if observed.editor_version != run.editor.version {
+                return Err(production_error("editor_drift", "The actual Editor version changed."));
+            }
+            run.prefabs = observed.prefabs;
+            run.result = observed.result;
+            run.unity_fingerprint = observed.unity_fingerprint;
+            let _check = FingerprintCheck::begin(self, &run, ctx);
+            run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
+            run.revision = run.revision.checked_add(1)
+                .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
+            run.phase = phase.clone();
+            run.confirmed_digest = None;
+            Ok(())
+        })();
+        if result.is_err() {
+            if let Some(snapshot) = snapshot {
+                run.recovery = Some(match self.platform.restore(&run, &snapshot) {
+                    Ok(()) => "restored".into(),
+                    Err(error) => format!("restore_failed: {}", error.code),
+                });
+            }
+        }
         self.finish(&mut run, result)
     }
     pub fn plan(

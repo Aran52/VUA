@@ -15,6 +15,8 @@ export interface SheetActions {
   readonly onUpload: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
+  /** Runs the SDK's own Auto Fix for the chosen items. */
+  readonly onSdkFix?: (fixes: readonly string[]) => void;
 }
 
 /** How this upload's SDK sign-in happened, as one plain line; unknown stays unsaid. */
@@ -52,11 +54,30 @@ function SdkIssues({ issues, icon }: { issues: readonly AmfSdkIssue[]; icon: "er
       {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span></li>)}</ul>;
 }
 
+/** The SDK's Auto Fix for the items it offers one for, after the player reads what happens. */
+function SdkFix({ items, busy, onFix }: { items: readonly AmfSdkIssue[]; busy: boolean; onFix: (fixes: readonly string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
+  if (!open) return <button type="button" className="vua-sdk-review__fix-button" disabled={busy} onClick={() => setOpen(true)} data-nav-id="release-sdk-fix">
+    <Icon name="edit" size={16} />{format(sdkCopy.fixButton, { count: String(items.length) })}</button>;
+  return <div className="vua-sdk-review__fix-confirm" role="group" aria-label={sdkCopy.fixTitle}>
+    <strong>{sdkCopy.fixTitle}</strong>
+    <p className="vua-caption">{sdkCopy.fixBody}</p>
+    <ul>{items.map(item => <li key={item.text} lang="en">{item.text}</li>)}</ul>
+    <div className="vua-sdk-review__fix-actions">
+      <button type="button" className="vua-sdk-review__fix-button" disabled={busy} onClick={() => { setOpen(false); onFix(items.map(item => item.text)); }}>{sdkCopy.fixConfirm}</button>
+      <button type="button" className="vua-release-upload__link" onClick={() => setOpen(false)}>{sdkCopy.fixCancel}</button>
+    </div>
+  </div>;
+}
+
 /** The SDK panel's own checks and performance rank, grouped by what the player does next. */
-function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
+function SdkReviewBlock({ run, busy, onFix }: { run: AmfProductionRun; busy: boolean; onFix?: (fixes: readonly string[]) => void }) {
   const view = sdkReviewView(run);
   if (!view) return null;
   const clear = view.mustFix.length === 0 && view.reminders.length === 0;
+  const fixable = [...view.mustFix, ...view.reminders].filter(issue => issue.canFix);
+  const applied = run.result?.facts?.sdkFixesApplied?.length ?? 0;
   return <section className="vua-album__block vua-sdk-review">
     <h3>{sdkCopy.title}</h3>
     {view.state === "not_run" ? <p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p> : <>
@@ -73,6 +94,8 @@ function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
           <h4>{sdkCopy.reminders}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.remindersHint}</p>
           <SdkIssues issues={view.reminders} icon="warning" /></div>}
         {clear && <p className="vua-sdk-review__clear"><Icon name="check" size={16} />{sdkCopy.allClear}</p>}
+        {applied > 0 && <p className="vua-caption vua-text-secondary">{format(sdkCopy.fixApplied, { count: String(applied) })}</p>}
+        {onFix && <SdkFix items={fixable} busy={busy} onFix={onFix} />}
         {view.state === "partial" && <p className="vua-caption vua-text-secondary">{sdkCopy.partial}</p>}
       </>}
       {view.rankItems.length > 0 && <div className="vua-sdk-review__group" data-group="rank">
@@ -196,7 +219,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
       <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
-    <SdkReviewBlock run={run} />
+    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
         <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}

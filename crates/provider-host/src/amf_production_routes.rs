@@ -141,6 +141,7 @@ fn route(
         "amf.production.plan" => &["schemaVersion", "runId", "selection"],
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
+        "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
         _ => {
             return Err(production_error(
                 "method_invalid",
@@ -298,6 +299,15 @@ fn route(
             .map_err(|_| production_error("params_invalid", "Choose how to apply the reviewed Recipe."))?;
         Some((string("recipeId")?, choice))
     } else { None };
+    let sdk_fixes: Vec<String> = if method == "amf.production.sdkFix" {
+        let fixes: Vec<String> = serde_json::from_value(params["fixes"].clone())
+            .map_err(|_| production_error("params_invalid", "Name the SDK items to fix."))?;
+        if fixes.is_empty() || fixes.len() > vua_orchestrator::amf_production::SDK_FIX_LIMIT
+            || fixes.iter().any(|fix| fix.is_empty() || fix.chars().count() > 600 || fix.contains('\0')) {
+            return Err(production_error("params_invalid", "Name between one and sixteen SDK items to fix."));
+        }
+        fixes
+    } else { Vec::new() };
     let operation_run = run_id.clone();
     let worker = service.clone();
     let accepted = service.runtime.submit(SubmitRequest {
@@ -317,6 +327,7 @@ fn route(
                     ctx,
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
+                "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
                 "amf.production.applyRecipe" => {
                     let (recipe, choice) = recipe_application.expect("Recipe application validated");
                     worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;

@@ -501,13 +501,16 @@ Unity/BOOTH registration is optional for players; purchases and SDK upload remai
 BOOTH library acquisition remains the separate N5 requirement, not an N1 account-system expansion.
 
 After the first usable delivery, attempt VRChat web-information reading as a separate slice.
-The author's intended local sign-in persistence is a deferred experimental option, off by default:
-before the first experimental login, explain conflict with the written platform credential/session
-policy and possible account sanctions up to a ban, and let the user decline persistence. Put the
-switch in Experimental settings. This is recorded product intent, not an implemented feature or
-platform permission. Its implementation must define browser-owned local storage, expiry/clearing,
-logout and consent behavior without exposing secrets to application or Agent data paths. Consent
-does not change platform terms. It is not an N1 prerequisite or permission for cloud account control.
+Experimental VRChat sign-in in VUA (user ruling, 2026-10-18): an Experimental setting, off by
+default. Before the first sign-in VUA explains the conflict with VRChat's written credential and
+session policy and possible account action up to a ban, and the player accepts or leaves it off.
+The player signs in in VUA with username, password and the two-factor code VRChat asks for; VUA
+keeps the session and, only when the player also chooses "Remember my password", the password, both
+encrypted per Windows user, outside application state, the Gateway, task records, logs and the MCP
+adapter. Sign-out and forgetting clear them. VUA uses the session to sign the official SDK in before
+a managed upload and to read the player's own Avatar list to check uploads; requests identify VUA,
+stay few and back off. Consent does not change platform terms. The design lives in
+[VRChat sign-in](development/vrchat-account.md).
 
 Sources checked 2026-09-30: [SDK upload prerequisites](https://creators.vrchat.com/avatars/creating-your-first-avatar/)
 and [VRChat Creator Guidelines](https://hello.vrchat.com/creator-guidelines).
@@ -521,16 +524,15 @@ User-adopted implementation boundary (2026-09-29), informed by the
 - Use supported external surfaces, OSC, launch options, necessary local logs and documented
   configuration fields. Never inject, hook or patch the VRChat client or bypass EAC. Hidden
   configuration and undocumented client behavior are not authorized by an existing third-party tool.
-- VUA application features do not collect or extract VRChat login credentials, including passwords,
-  tokens, cookies and session data. Users type into official pages, not VUA-owned credential forms;
-  temporary browser state is confined to the isolated browser. Do not import another application's
-  session. The account-onboarding section supersedes the previous blanket ban only for this guided
-  browser flow and records the separate, deferred experimental persistence direction. BOOTH's N5
+- Outside the experimental VRChat sign-in above, VUA does not collect or extract VRChat login
+  credentials, including passwords, tokens, cookies and session data; temporary browser state is
+  confined to the isolated browser. Do not import another application's session. BOOTH's N5
   acquisition session remains a distinct, authorized local boundary.
 - User initiation is necessary for account changes, but is not sufficient authorization for an
   undocumented operation or credential access. Unsupported operations stay unavailable; direct
-  the user to the official flow. No cloud account control and no automatic upload on a user's
-  behalf, including from their device; final Avatar login/upload stays in the official SDK.
+  the user to the official flow. No cloud account control. Avatar uploads run through the official
+  SDK builder on the player's device after the player's own confirmation of the content rights for
+  each upload (managed upload, user ruling 2026-10-17).
 - Store only necessary data locally by default; no unnecessary friend-activity tracking, profiling
   or cross-user database. Sanitize logs and retain purchased files locally.
 - Any future allowed API adapter needs bounded request rates, backoff and accurate identification,
@@ -611,8 +613,8 @@ User-adopted implementation boundary (2026-09-29), informed by the
   bypasses anti-cheat.
 - The first delivery phase supplies the capability protocol and security model; marketplace
   governance follows a later release decision.
-- Final VRChat Avatar login and upload remain a user action in the official SDK flow; VUA prepares
-  and validates. A technical check passing does not guarantee appearance and behavior match player
+- VRChat Avatar uploads run through the official SDK, started by the player and confirmed per upload
+  (managed upload, user ruling 2026-10-17); VUA prepares, validates and reports the SDK's result. A technical check passing does not guarantee appearance and behavior match player
   expectations (this must be stated clearly to the user), and a check that did not run must never
   display as passed (user ruling, 2026-09-22).
 

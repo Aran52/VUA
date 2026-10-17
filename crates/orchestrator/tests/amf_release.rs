@@ -52,6 +52,9 @@ impl AmfProductionPlatform for ReleasePlatform {
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         fs::read_to_string(project.join("Assets/state")).map_err(|e| production_error("test_io", e.to_string()))
     }
+    fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
+        self.fingerprint(project)
+    }
     fn snapshot(&self, _: &ProductionRun) -> Result<String, AppErrorV1> { unused() }
     fn restore(&self, _: &ProductionRun, _: &str) -> Result<(), AppErrorV1> { unused() }
     fn open(&self, _: &ProductionRun, _: &TaskContext) -> Result<serde_json::Value, AppErrorV1> { unused() }

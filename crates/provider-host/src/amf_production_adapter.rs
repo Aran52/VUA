@@ -874,6 +874,15 @@ impl AmfProductionPlatform for NativeAmfProduction {
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         reject_editor_lock(project)?;
+        vua_orchestrator::project_tree_fingerprint_cached(
+            project,
+            &["Assets", "Packages", "ProjectSettings"],
+        )
+        .map_err(|e| err("project_unreadable", e))?
+        .ok_or_else(|| err("project_missing", "Work project is missing."))
+    }
+    fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
+        reject_editor_lock(project)?;
         vua_orchestrator::project_tree_fingerprint(
             project,
             &["Assets", "Packages", "ProjectSettings"],
@@ -1506,5 +1515,42 @@ mod tests {
             "Assets/Coat.prefab"
         )
         .is_err());
+    }
+
+    #[test]
+    fn the_cached_fingerprint_and_its_legacy_value_name_their_algorithms() {
+        let root = std::env::temp_dir().join(format!("vua-amf-fingerprint-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let project = root.join("work");
+        for scope in ["Assets", "Packages", "ProjectSettings"] {
+            std::fs::create_dir_all(project.join(scope)).unwrap();
+        }
+        std::fs::write(project.join("Assets/Meiyun.prefab"), "avatar\n").unwrap();
+        std::fs::write(project.join("Packages/vpm-manifest.json"), "{}\n").unwrap();
+        std::fs::write(project.join("ProjectSettings/ProjectVersion.txt"), "2022.3.22f1\n").unwrap();
+        let adapter = NativeAmfProduction {
+            bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"),
+            editor_roots: vec![],
+            explicit_editor: None,
+            unity_hub: None,
+        };
+        let cached = AmfProductionPlatform::fingerprint(&adapter, &project).unwrap();
+        assert!(cached.starts_with("vua-project-tree-v2:"), "{cached}");
+        assert_eq!(cached, AmfProductionPlatform::fingerprint(&adapter, &project).unwrap());
+        assert!(project.join(".vua/fingerprint-cache.json").is_file(), "the run leaves a cache behind");
+        let legacy = AmfProductionPlatform::fingerprint_legacy(&adapter, &project).unwrap();
+        assert_eq!(
+            legacy,
+            vua_orchestrator::project_tree_fingerprint(
+                &project,
+                &["Assets", "Packages", "ProjectSettings"]
+            )
+            .unwrap()
+            .unwrap(),
+            "the legacy value is exactly what older records carry"
+        );
+        drop(adapter);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

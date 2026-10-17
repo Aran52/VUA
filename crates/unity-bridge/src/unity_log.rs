@@ -42,6 +42,8 @@ fn order(stage: UnityStage) -> u8 {
         UnityStage::Bridge => 4,
         UnityStage::Previews => 5,
         UnityStage::Finishing => 6,
+        // The log reader never reports this stage; it orders VUA's own after-Unity check.
+        UnityStage::Fingerprint => 7,
     }
 }
 

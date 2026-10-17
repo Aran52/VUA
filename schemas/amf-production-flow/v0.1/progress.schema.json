@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ph-r.com/vua/schemas/amf-production-flow/v0.1/progress.schema.json",
   "title": "AMF material-first task progress v0.1 (Candidate)",
-  "description": "Payload of a task progress event of an amf.production task. It names the running step and, inside Unity, the Unity stage read from the Editor log. It carries no log text and no paths.",
+  "description": "Payload of a task progress event of an amf.production task. It names the running step and, inside Unity, the Unity stage read from the Editor log; the stage `fingerprint` names VUA's project-file check after the Editor exits. It carries no log text and no paths.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -72,7 +72,8 @@
             "compiling",
             "bridge",
             "previews",
-            "finishing"
+            "finishing",
+            "fingerprint"
           ]
         },
         "current": {

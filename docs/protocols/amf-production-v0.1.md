@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.11.0
+> Document version: 0.12.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -98,6 +98,28 @@ new input packages to a retained project, selecting unowned scene targets, expli
 and external-project intake remain separate work. Old development work projects need the updated
 Candidate Bridge and reinspection before this new capability can be used.
 
+## Project fingerprints
+
+The run record's project fingerprint covers `Assets`, `Packages` and `ProjectSettings`
+of the managed work project; symbolic links are refused. AMF computes it with the
+cached v2 algorithm: each file's SHA-256 is remembered by path, size and modification
+time to the nanosecond, so only files that changed are read again. The total combines
+each file's sorted path, length and content hash and carries the prefix
+`vua-project-tree-v2:`. Values written before the cache carry the prefix `sha256:`
+(the uncached v1 algorithm, which other flows still use unchanged).
+
+The cache lives in `.vua/fingerprint-cache.json` inside the work project, outside the
+fingerprinted scopes. It names its `version`, is written atomically (`.pending`, then
+rename) and bounded in size; a missing, damaged, future-version or oversized cache
+counts as no cache. The value never depends on the cache: a changed file's content,
+size, or an added, deleted or renamed file always moves it, and the cache only decides
+whether a file's bytes are read.
+
+A run record that still carries a v1 value is compared by computing v1 once for that
+comparison; an unchanged project is never reported as changed because the algorithm
+moved on. Once the record matches, it is rewritten with the v2 value, so the legacy
+scan happens at most once per record.
+
 ## Facts and recovery
 
 Run phases: `preparing`, `inspecting`, `ready`, `assembling`, `restoring`, `succeeded`, `failed`,
@@ -144,8 +166,10 @@ Editor shows its own progress window there.
 
 `unity` comes from the batch run's own log `.vua/logs/<commandId>.log`, read every half second.
 `stage` is one of `starting`, `license`, `packages`, `importing`, `compiling`, `bridge`,
-`previews` and `finishing`, from Unity's own messages, the [Bridge v5](unity-bridge-v5.md) stage
-lines, the preview folder and the result file. Stages move forward; importing and compiling
+`previews`, `finishing` and `fingerprint`, from Unity's own messages, the [Bridge v5](unity-bridge-v5.md) stage
+lines, the preview folder and the result file. The last one is VUA's own: after the
+Editor exits, `fingerprint` names the [project-file check](#project-fingerprints)
+while it reads the work project. Stages move forward; importing and compiling
 alternate. While importing, `current` counts the work-project assets Unity has started to import,
 and during the first preparation `total` is the number of material files and their folders.
 `lastActivityAt` is when the log last grew, or when Unity started until it writes. A page says
@@ -240,6 +264,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.12.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
 - 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
 - 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.9.0 of the parallel progress-and-stop change.
 - 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.

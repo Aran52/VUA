@@ -1,6 +1,7 @@
 /** AMF release room: the album of finished Avatars, the turntable stage and managed upload. */
 export const releaseRoomCopy = {
   en: {
+    title: "Finished Avatars",
     tabs: { album: "Album", records: "Production records" },
     albumLabel: "Album of finished Avatars",
     emptyTitle: "Finished Avatars get their page here",
@@ -141,6 +142,7 @@ export const releaseRoomCopy = {
     },
   },
   "zh-CN": {
+    title: "成品 Avatar",
     tabs: { album: "相册", records: "生产记录" },
     albumLabel: "成品 Avatar 相册",
     emptyTitle: "完成的 Avatar 会在这里拥有自己的一页",
@@ -281,6 +283,7 @@ export const releaseRoomCopy = {
     },
   },
   ja: {
+    title: "完成したアバター",
     tabs: { album: "アルバム", records: "制作記録" },
     albumLabel: "完成したアバターのアルバム",
     emptyTitle: "完成したアバターはここに 1 ページずつ載ります",
@@ -421,6 +424,7 @@ export const releaseRoomCopy = {
     },
   },
   ko: {
+    title: "완성된 아바타",
     tabs: { album: "앨범", records: "제작 기록" },
     albumLabel: "완성된 아바타 앨범",
     emptyTitle: "완성된 아바타는 여기에 한 페이지씩 실려요",

@@ -189,10 +189,13 @@ export function ReleaseAlbumPage({ onNavigate }: { onNavigate: (page: PageId) =>
   const [tab, setTab] = useState<Tab>("album");
   const production = gateway.amfProduction, release = gateway.amfRelease;
   return <div className="vua-page vua-release-room" data-focus-scope>
-    <div className="vua-release-room__tabs" role="tablist" aria-label={strings.factory.rooms.release.name}>
-      {(["album", "records"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={tab === key}
-        data-nav-id={`release-tab-${key}`} onClick={() => setTab(key)}>{copy.tabs[key]}</button>)}
-    </div>
+    <header className="vua-release-room__header">
+      <h1>{copy.title}</h1>
+      <div className="vua-release-room__tabs" role="tablist" aria-label={strings.factory.rooms.release.name}>
+        {(["album", "records"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={tab === key}
+          data-nav-id={`release-tab-${key}`} onClick={() => setTab(key)}>{copy.tabs[key]}</button>)}
+      </div>
+    </header>
     {tab === "records" ? <ReleasePage onNavigate={onNavigate} />
       : production && release ? <Album production={production} release={release} onNavigate={onNavigate} />
       : <EmptyState title={format(strings.amfProduction.unavailable, { amf: termLabel("amf") })} />}

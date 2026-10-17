@@ -114,6 +114,8 @@ export function controlPreview(view: string, base: VuaGateway, production: AmfPr
   const amfModule = { ...base.amfModule, snapshot: async () => ({ schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const }) };
   const gateway = { ...base, amfModule, amfProduction, packages: packagesPort, projectOps: projectOps(base.projectOps) };
   try { localStorage.setItem("vua-amf-control-recipes-view-v01", view === "control-recipes-list" ? "list" : "graph"); } catch { /* preview only */ }
+  // Resource-saving mode: the graph draws its settled layout without a frame loop.
+  if (view === "control-recipes-still") document.documentElement.dataset.effects = "off";
   const selected = view === "control-recipes-selected" ? recipeNodeId("stage-meiyun") : view === "control-recipes-part" ? packageNodeId("nadena.dev.modular-avatar")
     : view === "control-recipes-list" ? materialNodeId(outfits.cap.id) : null;
   const screen: Screen = view === "control-packages-project" ? { kind: "project", key: "work:finished" } : view === "control-packages-unlisted" ? { kind: "project", key: "work:waiting" }

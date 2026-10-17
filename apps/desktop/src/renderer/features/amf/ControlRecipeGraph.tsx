@@ -1,49 +1,48 @@
 /** The Recipe graph: an SVG drawing driven by the force simulation; the frame loop writes positions straight to the DOM. */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 import { Icon, type IconName } from "@vua/design-system";
-import { adjacency, graphCaption, type GraphEdgeKind, type GraphNode, type GraphNodeKind, type RecipeGraph } from "./control-graph-model.ts";
+import { adjacency, graphCaption, type GraphNode, type GraphNodeKind, type RecipeGraph } from "./control-graph-model.ts";
 import { bounds, createSimulation, hold, isSettled, nearestInDirection, place, reheat, release, settle, tick, type Simulation } from "./control-physics.ts";
+import { GRAPH_CONFIG } from "./control-graph-config.ts";
+import { useEffectsOn } from "./RoomCanvas.tsx";
 
-export const NODE_RADIUS: Record<GraphNodeKind, number> = { recipe: 24, avatar: 20, outfit: 13, material: 11, package: 14 };
-const LINK_LENGTH: Record<GraphEdgeKind, number> = { avatar: 120, outfit: 92, material: 110, package: 170 };
+const { nodeRadius: NODE_RADIUS, linkLength: LINK_LENGTH, view: VIEW, label: LABEL } = GRAPH_CONFIG;
 export const NODE_ICONS: Record<GraphNodeKind, IconName> = { recipe: "file", avatar: "avatar", outfit: "outfit", material: "shader", package: "download" };
-const STEP_MS = 1000 / 60;
-const LABEL_MAX = 30;
+const STEP_MS = 1000 / VIEW.stepsPerSecond;
 
-/** Plain motion follows the system's reduced-motion setting and the app's effects switch. */
+/** The graph moves while effects are on and the system asks for full motion; otherwise it draws its settled layout. */
 export type GraphMotion = "animated" | "static";
 const REDUCED = "(prefers-reduced-motion: reduce)";
-function motionSnapshot(): GraphMotion {
-  if (typeof window === "undefined") return "static";
-  return window.matchMedia?.(REDUCED).matches || document.documentElement.dataset.effects === "off" ? "static" : "animated";
-}
-function subscribeMotion(change: () => void): () => void {
+function subscribeReduced(change: () => void): () => void {
   const query = window.matchMedia?.(REDUCED);
   query?.addEventListener("change", change);
-  const observer = new MutationObserver(change);
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-effects"] });
-  return () => { query?.removeEventListener("change", change); observer.disconnect(); };
+  return () => query?.removeEventListener("change", change);
 }
-export function useGraphMotion(): GraphMotion { return useSyncExternalStore(subscribeMotion, motionSnapshot, () => "static"); }
+const reducedSnapshot = () => window.matchMedia?.(REDUCED).matches ?? false;
+export function useGraphMotion(): GraphMotion {
+  const effectsOn = useEffectsOn();
+  const reduced = useSyncExternalStore(subscribeReduced, reducedSnapshot, () => true);
+  return effectsOn && !reduced ? "animated" : "static";
+}
 
 /** Each kind has its own outline, so the graph reads without colour too. */
 export function NodeShape({ kind }: { kind: GraphNodeKind }) {
   const r = NODE_RADIUS[kind];
   if (kind === "recipe") return <path className="vua-graph__shape" d={`M${-r},${-r}H${r - 9}L${r},${-r + 9}V${r}H${-r + 9}L${-r},${r - 9}Z`}/>;
   if (kind === "package") return <path className="vua-graph__shape" d={`M0,${-r - 3}L${r + 3},0L0,${r + 3}L${-r - 3},0Z`}/>;
-  if (kind === "material") return <rect className="vua-graph__shape" x={-r} y={-r} width={r * 2} height={r * 2} rx={3}/>;
+  if (kind === "material") return <rect className="vua-graph__shape" x={-r} y={-r} width={r * 2} height={r * 2}/>;
   return <circle className="vua-graph__shape" r={r}/>;
 }
-function shortLabel(label: string): string { return [...label].length > LABEL_MAX ? `${[...label].slice(0, LABEL_MAX - 1).join("")}…` : label; }
+function shortLabel(label: string): string { return [...label].length > LABEL.maxChars ? `${[...label].slice(0, LABEL.maxChars - 1).join("")}…` : label; }
 /** Room a node keeps around itself: its outline, and its caption below it when the caption shows by default. */
 function collideRoom(node: GraphNode, labelled: boolean): { radius: number; offset: number } {
   const r = NODE_RADIUS[node.kind] + 4;
   if (!labelled) return { radius: r, offset: 0 };
-  const latin = node.kind === "recipe" ? 7.4 : 6.6; const wide = node.kind === "recipe" ? 13.5 : 12;
+  const latin = node.kind === "recipe" ? LABEL.recipeLatin : LABEL.latin; const wide = node.kind === "recipe" ? LABEL.recipeWide : LABEL.wide;
   const width = [...shortLabel(graphCaption(node))].reduce((sum, char) => sum + (char.codePointAt(0)! > 0x2e80 ? wide : latin), 0);
-  return { radius: Math.min(84, Math.max(r + 8, width / 2 + 4)), offset: 12 };
+  return { radius: Math.min(LABEL.roomMax, Math.max(r + 8, width / 2 + 4)), offset: LABEL.roomOffset };
 }
-const labelledByDefault = (node: GraphNode, count: number) => count <= 30 || node.kind === "recipe" || node.kind === "avatar";
+const labelledByDefault = (node: GraphNode, count: number) => count <= LABEL.allUpTo || node.kind === "recipe" || node.kind === "avatar";
 
 interface Camera { scale: number; x: number; y: number; auto: boolean }
 interface GraphControls { move: () => void; drop: (index: number, x: number, y: number) => void }
@@ -94,12 +93,12 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
   useEffect(() => {
     let frame = 0; let running = false; let last = 0; let carry = 0;
     // The layout leans a little further than the view's own shape, so a wide view fills out.
-    const aspect = Math.min(3, Math.max(0.5, Math.pow(size.width / Math.max(1, size.height), 1.5)));
+    const aspect = Math.min(VIEW.aspectMax, Math.max(VIEW.aspectMin, Math.pow(size.width / Math.max(1, size.height), VIEW.aspectLean)));
     if (Math.abs(aspect - sim.aspect) > 0.05) { sim.aspect = aspect; reheat(sim, 0.3); }
     const fitTarget = () => {
       const box = bounds(sim);
-      const pad = 40;
-      const scale = Math.min(1.25, Math.max(0.2, Math.min(size.width / (box.maxX - box.minX + pad * 2), size.height / (box.maxY - box.minY + pad * 2))));
+      const pad = VIEW.fitPadding;
+      const scale = Math.min(VIEW.maxFitScale, Math.max(VIEW.minScale, Math.min(size.width / (box.maxX - box.minX + pad * 2), size.height / (box.maxY - box.minY + pad * 2))));
       return { scale, x: size.width / 2 - ((box.minX + box.maxX) / 2) * scale, y: size.height / 2 - ((box.minY + box.maxY) / 2) * scale };
     };
     /** Writes positions and eases the camera towards the fitted view; returns whether the camera still moves. */
@@ -127,21 +126,21 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
       settle(sim); remember(); draw(1);
       controls.current = {
         move: () => { draw(1); },
-        drop: (index, x, y) => { hold(sim, index, x, y); place(sim, index, x, y); for (let i = 0; i < 240; i += 1) tick(sim); release(sim); settle(sim); remember(); draw(1); },
+        drop: (index, x, y) => { hold(sim, index, x, y); place(sim, index, x, y); for (let i = 0; i < VIEW.staticDropTicks; i += 1) tick(sim); release(sim); settle(sim); remember(); draw(1); },
       };
       return () => { controls.current = idleControls; };
     }
     const loop = (now: number) => {
       carry += Math.min(100, now - last); last = now;
       let steps = 0;
-      while (carry >= STEP_MS && steps < 4) { tick(sim); carry -= STEP_MS; steps += 1; }
-      if (steps === 4) carry = 0;
-      const cameraMoving = draw(0.16);
+      while (carry >= STEP_MS && steps < VIEW.maxStepsPerFrame) { tick(sim); carry -= STEP_MS; steps += 1; }
+      if (steps === VIEW.maxStepsPerFrame) carry = 0;
+      const cameraMoving = draw(VIEW.cameraEase);
       if (isSettled(sim) && !cameraMoving) { running = false; remember(); return; }
       frame = requestAnimationFrame(loop);
     };
     const start = () => { if (running) return; running = true; last = performance.now(); carry = STEP_MS; frame = requestAnimationFrame(loop); };
-    controls.current = { move: start, drop: () => { release(sim); reheat(sim, 0.12); start(); } };
+    controls.current = { move: start, drop: () => { release(sim); reheat(sim, GRAPH_CONFIG.physics.releaseAlpha); start(); } };
     draw(1);
     start();
     return () => { cancelAnimationFrame(frame); running = false; remember(); controls.current = idleControls; };
@@ -156,7 +155,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
       const rect = svg.getBoundingClientRect();
       const cam = camera.current; cam.auto = false;
       const px = event.clientX - rect.left; const py = event.clientY - rect.top;
-      const next = Math.min(3, Math.max(0.2, cam.scale * Math.exp(-event.deltaY * 0.0015)));
+      const next = Math.min(VIEW.maxScale, Math.max(VIEW.minScale, cam.scale * Math.exp(-event.deltaY * VIEW.wheelZoom)));
       cam.x = px - ((px - cam.x) / cam.scale) * next; cam.y = py - ((py - cam.y) / cam.scale) * next; cam.scale = next;
       sceneRef.current?.setAttribute("transform", `translate(${cam.x.toFixed(2)} ${cam.y.toFixed(2)}) scale(${cam.scale.toFixed(4)})`);
     };
@@ -178,7 +177,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     const g = gesture.current;
     if (!g || g.pointer !== event.pointerId) return;
-    if (!g.moved && Math.hypot(event.clientX - g.startX, event.clientY - g.startY) > 4) g.moved = true;
+    if (!g.moved && Math.hypot(event.clientX - g.startX, event.clientY - g.startY) > VIEW.dragThreshold) g.moved = true;
     if (!g.moved) return;
     if (g.index >= 0) {
       const point = world(event.clientX, event.clientY);
@@ -243,8 +242,8 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
           <NodeShape kind={node.kind}/>
           <g className="vua-graph__icon" transform="translate(-8 -8)"><Icon name={NODE_ICONS[node.kind]} size={16}/></g>
           {node.kind !== "recipe" && node.recipeIds.length > 1 && <g className="vua-graph__count" transform={`translate(${NODE_RADIUS[node.kind] * 0.78} ${-NODE_RADIUS[node.kind] * 0.78})`}>
-            <circle r={8}/><text dy="0.35em">{node.recipeIds.length}</text></g>}
-          <text className="vua-graph__label" y={NODE_RADIUS[node.kind] + 16}>{shortLabel(graphCaption(node))}</text>
+            <circle r={9}/><text dy="0.35em">{node.recipeIds.length}</text></g>}
+          <text className="vua-graph__label" y={NODE_RADIUS[node.kind] + LABEL.gap}>{shortLabel(graphCaption(node))}</text>
         </g>;
       })}
     </g>

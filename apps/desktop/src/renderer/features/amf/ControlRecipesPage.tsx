@@ -12,6 +12,7 @@ import { AmfRecipeImportDialog } from "./AmfRecipeImportDialog.tsx";
 import { requestProductionRecipe } from "./production-recipe-navigation.ts";
 import { buildRecipeGraph, materialNodeId, pinnedVersions, prefabLabel, recipeNodeId, recipeParts, sharedParts, NODE_KINDS, type GraphNode, type GraphNodeKind, type RecipeGraph } from "./control-graph-model.ts";
 import { NODE_ICONS, NodeShape, RecipeGraphCanvas } from "./ControlRecipeGraph.tsx";
+import { SkinSlot } from "./control-slots.tsx";
 import "./control-center.css";
 
 const copy = strings.controlCenter.recipes;
@@ -85,15 +86,16 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
       </div>
     </header>
 
-    {error !== null ? <div className="vua-control__panel" role="alert"><strong>{production.error}</strong><p className="vua-caption vua-text-secondary">{error}</p>
+    {error !== null ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><strong>{production.error}</strong><p className="vua-caption vua-text-secondary">{error}</p>
       <Button onClick={() => setReload(value => value + 1)}>{production.retry}</Button></div>
     : saved === null ? <p role="status" className="vua-caption vua-text-secondary">{production.loading}</p>
-    : saved.length === 0 ? <div className="vua-control__panel vua-control__empty">
+    : saved.length === 0 ? <div className="vua-control__panel vua-control__empty"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
         <Icon name="file" size={24}/><h2>{copy.emptyTitle}</h2><p className="vua-text-secondary">{copy.emptyHint}</p>
         <div className="vua-n3__actions"><Button onClick={() => onNavigate("workshop")}>{copy.openWorkshop}</Button><Button variant="primary" onClick={() => setImporting(true)}>{production.importRecipe}</Button></div>
       </div>
     : <div className="vua-control__body">
         <section className="vua-control__stage" aria-label={view === "graph" ? copy.graphLabel : copy.listLabel}>
+          <SkinSlot name="control-stage-backdrop" className="vua-control__backdrop"/><SkinSlot name="control-stage-edge" className="vua-control__edge"/>
           <div className="vua-control__stage-bar">
             <span className="vua-caption">{format(copy.count, { recipes: documents.length, shared: shared.length })}</span>
             {unreadable > 0 && <span className="vua-caption vua-control__warn"><Icon name="warning" size={16}/>{format(copy.unreadable, { count: unreadable })}
@@ -144,7 +146,7 @@ function PartButton({ node, onSelect, detail }: { node: GraphNode; onSelect: (id
 
 function Overview({ graph, shared, onSelect }: { graph: RecipeGraph; shared: readonly GraphNode[]; onSelect: (id: string) => void }) {
   const counts = NODE_KINDS.map(kind => [kind, graph.nodes.filter(node => node.kind === kind).length] as const).filter(([, count]) => count > 0);
-  return <div className="vua-control__panel">
+  return <div className="vua-control__panel"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
     <h2>{copy.overview}</h2>
     <p className="vua-caption vua-text-secondary">{copy.overviewHint}</p>
     <dl className="vua-control__counts">{counts.map(([kind, count]) => <div key={kind}><dt><KindMark kind={kind}/>{copy.kinds[kind]}</dt><dd>{count}</dd></div>)}</dl>
@@ -172,7 +174,7 @@ function RecipeDetails({ graph, saved, onSelect, onClose, onReproduce, onShare }
   // Outfits come from the Recipe itself: an Avatar package may also carry an outfit.
   const worn = recipe.outfits.flatMap(outfit => { const node = nodeOf.get(materialNodeId(outfit.materialId)); return node ? [{ node, outfit }] : []; });
   const others = (node: GraphNode) => node.recipeIds.length > 1 ? format(copy.sharedWith, { count: node.recipeIds.length - 1 }) : undefined;
-  return <div className="vua-control__panel" data-kind="recipe">
+  return <div className="vua-control__panel" data-kind="recipe"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
     <PanelHead kind="recipe" title={recipe.title} onClose={onClose}/>
     <p className="vua-caption vua-text-secondary">{format(copy.saved, { revision: saved.revision, date: formatDateTime(saved.updatedAt) })} · {format(copy.unity, { version: recipe.editorVersion })}</p>
     <div className="vua-n3__actions vua-control__primary">
@@ -200,7 +202,7 @@ function PartDetails({ node, documents, onSelect, onClose, onNavigate }: {
 }) {
   const titleOf = new Map(documents.map(recipe => [recipe.recipeId, recipe.title] as const));
   const versions = node.kind === "package" ? pinnedVersions(node) : [];
-  return <div className="vua-control__panel" data-kind={node.kind}>
+  return <div className="vua-control__panel" data-kind={node.kind}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
     <PanelHead kind={node.kind} title={node.label} onClose={onClose}/>
     <p className="vua-caption vua-text-secondary vua-control__mono">{node.packageName ?? node.packageId}</p>
     {node.kind === "package" && versions.length > 1 && <p className="vua-caption vua-control__warn"><Icon name="warning" size={16}/>{format(copy.versionsDiffer, { count: versions.length })}</p>}

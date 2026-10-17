@@ -3,7 +3,10 @@
  * edges, a gentle pull to the centre and soft collision. It cools from `alpha` 1 towards 0 and settles;
  * dragging warms it and pulls the held node towards the pointer on a spring. Positions are
  * deterministic for the same input, so the reduced-motion view settles the same layout at once.
+ * The forces live in GRAPH_CONFIG.physics.
  */
+import { GRAPH_CONFIG } from "./control-graph-config.ts";
+
 export interface SimLink { readonly source: number; readonly target: number; readonly length: number; readonly strength?: number }
 export interface Simulation {
   readonly x: Float64Array; readonly y: Float64Array; readonly vx: Float64Array; readonly vy: Float64Array;
@@ -23,23 +26,11 @@ export interface Simulation {
   held: number; heldX: number; heldY: number;
 }
 
-export const PHYSICS = {
-  alphaMin: 0.002,
-  alphaDecay: 1 - Math.pow(0.002, 1 / 320),
-  velocityDecay: 0.32,
-  charge: -380,
-  chargeDistanceMax: 720,
-  gravity: 0.05,
-  collidePadding: 6,
-  collideStrength: 0.35,
-  dragSpring: 0.3,
-  dragAlpha: 0.28,
-  maxSpeed: 48,
-} as const;
+const PHYSICS = GRAPH_CONFIG.physics;
 
 /** Phyllotaxis start positions: the same input always starts, and so settles, the same way. */
 export function initialPosition(index: number): { x: number; y: number } {
-  const r = 18 * Math.sqrt(0.5 + index);
+  const r = PHYSICS.startSpacing * Math.sqrt(0.5 + index);
   const angle = index * Math.PI * (3 - Math.sqrt(5));
   return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
 }

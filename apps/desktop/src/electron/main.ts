@@ -435,6 +435,7 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
     },
     snapshot: () => vrchatService?.snapshot() ?? { experimentalEnabled: false, signedIn: false },
     writeSdkHandoff,
+    discardSdkHandoff: () => vrchatService?.clearSdkHandoffs(),
   };
 }
 

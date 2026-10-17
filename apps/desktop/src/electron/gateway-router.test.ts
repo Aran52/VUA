@@ -1759,13 +1759,14 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
     handle,
     snapshot: () => ({ experimentalEnabled: true, signedIn: true }),
     writeSdkHandoff: vi.fn(async () => {}),
+    discardSdkHandoff: vi.fn(),
   });
 
   it("routes vrchat methods to Electron Main without touching the Provider", async () => {
     const provider = new MockOrchestratorProviderV01(); await provider.start();
     const invoke = vi.spyOn(provider, "invoke");
     const handle = vrchatFace().handle;
-    const context: DesktopGatewayRouteContext = { provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: { handle, snapshot: () => ({ experimentalEnabled: false, signedIn: false }), writeSdkHandoff: vi.fn() } };
+    const context: DesktopGatewayRouteContext = { provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: { handle, snapshot: () => ({ experimentalEnabled: false, signedIn: false }), writeSdkHandoff: vi.fn(), discardSdkHandoff: vi.fn() } };
     const response = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`,
       { schemaVersion: 1, requestId: "vr-1", method: "vrchat.status", params: {} });
     expect(response).toMatchObject({ ok: true, value: { schemaVersion: "0.1", state: "signed_out" } });
@@ -1790,6 +1791,7 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
       handle: vi.fn(async () => ({ schemaVersion: "0.1", enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true })),
       snapshot: () => ({ experimentalEnabled: true, signedIn: true }),
       writeSdkHandoff: vi.fn(async () => { order.push("handoff"); }),
+      discardSdkHandoff: vi.fn(() => { order.push("discard"); }),
     };
     invoke.mockImplementation(async () => { order.push("provider"); return { ok: true, value: { taskId: "task-1", runId: "n3-1" } }; });
     await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
@@ -1800,6 +1802,12 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
     await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
       { schemaVersion: 1, requestId: "open-1", method: "amf.production.open", params: { schemaVersion: "0.1", runId: "n3-1" } });
     expect(order).toEqual(["provider"]);
+    // An upload the Provider rejects leaves no session file behind.
+    order.length = 0;
+    invoke.mockImplementation(async () => { order.push("provider"); return { ok: false, error: { contractVersion: "0.1", code: "vua.amf_production.upload_busy", category: "conflict", messageKey: "errors.amf.uploadBusy", recoverable: true, retryable: true, correlationId: "up-2" } } as never; });
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "up-2", method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "n3-1", avatarName: "Meiyun", rightsConfirmed: true } });
+    expect(order).toEqual(["handoff", "provider", "discard"]);
   });
 
   it("derives the snapshot's two vrchat booleans and nothing more", async () => {
@@ -1822,6 +1830,7 @@ describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
       handle: vi.fn(async (value: unknown) => { seen.push(value); return { outcome: "signed_in" }; }),
       snapshot: () => ({ experimentalEnabled: true, signedIn: false }),
       writeSdkHandoff: vi.fn(),
+      discardSdkHandoff: vi.fn(),
     };
     const response = await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
       { schemaVersion: 1, requestId: "vr-3", method: "vrchat.signIn", params: { username: "Aran", password: "secret-pw", rememberPassword: false, commandId: "cmd" } });

@@ -1,6 +1,6 @@
 # Experimental VRChat sign-in v0.1
 
-> Document version: 0.1.0
+> Document version: 0.1.1
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: Integration
@@ -67,12 +67,16 @@ used for them.
 
 Before the Provider accepts `amf.production.upload`, Main writes the session once into the run's
 work project as `.vua/bridge/vrchat-session.json` (`schemaVersion`, `createdAt`, `username`,
-`auth`, optional `twoFactorAuth`), tightened to the current Windows user. The Editor's upload
-observer reads it before the SDK panel opens, deletes it right away, and applies it exactly as
-the SDK's own account tab does — `ApiCredentials.Set` with both cookies, then
-`APIUser.InitialFetchCurrentUser` — so the panel starts signed in. A file older than fifteen
-minutes is ignored; VUA deletes files this launch wrote on sign-out, forgetting and quit. When
-the player is not signed in, the upload keeps its ordinary path (sign-in inside the panel). The
+`auth`, optional `twoFactorAuth`); the file is narrowed to the current Windows user before the
+session is written into it. The Editor's upload observer reads it before the SDK panel opens,
+deletes it right away, and applies it exactly as the SDK's own account tab does —
+`ApiCredentials.Set` with both cookies, then `APIUser.InitialFetchCurrentUser` — so the panel
+starts signed in. A file older than fifteen minutes is ignored. VUA deletes the file when the
+Provider rejects the upload, and deletes every file it wrote on sign-out, forgetting and quit;
+`userData/vrchat-handoffs.json` lists the files still on disk, so a launch that ended without
+its cleanup has them deleted at the next start. VUA and the SDK share the one session, so
+signing out in VUA also signs the SDK out. When the player is not signed in, the upload keeps
+its ordinary path (sign-in inside the panel). The
 upload receipt records the outcome as `sdkSignIn: "vua_session" | "panel"`, and
 [amf-production](amf-production-v0.1.md) carries it on the upload record; no secrets travel
 through the request or the receipt.
@@ -86,6 +90,9 @@ checks; VRChat's treatment of third-party sign-ins is the platform's own decisio
 
 ## Document changelog
 
+- 0.1.1 (2026-10-18): the handoff file is narrowed to the current user before the session is
+  written; a rejected upload removes it, and files left by a launch that ended without its
+  cleanup are removed at the next start. Signing out in VUA also signs the SDK out.
 - 0.1.0 (2026-10-18): first Candidate. Experimental sign-in with risk consent, sealed session
   and optional password storage, three two-factor methods with email resend, sign-out and
   forgetting, the one-time SDK session handoff before managed uploads, and the Avatar-list

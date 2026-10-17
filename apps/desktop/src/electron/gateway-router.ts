@@ -45,6 +45,8 @@ export interface DesktopGatewayRouteContext {
     /** 托管上传分发前:玩家已登录时把会话一次性交到该 run 的工作工程。
      *  尽力而为;失败时上传保持面板内登录的原路。 */
     writeSdkHandoff(runId: string): Promise<void>;
+    /** 上传未被受理时立即删除已写出的交接文件。 */
+    discardSdkHandoff(): void;
   } | undefined;
 }
 
@@ -731,6 +733,7 @@ export async function routeDesktopGatewayInvoke(
       throw error;
     }
     const providerResponse = await context.provider.invoke(applicationRequest);
+    if (!providerResponse.ok && request.method === "amf.production.upload") context.vrchat?.discardSdkHandoff();
     if (!providerResponse.ok) {
       // 应用错误原样透传:本地化键、可重试与可恢复判定引用契约原值
       return {

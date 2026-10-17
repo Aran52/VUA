@@ -75,13 +75,13 @@ export interface VrchatSessionDeps {
   readonly secrets: SecretStorage;
   readonly client?: VrchatClient;
   readonly now?: () => number;
-  /** Restricts a handoff file to the current OS user; tests inject a no-op. */
-  readonly restrictPermissions?: (file: string) => Promise<void>;
 }
 
 const ACCOUNT_FILE = "vrchat-account.json";
 const SECRETS_FILE = "vrchat-secrets.json";
 const CHECKS_FILE = "vrchat-avatar-checks.json";
+/** Paths of handoff files written and not yet confirmed gone, swept at the next start. */
+const HANDOFFS_FILE = "vrchat-handoffs.json";
 /** `.vua/bridge` file the Editor consumes once during an upload. */
 export const SDK_SESSION_FILE = "vrchat-session.json";
 const RESEND_INTERVAL_MS = 30_000;
@@ -102,10 +102,18 @@ function writeJson(file: string, value: unknown): void {
 }
 
 async function restrictToOwner(file: string): Promise<void> {
-  if (process.platform !== "win32") return;
+  const user = process.env.USERNAME;
+  if (process.platform !== "win32" || !user) return;
+  const account = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${user}` : user;
   try {
-    await promisify(execFile)("icacls", [file, "/inheritance:r", "/grant:r", `${process.env.USERNAME ?? ""}:F`], { windowsHide: true });
-  } catch { /* The file still sits inside the player's own project folder. */ }
+    await promisify(execFile)("icacls", [file, "/inheritance:r", "/grant:r", `${account}:F`], { windowsHide: true });
+  } catch { /* The file still sits inside the player's own profile folder. */ }
+}
+
+/** Only the handoff file name inside a `.vua/bridge` folder is ever swept. */
+function isHandoffPath(file: unknown): file is string {
+  return typeof file === "string" && path.isAbsolute(file) && path.basename(file) === SDK_SESSION_FILE
+    && path.basename(path.dirname(file)) === "bridge" && path.basename(path.dirname(path.dirname(file))) === ".vua";
 }
 
 /** vrchat-session v0.1 Gateway surface, served by Electron Main only. */
@@ -116,9 +124,9 @@ export interface VrchatSessionService {
   refresh(): Promise<VrchatStatusValueV1>;
   /** The session for the SDK handoff, when one is currently usable. */
   sdkSession(): VrchatSdkSession | null;
-  /** Registers a handoff file this launch wrote, for later cleanup. */
+  /** Registers a handoff file for later cleanup, including after an unexpected exit. */
   noteSdkHandoff(file: string): void;
-  /** Deletes every SDK handoff file this launch wrote (sign-out, forget, quit). */
+  /** Deletes every SDK handoff file still on record (rejected upload, sign-out, forget, quit). */
   clearSdkHandoffs(): void;
 }
 
@@ -128,7 +136,7 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
   const checksFile = path.join(deps.directory, CHECKS_FILE);
   const client = deps.client ?? vrchatClient({ version: deps.version });
   const now = deps.now ?? Date.now;
-  const restrict = deps.restrictPermissions ?? restrictToOwner;
+  const handoffsFile = path.join(deps.directory, HANDOFFS_FILE);
 
   let account: AccountFile = loadAccount();
   let secrets: SecretsPayload | null = loadSecrets();
@@ -138,6 +146,10 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
   let lastResendAt = 0;
   const handoffFiles = new Set<string>();
   let lifecycle: Promise<unknown> = Promise.resolve();
+  // A launch that ended without its cleanup left its handoff files on record.
+  const leftover = readJson(handoffsFile);
+  if (Array.isArray(leftover)) for (const file of leftover.filter(isHandoffPath)) handoffFiles.add(file);
+  clearSdkHandoffs();
 
   function loadAccount(): AccountFile {
     const value = readJson(accountFile);
@@ -462,11 +474,20 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
     }
   }
 
+  function saveHandoffs(): void {
+    try {
+      if (handoffFiles.size === 0) fs.rmSync(handoffsFile, { force: true });
+      else writeJson(handoffsFile, [...handoffFiles]);
+    } catch { /* The files are still deleted on sign-out, forgetting and quit. */ }
+  }
+
   function clearSdkHandoffs(): void {
     for (const file of handoffFiles) {
+      if (!isHandoffPath(file)) continue;
       try { fs.rmSync(file, { force: true }); } catch { /* the Editor already deleted it */ }
     }
     handoffFiles.clear();
+    saveHandoffs();
   }
 
   return {
@@ -474,7 +495,7 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
     snapshot: () => ({ experimentalEnabled: account.enabled, signedIn: session !== null }),
     refresh: () => serialize(refreshSession),
     sdkSession: () => (session !== null ? { username: session.user.username, auth: session.cookies.auth, twoFactorAuth: session.cookies.twoFactorAuth } : null),
-    noteSdkHandoff: file => { handoffFiles.add(file); },
+    noteSdkHandoff: file => { if (isHandoffPath(file)) { handoffFiles.add(file); saveHandoffs(); } },
     clearSdkHandoffs,
   };
 }
@@ -489,14 +510,17 @@ export async function writeSdkSessionFile(
   fs.mkdirSync(folder, { recursive: true });
   const file = path.join(folder, SDK_SESSION_FILE);
   const pending = `${file}.pending`;
+  // The empty file is narrowed to the current user before the session is written into it.
+  fs.rmSync(pending, { force: true });
+  fs.closeSync(fs.openSync(pending, "wx", 0o600));
+  await restrict(pending).catch(() => {});
   fs.writeFileSync(pending, JSON.stringify({
     schemaVersion: "0.1",
     createdAt: new Date().toISOString(),
     username: session.username,
     auth: session.auth,
     ...(session.twoFactorAuth !== null ? { twoFactorAuth: session.twoFactorAuth } : {}),
-  }), { mode: 0o600 });
+  }));
   fs.renameSync(pending, file);
-  await restrict(file).catch(() => {});
   return file;
 }

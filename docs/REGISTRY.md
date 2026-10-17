@@ -81,7 +81,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/superseded/bdl-queries-v0.3.md | 0.3 | Superseded | Data | 2026-09-06 |
 | docs/protocols/superseded/project-ops-v0.1.md | 0.1 | Superseded | Environment | 2026-09-09 |
 | docs/protocols/task-store-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
-| docs/protocols/vrchat-session-v0.1.md | 0.1.0 | Candidate | Integration | 2026-10-18 |
+| docs/protocols/vrchat-session-v0.1.md | 0.1.1 | Candidate | Integration | 2026-10-18 |
 | docs/protocols/unity-bridge-v1.md | v1 | Accepted | Production | 2026-09-06 |
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |

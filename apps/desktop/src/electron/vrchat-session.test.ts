@@ -233,4 +233,34 @@ describe("experimental VRChat sign-in storage", () => {
     service.clearSdkHandoffs();
     expect(fs.existsSync(file)).toBe(false);
   });
+
+  it("narrows the handoff file to the current user before the session is written", async () => {
+    const project = tempDirectory();
+    const sizes: number[] = [];
+    await writeSdkSessionFile(project, { username: "Aran", auth: "auth-cookie", twoFactorAuth: null }, async pending => {
+      sizes.push(fs.statSync(pending).size);
+    });
+    expect(sizes).toEqual([0]);
+  });
+
+  it("removes a handoff file an earlier launch left behind at the next start", async () => {
+    const project = tempDirectory();
+    const file = await writeSdkSessionFile(project, { username: "Aran", auth: "auth-cookie", twoFactorAuth: null }, async () => {});
+    const directory = tempDirectory();
+    vrchatSession({ directory, version: "1", secrets: fakeSecrets(), client: fakeClient() }).noteSdkHandoff(file);
+    // That launch ended without its cleanup.
+    expect(fs.existsSync(file)).toBe(true);
+    vrchatSession({ directory, version: "1", secrets: fakeSecrets(), client: fakeClient() });
+    expect(fs.existsSync(file)).toBe(false);
+    expect(fs.existsSync(path.join(directory, "vrchat-handoffs.json"))).toBe(false);
+  });
+
+  it("never sweeps a recorded path outside a .vua/bridge handoff file", async () => {
+    const directory = tempDirectory();
+    const other = path.join(tempDirectory(), "notes.json");
+    fs.writeFileSync(other, "{}");
+    fs.writeFileSync(path.join(directory, "vrchat-handoffs.json"), JSON.stringify([other]));
+    vrchatSession({ directory, version: "1", secrets: fakeSecrets(), client: fakeClient() });
+    expect(fs.existsSync(other)).toBe(true);
+  });
 });

@@ -86,7 +86,7 @@ resource-saving mode cuts to it. The motion is scripted from the motion tokens.
   and the player's content rights statement; the page then follows the stages from opening Unity
   to uploading, offers Stop, and shows the VRChat Avatar ID or the SDK's reason in plain words.
 - An AI agent's upload request appears on its Avatar's page and opens the same dialog.
-- The earlier production records stay under their own tab.
+- The production records are debugging information in Settings (author request, 2026-10-18).
 
 Paper, binding, pattern and shades are the `--vua-album-*` tokens; the photo corners, the stage
 backdrop, page ornaments and the cover are `data-skin-slot` elements.

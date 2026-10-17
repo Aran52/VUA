@@ -255,6 +255,7 @@ demoTaskTitle: "Demo task",
       settingsLanguage: "Language",
       settingsTheme: "Theme",
       settingsExperimental: "Experimental features",
+      settingsDebug: "Debugging information",
       settingsVersion: "Version",
       settingsAbout: "About VUA",
       settingsDonate: "Donate",
@@ -3023,6 +3024,7 @@ demoTaskTitle: "Demo task",
      *  global auto-delete exceeds the frozen entry-level command; the wire
      *  face follows proposal 008), guarded by a danger confirm dialog and
      *  permanently labeled as unwired. */
+    debug: { unavailable: "Turn on the Avatar factory module to read its production records." },
     experimental: {
       taskDiagnosticsTitle: "Task diagnostics",
       taskDiagnosticsDesc: "Inspect the raw task queue and recovery state. Downloads and progress are available in the notification center.",

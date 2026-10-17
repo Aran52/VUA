@@ -203,8 +203,11 @@ function pedestalMoodOf(project: ReleaseProject | null): PedestalMood {
 
 export function ReleasePage({
   onNavigate,
+  heading,
 }: {
   onNavigate?: ((target: PageId) => void) | undefined;
+  /** The page title; Settings shows the records under its own name. */
+  heading?: string | undefined;
 }) {
   const gateway = useGateway();
   const isFixture = useDataSource() === "fixture";
@@ -266,7 +269,7 @@ export function ReleasePage({
     <div className="vua-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">
-          {strings.nav.pages.release}
+          {heading ?? strings.nav.pages.release}
           {isFixture ? (
             <>
               {" "}

@@ -53,8 +53,15 @@ namespace Vua.Editor.Bridge
             public string schemaVersion = "0.1"; public string runId; public string uploadId; public string outcome = "failed";
             public string blueprintId = ""; public string reason = ""; public string detail = "";
             public List<string> errors = new List<string>(); public bool firstUpload; public bool sceneSaved;
+            public string sdkSignIn = "panel";
         }
         [Serializable] private sealed class UploadCancel { public string schemaVersion; public string runId; public string uploadId; }
+        // The VRChat session VUA holds for the player, handed over once for an upload.
+        [Serializable] private sealed class SessionHandoff
+        {
+            public string schemaVersion; public string createdAt; public string username;
+            public string auth; public string twoFactorAuth;
+        }
 
         private static bool uploadRunning;
 
@@ -152,6 +159,19 @@ namespace Vua.Editor.Bridge
             if (avatar == null) { receipt.reason = "avatar_missing"; receipt.detail = "The finished Avatar is not in the work scene. Check the work project again."; return; }
             UnityEditor.Selection.activeGameObject = avatar;
             var sdk = SdkBuilder.Load();
+            // VUA's own VRChat session, when the player signed in there: the SDK panel
+            // starts signed in. The handoff file is deleted on read; any problem falls
+            // back to signing in inside the panel.
+            var handoff = ReadSessionHandoff(folder);
+            if (handoff != null)
+            {
+                try
+                {
+                    if (await sdk.ApplySession(handoff.username, handoff.auth, handoff.twoFactorAuth))
+                        receipt.sdkSignIn = "vua_session";
+                }
+                catch (Exception error) { Debug.LogWarning("VUA upload session: " + Unwrap(error).Message); }
+            }
             EditorApplication.ExecuteMenuItem("VRChat SDK/Show Control Panel");
 
             // The builder exists while the SDK panel is open; the VRChat sign-in happens in that panel.
@@ -217,6 +237,25 @@ namespace Vua.Editor.Bridge
             return error;
         }
 
+        /// VUA writes .vua/bridge/vrchat-session.json before an upload when the player is
+        /// signed in to VRChat in VUA. The Editor reads it once and deletes it right away;
+        /// a file left by an upload that never started is ignored after fifteen minutes.
+        private static SessionHandoff ReadSessionHandoff(string folder)
+        {
+            var file = Path.Combine(folder, "vrchat-session.json");
+            try
+            {
+                if (!File.Exists(file)) return null;
+                if ((DateTime.UtcNow - File.GetLastWriteTimeUtc(file)).TotalMinutes > 15) { TryDelete(file); return null; }
+                var handoff = JsonUtility.FromJson<SessionHandoff>(File.ReadAllText(file));
+                TryDelete(file);
+                if (handoff == null || handoff.schemaVersion != "0.1" || string.IsNullOrEmpty(handoff.username) || string.IsNullOrEmpty(handoff.auth))
+                    return null;
+                return handoff;
+            }
+            catch (Exception error) { TryDelete(file); Debug.LogWarning("VUA upload session: " + error.Message); return null; }
+        }
+
         // The SDK's exception types name why an upload ended.
         private static string Classify(Exception exception, List<string> errors)
         {
@@ -248,7 +287,7 @@ namespace Vua.Editor.Bridge
         private sealed class SdkBuilder
         {
             private const BindingFlags Static = BindingFlags.Public | BindingFlags.Static;
-            private Type panel, builderApi, avatarApi, avatar, api, user, pipeline;
+            private Type panel, builderApi, avatarApi, avatar, api, user, pipeline, credentials, container;
 
             internal static SdkBuilder Load()
             {
@@ -261,6 +300,9 @@ namespace Vua.Editor.Bridge
                 };
                 if (new[] { sdk.panel, sdk.builderApi, sdk.avatarApi, sdk.avatar, sdk.api, sdk.user, sdk.pipeline }.Any(t => t == null))
                     throw new InvalidOperationException("The VRChat SDK's builder is not available in this project.");
+                // Only needed when VUA hands its own session over; missing types just disable that path.
+                sdk.credentials = Find("VRC.Core.ApiCredentials");
+                sdk.container = Find("VRC.Core.ApiModelContainer`1");
                 return sdk;
             }
 
@@ -274,6 +316,49 @@ namespace Vua.Editor.Bridge
             }
 
             internal bool SignedIn() => user.GetProperty("IsLoggedIn", Static)?.GetValue(null) is bool signedIn && signedIn;
+
+            /// Applies VUA's session the same way the SDK panel does on a successful
+            /// sign-in: ApiCredentials.Set with the session cookies, then a fetch of the
+            /// current user. A session VRChat has since ended reports false.
+            internal async Task<bool> ApplySession(string username, string auth, string twoFactorAuth)
+            {
+                if (credentials == null || container == null) throw new InvalidOperationException("The VRChat SDK cannot take over this sign-in.");
+                MethodInfo Set(int parameters) => credentials.GetMethods(Static).FirstOrDefault(m =>
+                    m.Name == "Set" && m.GetParameters().Length == parameters && m.GetParameters().All(p => p.ParameterType == typeof(string)));
+                var set = twoFactorAuth != null ? Set(5) ?? Set(4) : Set(4) ?? Set(5);
+                if (set == null) throw new InvalidOperationException("The VRChat SDK cannot take over this sign-in.");
+                set.Invoke(null, set.GetParameters().Length == 5
+                    ? new object[] { username, username, "vrchat", auth, twoFactorAuth ?? "" }
+                    : new object[] { username, username, "vrchat", auth });
+                var fetch = new SessionFetch(user);
+                var method = user.GetMethods(Static).FirstOrDefault(m => m.Name == "InitialFetchCurrentUser" && m.GetParameters().Length == 2);
+                if (method == null) throw new InvalidOperationException("The VRChat SDK cannot confirm this sign-in.");
+                var closed = container.MakeGenericType(user);
+                var callbackType = typeof(Action<>).MakeGenericType(closed);
+                var handler = Delegate.CreateDelegate(callbackType, fetch, typeof(SessionFetch).GetMethod(nameof(SessionFetch.OnFetched)));
+                method.Invoke(null, new object[] { handler, null });
+                var finished = await Task.WhenAny(fetch.Done.Task, Task.Delay(TimeSpan.FromSeconds(30)));
+                var signedIn = finished == fetch.Done.Task && fetch.Done.Task.Result;
+                if (!signedIn)
+                {
+                    // A session VRChat ended leaves the panel's own sign-in path untouched.
+                    try { credentials.GetMethod("Clear", Static)?.Invoke(null, null); } catch (Exception) { }
+                }
+                return signedIn;
+            }
+
+            /// Waits for APIUser.InitialFetchCurrentUser and judges the container it hands back.
+            private sealed class SessionFetch
+            {
+                private readonly Type user;
+                public SessionFetch(Type user) { this.user = user; }
+                public readonly TaskCompletionSource<bool> Done = new TaskCompletionSource<bool>();
+                public void OnFetched(object modelContainer)
+                {
+                    var model = modelContainer == null ? null : modelContainer.GetType().GetProperty("Model")?.GetValue(modelContainer);
+                    Done.TrySetResult(model != null && user.IsInstanceOfType(model));
+                }
+            }
 
             internal bool CanPublishAvatars()
             {

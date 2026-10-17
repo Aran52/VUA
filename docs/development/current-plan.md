@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -45,7 +45,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |
 | 11 | Unity sign-in and license | A-01 | |
-| 12 | Managed upload | P-02 | brought forward 2026-10-17; in review, needs a real upload |
+| 12 | Managed upload | P-02 | first upload done 2026-10-17; the experimental [VRChat sign-in](vrchat-account.md) is built on `slice/vrchat-signin` and awaits real-account checks |
 | 13 | Appearance and one-click styles | — | needs a design session |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
@@ -192,6 +192,9 @@ in bright and dark worlds, without visible loss the author objects to.
 SDK 3.10.5 hands out its builder only while the SDK control panel is open and signed in, and
 shows VRChat's ownership agreement in that panel, so the upload runs in the Editor's interface
 through the [Bridge v5 handoff](../protocols/unity-bridge-v5.md#managed-upload-in-the-open-editor).
+The player's experimental [VRChat sign-in inside VUA](vrchat-account.md) hands its session to
+the open Editor before an upload ([vrchat-session v0.1](../protocols/vrchat-session-v0.1.md)),
+so the panel starts signed in, and each upload record names where its sign-in came from.
 
 **Done when** the P-02 result uploads from VUA with the player's confirmation.
 

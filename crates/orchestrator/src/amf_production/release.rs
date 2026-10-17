@@ -64,6 +64,10 @@ pub struct UploadRecord {
     pub detail: String,
     #[serde(default)]
     pub errors: Vec<String>,
+    /// How the SDK panel signed in: `vua_session` (handed over from VUA) or `panel`. Older
+    /// records carry nothing.
+    #[serde(default)]
+    pub sdk_sign_in: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -104,6 +108,8 @@ pub struct UploadReceipt {
     pub reason: Option<String>,
     pub detail: String,
     pub errors: Vec<String>,
+    /// `vua_session` or `panel`; how the SDK panel reached its sign-in.
+    pub sdk_sign_in: Option<String>,
 }
 
 /// VRChat Avatar IDs: `avtr_` and a lowercase or uppercase hexadecimal UUID.
@@ -375,6 +381,7 @@ impl AmfProductionEngine {
             upload_id: upload_id.clone(), avatar_name: avatar_name.into(), started_at: now, ended_at: None,
             state: "running".into(), stage: "starting".into(), progress: None, status: String::new(),
             blueprint_id: None, first_upload: None, reason: None, detail: String::new(), errors: Vec::new(),
+            sdk_sign_in: None,
         });
         while record.uploads.len() > KEPT_UPLOADS {
             record.uploads.remove(0);
@@ -413,6 +420,7 @@ impl AmfProductionEngine {
                 entry.detail = bounded_text(&receipt.detail, MAX_DETAIL_CHARS);
                 entry.errors = receipt.errors.iter().take(MAX_ERRORS).map(|error| bounded_text(error, 500)).collect();
                 entry.first_upload = Some(receipt.first_upload);
+                entry.sdk_sign_in = receipt.sdk_sign_in.filter(|source| source == "vua_session" || source == "panel");
                 match receipt.outcome.as_str() {
                     "succeeded" => match receipt.blueprint_id.filter(|id| is_blueprint_id(id)) {
                         Some(id) => {
@@ -455,5 +463,22 @@ impl AmfProductionEngine {
         }
         self.save(&run)?;
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upload_records_from_before_the_sdk_sign_in_source_still_read() {
+        let record: ReleaseRecord = serde_json::from_str(r#"{"schemaVersion":"0.1","runId":"n3-old","uploads":[
+            {"uploadId":"upload-1","avatarName":"Meiyun","startedAt":"2026-10-17T00:00:00Z","state":"succeeded","stage":"finishing"}]}"#).unwrap();
+        let upload = &record.uploads[0];
+        assert_eq!(upload.sdk_sign_in, None);
+        let with_source: ReleaseRecord = serde_json::from_str(r#"{"schemaVersion":"0.1","runId":"n3-new","uploads":[
+            {"uploadId":"upload-2","avatarName":"Meiyun","startedAt":"2026-10-18T00:00:00Z","state":"succeeded","stage":"finishing",
+             "blueprintId":"avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a","sdkSignIn":"vua_session"}]}"#).unwrap();
+        assert_eq!(with_source.uploads[0].sdk_sign_in.as_deref(), Some("vua_session"));
     }
 }

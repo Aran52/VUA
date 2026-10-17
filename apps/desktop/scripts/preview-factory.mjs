@@ -13,7 +13,8 @@ const [output = path.join(os.tmpdir(), "vua-preview-factory"), locale = "zh-CN",
 const views = ["map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-attention", "workshop-finished",
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part", "control-recipes-list", "control-recipes-many", "control-recipes-empty",
   "control-packages", "control-packages-project", "control-packages-unlisted", "control-packages-repos",
-  "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-failed", "release-empty"];
+  "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty",
+  "settings-vrchat", "settings-vrchat-account"];
 const only = process.argv.find(arg => arg.startsWith("--only="))?.slice("--only=".length) ?? "";
 let server;
 app.on("window-all-closed", () => {});

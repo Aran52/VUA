@@ -61,6 +61,7 @@ function assembleDevGateway(
     productionChain: live.productionChain,
     amfProduction: live.amfProduction,
     amfRelease: live.amfRelease,
+    vrchat: live.vrchat,
     // 029 B 面环 4:配方导出同观察事实纪律(草稿不模拟)——恒 live 基线,
     // 无宿主时诚实缺席;转正走既有保存链,开发切档不产生演示草稿
     recipeExport: live.recipeExport,

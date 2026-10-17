@@ -8,7 +8,7 @@ import { ReleaseStage } from "../../src/renderer/features/amf/release/ReleaseSta
 import { ReleaseSheet } from "../../src/renderer/features/amf/release/ReleaseSheet.tsx";
 import { avatarTitle } from "../../src/renderer/features/amf/release/release-model.ts";
 import "../../src/renderer/features/amf/release/release-album.css";
-import type { AmfProductionPort, AmfProductionRun, AmfReleasePort, AmfReleaseState, AmfUpload } from "../../src/renderer/gateway/index.ts";
+import type { AmfProductionPort, AmfProductionRun, AmfReleasePort, AmfReleaseState, AmfUpload, VrchatPort, VrchatStatus } from "../../src/renderer/gateway/index.ts";
 
 const avatarId = "avtr_6f1c2d3e-4a5b-4c6d-8e7f-90a1b2c3d4e5";
 const palette = [
@@ -61,10 +61,10 @@ const runs = [finished(0, "Meiyun", "TshirtShorts", "T-shirt"), finished(1, "Kar
 const lookOf = (runId: string) => Math.max(0, runs.findIndex(run => run.runId === runId));
 
 const upload = (patch: Partial<AmfUpload>): AmfUpload => ({ uploadId: "upload-1", avatarName: "Meiyun TshirtShorts", startedAt: "2026-10-17T06:00:00Z", endedAt: "2026-10-17T06:07:00Z",
-  state: "succeeded", stage: "finishing", progress: 1, status: "", blueprintId: avatarId, firstUpload: true, reason: null, detail: "", errors: [], ...patch });
+  state: "succeeded", stage: "finishing", progress: 1, status: "", blueprintId: avatarId, firstUpload: true, reason: null, detail: "", errors: [], sdkSignIn: "vua_session", ...patch });
 
 export function releaseViewNames(): string[] {
-  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-failed", "release-empty"];
+  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty"];
 }
 
 export function releasePorts(view: string): { production: AmfProductionPort; release: AmfReleasePort } {
@@ -72,7 +72,8 @@ export function releasePorts(view: string): { production: AmfProductionPort; rel
     const first = runId === runs[0]!.runId;
     const uploads: AmfUpload[] = !first ? [] : view === "release-uploading" ? [upload({ uploadId: "upload-2", state: "running", stage: "uploading", progress: 0.46, endedAt: null, blueprintId: null, firstUpload: null, status: "Uploading the Avatar bundle" })]
       : view === "release-signin" ? [upload({ uploadId: "upload-2", state: "running", stage: "sign_in", progress: null, endedAt: null, blueprintId: null, firstUpload: null, status: "" })]
-      : view === "release-uploaded" ? [upload({}), upload({ uploadId: "upload-0", state: "failed", blueprintId: null, reason: "sign_in_required", startedAt: "2026-10-17T05:40:00Z", endedAt: "2026-10-17T05:41:00Z" })]
+      : view === "release-uploaded" ? [upload({ sdkSignIn: null }), upload({ uploadId: "upload-0", state: "failed", blueprintId: null, reason: "sign_in_required", startedAt: "2026-10-17T05:40:00Z", endedAt: "2026-10-17T05:41:00Z", sdkSignIn: null })]
+      : view === "release-check" ? [upload({})]
       : view === "release-failed" ? [upload({ state: "failed", stage: "building", blueprintId: null, reason: "validation", detail: "Avatar validation failed",
         errors: ["This avatar uses 3 materials with the same name.", "Polygon count is over the Poor limit for PC (70,000)."] })]
       : [];
@@ -91,6 +92,24 @@ export function releasePorts(view: string): { production: AmfProductionPort; rel
     async upload(runId) { return { runId, taskId: "task" }; },
   };
   return { production, release };
+}
+
+/** A drawn VRChat session state: only what the settings card and the upload check read. */
+export function vrchatPreviewPort(status: VrchatStatus, check: "found" | "not_found" = "found"): VrchatPort {
+  return {
+    status: async () => status,
+    setExperimental: async () => status,
+    signIn: async () => ({ outcome: "two_factor_required", methods: ["emailotp"] }),
+    relogin: async () => ({ outcome: "signed_in" }),
+    verifyCode: async () => ({ outcome: "signed_in" }),
+    resendEmailCode: async () => ({ outcome: "sent" }),
+    signOut: async () => status,
+    forget: async () => status,
+    avatarCheck: async (blueprintId: string) => check === "found"
+      ? { blueprintId, state: "found", checkedAt: "2026-10-17T06:10:00Z",
+          avatar: { name: "Meiyun TshirtShorts", releaseStatus: "private", platforms: ["pc", "ios"], updatedAt: "2026-10-17T06:07:00Z" } }
+      : { blueprintId, state: "not_found", checkedAt: "2026-10-17T06:10:00Z", avatar: null },
+  };
 }
 
 /** The mid-turn frame: the first spread's right page lifted 42% of the way to the next spread. */

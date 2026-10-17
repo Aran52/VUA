@@ -10,6 +10,7 @@ import { factoryCopy } from "./factory-copy.ts";
 import { controlCenterCopy } from "./control-center-copy.ts";
 import { releaseRoomCopy } from "./release-room-copy.ts";
 import { aiToolsCopy } from "./ai-tools-copy.ts";
+import { vrchatCopy } from "./vrchat-copy.ts";
 import { scenarioCopy } from "./scenario-copy.ts";
 import { unityLicenseCopy } from "./unity-license-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
@@ -41,6 +42,7 @@ export const strings: Strings = {
   controlCenter: controlCenterCopy["zh-CN"],
   releaseRoom: releaseRoomCopy["zh-CN"],
   aiTools: aiToolsCopy["zh-CN"],
+  vrchat: vrchatCopy["zh-CN"],
   scenarioEnvironment: scenarioCopy["zh-CN"],
   unityLicense: unityLicenseCopy["zh-CN"],
   environmentCards: environmentCopy["zh-CN"],

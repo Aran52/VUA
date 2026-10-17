@@ -16,6 +16,8 @@ export interface AmfUpload {
   readonly progress: number | null; readonly status: string;
   readonly blueprintId: string | null; readonly firstUpload: boolean | null;
   readonly reason: AmfUploadReason | null; readonly detail: string; readonly errors: readonly string[];
+  /** How the SDK panel signed in for this upload: with the VUA session, or in the panel. */
+  readonly sdkSignIn?: "vua_session" | "panel" | null;
 }
 export interface AmfTurntable { readonly frames: number; readonly size: number; readonly bakedAt: string; readonly current: boolean }
 export interface AmfReleaseState {
@@ -46,6 +48,7 @@ function upload(v: unknown): v is AmfUpload {
     && blueprint(v.blueprintId) && (v.firstUpload === null || typeof v.firstUpload === "boolean")
     && (v.reason === null || (AMF_UPLOAD_REASONS as readonly string[]).includes(String(v.reason)))
     && Array.isArray(v.errors) && v.errors.length <= 32 && v.errors.every(text)
+    && (v.sdkSignIn === null || v.sdkSignIn === undefined || ["vua_session", "panel"].includes(String(v.sdkSignIn)))
     && (v.state !== "succeeded" || v.blueprintId !== null);
 }
 export function isAmfReleaseState(v: unknown, runId: string): v is AmfReleaseState {

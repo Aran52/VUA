@@ -138,10 +138,6 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-workshop__line[aria-current] { border-color: var(--vua-accent); background: color-mix(in srgb, var(--vua-accent) 9%, var(--vua-bg-panel)); }
 .vua-workshop__line:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
 .vua-workshop__main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-.vua-workshop__levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; margin-block: 12px; }
-.vua-workshop__levels button { display: grid; gap: 6px; padding: 14px; text-align: start; font: inherit; color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); cursor: pointer; }
-.vua-workshop__levels button:hover { border-color: var(--vua-accent); }
-.vua-workshop__levels span { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 
 .vua-line__status { display: inline-flex; align-items: center; padding: 2px 10px; border: 1px solid currentColor; border-radius: var(--vua-radius-pill); font-size: 12px; color: var(--vua-text-secondary); white-space: nowrap; }
 .vua-line__status[data-status="running"] { color: var(--vua-accent); }

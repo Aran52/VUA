@@ -7,6 +7,7 @@ import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionR
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
+import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { strings, format, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
@@ -15,7 +16,7 @@ import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
+import { assemblesWithoutAsking, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
 import "./factory.css";
 import type { AmfRunProgress } from "../../gateway/index.ts";
 import { formatDuration, lineLabels } from "./factory-model.ts";
@@ -79,9 +80,13 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [requesting, setRequesting] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | null>(null);
-  const [level, setLevel] = useState<AutomationLevel | null>(storedAutomationLevel);
+  const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
+  const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
-  const chooseLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
+  const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
+  // Full access changes the work project without asking, so the player reads what that means first.
+  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
+  const unattended = useRef(new Set<string>());
   const initialized = useRef("");
   const refreshList = useCallback(async () => {
     if (!port) { setError(unavailable); return; }
@@ -190,9 +195,19 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const states = run ? lineStations(run) : null;
   const status: LineStatus | null = run ? lineStatus(run) : null;
-  const effective: AutomationLevel = level ?? "semi";
+  const effective: AutomationLevel = level;
   const stops = stopsAt(effective);
-  const showDetails = effective !== "auto" || adjusting;
+  // One layout for every mode; the modes differ in where the line stops.
+  const showDetails = adjusting;
+  const chosen = !!selection.avatarPrefab && selection.outfits.length > 0;
+  useEffect(() => {
+    if (!run || run.runId !== runId || plan !== null || restorePlan !== null || requesting) return;
+    if (!assemblesWithoutAsking(effective, run, { busy, chosen })) return;
+    const key = `${run.runId}:${run.steps.length}`;
+    if (unattended.current.has(key)) return;
+    unattended.current.add(key);
+    void assembleNow();
+  });
   const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
@@ -208,8 +223,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </button>)}
     </aside>
     <div className="vua-workshop__main">
-    {level === null && <Card><h2>{factory.levelQuestion}</h2><div className="vua-workshop__levels">{AUTOMATION_LEVELS.map(option => <button type="button" key={option} onClick={() => chooseLevel(option)}>
-      <strong>{factory.levels[option].name}</strong><span>{factory.levels[option].hint}</span></button>)}</div><p className="vua-caption vua-text-secondary">{factory.levelLater}</p></Card>}
+    <ContentDialog open={confirmFull} title={factory.fullAccess.title} closeLabel={strings.common.dialogClose} onClose={() => setConfirmFull(false)}>
+      <div className="vua-page__stack">
+        <p role="alert">{factory.fullAccess.body}</p>
+        <p className="vua-caption vua-text-secondary">{factory.levels.full.hint}</p>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setConfirmFull(false)}>{factory.fullAccess.cancel}</Button>
+          <Button variant="primary" onClick={() => { setConfirmFull(false); applyLevel("full"); }} data-nav-id="workshop-full-access">{factory.fullAccess.confirm}</Button></div>
+      </div>
+    </ContentDialog>
     {error !== null && <Card><div role="alert"><strong>{copy.error}</strong><p className="vua-caption vua-text-secondary">{error}</p><Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button></div></Card>}
     {run === null && error !== null && /license/iu.test(error) ? <Card>
       <h2>{strings.unityLicense.retry}</h2><p>{strings.unityLicense.retryHint}</p>
@@ -243,7 +264,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
         {status && <StatusChip status={status}/>}
         <label className="vua-line__level">{factory.automation}<select value={effective} onChange={e => chooseLevel(e.target.value as AutomationLevel)}>
-          {AUTOMATION_LEVELS.map(option => <option key={option} value={option}>{factory.levels[option].name}</option>)}</select></label>
+          {AUTOMATION_LEVELS.map(option => <option key={option} value={option}>{factory.levels[option].name}</option>)}</select>
+          <small className="vua-caption vua-text-secondary">{factory.levels[effective].hint}</small></label>
       </header>
       {states && <ol className="vua-line__stations" aria-label={factory.stations[currentStation(states)]}>{STATIONS.map(key => <li key={key} className="vua-line__station" data-state={states[key]} aria-current={currentStation(states) === key ? "step" : undefined}>
         <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>
@@ -303,7 +325,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
               <option value="">{copy.importedOnly}</option>{options.map(p => <option key={p.path} value={p.path}>{p.name} — {p.path}</option>)}</select></label>}
             {candidate?.hasMissingScripts && <p role="alert">{copy.missingScripts}</p>}
             {chosen && <div className="vua-n3__fields"><label>{copy.switchName}<input value={chosen.toggleName} maxLength={80} onChange={e => outfit(source.sourceId,{toggleName:e.target.value})}/></label>
-              <details className="vua-n3__advanced" open={effective === "manual"}><summary>{copy.binding}</summary><label>{copy.binding}<select value={chosen.mode} onChange={e => outfit(source.sourceId,{mode:e.target.value as AmfOutfitSelection["mode"],bone:""})}>
+              <details className="vua-n3__advanced"><summary>{copy.binding}</summary><label>{copy.binding}<select value={chosen.mode} onChange={e => outfit(source.sourceId,{mode:e.target.value as AmfOutfitSelection["mode"],bone:""})}>
                 <option value="merge_armature" disabled={!candidate?.hasSkinnedMesh && !candidate?.hasMergeArmature}>{copy.merge}</option><option value="attach_to_bone" disabled={candidate?.hasSkinnedMesh}>{copy.attach}</option></select></label></details>
               {chosen.mode === "attach_to_bone" && <label>{copy.bone}<select value={chosen.bone} onChange={e => outfit(source.sourceId,{bone:e.target.value})}><option value="">{copy.chooseBone}</option>{avatar?.humanoidBones.map(bone => <option key={bone} value={bone}>{bone}</option>)}</select></label>}
               <label className="vua-n3__check"><input type="checkbox" checked={chosen.active} onChange={e => outfit(source.sourceId,{active:e.target.checked})}/>{copy.active}</label>
@@ -350,7 +372,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         if (!port) return; setRequesting(true); setError(null);
         void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
       }}>{copy.restore}</Button></div>}
-      <details className="vua-n3__advanced" open={effective === "manual"}><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
+      <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
     </>}
     </div>
     {sharingRecipe && <AmfRecipeShareDialog recipeId={sharingRecipe} onClose={() => setSharingRecipe(null)}/>}

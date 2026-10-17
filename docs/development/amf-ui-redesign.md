@@ -1,6 +1,6 @@
 # AMF interface: the Avatar factory
 
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 > Status: structure approved by the author on 2026-10-17; delivery in progress
 
 The AMF module is one factory. Materials come in, the workshop assembles them on production
@@ -10,8 +10,8 @@ slice order; this document owns the interface those slices land in.
 ## The player's goal
 
 A newcomer wants one thing: "put this outfit on my Avatar and get it into VRChat". Each such wish
-is one production line. The player's familiarity with Unity decides only where the line stops to
-ask them; the stations are the same for everyone.
+is one production line. How much the player wants to hand over decides only where the line stops
+to ask them; the stations and the layout are the same for everyone.
 
 ## Base map
 
@@ -52,15 +52,21 @@ and usual durations come from the backend in delivery 1.
 **Needs attention:** one card with the cause in plain words, one next action and the technical
 detail under "Details". A license failure links to the Unity sign-in and license guide.
 
-## Automation levels
+## Permission modes
 
-Asked on the first visit to the workshop and changeable on every line:
+The workshop works like an AI agent's permission modes (author ruling, 2026-10-18): the player
+chooses how much to hand over, whatever their experience with Unity. All three modes share one
+layout; they differ in where the line stops. The mode menu on each line lists them in this order:
 
-| Level | Stops at |
+| Mode | Stops at |
 | --- | --- |
-| Fully automatic | the assembly plan; confirming it plans and assembles in one go |
-| Semi-automatic | the assembly plan and the quality check; candidates and switches are shown |
-| Manual | every station; every setting is open |
+| Ask before changes (default) | every station; each change to the Avatar waits for the player's OK |
+| Decide on its own | the assembly plan and the quality check |
+| Full access | nowhere; a prepared line that was never assembled assembles by itself |
+
+Choosing full access first explains that VUA will change the work project without asking and
+that this can mess up the Avatar; a restore point before each assembly lets the workshop bring it
+back. Uploads to VRChat ask in every mode.
 
 ## Release room
 
@@ -88,7 +94,7 @@ backdrop, page ornaments and the cover are `data-skin-slot` elements.
 | --- | --- |
 | 5 Unity editor handoff | "Close Unity and continue" on a needs-attention card; "Done checking, close Unity" on the quality check |
 | 6 SDK step | release: the SDK checks in plain words |
-| 7 Familiarity levels | the automation levels above; recommendation rules for prefabs |
+| 7 Permission modes | the permission modes above; recommendation rules for prefabs |
 | 8 Known packages | control center: packages; the materials station |
 | 9 Material tuning | an optional station between quality check and release |
 | 10 Face tracking | an add-on station after the quality check |

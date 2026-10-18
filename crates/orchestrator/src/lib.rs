@@ -134,8 +134,8 @@ pub use recipe_export::{
     ProjectDraftExportPort, VuaIdentityStatusV01,
 };
 pub use runtime::{
-    recovery_dispositions, SubmitRequest, TaskContext, TaskExit, TaskJob, TaskRecoveryDisposition,
-    TaskRuntime, TaskSnapshot,
+    recovery_dispositions, SubmitRequest, TaskContext, TaskExit, TaskJob, TaskLane,
+    TaskRecoveryDisposition, TaskRuntime, TaskSnapshot,
 };
 pub use sqlite_task_store::{
     LegacyTaskOwner,

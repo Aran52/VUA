@@ -11,13 +11,34 @@ const vrchatCopy = strings.vrchat.release;
 const sdkCopy = strings.sdkReview;
 const time = (iso: string | null | undefined) => (iso && !Number.isNaN(Date.parse(iso)) ? formatDateTime(iso) : "");
 
+/** This Avatar's work waiting behind the running job. */
+export interface QueuedWork {
+  readonly operation: string;
+  readonly onRemove: () => void;
+}
+
 export interface SheetActions {
+  /** This Avatar's own work runs or waits. */
   readonly busy: boolean;
+  /** An upload of this Avatar runs or waits; another upload would repeat it. */
+  readonly uploadBlocked?: boolean;
+  /** Another line's work runs; what this page starts now waits for it. */
+  readonly otherWork?: boolean;
+  readonly queued?: QueuedWork | null;
   readonly onUpload: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
   /** Runs the SDK's own Auto Fix for the chosen items. */
   readonly onSdkFix?: (fixes: readonly string[]) => void;
+}
+
+/** Work of this Avatar that waits for the running job, with its remove action. */
+function QueuedNotice({ queued }: { queued: QueuedWork }) {
+  const work = copy.queue.work[queued.operation.replace(/^amf\.production\./u, "") as keyof typeof copy.queue.work] ?? copy.queue.work.other;
+  return <div className="vua-release-upload__queued" role="status">
+    <span><Icon name="clock" size={16} />{format(copy.queue.waiting, { work })}</span>
+    <button type="button" className="vua-release-upload__link" onClick={queued.onRemove} data-nav-id="release-queue-remove">{copy.queue.remove}</button>
+  </div>;
 }
 
 /** How this upload's SDK sign-in happened, as one plain line; unknown stays unsaid. */
@@ -212,6 +233,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
   const latest = state?.uploads[0] ?? null;
   const earlier = (state?.uploads ?? []).filter(upload => upload !== latest && upload.state !== "running").slice(0, 3);
   const uploaded = uploadedAvatarId(state) !== null;
+  const uploadQueued = actions?.queued?.operation === "amf.production.upload";
   return <div className="vua-album__sheet">
     <header className="vua-album__heading">
       <span className="vua-album__number">{format(copy.number, { number: String(number).padStart(2, "0") })}</span>
@@ -233,11 +255,16 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
     <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
+    {/* A queued upload is the notice alone; other queued work keeps the button, disabled. */}
     <section className="vua-release-upload" aria-label={copy.upload.button}>
+      {live && actions?.queued && <QueuedNotice queued={actions.queued} />}
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
-        <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}
-          onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
-        <small className="vua-text-secondary">{actions?.busy ? copy.upload.busy : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>
+        {!(live && uploadQueued) && <>
+          <button type="button" className="vua-release-upload__button" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
+            onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
+          {!(live && actions?.queued) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy : actions?.otherWork ? copy.upload.busy
+            : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>}
+        </>}
         {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
           {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}
           {...(live && onOpenOnVrchat ? { onOpenOnVrchat } : {})}

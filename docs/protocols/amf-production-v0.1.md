@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.15.0
+> Document version: 0.16.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -17,7 +17,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 
 | Method | Kind | Additional params | Result |
 | --- | --- | --- | --- |
-| `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, and retained run summaries |
+| `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, retained run summaries, `busy` and the waiting `queue` |
 | `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, usual step durations and the running step's progress |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
 | `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection and effective input roles |
@@ -195,6 +195,24 @@ pause, as the author approved on 2026-10-17. Before and after each batch run, VU
 `Temp/UnityLockfile` that no Editor holds, so the next run and the SDK handoff find the project
 closed.
 
+### Queue
+
+Unity work runs one job at a time. The commands that start it — `prepare`, `prepareRecipe`,
+`assemble`, `reinspect`, `sdkFix`, `applyRecipe`, `rollback`, `open`, `bakeTurntable` and
+`upload` — are accepted while another job runs: their task stays `queued` and starts by itself,
+in request order, when the jobs before it end. Checks of the request itself (keys, plan digest
+shape, Avatar name, rights confirmation, SDK items) answer at once; checks against the work
+project and the run (Editor identity, `project_open`, `project_drift`, `result_not_ready`) run
+when the job starts, and a job that cannot start then ends `failed` with that reason.
+`amf.production.list` reports `busy` while a job runs and `queue`, the waiting work first in line
+first, each with `taskId`, `runId` and `operation`. Cancelling a queued task through
+`task.requestCancellation` ends it `cancelled` without running it. `plan`, `rollbackPlan` and
+`recipeApplyPlan` answer `busy` while work for that run runs or waits; saving, importing and
+exporting Recipes answer `busy` while a job runs. Work still waiting when VUA closes does not start
+at the next launch; its task asks for inspection like other unfinished work, and the run keeps the
+state it had. Work on different projects side by side is a later step for machines with enough
+memory.
+
 ## Previews
 
 Every inspection and assembly reports what the Bridge rendered. `facts.previews` lists the active
@@ -216,7 +234,7 @@ remain the record of what was assembled.
 
 A finished run (`succeeded`) leaves the factory through the release room. Its record lives beside
 the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. Both
-release commands share the production busy state, add a `turntable` or `upload` step to the
+release commands share the production [queue](#queue), add a `turntable` or `upload` step to the
 run while they work, and end that step as `succeeded` or `failed` with the reason in its detail.
 
 `amf.production.bakeTurntable` runs [Bridge v5](unity-bridge-v5.md#turntable) `amf_turntable`
@@ -281,6 +299,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
 - 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.
 - 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.
 - 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.

@@ -275,5 +275,5 @@ export type { AmfReleasePort, AmfReleaseState, AmfUpload, AmfUploadStage, AmfUpl
 export { AMF_UPLOAD_STAGES } from "./amf-release-port.ts";
 export type { VrchatPort, VrchatStatus, VrchatSignInOutcome, VrchatAvatarCheck, VrchatAvatarEntry, VrchatAvatarList, VrchatTwoFactorMethod, VrchatAccountView } from "./vrchat-port.ts";
 export { VRCHAT_TWO_FACTOR_METHODS } from "./vrchat-port.ts";
-export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionSource, AmfProductionList, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted, AmfPreviewImage, AmfStep, AmfUsualDurations, AmfRunProgress, AmfProductionProgress, AmfSdkReview, AmfSdkIssue, AmfSdkStat, AmfSdkRating } from "./amf-production-port.ts";
+export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionSource, AmfProductionList, AmfQueuedWork, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted, AmfPreviewImage, AmfStep, AmfUsualDurations, AmfRunProgress, AmfProductionProgress, AmfSdkReview, AmfSdkIssue, AmfSdkStat, AmfSdkRating } from "./amf-production-port.ts";
 export { AMF_SDK_RATINGS } from "./amf-production-port.ts";

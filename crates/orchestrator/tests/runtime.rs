@@ -12,7 +12,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use vua_orchestrator::{
     recover_from_journal, AppErrorV1, ErrorCategory, FixedClock, FixedIdGenerator,
     JournalEntryKind, JournalPayload, JournalSink, JournalWriter, MemoryJournal,
-    RecoveredDisposition, SubmitRequest, SystemClock, TaskEventKind, TaskExit, TaskRuntime,
+    RecoveredDisposition, SubmitRequest, SystemClock, TaskEventKind, TaskExit, TaskLane, TaskRuntime,
     TaskState,
 };
 
@@ -757,4 +757,65 @@ fn cancelling_a_poisoned_task_returns_a_typed_error_instead_of_acknowledging() {
     assert_eq!(error.code, "vua.task.journal_write_failed");
     assert_eq!(error.category, ErrorCategory::Internal);
     assert!(error.recoverable);
+}
+
+/// A job that waits for its release, recording when it runs.
+fn gated_job(name: &'static str, order: Arc<Mutex<Vec<&'static str>>>, gate: mpsc::Receiver<()>) -> SubmitRequest {
+    SubmitRequest {
+        correlation_id: None,
+        timeout: None,
+        job: Box::new(move |_ctx| {
+            order.lock().unwrap().push(name);
+            let _ = gate.recv_timeout(Duration::from_secs(10));
+            Ok(TaskExit::Done(serde_json::json!({ "job": name })))
+        }),
+    }
+}
+
+#[test]
+fn a_lane_runs_its_jobs_one_at_a_time_in_order() {
+    let (runtime, _path) = file_runtime("lane-order");
+    let lane = TaskLane::new();
+    let order = Arc::new(Mutex::new(Vec::new()));
+    let (release_a, gate_a) = mpsc::channel();
+    let (release_b, gate_b) = mpsc::channel();
+    let (release_c, gate_c) = mpsc::channel();
+    let a = runtime.submit_in_lane(gated_job("a", order.clone(), gate_a), &lane).unwrap().task_id;
+    wait_for_state(&runtime, &a, TaskState::Running);
+    let b = runtime.submit_in_lane(gated_job("b", order.clone(), gate_b), &lane).unwrap().task_id;
+    let c = runtime.submit_in_lane(gated_job("c", order.clone(), gate_c), &lane).unwrap().task_id;
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(runtime.snapshot(&b).unwrap().state, TaskState::Queued);
+    assert_eq!(runtime.snapshot(&c).unwrap().state, TaskState::Queued);
+    assert_eq!(lane.holder().as_deref(), Some(a.as_str()));
+    assert_eq!(lane.waiting(), vec![b.clone(), c.clone()]);
+
+    release_a.send(()).unwrap();
+    assert_eq!(wait_for_terminal(&runtime, &a).state, TaskState::Succeeded);
+    wait_for_state(&runtime, &b, TaskState::Running);
+    assert_eq!(runtime.snapshot(&c).unwrap().state, TaskState::Queued);
+    release_b.send(()).unwrap();
+    release_c.send(()).unwrap();
+    assert_eq!(wait_for_terminal(&runtime, &c).state, TaskState::Succeeded);
+    assert_eq!(*order.lock().unwrap(), vec!["a", "b", "c"]);
+    assert!(lane.is_idle());
+}
+
+#[test]
+fn a_waiting_job_cancelled_ends_cancelled_without_running() {
+    let (runtime, _path) = file_runtime("lane-cancel");
+    let lane = TaskLane::new();
+    let order = Arc::new(Mutex::new(Vec::new()));
+    let (release_a, gate_a) = mpsc::channel();
+    let (_release_b, gate_b) = mpsc::channel();
+    let a = runtime.submit_in_lane(gated_job("a", order.clone(), gate_a), &lane).unwrap().task_id;
+    wait_for_state(&runtime, &a, TaskState::Running);
+    let b = runtime.submit_in_lane(gated_job("b", order.clone(), gate_b), &lane).unwrap().task_id;
+    runtime.cancel(&b).unwrap();
+    assert_eq!(wait_for_terminal(&runtime, &b).state, TaskState::Cancelled);
+    assert!(lane.waiting().is_empty());
+    release_a.send(()).unwrap();
+    assert_eq!(wait_for_terminal(&runtime, &a).state, TaskState::Succeeded);
+    assert_eq!(*order.lock().unwrap(), vec!["a"]);
+    assert!(lane.is_idle());
 }

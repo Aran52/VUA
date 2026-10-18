@@ -88,6 +88,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
 | 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
 | 37 | Creator credits | P-02 | planned |
+| 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
 
 Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
 guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
@@ -562,6 +563,36 @@ downloads none of its content packs.
 
 **Done when** the P-02 result's album entry names Meiyun's and the outfit's creators with links
 to their BOOTH pages.
+
+## 38 — Steadier regional latency
+
+The Play network tile compares VRChat's four regions with
+[Oracle reference origins](../architecture/network-onboarding.md#user-outcome-and-approximate-regional-references):
+one warm-up and the median of three HEAD responses on one connection per region
+([website-tests 0.3](../protocols/website-tests-v0.1.md)). The author finds the results unsteady.
+A run from this development machine on 2026-10-19 (curl, eight requests per region) showed
+steady response times after TLS, Tokyo 11–32 ms and Amsterdam 231–239 ms, and single TCP
+connections up to ten times slower than the region's median. Three samples on one connection let
+two such outliers decide the value, and international routes can differ per connection.
+
+1. Measure on two or three connections per region: one warm-up each, then nine HEAD responses
+   in total spaced about 150 ms apart. Report the minimum as the region's value, with the median
+   and the spread from the minimum to the 90th percentile.
+2. Sample the four regions in turn (Tokyo, US West, US East, Europe, then again), so all four see
+   the same moments of the network; regional tests wait for running website tests.
+3. The tile shows the regions in order with a tier; regions within 15 ms or 10 % of each other
+   read as close, and a large spread reads as unsteady. Milliseconds stay in the expanded
+   details.
+4. When a reference resolves into `198.18.0.0/15` or a proxy is set for VUA's process, the result
+   says it was measured through a proxy on this computer, whose route can differ from the game's.
+5. A new website-tests version records the method; the four origins and the wire shape stay.
+6. Calibration: on two or three networks, including the remote host on a mainland China network,
+   the author joins an instance in each region and notes VRChat's own Ping; the tile's first
+   region is compared with the lowest in-game Ping.
+
+**Done when** repeated tests on one network give the same first region, and the calibration
+runs agree with the in-game Ping on the first region. Real UDP measurement through VUA-hosted
+echo endpoints is decided after the calibration.
 
 ## Open decisions
 

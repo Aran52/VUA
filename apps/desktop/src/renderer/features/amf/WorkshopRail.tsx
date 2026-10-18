@@ -33,8 +33,11 @@ export interface RailLine {
   readonly status: LineStatus;
 }
 
-export function WorkshopRail({ lines, current, onSelect, onNew, onDeleting, onDeleted, onError, refresh }: {
-  lines: readonly RailLine[]; current: string;
+/** How many Unity jobs may run at once, and whether it can change now (only while nothing runs or waits). */
+export interface RailCapacity { readonly value: 1 | 2 | 3; readonly changeable: boolean }
+
+export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDeleting, onDeleted, onError, refresh }: {
+  lines: readonly RailLine[]; current: string; capacity?: RailCapacity | undefined;
   onSelect: (runId: string) => void; onNew: () => void;
   /** A delete was accepted; the line leaves the page now. */
   onDeleting: (runId: string) => void;
@@ -97,6 +100,13 @@ export function WorkshopRail({ lines, current, onSelect, onNew, onDeleting, onDe
   }, [gateway, deleting, onDeleted, onError, refresh]);
 
   const hiddenCount = lines.filter(line => hidden.has(line.runId)).length;
+  const [settingCapacity, setSettingCapacity] = useState(false);
+  const chooseCapacity = async (value: 1 | 2 | 3) => {
+    if (!port || !capacity || value === capacity.value || settingCapacity) return;
+    setSettingCapacity(true);
+    try { await port.setCapacity(value); refresh(); } catch (e) { onError(e instanceof Error ? e.message : factory.capacity.label); }
+    finally { setSettingCapacity(false); }
+  };
   // The confirmation sits outside the sticky rail, so it layers above the whole page.
   return <><aside className="vua-workshop__rail" aria-label={factory.lineList}>
     <Button variant="primary" onClick={onNew}>{factory.newLine}</Button>
@@ -122,6 +132,12 @@ export function WorkshopRail({ lines, current, onSelect, onNew, onDeleting, onDe
     </ul>
     {hiddenCount > 0 && <button type="button" className="vua-workshop__hidden-toggle" onClick={() => setShowHidden(value => !value)}>
       {showHidden ? menu.hideHidden : format(menu.showHidden, { count: hiddenCount })}</button>}
+    {capacity && <div className="vua-workshop__capacity" role="group" aria-label={factory.capacity.label}>
+      <span className="vua-caption">{factory.capacity.label}</span>
+      <div className="vua-workshop__capacity-choices">{([1, 2, 3] as const).map(value => <button key={value} type="button" aria-pressed={value === capacity.value}
+        disabled={!capacity.changeable || settingCapacity} onClick={() => { void chooseCapacity(value); }} data-nav-id={`workshop-capacity-${value}`}>{value}</button>)}</div>
+      <small className="vua-text-secondary">{capacity.changeable ? factory.capacity.hint : factory.capacity.busy}</small>
+    </div>}
   </aside>
     <ConfirmDialog open={confirming} danger title={menu.deleteTitle} cancelLabel={menu.cancel} confirmLabel={menu.deleteConfirm}
       onCancel={() => setConfirming(false)} onConfirm={() => { if (confirmLine) void remove(confirmLine); }}>

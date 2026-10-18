@@ -23,6 +23,10 @@ struct TestPlatform {
     change_recipe_input: AtomicBool,
     /// The next Unity step reports progress and runs until the player stops it.
     wait_for_stop: AtomicBool,
+    /// The next material change writes part of the project, then fails.
+    fail_replace: AtomicBool,
+    /// Unity holds the work project.
+    editor_open: AtomicBool,
     snapshots: AtomicUsize,
     root: PathBuf,
 }
@@ -74,7 +78,7 @@ impl AmfProductionPlatform for TestPlatform {
         }).collect()
     }
     fn sources(&self) -> Result<Vec<ProductionSource>, AppErrorV1> {
-        Ok(["avatar", "outfit"]
+        Ok(["avatar", "outfit", "outfit2"]
             .into_iter()
             .map(|id| ProductionSource {
                 source_id: id.into(),
@@ -117,6 +121,19 @@ impl AmfProductionPlatform for TestPlatform {
                 asset_paths: vec![format!("Assets/{}.prefab", s.source_id)],
             })
             .collect())
+    }
+    fn replace_sources(&self, run: &ProductionRun, _: &[PreparedSource], ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
+        let ids = run.choices.iter().map(|choice| choice.source_id.as_str()).collect::<Vec<_>>().join("+");
+        let state = Path::new(&run.project_root).join("Assets/state");
+        if self.fail_replace.swap(false, Ordering::SeqCst) {
+            fs::write(&state, "half-changed").unwrap();
+            return Err(production_error("test_replace", "Synthetic failure while changing materials."));
+        }
+        fs::write(&state, format!("materials:{ids}")).unwrap();
+        self.import_sources(run, ctx)
+    }
+    fn editor_open(&self, _: &Path) -> bool {
+        self.editor_open.load(Ordering::SeqCst)
     }
     fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         if self.wait_for_stop.swap(false, Ordering::SeqCst) {
@@ -241,6 +258,8 @@ impl Harness {
             fail_inspect: AtomicBool::new(false),
             change_recipe_input: AtomicBool::new(false),
             wait_for_stop: AtomicBool::new(false),
+            fail_replace: AtomicBool::new(false),
+            editor_open: AtomicBool::new(false),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
         });
@@ -889,4 +908,79 @@ fn the_after_unity_project_check_shows_as_its_own_stage() {
         }
     }
     assert_eq!(stages, vec![serde_json::json!("fingerprint")], "the check is a named stage, and the only Unity stage of a synthetic reinspection");
+}
+
+fn choices(ids: &[&str]) -> Vec<SourceChoice> {
+    ids.iter().map(|id| SourceChoice { source_id: (*id).into(), role: SourceRole::Auto }).collect()
+}
+fn ids(sources: &[PreparedSource]) -> Vec<&str> {
+    sources.iter().map(|source| source.source_id.as_str()).collect()
+}
+
+#[test]
+fn a_line_changes_its_materials_in_place_and_its_restore_point_brings_them_back() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    assert_eq!(run.phase, "succeeded");
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    // The same materials, or one no longer in the library, change nothing.
+    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["outfit", "avatar"]), ctx)));
+    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "gone"]), ctx)));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a refused change takes no restore point");
+
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let changed = h.engine.get("n3-test").unwrap();
+    assert_eq!(changed.project_root, run.project_root, "the line keeps its work project");
+    assert_eq!(changed.phase, "ready", "the line plans again");
+    assert!(changed.completed_at.is_none());
+    assert_eq!(ids(&changed.sources), ["avatar", "outfit2"]);
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "materials:avatar+outfit2");
+    let kept = changed.selection.clone().expect("the Avatar choice stays");
+    assert_eq!(kept.avatar_prefab, "Assets/Avatar.prefab");
+    assert!(kept.outfits.is_empty(), "an outfit of a removed material leaves the plan");
+    let keys: Vec<&str> = changed.steps.iter().rev().take(3).map(|step| step.key.as_str()).collect();
+    assert_eq!(keys, ["inspect", "materials", "snapshot"]);
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
+
+    // Restoring brings the earlier project and its materials back together.
+    assert!(restore_reviewed(&h));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(ids(&restored.sources), ["avatar", "outfit"]);
+    assert_eq!(restored.choices, run.choices);
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
+    // And the restore is itself reversible, materials included.
+    assert!(restore_reviewed(&h));
+    assert_eq!(ids(&h.engine.get("n3-test").unwrap().sources), ["avatar", "outfit2"]);
+}
+
+#[test]
+fn a_failed_material_change_restores_the_project_and_the_materials() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    h.platform.fail_replace.store(true, Ordering::SeqCst);
+    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(failed.phase, "failed");
+    assert_eq!(ids(&failed.sources), ["avatar", "outfit"]);
+    assert_eq!(failed.choices, run.choices);
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
+}
+
+#[test]
+fn deleting_a_line_removes_its_work_project_and_records() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let release = h.root.join("production/releases/n3-test.json");
+    fs::create_dir_all(release.parent().unwrap()).unwrap();
+    fs::write(&release, "{}").unwrap();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    assert!(h.engine.delete_run("n3-test").unwrap_err().code.ends_with("project_open"));
+    assert!(Path::new(&run.project_root).exists(), "a project Unity holds stays");
+    h.platform.editor_open.store(false, Ordering::SeqCst);
+    h.engine.delete_run("n3-test").unwrap();
+    assert!(!Path::new(&run.project_root).exists());
+    assert!(!release.exists());
+    assert!(h.engine.get("n3-test").is_err());
+    assert!(h.engine.list().unwrap().is_empty());
 }

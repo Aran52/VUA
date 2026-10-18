@@ -23,6 +23,10 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.upload"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly avatarName: string; readonly rightsConfirmed: true } }
   /** Runs the VRChat SDK's own Auto Fix for the chosen items of its Avatar check, named by the SDK's exact words. */
   | { readonly method: "amf.production.sdkFix"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly fixes: readonly string[] } }
+  /** Changes the line's own materials; the line keeps its identity and plans again. */
+  | { readonly method: "amf.production.changeSources"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sources: readonly AmfSourceChoice[] } }
+  /** Deletes a line with its work project and release record. */
+  | { readonly method: "amf.production.delete"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
@@ -148,6 +152,11 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     case "amf.production.sdkFix": return exact(value, ["schemaVersion", "runId", "fixes"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && Array.isArray(value.fixes) && value.fixes.length >= 1 && value.fixes.length <= AMF_SDK_FIX_LIMIT
       && value.fixes.every(fix => text(fix, 600)) && new Set(value.fixes).size === value.fixes.length;
+    case "amf.production.changeSources":
+      return exact(value, ["schemaVersion", "runId", "sources"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId) && Array.isArray(value.sources) && value.sources.length > 0 && value.sources.length <= 64
+        && value.sources.every(source => record(source) && exact(source, ["sourceId", "role"]) && text(source.sourceId, 256) && typeof source.role === "string" && roles.includes(source.role))
+        && new Set(value.sources.map((source: AmfSourceChoice) => source.sourceId)).size === value.sources.length;
+    case "amf.production.delete": return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);

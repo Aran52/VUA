@@ -43,6 +43,13 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
 - The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
   hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
+- A real-machine round through the MCP adapter on 2026-10-19, with evidence in
+  `_local_eval/2026-10-19-mcp-real-run.md`: an external agent drove VUA and the author approved each
+  request. P-02 and P-01 on new lines, queueing and cancelling a waiting task, stop and continue, a
+  material change, deleting a line and a second managed upload ("AMF test2") passed. Opening the
+  project for the SDK timed out waiting for the SDK panel, and a restore after a material change
+  and a new assembly returned to the later state. Slices 42–44 and items in 5 and 6 take the
+  findings.
 - Release: on 2026-10-19 the author postponed the next release, planned for the end of October,
   for a stage pause and a real-machine test round through the MCP adapter; it is numbered under
   the [version policy](../release/versioning.md) when it is cut.
@@ -55,14 +62,14 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done (Aran52/VUA#1) |
-| 5 | Unity editor handoff | P-02 | |
-| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide remains |
+| 5 | Unity editor handoff | P-02 | next: in the MCP round the project opened with the Avatar selected, and the handoff timed out waiting for the SDK panel (item 3) |
+| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide and the SDK panel's own Auto Fix in the facts (item 4) remain |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
-| 9 | Material tuning | P-02, P-03 | assigned: item 2's engine, Bridge facts and contracts |
+| 9 | Material tuning | P-02, P-03 | in progress: item 2's engine, Bridge facts and contracts (Aran52/VUA#29); its workshop entry and item 1 remain |
 | 10 | Face tracking add-on | P-03 | |
-| 11 | Unity sign-in and license | — | assigned: the detection and check engine and contracts |
-| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4) |
+| 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
+| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
 | 13 | Appearance and one-click styles | — | architecture and tokens ready; needs a design session |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
@@ -77,10 +84,10 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 24 | Finer usual durations | — | when the estimates prove too rough |
 | 25 | Production records in Settings | — | done (Aran52/VUA#13) |
 | 26 | VRChat Avatar list in the release room | P-02 | built (Aran52/VUA#17); awaits the author's real-account check |
-| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; awaits the author's real-run check. Item 2's engine is in (Aran52/VUA#23); its workshop setting remains |
+| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; queueing and cancelling verified in the 2026-10-19 MCP round. Item 2's engine is in (Aran52/VUA#23); its workshop setting remains |
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
-| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
+| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); the material change and deletion verified in the 2026-10-19 MCP round, whose restore found slice 42's gap; removing an outfit through the plan remains |
 | 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
 | 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md) |
 | 33 | Switch options and built-result evidence | P-02, P-03 | planned from the reference study |
@@ -92,11 +99,14 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 | 41 | VN3 terms and filtering by use | P-02 | backend prompt written; to be assigned |
+| 42 | Labeled restore points | P-02 | planned; how many points a line keeps is the author's call (three proposed) |
+| 43 | Fixes from the MCP round | P-02 | next |
+| 44 | MCP payloads and identity | P-02 | planned |
 
-Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
-guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
-lines; integration keeps the production branch close to `main`; 6 and 8 close the largest gaps a
-newcomer meets in P-02 and P-01.
+Suggested next order: 43 Fixes from the MCP round, 42 Labeled restore points, 1 Integrate, the
+rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
+confirmation). 43 and 42 remove the traps the MCP round met; integration keeps the production
+branch close to `main`; 6 and 8 close the largest gaps a newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
@@ -147,6 +157,10 @@ signed in to the SDK.
    send a receipt.
 2. When work needs a project an Editor holds, the request card offers "Save and close Unity,
    then continue". After the look check, the page offers "Done checking, close Unity".
+3. Opening the project for the SDK succeeds once Unity holds the project with the Avatar
+   selected; when the SDK panel does not open by itself, the page says how to open it (VRChat SDK
+   → Show Control Panel). In the MCP round the panel stayed closed on this machine, and the open
+   task failed with `sdk_handoff_timeout`.
 
 **Done when** a held project continues without closing Unity by hand.
 
@@ -156,6 +170,9 @@ signed in to the SDK.
 2. VUA shows each item in plain words as "must fix before upload", "reminder, upload still
    works" or "affects the performance rank", with a one-click fix where VUA can make it.
 3. An illustrated guide to the SDK panel in four languages: sign-in, build, warnings, upload.
+4. An Auto Fix the player makes in the SDK panel during an upload reaches the line's facts: VUA
+   reads the SDK's check again after the upload, so the release page and `vua_amf_run` stop showing
+   the fixed error.
 
 Done so far: the sign-in guide on the release page, and the SDK's own checks. The Bridge runs
 the SDK panel's Avatar check without opening the panel; the release page groups its items as
@@ -672,6 +689,53 @@ on VUA's servers waits for the author's decision.
 
 **Done when** Shinano's terms read F as permitted with a content rating and R as contact the
 licensor, and an Avatar's materials are checked together for a chosen use.
+
+## 42 — Labeled restore points
+
+Found in the MCP round, 2026-10-19. Each line keeps one restore point, and every protected change
+replaces it. After a material change and a new assembly, the restore returned to the state before
+that assembly; the state before the material change was gone, and the panel named neither.
+
+1. Each line keeps its most recent restore points (three proposed), each labeled with the change
+   it came before, its materials, its Avatar and when it was taken.
+2. The assembly station lists them; restoring one protects the current state first, as today.
+3. `vua_amf_run` lists them; restoring stays the player's action.
+
+**Done when** the author changes a line's outfit, assembles, and brings the earlier outfit back
+from its labeled point.
+
+## 43 — Fixes from the MCP round
+
+Issues 2–5 and 10 of the round's report, and one found while reading its records.
+
+1. An upload an AI requests is confirmed on the release page: the request card takes the player
+   there instead of approving in place, and a failed approval names its cause instead of "could
+   not connect".
+2. The line page clears a load error once the run loads again and keeps the field that failed
+   validation; the transient failure seen twice in the round is found and fixed.
+3. Reading a run that does not exist reports `run_not_found` instead of `store_failed`.
+4. A request for a project that Unity holds is refused when it is made, without a failed task;
+   the line page's progress line updates when a task ends.
+5. Deleting a line also removes its assembly records.
+6. The workshop showed two line cards for one run once; it is reproduced and the list fixed.
+
+**Done when** the round's upload, delete and stop cases repeat without a misleading message, a
+stale banner or a stray record.
+
+## 44 — MCP payloads and identity
+
+Agent-side findings of the round, rated per tool in its report.
+
+1. `vua_tasks` takes a limit and a state filter, newest first.
+2. `vua_amf_run` and `vua_library` stay compact: humanoid bones as a count and image URLs only
+   when asked for.
+3. `vua_status` reports the build: product version, commit and build time.
+4. Errors carry their plain-language message next to the code and the next action.
+5. Tasks and run facts say who started them: the player, the workshop's automation or an AI
+   request.
+
+**Done when** an agent repeats the round's reads at under 10 KB each and names the build it
+tests.
 
 ## Open decisions
 

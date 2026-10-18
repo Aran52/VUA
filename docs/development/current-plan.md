@@ -91,6 +91,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
 | 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
+| 41 | VN3 terms and filtering by use | P-02 | backend prompt written; to be assigned |
 
 Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
 guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
@@ -645,6 +646,32 @@ this session, and the setting leaves with this slice.
 **Done when** the author follows a P-02 assembly in the pinned drawer while using the workshop,
 sees a failure on the bell without opening it, and gets a Windows notification for a task that
 finished in the background.
+
+## 41 — VN3 terms and filtering by use
+
+Many Avatar bases and outfits link their VN3 license from the BOOTH description, mostly as Google
+Drive or Docs PDFs. VN3 documents come from its license generator: items A–X with a small closed
+set of values, a generator and VN3 version in the footer, and a free-text special note that takes
+precedence over the rest. Read on 2026-10-19 from Shinano's English VN3 document (generator 1.11,
+VN3 1.10). BDL's `term_observations` table exists without a writer.
+
+1. Recognize license links in product descriptions and fetch public documents one at a time,
+   without cookies, from Google's public download endpoints; cache them by content hash on this
+   computer.
+2. A versioned rule parser turns each document into its A–X values with conditions, such as
+   permitted with a content rating; unrecognized wording or versions stay unknown. No AI service
+   reads the documents.
+3. BDL stores documents, items and their link to products; a terms contract answers a product's
+   terms and checks one material or an Avatar's materials against use presets (VRChat personal
+   use, individual and corporate VTubers, game development, outfits for sale, merchandise and
+   publications, adult content), with the strictest item deciding and unknown never passing.
+4. Claude adds the library and release-room views and the MCP tool afterwards.
+
+The backend is assigned through `h-vn3-terms.md` in the task ledger. A catalog-wide index built
+on VUA's servers waits for the author's decision.
+
+**Done when** Shinano's terms read F as permitted with a content rating and R as contact the
+licensor, and an Avatar's materials are checked together for a chosen use.
 
 ## Open decisions
 

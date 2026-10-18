@@ -43,8 +43,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
 - The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
   hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
-- Release target (author, 2026-10-18): the next published release with AMF by the end of
-  October 2026, numbered under the [version policy](../release/versioning.md).
+- Release: on 2026-10-19 the author postponed the next release, planned for the end of October,
+  for a stage pause and a real-machine test round through the MCP adapter; it is numbered under
+  the [version policy](../release/versioning.md) when it is cut.
 
 ## Order
 
@@ -58,9 +59,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide remains |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
-| 9 | Material tuning | P-02, P-03 | |
+| 9 | Material tuning | P-02, P-03 | assigned: item 2's engine, Bridge facts and contracts |
 | 10 | Face tracking add-on | P-03 | |
-| 11 | Unity sign-in and license | A-01 | |
+| 11 | Unity sign-in and license | — | assigned: the detection and check engine and contracts |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4) |
 | 13 | Appearance and one-click styles | — | architecture and tokens ready; needs a design session |
 | 14 | Player language and four-language review | P-02 | |
@@ -80,10 +81,12 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
+| 31 | Change a finished line's base Avatar | P-02 | next |
 
-Suggested next order: 1 Integrate, 8 Known packages, the rest of 6 (build and upload guide), 5
-Editor handoff, the rest of 7 (image confirmation). Integration first keeps the production branch
-close to `main`; 6 and 8 close the largest gaps a newcomer meets in P-02 and P-01.
+Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
+guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
+lines; integration keeps the production branch close to `main`; 6 and 8 close the largest gaps a
+newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
@@ -439,6 +442,23 @@ Author request, 2026-10-18.
 
 **Done when** the author swaps the outfit of a finished line on that same line, brings the earlier
 outfit back from the restore point, and deletes a test line whose work folder is then gone.
+
+## 31 — Change a finished line's base Avatar
+
+Found in the author's use, 2026-10-19. A line's Avatar prefab comes from the stated
+recommendation, which prefers the creator's base for outfits, such as Meiyun's `Meiyu_改変`.
+On an assembled line, choosing another Avatar prefab in the plan, such as the standard `Meiyun`
+that wears its own outfit, stops with "Choose a new Avatar to change the base prefab"
+(`avatar_target_changed`), and the workshop offers no way forward. Keeping the base's own
+outfit and adding to it is a common wish.
+
+1. Choosing another Avatar prefab on a finished line rebuilds the line on that base: behind a
+   restore point the work scene starts fresh, as for a material change, and the new base and
+   every chosen outfit are assembled again.
+2. The plan says so before assembly, and the restore point brings back the earlier base.
+
+**Done when** the author moves a finished Meiyun line from `Meiyu_改変` to `Meiyun`, keeps its
+outfits and adds one, and returns to the earlier base from the restore point.
 
 ## Open decisions
 

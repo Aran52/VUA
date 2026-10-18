@@ -75,7 +75,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
 | 24 | Finer usual durations | — | when the estimates prove too rough |
-| 25 | Production records in Settings | — | |
+| 25 | Production records in Settings | — | done |
 | 26 | VRChat Avatar list in the release room | P-02 | after the real-account checks of slice 19 |
 | 27 | Queue factory work | P-02 | |
 | 28 | Quitting during a task | — | proposed |

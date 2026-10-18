@@ -16,7 +16,7 @@ import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { assemblesWithoutAsking, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
+import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
@@ -279,7 +279,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button></>
           : run.error && <p role="alert">{run.error.replace(/^vua.[a-z_.]+ — detail: /u, "")}</p>}
         {run.recovery && <p className="vua-n3__notice">{run.recovery === "restored" ? copy.recovered : copy.recoveryFailed}</p>}
+        {interruptedChange(run) && <p>{factory.interrupted.hint}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{factory.newLine}</Button>
+          {interruptedChange(run) && run.snapshotId && <Button disabled={busy || requesting} onClick={() => {
+            if (!port) return; setRequesting(true); setError(null);
+            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+          }} data-nav-id="workshop-restore-interrupted">{factory.interrupted.restore}</Button>}
           {run.sources.length > 0 && <Button variant="primary" disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
         <details className="vua-n3__advanced"><summary>{factory.details}</summary><ul className="vua-n3__progress">{run.steps.map((item,index) => <li key={`${item.key}-${index}`} data-state={item.state}>
           <span aria-hidden="true">{item.state === "succeeded" ? <Icon name="check" size={16}/> : item.state === "failed" ? <Icon name="warning" size={16}/> : <Icon name="dash" size={16}/>}</span>

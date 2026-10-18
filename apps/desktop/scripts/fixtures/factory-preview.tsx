@@ -35,6 +35,7 @@ const runs: Record<string, AmfProductionRun> = {
       unity: { stage: "importing", current: 123, total: 379, lastActivityAt: new Date().toISOString() } } } as AmfProductionRun,
   waiting: base("waiting", "ready", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"]]),
   attention: { ...base("attention", "failed", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "failed", "Unity could not get a license."]]), error: "vua.amf_production.unity_license_unavailable — detail: Activate this Editor's license in Unity Hub, then retry preparation. Selected materials are retained." },
+  interrupted: { ...base("interrupted", "inspect_required", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "interrupted"]]), snapshotId: "snapshot-1" },
   finished: { ...base("finished", "succeeded", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "succeeded"]]),
     result: { facts: { sdkDescriptorRecognized: true, missingReferences: 0, avatarName: "Meiyu_改変", instances: [{ sourceId: "outfit", bindingVerified: true, menuVerified: true, menuModified: true }], missingShaderMaterials: [], sdkSignedIn: "no" } } },
 };

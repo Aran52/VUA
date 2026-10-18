@@ -78,7 +78,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 25 | Production records in Settings | — | done |
 | 26 | VRChat Avatar list in the release room | P-02 | after the real-account checks of slice 19 |
 | 27 | Queue factory work | P-02 | |
-| 28 | Quitting during a task | — | proposed |
+| 28 | Quitting during a task | — | done |
 | 29 | Restore after an interrupted assembly | — | proposed |
 
 Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Permission

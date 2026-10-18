@@ -1,8 +1,7 @@
 /** The quality check's lilToon brightness alignment: outfit materials take the body's lower and upper limits. */
 import { useEffect, useState } from "react";
 import { Icon } from "@vua/design-system";
-import type { AmfProductionPort, AmfProductionRun } from "../../gateway/index.ts";
-import type { AmfLightingPlan } from "../../gateway/amf-production-port.ts";
+import type { AmfLightingPlan, AmfProductionPort, AmfProductionRun } from "../../gateway/index.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { format, strings } from "../../i18n/index.ts";

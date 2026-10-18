@@ -36,6 +36,25 @@ export interface VrchatAvatarCheck {
   readonly avatar: { readonly name: string; readonly releaseStatus: string; readonly platforms: readonly string[]; readonly updatedAt: string } | null;
 }
 
+/** One of the account's own Avatars as VRChat lists it. */
+export interface VrchatAvatarEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly releaseStatus: string;
+  readonly platforms: readonly string[];
+  readonly updatedAt: string;
+  readonly hasImage: boolean;
+}
+
+export interface VrchatAvatarList {
+  readonly state: "listed" | "signed_out" | "error";
+  readonly listedAt: string | null;
+  /** False when the account holds more Avatars than VUA reads. */
+  readonly complete: boolean;
+  /** Newest update first. */
+  readonly avatars: readonly VrchatAvatarEntry[];
+}
+
 export interface VrchatPort {
   status(): Promise<VrchatStatus>;
   /** Turning the feature off signs the player out and removes every stored value. */
@@ -49,6 +68,12 @@ export interface VrchatPort {
   forget(): Promise<VrchatStatus>;
   /** The uploaded Avatar as VRChat lists it, beside the upload record. */
   avatarCheck(blueprintId: string, refresh: boolean): Promise<VrchatAvatarCheck>;
+  /** The account's own Avatars; the kept list unless `refresh`. */
+  avatars(refresh: boolean): Promise<VrchatAvatarList>;
+  /** An Avatar's thumbnail as a `data:` URL, read by Main. */
+  avatarImage(avatarId: string): Promise<string | null>;
+  /** Opens the Avatar's page on VRChat's site in the player's browser. */
+  openAvatarPage(avatarId: string): Promise<boolean>;
 }
 
 type VrchatStatusWire = VrchatStatus & { readonly schemaVersion: "0.1" };
@@ -96,6 +121,17 @@ export function isVrchatAvatarCheckWire(v: unknown): v is VrchatAvatarCheckWire 
       && v.avatar.platforms.every(text) && v.avatar.platforms.length <= 8));
 }
 
+const isEntry = (v: unknown): v is VrchatAvatarEntry => record(v) && text(v.id) && BLUEPRINT.test(v.id)
+  && text(v.name) && v.name.length > 0 && v.name.length <= 128 && text(v.releaseStatus) && text(v.updatedAt)
+  && Array.isArray(v.platforms) && v.platforms.length <= 8 && v.platforms.every(text) && typeof v.hasImage === "boolean"
+  && Object.keys(v).length === 6;
+
+export function isVrchatAvatarListWire(v: unknown): v is VrchatAvatarList & { readonly schemaVersion: "0.1" } {
+  return record(v) && v.schemaVersion === "0.1" && ["listed", "signed_out", "error"].includes(String(v.state))
+    && (v.listedAt === null || (text(v.listedAt) && !Number.isNaN(Date.parse(v.listedAt))))
+    && typeof v.complete === "boolean" && Array.isArray(v.avatars) && v.avatars.length <= 1000 && v.avatars.every(isEntry);
+}
+
 function toStatus(v: VrchatStatusWire): VrchatStatus {
   const { schemaVersion, ...status } = v;
   return status;
@@ -137,6 +173,21 @@ export function createVrchatPort(client: GatewayClient): VrchatPort {
         params: { blueprintId, ...(refresh ? { refresh: true } : {}) } });
       if (!isVrchatAvatarCheckWire(value)) throw new Error("vrchat_check_invalid");
       return toCheck(value);
+    },
+    async avatars(refresh) {
+      const value = await ask({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "vrchat.avatars", params: refresh ? { refresh: true } : {} });
+      if (!isVrchatAvatarListWire(value)) throw new Error("vrchat_list_invalid");
+      const { schemaVersion, ...list } = value;
+      return list;
+    },
+    async avatarImage(avatarId) {
+      const value = await ask({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "vrchat.avatarImage", params: { avatarId } });
+      if (!record(value) || value.avatarId !== avatarId || !isThumbnail(value.image)) throw new Error("vrchat_image_invalid");
+      return value.image;
+    },
+    async openAvatarPage(avatarId) {
+      const value = await ask({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "vrchat.openAvatarPage", params: { avatarId, commandId: commandId() } });
+      return record(value) && value.opened === true;
     },
   };
 }

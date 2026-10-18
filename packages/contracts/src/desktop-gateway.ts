@@ -1046,6 +1046,36 @@ export interface VrchatAvatarCheckValueV1 {
     readonly updatedAt: string;
   } | null;
 }
+/** One of the account's own Avatars as VRChat lists it. */
+export interface VrchatAvatarEntryV1 {
+  readonly id: string;
+  readonly name: string;
+  readonly releaseStatus: string;
+  /** VRChat's platform names of its Unity packages, e.g. `standalonewindows`, `android`, `ios`. */
+  readonly platforms: readonly string[];
+  readonly updatedAt: string;
+  /** VRChat has a thumbnail; `vrchat.avatarImage` reads it through Main. */
+  readonly hasImage: boolean;
+}
+export interface VrchatAvatarListValueV1 {
+  readonly schemaVersion: "0.1";
+  readonly state: "listed" | "signed_out" | "error";
+  readonly listedAt: string | null;
+  /** False when the account holds more Avatars than the ten pages VUA reads. */
+  readonly complete: boolean;
+  /** Newest update first. */
+  readonly avatars: readonly VrchatAvatarEntryV1[];
+}
+export interface VrchatAvatarImageValueV1 {
+  readonly schemaVersion: "0.1";
+  readonly avatarId: string;
+  /** `data:` URL, or null when VRChat has none or it could not be read. */
+  readonly image: string | null;
+}
+export interface VrchatOpenAvatarPageValueV1 {
+  readonly schemaVersion: "0.1";
+  readonly opened: boolean;
+}
 export interface VrchatStatusRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.status"; readonly params: Record<string, never> }
 export interface VrchatSetExperimentalRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.setExperimental"; readonly params: { readonly enabled: boolean; readonly commandId: string } }
 export interface VrchatSignInRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.signIn"; readonly params: { readonly username: string; readonly password: string; readonly rememberPassword: boolean; readonly commandId: string } }
@@ -1055,11 +1085,15 @@ export interface VrchatResendEmailCodeRequestV1 { readonly schemaVersion: 1; rea
 export interface VrchatSignOutRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.signOut"; readonly params: { readonly commandId: string } }
 export interface VrchatForgetRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.forget"; readonly params: { readonly commandId: string } }
 export interface VrchatAvatarCheckRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.avatarCheck"; readonly params: { readonly blueprintId: string; readonly refresh?: boolean } }
+export interface VrchatAvatarsRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.avatars"; readonly params: { readonly refresh?: boolean } }
+export interface VrchatAvatarImageRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.avatarImage"; readonly params: { readonly avatarId: string } }
+export interface VrchatOpenAvatarPageRequestV1 { readonly schemaVersion: 1; readonly requestId: string; readonly method: "vrchat.openAvatarPage"; readonly params: { readonly avatarId: string; readonly commandId: string } }
 export type VrchatGatewayRequestV1 =
   | VrchatStatusRequestV1 | VrchatSetExperimentalRequestV1 | VrchatSignInRequestV1 | VrchatReloginRequestV1
   | VrchatVerifyCodeRequestV1 | VrchatResendEmailCodeRequestV1 | VrchatSignOutRequestV1 | VrchatForgetRequestV1
-  | VrchatAvatarCheckRequestV1;
-export type VrchatGatewayValueV1 = VrchatStatusValueV1 | VrchatSignInValueV1 | VrchatAvatarCheckValueV1;
+  | VrchatAvatarCheckRequestV1 | VrchatAvatarsRequestV1 | VrchatAvatarImageRequestV1 | VrchatOpenAvatarPageRequestV1;
+export type VrchatGatewayValueV1 = VrchatStatusValueV1 | VrchatSignInValueV1 | VrchatAvatarCheckValueV1
+  | VrchatAvatarListValueV1 | VrchatAvatarImageValueV1 | VrchatOpenAvatarPageValueV1;
 
 export type DesktopGatewayRequestV1 =
   | AmfProductionRequestV1
@@ -1291,6 +1325,9 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "vrchat.signOut": "command",
   "vrchat.forget": "command",
   "vrchat.avatarCheck": "query",
+  "vrchat.avatars": "query",
+  "vrchat.avatarImage": "query",
+  "vrchat.openAvatarPage": "command",
 } as const satisfies Readonly<Record<string, "query" | "command">>;
 
 export type DesktopGatewayMethodV1 = keyof typeof DESKTOP_GATEWAY_METHOD_KINDS;
@@ -1986,6 +2023,14 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
       return hasExactKeys(value, REQUEST_KEYS) && (hasExactKeys(value.params, ["blueprintId"]) || hasExactKeys(value.params, ["blueprintId", "refresh"]))
         && isVrchatBlueprintId(value.params.blueprintId)
         && (value.params.refresh === undefined || typeof value.params.refresh === "boolean");
+    case "vrchat.avatars":
+      return hasExactKeys(value, REQUEST_KEYS) && (hasExactKeys(value.params, []) || hasExactKeys(value.params, ["refresh"]))
+        && (value.params.refresh === undefined || typeof value.params.refresh === "boolean");
+    case "vrchat.avatarImage":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["avatarId"]) && isVrchatBlueprintId(value.params.avatarId);
+    case "vrchat.openAvatarPage":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["avatarId", "commandId"])
+        && isVrchatBlueprintId(value.params.avatarId) && isIdentifier(value.params.commandId);
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
     case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.turntableFrame":

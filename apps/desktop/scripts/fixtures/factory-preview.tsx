@@ -68,8 +68,9 @@ function ChooseMode({ full }: { full: boolean }) {
 try { localStorage.setItem("vua-amf-production-run-v01", runOf); } catch { /* preview only */ }
 const control = view.startsWith("control-") ? controlPreview(view, { ...gateway, amfProduction: api }, api) : null;
 const release = view.startsWith("release-") ? releasePorts(view) : null;
-const signedIn = view === "release-check" || view === "release-uploaded";
-const vrchatOfRelease = signedIn ? vrchatPreviewPort({ enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true }) : undefined;
+const signedIn = view === "release-check" || view === "release-uploaded" || view === "release-vrchat";
+const vrchatOfRelease = signedIn ? vrchatPreviewPort({ enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true })
+  : view === "release-vrchat-signin" ? vrchatPreviewPort({ enabled: true, state: "signed_out", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: false }) : undefined;
 const settingsVrchat = view.startsWith("settings-vrchat")
   ? vrchatPreviewPort(view === "settings-vrchat-account"
     ? { enabled: true, state: "signed_in", account: { displayName: "Aran", thumbnail: pixel }, rememberPassword: true, pendingMethods: [], canCheckUploads: true }

@@ -174,14 +174,16 @@ function CopyId({ id }: { id: string }) {
   }}>{copied ? copy.upload.copied : copy.upload.copyId}</button>;
 }
 
-function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, busy }: {
-  upload: AmfUpload; onCheckAgain?: () => void; check: VrchatAvatarCheck | null; onRefreshCheck?: () => void; busy: boolean;
+function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrchat, busy }: {
+  upload: AmfUpload; onCheckAgain?: () => void; check: VrchatAvatarCheck | null; onRefreshCheck?: () => void;
+  onOpenOnVrchat?: (avatarId: string) => void; busy: boolean;
 }) {
   if (upload.state === "succeeded" && upload.blueprintId) {
     return <div className="vua-release-upload__result" data-tone="success" role="status">
       <strong><Icon name="check" size={16} />{copy.upload.uploaded}</strong>
       <span className="vua-text-secondary">{time(upload.endedAt)}</span>
-      <span className="vua-release-upload__id"><span>{copy.upload.avatarId}</span><code>{upload.blueprintId}</code><CopyId id={upload.blueprintId} /></span>
+      <span className="vua-release-upload__id"><span>{copy.upload.avatarId}</span><code>{upload.blueprintId}</code><CopyId id={upload.blueprintId} />
+        {onOpenOnVrchat && <button type="button" className="vua-release-upload__copy" onClick={() => onOpenOnVrchat(upload.blueprintId!)}>{vrchatCopy.openPage}</button>}</span>
       <SdkSignInLine upload={upload} />
       {upload.detail && <small className="vua-text-secondary">{upload.detail}</small>}
       {check !== null || onRefreshCheck !== undefined ? <AvatarCheckBlock check={check} {...(onRefreshCheck !== undefined ? { onRefresh: onRefreshCheck } : {})} busy={busy} /> : null}
@@ -198,9 +200,11 @@ function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, busy }: {
 }
 
 /** The right page. A turning page shows the same content without its controls. */
-export function ReleaseSheet({ run, state, number, live, actions, notice, avatarCheck, onRefreshAvatarCheck }: {
+export function ReleaseSheet({ run, state, number, live, actions, notice, avatarCheck, onRefreshAvatarCheck, onOpenOnVrchat }: {
   run: AmfProductionRun; state: AmfReleaseState | null; number: number; live: boolean; actions?: SheetActions; notice?: ReactNode;
   avatarCheck?: VrchatAvatarCheck | null; onRefreshAvatarCheck?: () => void;
+  /** Opens a finished upload's page on VRChat's site. */
+  onOpenOnVrchat?: (avatarId: string) => void;
 }) {
   const outfits = outfitLines(run);
   const checks = releaseChecks(run);
@@ -236,6 +240,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
         <small className="vua-text-secondary">{actions?.busy ? copy.upload.busy : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>
         {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
           {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}
+          {...(live && onOpenOnVrchat ? { onOpenOnVrchat } : {})}
           busy={live && actions ? actions.busy : false}
           {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
       </>}

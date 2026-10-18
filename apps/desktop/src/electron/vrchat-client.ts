@@ -34,14 +34,22 @@ export interface VrchatAvatarSummary {
   readonly id: string;
   readonly name: string;
   readonly releaseStatus: string;
+  /** Platforms of the Avatar's Unity packages, as VRChat names them. */
   readonly platforms: readonly string[];
   readonly updatedAt: string;
+  /** VRChat's thumbnail address; Main reads it, the renderer never does. */
+  readonly thumbnailUrl: string | null;
 }
 
 /** One page-walk over the account's own Avatars. */
 export type VrchatAvatarLookup =
   | { readonly kind: "found"; readonly avatar: VrchatAvatarSummary }
   | { readonly kind: "missing"; readonly pages: number }
+  | { readonly kind: "expired" };
+
+/** The account's own Avatars, read in full or up to the page limit. */
+export type VrchatAvatarList =
+  | { readonly kind: "listed"; readonly avatars: readonly VrchatAvatarSummary[]; readonly complete: boolean }
   | { readonly kind: "expired" };
 
 export interface VrchatClientDeps {
@@ -61,6 +69,9 @@ const AVATARS_PER_PAGE = 100;
 /** Ten pages cover a thousand Avatars; the check stays a bounded read. */
 const MAX_AVATAR_PAGES = 10;
 const MAX_THUMBNAIL_BYTES = 128 * 1024;
+const AVATAR_ID = /^avtr_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/u;
+/** VRChat's own image hosts receive the session; every other host is asked without it. */
+const VRCHAT_HOST = /^https:\/\/(?:[a-z0-9-]+\.)*vrchat\.(?:cloud|com)\//u;
 
 function pickSetCookie(headers: Headers, name: string): string | null {
   const all = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
@@ -87,6 +98,20 @@ function parseUser(body: unknown): VrchatUser {
   return { id, username, displayName, thumbnailUrl: text(record.thumbnailUrl, 2048) };
 }
 
+/** One Avatar record as the API returns it (`updated_at`; platforms named by its Unity packages). */
+function parseAvatar(entry: unknown): VrchatAvatarSummary | null {
+  if (typeof entry !== "object" || entry === null) return null;
+  const avatar = entry as Record<string, unknown>;
+  const id = text(avatar.id, 64), name = text(avatar.name, 128), updatedAt = text(avatar.updated_at, 64);
+  if (id === null || !AVATAR_ID.test(id) || name === null || updatedAt === null) return null;
+  const packages = Array.isArray(avatar.unityPackages) ? avatar.unityPackages : [];
+  const platforms = [...new Set(packages.flatMap(item => {
+    const platform = typeof item === "object" && item !== null ? text((item as Record<string, unknown>).platform, 32) : null;
+    return platform === null ? [] : [platform];
+  }))].slice(0, 8);
+  return { id, name, releaseStatus: text(avatar.releaseStatus, 32) ?? "unknown", platforms, updatedAt, thumbnailUrl: text(avatar.thumbnailImageUrl, 2048) };
+}
+
 export interface VrchatClient {
   login(username: string, password: string): Promise<VrchatLoginStep>;
   /** The verified answer carries the `twoFactorAuth` cookie back with it. */
@@ -95,7 +120,9 @@ export interface VrchatClient {
   currentUser(cookies: VrchatCookies): Promise<VrchatUser | null>;
   logout(cookies: VrchatCookies): Promise<void>;
   findAvatar(blueprintId: string, cookies: VrchatCookies): Promise<VrchatAvatarLookup>;
-  fetchThumbnail(url: string): Promise<string | null>;
+  listAvatars(cookies: VrchatCookies): Promise<VrchatAvatarList>;
+  /** With cookies, VRChat's own image hosts receive the session. */
+  fetchThumbnail(url: string, cookies?: VrchatCookies): Promise<string | null>;
 }
 
 /** One client per VUA launch; the pacing state lives for its whole life. */
@@ -163,6 +190,17 @@ export function vrchatClient(deps: VrchatClientDeps): VrchatClient {
     }
   }
 
+  /** One page of the account's own Avatars; null when VRChat ended the session. */
+  async function avatarPage(page: number, cookies: VrchatCookies): Promise<{ readonly avatars: readonly VrchatAvatarSummary[]; readonly full: boolean } | null> {
+    const answer = await request("GET",
+      `/api/1/avatars?user=me&releaseStatus=all&n=${AVATARS_PER_PAGE}&offset=${page * AVATARS_PER_PAGE}`, { cookies });
+    if (answer.status === 401) return null;
+    if (answer.status === 429) throw new VrchatRequestError("rate_limited", "VRChat asked VUA to slow down; try again in a moment.");
+    if (answer.status >= 400) throw new VrchatRequestError("server", "VRChat answered with an error.");
+    if (!Array.isArray(answer.body)) throw new VrchatRequestError("invalid_response", "VRChat returned no Avatar list.");
+    return { avatars: answer.body.flatMap(entry => { const avatar = parseAvatar(entry); return avatar === null ? [] : [avatar]; }), full: answer.body.length >= AVATARS_PER_PAGE };
+  }
+
   return {
     async login(username, password) {
       const answer = await request("GET", "/api/1/auth/user", { auth: { username, password } });
@@ -208,36 +246,37 @@ export function vrchatClient(deps: VrchatClientDeps): VrchatClient {
 
     async findAvatar(blueprintId, cookies) {
       for (let page = 0; page < MAX_AVATAR_PAGES; page++) {
-        const answer = await request("GET",
-          `/api/1/avatars?user=me&releaseStatus=all&n=${AVATARS_PER_PAGE}&offset=${page * AVATARS_PER_PAGE}`, { cookies });
-        if (answer.status === 401) return { kind: "expired" } as const;
-        if (answer.status === 429) throw new VrchatRequestError("rate_limited", "VRChat asked VUA to slow down; try again in a moment.");
-        if (answer.status >= 400) throw new VrchatRequestError("server", "VRChat answered with an error.");
-        const results = (answer.body as Record<string, unknown> | null)?.results;
-        if (!Array.isArray(results)) throw new VrchatRequestError("invalid_response", "VRChat returned no Avatar list.");
-        for (const entry of results) {
-          if (typeof entry !== "object" || entry === null) continue;
-          const avatar = entry as Record<string, unknown>;
-          if (avatar.id !== blueprintId) continue;
-          const name = text(avatar.name, 128), updatedAt = text(avatar.updatedAt, 64);
-          if (name === null || updatedAt === null) throw new VrchatRequestError("invalid_response", "VRChat returned an incomplete Avatar record.");
-          const platforms = Array.isArray(avatar.platforms)
-            ? avatar.platforms.filter((value): value is string => typeof value === "string").slice(0, 8)
-            : [];
-          return { kind: "found", avatar: { id: blueprintId, name, releaseStatus: text(avatar.releaseStatus, 32) ?? "unknown", platforms, updatedAt } };
-        }
-        if (results.length < AVATARS_PER_PAGE) return { kind: "missing", pages: page + 1 } as const;
+        const read = await avatarPage(page, cookies);
+        if (read === null) return { kind: "expired" } as const;
+        const avatar = read.avatars.find(item => item.id === blueprintId);
+        if (avatar !== undefined) return { kind: "found", avatar } as const;
+        if (!read.full) return { kind: "missing", pages: page + 1 } as const;
       }
       return { kind: "missing", pages: MAX_AVATAR_PAGES } as const;
     },
 
-    async fetchThumbnail(url) {
+    async listAvatars(cookies) {
+      const avatars: VrchatAvatarSummary[] = [];
+      for (let page = 0; page < MAX_AVATAR_PAGES; page++) {
+        const read = await avatarPage(page, cookies);
+        if (read === null) return { kind: "expired" } as const;
+        avatars.push(...read.avatars);
+        if (!read.full) return { kind: "listed", avatars, complete: true } as const;
+      }
+      return { kind: "listed", avatars, complete: false } as const;
+    },
+
+    async fetchThumbnail(url, cookies) {
       if (!/^https:\/\//u.test(url)) return null;
       try {
         const gap = lastRequestAt + minInterval - now();
         if (gap > 0) await sleep(gap);
         lastRequestAt = now();
-        const response = await doFetch(url, { method: "GET", headers: { "User-Agent": userAgent } });
+        const headers: Record<string, string> = { "User-Agent": userAgent };
+        if (cookies !== undefined && VRCHAT_HOST.test(url)) {
+          headers.Cookie = `auth=${cookies.auth}${cookies.twoFactorAuth ? `; twoFactorAuth=${cookies.twoFactorAuth}` : ""}`;
+        }
+        const response = await doFetch(url, { method: "GET", headers });
         if (!response.ok) return null;
         const type = response.headers.get("content-type") ?? "";
         if (!type.startsWith("image/")) return null;

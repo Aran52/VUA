@@ -54,6 +54,7 @@ export interface DesktopGatewayRouteContext {
 const VRCHAT_METHODS = new Set<string>([
   "vrchat.status", "vrchat.setExperimental", "vrchat.signIn", "vrchat.relogin",
   "vrchat.verifyCode", "vrchat.resendEmailCode", "vrchat.signOut", "vrchat.forget", "vrchat.avatarCheck",
+  "vrchat.avatars", "vrchat.avatarImage", "vrchat.openAvatarPage",
 ]);
 
 function requestIdFrom(value: unknown): string {
@@ -106,7 +107,7 @@ function toApplicationRequest(
     // 之前已处理,这里仅为方法表穷尽性登记,不可达
     case "vrchat.status": case "vrchat.setExperimental": case "vrchat.signIn": case "vrchat.relogin":
     case "vrchat.verifyCode": case "vrchat.resendEmailCode": case "vrchat.signOut": case "vrchat.forget":
-    case "vrchat.avatarCheck":
+    case "vrchat.avatarCheck": case "vrchat.avatars": case "vrchat.avatarImage": case "vrchat.openAvatarPage":
       throw new Error("vrchat methods are routed to Electron Main before provider dispatch");
     case "app.snapshot":
       return { ...base, kind: "query", method: "application.getSnapshot", params: {} };

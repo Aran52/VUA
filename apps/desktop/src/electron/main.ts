@@ -1901,7 +1901,7 @@ app.whenReady().then(async () => {
   });
   registerIpc(provider);
   systemUsage.start(desktopRuntime.providerExecutable);
-  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage });
+  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage, openExternal: url => shell.openExternal(url) });
   await createWindow();
   if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
   // 启动会话检查(尽力而为):VRChat 结束的会话在此被发现;记住的密码可续登

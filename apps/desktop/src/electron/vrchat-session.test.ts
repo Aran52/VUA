@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import type { VrchatGatewayRequestV1 } from "@vua/contracts";
 import { SDK_SESSION_FILE, vrchatSession, writeSdkSessionFile, type VrchatSessionService } from "./vrchat-session.js";
-import type { VrchatAvatarLookup, VrchatClient, VrchatCookies, VrchatLoginStep, VrchatUser } from "./vrchat-client.js";
+import type { VrchatAvatarList, VrchatAvatarLookup, VrchatAvatarSummary, VrchatClient, VrchatCookies, VrchatLoginStep, VrchatUser } from "./vrchat-client.js";
 
 /** OS sealing, faked: the sealed blob is only reversible through the fake. */
 function fakeSecrets() {
@@ -30,7 +30,8 @@ function fakeClient(script: {
   currentUser?: (cookies: VrchatCookies) => Promise<VrchatUser | null>;
   logout?: () => Promise<void>;
   findAvatar?: (blueprintId: string) => Promise<VrchatAvatarLookup>;
-  fetchThumbnail?: (url: string) => Promise<string | null>;
+  listAvatars?: (cookies: VrchatCookies) => Promise<VrchatAvatarList>;
+  fetchThumbnail?: (url: string, cookies?: VrchatCookies) => Promise<string | null>;
 } = {}): VrchatClient & { calls: string[] } {
   const calls: string[] = [];
   return {
@@ -41,6 +42,7 @@ function fakeClient(script: {
     currentUser: script.currentUser ?? (async () => USER),
     logout: script.logout ?? (async () => { calls.push("logout"); }),
     findAvatar: script.findAvatar ?? (async () => ({ kind: "missing", pages: 1 })),
+    listAvatars: script.listAvatars ?? (async () => ({ kind: "listed", avatars: [], complete: true })),
     fetchThumbnail: script.fetchThumbnail ?? (async () => null),
   } as VrchatClient & { calls: string[] };
 }
@@ -173,14 +175,14 @@ describe("experimental VRChat sign-in storage", () => {
     const client = fakeClient({
       login: async () => ({ kind: "session", user: USER, cookies: COOKIES }),
       findAvatar: async id => id === blueprint
-        ? { kind: "found", avatar: { id, name: "AMF test1", releaseStatus: "private", platforms: ["pc", "ios"], updatedAt: "2026-10-17T15:40:00Z" } }
+        ? { kind: "found", avatar: { id, name: "AMF test1", releaseStatus: "private", platforms: ["standalonewindows", "ios"], updatedAt: "2026-10-17T15:40:00Z", thumbnailUrl: null } }
         : { kind: "missing", pages: 1 },
     });
     const service = vrchatSession({ directory, version: "1", secrets: fakeSecrets(), client });
     await call(service, "vrchat.setExperimental", { enabled: true });
     await signIn(service);
     const check = await call(service, "vrchat.avatarCheck", { blueprintId: blueprint }) as Record<string, unknown>;
-    expect(check).toMatchObject({ state: "found", avatar: { name: "AMF test1", releaseStatus: "private", platforms: ["pc", "ios"] } });
+    expect(check).toMatchObject({ state: "found", avatar: { name: "AMF test1", releaseStatus: "private", platforms: ["standalonewindows", "ios"] } });
     expect(await call(service, "vrchat.avatarCheck", { blueprintId: "avtr_00000000-0000-4000-8000-000000000000" }))
       .toMatchObject({ state: "not_found" });
     const stored = JSON.parse(fs.readFileSync(path.join(directory, "vrchat-avatar-checks.json"), "utf8"));
@@ -188,6 +190,57 @@ describe("experimental VRChat sign-in storage", () => {
     // The cached check is answered without another read.
     expect(await call(service, "vrchat.avatarCheck", { blueprintId: blueprint })).toMatchObject({ state: "found" });
     expect(client.calls.filter(call => call === "findAvatar").length).toBe(0);
+  });
+
+  it("lists the account's own Avatars newest first, with thumbnails read through Main", async () => {
+    const directory = tempDirectory();
+    const uploaded = "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a";
+    const older = "avtr_00000000-0000-4000-8000-000000000001";
+    const summary = (id: string, name: string, updatedAt: string, thumbnailUrl: string | null): VrchatAvatarSummary =>
+      ({ id, name, releaseStatus: "private", platforms: ["standalonewindows"], updatedAt, thumbnailUrl });
+    const images: { url: string; cookies: VrchatCookies | undefined }[] = [];
+    let lists = 0;
+    const client = fakeClient({
+      login: async () => ({ kind: "session", user: USER, cookies: COOKIES }),
+      listAvatars: async () => { lists++; return { kind: "listed", complete: true, avatars: [
+        summary(older, "Older", "2026-10-01T00:00:00Z", null),
+        summary(uploaded, "AMF test1", "2026-10-17T15:40:00Z", "https://api.vrchat.cloud/api/1/image/file_1/1/256"),
+      ] }; },
+      fetchThumbnail: async (url, cookies) => { images.push({ url, cookies }); return "data:image/png;base64,AAAA"; },
+    });
+    const service = vrchatSession({ directory, version: "1", secrets: fakeSecrets(), client });
+    await call(service, "vrchat.setExperimental", { enabled: true });
+    await signIn(service);
+    // An upload check waiting for the Avatar to appear is answered by the list.
+    await call(service, "vrchat.avatarCheck", { blueprintId: uploaded });
+    const list = await call(service, "vrchat.avatars") as { state: string; complete: boolean; avatars: { id: string; name: string; hasImage: boolean }[] };
+    expect(list).toMatchObject({ state: "listed", complete: true });
+    expect(list.avatars.map(avatar => [avatar.name, avatar.hasImage])).toEqual([["AMF test1", true], ["Older", false]]);
+    expect(await call(service, "vrchat.avatarCheck", { blueprintId: uploaded })).toMatchObject({ state: "found", avatar: { name: "AMF test1" } });
+    // The kept list answers again without a new read; refresh reads anew.
+    await call(service, "vrchat.avatars");
+    expect(lists).toBe(1);
+    await call(service, "vrchat.avatars", { refresh: true });
+    expect(lists).toBe(2);
+    expect(await call(service, "vrchat.avatarImage", { avatarId: uploaded })).toEqual({ schemaVersion: "0.1", avatarId: uploaded, image: "data:image/png;base64,AAAA" });
+    expect(await call(service, "vrchat.avatarImage", { avatarId: uploaded })).toMatchObject({ image: "data:image/png;base64,AAAA" });
+    expect(await call(service, "vrchat.avatarImage", { avatarId: older })).toMatchObject({ image: null });
+    expect(images).toEqual([{ url: "https://api.vrchat.cloud/api/1/image/file_1/1/256", cookies: COOKIES }]);
+    expect(JSON.stringify(list)).not.toContain("auth-cookie");
+    // Signing out forgets the list and its pictures.
+    await call(service, "vrchat.signOut");
+    expect(await call(service, "vrchat.avatars")).toMatchObject({ state: "signed_out", avatars: [] });
+    expect(await call(service, "vrchat.avatarImage", { avatarId: uploaded })).toMatchObject({ image: null });
+  });
+
+  it("opens an Avatar's VRChat page in the player's browser", async () => {
+    const opened: string[] = [];
+    const service = vrchatSession({ directory: tempDirectory(), version: "1", secrets: fakeSecrets(), client: fakeClient(),
+      openExternal: async url => { opened.push(url); } });
+    expect(await call(service, "vrchat.openAvatarPage", { avatarId: "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a" })).toEqual({ schemaVersion: "0.1", opened: true });
+    expect(opened).toEqual(["https://vrchat.com/home/avatar/avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a"]);
+    const without = vrchatSession({ directory: tempDirectory(), version: "1", secrets: fakeSecrets(), client: fakeClient() });
+    expect(await call(without, "vrchat.openAvatarPage", { avatarId: "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a" })).toMatchObject({ opened: false });
   });
 
   it("answers the upload check as signed out while the feature or session is off", async () => {

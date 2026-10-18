@@ -51,6 +51,14 @@ const json = (response: ServerResponse, status: number, body: unknown, cookies: 
   response.end(JSON.stringify(body));
 };
 
+/** An Avatar record shaped like VRChat's API answer. */
+const apiAvatar = (id: string, name: string) => ({
+  id, name, releaseStatus: "private", updated_at: "2026-10-17T15:40:00.000Z", created_at: "2026-10-17T15:00:00.000Z",
+  thumbnailImageUrl: "https://api.vrchat.cloud/api/1/image/file_1/1/256",
+  unityPackages: [{ platform: "standalonewindows", variant: "standard" }, { platform: "android" }, { platform: "standalonewindows", variant: "impostor" }],
+});
+const filler = (index: number) => `avtr_00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+
 let mock: MockVrchat | null = null;
 afterEach(async () => { await mock?.close(); mock = null; });
 
@@ -133,22 +141,55 @@ describe("VRChat API client", () => {
   it("walks the Avatar list page by page until the upload appears", async () => {
     mock = new MockVrchat();
     const baseUrl = await mock.start();
-    const avatar = { id: "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a", name: "AMF test1", releaseStatus: "private", platforms: ["pc", "ios"], updatedAt: "2026-10-17T15:40:00Z" };
-    mock.reply((_request, response) => json(response, 200, { total: 101, results: Array.from({ length: 100 }, (_, index) => ({ ...avatar, id: `avtr_filler_${index}` })) }));
+    const avatar = apiAvatar("avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a", "AMF test1");
+    mock.reply((_request, response) => json(response, 200, Array.from({ length: 100 }, (_, index) => apiAvatar(filler(index), `Filler ${index}`))));
     mock.reply((request, response) => {
       expect(request.url).toContain("offset=100");
       expect(request.url).toContain("n=100");
       expect(request.url).toContain("user=me");
-      json(response, 200, { total: 101, results: [avatar] });
+      json(response, 200, [avatar]);
     });
     const found = await mock.client({ baseUrl }).findAvatar(avatar.id, { auth: "a", twoFactorAuth: null });
-    expect(found).toEqual({ kind: "found", avatar: { id: avatar.id, name: "AMF test1", releaseStatus: "private", platforms: ["pc", "ios"], updatedAt: avatar.updatedAt } });
+    expect(found).toEqual({ kind: "found", avatar: {
+      id: avatar.id, name: "AMF test1", releaseStatus: "private", platforms: ["standalonewindows", "android"],
+      updatedAt: avatar.updated_at, thumbnailUrl: avatar.thumbnailImageUrl,
+    } });
+  });
+
+  it("lists every page of the account's own Avatars, skipping records it cannot read", async () => {
+    mock = new MockVrchat();
+    const baseUrl = await mock.start();
+    mock.reply((_request, response) => json(response, 200, Array.from({ length: 100 }, (_, index) => apiAvatar(filler(index), `Filler ${index}`))));
+    mock.reply((_request, response) => json(response, 200, [apiAvatar("avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a", "AMF test1"), { id: "avtr_broken", name: "No date" }]));
+    const listed = await mock.client({ baseUrl }).listAvatars({ auth: "a", twoFactorAuth: null });
+    expect(listed.kind).toBe("listed");
+    if (listed.kind !== "listed") return;
+    expect(listed.complete).toBe(true);
+    expect(listed.avatars).toHaveLength(101);
+    expect(listed.avatars[100]?.name).toBe("AMF test1");
+    expect(mock.requests.map(request => request.cookie)).toEqual(["auth=a", "auth=a"]);
+  });
+
+  it("sends the session only to VRChat's own image hosts", async () => {
+    const seen: { url: string; cookie: string | undefined }[] = [];
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const fetchImage = (async (url: string, init?: RequestInit) => {
+      seen.push({ url, cookie: (init?.headers as Record<string, string> | undefined)?.Cookie });
+      return new Response(png, { status: 200, headers: { "content-type": "image/png" } });
+    }) as typeof fetch;
+    const client = vrchatClient({ version: "9.9.9", minIntervalMs: 0, sleep: async () => {}, fetch: fetchImage });
+    const cookies = { auth: "a", twoFactorAuth: "b" };
+    expect(await client.fetchThumbnail("https://api.vrchat.cloud/api/1/image/file_1/1/256", cookies)).toBe(`data:image/png;base64,${png.toString("base64")}`);
+    await client.fetchThumbnail("https://images.example.com/thumb.png", cookies);
+    await client.fetchThumbnail("https://vrchat.cloud.example.com/thumb.png", cookies);
+    expect(seen.map(item => item.cookie)).toEqual(["auth=a; twoFactorAuth=b", undefined, undefined]);
+    expect(await client.fetchThumbnail("http://api.vrchat.cloud/plain.png", cookies)).toBeNull();
   });
 
   it("says missing when the whole list was read, and expired when the session ended", async () => {
     mock = new MockVrchat();
     const baseUrl = await mock.start();
-    mock.reply((_request, response) => json(response, 200, { total: 1, results: [{ id: "avtr_other", name: "Other" }] }));
+    mock.reply((_request, response) => json(response, 200, [apiAvatar(filler(1), "Other")]));
     expect(await mock.client({ baseUrl }).findAvatar("avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a", { auth: "a", twoFactorAuth: null }))
       .toEqual({ kind: "missing", pages: 1 });
     mock.reply((_request, response) => json(response, 401, {}));

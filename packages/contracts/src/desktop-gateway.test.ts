@@ -637,6 +637,9 @@ describe("gateway guard covers every declared method (regression: silent guard g
     "vrchat.signOut": { commandId: "cmd-v6" },
     "vrchat.forget": { commandId: "cmd-v7" },
     "vrchat.avatarCheck": { blueprintId: "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a" },
+    "vrchat.avatars": {},
+    "vrchat.avatarImage": { avatarId: "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a" },
+    "vrchat.openAvatarPage": { avatarId: "avtr_7ce0e209-6069-40c2-8b23-4e6c2dad389a", commandId: "cmd-v8" },
   };
 
   it("admits a minimal well-formed request for every method in the kind table", () => {
@@ -647,8 +650,8 @@ describe("gateway guard covers every declared method (regression: silent guard g
 
   it("covers the vrchat methods with minimal vectors", () => {
     const vrchat = Object.keys(DESKTOP_GATEWAY_METHOD_KINDS).filter(method => method.startsWith("vrchat.")).sort();
-    expect(vrchat).toEqual(["vrchat.avatarCheck", "vrchat.forget", "vrchat.relogin", "vrchat.resendEmailCode",
-      "vrchat.setExperimental", "vrchat.signIn", "vrchat.signOut", "vrchat.status", "vrchat.verifyCode"]);
+    expect(vrchat).toEqual(["vrchat.avatarCheck", "vrchat.avatarImage", "vrchat.avatars", "vrchat.forget", "vrchat.openAvatarPage",
+      "vrchat.relogin", "vrchat.resendEmailCode", "vrchat.setExperimental", "vrchat.signIn", "vrchat.signOut", "vrchat.status", "vrchat.verifyCode"]);
     expect(vrchat.every(method => method in minimalValidParams)).toBe(true);
   });
 
@@ -668,6 +671,13 @@ describe("gateway guard covers every declared method (regression: silent guard g
     expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatarCheck", params: { blueprintId: avatar } })).toBe(true);
     expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatarCheck", params: { blueprintId: avatar, refresh: true } })).toBe(true);
     expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatarCheck", params: { blueprintId: "avtr_no" } })).toBe(false);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatars", params: {} })).toBe(true);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatars", params: { refresh: true } })).toBe(true);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatars", params: { refresh: "yes" } })).toBe(false);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatarImage", params: { avatarId: avatar } })).toBe(true);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.avatarImage", params: { avatarId: avatar, url: "https://example.com" } })).toBe(false);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.openAvatarPage", params: { avatarId: avatar, commandId: "cmd-v" } })).toBe(true);
+    expect(isDesktopGatewayRequestV1({ ...base, method: "vrchat.openAvatarPage", params: { avatarId: "https://example.com", commandId: "cmd-v" } })).toBe(false);
   });
 
   it("environment.verifyEditor: params closed single-key {path} minLength 1 (021 ruling 3)", () => {

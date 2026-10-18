@@ -37,7 +37,9 @@ export interface AmfProductionRun {
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
     readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
-    readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview };
+    readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview;
+    /** The SDK items the last fix ran the SDK's Auto Fix for. */
+    readonly sdkFixesApplied?: readonly string[] };
     readonly diagnostics?: readonly { readonly code: string; readonly severity: string; readonly message: string }[] } | null;
 }
 /** VRChat SDK performance ratings, best first. */
@@ -56,8 +58,13 @@ export interface AmfSdkReview {
   readonly stats: readonly AmfSdkStat[];
   readonly detail: string;
 }
+/** Unity work waiting for its turn behind the running job. */
+export interface AmfQueuedWork { readonly taskId: string; readonly runId: string; readonly operation: string }
 export interface AmfProductionList {
-  readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[]; readonly busy: boolean;
+  readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[];
+  /** A Unity job runs now; work asked for meanwhile waits in `queue`. */
+  readonly busy: boolean;
+  readonly queue: readonly AmfQueuedWork[];
   readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[] }[];
 }
 export interface AmfProductionPlan {
@@ -100,6 +107,8 @@ export interface AmfProductionPort {
   plan(runId: string, selection: AmfAssemblySelection): Promise<AmfProductionPlan>;
   assemble(runId: string, plan: AmfProductionPlan): Promise<AmfProductionAccepted>;
   reinspect(runId: string): Promise<AmfProductionAccepted>;
+  /** Runs the VRChat SDK's own Auto Fix for items its last check offers one for, by the SDK's exact words. */
+  sdkFix(runId: string, fixes: readonly string[]): Promise<AmfProductionAccepted>;
   rollbackPlan(runId: string): Promise<AmfProductionRestorePlan>;
   rollback(runId: string, plan: AmfProductionRestorePlan): Promise<AmfProductionAccepted>;
   open(runId: string): Promise<AmfProductionAccepted>;
@@ -145,6 +154,7 @@ function result(v: unknown): boolean {
     && (facts.missingShaderMaterials === undefined || texts(facts.missingShaderMaterials))
     && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
     && (facts.sdkReview === undefined || isAmfSdkReview(facts.sdkReview))
+    && (facts.sdkFixesApplied === undefined || (texts(facts.sdkFixesApplied) && facts.sdkFixesApplied.length <= 16))
     && (facts.previews === undefined || (Array.isArray(facts.previews) && facts.previews.length <= 3 && facts.previews.every(p => record(p) && ["front","side","back"].includes(String(p.view)) && isAmfPreviewPath(p.path))))
     && facts.instances.every(i => record(i) && text(i.sourceId) && typeof i.bindingVerified === "boolean" && typeof i.menuVerified === "boolean"
       && (i.menuModified === undefined || typeof i.menuModified === "boolean"))))
@@ -242,7 +252,8 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async list() {
       const v = await call({ method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.sources) || !v.sources.every(source) || !Array.isArray(v.editors) || !v.editors.every(editor)
-        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames))) throw new Error("amf_production_list_invalid");
+        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames))
+        || !Array.isArray(v.queue) || v.queue.length > 64 || !v.queue.every(q => record(q) && text(q.taskId) && text(q.runId) && text(q.operation) && q.operation.startsWith("amf.production."))) throw new Error("amf_production_list_invalid");
       return v as unknown as AmfProductionList;
     },
     async get(runId) { const v = await call({ method: "amf.production.get", params: { schemaVersion: "0.1", runId } }); if (!isAmfProductionRun(v) || v.runId !== runId) throw new Error("amf_production_run_invalid"); return v; },
@@ -256,6 +267,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     },
     async assemble(runId, plan) { return accepted(await call({ method: "amf.production.assemble", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, selection: plan.selection } }), strings.amfProduction.assembling); },
     async reinspect(runId) { return accepted(await call({ method: "amf.production.reinspect", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.reinspect); },
+    async sdkFix(runId, fixes) { return accepted(await call({ method: "amf.production.sdkFix", params: { schemaVersion: "0.1", runId, fixes: [...fixes] } }), strings.sdkReview.fixTitle); },
     async rollbackPlan(runId) {
       const v = await call({ method: "amf.production.rollbackPlan", params: { schemaVersion: "0.1", runId } });
       if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || !text(v.planDigest) || !/^[a-f0-9]{64}$/u.test(v.planDigest)

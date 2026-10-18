@@ -54,6 +54,7 @@ export interface DesktopGatewayRouteContext {
 const VRCHAT_METHODS = new Set<string>([
   "vrchat.status", "vrchat.setExperimental", "vrchat.signIn", "vrchat.relogin",
   "vrchat.verifyCode", "vrchat.resendEmailCode", "vrchat.signOut", "vrchat.forget", "vrchat.avatarCheck",
+  "vrchat.avatars", "vrchat.avatarImage", "vrchat.openAvatarPage",
 ]);
 
 function requestIdFrom(value: unknown): string {
@@ -106,7 +107,7 @@ function toApplicationRequest(
     // 之前已处理,这里仅为方法表穷尽性登记,不可达
     case "vrchat.status": case "vrchat.setExperimental": case "vrchat.signIn": case "vrchat.relogin":
     case "vrchat.verifyCode": case "vrchat.resendEmailCode": case "vrchat.signOut": case "vrchat.forget":
-    case "vrchat.avatarCheck":
+    case "vrchat.avatarCheck": case "vrchat.avatars": case "vrchat.avatarImage": case "vrchat.openAvatarPage":
       throw new Error("vrchat methods are routed to Electron Main before provider dispatch");
     case "app.snapshot":
       return { ...base, kind: "query", method: "application.getSnapshot", params: {} };
@@ -575,7 +576,7 @@ function toApplicationRequest(
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
     case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.turntableFrame":
       return { ...base, kind: "query", method: request.method, params: request.params };
-    case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload":
+    case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.sdkFix":
       return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };
     case "recipe.save":
       return {

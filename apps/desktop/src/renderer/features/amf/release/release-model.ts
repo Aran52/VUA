@@ -85,6 +85,9 @@ export function sdkReviewView(run: AmfProductionRun): SdkReviewView | null {
 export const runningUpload = (state: AmfReleaseState | null): AmfUpload | null => state?.uploads.find(upload => upload.state === "running") ?? null;
 /** The Avatar ID of the newest successful upload: the Avatar that later uploads update. */
 export const uploadedAvatarId = (state: AmfReleaseState | null): string | null => state?.uploads.find(upload => upload.state === "succeeded")?.blueprintId ?? null;
+/** Every Avatar ID VUA uploaded across these runs. */
+export const uploadedAvatarIds = (states: readonly (AmfReleaseState | null)[]): ReadonlySet<string> =>
+  new Set(states.flatMap(state => state?.uploads.flatMap(upload => upload.state === "succeeded" && upload.blueprintId ? [upload.blueprintId] : []) ?? []));
 
 /** The newest step with this key, e.g. the last turntable bake. */
 export function lastStep(run: AmfProductionRun, key: string) {

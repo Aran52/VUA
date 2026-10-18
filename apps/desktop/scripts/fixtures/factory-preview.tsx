@@ -38,12 +38,13 @@ const runs: Record<string, AmfProductionRun> = {
       unity: { stage: "importing", current: 123, total: 379, lastActivityAt: new Date().toISOString() } } } as AmfProductionRun,
   waiting: base("waiting", "ready", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"]]),
   attention: { ...base("attention", "failed", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "failed", "Unity could not get a license."]]), error: "vua.amf_production.unity_license_unavailable — detail: Activate this Editor's license in Unity Hub, then retry preparation. Selected materials are retained." },
+  interrupted: { ...base("interrupted", "inspect_required", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "interrupted"]]), snapshotId: "snapshot-1" },
   finished: { ...base("finished", "succeeded", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "succeeded"]]),
     result: { facts: { sdkDescriptorRecognized: true, missingReferences: 0, avatarName: "Meiyu_改変", instances: [{ sourceId: "outfit", bindingVerified: true, menuVerified: true, menuModified: true }], missingShaderMaterials: [], sdkSignedIn: "no" } } },
 };
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
-  async list() { return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: true,
+  async list() { return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: true, queue: [],
     runs: Object.values(runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
@@ -85,13 +86,28 @@ const readyModule = { snapshot: async () => ({ schemaVersion: "0.1" as const, mo
   subscribe: () => () => {}, setEnabled: async () => ({ outcome: "failed" as const, snapshot: { schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const } }) };
 const gateway = emptyGateway(null);
 const selected = view.startsWith("workshop-") ? view.slice("workshop-".length) : "";
-try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-automation-level-v01", view.endsWith("auto") ? "auto" : "semi"); } catch { /* preview only */ }
-const runOf = selected.replace(/-auto$/u, "");
+try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("auto") ? "full" : "ask"); } catch { /* preview only */ }
+const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : selected.replace(/-auto$/u, "");
+// Opens the line's mode menu the way the player does, and for full access chooses it to show the warning.
+function ChooseMode({ full }: { full: boolean }) {
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      const button = document.querySelector<HTMLButtonElement>("[data-nav-id=workshop-mode]");
+      if (!button) return;
+      clearInterval(timer);
+      button.click();
+      if (full) setTimeout(() => document.querySelector<HTMLButtonElement>("[data-nav-id=workshop-mode-full]")?.click(), 400);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [full]);
+  return null;
+}
 try { localStorage.setItem("vua-amf-production-run-v01", runOf); } catch { /* preview only */ }
 const control = view.startsWith("control-") ? controlPreview(view, { ...gateway, amfProduction: api }, api) : null;
 const release = view.startsWith("release-") ? releasePorts(view) : null;
-const signedIn = view === "release-check" || view === "release-uploaded";
-const vrchatOfRelease = signedIn ? vrchatPreviewPort({ enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true }) : undefined;
+const signedIn = view === "release-check" || view === "release-uploaded" || view === "release-vrchat";
+const vrchatOfRelease = signedIn ? vrchatPreviewPort({ enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true })
+  : view === "release-vrchat-signin" ? vrchatPreviewPort({ enabled: true, state: "signed_out", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: false }) : undefined;
 const settingsVrchat = view.startsWith("settings-vrchat")
   ? vrchatPreviewPort(view === "settings-vrchat-account"
     ? { enabled: true, state: "signed_in", account: { displayName: "Aran", thumbnail: pixel }, rememberPassword: true, pendingMethods: [], canCheckUploads: true }
@@ -118,7 +134,7 @@ createRoot(document.getElementById("root")!).render(release ? <GatewayProvider g
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
-  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
+  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}</AmfRoom>}
 </GatewayProvider>);
 
 // Mid-flight frame: the capture runs 2.5 s after load; the camera move takes 0.65 s.

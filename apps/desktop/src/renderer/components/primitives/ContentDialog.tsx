@@ -1,4 +1,5 @@
 import { ModalOwnerContext, useModalLayer } from "./modal-layer.tsx";
+import { useDialogMotion } from "./dialog-motion.ts";
 import type { ReactNode } from "react";
 import "./content-dialog.css";
 
@@ -25,11 +26,13 @@ export interface ContentDialogProps {
 
 export function ContentDialog({ open, title, closeLabel, children, onClose }: ContentDialogProps) {
   const modal = useModalLayer(open, onClose);
+  const shown = useDialogMotion(open, modal.overlayRef, modal.panelRef);
 
-  if (!open) return null;
+  if (!shown) return null;
   return (
     <ModalOwnerContext value={modal.id}>
-      <div ref={modal.overlayRef} className="vua-content-dialog__overlay" onClick={modal.closeTop}>
+      <div ref={modal.overlayRef} className="vua-content-dialog__overlay"
+        data-closing={open ? undefined : true} onClick={modal.closeTop}>
         <div
           ref={modal.panelRef}
           tabIndex={-1}

@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.12.0
+> Document version: 0.16.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -17,7 +17,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 
 | Method | Kind | Additional params | Result |
 | --- | --- | --- | --- |
-| `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, and retained run summaries |
+| `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, retained run summaries, `busy` and the waiting `queue` |
 | `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, usual step durations and the running step's progress |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
 | `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection and effective input roles |
@@ -43,8 +43,11 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
 
 Roles: `auto`, `avatar`, `outfit`, `dependency`. The player path starts with `auto` sources.
-Unity discovers actual prefabs; a unique Avatar/outfit candidate is preselected, while ambiguity
-or a static attachment target requires a choice. Assembly requires an observed Avatar and at
+Unity discovers actual prefabs. `recommendAssembly` in the contracts package starts the plan with a
+stated recommendation over those candidates: for the Avatar, the creator's base for outfits (改変),
+then the prefab named after its package, then the package's top-level prefab; for each outfit, the
+only candidate or the one that names the Avatar. Equally plausible candidates or a static
+attachment target require a choice. Assembly requires an observed Avatar and at
 least one outfit. Unselected automatic inputs are explicitly shown as `import_only`, not silently
 claimed as assembled dependencies. Source IDs resolve only through the module's present local
 library; no renderer-provided source or project paths are accepted. Editor paths are reverified
@@ -98,6 +101,29 @@ new input packages to a retained project, selecting unowned scene targets, expli
 and external-project intake remain separate work. Old development work projects need the updated
 Candidate Bridge and reinspection before this new capability can be used.
 
+## Project fingerprints
+
+The run record's project fingerprint covers `Assets`, `Packages` and `ProjectSettings`
+of the managed work project; symbolic links are refused. AMF computes it with the
+cached v2 algorithm: each file's SHA-256 is remembered by path, size and modification
+time to the nanosecond, so only files that changed are read again. The total combines
+each file's sorted path, length and content hash and carries the prefix
+`vua-project-tree-v2:`. Values written before the cache carry the prefix `sha256:`
+(the uncached v1 algorithm, which other flows still use unchanged).
+
+The cache lives in `.vua/fingerprint-cache.json` inside the work project, outside the
+fingerprinted scopes. It names its `version`, is written atomically (`.pending`, then
+rename) and bounded in size; a missing, damaged, future-version or oversized cache
+counts as no cache. The cache decides only whether a file's bytes are read again: a file
+is re-read when its size or modification time differs from its cached entry, and every
+write moves the modification time on NTFS, where work projects live. An added, deleted or
+renamed file always moves the value.
+
+A run record that still carries a v1 value is compared by computing v1 once for that
+comparison; an unchanged project is never reported as changed because the algorithm
+moved on. Once the record matches, saving a Recipe, assembly and the next check rewrite it
+with the v2 value; until then the turntable and upload checks repeat the v1 comparison.
+
 ## Facts and recovery
 
 Run phases: `preparing`, `inspecting`, `ready`, `assembling`, `restoring`, `succeeded`, `failed`,
@@ -144,8 +170,10 @@ Editor shows its own progress window there.
 
 `unity` comes from the batch run's own log `.vua/logs/<commandId>.log`, read every half second.
 `stage` is one of `starting`, `license`, `packages`, `importing`, `compiling`, `bridge`,
-`previews` and `finishing`, from Unity's own messages, the [Bridge v5](unity-bridge-v5.md) stage
-lines, the preview folder and the result file. Stages move forward; importing and compiling
+`previews`, `finishing` and `fingerprint`, from Unity's own messages, the [Bridge v5](unity-bridge-v5.md) stage
+lines, the preview folder and the result file. The last one is VUA's own: after the
+Editor exits, `fingerprint` names the [project-file check](#project-fingerprints)
+while it reads the work project. Stages move forward; importing and compiling
 alternate. While importing, `current` counts the work-project assets Unity has started to import,
 and during the first preparation `total` is the number of material files and their folders.
 `lastActivityAt` is when the log last grew, or when Unity started until it writes. A page says
@@ -166,6 +194,24 @@ from before the stop are invalid. Unity's batch mode has no pause, so Stop and C
 pause, as the author approved on 2026-10-17. Before and after each batch run, VUA removes a
 `Temp/UnityLockfile` that no Editor holds, so the next run and the SDK handoff find the project
 closed.
+
+### Queue
+
+Unity work runs one job at a time. The commands that start it — `prepare`, `prepareRecipe`,
+`assemble`, `reinspect`, `sdkFix`, `applyRecipe`, `rollback`, `open`, `bakeTurntable` and
+`upload` — are accepted while another job runs: their task stays `queued` and starts by itself,
+in request order, when the jobs before it end. Checks of the request itself (keys, plan digest
+shape, Avatar name, rights confirmation, SDK items) answer at once; checks against the work
+project and the run (Editor identity, `project_open`, `project_drift`, `result_not_ready`) run
+when the job starts, and a job that cannot start then ends `failed` with that reason.
+`amf.production.list` reports `busy` while a job runs and `queue`, the waiting work first in line
+first, each with `taskId`, `runId` and `operation`. Cancelling a queued task through
+`task.requestCancellation` ends it `cancelled` without running it. `plan`, `rollbackPlan` and
+`recipeApplyPlan` answer `busy` while work for that run runs or waits; saving, importing and
+exporting Recipes answer `busy` while a job runs. Work still waiting when VUA closes does not start
+at the next launch; its task asks for inspection like other unfinished work, and the run keeps the
+state it had. Work on different projects side by side is a later step for machines with enough
+memory.
 
 ## Previews
 
@@ -188,7 +234,7 @@ remain the record of what was assembled.
 
 A finished run (`succeeded`) leaves the factory through the release room. Its record lives beside
 the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. Both
-release commands share the production busy state, add a `turntable` or `upload` step to the
+release commands share the production [queue](#queue), add a `turntable` or `upload` step to the
 run while they work, and end that step as `succeeded` or `failed` with the reason in its detail.
 
 `amf.production.bakeTurntable` runs [Bridge v5](unity-bridge-v5.md#turntable) `amf_turntable`
@@ -219,6 +265,14 @@ performance rank for the build target, the items the SDK refuses an upload with,
 and the categories rated below Good. The upload confirmation names how many items the SDK
 refuses an upload with; the SDK's own check during the upload decides.
 
+`amf.production.sdkFix` (`runId`, `fixes`) runs the SDK's own Auto Fix for items its last check
+offers one for, named by the SDK's exact words (1 to 16). A ready or finished run takes a restore
+point (step `snapshot`), then runs the fix in Unity (step `sdk_fix`) and keeps its phase; the
+facts read the SDK check again and list `sdkFixesApplied`. Items the last check does not offer a
+fix for are refused with `vua.amf_production.sdk_fix_unavailable` before any restore point; a
+failure restores the project. The release page offers it as "Fix with the SDK" after the player
+reads what happens.
+
 ## Unity producing face
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
@@ -245,6 +299,10 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
+- 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.
+- 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.
+- 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
 - 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.
 - 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
 - 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.

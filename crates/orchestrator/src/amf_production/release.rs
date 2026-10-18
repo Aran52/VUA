@@ -301,7 +301,7 @@ impl AmfProductionEngine {
         if self.platform.editor_open(project) {
             return Err(production_error("project_open", "Close Unity for this work project, then bake the turntable."));
         }
-        if self.platform.fingerprint(project)? != run.project_fingerprint {
+        if !self.project_state(&run)?.0 {
             return Err(production_error("project_drift", "The work project changed since its last check. Check it again, then bake the turntable."));
         }
         Ok(())
@@ -329,6 +329,7 @@ impl AmfProductionEngine {
             record.turntable = Some(turntable);
             self.save_release(&record)?;
             // Unity opened the project; its settings files are the run's state from here on.
+            let _check = FingerprintCheck::begin(self, &run, ctx);
             run.project_fingerprint = self.platform.fingerprint(&project)?;
             Ok(())
         })();
@@ -352,7 +353,7 @@ impl AmfProductionEngine {
             return Err(production_error("editor_drift", "The selected Editor identity changed."));
         }
         let project = Path::new(&run.project_root);
-        if !self.platform.editor_open(project) && self.platform.fingerprint(project)? != run.project_fingerprint {
+        if !self.platform.editor_open(project) && !self.project_state(&run)?.0 {
             return Err(production_error("project_drift", "The work project changed since its last check. Check it again before uploading."));
         }
         Ok(())

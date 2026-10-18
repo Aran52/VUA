@@ -1,25 +1,27 @@
-/** The release room: finished Avatars as an album with their turntable and upload, and the
- * production records under their own tab. */
+/** The release room: finished Avatars as an album with their turntable and upload, and, with the
+ * experimental VRChat sign-in, the account's own Avatars on VRChat. The production records live in
+ * Settings → Debugging information. */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import type { AiUploadConfirmationV01 } from "@vua/contracts";
-import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfProductionRun, type AmfReleasePort, type AmfReleaseState, type VrchatAvatarCheck } from "../../../gateway/index.ts";
+import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfProductionRun, type AmfReleasePort, type AmfReleaseState, type VrchatAvatarCheck, type VrchatPort } from "../../../gateway/index.ts";
 import type { PageId } from "../../../app/nav-model.ts";
 import { EmptyState } from "../../../components/primitives/EmptyState.tsx";
 import { format, formatDateTime, formatShortDateTime, strings, termLabel } from "../../../i18n/index.ts";
 import { runStartedAt } from "../factory-model.ts";
-import { ReleasePage } from "../../release/ReleasePage.tsx";
 import { useAiRequests } from "../../ai-requests/use-ai-requests.ts";
 import { requestRunId } from "../../ai-requests/ai-request-routing.ts";
 import { ReleaseAlbum, type AlbumSpread } from "./ReleaseAlbum.tsx";
 import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
 import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
-import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId } from "./release-model.ts";
+import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
+import { VrchatAvatarShelf } from "./VrchatAvatarShelf.tsx";
 import "./release-album.css";
 
 const copy = strings.releaseRoom;
-type Tab = "album" | "records";
+const shelfCopy = strings.vrchat.shelf;
+type View = "album" | "vrchat";
 
 /** A failed start in plain words; the backend's detail stays under Details. */
 export function ActionError({ error, onCheckAgain }: { error: unknown; onCheckAgain?: () => void }) {
@@ -91,7 +93,9 @@ function useAlbumData(production: AmfProductionPort, release: AmfReleasePort, fo
   return { list, failed, runs, states };
 }
 
-function Album({ production, release, onNavigate }: { production: AmfProductionPort; release: AmfReleasePort; onNavigate: (page: PageId) => void }) {
+function Album({ production, release, checksEnabled, onNavigate }: {
+  production: AmfProductionPort; release: AmfReleasePort; checksEnabled: boolean; onNavigate: (page: PageId) => void;
+}) {
   const gateway = useGateway();
   const vrchat = gateway.vrchat;
   const ai = useAiRequests();
@@ -105,19 +109,41 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
   const [dialogError, setDialogError] = useState<unknown>(null);
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload"; error: unknown } | null>(null);
-  const busy = list?.busy ?? false;
+  const otherWork = list?.busy ?? false;
+  const queuedFor = (runId: string) => list?.queue.find(item => item.runId === runId) ?? null;
+  const ownWork = (runId: string) => { const run = runs[runId]; return (run !== undefined && runBusy(run)) || queuedFor(runId) !== null || runningUpload(states[runId] ?? null) !== null; };
+  // Work started here, followed until it ends: one that waited and then could not start shows why.
+  const [followed, setFollowed] = useState<Readonly<Record<string, { taskId: string; kind: "bake" | "upload" }>>>({});
+  const follow = (runId: string, kind: "bake" | "upload", accepted: unknown) => {
+    const taskId = (accepted as { taskId?: unknown } | null)?.taskId;
+    if (typeof taskId === "string") setFollowed(previous => ({ ...previous, [runId]: { taskId, kind } }));
+  };
+  useEffect(() => {
+    const entries = Object.entries(followed);
+    if (entries.length === 0) return;
+    let alive = true;
+    const timer = setInterval(() => {
+      void gateway.task.snapshot().then(view => {
+        if (!alive) return;
+        for (const [runId, { taskId, kind }] of entries) {
+          const task = view.tasks.find(item => item.id === taskId);
+          if (task === undefined || !["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) continue;
+          setFollowed(previous => { const { [runId]: _ended, ...rest } = previous; return rest; });
+          // A failure the run already records (an upload record, a turntable step) speaks for itself.
+          const recorded = kind === "upload" ? (states[runId]?.uploads.some(upload => upload.uploadId.includes(taskId.replace(/[^A-Za-z0-9-]/gu, "").slice(0, 80))) ?? false)
+            : (runs[runId]?.steps.some(step => step.key === "turntable" && step.state === "failed") ?? false);
+          if (task.status === "failed" && !recorded) setActionError({ runId, kind, error: Object.assign(new Error(task.errorText ?? ""), { code: task.errorText }) });
+          refresh();
+        }
+      }, () => {});
+    }, 1500);
+    return () => { alive = false; clearInterval(timer); };
+  }, [gateway, followed, states, runs]);
   const requests = (ai.snapshot?.requests ?? []).filter(request => request.tool === "vua_request_amf_upload" && request.state === "pending");
 
   // 上传核对(vrchat-session v0.1):玩家开启实验性登录后才读;结果按 Avatar ID 记住
-  const [checksEnabled, setChecksEnabled] = useState(false);
   const [avatarChecks, setAvatarChecks] = useState<Readonly<Record<string, VrchatAvatarCheck>>>({});
   const [checkBusy, setCheckBusy] = useState(false);
-  useEffect(() => {
-    if (vrchat === undefined) { setChecksEnabled(false); return; }
-    let active = true;
-    void vrchat.status().then(value => { if (active) setChecksEnabled(value.enabled); }, () => { if (active) setChecksEnabled(false); });
-    return () => { active = false; };
-  }, [vrchat]);
   const rememberCheck = (id: string, read: () => Promise<VrchatAvatarCheck>) => {
     void read().then(
       check => setAvatarChecks(previous => ({ ...previous, [id]: check })),
@@ -141,7 +167,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
 
   const act = (runId: string, kind: "bake" | "upload", work: () => Promise<unknown>) => {
     setActionError(null);
-    void work().then(refresh, error => setActionError({ runId, kind, error }));
+    void work().then(accepted => { follow(runId, kind, accepted); refresh(); }, error => setActionError({ runId, kind, error }));
   };
   const checkAgain = (runId: string) => act(runId, "upload", () => production.reinspect(runId));
   const confirm = async (confirmation: AiUploadConfirmationV01) => {
@@ -154,7 +180,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
         const decided = snapshot.requests.find(request => request.id === dialog.requestId);
         if (decided?.state === "failed") throw Object.assign(new Error(decided.error ?? ""), { code: decided.error });
       } else {
-        await release.upload(dialog.runId, confirmation);
+        follow(dialog.runId, "upload", await release.upload(dialog.runId, confirmation));
       }
       setDialog(null); refresh();
     } catch (error) {
@@ -186,18 +212,23 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
       key: runId, tab,
       left: live => run ? <div className="vua-album__left">
         <ReleaseStage production={production} release={release} run={run} turntable={state?.turntable ?? null} title={title} live={live} />
-        {live && <TurntableBar run={run} state={state} busy={busy} error={error?.kind === "bake" ? error.error : null}
+        {live && <TurntableBar run={run} state={state} busy={ownWork(runId)} error={error?.kind === "bake" ? error.error : null}
           onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
         <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null} actions={{
-          busy: busy || runBusy(run),
+          busy: ownWork(runId),
+          uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
+          otherWork,
+          queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),
+          onSdkFix: fixes => act(runId, "upload", () => production.sdkFix(runId, fixes)),
         }}
           avatarCheck={checksEnabled && avatarId !== null ? avatarChecks[avatarId] ?? null : null}
-          {...(checksEnabled && avatarId !== null ? { onRefreshAvatarCheck: () => refreshCheck(avatarId) } : {})} />
+          {...(checksEnabled && avatarId !== null ? { onRefreshAvatarCheck: () => refreshCheck(avatarId) } : {})}
+          {...(vrchat !== undefined ? { onOpenOnVrchat: (id: string) => { void vrchat.openAvatarPage(id).catch(() => {}); } } : {})} />
         {live && error?.kind === "upload" && <ActionError error={error.error} onCheckAgain={() => checkAgain(runId)} />}
       </> : <p className="vua-text-secondary">{copy.loading}</p>,
     };
@@ -225,20 +256,48 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
   </>;
 }
 
+/** The experimental VRChat sign-in is switched on (vrchat-session v0.1). */
+function useVrchatEnabled(vrchat: VrchatPort | undefined): boolean {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    if (vrchat === undefined) { setEnabled(false); return; }
+    let active = true;
+    void vrchat.status().then(value => { if (active) setEnabled(value.enabled); }, () => { if (active) setEnabled(false); });
+    return () => { active = false; };
+  }, [vrchat]);
+  return enabled;
+}
+
+/** Avatar IDs of every upload VUA finished, read while the VRChat view is open. */
+function useVuaUploads(production: AmfProductionPort | undefined, release: AmfReleasePort | undefined, active: boolean): ReadonlySet<string> {
+  const [ids, setIds] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (!active || production === undefined || release === undefined) return;
+    let alive = true;
+    void production.list().then(list => Promise.all(finishedRunIds(list).map(id => release.state(id).catch(() => null))))
+      .then(states => { if (alive) setIds(uploadedAvatarIds(states)); }, () => {});
+    return () => { alive = false; };
+  }, [production, release, active]);
+  return ids;
+}
+
 export function ReleaseAlbumPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const gateway = useGateway();
-  const [tab, setTab] = useState<Tab>("album");
-  const production = gateway.amfProduction, release = gateway.amfRelease;
+  const production = gateway.amfProduction, release = gateway.amfRelease, vrchat = gateway.vrchat;
+  const vrchatEnabled = useVrchatEnabled(vrchat);
+  const [view, setView] = useState<View>("album");
+  const shelf = vrchatEnabled && vrchat !== undefined ? vrchat : null;
+  const uploaded = useVuaUploads(production, release, shelf !== null && view === "vrchat");
   return <div className="vua-page vua-release-room" data-focus-scope>
     <header className="vua-release-room__header">
       <h1>{copy.title}</h1>
-      <div className="vua-release-room__tabs" role="tablist" aria-label={strings.factory.rooms.release.name}>
-        {(["album", "records"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={tab === key}
-          data-nav-id={`release-tab-${key}`} onClick={() => setTab(key)}>{copy.tabs[key]}</button>)}
-      </div>
+      {shelf && <div className="vua-release-room__tabs" role="tablist" aria-label={copy.title}>
+        {(["album", "vrchat"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={view === key}
+          data-nav-id={`release-tab-${key}`} onClick={() => setView(key)}>{key === "album" ? shelfCopy.albumTab : shelfCopy.vrchatTab}</button>)}
+      </div>}
     </header>
-    {tab === "records" ? <ReleasePage onNavigate={onNavigate} />
-      : production && release ? <Album production={production} release={release} onNavigate={onNavigate} />
-      : <EmptyState title={format(strings.amfProduction.unavailable, { amf: termLabel("amf") })} />}
+    {shelf && view === "vrchat" ? <VrchatAvatarShelf vrchat={shelf} uploadedIds={uploaded} onNavigate={onNavigate} />
+      : production && release ? <Album production={production} release={release} checksEnabled={vrchatEnabled} onNavigate={onNavigate} />
+        : <EmptyState title={format(strings.amfProduction.unavailable, { amf: termLabel("amf") })} />}
   </div>;
 }

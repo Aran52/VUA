@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.4.0
+> Document version: 0.5.0
 > Status: Candidate
-> Updated: 2026-10-17
+> Updated: 2026-10-18
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -56,6 +56,10 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_request_cancel_task` | Existing revision-bound cancellation request |
 | `vua_action_status` | Local approval receipt; never grants approval |
 | `vua_withdraw_request` | Withdraws a request still waiting for the player; nothing runs |
+
+`vua_amf_plan` without a selection plans VUA's [recommendation](amf-production-v0.1.md) and returns
+its reasons; when candidates are equally plausible it returns `recommendation_needs_player` with
+the candidates, and no plan is made.
 
 Read-only tools run immediately. Each `vua_request_*` queues an immutable concrete draft in VUA.
 Installation and assembly drafts re-read their plan before being offered; digest drift rejects
@@ -111,7 +115,8 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
-- 0.4.0 (2026-10-17): read a finished Avatar's release state with `vua_amf_release`, and request a managed upload with `vua_request_amf_upload`, confirmed on the release page with the player's rights confirmation.3.0 of the parallel progress-and-stop change.
+- 0.5.0 (2026-10-18): `vua_amf_plan` without a selection plans VUA's recommendation or returns the tied candidates.
+- 0.4.0 (2026-10-17): read a finished Avatar's release state with `vua_amf_release`, and request a managed upload with `vua_request_amf_upload`, confirmed on the release page with the player's rights confirmation.
 - 0.3.0 (2026-10-17): report the running AMF step, its Unity stage and elapsed and usual seconds through `vua_amf_run`.
 - 0.2.0 (2026-10-16): return AMF result and candidate previews as image content from `vua_amf_run`.
 - 0.1.0 (2026-10-13): add authenticated local MCP over the existing host/AMF execution authorities with explicit player approval.

@@ -70,6 +70,17 @@ describe("AMF production response boundary", () => {
     emit({kind:"task.stateChanged",taskId:"task-amf",payload:{}});
     expect(seen).toEqual([payload]);
   });
+  it("reads the waiting work of the queue in its published shape", async () => {
+    const list = {schemaVersion:"0.1",sources:[],editors:[],runs:[],busy:true,queue:[{taskId:"task-upload",runId:"n3-test",operation:"amf.production.upload"}]};
+    let response: unknown = list;
+    const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.list()).queue).toEqual(list.queue);
+    response = {...list,queue:[{taskId:"task-upload",runId:"n3-test",operation:"task.list"}]};
+    await expect(port.list()).rejects.toThrow("list_invalid");
+    const {queue: _missing, ...withoutQueue} = list; response = withoutQueue;
+    await expect(port.list()).rejects.toThrow("list_invalid");
+  });
   it("turns a reported preview into a PNG data URL", async () => {
     const path = ".vua/previews/n3-test-1/front.png";
     let response: unknown = {schemaVersion:"0.1",runId:"n3-test",path,mediaType:"image/png",data:"iVBORw0KGgoAAAANSUhEUg=="};

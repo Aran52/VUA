@@ -10,8 +10,8 @@ slice order; this document owns the interface those slices land in.
 ## The player's goal
 
 A newcomer wants one thing: "put this outfit on my Avatar and get it into VRChat". Each such wish
-is one production line. The player's familiarity with Unity decides only where the line stops to
-ask them; the stations are the same for everyone.
+is one production line. How much the player wants to hand over decides only where the line stops
+to ask them; the stations and the layout are the same for everyone.
 
 ## Base map
 
@@ -26,7 +26,8 @@ what needs attention.
 | 1F | **Release** | finished Avatars, the 60-frame turntable, SDK and upload | finished count, latest |
 | 1F | **Workshop** | production lines and checks (tabs) | running / waiting / attention counts and the busiest line's stations |
 
-The sidebar lists the four rooms. Each room page has a bar with the room's plate, a way back to
+The sidebar lists the four rooms under AMF: control center, materials, workshop and release.
+Each room page has a bar with the room's plate, a way back to
 the map and its tabs. Existing page addresses stay valid; each opens its room and tab.
 
 ## A production line
@@ -68,15 +69,23 @@ the file) and links to the browse tab. **Start the line** opens the workshop wit
 already preparing the Avatar and the checked outfits through the same preparation path the
 workshop's own button uses.
 
-## Automation levels
+## Permission modes
 
-Asked on the first visit to the workshop and changeable on every line:
+The workshop works like an AI agent's permission modes (author ruling, 2026-10-18): the player
+chooses how much to hand over, whatever their experience with Unity. All three modes share one
+layout; they differ in where the line stops. Each line shows its mode as a button with the mode's
+icon and name; the button opens a card below it that lists the three modes, each with a line icon,
+its name and one line of explanation, and a check mark at the right of the mode in effect:
 
-| Level | Stops at |
+| Mode | Stops at |
 | --- | --- |
-| Fully automatic | the assembly plan; confirming it plans and assembles in one go |
-| Semi-automatic | the assembly plan and the quality check; candidates and switches are shown |
-| Manual | every station; every setting is open |
+| Manual review, hand icon (default) | every station; each step and plan waits for the player's OK |
+| Limited auto, checked box | the assembly plan and the release check |
+| Full auto, shield | nowhere; a prepared line that was never assembled assembles by itself |
+
+Choosing full auto first explains that VUA will change the work project without asking and
+that this can mess up the Avatar; a restore point before each assembly lets the workshop bring it
+back. Uploads to VRChat ask in every mode.
 
 ## Release room
 
@@ -93,7 +102,7 @@ resource-saving mode cuts to it. The motion is scripted from the motion tokens.
   and the player's content rights statement; the page then follows the stages from opening Unity
   to uploading, offers Stop, and shows the VRChat Avatar ID or the SDK's reason in plain words.
 - An AI agent's upload request appears on its Avatar's page and opens the same dialog.
-- The earlier production records stay under their own tab.
+- The production records are debugging information in Settings (author request, 2026-10-18).
 
 Paper, binding, pattern and shades are the `--vua-album-*` tokens; the photo corners, the stage
 backdrop, page ornaments and the cover are `data-skin-slot` elements.
@@ -104,7 +113,7 @@ backdrop, page ornaments and the cover are `data-skin-slot` elements.
 | --- | --- |
 | 5 Unity editor handoff | "Close Unity and continue" on a needs-attention card; "Done checking, close Unity" on the quality check |
 | 6 SDK step | release: the SDK checks in plain words |
-| 7 Familiarity levels | the automation levels above; recommendation rules for prefabs |
+| 7 Permission modes | the permission modes above; recommendation rules for prefabs |
 | 8 Known packages | control center: packages; the materials station |
 | 9 Material tuning | an optional station between quality check and release |
 | 10 Face tracking | an add-on station after the quality check |

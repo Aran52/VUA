@@ -4,8 +4,9 @@ import { RouteTile } from "../../components/RouteTile.tsx";
 const copy = strings.journey;
 export const directory = {
   env: [{ id: "env-play", title: copy.play, icon: "anim" }, { id: "tools-discover", title: copy.tools, icon: "outfit" }, { id: "env-create", title: copy.create, icon: "flask" }],
-  // The factory rooms (2026-10-17 author ruling): each room holds the pages listed in pages.
-  production: [{ id: "warehouse", title: strings.factory.rooms.materials.name, icon: "folder", pages: ["warehouse", "asset-browser"] }, { id: "workshop", title: strings.factory.rooms.workshop.name, icon: "avatar", pages: ["workshop", "inspection"] }, { id: "recipe", title: strings.factory.rooms.control.name, icon: "edit", pages: ["recipe", "packages"] }, { id: "release", title: strings.factory.rooms.release.name, icon: "anim", pages: ["release"] }],
+  // The factory rooms (2026-10-17 author ruling): each room holds the pages listed in pages. The control
+  // center comes first, right under AMF (author ruling 2026-10-18).
+  production: [{ id: "recipe", title: strings.factory.rooms.control.name, icon: "edit", pages: ["recipe", "packages"] }, { id: "warehouse", title: strings.factory.rooms.materials.name, icon: "folder", pages: ["warehouse", "asset-browser"] }, { id: "workshop", title: strings.factory.rooms.workshop.name, icon: "avatar", pages: ["workshop", "inspection"] }, { id: "release", title: strings.factory.rooms.release.name, icon: "anim", pages: ["release"] }],
 } as const;
 export function HomePage({ page, navigate, amfInstalled = false }: {
   page: "home" | "environment-hub" | "avatar-hub";

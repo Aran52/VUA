@@ -7,16 +7,19 @@ import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionR
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
+import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { strings, format, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
+import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
+import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus } from "./factory-model.ts";
 import "./factory.css";
+import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
 import { formatDuration, lineLabels } from "./factory-model.ts";
 
@@ -78,10 +81,15 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [taskQueued, setTaskQueued] = useState(false);
   const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | null>(null);
-  const [level, setLevel] = useState<AutomationLevel | null>(storedAutomationLevel);
+  const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
+  const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
-  const chooseLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
+  const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
+  // Full access changes the work project without asking, so the player reads what that means first.
+  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
+  const unattended = useRef(new Set<string>());
   const initialized = useRef("");
   const refreshList = useCallback(async () => {
     if (!port) { setError(unavailable); return; }
@@ -126,6 +134,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       try {
         const view = await gateway.task.snapshot(); if (!alive) return;
         const task = view.tasks.find(t => t.id === taskId);
+        setTaskQueued(task?.status === "queued");
         if (task && ["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) {
           setTaskId(null); setTaskAction(null); void refreshList();
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
@@ -190,9 +199,19 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const states = run ? lineStations(run) : null;
   const status: LineStatus | null = run ? lineStatus(run) : null;
-  const effective: AutomationLevel = level ?? "semi";
+  const effective: AutomationLevel = level;
   const stops = stopsAt(effective);
-  const showDetails = effective !== "auto" || adjusting;
+  // One layout for every mode; the modes differ in where the line stops.
+  const showDetails = adjusting;
+  const chosen = !!selection.avatarPrefab && selection.outfits.length > 0;
+  useEffect(() => {
+    if (!run || run.runId !== runId || plan !== null || restorePlan !== null || requesting) return;
+    if (!assemblesWithoutAsking(effective, run, { busy, chosen })) return;
+    const key = `${run.runId}:${run.steps.length}`;
+    if (unattended.current.has(key)) return;
+    unattended.current.add(key);
+    void assembleNow();
+  });
   const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
@@ -208,8 +227,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </button>)}
     </aside>
     <div className="vua-workshop__main">
-    {level === null && <Card><h2>{factory.levelQuestion}</h2><div className="vua-workshop__levels">{AUTOMATION_LEVELS.map(option => <button type="button" key={option} onClick={() => chooseLevel(option)}>
-      <strong>{factory.levels[option].name}</strong><span>{factory.levels[option].hint}</span></button>)}</div><p className="vua-caption vua-text-secondary">{factory.levelLater}</p></Card>}
+    <ConfirmDialog open={confirmFull} danger title={factory.fullAccess.title} cancelLabel={factory.fullAccess.cancel} confirmLabel={factory.fullAccess.confirm}
+      onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
+      <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
+    </ConfirmDialog>
+    {taskQueued && taskId !== null && <Card><div className="vua-n3__queued" role="status"><p>{factory.queued.hint}</p>
+      <Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button></div></Card>}
     {error !== null && <Card><div role="alert"><strong>{copy.error}</strong><p className="vua-caption vua-text-secondary">{error}</p><Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button></div></Card>}
     {run === null && error !== null && /license/iu.test(error) ? <Card>
       <h2>{strings.unityLicense.retry}</h2><p>{strings.unityLicense.retryHint}</p>
@@ -242,8 +265,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <h1 className="vua-title">{lineName(run.sources.map(source => source.itemName)) || run.runId}</h1>
         {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
         {status && <StatusChip status={status}/>}
-        <label className="vua-line__level">{factory.automation}<select value={effective} onChange={e => chooseLevel(e.target.value as AutomationLevel)}>
-          {AUTOMATION_LEVELS.map(option => <option key={option} value={option}>{factory.levels[option].name}</option>)}</select></label>
+        <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
       {states && <ol className="vua-line__stations" aria-label={factory.stations[currentStation(states)]}>{STATIONS.map(key => <li key={key} className="vua-line__station" data-state={states[key]} aria-current={currentStation(states) === key ? "step" : undefined}>
         <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>
@@ -262,7 +284,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button></>
           : run.error && <p role="alert">{run.error.replace(/^vua.[a-z_.]+ — detail: /u, "")}</p>}
         {run.recovery && <p className="vua-n3__notice">{run.recovery === "restored" ? copy.recovered : copy.recoveryFailed}</p>}
+        {interruptedChange(run) && <p>{factory.interrupted.hint}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{factory.newLine}</Button>
+          {interruptedChange(run) && run.snapshotId && <Button disabled={busy || requesting} onClick={() => {
+            if (!port) return; setRequesting(true); setError(null);
+            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+          }} data-nav-id="workshop-restore-interrupted">{factory.interrupted.restore}</Button>}
           {run.sources.length > 0 && <Button variant="primary" disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
         <details className="vua-n3__advanced"><summary>{factory.details}</summary><ul className="vua-n3__progress">{run.steps.map((item,index) => <li key={`${item.key}-${index}`} data-state={item.state}>
           <span aria-hidden="true">{item.state === "succeeded" ? <Icon name="check" size={16}/> : item.state === "failed" ? <Icon name="warning" size={16}/> : <Icon name="dash" size={16}/>}</span>
@@ -278,9 +305,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {run.phase === "ready" && !busy && plan === null && restorePlan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)}>{factory.adjust}</Button>
+        <div className="vua-n3__actions"><Button variant="subtle" disabled={busy} onClick={() => { void command("reinspect"); }}>{copy.reinspect}</Button><Button variant="subtle" onClick={() => setAdjusting(true)}>{factory.adjust}</Button>
           <Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
       </Card>}
       {run.phase === "ready" && !busy && plan === null && restorePlan === null && showDetails && <>
@@ -303,14 +331,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
               <option value="">{copy.importedOnly}</option>{options.map(p => <option key={p.path} value={p.path}>{p.name} — {p.path}</option>)}</select></label>}
             {candidate?.hasMissingScripts && <p role="alert">{copy.missingScripts}</p>}
             {chosen && <div className="vua-n3__fields"><label>{copy.switchName}<input value={chosen.toggleName} maxLength={80} onChange={e => outfit(source.sourceId,{toggleName:e.target.value})}/></label>
-              <details className="vua-n3__advanced" open={effective === "manual"}><summary>{copy.binding}</summary><label>{copy.binding}<select value={chosen.mode} onChange={e => outfit(source.sourceId,{mode:e.target.value as AmfOutfitSelection["mode"],bone:""})}>
+              <details className="vua-n3__advanced"><summary>{copy.binding}</summary><label>{copy.binding}<select value={chosen.mode} onChange={e => outfit(source.sourceId,{mode:e.target.value as AmfOutfitSelection["mode"],bone:""})}>
                 <option value="merge_armature" disabled={!candidate?.hasSkinnedMesh && !candidate?.hasMergeArmature}>{copy.merge}</option><option value="attach_to_bone" disabled={candidate?.hasSkinnedMesh}>{copy.attach}</option></select></label></details>
               {chosen.mode === "attach_to_bone" && <label>{copy.bone}<select value={chosen.bone} onChange={e => outfit(source.sourceId,{bone:e.target.value})}><option value="">{copy.chooseBone}</option>{avatar?.humanoidBones.map(bone => <option key={bone} value={bone}>{bone}</option>)}</select></label>}
               <label className="vua-n3__check"><input type="checkbox" checked={chosen.active} onChange={e => outfit(source.sourceId,{active:e.target.checked})}/>{copy.active}</label>
             </div>}</div></Card>;
         })}
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{copy.newPreparation}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{copy.newPreparation}</Button><Button variant="subtle" disabled={busy} onClick={() => { void command("reinspect"); }}>{copy.reinspect}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
           if (!port) return; setRequesting(true); setError(null);
           void port.plan(runId,selection).then(setPlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
         }}>{copy.reviewCta}</Button></div>
@@ -350,7 +378,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         if (!port) return; setRequesting(true); setError(null);
         void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
       }}>{copy.restore}</Button></div>}
-      <details className="vua-n3__advanced" open={effective === "manual"}><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
+      <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
     </>}
     </div>
     {sharingRecipe && <AmfRecipeShareDialog recipeId={sharingRecipe} onClose={() => setSharingRecipe(null)}/>}
@@ -359,4 +387,16 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       setRunId(accepted.runId); remember(runKey, accepted.runId); setTaskId(accepted.taskId); setTaskAction("assemble");
     }}/>}
   </div>;
+}
+
+/** Why VUA chose the Avatar and outfits it starts the plan with, in its stated rules. */
+function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {
+  const reasons = strings.factory.reasons;
+  const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
+  const parts = [
+    ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),
+    ...recommendation.outfits.flatMap(outfit => outfit.path && outfit.reason ? [format(reasons[outfit.reason], { name: prefabName(outfit.path) })] : []),
+  ];
+  if (parts.length === 0) return null;
+  return <p className="vua-caption vua-text-secondary">{format(reasons.lead, { reasons: parts.join(reasons.join) })}</p>;
 }

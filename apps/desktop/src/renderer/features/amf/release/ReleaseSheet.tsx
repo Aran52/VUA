@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
+import { sdkMessageKey } from "./sdk-messages.ts";
 import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
@@ -10,11 +11,34 @@ const vrchatCopy = strings.vrchat.release;
 const sdkCopy = strings.sdkReview;
 const time = (iso: string | null | undefined) => (iso && !Number.isNaN(Date.parse(iso)) ? formatDateTime(iso) : "");
 
+/** This Avatar's work waiting behind the running job. */
+export interface QueuedWork {
+  readonly operation: string;
+  readonly onRemove: () => void;
+}
+
 export interface SheetActions {
+  /** This Avatar's own work runs or waits. */
   readonly busy: boolean;
+  /** An upload of this Avatar runs or waits; another upload would repeat it. */
+  readonly uploadBlocked?: boolean;
+  /** Another line's work runs; what this page starts now waits for it. */
+  readonly otherWork?: boolean;
+  readonly queued?: QueuedWork | null;
   readonly onUpload: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
+  /** Runs the SDK's own Auto Fix for the chosen items. */
+  readonly onSdkFix?: (fixes: readonly string[]) => void;
+}
+
+/** Work of this Avatar that waits for the running job, with its remove action. */
+function QueuedNotice({ queued }: { queued: QueuedWork }) {
+  const work = copy.queue.work[queued.operation.replace(/^amf\.production\./u, "") as keyof typeof copy.queue.work] ?? copy.queue.work.other;
+  return <div className="vua-release-upload__queued" role="status">
+    <span><Icon name="clock" size={16} />{format(copy.queue.waiting, { work })}</span>
+    <button type="button" className="vua-release-upload__link" onClick={queued.onRemove} data-nav-id="release-queue-remove">{copy.queue.remove}</button>
+  </div>;
 }
 
 /** How this upload's SDK sign-in happened, as one plain line; unknown stays unsaid. */
@@ -45,18 +69,44 @@ function AvatarCheckBlock({ check, onRefresh, busy }: { check: VrchatAvatarCheck
   </div>;
 }
 
-/** SDK items in the SDK's own (English) words. */
+/** SDK items in plain words where VUA knows the message, with the SDK's own sentence one click away. */
 function SdkIssues({ issues, icon }: { issues: readonly AmfSdkIssue[]; icon: "error-circle" | "warning" | "question" }) {
-  return <ul className="vua-album__checks">{issues.map(issue => <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
-    <Icon name={icon} size={16} /><span><span lang="en">{issue.text}</span>
-      {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span></li>)}</ul>;
+  return <ul className="vua-album__checks">{issues.map(issue => {
+    const plain = sdkMessageKey(issue.text);
+    return <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
+      <Icon name={icon} size={16} /><span><span>{plain ? sdkCopy.messages[plain] : <span lang="en">{issue.text}</span>}
+        {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span>
+        {plain && <details className="vua-sdk-review__original"><summary>{sdkCopy.original}</summary><span lang="en">{issue.text}</span></details>}</span></li>;
+  })}</ul>;
+}
+
+/** The SDK's Auto Fix for the items it offers one for, after the player reads what happens. */
+function SdkFix({ items, busy, onFix }: { items: readonly AmfSdkIssue[]; busy: boolean; onFix: (fixes: readonly string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
+  if (!open) return <button type="button" className="vua-sdk-review__fix-button" disabled={busy} onClick={() => setOpen(true)} data-nav-id="release-sdk-fix">
+    <Icon name="edit" size={16} />{format(sdkCopy.fixButton, { count: String(items.length) })}</button>;
+  return <div className="vua-sdk-review__fix-confirm" role="group" aria-label={sdkCopy.fixTitle}>
+    <strong>{sdkCopy.fixTitle}</strong>
+    <p className="vua-caption">{sdkCopy.fixBody}</p>
+    <ul>{items.map(item => <li key={item.text} lang="en">{item.text}</li>)}</ul>
+    <div className="vua-sdk-review__fix-actions">
+      <button type="button" className="vua-sdk-review__fix-button" disabled={busy} onClick={() => { setOpen(false); onFix(items.map(item => item.text)); }}>{sdkCopy.fixConfirm}</button>
+      <button type="button" className="vua-release-upload__link" onClick={() => setOpen(false)}>{sdkCopy.fixCancel}</button>
+    </div>
+  </div>;
 }
 
 /** The SDK panel's own checks and performance rank, grouped by what the player does next. */
-function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
+function SdkReviewBlock({ run, busy, onFix, onCheckAgain }: { run: AmfProductionRun; busy: boolean; onFix?: (fixes: readonly string[]) => void; onCheckAgain?: () => void }) {
   const view = sdkReviewView(run);
-  if (!view) return null;
+  const again = onCheckAgain && <button type="button" className="vua-release-upload__link" disabled={busy} onClick={onCheckAgain} data-nav-id="release-sdk-recheck">{sdkCopy.checkAgain}</button>;
+  // An Avatar checked before the SDK checks existed reads them at its next check.
+  if (!view) return run.result?.facts ? <section className="vua-album__block vua-sdk-review">
+    <h3>{sdkCopy.title}</h3><p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p>{again}</section> : null;
   const clear = view.mustFix.length === 0 && view.reminders.length === 0;
+  const fixable = [...view.mustFix, ...view.reminders].filter(issue => issue.canFix);
+  const applied = run.result?.facts?.sdkFixesApplied?.length ?? 0;
   return <section className="vua-album__block vua-sdk-review">
     <h3>{sdkCopy.title}</h3>
     {view.state === "not_run" ? <p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p> : <>
@@ -73,6 +123,8 @@ function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
           <h4>{sdkCopy.reminders}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.remindersHint}</p>
           <SdkIssues issues={view.reminders} icon="warning" /></div>}
         {clear && <p className="vua-sdk-review__clear"><Icon name="check" size={16} />{sdkCopy.allClear}</p>}
+        {applied > 0 && <p className="vua-caption vua-text-secondary">{format(sdkCopy.fixApplied, { count: String(applied) })}</p>}
+        {onFix && <SdkFix items={fixable} busy={busy} onFix={onFix} />}
         {view.state === "partial" && <p className="vua-caption vua-text-secondary">{sdkCopy.partial}</p>}
       </>}
       {view.rankItems.length > 0 && <div className="vua-sdk-review__group" data-group="rank">
@@ -84,6 +136,7 @@ function SdkReviewBlock({ run }: { run: AmfProductionRun }) {
       {view.notes.length > 0 && <details className="vua-sdk-review__notes"><summary>{sdkCopy.notes}</summary>
         <SdkIssues issues={view.notes} icon="question" /></details>}
     </>}
+    {again}
   </section>;
 }
 
@@ -142,14 +195,16 @@ function CopyId({ id }: { id: string }) {
   }}>{copied ? copy.upload.copied : copy.upload.copyId}</button>;
 }
 
-function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, busy }: {
-  upload: AmfUpload; onCheckAgain?: () => void; check: VrchatAvatarCheck | null; onRefreshCheck?: () => void; busy: boolean;
+function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrchat, busy }: {
+  upload: AmfUpload; onCheckAgain?: () => void; check: VrchatAvatarCheck | null; onRefreshCheck?: () => void;
+  onOpenOnVrchat?: (avatarId: string) => void; busy: boolean;
 }) {
   if (upload.state === "succeeded" && upload.blueprintId) {
     return <div className="vua-release-upload__result" data-tone="success" role="status">
       <strong><Icon name="check" size={16} />{copy.upload.uploaded}</strong>
       <span className="vua-text-secondary">{time(upload.endedAt)}</span>
-      <span className="vua-release-upload__id"><span>{copy.upload.avatarId}</span><code>{upload.blueprintId}</code><CopyId id={upload.blueprintId} /></span>
+      <span className="vua-release-upload__id"><span>{copy.upload.avatarId}</span><code>{upload.blueprintId}</code><CopyId id={upload.blueprintId} />
+        {onOpenOnVrchat && <button type="button" className="vua-release-upload__copy" onClick={() => onOpenOnVrchat(upload.blueprintId!)}>{vrchatCopy.openPage}</button>}</span>
       <SdkSignInLine upload={upload} />
       {upload.detail && <small className="vua-text-secondary">{upload.detail}</small>}
       {check !== null || onRefreshCheck !== undefined ? <AvatarCheckBlock check={check} {...(onRefreshCheck !== undefined ? { onRefresh: onRefreshCheck } : {})} busy={busy} /> : null}
@@ -166,9 +221,11 @@ function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, busy }: {
 }
 
 /** The right page. A turning page shows the same content without its controls. */
-export function ReleaseSheet({ run, state, number, live, actions, notice, avatarCheck, onRefreshAvatarCheck }: {
+export function ReleaseSheet({ run, state, number, live, actions, notice, avatarCheck, onRefreshAvatarCheck, onOpenOnVrchat }: {
   run: AmfProductionRun; state: AmfReleaseState | null; number: number; live: boolean; actions?: SheetActions; notice?: ReactNode;
   avatarCheck?: VrchatAvatarCheck | null; onRefreshAvatarCheck?: () => void;
+  /** Opens a finished upload's page on VRChat's site. */
+  onOpenOnVrchat?: (avatarId: string) => void;
 }) {
   const outfits = outfitLines(run);
   const checks = releaseChecks(run);
@@ -176,6 +233,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
   const latest = state?.uploads[0] ?? null;
   const earlier = (state?.uploads ?? []).filter(upload => upload !== latest && upload.state !== "running").slice(0, 3);
   const uploaded = uploadedAvatarId(state) !== null;
+  const uploadQueued = actions?.queued?.operation === "amf.production.upload";
   return <div className="vua-album__sheet">
     <header className="vua-album__heading">
       <span className="vua-album__number">{format(copy.number, { number: String(number).padStart(2, "0") })}</span>
@@ -196,14 +254,20 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
       <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
-    <SdkReviewBlock run={run} />
+    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
+    {/* A queued upload is the notice alone; other queued work keeps the button, disabled. */}
     <section className="vua-release-upload" aria-label={copy.upload.button}>
+      {live && actions?.queued && <QueuedNotice queued={actions.queued} />}
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
-        <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}
-          onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
-        <small className="vua-text-secondary">{actions?.busy ? copy.upload.busy : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>
+        {!(live && uploadQueued) && <>
+          <button type="button" className="vua-release-upload__button" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
+            onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
+          {!(live && actions?.queued) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy : actions?.otherWork ? copy.upload.busy
+            : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>}
+        </>}
         {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
           {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}
+          {...(live && onOpenOnVrchat ? { onOpenOnVrchat } : {})}
           busy={live && actions ? actions.busy : false}
           {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />}
       </>}

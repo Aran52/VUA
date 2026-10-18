@@ -155,7 +155,11 @@ pub struct ProductionStep {
     pub ended_at: Option<String>,
 }
 
+/// SDK items one fix request may name.
+pub const SDK_FIX_LIMIT: usize = 16;
+
 /// A stage of a Unity batch run, read from the Editor's own log. The set is closed.
+/// `Fingerprint` is VUA's own final stage: the project-file check after the Editor exits.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum UnityStage {
@@ -167,6 +171,7 @@ pub enum UnityStage {
     Bridge,
     Previews,
     Finishing,
+    Fingerprint,
 }
 
 /// What a running Unity batch run shows: its stage, how many of the run's assets Unity has
@@ -235,6 +240,74 @@ impl Drop for UnityWatch<'_> {
         if let Ok(mut live) = self.engine.live.lock() {
             live.remove(&self.run_id);
         }
+    }
+}
+
+/// While VUA verifies the project files after a Unity run, that check shows as its own
+/// stage: one task progress event and a live entry, which ends with the check.
+struct FingerprintCheck<'a> {
+    engine: &'a AmfProductionEngine,
+    run_id: String,
+}
+
+impl<'a> FingerprintCheck<'a> {
+    fn begin(engine: &'a AmfProductionEngine, run: &ProductionRun, ctx: &TaskContext) -> Self {
+        let progress = UnityProgress {
+            stage: UnityStage::Fingerprint,
+            current: None,
+            total: None,
+            last_activity_at: SystemClock.now_rfc3339(),
+        };
+        engine
+            .live
+            .lock()
+            .expect("AMF progress poisoned")
+            .insert(run.run_id.clone(), progress.clone());
+        if let Some(step) = run.steps.last().filter(|step| step.state == "running") {
+            let mut payload = step_progress(&run.run_id, step);
+            payload["unity"] =
+                serde_json::to_value(&progress).expect("Unity progress serialization");
+            ctx.emit_progress(payload);
+        }
+        Self {
+            engine,
+            run_id: run.run_id.clone(),
+        }
+    }
+}
+
+impl Drop for FingerprintCheck<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut live) = self.engine.live.lock() {
+            live.remove(&self.run_id);
+        }
+    }
+}
+
+/// A Unity change that a forced end interrupted: the run still reads as assembling, its last step
+/// (assembly or an SDK fix) never finished, and the restore point taken right before it is kept.
+/// The provider runs one task at a time and refuses restores while one runs, so a run in this
+/// state when a restore is asked for is one VUA stopped mid-change.
+fn interrupted_change(run: &ProductionRun) -> bool {
+    run.phase == "assembling"
+        && run.snapshot_id.is_some()
+        && run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix") && step.state == "running")
+}
+
+/// Whether the run assembled successfully before and Unity now observes the same Avatar and
+/// outfits it assembled.
+fn still_assembled(run: &ProductionRun) -> bool {
+    let assembled = run.completed_at.is_some()
+        || run.steps.iter().any(|step| step.key == "assembly" && step.state == "succeeded");
+    let observed: Option<AssemblySelection> =
+        serde_json::from_value(run.result["facts"]["observedSelection"].clone()).ok();
+    match (assembled, run.selection.as_ref(), observed) {
+        (true, Some(selection), Some(observed)) => {
+            observed.avatar_prefab == selection.avatar_prefab
+                && observed.outfits.len() == selection.outfits.len()
+                && selection.outfits.iter().all(|outfit| observed.outfits.contains(outfit))
+        }
+        _ => false,
     }
 }
 
@@ -323,7 +396,20 @@ pub trait AmfProductionPlatform: Send + Sync {
     ) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("recipe_apply_unavailable", "Recipe application is unavailable on this platform."))
     }
+    /// The work project's fingerprint as the AMF flow computes it (cached v2 algorithm).
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1>;
+    /// The same project under the uncached v1 algorithm, kept only to compare run
+    /// records that were written before the cached value existed.
+    fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1>;
+    /// Runs the VRChat SDK's own Auto Fix for the chosen items, named by the SDK's exact words.
+    fn sdk_fix(
+        &self,
+        _run: &ProductionRun,
+        _fixes: &[String],
+        _watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
+    }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1>;
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
@@ -553,9 +639,18 @@ impl AmfProductionEngine {
         crate::RecipeDocumentStore::new_with_system_clock(self.root.join("recipes-v04"))
     }
     pub fn save_recipe(&self, run_id: &str, recipe_id: &str, title: &str) -> Result<crate::StoredRecipeDocument, AppErrorV1> {
-        let run = self.get(run_id)?;
-        if !matches!(run.phase.as_str(), "ready" | "succeeded") || self.platform.fingerprint(Path::new(&run.project_root))? != run.project_fingerprint {
+        let mut run = self.get(run_id)?;
+        if !matches!(run.phase.as_str(), "ready" | "succeeded") {
             return Err(production_error("inspect_required", "Reinspect current project changes before saving a Recipe."));
+        }
+        let (unchanged, current) = self.project_state(&run)?;
+        if !unchanged {
+            return Err(production_error("inspect_required", "Reinspect current project changes before saving a Recipe."));
+        }
+        if run.project_fingerprint != current {
+            // A record that still carries a v1 value upgrades to the current value on this match.
+            run.project_fingerprint = current;
+            self.save(&run)?;
         }
         let recipe = crate::amf_recipe::ProductionRecipe::from_run(&run, recipe_id, title)?;
         if self.recipe_store().get(recipe_id).map_err(io_error)?.is_some() { return Err(production_error("recipe_exists", "Save a revised Recipe under a new identity.")); }
@@ -777,11 +872,43 @@ impl AmfProductionEngine {
         run.prefabs = observed.prefabs;
         run.unity_fingerprint = observed.unity_fingerprint;
         run.result = observed.result;
+        let _check = FingerprintCheck::begin(self, run, ctx);
         run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
         run.revision = run
             .revision
             .checked_add(1)
             .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
+        Ok(())
+    }
+    /// Whether the work project still matches the fingerprint a run record carries, and
+    /// the current (cached v2) value. A record written before the cached algorithm holds
+    /// a `sha256:` v1 value; that compares by computing v1 once, so a new algorithm never
+    /// reads as a changed project.
+    pub(crate) fn project_state(&self, run: &ProductionRun) -> Result<(bool, String), AppErrorV1> {
+        let project = Path::new(&run.project_root);
+        let current = self.platform.fingerprint(project)?;
+        if run.project_fingerprint == current {
+            return Ok((true, current));
+        }
+        if run.project_fingerprint.starts_with(crate::FINGERPRINT_V1_PREFIX) {
+            let legacy = self.platform.fingerprint_legacy(project)?;
+            if legacy == run.project_fingerprint {
+                return Ok((true, current));
+            }
+        }
+        Ok((false, current))
+    }
+    /// The drift gate of every mutation and save: the project must match the record.
+    /// A matching legacy record upgrades to the current value in place.
+    fn ensure_project_matches(&self, run: &mut ProductionRun) -> Result<(), AppErrorV1> {
+        let (matches, current) = self.project_state(run)?;
+        if !matches {
+            return Err(production_error(
+                "project_drift",
+                "The project changed. Reinspect it before assembly.",
+            ));
+        }
+        run.project_fingerprint = current;
         Ok(())
     }
     pub fn reinspect(&self, run_id: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
@@ -804,10 +931,70 @@ impl AmfProductionEngine {
                 "Reinspect the retained work project",
             )?;
             self.update_observations(&mut run, ctx)?;
-            run.phase = "ready".into();
+            // A finished Avatar stays finished while Unity still observes what was assembled;
+            // a changed scene goes back to planning.
+            run.phase = if still_assembled(&run) { "succeeded" } else { "ready" }.into();
             run.confirmed_digest = None;
             Ok(())
         })();
+        self.finish(&mut run, result)
+    }
+    /// Runs the SDK's own Auto Fix for items its Avatar check offers one for. The fix changes
+    /// the work scene and assets, so a restore point comes first and is restored on failure;
+    /// the run keeps its phase and reads the SDK's check again.
+    pub fn sdk_fix(&self, run_id: &str, fixes: Vec<String>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let mut run = self.get(run_id)?;
+        if !matches!(run.phase.as_str(), "ready" | "succeeded") {
+            return Err(production_error("inspect_required", "Check the work project again before fixing it with the SDK."));
+        }
+        let offered: Vec<&str> = run.result["facts"]["sdkReview"]["issues"].as_array().into_iter().flatten()
+            .filter(|issue| issue["canFix"].as_bool() == Some(true))
+            .filter_map(|issue| issue["text"].as_str())
+            .collect();
+        let unique: std::collections::BTreeSet<&String> = fixes.iter().collect();
+        if fixes.is_empty() || fixes.len() > SDK_FIX_LIMIT || unique.len() != fixes.len()
+            || fixes.iter().any(|fix| !offered.contains(&fix.as_str())) {
+            return Err(production_error("sdk_fix_unavailable", "Choose items the SDK's last check offers a fix for. Check the work project again if it changed."));
+        }
+        self.ensure_project_matches(&mut run)?;
+        let phase = run.phase.clone();
+        run.task_id = ctx.task_id().into();
+        run.phase = "assembling".into();
+        run.error = None;
+        run.recovery = None;
+        let mut snapshot = None;
+        let result = (|| {
+            self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
+            snapshot = Some(self.platform.snapshot(&run)?);
+            run.snapshot_id = snapshot.clone();
+            run.snapshot_selection = run.selection.clone();
+            self.step(&mut run, ctx, "sdk_fix", "Run the VRChat SDK's Auto Fix")?;
+            let observed = self.platform.sdk_fix(&run, &fixes, &self.watch(&run, ctx))?;
+            if let Some(error) = ctx.cancellation_error("amf-production") {
+                return Err(error);
+            }
+            if observed.editor_version != run.editor.version {
+                return Err(production_error("editor_drift", "The actual Editor version changed."));
+            }
+            run.prefabs = observed.prefabs;
+            run.result = observed.result;
+            run.unity_fingerprint = observed.unity_fingerprint;
+            let _check = FingerprintCheck::begin(self, &run, ctx);
+            run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
+            run.revision = run.revision.checked_add(1)
+                .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
+            run.phase = phase.clone();
+            run.confirmed_digest = None;
+            Ok(())
+        })();
+        if result.is_err() {
+            if let Some(snapshot) = snapshot {
+                run.recovery = Some(match self.platform.restore(&run, &snapshot) {
+                    Ok(()) => "restored".into(),
+                    Err(error) => format!("restore_failed: {}", error.code),
+                });
+            }
+        }
         self.finish(&mut run, result)
     }
     pub fn plan(
@@ -857,7 +1044,7 @@ impl AmfProductionEngine {
         digest: &str,
         ctx: &TaskContext,
     ) -> Result<(), AppErrorV1> {
-        let run = self.get(run_id)?;
+        let mut run = self.get(run_id)?;
         validate_selection(&run, &selection)?;
         if plan_digest(&run, &selection)? != digest {
             return Err(production_error(
@@ -865,12 +1052,7 @@ impl AmfProductionEngine {
                 "The reviewed plan changed. Review it again.",
             ));
         }
-        if self.platform.fingerprint(Path::new(&run.project_root))? != run.project_fingerprint {
-            return Err(production_error(
-                "project_drift",
-                "The project changed. Reinspect it before assembly.",
-            ));
-        }
+        self.ensure_project_matches(&mut run)?;
         let observed: Option<AssemblySelection> = serde_json::from_value(run.result["facts"]["observedSelection"].clone()).ok();
         let target = if let Some(current) = observed {
             let id = run.result["facts"]["avatarGlobalObjectId"].as_str().filter(|id| !id.is_empty())
@@ -893,9 +1075,11 @@ impl AmfProductionEngine {
     ) -> Result<(), AppErrorV1> {
         // The comparison and execution are separate reads. Check again at the
         // mutation boundary, including for Recipe application.
-        if self.platform.fingerprint(Path::new(&run.project_root))? != run.project_fingerprint {
+        let (matches_boundary, current) = self.project_state(&run)?;
+        if !matches_boundary {
             return Err(production_error("project_drift", "The project changed before assembly. Reinspect it."));
         }
+        run.project_fingerprint = current;
         run.task_id = ctx.task_id().into();
         run.phase = "assembling".into();
         run.error = None;
@@ -943,6 +1127,7 @@ impl AmfProductionEngine {
             }
             run.result = observed.result;
             run.unity_fingerprint = observed.unity_fingerprint;
+            let _check = FingerprintCheck::begin(self, &run, ctx);
             run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
             run.phase = "succeeded".into();
             run.completed_at = Some(SystemClock.now_rfc3339());
@@ -972,7 +1157,7 @@ impl AmfProductionEngine {
     }
     pub fn rollback_plan(&self, run_id: &str) -> Result<serde_json::Value, AppErrorV1> {
         let run = self.get(run_id)?;
-        if !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "cancelled" | "stopped") {
+        if !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "cancelled" | "stopped") && !interrupted_change(&run) {
             return Err(production_error(
                 "inspect_required",
                 "Reinspect interrupted work before reviewing a restore.",
@@ -981,11 +1166,11 @@ impl AmfProductionEngine {
         let snapshot = run.snapshot_id.as_ref().ok_or_else(|| {
             production_error("snapshot_missing", "This project has no retained restore point.")
         })?;
-        let current = self.platform.fingerprint(Path::new(&run.project_root))?;
+        let (unchanged, current) = self.project_state(&run)?;
         let digest = rollback_digest(&run, &current)?;
         Ok(serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
             "planDigest":digest, "snapshotId":snapshot, "projectRoot":run.project_root,
-            "currentChanged":current != run.project_fingerprint, "preserveCurrent":true}))
+            "currentChanged":!unchanged, "preserveCurrent":true}))
     }
     /// A restore is itself reversible. Persist the current-state snapshot before
     /// touching the project so a crash, failed inspection or cancellation cannot
@@ -996,6 +1181,14 @@ impl AmfProductionEngine {
             return Err(production_error("plan_drift", "The project or restore point changed. Review the restore again."));
         }
         let mut run = self.get(run_id)?;
+        // A change a forced end interrupted never finished; it is recorded as interrupted, not
+        // as succeeded by the next step.
+        if interrupted_change(&run) {
+            if let Some(step) = run.steps.last_mut() {
+                step.state = "interrupted".into();
+                step.ended_at = Some(SystemClock.now_rfc3339());
+            }
+        }
         let target = run.snapshot_id.clone().expect("reviewed restore point");
         let target_selection = run.snapshot_selection.clone();
         let current_selection = run.selection.clone();

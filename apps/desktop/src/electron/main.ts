@@ -1,5 +1,6 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
+import { quitStrings, runningTaskCount } from "./quit-guard.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
 import { aiConnectionStore, aiRequestStore } from "./ai-connection-store.js";
@@ -170,6 +171,8 @@ let shellListening = false;
 let encyclopediaListening = false;
 let pendingEncyclopediaTarget: GuideTargetV1 | null | undefined;
 let shellLocale: string | null = null;
+/** The player chose to quit, or Windows is ending the session: quitting no longer asks. */
+let quitDecided = false;
 let pendingShellCommand: DesktopShellCommandV1 | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let readerWindow: BrowserWindow | null = null;
@@ -1635,6 +1638,8 @@ async function createWindow(): Promise<void> {
       backgroundThrottling: false,
     },
   });
+  // Windows is signing out or shutting down: quit without asking.
+  mainWindow.on("session-end", () => { quitDecided = true; });
 
   tagDevelopmentWindow(mainWindow, desktopProfile);
   mainWindow.on("focus", endAttention);
@@ -1896,7 +1901,7 @@ app.whenReady().then(async () => {
   });
   registerIpc(provider);
   systemUsage.start(desktopRuntime.providerExecutable);
-  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage });
+  vrchatService = vrchatSession({ directory: app.getPath("userData"), version: app.getVersion(), secrets: safeStorage, openExternal: url => shell.openExternal(url) });
   await createWindow();
   if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
   // 启动会话检查(尽力而为):VRChat 结束的会话在此被发现;记住的密码可续登
@@ -1925,12 +1930,35 @@ app.on("window-all-closed", () => {
 app.on("will-quit", () => { systemTray?.dispose(); systemTray = null; });
 
 /**
- * 进程关闭协议(M2 交付):退出前先 prepareShutdown——关闭新调用入口并等待
- * 在途修改任务到安全边界;超时出现阻塞任务时,当前阶段尚无用户询问 UI,
- * 以 Kernel 生成的用户决定 ID 强制退出(F3 任务中心接入询问流),遗留任务
- * 由 SQLite 权威状态标记 inspect_required,下次启动如实呈现。
+ * 进程关闭协议(M2 交付):有任务在运行时先询问玩家(停止并退出 / 在托盘中继续 / 取消,
+ * 计划切片 28);选择退出后再 prepareShutdown——关闭新调用入口并等待在途修改任务到安全
+ * 边界,超时仍有阻塞任务时以本次退出决定强制退出,遗留任务由 SQLite 权威状态标记
+ * inspect_required,下次启动如实呈现。
  */
 app.on("before-quit", (event) => {
+  // While a task runs, quitting asks first (plan slice 28). Reading the task list leaves every
+  // provider taking calls, so staying keeps VUA working; only "stop and quit" starts the shutdown.
+  if (!quitDecided && !shutdownStarted && provider !== null && provider.status().state === "ready") {
+    event.preventDefault();
+    quitDecided = true;
+    void (async () => {
+      const running = await runningTaskCount(provider!);
+      if (running > 0) {
+        const copy = quitStrings(shellLocale ?? app.getLocale());
+        const options = { type: "warning" as const, title: "VUA", message: copy.message, detail: copy.detail,
+          buttons: [copy.stop, copy.tray, copy.cancel], defaultId: 1, cancelId: 2, noLink: true };
+        const { response } = mainWindow !== null && !mainWindow.isDestroyed()
+          ? await dialog.showMessageBox(mainWindow, options) : await dialog.showMessageBox(options);
+        if (response !== 0) {
+          quitDecided = false;
+          if (response === 1) mainWindow?.hide();
+          return;
+        }
+      }
+      app.quit();
+    })();
+    return;
+  }
   systemUsage.stop();
   stopGameGuideFollowTimer();
   vrchatService?.clearSdkHandoffs();

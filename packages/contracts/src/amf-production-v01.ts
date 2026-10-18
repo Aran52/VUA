@@ -21,6 +21,8 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.releaseState" | "amf.production.bakeTurntable"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.turntableFrame"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly index: number } }
   | { readonly method: "amf.production.upload"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly avatarName: string; readonly rightsConfirmed: true } }
+  /** Runs the VRChat SDK's own Auto Fix for the chosen items of its Avatar check, named by the SDK's exact words. */
+  | { readonly method: "amf.production.sdkFix"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly fixes: readonly string[] } }
   | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
@@ -35,12 +37,12 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
-/** Stages of a Unity batch run, read from the Editor log. The set is closed. */
-export const AMF_UNITY_STAGES = ["starting", "license", "packages", "importing", "compiling", "bridge", "previews", "finishing"] as const;
+/** Stages of a Unity batch run, read from the Editor log, plus `fingerprint`: VUA's own project-file check after the Editor exits. The set is closed. */
+export const AMF_UNITY_STAGES = ["starting", "license", "packages", "importing", "compiling", "bridge", "previews", "finishing", "fingerprint"] as const;
 export type AmfUnityStage = typeof AMF_UNITY_STAGES[number];
 /** Unity's live progress: its stage, imported work-project assets and its last log activity. No log text or paths. */
 export interface AmfUnityProgress { readonly stage: AmfUnityStage; readonly current?: number; readonly total?: number; readonly lastActivityAt: string }
@@ -103,6 +105,8 @@ export function isAmfPreviewPath(value: unknown): value is string {
   return typeof value === "string" && value.length <= 512 && /^\.vua\/previews\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.png$/u.test(value)
     && !value.split("/").includes("..");
 }
+/** SDK items one fix request may name. */
+export const AMF_SDK_FIX_LIMIT = 16;
 /** Frames in a baked AMF turntable, camera yaw 0° to 354° in 6° steps. */
 export const AMF_TURNTABLE_FRAMES = 60;
 /** A name VRChat shows for a new Avatar: trimmed, 1 to 64 characters, no control characters. */
@@ -141,6 +145,9 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     // The player confirms the content rights statement in VUA for each upload.
     case "amf.production.upload": return exact(value, ["schemaVersion", "runId", "avatarName", "rightsConfirmed"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && isAmfAvatarName(value.avatarName) && value.rightsConfirmed === true;
+    case "amf.production.sdkFix": return exact(value, ["schemaVersion", "runId", "fixes"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+      && Array.isArray(value.fixes) && value.fixes.length >= 1 && value.fixes.length <= AMF_SDK_FIX_LIMIT
+      && value.fixes.every(fix => text(fix, 600)) && new Set(value.fixes).size === value.fixes.length;
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);

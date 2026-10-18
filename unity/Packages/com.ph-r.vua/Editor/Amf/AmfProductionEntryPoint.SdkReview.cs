@@ -2,7 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Reflection;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace Vua.Editor.Bridge
@@ -25,11 +28,13 @@ namespace Vua.Editor.Bridge
         }
 
         private const int MaxSdkIssues = 64;
+        private const int MaxSdkFixes = 16;
         private const int MaxSdkText = 600;
         private const BindingFlags AnyInstance = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
         private const BindingFlags StaticMembers = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
 
-        private static SdkReview ReviewWithSdk(GameObject avatar)
+        // fix: receives each item the SDK reports, with its Auto Fix when it offers one.
+        private static SdkReview ReviewWithSdk(GameObject avatar, Action<string, string, Action> fix = null)
         {
             var review = new SdkReview();
             if (avatar == null) return review;
@@ -66,9 +71,9 @@ namespace Vua.Editor.Bridge
                     review.state = "partial";
                     review.detail = SdkText(Unwrap(error).Message);
                 }
-                CollectIssues(panel, panelType, "GUIErrors", "error", review);
-                CollectIssues(panel, panelType, "GUIWarnings", "warning", review);
-                CollectIssues(panel, panelType, "GUIInfos", "info", review);
+                CollectIssues(panel, panelType, "GUIErrors", "error", review, fix);
+                CollectIssues(panel, panelType, "GUIWarnings", "warning", review, fix);
+                CollectIssues(panel, panelType, "GUIInfos", "info", review, fix);
             }
             catch (Exception error)
             {
@@ -83,7 +88,7 @@ namespace Vua.Editor.Bridge
             return review;
         }
 
-        private static void CollectIssues(object panel, Type panelType, string field, string level, SdkReview review)
+        private static void CollectIssues(object panel, Type panelType, string field, string level, SdkReview review, Action<string, string, Action> fix)
         {
             if (!(panelType.GetField(field, AnyInstance)?.GetValue(panel) is IDictionary report)) return;
             foreach (DictionaryEntry entry in report)
@@ -95,12 +100,52 @@ namespace Vua.Editor.Bridge
                     var type = issue.GetType();
                     var text = type.GetField("issueText", AnyInstance)?.GetValue(issue) as string;
                     if (string.IsNullOrWhiteSpace(text)) continue;
-                    var fix = type.GetField("fixThisIssue", AnyInstance)?.GetValue(issue);
+                    var autoFix = type.GetField("fixThisIssue", AnyInstance)?.GetValue(issue) as Action;
                     var bounded = SdkText(text);
                     if (review.issues.Any(known => known.level == level && known.text == bounded)) continue;
-                    review.issues.Add(new SdkIssue { level = level, text = bounded, canFix = fix != null });
+                    review.issues.Add(new SdkIssue { level = level, text = bounded, canFix = autoFix != null });
+                    fix?.Invoke(level, bounded, autoFix);
                 }
             }
+        }
+
+        // Runs the SDK's own Auto Fix for the items the player chose, by the SDK's exact words, then
+        // saves the work scene and assets. Items the SDK no longer reports or offers no fix for are
+        // named in a warning; the run's restore point covers every change.
+        private static void ApplySdkFixes(Request request, Result result)
+        {
+            var wanted = (request.sdkFixes ?? Array.Empty<string>()).Where(text => !string.IsNullOrEmpty(text)).Distinct().ToList();
+            if (wanted.Count == 0 || wanted.Count > MaxSdkFixes || wanted.Any(text => text.Length > MaxSdkText))
+                throw new InvalidOperationException("The SDK fix request is invalid.");
+            var avatar = ActiveOwnedAvatar(request);
+            if (avatar == null) throw new InvalidOperationException("The finished Avatar is not in the work scene. Check the work project again.");
+            var failures = new List<string>();
+            ReviewWithSdk(avatar, (level, text, autoFix) =>
+            {
+                if (autoFix == null || !wanted.Contains(text) || result.data.sdkFixesApplied.Contains(text)) return;
+                try { autoFix(); result.data.sdkFixesApplied.Add(text); }
+                catch (Exception error) { failures.Add(SdkText(text + ": " + Unwrap(error).Message)); }
+            });
+            var unavailable = wanted.Count - result.data.sdkFixesApplied.Count - failures.Count;
+            if (unavailable > 0)
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.sdk.fix_unavailable", unavailable + " chosen items no longer offer an SDK fix."));
+            foreach (var failure in failures.Take(MaxSdkFixes))
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.sdk.fix_failed", failure));
+            if (result.data.sdkFixesApplied.Count == 0) return;
+            EditorSceneManager.MarkSceneDirty(avatar.scene);
+            AssetDatabase.SaveAssets();
+            if (!EditorSceneManager.SaveScene(avatar.scene, ScenePath)) throw new IOException("Could not save the work scene.");
+            result.changedPaths.Add(ScenePath);
+        }
+
+        // The run's active owned Avatar, read from the ownership file the way the scene observation reads it.
+        private static GameObject ActiveOwnedAvatar(Request request)
+        {
+            if (!File.Exists(OwnershipPath)) return null;
+            var owners = JsonUtility.FromJson<Owners>(File.ReadAllText(OwnershipPath));
+            if (owners == null || owners.runId != request.runId || owners.objects == null) return null;
+            var owner = owners.objects.SingleOrDefault(o => o != null && o.key == ScopedKey(owners, "avatar"));
+            return owner == null ? null : FindOwned(owner.globalObjectId);
         }
 
         // The SDK's estimate for the build target this project is set to, per category.

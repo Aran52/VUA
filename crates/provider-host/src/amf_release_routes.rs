@@ -1,19 +1,13 @@
 //! The release room's AMF methods: release state, turntable frames, turntable baking and managed
-//! upload. Commands share the production busy flag, so one Unity job runs at a time.
+//! upload. Commands share the production lane, so one Unity job runs at a time and work asked
+//! for meanwhile waits for its turn.
 use super::amf_production_routes::AmfProductionServices;
 use serde_json::{json, Value};
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::Arc;
 use vua_orchestrator::{amf_production::*, AppErrorV1, SubmitRequest, TaskExit};
 
 const QUERIES: [&str; 2] = ["amf.production.releaseState", "amf.production.turntableFrame"];
 const COMMANDS: [&str; 2] = ["amf.production.bakeTurntable", "amf.production.upload"];
-
-struct Busy(Arc<std::sync::atomic::AtomicBool>);
-impl Drop for Busy {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::SeqCst);
-    }
-}
 
 /// Padded standard base64, as data URLs expect.
 fn standard_base64(bytes: &[u8]) -> String {
@@ -67,21 +61,22 @@ fn handle(service: &Arc<AmfProductionServices>, method: &str, request: &Value, q
     } else {
         String::new()
     };
-    if service.busy.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-        return Err(production_error("busy", "Wait for the current production operation to finish."));
-    }
-    let busy = Busy(service.busy.clone());
+    // Work that waits for its turn checks the work project when it starts.
     if method == "amf.production.upload" {
-        service.engine.precheck_upload(&run_id, &avatar_name)?;
-    } else {
-        service.engine.precheck_turntable(&run_id)?;
+        validate_avatar_name(&avatar_name)?;
+    }
+    if service.lane.is_idle() {
+        if method == "amf.production.upload" {
+            service.engine.precheck_upload(&run_id, &avatar_name)?;
+        } else {
+            service.engine.precheck_turntable(&run_id)?;
+        }
     }
     let (worker, action, operation_run) = (service.clone(), method.to_owned(), run_id.clone());
-    let accepted = service.runtime.submit(SubmitRequest {
+    let accepted = service.submit(SubmitRequest {
         correlation_id: request.get("correlationId").and_then(Value::as_str).map(str::to_owned),
         timeout: None,
         job: Box::new(move |ctx| {
-            let _busy = busy;
             if action == "amf.production.upload" {
                 worker.engine.upload(&operation_run, &avatar_name, ctx)?;
             } else {
@@ -92,6 +87,6 @@ fn handle(service: &Arc<AmfProductionServices>, method: &str, request: &Value, q
             }
             Ok(TaskExit::Done(json!({"schemaVersion":"0.1", "operation":"amf.production", "runId":operation_run})))
         }),
-    })?;
+    }, &run_id, method)?;
     Ok(json!({"schemaVersion":"0.1", "operation":method, "runId":run_id, "taskId":accepted.task_id}))
 }

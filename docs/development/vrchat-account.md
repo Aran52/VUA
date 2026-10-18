@@ -68,7 +68,9 @@ Proposal:
      signed in in every work project.
    - **Upload check:** after an upload VUA reads the account's Avatar list and shows the Avatar on
      VRChat with its name, release status, platforms and update time beside the upload record.
-   - Later: the Avatar list in the release room, and the social features planned on VRCX-0.
+   - **Avatar list:** the release room lists the account's own Avatars with their pictures, marks
+     the ones VUA uploaded and opens each on VRChat's site (plan slice 26).
+   - Later: the social features planned on VRCX-0.
 
 The author approved this on 2026-10-18 with the session kept by default and the password kept only
 with "Remember my password"; the [product boundary](../product-boundary.md) records it.

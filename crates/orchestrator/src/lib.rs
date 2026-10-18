@@ -103,8 +103,9 @@ pub use environment::{
     EMBEDDED_VRC_GET_VPM_VERSION,
 };
 pub use filesystem::{
-    project_tree_fingerprint, FileSystemProjectStore, FileSystemSnapshotStore,
-    SnapshotManifestEntry, SnapshotManifestV1, VerifiedSnapshot,
+    project_tree_fingerprint, project_tree_fingerprint_cached, FileSystemProjectStore,
+    FileSystemSnapshotStore, SnapshotManifestEntry, SnapshotManifestV1, VerifiedSnapshot,
+    FINGERPRINT_V1_PREFIX, FINGERPRINT_V2_PREFIX,
 };
 pub use journal::{
     recover_from_journal, JournalEntryKind, JournalEntryV1, JournalError, JournalPayload,
@@ -133,8 +134,8 @@ pub use recipe_export::{
     ProjectDraftExportPort, VuaIdentityStatusV01,
 };
 pub use runtime::{
-    recovery_dispositions, SubmitRequest, TaskContext, TaskExit, TaskJob, TaskRecoveryDisposition,
-    TaskRuntime, TaskSnapshot,
+    recovery_dispositions, SubmitRequest, TaskContext, TaskExit, TaskJob, TaskLane,
+    TaskRecoveryDisposition, TaskRuntime, TaskSnapshot,
 };
 pub use sqlite_task_store::{
     LegacyTaskOwner,

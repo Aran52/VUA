@@ -76,7 +76,7 @@ const upload = (patch: Partial<AmfUpload>): AmfUpload => ({ uploadId: "upload-1"
   state: "succeeded", stage: "finishing", progress: 1, status: "", blueprintId: avatarId, firstUpload: true, reason: null, detail: "", errors: [], sdkSignIn: "vua_session", ...patch });
 
 export function releaseViewNames(): string[] {
-  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk"];
+  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued"];
 }
 
 export function releasePorts(view: string): { production: AmfProductionPort; release: AmfReleasePort } {
@@ -85,14 +85,14 @@ export function releasePorts(view: string): { production: AmfProductionPort; rel
     const uploads: AmfUpload[] = !first ? [] : view === "release-uploading" ? [upload({ uploadId: "upload-2", state: "running", stage: "uploading", progress: 0.46, endedAt: null, blueprintId: null, firstUpload: null, status: "Uploading the Avatar bundle" })]
       : view === "release-signin" ? [upload({ uploadId: "upload-2", state: "running", stage: "sign_in", progress: null, endedAt: null, blueprintId: null, firstUpload: null, status: "" })]
       : view === "release-uploaded" ? [upload({ sdkSignIn: null }), upload({ uploadId: "upload-0", state: "failed", blueprintId: null, reason: "sign_in_required", startedAt: "2026-10-17T05:40:00Z", endedAt: "2026-10-17T05:41:00Z", sdkSignIn: null })]
-      : view === "release-check" ? [upload({})]
+      : view === "release-check" || view === "release-vrchat" ? [upload({})]
       : view === "release-failed" ? [upload({ state: "failed", stage: "building", blueprintId: null, reason: "validation", detail: "Avatar validation failed",
         errors: ["This avatar uses 3 materials with the same name.", "Polygon count is over the Poor limit for PC (70,000)."] })]
       : [];
     return { runId, editorOpen: false, uploads, turntable: runId === runs[2]!.runId ? null : { frames: 60, size: 512, bakedAt: "2026-10-17T05:30:00Z", current: true } };
   };
   const production = {
-    async list() { return { sources: [], editors: [], busy: false, runs: (view === "release-empty" ? [] : runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
+    async list() { return { sources: [], editors: [], busy: view === "release-queued", queue: view === "release-queued" ? [{ taskId: "task-queued-upload", runId: runs[0]!.runId, operation: "amf.production.upload" }] : [], runs: (view === "release-empty" ? [] : runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
     async get(runId: string) { return structuredClone(runs.find(run => run.runId === runId)!); },
     async previewImage(runId: string, path: string) { return frame(lookOf(runId), path.endsWith("side.png") ? 15 : path.endsWith("back.png") ? 30 : 0); },
     async reinspect(runId: string) { return { runId, taskId: "task" }; },
@@ -107,6 +107,15 @@ export function releasePorts(view: string): { production: AmfProductionPort; rel
 }
 
 /** A drawn VRChat session state: only what the settings card and the upload check read. */
+/** A flat thumbnail in the given colors, standing in for VRChat's pictures. */
+const swatch = (from: string, to: string) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="256" height="192"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="256" height="192" fill="url(#g)"/><circle cx="128" cy="78" r="30" fill="#ffffff55"/><rect x="82" y="116" width="92" height="76" rx="38" fill="#ffffff44"/></svg>`)}`;
+const shelfAvatars = [
+  { id: avatarId, name: "Meiyun TshirtShorts", releaseStatus: "private", platforms: ["standalonewindows", "android"], updatedAt: "2026-10-17T06:07:00Z", hasImage: true, image: swatch("#7b6cf6", "#f3a5c8") },
+  { id: "avtr_1a2b3c4d-0000-4000-8000-000000000001", name: "Karin 改変 冬服", releaseStatus: "public", platforms: ["standalonewindows"], updatedAt: "2026-10-12T14:20:00Z", hasImage: true, image: swatch("#3aa6a0", "#d8f0c8") },
+  { id: "avtr_1a2b3c4d-0000-4000-8000-000000000002", name: "Manuka Summer Set", releaseStatus: "private", platforms: ["standalonewindows", "android", "ios"], updatedAt: "2026-09-30T09:00:00Z", hasImage: true, image: swatch("#f0a35e", "#fbe3b4") },
+  { id: "avtr_1a2b3c4d-0000-4000-8000-000000000003", name: "Old test upload", releaseStatus: "hidden", platforms: ["standalonewindows"], updatedAt: "2026-08-02T21:45:00Z", hasImage: false, image: null },
+];
+
 export function vrchatPreviewPort(status: VrchatStatus, check: "found" | "not_found" = "found"): VrchatPort {
   return {
     status: async () => status,
@@ -121,6 +130,11 @@ export function vrchatPreviewPort(status: VrchatStatus, check: "found" | "not_fo
       ? { blueprintId, state: "found", checkedAt: "2026-10-17T06:10:00Z",
           avatar: { name: "Meiyun TshirtShorts", releaseStatus: "private", platforms: ["pc", "ios"], updatedAt: "2026-10-17T06:07:00Z" } }
       : { blueprintId, state: "not_found", checkedAt: "2026-10-17T06:10:00Z", avatar: null },
+    avatars: async () => status.state === "signed_in"
+      ? { state: "listed", listedAt: "2026-10-18T09:12:00Z", complete: true, avatars: shelfAvatars.map(({ image, ...entry }) => entry) }
+      : { state: "signed_out", listedAt: null, complete: false, avatars: [] },
+    avatarImage: async (id: string) => shelfAvatars.find(avatar => avatar.id === id)?.image ?? null,
+    openAvatarPage: async () => true,
   };
 }
 
@@ -144,6 +158,17 @@ export function ReleasePreview({ view }: { view: string }) {
     // Stills: the third Avatar, with its three views and no turntable yet. SDK: the second, with SDK findings.
     const timer = setInterval(() => {
       const tab = document.querySelector<HTMLButtonElement>(`.vua-album__tabs li:nth-child(${view === "release-sdk" ? 2 : 3}) button`);
+      if (!tab) return;
+      clearInterval(timer);
+      tab.click();
+    }, 100);
+    return () => clearInterval(timer);
+  }, [view]);
+  React.useEffect(() => {
+    if (!view.startsWith("release-vrchat")) return;
+    // Opens the room's VRChat view the way the player does.
+    const timer = setInterval(() => {
+      const tab = document.querySelector<HTMLButtonElement>('[data-nav-id="release-tab-vrchat"]');
       if (!tab) return;
       clearInterval(timer);
       tab.click();

@@ -14,6 +14,8 @@ use vua_orchestrator::{
     SystemClock, TaskContext, TaskExit, TaskRuntime,
 };
 
+const PIPELINE_FIX: &str = "This avatar has no pipeline manager component.";
+
 struct TestPlatform {
     fail: AtomicBool,
     fail_restore: AtomicBool,
@@ -134,7 +136,9 @@ impl AmfProductionPlatform for TestPlatform {
             editor_version: "2022.3.22f1c1".into(),
             result: serde_json::json!({"synthetic":true,
                 "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection)},
+                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection),
+                    "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
+                        {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
                 "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}}),
         })
     }
@@ -157,10 +161,24 @@ impl AmfProductionPlatform for TestPlatform {
         fs::read_to_string(project.join("Assets/state"))
             .map_err(|e| production_error("test_io", e.to_string()))
     }
+    /// The v1 analog of this platform's fingerprint: the same state under the old prefix,
+    /// as a record written before the cached value would carry it.
+    fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
+        Ok(format!("sha256:{}", self.fingerprint(project)?))
+    }
     fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         let mut observed = self.assemble(run, selection, watch)?;
         observed.result["facts"]["observedSelection"] = serde_json::to_value(selection).unwrap();
         observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
+        Ok(observed)
+    }
+    fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        if self.fail.load(Ordering::SeqCst) {
+            fs::write(Path::new(&run.project_root).join("Assets/state"), "half-fixed").unwrap();
+            return Err(production_error("test_failure", "Synthetic failure inside the SDK fix."));
+        }
+        let mut observed = self.inspect(run, watch)?;
+        observed.result["facts"]["sdkFixesApplied"] = serde_json::json!(fixes);
         Ok(observed)
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
@@ -347,6 +365,83 @@ fn project_drift_refuses_before_snapshot_or_mutation() {
         fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),
         "player-change"
     );
+}
+#[test]
+fn a_reinspected_finished_avatar_stays_finished_until_its_scene_changes() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "succeeded");
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let checked = h.engine.get("n3-test").unwrap();
+    assert_eq!(checked.phase, "succeeded", "Unity still observes the assembled Avatar");
+    assert!(checked.confirmed_digest.is_none());
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-change").unwrap();
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "ready", "a changed scene goes back to planning");
+}
+#[test]
+fn an_sdk_fix_runs_only_offered_items_behind_a_restore_point_and_keeps_the_phase() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    for refused in [vec![], vec!["This avatar is shorter than average.".to_owned()], vec!["Unknown item".to_owned()],
+        vec![PIPELINE_FIX.to_owned(), PIPELINE_FIX.to_owned()], vec![PIPELINE_FIX.to_owned(); 17]] {
+        assert!(!h.job(move |engine, ctx| engine.sdk_fix("n3-test", refused, ctx)));
+    }
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a refused request takes no restore point");
+    assert!(h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let fixed = h.engine.get("n3-test").unwrap();
+    assert_eq!(fixed.phase, "succeeded", "the finished Avatar stays finished");
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
+    assert_eq!(fixed.result["facts"]["sdkFixesApplied"], serde_json::json!([PIPELINE_FIX]));
+    let keys: Vec<&str> = fixed.steps.iter().rev().take(2).map(|step| step.key.as_str()).collect();
+    assert_eq!(keys, ["sdk_fix", "snapshot"]);
+    h.platform.fail.store(true, Ordering::SeqCst);
+    assert!(!h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
+}
+#[test]
+fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
+    let h = Harness::new();
+    h.prepared();
+    let run = h.engine.get("n3-test").unwrap();
+    let digest = plan_digest(&run, &selection()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
+    // VUA ended in the middle of a second assembly: the run file still reads as assembling,
+    // its assembly step is still running and the work project is half written.
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored["phase"] = serde_json::json!("assembling");
+    let mut step = stored["steps"].as_array().unwrap().last().unwrap().clone();
+    step["key"] = serde_json::json!("assembly");
+    step["state"] = serde_json::json!("running");
+    step["endedAt"] = serde_json::Value::Null;
+    stored["steps"].as_array_mut().unwrap().push(step);
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    let state = Path::new(&run.project_root).join("Assets/state");
+    fs::write(&state, "half-assembled").unwrap();
+
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    assert_eq!(plan["currentChanged"], true);
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the restore point taken before the assembly");
+    assert_eq!(restored.phase, "ready");
+    let interrupted = restored.steps.iter().rev().find(|step| step.key == "assembly").unwrap();
+    assert_eq!(interrupted.state, "interrupted", "the stopped assembly is not recorded as succeeded");
+}
+#[test]
+fn a_run_that_never_changed_in_unity_keeps_asking_for_a_new_check() {
+    let h = Harness::new();
+    h.prepared();
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored["phase"] = serde_json::json!("inspecting");
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    assert_eq!(h.engine.rollback_plan("n3-test").unwrap_err().code, "vua.amf_production.inspect_required");
 }
 #[test]
 fn failure_restores_and_requires_explicit_reinspection() {
@@ -750,4 +845,48 @@ fn every_step_the_engine_records_is_in_the_published_status_schema() {
     for key in keys {
         assert!(text.contains(&format!("\"{key}\"")), "status.schema.json lists the step key {key}");
     }
+}
+
+#[test]
+fn a_v1_record_compares_by_computing_v1_once_and_then_carries_the_current_value() {
+    let h = Harness::new();
+    h.prepared();
+    let record = h.root.join("production/runs/n3-test.json");
+    let carry = |value: &str| {
+        let mut run: serde_json::Value = serde_json::from_slice(&fs::read(&record).unwrap()).unwrap();
+        run["projectFingerprint"] = value.into();
+        run["snapshotId"] = "n3-snap".into();
+        fs::write(&record, serde_json::to_vec_pretty(&run).unwrap()).unwrap();
+    };
+    // A record from before the cached fingerprint, on a project nobody touched.
+    carry("sha256:before");
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    assert_eq!(plan["currentChanged"], false, "a new algorithm must not read as a changed project");
+    // The gate passes and upgrades the record; this synthetic run has not been assembled,
+    // so building the Recipe itself declines for its own reason.
+    let refused = h.engine.save_recipe("n3-test", "recipe-migrated", "Migrated").unwrap_err();
+    assert_ne!(refused.code, "vua.amf_production.inspect_required", "the fingerprint gate accepted the legacy value");
+    assert_eq!(h.engine.get("n3-test").unwrap().project_fingerprint, "before", "the record carries the current value after the match");
+    // A record whose project really changed still reports the change, in either algorithm.
+    carry("sha256:before");
+    fs::write(h.root.join("production/projects/n3-test/Assets/state"), "external edit").unwrap();
+    assert_eq!(h.engine.rollback_plan("n3-test").unwrap()["currentChanged"], true);
+    assert_eq!(h.engine.save_recipe("n3-test", "recipe-stale", "Stale").unwrap_err().code, "vua.amf_production.inspect_required");
+}
+
+#[test]
+fn the_after_unity_project_check_shows_as_its_own_stage() {
+    let h = Harness::new();
+    h.prepared();
+    let events = h.runtime.subscribe();
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let mut stages = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if event.kind == vua_orchestrator::TaskEventKind::Progress
+            && event.payload.get("unity").is_some()
+        {
+            stages.push(event.payload["unity"]["stage"].clone());
+        }
+    }
+    assert_eq!(stages, vec![serde_json::json!("fingerprint")], "the check is a named stage, and the only Unity stage of a synthetic reinspection");
 }

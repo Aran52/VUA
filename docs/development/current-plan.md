@@ -37,21 +37,28 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
 - The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
   hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
-  The [experimental VRChat sign-in](vrchat-account.md) in VUA (approved 2026-10-18) is built on
-  `slice/vrchat-signin` (Aran52/VUA#5) and awaits the author's real-account checks.
+- Merged into the production branch on 2026-10-18:
+  - the [experimental VRChat sign-in](vrchat-account.md) in VUA, which hands its session to the
+    SDK for managed uploads and checks uploads against the player's Avatar list (Aran52/VUA#5);
+    the author's real-account checks remain;
+  - the VRChat SDK's own Avatar checks and performance rank on the release page (Aran52/VUA#6);
+  - cached project fingerprints: an unchanged Meiyun project checks in about 0.7 s instead of
+    a cold 73 s, shown as its own stage (Aran52/VUA#7).
+- Release target (author, 2026-10-18): the next published release with AMF by the end of
+  October 2026, numbered under the [version policy](../release/versioning.md).
 
 ## Order
 
 | # | Slice | Eval | State |
 | --- | --- | --- | --- |
-| 1 | Integrate | — | next |
+| 1 | Integrate | — | next: the author merges #83, #84 and #86 with the organization account |
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
-| 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; the shared SDK sign-in awaits one reinspection of a second work project |
+| 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done |
 | 5 | Unity editor handoff | P-02 | |
-| 6 | SDK step for newcomers | P-02 | next: the sign-in guide is in; the SDK checks in plain words remain |
-| 7 | Unity familiarity levels and simpler choices | P-02, P-03 | automation levels in the workshop; recommendations and the image confirmation remain |
-| 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table remains |
+| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide and the SDK's own checks are in; one-click fixes, plain-word messages and the build guide remain |
+| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes and stated recommendations in the workshop and `vua_amf_plan`; the image confirmation remains |
+| 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table is assigned |
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |
 | 11 | Unity sign-in and license | A-01 | |
@@ -62,15 +69,20 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 16 | Eval runs | all `ready` cases | |
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
-| 19 | Experimental VRChat sign-in | P-02 | built on `slice/vrchat-signin` (Aran52/VUA#5); awaits the real-account checks |
-| 20 | Start production from the materials room | P-02 | |
-| 21 | Faster project fingerprints | — | |
+| 19 | Experimental VRChat sign-in | P-02 | merged (Aran52/VUA#5); the upload check reads VRChat's real list shape since slice 26; awaits the real-account checks |
+| 20 | Start production from the materials room | P-02 | assigned |
+| 21 | Faster project fingerprints | — | done (Aran52/VUA#7) |
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
 | 24 | Finer usual durations | — | when the estimates prove too rough |
+| 25 | Production records in Settings | — | done |
+| 26 | VRChat Avatar list in the release room | P-02 | built; awaits the author's real-account check |
+| 27 | Queue factory work | P-02 | built: one job at a time, the rest wait in a visible queue; awaits the author's real-run check |
+| 28 | Quitting during a task | — | done |
+| 29 | Restore after an interrupted assembly | — | done |
 
-Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Familiarity
-levels. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
+Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Permission
+modes. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
 gaps a newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
@@ -132,14 +144,22 @@ signed in to the SDK.
    works" or "affects the performance rank", with a one-click fix where VUA can make it.
 3. An illustrated guide to the SDK panel in four languages: sign-in, build, warnings, upload.
 
+Done so far: the sign-in guide on the release page, and the SDK's own checks. The Bridge runs
+the SDK panel's Avatar check without opening the panel; the release page groups its items as
+"fix before uploading", reminders and notes, shows the performance rank for the build target
+with what it means for other players, and lists the categories rated below Good. Remaining:
+one-click fixes through the Bridge for the items the SDK can fix, plain-word versions of the
+most common SDK messages, and the build and upload guide.
+
 **Eval:** P-02 outside-help count. **Done when** the author uploads the P-02 result guided by
 VUA alone.
 
-## 7 — Unity familiarity levels and simpler choices
+## 7 — Permission modes and simpler choices
 
-1. On first entry to Avatar production VUA asks how familiar the player is with Unity: fully
-   automatic, semi-automatic or fully manual; the choice is changeable in settings and sets how
-   much each step asks and shows.
+1. The workshop offers three permission modes, like an AI agent's (author ruling 2026-10-18):
+   ask before changes (default), decide on its own, and full access, which warns first that it
+   may mess up the Avatar. The modes share one layout and differ in where the line stops; they
+   describe what the player wants to hand over, not their experience with Unity.
 2. VUA recommends the Avatar and outfit prefabs with stated rules (name match with the outfit's
    target, top-level prefab, the creator's base for outfits) and asks only when two candidates
    are equally plausible.
@@ -147,8 +167,8 @@ VUA alone.
    the previews from slice 4 for prefabs; binding details sit under "Adjust".
 4. `vua_amf_plan` without a selection returns the recommendation.
 
-**Done when** the author completes P-02 at the fully automatic level with one confirmation per
-change, and at the manual level with every detail adjustable.
+**Done when** the author completes P-02 in full access without a confirmation, and in "ask before
+changes" confirming each change with every detail adjustable.
 
 ## 8 — Known packages
 
@@ -162,9 +182,9 @@ change, and at the manual level with every detail adjustable.
    - then VRChat SDK (official source), Modular Avatar with NDMF.
 2. Bundled copies are recognized from each package's `legacyFolders` and `legacyFiles`
    (lilToon declares `Assets\lilToon`), generalizing the lilToon rule.
-3. The package page follows the familiarity levels: fully automatic resolves dependencies
-   without showing it; semi-automatic shows it with "Next step" and "Handle dependencies for me";
-   fully manual shows every package, version and feed.
+3. The package page follows the permission modes: full access resolves dependencies without
+   asking; "decide on its own" shows it with "Next step" and "Handle dependencies for me"; "ask
+   before changes" shows every package, version and feed.
 4. The package page lists work projects with installed versions, updates and Recipe pins.
 
 **Done when** P-01 resolves its missing shader through a known package.
@@ -176,8 +196,8 @@ change, and at the manual level with every detail adjustable.
    snapshot.
 2. lilToon brightness limits: align the outfit materials' lower and upper brightness limits with
    the Avatar's, so the outfit and body brighten and darken together across worlds.
-3. Both follow the familiarity levels: applied toward a target (fully automatic), as a reviewed
-   list (semi-automatic) or per material and texture (manual).
+3. Both follow the permission modes: applied toward a target (full access), as a reviewed list
+   (decide on its own) or per material and texture (ask before changes).
 4. Evaluate lilAvatarUtils (MIT) first; integrate it when it covers these steps.
 
 **Done when** the P-02 result reaches a chosen rank, and its outfit and body match in brightness
@@ -333,6 +353,58 @@ in the scene-pack format of the [skin system](skin-system.md).
 prove too rough, group them by project or by the number of imported assets.
 
 **Done when** the shown usual time lands within a third of the actual time for most steps.
+
+## 25 — Production records in Settings
+
+The release room's "Production records" tab lists runs and their records for diagnosis.
+
+1. Move it into Settings as debugging information; the release room keeps the album of
+   finished Avatars.
+
+**Done when** the release room shows only the album, and Settings shows the production records.
+
+## 26 — VRChat Avatar list in the release room
+
+1. With the [experimental VRChat sign-in](vrchat-account.md), the release room shows the
+   account's own Avatars: name, image, release status, platforms and last update.
+2. Finished Avatars link to their VRChat entry, and the list marks the Avatars VUA uploaded.
+
+**Done when** the author sees "AMF test1" in the list with its current state on VRChat.
+
+## 27 — Queue factory work
+
+The factory runs one Unity task at a time. Unity itself can open several projects at once;
+VUA keeps to one because each Unity run uses most of the machine and an upload uses the
+interactive Editor. Work requested while a task runs waits for it (Candidate
+[amf-production 0.16.0](../protocols/amf-production-v0.1.md#queue)).
+
+1. Uploads and other Unity work requested while a task runs wait in a visible queue and start
+   in order; the player can remove a waiting item.
+2. Later, on machines with enough memory, work on different projects may run side by side.
+
+**Done when** an upload requested during a reinspection starts by itself when the reinspection
+ends.
+
+## 28 — Quitting during a task
+
+Quitting VUA from the tray during an AMF task stops the task and Unity without asking. A crash or
+a forced end stops Unity too: the AMF provider keeps Unity in a Windows job that ends with it.
+
+1. Quitting while a task runs asks first: stop the task and quit, keep VUA running in the tray,
+   or cancel.
+
+**Done when** quitting during a reinspection offers the three choices.
+
+## 29 — Restore after an interrupted assembly
+
+After a forced end, a line whose assembly was running shows "needs a new check", and its work
+project may be half assembled. The restore point taken before that assembly is kept; today the
+player reinspects first and then restores from the workshop.
+
+1. At the next start, such a line offers "Restore to before this assembly" directly, next to
+   "Continue".
+
+**Done when** a line interrupted during assembly returns to its pre-assembly state in one step.
 
 ## Open decisions
 

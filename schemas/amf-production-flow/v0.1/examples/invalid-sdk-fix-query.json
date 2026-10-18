@@ -1,0 +1,11 @@
+{
+  "method": "amf.production.sdkFix",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-example",
+    "fixes": [
+      "This avatar has no pipeline manager component."
+    ]
+  }
+}

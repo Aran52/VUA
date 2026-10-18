@@ -3,21 +3,61 @@ use super::provider_host::{
     uuid_v7_identity, FrameOutcome,
 };
 use serde_json::{json, Value};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-use vua_orchestrator::{amf_production::*, SubmitRequest, TaskExit, TaskRuntime};
+use std::sync::{Arc, Mutex};
+use vua_orchestrator::{amf_production::*, AppErrorV1, CommandAcceptedV1, SubmitRequest, TaskExit, TaskLane, TaskRuntime};
+
+/// One AMF Unity job in the lane and what it is for, so the rooms can show and remove it.
+#[derive(Clone)]
+pub(crate) struct LaneEntry {
+    pub task_id: String,
+    pub run_id: String,
+    pub operation: String,
+}
 
 pub(crate) struct AmfProductionServices {
     pub engine: AmfProductionEngine,
     pub runtime: TaskRuntime,
-    pub busy: Arc<AtomicBool>,
+    /// Unity work runs one job at a time; work asked for meanwhile waits here in request order.
+    pub lane: TaskLane,
+    entries: Mutex<Vec<LaneEntry>>,
 }
-struct BusyGuard(Arc<AtomicBool>);
-impl Drop for BusyGuard {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::SeqCst);
+
+impl AmfProductionServices {
+    pub(crate) fn new(engine: AmfProductionEngine, runtime: TaskRuntime) -> Self {
+        Self { engine, runtime, lane: TaskLane::new(), entries: Mutex::new(Vec::new()) }
+    }
+
+    /// A Unity job runs now.
+    pub(crate) fn busy(&self) -> bool {
+        self.lane.holder().is_some()
+    }
+
+    /// Lane entries whose job still runs or waits, the running one first.
+    fn live_entries(&self) -> Vec<LaneEntry> {
+        let order: Vec<String> = self.lane.holder().into_iter().chain(self.lane.waiting()).collect();
+        let entries = self.entries.lock().expect("lane entries poisoned");
+        order.iter().filter_map(|id| entries.iter().find(|entry| &entry.task_id == id).cloned()).collect()
+    }
+
+    /// A job for this run runs or waits.
+    pub(crate) fn run_busy(&self, run_id: &str) -> bool {
+        self.live_entries().iter().any(|entry| entry.run_id == run_id)
+    }
+
+    /// Jobs waiting for their turn, first in line first.
+    pub(crate) fn queue(&self) -> Vec<LaneEntry> {
+        let waiting = self.lane.waiting();
+        self.live_entries().into_iter().filter(|entry| waiting.contains(&entry.task_id)).collect()
+    }
+
+    /// Submits Unity work into the lane and records what it is for.
+    pub(crate) fn submit(&self, request: SubmitRequest, run_id: &str, operation: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
+        let mut entries = self.entries.lock().expect("lane entries poisoned");
+        let accepted = self.runtime.submit_in_lane(request, &self.lane)?;
+        let live: Vec<String> = self.lane.holder().into_iter().chain(self.lane.waiting()).collect();
+        entries.retain(|entry| live.contains(&entry.task_id));
+        entries.push(LaneEntry { task_id: accepted.task_id.clone(), run_id: run_id.to_owned(), operation: operation.to_owned() });
+        Ok(accepted)
     }
 }
 
@@ -62,7 +102,7 @@ pub(crate) fn request(
 /// The run as the player sees it now. Work whose task no longer runs (VUA or its AMF process
 /// ended mid-step) needs inspection, and its unfinished step reads as interrupted.
 fn project_view(mut run: ProductionRun, service: &AmfProductionServices) -> ProductionRun {
-    if service.busy.load(Ordering::SeqCst) {
+    if service.run_busy(&run.run_id) {
         return run;
     }
     let active = service
@@ -141,6 +181,7 @@ fn route(
         "amf.production.plan" => &["schemaVersion", "runId", "selection"],
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
+        "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
         _ => {
             return Err(production_error(
                 "method_invalid",
@@ -182,7 +223,8 @@ fn route(
             json!({"runId":run.run_id,"phase":run.phase,"sourceNames":run.sources.iter().map(|s| &s.item_name).take(3).collect::<Vec<_>>()})
         }).collect::<Vec<_>>();
         return Ok(
-            json!({"schemaVersion":"0.1","sources":service.engine.sources()?,"editors":service.engine.editors()?,"runs":runs,"busy":service.busy.load(Ordering::SeqCst)}),
+            json!({"schemaVersion":"0.1","sources":service.engine.sources()?,"editors":service.engine.editors()?,"runs":runs,"busy":service.busy(),
+                "queue":service.queue().iter().map(|entry| json!({"taskId":entry.task_id,"runId":entry.run_id,"operation":entry.operation})).collect::<Vec<_>>()}),
         );
     }
     if method == "amf.production.previewImage" {
@@ -216,19 +258,21 @@ fn route(
     if method == "amf.production.previewRecipeShare" {
         return Ok(json!({"schemaVersion":"0.1", "document":vua_orchestrator::amf_recipe_share::SharedRecipe::decode(&string("text")?)?}));
     }
+    // Plans read a run as it is; work for that run, running or waiting, changes it first.
     if method == "amf.production.rollbackPlan" {
-        if service.busy.load(Ordering::SeqCst) {
-            return Err(production_error("busy", "Production is still running."));
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) {
+            return Err(production_error("busy", "This line has work running or waiting."));
         }
-        return service.engine.rollback_plan(&string("runId")?);
+        return service.engine.rollback_plan(&run_id);
     }
     if method == "amf.production.plan" {
-        if service.busy.load(Ordering::SeqCst) {
-            return Err(production_error("busy", "Production is still running."));
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) {
+            return Err(production_error("busy", "This line has work running or waiting."));
         }
         let selection: AssemblySelection = serde_json::from_value(params["selection"].clone())
             .map_err(|e| production_error("selection_invalid", e.to_string()))?;
-        let run_id = string("runId")?;
         let run = project_view(service.engine.get(&run_id)?, &service);
         if run.phase == "inspect_required" {
             return Err(production_error(
@@ -239,22 +283,19 @@ fn route(
         return service.engine.plan(&run_id, &selection);
     }
     if method == "amf.production.recipeApplyPlan" {
-        if service.busy.load(Ordering::SeqCst) {
-            return Err(production_error("busy", "Production is still running."));
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) {
+            return Err(production_error("busy", "This line has work running or waiting."));
         }
-        return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_for(&string("runId")?, &string("recipeId")?, avatar_id.as_deref())?}));
+        return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_for(&run_id, &string("recipeId")?, avatar_id.as_deref())?}));
     }
-    if service
-        .busy
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
-        return Err(production_error(
-            "busy",
-            "Wait for the current production operation to finish.",
-        ));
+    let recipe_file = matches!(method, "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.saveRecipe");
+    if recipe_file && service.busy() {
+        return Err(production_error("busy", "Wait for the current production operation to finish."));
     }
-    let guard = BusyGuard(service.busy.clone());
+    // Unity work runs one job at a time. Work asked for meanwhile waits for its turn, and its
+    // checks against the work project run when it starts.
+    let queued = !service.lane.is_idle();
     if method == "amf.production.exportRecipe" {
         let sources: std::collections::BTreeMap<String,String> = serde_json::from_value(params["sources"].clone()).map_err(|_| production_error("recipe_sources_invalid", "Expected material source choices."))?;
         return Ok(json!({"schemaVersion":"0.1", "export":service.engine.export_recipe(&string("recipeId")?, &string("planDigest")?, &sources)?}));
@@ -279,7 +320,7 @@ fn route(
     } else {
         string("runId")?
     };
-    if method == "amf.production.open" {
+    if method == "amf.production.open" && !queued {
         service.engine.precheck_open(&run_id)?;
     }
     let selection: Option<AssemblySelection> = params
@@ -298,16 +339,24 @@ fn route(
             .map_err(|_| production_error("params_invalid", "Choose how to apply the reviewed Recipe."))?;
         Some((string("recipeId")?, choice))
     } else { None };
+    let sdk_fixes: Vec<String> = if method == "amf.production.sdkFix" {
+        let fixes: Vec<String> = serde_json::from_value(params["fixes"].clone())
+            .map_err(|_| production_error("params_invalid", "Name the SDK items to fix."))?;
+        if fixes.is_empty() || fixes.len() > vua_orchestrator::amf_production::SDK_FIX_LIMIT
+            || fixes.iter().any(|fix| fix.is_empty() || fix.chars().count() > 600 || fix.contains('\0')) {
+            return Err(production_error("params_invalid", "Name between one and sixteen SDK items to fix."));
+        }
+        fixes
+    } else { Vec::new() };
     let operation_run = run_id.clone();
     let worker = service.clone();
-    let accepted = service.runtime.submit(SubmitRequest {
+    let accepted = service.submit(SubmitRequest {
         correlation_id: request
             .get("correlationId")
             .and_then(Value::as_str)
             .map(str::to_owned),
         timeout: None,
         job: Box::new(move |ctx| {
-            let _guard = guard;
             match action.as_str() {
                 "amf.production.prepare" | "amf.production.prepareRecipe" => worker.engine.prepare(&operation_run, ctx)?,
                 "amf.production.assemble" => worker.engine.assemble(
@@ -317,6 +366,7 @@ fn route(
                     ctx,
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
+                "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
                 "amf.production.applyRecipe" => {
                     let (recipe, choice) = recipe_application.expect("Recipe application validated");
                     worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;
@@ -339,7 +389,7 @@ fn route(
                 json!({"schemaVersion":"0.1","operation":"amf.production","runId":operation_run}),
             ))
         }),
-    })?;
+    }, &run_id, method)?;
     Ok(json!({"schemaVersion":"0.1","operation":method,"runId":run_id,"taskId":accepted.task_id}))
 }
 
@@ -358,12 +408,11 @@ mod tests {
             bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
         };
-        let service = Arc::new(AmfProductionServices {
-            engine: AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
-            runtime: TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
+        let service = Arc::new(AmfProductionServices::new(
+            AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
+            TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
                 Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap(),
-            busy: Arc::new(AtomicBool::new(false)),
-        });
+        ));
         let step = |key: &str, state: &str, start: &str, end: Option<&str>| json!({"key":key,"name":key,"state":state,"detail":"",
             "startedAt":format!("2026-10-17T{start}.000Z"),"endedAt":end.map(|end| format!("2026-10-17T{end}.000Z"))});
         let record = json!({"schemaVersion":"0.1","runId":"n3-routes","phase":"inspecting","taskId":"task-ended",
@@ -382,5 +431,42 @@ mod tests {
         let schema = serde_json::from_slice(&std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../schemas/amf-production-flow/v0.1/status.schema.json")).unwrap()).unwrap();
         assert!(jsonschema::validator_for(&schema).unwrap().is_valid(&view), "{view}");
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn work_asked_for_meanwhile_waits_in_order_and_names_its_line() {
+        let root = std::env::temp_dir().join(format!("vua-amf-lane-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("amf/runs")).unwrap();
+        let platform = crate::amf_production_adapter::NativeAmfProduction {
+            bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
+        };
+        let service = AmfProductionServices::new(
+            AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
+            TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
+                Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap(),
+        );
+        let (release, gate) = std::sync::mpsc::channel::<()>();
+        let held = SubmitRequest { correlation_id: None, timeout: None, job: Box::new(move |_ctx| {
+            let _ = gate.recv_timeout(std::time::Duration::from_secs(10));
+            Ok(TaskExit::Done(json!({})))
+        }) };
+        let running = service.submit(held, "n3-a", "amf.production.reinspect").unwrap().task_id;
+        while service.lane.holder().is_none() { std::thread::sleep(std::time::Duration::from_millis(5)); }
+        let quick = || SubmitRequest { correlation_id: None, timeout: None, job: Box::new(|_ctx| Ok(TaskExit::Done(json!({})))) };
+        let upload = service.submit(quick(), "n3-b", "amf.production.upload").unwrap().task_id;
+        let bake = service.submit(quick(), "n3-c", "amf.production.bakeTurntable").unwrap().task_id;
+        assert!(service.busy());
+        assert_eq!(service.queue().iter().map(|entry| (entry.task_id.clone(), entry.run_id.as_str(), entry.operation.as_str())).collect::<Vec<_>>(),
+            vec![(upload.clone(), "n3-b", "amf.production.upload"), (bake, "n3-c", "amf.production.bakeTurntable")]);
+        assert!(service.run_busy("n3-a") && service.run_busy("n3-b") && !service.run_busy("n3-d"));
+        assert_ne!(running, upload);
+        release.send(()).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !service.lane.is_idle() { assert!(std::time::Instant::now() < deadline); std::thread::sleep(std::time::Duration::from_millis(5)); }
+        assert!(!service.busy() && service.queue().is_empty() && !service.run_busy("n3-b"));
+        drop(service);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

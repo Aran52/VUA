@@ -26,7 +26,8 @@
         "amf_prepare",
         "amf_inspect",
         "amf_assemble",
-        "amf_turntable"
+        "amf_turntable",
+        "amf_sdk_fix"
       ]
     },
     "status": {

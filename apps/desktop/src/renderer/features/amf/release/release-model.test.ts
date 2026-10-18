@@ -14,7 +14,7 @@ const run = {
 
 describe("release room facts", () => {
   it("lists finished Avatars newest first", () => {
-    expect(finishedRunIds({ sources: [], editors: [], busy: false, runs: [
+    expect(finishedRunIds({ sources: [], editors: [], busy: false, queue: [], runs: [
       { runId: "n3-c", phase: "succeeded", sourceNames: [] }, { runId: "n3-b", phase: "ready", sourceNames: [] }, { runId: "n3-a", phase: "succeeded", sourceNames: [] }] })).toEqual(["n3-c", "n3-a"]);
     expect(finishedRunIds(null)).toEqual([]);
   });

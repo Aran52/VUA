@@ -247,6 +247,7 @@ demoTaskTitle: "데모 작업",
       settingsLanguage: "언어",
       settingsTheme: "테마",
       settingsExperimental: "실험 기능",
+      settingsDebug: "디버그 정보",
       settingsVersion: "버전",
       settingsAbout: "VUA 정보",
       settingsDonate: "후원",
@@ -2946,6 +2947,7 @@ rolled_back: "롤백됨",
      *  위험 토글, 미연결 설정(전역 자동 삭제는 동결된 항목 수준 명령의 범위를
      *  넘으므로 wire 면은 proposal 008 결정을 따름). 활성화에는 위험 확인
      *  대화상자가 필수이며 미연결 표시가 항상 붙습니다 */
+    debug: { unavailable: "아바타 공장 모듈을 켜면 여기서 생산 기록을 볼 수 있어요." },
     experimental: {
       taskDiagnosticsTitle: "작업 진단",
       taskDiagnosticsDesc: "원본 작업 대기열과 복구 상태를 확인합니다. 다운로드 진행 상황은 알림 센터에 표시됩니다.",

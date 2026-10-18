@@ -212,6 +212,18 @@ impl NativeAmfProduction {
         apply_target: Option<&vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(run, operation, selection, apply_target, None, watch)
+    }
+    /// One Bridge v5 run: the request file, the command and the observed result.
+    fn bridge_request(
+        &self,
+        run: &ProductionRun,
+        operation: UnityOperation,
+        selection: Option<&AssemblySelection>,
+        apply_target: Option<&vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
+        sdk_fixes: Option<&[String]>,
+        watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         clear_stale_lock(Path::new(&run.project_root));
@@ -228,6 +240,9 @@ impl NativeAmfProduction {
             "selection":selection});
         if let Some(target) = apply_target {
             request["applyTarget"] = serde_json::to_value(target).map_err(|e| err("request_invalid", e))?;
+        }
+        if let Some(fixes) = sdk_fixes {
+            request["sdkFixes"] = serde_json::json!(fixes);
         }
         let serialized =
             serde_json::to_vec_pretty(&request).map_err(|e| err("request_invalid", e))?;
@@ -249,7 +264,7 @@ impl NativeAmfProduction {
             operation,
             project_id: run.run_id.clone(),
             dry_run: operation == UnityOperation::AmfInspect,
-            expected_project_fingerprint: (operation == UnityOperation::AmfAssemble)
+            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix)
                 .then(|| run.unity_fingerprint.clone()),
             payload: UnityPayload {
                 plan_ref: Some(plan_ref),
@@ -874,6 +889,15 @@ impl AmfProductionPlatform for NativeAmfProduction {
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         reject_editor_lock(project)?;
+        vua_orchestrator::project_tree_fingerprint_cached(
+            project,
+            &["Assets", "Packages", "ProjectSettings"],
+        )
+        .map_err(|e| err("project_unreadable", e))?
+        .ok_or_else(|| err("project_missing", "Work project is missing."))
+    }
+    fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
+        reject_editor_lock(project)?;
         vua_orchestrator::project_tree_fingerprint(
             project,
             &["Assets", "Packages", "ProjectSettings"],
@@ -965,6 +989,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
             "sdk_handoff_timeout",
             "Unity has not confirmed Avatar selection and SDK panel opening.",
         ))
+    }
+    fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(run, UnityOperation::AmfSdkFix, None, None, Some(fixes), watch)
     }
     fn turntable(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge(run, UnityOperation::AmfTurntable, None, watch)
@@ -1506,5 +1533,42 @@ mod tests {
             "Assets/Coat.prefab"
         )
         .is_err());
+    }
+
+    #[test]
+    fn the_cached_fingerprint_and_its_legacy_value_name_their_algorithms() {
+        let root = std::env::temp_dir().join(format!("vua-amf-fingerprint-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let project = root.join("work");
+        for scope in ["Assets", "Packages", "ProjectSettings"] {
+            std::fs::create_dir_all(project.join(scope)).unwrap();
+        }
+        std::fs::write(project.join("Assets/Meiyun.prefab"), "avatar\n").unwrap();
+        std::fs::write(project.join("Packages/vpm-manifest.json"), "{}\n").unwrap();
+        std::fs::write(project.join("ProjectSettings/ProjectVersion.txt"), "2022.3.22f1\n").unwrap();
+        let adapter = NativeAmfProduction {
+            bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"),
+            editor_roots: vec![],
+            explicit_editor: None,
+            unity_hub: None,
+        };
+        let cached = AmfProductionPlatform::fingerprint(&adapter, &project).unwrap();
+        assert!(cached.starts_with("vua-project-tree-v2:"), "{cached}");
+        assert_eq!(cached, AmfProductionPlatform::fingerprint(&adapter, &project).unwrap());
+        assert!(project.join(".vua/fingerprint-cache.json").is_file(), "the run leaves a cache behind");
+        let legacy = AmfProductionPlatform::fingerprint_legacy(&adapter, &project).unwrap();
+        assert_eq!(
+            legacy,
+            vua_orchestrator::project_tree_fingerprint(
+                &project,
+                &["Assets", "Packages", "ProjectSettings"]
+            )
+            .unwrap()
+            .unwrap(),
+            "the legacy value is exactly what older records carry"
+        );
+        drop(adapter);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

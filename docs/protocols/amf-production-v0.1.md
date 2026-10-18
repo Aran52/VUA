@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.17.0
+> Document version: 0.18.0
 > Status: Candidate
-> Updated: 2026-10-18
+> Updated: 2026-10-19
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -17,7 +17,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 
 | Method | Kind | Additional params | Result |
 | --- | --- | --- | --- |
-| `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, retained run summaries, `busy` and the waiting `queue` |
+| `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, retained run summaries, `capacity`, `running`, `busy` and the waiting `queue` |
+| `amf.production.setCapacity` | Command | `capacity: 1 \| 2 \| 3` | Saved `capacity` with `schemaVersion: "0.1"` |
 | `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, usual step durations and the running step's progress |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
 | `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection and effective input roles |
@@ -199,21 +200,46 @@ closed.
 
 ### Queue
 
-Unity work runs one job at a time. The commands that start it — `prepare`, `prepareRecipe`,
+Unity work has a capacity of 1, 2 or 3, defaulting to 1. The commands that start it — `prepare`, `prepareRecipe`,
 `assemble`, `reinspect`, `sdkFix`, `changeSources`, `applyRecipe`, `rollback`, `open`, `delete`,
 `bakeTurntable` and `upload` — are accepted while another job runs: their task stays `queued` and starts by itself,
-in request order, when the jobs before it end. Checks of the request itself (keys, plan digest
+in request order, when admitted by these rules:
+
+- At most `capacity` jobs run at once. Capacity 1 runs one job at a time in submission order.
+- At most one job runs for a given `runId`.
+- `upload`, `open` and `delete` run alone, including across different lines.
+- Only the first waiting job can start. When its line is busy, or it needs exclusive access,
+  later jobs wait behind it even when capacity is available. Removing a waiting job advances
+  the next one. Jobs are never overtaken by later submissions.
+
+Checks of the request itself (keys, plan digest
 shape, Avatar name, rights confirmation, SDK items) answer at once; checks against the work
 project and the run (Editor identity, `project_open`, `project_drift`, `result_not_ready`) run
 when the job starts, and a job that cannot start then ends `failed` with that reason.
-`amf.production.list` reports `busy` while a job runs and `queue`, the waiting work first in line
-first, each with `taskId`, `runId` and `operation`. Cancelling a queued task through
+`amf.production.list` reports the configured `capacity`, `running` in admission order and
+`queue` in submission order. Each entry has `taskId`, `runId` and `operation`. `busy` is true
+exactly when `running` is nonempty. Cancelling a queued task through
 `task.requestCancellation` ends it `cancelled` without running it. `plan`, `rollbackPlan` and
 `recipeApplyPlan` answer `busy` while work for that run runs or waits; saving, importing and
 exporting Recipes answer `busy` while a job runs. Work still waiting when VUA closes does not start
 at the next launch; its task asks for inspection like other unfinished work, and the run keeps the
-state it had. Work on different projects side by side is a later step for machines with enough
-memory.
+state it had.
+
+`amf.production.setCapacity` requires an idle lane: no running or waiting work. Otherwise it
+returns `vua.amf_production.busy`. It saves `{ "capacity": N }` to `settings.json` in AMF's
+production data root (`amf-production`) before changing admission. The write uses a flushed
+temporary file and rename; a failed save leaves the active capacity unchanged. Startup reads
+the setting; missing, unreadable, malformed or out-of-range values use 1 without rewriting the
+file. The chosen capacity applies to all Editors and lines in that AMF provider process.
+
+AMF serializes writes to its private VPM environment with one process-wide mutex, including
+backend initialization, feed registration and refresh, SDK metadata, package resolution,
+downloads and installation. A separate process-wide mutex protects ZIP extraction into the
+shared package cache. Unity Hub's licensing-client check, startup and readiness wait share
+another mutex, released before Unity executes. Project files, Bridge requests, fingerprints,
+snapshots and release records belong to individual managed projects or runs and use per-run
+exclusion. SQLite task and BDL writes retain their existing transactional locks. Interactive
+Editor and SDK upload work use the exclusive lane rule.
 
 ### Changing a line's materials
 
@@ -322,6 +348,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.18.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
 - 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.
 - 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
 - 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.

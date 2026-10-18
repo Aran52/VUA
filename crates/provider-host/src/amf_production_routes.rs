@@ -4,10 +4,11 @@ use super::provider_host::{
 };
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
-use vua_orchestrator::{amf_production::*, AppErrorV1, CommandAcceptedV1, SubmitRequest, TaskExit, TaskLane, TaskRuntime};
+use vua_orchestrator::{amf_production::*, AppErrorV1, CommandAcceptedV1, SubmitRequest, TaskExit, TaskLane, TaskLanePolicy, TaskRuntime};
 
 /// One AMF Unity job in the lane and what it is for, so the rooms can show and remove it.
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LaneEntry {
     pub task_id: String,
     pub run_id: String,
@@ -17,44 +18,62 @@ pub(crate) struct LaneEntry {
 pub(crate) struct AmfProductionServices {
     pub engine: AmfProductionEngine,
     pub runtime: TaskRuntime,
-    /// Unity work runs one job at a time; work asked for meanwhile waits here in request order.
+    /// Unity work is admitted in request order with capacity and per-run exclusion.
     pub lane: TaskLane,
     entries: Mutex<Vec<LaneEntry>>,
 }
 
+struct LaneView {
+    capacity: usize,
+    running: Vec<LaneEntry>,
+    queue: Vec<LaneEntry>,
+}
+
 impl AmfProductionServices {
     pub(crate) fn new(engine: AmfProductionEngine, runtime: TaskRuntime) -> Self {
-        Self { engine, runtime, lane: TaskLane::new(), entries: Mutex::new(Vec::new()) }
+        let lane = TaskLane::with_capacity(engine.capacity()).expect("validated stored capacity");
+        Self { engine, runtime, lane, entries: Mutex::new(Vec::new()) }
     }
 
     /// A Unity job runs now.
     pub(crate) fn busy(&self) -> bool {
-        self.lane.holder().is_some()
+        !self.lane.snapshot().running.is_empty()
     }
 
-    /// Lane entries whose job still runs or waits, the running one first.
-    fn live_entries(&self) -> Vec<LaneEntry> {
-        let order: Vec<String> = self.lane.holder().into_iter().chain(self.lane.waiting()).collect();
+    /// Read the lane once while submissions cannot change its task metadata.
+    fn lane_view(&self) -> LaneView {
         let entries = self.entries.lock().expect("lane entries poisoned");
-        order.iter().filter_map(|id| entries.iter().find(|entry| &entry.task_id == id).cloned()).collect()
+        let snapshot = self.lane.snapshot();
+        let resolve = |ids: Vec<String>| ids.iter()
+            .filter_map(|id| entries.iter().find(|entry| &entry.task_id == id).cloned()).collect();
+        LaneView { capacity: snapshot.capacity, running: resolve(snapshot.running), queue: resolve(snapshot.waiting) }
     }
 
     /// A job for this run runs or waits.
     pub(crate) fn run_busy(&self, run_id: &str) -> bool {
-        self.live_entries().iter().any(|entry| entry.run_id == run_id)
+        let view = self.lane_view();
+        view.running.iter().chain(&view.queue).any(|entry| entry.run_id == run_id)
     }
 
-    /// Jobs waiting for their turn, first in line first.
-    pub(crate) fn queue(&self) -> Vec<LaneEntry> {
-        let waiting = self.lane.waiting();
-        self.live_entries().into_iter().filter(|entry| waiting.contains(&entry.task_id)).collect()
+    fn set_capacity(&self, capacity: usize) -> Result<(), AppErrorV1> {
+        let _entries = self.entries.lock().expect("lane entries poisoned");
+        if !self.lane.is_idle() {
+            return Err(production_error("busy", "Change capacity when no Unity work runs or waits."));
+        }
+        // No worker can enter an idle lane while the submission lock is held. Persist first;
+        // an I/O failure keeps the current admission limit intact.
+        self.engine.save_capacity(capacity)?;
+        self.lane.set_capacity(capacity)
     }
 
     /// Submits Unity work into the lane and records what it is for.
     pub(crate) fn submit(&self, request: SubmitRequest, run_id: &str, operation: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
         let mut entries = self.entries.lock().expect("lane entries poisoned");
-        let accepted = self.runtime.submit_in_lane(request, &self.lane)?;
-        let live: Vec<String> = self.lane.holder().into_iter().chain(self.lane.waiting()).collect();
+        let policy = TaskLanePolicy { key: Some(run_id.to_owned()),
+            exclusive: matches!(operation, "amf.production.upload" | "amf.production.open" | "amf.production.delete") };
+        let accepted = self.runtime.submit_in_lane_with_policy(request, &self.lane, policy)?;
+        let snapshot = self.lane.snapshot();
+        let live: Vec<String> = snapshot.running.into_iter().chain(snapshot.waiting).collect();
         entries.retain(|entry| live.contains(&entry.task_id));
         entries.push(LaneEntry { task_id: accepted.task_id.clone(), run_id: run_id.to_owned(), operation: operation.to_owned() });
         Ok(accepted)
@@ -166,6 +185,7 @@ fn route(
         .ok_or_else(|| production_error("params_invalid", "Missing params."))?;
     let keys: &[&str] = match method {
         "amf.production.list" | "amf.production.listRecipes" => &["schemaVersion"],
+        "amf.production.setCapacity" => &["schemaVersion", "capacity"],
         "amf.production.getRecipe" | "amf.production.recipeSharePlan" => &["schemaVersion", "recipeId"],
         "amf.production.previewRecipeShare" | "amf.production.importRecipe" => &["schemaVersion", "text"],
         "amf.production.exportRecipe" => &["schemaVersion", "recipeId", "planDigest", "sources"],
@@ -222,14 +242,21 @@ fn route(
         }
     }
     if method == "amf.production.list" {
+        let view = service.lane_view();
         let runs = service.engine.list()?.into_iter().map(|run| {
             let run = project_view(run, &service);
             json!({"runId":run.run_id,"phase":run.phase,"sourceNames":run.sources.iter().map(|s| &s.item_name).take(3).collect::<Vec<_>>()})
         }).collect::<Vec<_>>();
         return Ok(
-            json!({"schemaVersion":"0.1","sources":service.engine.sources()?,"editors":service.engine.editors()?,"runs":runs,"busy":service.busy(),
-                "queue":service.queue().iter().map(|entry| json!({"taskId":entry.task_id,"runId":entry.run_id,"operation":entry.operation})).collect::<Vec<_>>()}),
+            json!({"schemaVersion":"0.1","sources":service.engine.sources()?,"editors":service.engine.editors()?,"runs":runs,"busy":!view.running.is_empty(),
+                "capacity":view.capacity,"running":view.running,"queue":view.queue}),
         );
+    }
+    if method == "amf.production.setCapacity" {
+        let capacity = params["capacity"].as_u64().filter(|capacity| (1..=3).contains(capacity))
+            .ok_or_else(|| production_error("params_invalid", "Capacity must be 1, 2 or 3."))? as usize;
+        service.set_capacity(capacity)?;
+        return Ok(json!({"schemaVersion":"0.1","capacity":capacity}));
     }
     if method == "amf.production.previewImage" {
         let (run_id, path) = (string("runId")?, string("path")?);
@@ -297,8 +324,7 @@ fn route(
     if recipe_file && service.busy() {
         return Err(production_error("busy", "Wait for the current production operation to finish."));
     }
-    // Unity work runs one job at a time. Work asked for meanwhile waits for its turn, and its
-    // checks against the work project run when it starts.
+    // Checks against the work project run when the queued job acquires its slot.
     let queued = !service.lane.is_idle();
     if method == "amf.production.exportRecipe" {
         let sources: std::collections::BTreeMap<String,String> = serde_json::from_value(params["sources"].clone()).map_err(|_| production_error("recipe_sources_invalid", "Expected material source choices."))?;
@@ -473,15 +499,146 @@ mod tests {
         let upload = service.submit(quick(), "n3-b", "amf.production.upload").unwrap().task_id;
         let bake = service.submit(quick(), "n3-c", "amf.production.bakeTurntable").unwrap().task_id;
         assert!(service.busy());
-        assert_eq!(service.queue().iter().map(|entry| (entry.task_id.clone(), entry.run_id.as_str(), entry.operation.as_str())).collect::<Vec<_>>(),
+        assert_eq!(service.lane_view().queue.iter().map(|entry| (entry.task_id.clone(), entry.run_id.as_str(), entry.operation.as_str())).collect::<Vec<_>>(),
             vec![(upload.clone(), "n3-b", "amf.production.upload"), (bake, "n3-c", "amf.production.bakeTurntable")]);
         assert!(service.run_busy("n3-a") && service.run_busy("n3-b") && !service.run_busy("n3-d"));
         assert_ne!(running, upload);
         release.send(()).unwrap();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         while !service.lane.is_idle() { assert!(std::time::Instant::now() < deadline); std::thread::sleep(std::time::Duration::from_millis(5)); }
-        assert!(!service.busy() && service.queue().is_empty() && !service.run_busy("n3-b"));
+        assert!(!service.busy() && service.lane_view().queue.is_empty() && !service.run_busy("n3-b"));
         drop(service);
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    fn services_at(root: &std::path::Path) -> Arc<AmfProductionServices> {
+        std::fs::create_dir_all(root.join("amf/runs")).unwrap();
+        let platform = crate::amf_production_adapter::NativeAmfProduction {
+            bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
+        };
+        Arc::new(AmfProductionServices::new(
+            AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
+            TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
+                Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap(),
+        ))
+    }
+
+    fn list(service: &Arc<AmfProductionServices>) -> Value {
+        route(service.clone(), "amf.production.list", &json!({"kind":"query","params":{"schemaVersion":"0.1"}})).unwrap()
+    }
+
+    fn capacity(service: &Arc<AmfProductionServices>, value: Value) -> Result<Value, AppErrorV1> {
+        route(service.clone(), "amf.production.setCapacity", &json!({"kind":"command","params":{"schemaVersion":"0.1","capacity":value}}))
+    }
+
+    fn wait_until(mut predicate: impl FnMut() -> bool) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !predicate() {
+            assert!(std::time::Instant::now() < deadline, "task did not reach expected state");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    fn held(service: &AmfProductionServices, run: &str, operation: &str) -> (String, std::sync::mpsc::Sender<()>) {
+        let (release, gate) = std::sync::mpsc::channel();
+        let accepted = service.submit(SubmitRequest { correlation_id: None, timeout: None, job: Box::new(move |_| {
+            gate.recv_timeout(std::time::Duration::from_secs(10)).expect("test releases running job");
+            Ok(TaskExit::Done(Value::Null))
+        }) }, run, operation).unwrap();
+        (accepted.task_id, release)
+    }
+
+    #[test]
+    fn capacity_is_persisted_read_back_and_validated_without_changing_on_failure() {
+        let root = std::env::temp_dir().join(format!("vua-amf-capacity-{}", uuid_v7_identity()));
+        let mut service = services_at(&root);
+        assert_eq!(list(&service)["capacity"], 1);
+        assert!(!root.join("amf/settings.json").exists());
+        for value in [2, 3, 1] {
+            assert_eq!(capacity(&service, json!(value)).unwrap(), json!({"schemaVersion":"0.1","capacity":value}));
+            drop(service);
+            service = services_at(&root);
+            assert_eq!(list(&service)["capacity"], value);
+        }
+        let saved = std::fs::read(root.join("amf/settings.json")).unwrap();
+        assert!(!saved.starts_with(&[0xef, 0xbb, 0xbf]));
+        for invalid in [json!(0), json!(4), json!(1.5), json!("2"), json!(true), Value::Null] {
+            assert_eq!(capacity(&service, invalid).unwrap_err().code, "vua.amf_production.params_invalid");
+        }
+        assert_eq!(std::fs::read(root.join("amf/settings.json")).unwrap(), saved);
+        assert_eq!(list(&service)["capacity"], 1);
+        // A failed publish must not alter the in-memory limit or the last saved settings.
+        std::fs::create_dir(root.join("amf/settings.pending")).unwrap();
+        assert_eq!(capacity(&service, json!(2)).unwrap_err().code, "vua.amf_production.store_failed");
+        assert_eq!(list(&service)["capacity"], 1);
+        assert_eq!(std::fs::read(root.join("amf/settings.json")).unwrap(), saved);
+        drop(service);
+        for bad in ["{", "{\"capacity\":4}", "{\"capacity\":\"2\"}", "{}"] {
+            std::fs::write(root.join("amf/settings.json"), bad).unwrap();
+            let fallback = services_at(&root);
+            assert_eq!(list(&fallback)["capacity"], 1);
+            assert_eq!(std::fs::read_to_string(root.join("amf/settings.json")).unwrap(), bad);
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn list_reports_both_running_lines_and_the_waiting_queue_and_cancellation() {
+        let root = std::env::temp_dir().join(format!("vua-amf-running-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        capacity(&service, json!(2)).unwrap();
+        let (a, release_a) = held(&service, "n3-a", "amf.production.reinspect");
+        let (b, release_b) = held(&service, "n3-b", "amf.production.reinspect");
+        wait_until(|| [a.as_str(), b.as_str()].iter().all(|id| service.runtime.snapshot(id).unwrap().state == vua_orchestrator::TaskState::Running));
+        let (c, _release_c) = held(&service, "n3-c", "amf.production.bakeTurntable");
+        let snapshot = list(&service);
+        assert_eq!(snapshot["capacity"], 2);
+        assert_eq!(snapshot["busy"], true);
+        assert_eq!(snapshot["running"], json!([
+            {"taskId":a,"runId":"n3-a","operation":"amf.production.reinspect"},
+            {"taskId":b,"runId":"n3-b","operation":"amf.production.reinspect"}]));
+        assert_eq!(snapshot["queue"], json!([{"taskId":c,"runId":"n3-c","operation":"amf.production.bakeTurntable"}]));
+        assert_eq!(capacity(&service, json!(1)).unwrap_err().code, "vua.amf_production.busy");
+        assert_eq!(list(&service)["capacity"], 2);
+        assert_eq!(service.engine.capacity(), 2);
+        service.runtime.cancel(&c).unwrap();
+        wait_until(|| service.runtime.snapshot(&c).unwrap().state == vua_orchestrator::TaskState::Cancelled);
+        assert_eq!(list(&service)["queue"], json!([]));
+        assert_eq!(list(&service)["busy"], true);
+        release_a.send(()).unwrap();
+        release_b.send(()).unwrap();
+        wait_until(|| service.lane.is_idle());
+        assert_eq!(list(&service)["busy"], false);
+        assert_eq!(list(&service)["running"], json!([]));
+        drop(service);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn upload_open_and_delete_are_exclusive_and_preserve_queue_order() {
+        for operation in ["amf.production.upload", "amf.production.open", "amf.production.delete"] {
+            let root = std::env::temp_dir().join(format!("vua-amf-exclusive-{}", uuid_v7_identity()));
+            let service = services_at(&root);
+            capacity(&service, json!(2)).unwrap();
+            let (a, release_a) = held(&service, "n3-a", "amf.production.reinspect");
+            wait_until(|| service.runtime.snapshot(&a).unwrap().state == vua_orchestrator::TaskState::Running);
+            let (b, release_b) = held(&service, "n3-b", operation);
+            let (c, release_c) = held(&service, "n3-c", "amf.production.reinspect");
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            assert_eq!(list(&service)["running"].as_array().unwrap().len(), 1);
+            assert_eq!(list(&service)["queue"][0]["taskId"], b);
+            assert_eq!(list(&service)["queue"][1]["taskId"], c);
+            release_a.send(()).unwrap();
+            wait_until(|| service.runtime.snapshot(&b).unwrap().state == vua_orchestrator::TaskState::Running);
+            assert_eq!(list(&service)["running"], json!([{"taskId":b,"runId":"n3-b","operation":operation}]));
+            assert_eq!(service.runtime.snapshot(&c).unwrap().state, vua_orchestrator::TaskState::Queued);
+            release_b.send(()).unwrap();
+            wait_until(|| service.runtime.snapshot(&c).unwrap().state == vua_orchestrator::TaskState::Running);
+            release_c.send(()).unwrap();
+            wait_until(|| service.lane.is_idle());
+            drop(service);
+            std::fs::remove_dir_all(root).unwrap();
+        }
     }
 }

@@ -540,6 +540,32 @@ impl AmfProductionEngine {
     pub fn new(root: PathBuf, platform: Arc<dyn AmfProductionPlatform>) -> Self {
         Self { root, platform, live: Mutex::new(BTreeMap::new()), usual: Mutex::new(None) }
     }
+
+    /// Missing or unreadable settings retain the single-task default without rewriting the file.
+    pub fn capacity(&self) -> usize {
+        fs::read(self.root.join("settings.json")).ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|value| value["capacity"].as_u64())
+            .filter(|capacity| (1..=3).contains(capacity))
+            .map_or(1, |capacity| capacity as usize)
+    }
+
+    /// The serving layer serializes settings changes with admission while its lane is idle.
+    pub fn save_capacity(&self, capacity: usize) -> Result<(), AppErrorV1> {
+        if !(1..=3).contains(&capacity) {
+            return Err(production_error("params_invalid", "Capacity must be 1, 2 or 3."));
+        }
+        fs::create_dir_all(&self.root).map_err(io_error)?;
+        let path = self.root.join("settings.json");
+        let pending = path.with_extension("pending");
+        let bytes = serde_json::to_vec_pretty(&serde_json::json!({"capacity":capacity})).map_err(io_error)?;
+        use std::io::Write;
+        let mut file = fs::File::create(&pending).map_err(io_error)?;
+        file.write_all(&bytes).map_err(io_error)?;
+        file.sync_all().map_err(io_error)?;
+        drop(file);
+        fs::rename(pending, path).map_err(io_error)
+    }
     fn watch<'a>(&'a self, run: &ProductionRun, ctx: &'a TaskContext) -> UnityWatch<'a> {
         UnityWatch {
             ctx,

@@ -42,13 +42,17 @@ const MA_REPO: &str = "https://vpm.nadena.dev/vpm.json";
 const UNITY_POLL: Duration = Duration::from_millis(500);
 const LILTOON_REPO: &str = "https://lilxyzw.github.io/vpm-repos/vpm.json";
 const LILTOON_PACKAGE: &str = "jp.lilxyzw.liltoon";
+// Backend construction, feed updates, resolution and installation share AMF's VPM files.
+static VPM_ENVIRONMENT_WRITE: Mutex<()> = Mutex::new(());
+// Different projects may extract the same source through the same cache .pending path.
+static PACKAGE_CACHE_WRITE: Mutex<()> = Mutex::new(());
 
 /// lilToon's unitypackage installs into Assets/lilToon; material packages often ship a copy there.
 fn is_bundled_liltoon(folded_path: &str) -> bool {
     folded_path == "assets/liltoon" || folded_path.starts_with("assets/liltoon/")
 }
 
-/// Subscribes the private environment to a feed and makes sure its manifest is cached.
+/// Subscribes the private environment to a feed. The caller holds VPM_ENVIRONMENT_WRITE.
 fn ensure_repo(
     backend: &vua_project_manager::VrcGetLibBackend,
     url: &str,
@@ -88,6 +92,7 @@ impl NativeAmfProduction {
     }
     /// Installs the newest lilToon from its official feed that resolves for this project.
     fn install_liltoon(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+        let _environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         ensure_repo(&backend, LILTOON_REPO, "lilToon")?;
         let p = project(run);
@@ -106,6 +111,7 @@ impl NativeAmfProduction {
         let Some(member) = &source.archive_member else {
             return Ok(source.path.clone());
         };
+        let _cache = PACKAGE_CACHE_WRITE.lock().expect("AMF package cache poisoned");
         let archive_hash = vua_unity_bridge::material_exec::sha256_file(&source.path)
             .map_err(|e| err("source_unreadable", format!("Read selected ZIP: {e}")))?;
         let root = self.root.join("package-cache");
@@ -657,6 +663,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         FileSystemProjectStore::initialize(&p).map_err(|e| err("project_failed", e))?;
         fs::write(p.root.join(".vua/amf-run.txt"), &run.run_id)
             .map_err(|e| err("project_failed", e))?;
+        let environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         backend.ensure_official_sdk_cache()?;
         ensure_repo(&backend, MA_REPO, "Modular Avatar")?;
@@ -688,6 +695,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
             ));
         }
         backend.apply_install(&p, &packages, &preview.digest)?;
+        drop(environment);
         // Real upstream SDK + MA are required. No staging-scaffold stubs are installed here.
         refresh_bridge_package(&p.root)?;
         Ok(())
@@ -1554,7 +1562,20 @@ mod tests {
         assert_eq!(fs::read(&extracted).unwrap(), b"original source bytes");
         fs::write(&extracted, b"tampered private cache").unwrap();
         assert_eq!(adapter.package_path(&source).unwrap(), extracted);
-        assert_eq!(fs::read(extracted).unwrap(), b"original source bytes");
+        assert_eq!(fs::read(&extracted).unwrap(), b"original source bytes");
+        // Parallel preparations of the same ZIP member share one cache publication path.
+        let barrier = std::sync::Barrier::new(3);
+        std::thread::scope(|scope| {
+            let jobs: Vec<_> = (0..3).map(|_| scope.spawn(|| {
+                barrier.wait();
+                for _ in 0..3 {
+                    let path = adapter.package_path(&source).unwrap();
+                    assert_eq!(path, extracted);
+                    assert_eq!(fs::read(path).unwrap(), b"original source bytes");
+                }
+            })).collect();
+            for job in jobs { job.join().unwrap(); }
+        });
         assert!(zip_path.is_file());
         drop(adapter);
         assert!(

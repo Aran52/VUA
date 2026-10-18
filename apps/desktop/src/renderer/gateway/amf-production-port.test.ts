@@ -71,15 +71,35 @@ describe("AMF production response boundary", () => {
     expect(seen).toEqual([payload]);
   });
   it("reads the waiting work of the queue in its published shape", async () => {
-    const list = {schemaVersion:"0.1",sources:[],editors:[],runs:[],busy:true,queue:[{taskId:"task-upload",runId:"n3-test",operation:"amf.production.upload"}]};
+    const list = {schemaVersion:"0.1",sources:[],editors:[],runs:[],busy:true,capacity:2,
+      running:[{taskId:"task-check-a",runId:"n3-a",operation:"amf.production.reinspect"},{taskId:"task-check-b",runId:"n3-b",operation:"amf.production.reinspect"}],
+      queue:[{taskId:"task-upload",runId:"n3-test",operation:"amf.production.upload"}]};
     let response: unknown = list;
     const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
     const port = createAmfProductionPort(client);
     expect((await port.list()).queue).toEqual(list.queue);
+    expect((await port.list()).running).toEqual(list.running);
+    expect((await port.list()).capacity).toBe(2);
+    for (const invalid of [{...list,capacity:4},{...list,capacity:1},{...list,busy:false},{...list,running:undefined}]) {
+      response = invalid;
+      await expect(port.list()).rejects.toThrow("list_invalid");
+    }
     response = {...list,queue:[{taskId:"task-upload",runId:"n3-test",operation:"task.list"}]};
     await expect(port.list()).rejects.toThrow("list_invalid");
     const {queue: _missing, ...withoutQueue} = list; response = withoutQueue;
     await expect(port.list()).rejects.toThrow("list_invalid");
+  });
+  it("sets capacity through the command and verifies the saved result", async () => {
+    const requests: unknown[] = [];
+    let result: unknown = {schemaVersion:"0.1",capacity:2};
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:result as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect(await port.setCapacity(2)).toBe(2);
+    expect(requests[0]).toMatchObject({method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}});
+    for (const invalid of [{schemaVersion:"0.1",capacity:1},{schemaVersion:"0.1",capacity:4},{}]) {
+      result = invalid;
+      await expect(port.setCapacity(2)).rejects.toThrow("capacity_invalid");
+    }
   });
   it("turns a reported preview into a PNG data URL", async () => {
     const path = ".vua/previews/n3-test-1/front.png";

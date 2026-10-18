@@ -1,0 +1,9 @@
+{
+  "method": "amf.production.setCapacity",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "capacity": 2,
+    "runId": "n3-test"
+  }
+}

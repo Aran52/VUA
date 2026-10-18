@@ -12,7 +12,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use vua_orchestrator::{
     recover_from_journal, AppErrorV1, ErrorCategory, FixedClock, FixedIdGenerator,
     JournalEntryKind, JournalPayload, JournalSink, JournalWriter, MemoryJournal,
-    RecoveredDisposition, SubmitRequest, SystemClock, TaskEventKind, TaskExit, TaskLane, TaskRuntime,
+    RecoveredDisposition, SubmitRequest, SystemClock, TaskEventKind, TaskExit, TaskLane, TaskLanePolicy, TaskRuntime,
     TaskState,
 };
 
@@ -818,4 +818,129 @@ fn a_waiting_job_cancelled_ends_cancelled_without_running() {
     assert_eq!(wait_for_terminal(&runtime, &a).state, TaskState::Succeeded);
     assert_eq!(*order.lock().unwrap(), vec!["a"]);
     assert!(lane.is_idle());
+}
+
+fn submit_lane_job(runtime: &TaskRuntime, lane: &TaskLane, key: &str, exclusive: bool) -> (String, mpsc::Sender<()>) {
+    let (release, gate) = mpsc::channel();
+    let accepted = runtime.submit_in_lane_with_policy(SubmitRequest {
+        correlation_id: None, timeout: None,
+        job: Box::new(move |_ctx| {
+            gate.recv_timeout(Duration::from_secs(10)).expect("test releases running job");
+            Ok(TaskExit::Done(serde_json::Value::Null))
+        }),
+    }, lane, TaskLanePolicy { key: Some(key.into()), exclusive }).unwrap();
+    (accepted.task_id, release)
+}
+
+fn wait_for_idle(lane: &TaskLane) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !lane.is_idle() {
+        assert!(Instant::now() < deadline, "lane did not release finished jobs");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn capacity_two_runs_different_lines_together_and_limits_running_jobs() {
+    let (runtime, _) = file_runtime("lane-parallel");
+    let lane = TaskLane::with_capacity(2).unwrap();
+    let (a, release_a) = submit_lane_job(&runtime, &lane, "line-a", false);
+    let (b, release_b) = submit_lane_job(&runtime, &lane, "line-b", false);
+    wait_for_state(&runtime, &a, TaskState::Running);
+    wait_for_state(&runtime, &b, TaskState::Running);
+    let (c, release_c) = submit_lane_job(&runtime, &lane, "line-c", false);
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(lane.snapshot().running, vec![a.clone(), b.clone()]);
+    assert_eq!(runtime.snapshot(&c).unwrap().state, TaskState::Queued);
+    release_a.send(()).unwrap();
+    wait_for_state(&runtime, &c, TaskState::Running);
+    assert_eq!(runtime.snapshot(&b).unwrap().state, TaskState::Running);
+    release_b.send(()).unwrap();
+    release_c.send(()).unwrap();
+    wait_for_idle(&lane);
+}
+
+#[test]
+fn same_line_waits_and_a_blocked_head_cannot_be_overtaken() {
+    let (runtime, _) = file_runtime("lane-key-order");
+    let lane = TaskLane::with_capacity(2).unwrap();
+    let (a, release_a) = submit_lane_job(&runtime, &lane, "line-a", false);
+    wait_for_state(&runtime, &a, TaskState::Running);
+    let (b, release_b) = submit_lane_job(&runtime, &lane, "line-a", false);
+    let (c, release_c) = submit_lane_job(&runtime, &lane, "line-c", false);
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(lane.snapshot().running, vec![a]);
+    assert_eq!(lane.waiting(), vec![b.clone(), c.clone()]);
+    assert_eq!(runtime.snapshot(&b).unwrap().state, TaskState::Queued);
+    assert_eq!(runtime.snapshot(&c).unwrap().state, TaskState::Queued);
+    release_a.send(()).unwrap();
+    wait_for_state(&runtime, &b, TaskState::Running);
+    wait_for_state(&runtime, &c, TaskState::Running);
+    assert_eq!(lane.snapshot().running, vec![b, c]);
+    release_b.send(()).unwrap();
+    release_c.send(()).unwrap();
+    wait_for_idle(&lane);
+}
+
+#[test]
+fn an_exclusive_head_waits_for_all_jobs_then_runs_alone_without_starvation() {
+    let (runtime, _) = file_runtime("lane-exclusive");
+    let lane = TaskLane::with_capacity(2).unwrap();
+    let (a, release_a) = submit_lane_job(&runtime, &lane, "line-a", false);
+    let (b, release_b) = submit_lane_job(&runtime, &lane, "line-b", false);
+    wait_for_state(&runtime, &a, TaskState::Running);
+    wait_for_state(&runtime, &b, TaskState::Running);
+    let (exclusive, release_exclusive) = submit_lane_job(&runtime, &lane, "line-c", true);
+    let (later, release_later) = submit_lane_job(&runtime, &lane, "line-d", false);
+    release_a.send(()).unwrap();
+    wait_for_terminal(&runtime, &a);
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(runtime.snapshot(&exclusive).unwrap().state, TaskState::Queued);
+    assert_eq!(runtime.snapshot(&later).unwrap().state, TaskState::Queued);
+    release_b.send(()).unwrap();
+    wait_for_state(&runtime, &exclusive, TaskState::Running);
+    assert_eq!(lane.snapshot().running, vec![exclusive]);
+    assert_eq!(runtime.snapshot(&later).unwrap().state, TaskState::Queued);
+    release_exclusive.send(()).unwrap();
+    wait_for_state(&runtime, &later, TaskState::Running);
+    release_later.send(()).unwrap();
+    wait_for_idle(&lane);
+}
+
+#[test]
+fn cancelling_a_blocked_head_allows_the_next_line_to_fill_a_free_slot() {
+    let (runtime, _) = file_runtime("lane-parallel-cancel");
+    let lane = TaskLane::with_capacity(2).unwrap();
+    let (a, release_a) = submit_lane_job(&runtime, &lane, "line-a", false);
+    wait_for_state(&runtime, &a, TaskState::Running);
+    let (b, _release_b) = submit_lane_job(&runtime, &lane, "line-a", false);
+    let (c, release_c) = submit_lane_job(&runtime, &lane, "line-c", false);
+    runtime.cancel(&b).unwrap();
+    assert_eq!(wait_for_terminal(&runtime, &b).state, TaskState::Cancelled);
+    wait_for_state(&runtime, &c, TaskState::Running);
+    assert_eq!(runtime.snapshot(&a).unwrap().state, TaskState::Running);
+    assert_eq!(lane.snapshot().running, vec![a, c]);
+    release_a.send(()).unwrap();
+    release_c.send(()).unwrap();
+    wait_for_idle(&lane);
+}
+
+#[test]
+fn capacity_is_one_by_default_bounded_to_three_and_changes_only_when_idle() {
+    let (runtime, _) = file_runtime("lane-capacity");
+    let lane = TaskLane::new();
+    assert_eq!(lane.snapshot().capacity, 1);
+    assert!(TaskLane::with_capacity(0).is_err());
+    assert!(TaskLane::with_capacity(4).is_err());
+    lane.set_capacity(3).unwrap();
+    let jobs: Vec<_> = (0..4).map(|i| submit_lane_job(&runtime, &lane, &format!("line-{i}"), false)).collect();
+    for (id, _) in &jobs[..3] { wait_for_state(&runtime, id, TaskState::Running); }
+    assert_eq!(lane.snapshot().running.len(), 3);
+    assert_eq!(lane.waiting(), vec![jobs[3].0.clone()]);
+    assert!(lane.set_capacity(1).is_err());
+    assert_eq!(lane.snapshot().capacity, 3);
+    for (_, release) in &jobs { release.send(()).unwrap(); }
+    wait_for_idle(&lane);
+    lane.set_capacity(1).unwrap();
+    assert_eq!(lane.snapshot().capacity, 1);
 }

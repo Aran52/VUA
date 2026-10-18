@@ -57,7 +57,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 4 | Result previews | P-02 | done |
 | 5 | Unity editor handoff | P-02 | |
 | 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide and the SDK's own checks are in; one-click fixes, plain-word messages and the build guide remain |
-| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes in the workshop; recommendations and the image confirmation remain |
+| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes and stated recommendations in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table is assigned |
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |

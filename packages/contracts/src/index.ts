@@ -1,5 +1,6 @@
 export * from "./application-contract.js";
 export * from "./amf-production-v01.js";
+export * from "./amf-recommendation.js";
 export * from "./amf-recipe-v04.js";
 export * from "./catalog-sync.js";
 export * from "./catalog-sync-v03.js";

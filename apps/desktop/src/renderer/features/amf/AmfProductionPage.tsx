@@ -11,6 +11,7 @@ import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { strings, format, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
+import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
@@ -300,6 +301,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {run.phase === "ready" && !busy && plan === null && restorePlan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>
         <div className="vua-n3__actions"><Button variant="subtle" disabled={busy} onClick={() => { void command("reinspect"); }}>{copy.reinspect}</Button><Button variant="subtle" onClick={() => setAdjusting(true)}>{factory.adjust}</Button>
@@ -381,4 +383,16 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       setRunId(accepted.runId); remember(runKey, accepted.runId); setTaskId(accepted.taskId); setTaskAction("assemble");
     }}/>}
   </div>;
+}
+
+/** Why VUA chose the Avatar and outfits it starts the plan with, in its stated rules. */
+function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {
+  const reasons = strings.factory.reasons;
+  const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
+  const parts = [
+    ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),
+    ...recommendation.outfits.flatMap(outfit => outfit.path && outfit.reason ? [format(reasons[outfit.reason], { name: prefabName(outfit.path) })] : []),
+  ];
+  if (parts.length === 0) return null;
+  return <p className="vua-caption vua-text-secondary">{format(reasons.lead, { reasons: parts.join(reasons.join) })}</p>;
 }

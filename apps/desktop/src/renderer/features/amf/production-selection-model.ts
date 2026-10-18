@@ -1,22 +1,13 @@
-import type { AmfAssemblySelection, AmfOutfitSelection } from "@vua/contracts";
+import { recommendAssembly, type AmfAssemblySelection, type AmfOutfitSelection } from "@vua/contracts";
 import type { AmfProductionRun } from "../../gateway/index.ts";
 
-/** Auto-select only unique Unity-observed candidates. Never infer compatibility from a name. */
+/** What Unity observes, else the confirmed selection, else the stated recommendation of
+ * `recommendAssembly` over Unity-observed candidates; equally plausible candidates stay for the player. */
 export function initialProductionSelection(run: AmfProductionRun): AmfAssemblySelection {
   const observed = run.result?.facts?.observedSelection;
   if (observed) return observed;
   if (run.selection !== null) return run.selection;
-  const avatars = run.prefabs.filter(p => p.isAvatar && !p.hasMissingScripts && run.sources.some(s => s.sourceId === p.sourceId && (s.role === "avatar" || s.role === "auto")));
-  const avatarPaths = [...new Set(avatars.map(p => p.path))];
-  const outfits: AmfOutfitSelection[] = [];
-  for (const source of run.sources) {
-    if (source.role === "dependency" || source.role === "avatar") continue;
-    const candidates = run.prefabs.filter(p => p.sourceId === source.sourceId && !p.isAvatar && !p.hasMissingScripts);
-    if (candidates.length !== 1 || (!candidates[0]?.hasSkinnedMesh && !candidates[0]?.hasMergeArmature)) continue;
-    const candidate = candidates[0];
-    outfits.push({ sourceId: source.sourceId, prefabPath: candidate.path, mode: "merge_armature", bone: "", toggleName: source.itemName.slice(0, 80), active: true });
-  }
-  return { avatarPrefab: avatarPaths.length === 1 ? avatarPaths[0] ?? "" : "", outfits };
+  return recommendAssembly(run.prefabs, run.sources).selection;
 }
 
 export function updateOutfitSelection(selection: AmfAssemblySelection, sourceId: string, update: Partial<AmfOutfitSelection> | null): AmfAssemblySelection {

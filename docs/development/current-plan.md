@@ -89,6 +89,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
 | 37 | Creator credits | P-02 | planned |
 | 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
+| 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
 
 Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
 guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
@@ -593,6 +594,27 @@ two such outliers decide the value, and international routes can differ per conn
 **Done when** repeated tests on one network give the same first region, and the calibration
 runs agree with the in-game Ping on the first region. Real UDP measurement through VUA-hosted
 echo endpoints is decided after the calibration.
+
+## 39 — Resource panel that guides
+
+The title bar shows 100 % minus the mean of CPU, GPU, RAM and VRAM, with a warning from 90 %.
+A native helper samples PDH counters every 2 seconds and re-enumerates adapters every 30 seconds
+by creating a D3D12 device on each; the renderer polls every 2 seconds while VUA runs.
+
+1. The title bar names the tightest resource or a state (plenty, getting tight, tight) from the
+   highest reading instead of the mean, at a fixed width.
+2. The panel ties readings to VUA's work: the largest memory users with VUA's own tasks marked
+   (for example a Unity import), a suggested production capacity from total memory, and VRAM next
+   to the Avatar's texture memory from slice 9.
+3. The title bar shows a reading smoothed over about 10 seconds; the panel shows the last minute
+   as a sparkline kept in memory only.
+4. Lighter sampling: polling stops while the window is hidden and slows to 5 seconds while the
+   panel is closed; each adapter's integrated or discrete kind is cached by LUID, so a D3D12
+   device is created only for a new adapter; the cost of the `GPU Engine(*)` counter is measured
+   with VRChat running.
+
+**Done when** the title bar names the bottleneck during a P-02 run, and the panel's own sampling
+stays under a measured budget with VRChat running on the development machine.
 
 ## Open decisions
 

@@ -1,0 +1,9 @@
+{
+  "method": "terms.refreshProduct",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "productId": "booth:1",
+    "url": "https://example.invalid"
+  }
+}

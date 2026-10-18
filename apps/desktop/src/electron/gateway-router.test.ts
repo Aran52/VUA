@@ -15,6 +15,20 @@ function request(): unknown {
 }
 
 describe("Electron Desktop Gateway routing", () => {
+  it("routes stored terms reads and explicit refresh commands with closed parameters", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
+    const context = { provider, productVersion: "0.6.7", platform: "win32", rendererUrl };
+    for (const [method, params, kind] of [["terms.getProduct", { schemaVersion: "0.1", productId: "booth:1" }, "query"],
+      ["terms.checkUse", { schemaVersion: "0.1", presetId: "adult_content", productIds: ["booth:1"] }, "query"],
+      ["terms.refreshProduct", { schemaVersion: "0.1", productId: "booth:1" }, "command"],
+      ["terms.refreshLibrary", { schemaVersion: "0.1" }, "command"]] as const) {
+      await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "terms", method, params });
+      expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ method, kind, params, ...(kind === "command" ? { commandId: "terms-terms" } : {}) }));
+    }
+    invoke.mockClear();
+    const response = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "bad-terms", method: "terms.refreshProduct", params: { schemaVersion: "0.1", productId: "booth:1", url: "https://example.invalid/private" } });
+    expect(response).toMatchObject({ ok: false, error: { code: "invalid_request" } }); expect(invoke).not.toHaveBeenCalled();
+  });
   it("routes fixed external-tool actions to the host and rejects custom launch targets", async () => {
     const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
     const context = { provider, productVersion: "0.6.0", platform: "win32", rendererUrl };

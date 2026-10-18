@@ -7,6 +7,16 @@ import {
   type TaskSnapshotV01,
 } from "@vua/contracts";
 import { MockOrchestratorProviderV01 } from "./mock-provider.js";
+import { isProductTermsV01, isTermsUseCheckV01 } from "@vua/contracts";
+
+it("serves conforming terms samples with unknown evidence kept outside the match set", async () => {
+  const provider = new MockOrchestratorProviderV01(); await provider.start();
+  const detail = await provider.invoke({ contractVersion: "0.1", requestId: "terms-detail", correlationId: "terms-detail", kind: "query", method: "terms.getProduct", params: { schemaVersion: "0.1", productId: "booth:1" } });
+  expect(detail.ok && isProductTermsV01(detail.value)).toBe(true);
+  const check = await provider.invoke({ contractVersion: "0.1", requestId: "terms-check", correlationId: "terms-check", kind: "query", method: "terms.checkUse", params: { schemaVersion: "0.1", presetId: "adult_content", productIds: ["booth:1", "booth:2"] } });
+  expect(check.ok && isTermsUseCheckV01(check.value)).toBe(true);
+  if (check.ok && isTermsUseCheckV01(check.value)) { expect(check.value.matchingProductIds).toEqual([]); expect(check.value.combination.decision).toBe("unknown"); }
+});
 
 it("reports license operations as unavailable without inventing observations", async () => {
   const provider = new MockOrchestratorProviderV01(); await provider.start();

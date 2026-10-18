@@ -1,0 +1,12 @@
+{
+  "method": "terms.checkUse",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "presetId": "adult_content",
+    "productIds": [
+      "booth:1",
+      "booth:2"
+    ]
+  }
+}

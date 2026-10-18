@@ -1,0 +1,29 @@
+type1-encoding-parser 0.1.1
+
+Upstream manifest declares MIT and this author:
+Jeff Muizelaar <jmuizelaar@mozilla.com>
+
+The published archive and its source repository do not contain a standalone license text. Its
+unmodified source and original Cargo.toml are supplied alongside this notice. This reproduces the
+MIT permission text; it does not invent or replace an upstream copyright notice.
+Source: https://github.com/jrmuizel/type1-encoding-parser/commit/55d193e28c9a5909be02a5b1f91fd3f76b076747
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

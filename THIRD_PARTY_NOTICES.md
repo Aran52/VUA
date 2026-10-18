@@ -48,7 +48,10 @@ The current Rust workspace directly declares the following third-party crates:
 | `serde`, `serde_json` | MIT OR Apache-2.0 | serialization |
 | `sha2` | MIT OR Apache-2.0 | content hashing |
 | `scraper` | ISC | HTML parsing for BOOTH page extraction |
-| `url` | MIT OR Apache-2.0 | VPM repository URL parsing |
+| `url` | MIT OR Apache-2.0 | VPM repository and public terms URL parsing |
+| `pdf-extract` 0.10.0 | MIT | Pure Rust text extraction from locally cached VN3 PDFs |
+| `regex` | MIT OR Apache-2.0 | Versioned VN3 document structure recognition |
+| `unicode-normalization` | MIT OR Apache-2.0 | VN3 typography normalization with preserved source fragments |
 | `flate2`, `tar` | MIT OR Apache-2.0 | gzip/tar archive handling for `.unitypackage` materials |
 | `zip` | MIT | zip archive writing for local VPM artifacts |
 | `md-5` | MIT OR Apache-2.0 | official Unity Editor manifest checksum comparison |
@@ -59,6 +62,16 @@ The current Rust workspace directly declares the following third-party crates:
 `rusqlite` enables its `bundled` feature and statically builds SQLite, which is in the public domain.
 The Orchestrator persistence adapter owns this dependency. It may be removed only by a replacement
 that passes the same database-format, transaction, durability, and recovery characterization tests.
+
+AMF acquisition owns `pdf-extract`, `regex` and `unicode-normalization` for its versioned VN3
+parser. `pdf-extract` reexports the MIT-licensed `lopdf` document model and reads PDF text
+without an external executable. These dependencies can be removed by replacing the local
+extraction/parser implementation while preserving its synthetic PDF, wording and unknown-evidence
+tests. Their exact transitive versions and license notices are captured by the distribution inventory.
+The PDF dependency graph includes manifest-only license declarations for `adobe-cmap-parser`,
+`enum-map`, `enum-map-derive`, `pdf-extract` and `type1-encoding-parser`. Their pinned supplemental
+MIT texts, original declarations and unmodified published sources follow the
+[supplemental provenance](apps/desktop/packaging/licenses/README.md) records.
 
 The Unity Bridge package declares VRChat Avatars SDK and Modular Avatar as Unity package
 dependencies. They are resolved from their own package sources and are not relicensed by VUA.

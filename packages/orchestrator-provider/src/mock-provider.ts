@@ -172,6 +172,17 @@ export class MockOrchestratorProviderV01 implements OrchestratorProviderV01 {
     }
 
     switch (request.method) {
+      case "terms.getProduct":
+        return this.#success(request, { schemaVersion: "0.1", productId: request.params.productId, state: "not_observed", observedAt: null, captureProblem: null,
+          sources: [], effectiveLanguage: null, effectiveItems: [], warnings: [], hasSpecialNote: false, specialNotes: [] });
+      case "terms.checkUse": {
+        const products = request.params.productIds.map(productId => ({ productId, sourceState: "not_observed" as const, decision: "unknown" as const,
+          blockingItems: [{ productId, item: null, termKey: null, reason: "not_observed" }], conditions: [], advisories: [], hasSpecialNote: false, specialNotes: [] }));
+        return this.#success(request, { schemaVersion: "0.1", presetId: request.params.presetId, products, matchingProductIds: [],
+          combination: { decision: "unknown", blockingItems: products.flatMap(p => p.blockingItems), conditions: [], advisories: [], hasSpecialNote: false, specialNotes: [] } });
+      }
+      case "terms.refreshProduct": case "terms.refreshLibrary":
+        return this.#failure(request, this.#error("vua.terms.unavailable", "unavailable", "errors.terms.failed", request.correlationId, true, false));
       case "environment.unityLicense": case "environment.checkUnityLicense":
         return this.#failure(request, this.#error("vua.unity_license.unavailable", "unavailable", "errors.unityLicense.failed", request.correlationId, false, false));
       case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":

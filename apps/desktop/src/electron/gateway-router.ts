@@ -573,6 +573,14 @@ function toApplicationRequest(
       return { ...base, kind: "command", method: "warehouse.importDownloads", commandId: request.params.commandId, params: { downloadIds: [...request.params.downloadIds] } };
 
     // production-use-case v0.2(W20 ten-method, W24 workbench): verbatim pass-through
+    case "terms.refreshProduct":
+      return { ...base, kind: "command", commandId: `terms-${request.requestId}`, method: request.method, params: request.params };
+    case "terms.refreshLibrary":
+      return { ...base, kind: "command", commandId: `terms-${request.requestId}`, method: request.method, params: request.params };
+    case "terms.getProduct":
+      return { ...base, kind: "query", method: request.method, params: request.params };
+    case "terms.checkUse":
+      return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.checkUnityLicense":
       return { ...base, kind: "command", commandId: `license-${request.requestId}`, method: request.method, params: request.params };
     case "environment.unityLicense":

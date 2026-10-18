@@ -462,6 +462,8 @@ impl AmfProductionEngine {
         run.error = None;
         run.recovery = None;
         let mut snapshot = None;
+        // The recheck replaces the observed facts; a restore brings these back with the files.
+        let observed_before = (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone());
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
@@ -486,7 +488,10 @@ impl AmfProductionEngine {
         if result.is_err() {
             if let Some(snapshot) = snapshot {
                 run.recovery = Some(match self.platform.restore(&run, &snapshot) {
-                    Ok(()) => "restored".into(),
+                    Ok(()) => {
+                        (run.prefabs, run.result, run.unity_fingerprint, run.project_fingerprint) = observed_before;
+                        "restored".into()
+                    }
                     Err(error) => format!("restore_failed: {}", error.code),
                 });
             }

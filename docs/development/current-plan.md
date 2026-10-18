@@ -81,7 +81,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
-| 31 | Change a finished line's base Avatar | P-02 | next |
+| 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
 
 Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
 guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished

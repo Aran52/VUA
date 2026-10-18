@@ -683,8 +683,10 @@ impl AmfProductionEngine {
     }
     pub fn get(&self, run_id: &str) -> Result<ProductionRun, AppErrorV1> {
         let path = self.run_file(run_id)?;
-        let run: ProductionRun =
-            serde_json::from_slice(&fs::read(path).map_err(io_error)?).map_err(io_error)?;
+        let bytes = fs::read(path).map_err(|e| if e.kind() == std::io::ErrorKind::NotFound {
+            production_error("run_not_found", "There is no production line with this ID. List the current lines and use one of their IDs.")
+        } else { io_error(e) })?;
+        let run: ProductionRun = serde_json::from_slice(&bytes).map_err(io_error)?;
         let expected = self.root.join("projects").join(run_id);
         if run.run_id != run_id || Path::new(&run.project_root) != expected {
             return Err(production_error(
@@ -1074,6 +1076,16 @@ impl AmfProductionEngine {
         if release.exists() {
             fs::remove_file(release).map_err(io_error)?;
         }
+        // Assembly records are named `<runId>-<digest>.json`; the line's own leave with it.
+        if let Ok(entries) = fs::read_dir(self.root.join("records")) {
+            let prefix = format!("{run_id}-");
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if name.to_str().is_some_and(|name| name.starts_with(&prefix)) && entry.path().is_file() {
+                    fs::remove_file(entry.path()).map_err(|e| production_error("delete_failed", e.to_string()))?;
+                }
+            }
+        }
         fs::remove_file(self.run_file(run_id)?).map_err(io_error)?;
         *self.usual.lock().expect("AMF durations poisoned") = None;
         Ok(())
@@ -1427,6 +1439,15 @@ impl AmfProductionEngine {
             run.result = serde_json::Value::Null;
         }
         self.finish(&mut run, result)
+    }
+    /// Work that changes a line's project needs Unity to let go of it; asking while Unity holds
+    /// the project is refused at once instead of failing later as a task.
+    pub fn precheck_closed(&self, run_id: &str) -> Result<(), AppErrorV1> {
+        let run = self.get(run_id)?;
+        if self.platform.editor_open(Path::new(&run.project_root)) {
+            return Err(production_error("project_open", "Unity has this line's project open. Close that Unity window, then try again."));
+        }
+        Ok(())
     }
     pub fn precheck_open(&self, run_id: &str) -> Result<(), AppErrorV1> {
         let run = self.get(run_id)?;

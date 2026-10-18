@@ -119,16 +119,19 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   useEffect(() => {
     if (!runId || !port) { setRun(null); return; }
     let alive = true; let timer: ReturnType<typeof setTimeout> | undefined;
+    // An error from reading the run leaves once the run reads again; other errors stay until handled.
+    let loadFailed = false;
     const load = async () => {
       try {
         const loaded = await port.get(runId); if (!alive) return;
+        if (loadFailed) { loadFailed = false; setError(null); }
         setRun(loaded);
         if (taskId === null && initialized.current !== runId && (loaded.phase === "ready" || loaded.phase === "succeeded")) {
           initialized.current = runId; setSelection(initialProductionSelection(loaded));
         }
         // A reinspection keeps the previous phase until it ends; a running step still needs fresh facts.
         if (["preparing", "inspecting", "assembling", "restoring"].includes(loaded.phase) || loaded.steps.some(step => step.state === "running") || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
-      } catch (e) { if (alive) { setError(e instanceof Error ? e.message : unavailable); timer = setTimeout(() => { void load(); }, 2000); } }
+      } catch (e) { if (alive) { loadFailed = true; setError(e instanceof Error ? e.message : unavailable); timer = setTimeout(() => { void load(); }, 2000); } }
     };
     void load();
     return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };

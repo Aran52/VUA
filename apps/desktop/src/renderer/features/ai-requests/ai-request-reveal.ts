@@ -15,6 +15,8 @@ export function revealRequest(request: AiActionRequestV01, navigate: (page: Page
   navigate(requestPage(request, taskOrigin));
   for (const listener of listeners) listener(request.id);
 }
+/** Asks the page that shows the request to bring its own confirmation forward, without navigating. */
+export function focusRequest(requestId: string): void { for (const listener of listeners) listener(requestId); }
 export function takeRevealedRequest(): string | null { const id = revealed; revealed = null; return id; }
 export function onRequestRevealed(listener: (requestId: string) => void): () => void {
   listeners.add(listener); return () => { listeners.delete(listener); };

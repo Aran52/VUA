@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAmfProductionRun, createAmfProductionPort } from "./amf-production-port.ts";
+import { amfRunProblem, isAmfProductionRun, createAmfProductionPort } from "./amf-production-port.ts";
 import type { GatewayClient } from "./gateway-client.ts";
 import type { DesktopGatewaySuccessValueV1 } from "@vua/contracts";
 
@@ -14,6 +14,11 @@ describe("AMF production response boundary", () => {
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,instances:"passed"}}})).toBe(false);
     expect(isAmfProductionRun({...run,editor:{...run.editor,version:"2022.3.22"}})).toBe(false);
     expect(isAmfProductionRun({...run,choices:[{sourceId:"coat",role:"any-role"}]})).toBe(false);
+    // A rejected run names the part that failed, for diagnosis.
+    expect(amfRunProblem(run)).toBeNull();
+    expect(amfRunProblem({...run,choices:[{sourceId:"coat",role:"any-role"}]})).toBe("choices");
+    expect(amfRunProblem({...run,progress:{step:"unknown"}})).toBe("progress");
+    expect(amfRunProblem(null)).toBe("record");
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,observedSelection:selection}}})).toBe(true);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,observedSelection:{...selection,outfits:[{...selection.outfits[0],active:"false"}]}}}})).toBe(false);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,hasMissingScripts:"none"}}})).toBe(false);

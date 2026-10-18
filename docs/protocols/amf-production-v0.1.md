@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.21.0
+> Document version: 0.22.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: AMF
@@ -226,9 +226,12 @@ in request order, when admitted by these rules:
   the next one. Jobs are never overtaken by later submissions.
 
 Checks of the request itself (keys, plan digest
-shape, Avatar name, rights confirmation, SDK items) answer at once; checks against the work
-project and the run (Editor identity, `project_open`, `project_drift`, `result_not_ready`) run
-when the job starts, and a job that cannot start then ends `failed` with that reason.
+shape, Avatar name, rights confirmation, SDK items) answer at once, and so does `project_open`
+for work that changes the project (reinspection, assembly, a material change, an SDK fix, a
+restore, a Recipe application, lighting and deletion) while Unity holds it; other checks against
+the work project and the run (Editor identity, `project_open` again, `project_drift`,
+`result_not_ready`) run when the job starts, and a job that cannot start then ends `failed` with
+that reason. A `runId` without a run answers `run_not_found`.
 `amf.production.list` reports the configured `capacity`, `running` in admission order and
 `queue` in submission order. Each entry has `taskId`, `runId` and `operation`. `busy` is true
 exactly when `running` is nonempty. Cancelling a queued task through
@@ -301,9 +304,9 @@ adjustment leaves with them; plan again afterwards.
 ### Deleting a line
 
 `amf.production.delete` removes a line: its work project with the restore points, previews and
-turntable inside it, its release record and its run record. Saved Recipes and Avatars uploaded to
-VRChat stay. A line with work running or waiting answers `busy`; a work project Unity holds
-answers `project_open` when the task starts.
+turntable inside it, its release record, its assembly records and its run record. Saved Recipes
+and Avatars uploaded to VRChat stay. A line with work running or waiting answers `busy`; a work
+project Unity holds answers `project_open`.
 
 ## Previews
 
@@ -405,6 +408,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.22.0 (2026-10-19): a missing run answers `run_not_found`; work that changes a project Unity holds answers `project_open` when it is requested; deleting a line also removes its assembly records.
 - 0.21.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
 - 0.20.0 (2026-10-19): another Avatar prefab on an assembled line rebuilds the line on that base behind a restore point; `plan` reports it as `rebuild`.
 - 0.19.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.

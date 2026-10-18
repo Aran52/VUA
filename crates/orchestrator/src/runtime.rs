@@ -123,18 +123,42 @@ pub enum TaskExit {
 /// The unit of work executed on a dedicated worker thread (ORC-CON-002).
 pub type TaskJob = Box<dyn FnOnce(&TaskContext) -> Result<TaskExit, AppErrorV1> + Send>;
 
-/// Runs the jobs submitted to it one at a time, in submission order. A job waiting for its turn
-/// keeps its task `queued`; a cancel request while it waits ends the task `cancelled` without
-/// running the job.
+/// Admits up to its capacity in submission order, respecting shared keys and exclusive jobs.
+/// Waiting tasks stay `queued` and can be cancelled without running their jobs.
 #[derive(Clone, Default)]
 pub struct TaskLane {
     shared: Arc<(Mutex<LaneState>, Condvar)>,
 }
 
-#[derive(Default)]
 struct LaneState {
-    waiting: VecDeque<String>,
-    holder: Option<String>,
+    capacity: usize,
+    waiting: VecDeque<LaneJob>,
+    running: Vec<LaneJob>,
+}
+
+impl Default for LaneState {
+    fn default() -> Self {
+        Self { capacity: 1, waiting: VecDeque::new(), running: Vec::new() }
+    }
+}
+
+/// Jobs with the same key cannot overlap. An exclusive job runs alone.
+#[derive(Clone, Default)]
+pub struct TaskLanePolicy {
+    pub key: Option<String>,
+    pub exclusive: bool,
+}
+
+struct LaneJob {
+    task_id: String,
+    policy: TaskLanePolicy,
+}
+
+/// One coherent view of admission, including jobs that acquired a slot before execution.
+pub struct TaskLaneSnapshot {
+    pub capacity: usize,
+    pub running: Vec<String>,
+    pub waiting: Vec<String>,
 }
 
 /// How often a waiting job looks for a cancel request.
@@ -146,6 +170,27 @@ impl TaskLane {
         Self::default()
     }
 
+    pub fn with_capacity(capacity: usize) -> Result<Self, AppErrorV1> {
+        let lane = Self::new();
+        lane.set_capacity(capacity)?;
+        Ok(lane)
+    }
+
+    /// Reconfiguration requires an idle lane, so it never interrupts or reorders accepted work.
+    pub fn set_capacity(&self, capacity: usize) -> Result<(), AppErrorV1> {
+        if !(1..=3).contains(&capacity) {
+            return Err(AppErrorV1::new("vua.task.lane_capacity_invalid", ErrorCategory::Validation,
+                "errors.task.laneCapacityInvalid", "task-lane"));
+        }
+        let mut state = self.state();
+        if !state.running.is_empty() || !state.waiting.is_empty() {
+            return Err(AppErrorV1::new("vua.task.lane_busy", ErrorCategory::Conflict,
+                "errors.task.laneBusy", "task-lane"));
+        }
+        state.capacity = capacity;
+        Ok(())
+    }
+
     fn state(&self) -> std::sync::MutexGuard<'_, LaneState> {
         self.shared.0.lock().expect("lane poisoned")
     }
@@ -153,24 +198,34 @@ impl TaskLane {
     /// Tasks waiting for their turn, first in line first.
     #[must_use]
     pub fn waiting(&self) -> Vec<String> {
-        self.state().waiting.iter().cloned().collect()
+        self.snapshot().waiting
     }
 
-    /// The task whose job runs in the lane now.
+    /// The first running task, retained for callers of the single-slot lane.
     #[must_use]
     pub fn holder(&self) -> Option<String> {
-        self.state().holder.clone()
+        self.state().running.first().map(|job| job.task_id.clone())
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> TaskLaneSnapshot {
+        let state = self.state();
+        TaskLaneSnapshot {
+            capacity: state.capacity,
+            running: state.running.iter().map(|job| job.task_id.clone()).collect(),
+            waiting: state.waiting.iter().map(|job| job.task_id.clone()).collect(),
+        }
     }
 
     /// No job runs or waits in the lane.
     #[must_use]
     pub fn is_idle(&self) -> bool {
         let state = self.state();
-        state.holder.is_none() && state.waiting.is_empty()
+        state.running.is_empty() && state.waiting.is_empty()
     }
 
-    fn join(&self, task_id: &str) {
-        self.state().waiting.push_back(task_id.to_owned());
+    fn join(&self, task_id: &str, policy: TaskLanePolicy) {
+        self.state().waiting.push_back(LaneJob { task_id: task_id.to_owned(), policy });
     }
 
     /// Waits for this task's turn. False when a cancel request came first; the task then leaves
@@ -179,14 +234,23 @@ impl TaskLane {
         loop {
             // The cancel check reads the task store; it runs without the lane lock.
             if cancelled() {
-                self.state().waiting.retain(|waiting| waiting != task_id);
+                self.state().waiting.retain(|waiting| waiting.task_id != task_id);
                 self.shared.1.notify_all();
                 return false;
             }
             let mut state = self.state();
-            if state.holder.is_none() && state.waiting.front().map(String::as_str) == Some(task_id) {
-                state.waiting.pop_front();
-                state.holder = Some(task_id.to_owned());
+            // A blocked head prevents later jobs overtaking it, even with a free slot.
+            let admitted = state.waiting.front().is_some_and(|head| {
+                head.task_id == task_id && state.running.len() < state.capacity
+                    && (!head.policy.exclusive || state.running.is_empty())
+                    && state.running.iter().all(|job| !job.policy.exclusive
+                        && (head.policy.key.is_none() || head.policy.key != job.policy.key))
+            });
+            if admitted {
+                let head = state.waiting.pop_front().expect("head checked");
+                state.running.push(head);
+                drop(state);
+                self.shared.1.notify_all();
                 return true;
             }
             let _ = self.shared.1.wait_timeout(state, LANE_CANCEL_POLL).expect("lane poisoned");
@@ -195,9 +259,7 @@ impl TaskLane {
 
     fn release(&self, task_id: &str) {
         let mut state = self.state();
-        if state.holder.as_deref() == Some(task_id) {
-            state.holder = None;
-        }
+        state.running.retain(|job| job.task_id != task_id);
         drop(state);
         self.shared.1.notify_all();
     }
@@ -601,10 +663,13 @@ impl TaskRuntime {
         self.submit_inner(request, None, None)
     }
 
-    /// Like [`Self::submit`], with the job waiting in `lane` until the jobs submitted to it
-    /// before have ended. The task stays `queued` while it waits.
+    /// Like [`Self::submit`], with FIFO admission through the lane's capacity.
     pub fn submit_in_lane(&self, request: SubmitRequest, lane: &TaskLane) -> Result<CommandAcceptedV1, AppErrorV1> {
-        self.submit_inner(request, None, Some(lane))
+        self.submit_in_lane_with_policy(request, lane, TaskLanePolicy::default())
+    }
+
+    pub fn submit_in_lane_with_policy(&self, request: SubmitRequest, lane: &TaskLane, policy: TaskLanePolicy) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_inner(request, None, Some((lane, policy)))
     }
 
     /// Atomically bind a command ID and fingerprint to durable task acceptance. Replays
@@ -624,7 +689,7 @@ impl TaskRuntime {
         &self,
         request: SubmitRequest,
         idempotency: Option<(&str, &str, &str)>,
-        lane: Option<&TaskLane>,
+        lane: Option<(&TaskLane, TaskLanePolicy)>,
     ) -> Result<CommandAcceptedV1, AppErrorV1> {
         if !self.inner.journal_accepting.load(Ordering::Acquire) {
             return Err(AppErrorV1::new(
@@ -726,6 +791,10 @@ impl TaskRuntime {
                     recovery_disposition: TaskRecoveryDisposition::None,
                 },
             );
+            // Join under the acceptance lock so simultaneous submitters retain durable order.
+            if let Some((lane, policy)) = &lane {
+                lane.join(&task_id, policy.clone());
+            }
         }
 
         self.inner.publish(self.inner.make_event_at(
@@ -738,10 +807,7 @@ impl TaskRuntime {
             correlation_id,
         ));
 
-        if let Some(lane) = lane {
-            lane.join(&task_id);
-        }
-        self.spawn_worker(task_id.clone(), request.job, lane.cloned());
+        self.spawn_worker(task_id.clone(), request.job, lane.map(|(lane, _)| lane.clone()));
         if let Some(timeout) = request.timeout {
             self.spawn_watchdog(task_id, timeout);
         }

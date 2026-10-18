@@ -1,6 +1,5 @@
 //! The release room's AMF methods: release state, turntable frames, turntable baking and managed
-//! upload. Commands share the production lane, so one Unity job runs at a time and work asked
-//! for meanwhile waits for its turn.
+//! upload. Commands share the production lane's capacity and per-run exclusion; uploads run alone.
 use super::amf_production_routes::AmfProductionServices;
 use serde_json::{json, Value};
 use std::sync::Arc;

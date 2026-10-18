@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "node scripts/clean.mjs && tsc -p tsconfig.json",
+    "test": "vitest run src",
     "check": "tsc -p tsconfig.json --noEmit && vitest run src"
   },
   "devDependencies": {

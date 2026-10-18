@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { isAmfProductionParams, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
-import { isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
+import { DESKTOP_GATEWAY_METHOD_KINDS, isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 
 const selection = { avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"outfit",prefabPath:"Assets/Outfit.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}] };
 describe("AMF material-first Candidate boundary", () => {
+  it("registers capacity as a command with exactly three admitted values", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.setCapacity"]).toBe("command");
+    for (const capacity of [1, 2, 3]) {
+      const params = {schemaVersion:"0.1",capacity};
+      expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"capacity",method:"amf.production.setCapacity",params})).toBe(true);
+    }
+    for (const capacity of [0, 4, 1.5, "2", true, null]) {
+      expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"capacity",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity}})).toBe(false);
+    }
+  });
   it("consumes the shared positive and negative native request vectors", () => {
     const root = new URL("../../../schemas/amf-production-flow/v0.1/examples/", import.meta.url);
     for (const name of readdirSync(root)) {

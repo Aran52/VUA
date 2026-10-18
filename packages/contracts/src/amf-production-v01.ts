@@ -8,7 +8,17 @@ export interface AmfOutfitSelection {
 }
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
+export type AmfProductionCapacity = 1 | 2 | 3;
+export interface AmfProductionWorkV01 { readonly taskId: string; readonly runId: string; readonly operation: string }
+export interface AmfProductionCapacityResultV01 { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity }
+export interface AmfProductionLaneV01 {
+  readonly capacity: AmfProductionCapacity;
+  readonly busy: boolean;
+  readonly running: readonly AmfProductionWorkV01[];
+  readonly queue: readonly AmfProductionWorkV01[];
+}
 export type AmfProductionBodyV01 =
+  | { readonly method: "amf.production.setCapacity"; readonly params: { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity } }
   | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string } }
   | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string } }
   | { readonly method: "amf.production.previewRecipeShare" | "amf.production.importRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly text: string } }
@@ -127,6 +137,7 @@ export function isAmfAssemblySelection(value: unknown): value is AmfAssemblySele
 export function isAmfProductionParams(method: unknown, value: unknown): boolean {
   if (!record(value) || value.schemaVersion !== "0.1") return false;
   switch (method) {
+    case "amf.production.setCapacity": return exact(value, ["schemaVersion", "capacity"]) && isAmfProductionCapacity(value.capacity);
     case "amf.production.recipeApplyPlan": case "amf.production.applyRecipe":
       return exact(value, [...(method === "amf.production.recipeApplyPlan" ? ["schemaVersion","runId","recipeId"] : ["schemaVersion","runId","recipeId","planDigest","choice"]), ...("avatarGlobalObjectId" in value ? ["avatarGlobalObjectId"] : [])])
         && (!("avatarGlobalObjectId" in value) || text(value.avatarGlobalObjectId,256))
@@ -173,4 +184,8 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && (method === "amf.production.plan" || (typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)));
     default: return false;
   }
+}
+
+export function isAmfProductionCapacity(value: unknown): value is AmfProductionCapacity {
+  return value === 1 || value === 2 || value === 3;
 }

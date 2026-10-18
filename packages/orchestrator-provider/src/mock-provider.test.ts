@@ -8,6 +8,15 @@ import {
 } from "@vua/contracts";
 import { MockOrchestratorProviderV01 } from "./mock-provider.js";
 
+it("keeps AMF capacity unavailable in the mock provider", async () => {
+  const provider = new MockOrchestratorProviderV01();
+  await provider.start();
+  const response = await provider.invoke({contractVersion:"0.1",requestId:"capacity",correlationId:"capacity",kind:"command",commandId:"capacity",
+    method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}});
+  expect(response.ok).toBe(false);
+  if (!response.ok) expect(response.error.code).toBe("vua.amf_production.unavailable");
+});
+
 function task(overrides: Partial<TaskSnapshotV01> = {}): TaskSnapshotV01 {
   return {
     contractVersion: APPLICATION_CONTRACT_VERSION,

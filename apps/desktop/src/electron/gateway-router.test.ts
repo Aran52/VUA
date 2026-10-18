@@ -1194,6 +1194,19 @@ describe("bdl-queries v0.2 routing", () => {
 });
 
 describe("amf-production v0.2 routing", () => {
+  it("forwards capacity as an AMF command with its closed params", async () => {
+    const provider = new MockOrchestratorProviderV01();
+    await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"capacity-1",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-capacity-1",
+      method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"capacity-bad",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:4}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
   const quad = {
     sourceFolder: "C:/materials/source",
     projectRoot: "C:/projects/target",

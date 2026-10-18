@@ -2,12 +2,15 @@
 //! licensing client; the packaged (MSIX) Hub keeps the license in its own package folder, which
 //! only that client reaches.
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 const LICENSING_CLIENT: &str = "Unity.Licensing.Client.exe";
 const START_TIMEOUT: Duration = Duration::from_secs(90);
 /// The client accepts license requests a moment after its process appears.
 const SETTLE: Duration = Duration::from_secs(5);
+// Serialize the client check, Hub launch and readiness wait across AMF projects.
+static HUB_START: Mutex<()> = Mutex::new(());
 
 /// How to start the detected Hub.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,6 +46,7 @@ fn application_id(package_root: &Path) -> Option<String> {
 /// Starts Hub when its licensing client is not running and waits for the client. Returns whether
 /// the client runs; without it Unity still tries its own licensing.
 pub(crate) fn ensure_licensing_client(launch: Option<HubLaunch>, cancelled: impl Fn() -> bool) -> bool {
+    let _start = HUB_START.lock().expect("Unity Hub startup poisoned");
     if licensing_client_running() {
         return true;
     }

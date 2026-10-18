@@ -66,6 +66,11 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-upload-name.json"),
         read("examples/invalid-turntable-frame-index.json"),
         read("examples/invalid-bake-turntable-query.json"),
+        read("examples/invalid-capacity-query.json"),
+        read("examples/invalid-capacity-extra.json"),
+        read("examples/invalid-capacity-missing.json"),
+        read("examples/invalid-capacity-four.json"),
+        read("examples/invalid-capacity-fraction.json"),
     ];
     let mut lines = String::new();
     for (index, case) in cases.iter().enumerate() {
@@ -110,6 +115,10 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
     assert_eq!(reply(0)["ok"], true);
     assert_eq!(reply(0)["value"]["sources"], json!([]));
     assert_eq!(reply(0)["value"]["runs"], json!([]));
+    assert_eq!(reply(0)["value"]["capacity"], 1);
+    assert_eq!(reply(0)["value"]["busy"], false);
+    assert_eq!(reply(0)["value"]["running"], json!([]));
+    assert_eq!(reply(0)["value"]["queue"], json!([]));
     assert_eq!(reply(1)["ok"], true);
     assert_eq!(reply(1)["value"]["recipes"], json!([]));
     for index in 2..cases.len() {

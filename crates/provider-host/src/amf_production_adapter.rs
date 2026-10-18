@@ -41,8 +41,12 @@ fn project(run: &ProductionRun) -> ProjectRef {
 const MA_REPO: &str = known_packages::MODULAR_AVATAR_FEED;
 /// How often a running Unity step reads its log and checks for a stop.
 const UNITY_POLL: Duration = Duration::from_millis(500);
+// Backend construction, feed updates, resolution and installation share AMF's VPM files.
+static VPM_ENVIRONMENT_WRITE: Mutex<()> = Mutex::new(());
+// Different projects may extract the same source through the same cache .pending path.
+static PACKAGE_CACHE_WRITE: Mutex<()> = Mutex::new(());
 
-/// Subscribes the private environment to a feed and makes sure its manifest is cached.
+/// Subscribes the private environment to a feed. The caller holds VPM_ENVIRONMENT_WRITE.
 fn ensure_repo(
     backend: &vua_project_manager::VrcGetLibBackend,
     url: &str,
@@ -83,6 +87,7 @@ impl NativeAmfProduction {
     /// Installs a known package from its official feed: the newest resolving release, or the
     /// newest release of one version line pinned through the request's exact version.
     fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage, line: Option<&str>) -> Result<(), AppErrorV1> {
+        let _environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         ensure_repo(&backend, package.feed_url, package.display_name)?;
         let version = match line {
@@ -111,6 +116,7 @@ impl NativeAmfProduction {
         let Some(member) = &source.archive_member else {
             return Ok(source.path.clone());
         };
+        let _cache = PACKAGE_CACHE_WRITE.lock().expect("AMF package cache poisoned");
         let archive_hash = vua_unity_bridge::material_exec::sha256_file(&source.path)
             .map_err(|e| err("source_unreadable", format!("Read selected ZIP: {e}")))?;
         let root = self.root.join("package-cache");
@@ -689,6 +695,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         FileSystemProjectStore::initialize(&p).map_err(|e| err("project_failed", e))?;
         fs::write(p.root.join(".vua/amf-run.txt"), &run.run_id)
             .map_err(|e| err("project_failed", e))?;
+        let environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         backend.ensure_official_sdk_cache()?;
         ensure_repo(&backend, MA_REPO, "Modular Avatar")?;
@@ -720,6 +727,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
             ));
         }
         backend.apply_install(&p, &packages, &preview.digest)?;
+        drop(environment);
         // Real upstream SDK + MA are required. No staging-scaffold stubs are installed here.
         refresh_bridge_package(&p.root)?;
         Ok(())
@@ -1101,7 +1109,11 @@ fn import_choices(
         let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
         let mut guids = HashMap::<String, String>::new();
         let table = known_packages::KNOWN_PACKAGES;
-        let legacy = known_packages::legacy_entries(table, Some(&adapter.root.join("vpm-environment")));
+        // Another line may be refreshing the same feed caches.
+        let legacy = {
+            let _environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
+            known_packages::legacy_entries(table, Some(&adapter.root.join("vpm-environment")))
+        };
         let mut needs = known_packages::PackageNeeds::new();
         let mut legacy_copies = known_packages::LegacyCopies::new();
         // Legacy copies wait for the package action: only a copy the exact official
@@ -1657,7 +1669,20 @@ mod tests {
         assert_eq!(fs::read(&extracted).unwrap(), b"original source bytes");
         fs::write(&extracted, b"tampered private cache").unwrap();
         assert_eq!(adapter.package_path(&source).unwrap(), extracted);
-        assert_eq!(fs::read(extracted).unwrap(), b"original source bytes");
+        assert_eq!(fs::read(&extracted).unwrap(), b"original source bytes");
+        // Parallel preparations of the same ZIP member share one cache publication path.
+        let barrier = std::sync::Barrier::new(3);
+        std::thread::scope(|scope| {
+            let jobs: Vec<_> = (0..3).map(|_| scope.spawn(|| {
+                barrier.wait();
+                for _ in 0..3 {
+                    let path = adapter.package_path(&source).unwrap();
+                    assert_eq!(path, extracted);
+                    assert_eq!(fs::read(path).unwrap(), b"original source bytes");
+                }
+            })).collect();
+            for job in jobs { job.join().unwrap(); }
+        });
         assert!(zip_path.is_file());
         drop(adapter);
         assert!(

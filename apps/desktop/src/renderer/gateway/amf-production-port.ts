@@ -1,7 +1,7 @@
 import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
-  AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01 } from "@vua/contracts";
+  AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01 } from "@vua/contracts";
 import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
-  AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress } from "@vua/contracts";
+  AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
 import type { Unsubscribe } from "./types.ts";
@@ -59,12 +59,9 @@ export interface AmfSdkReview {
   readonly detail: string;
 }
 /** Unity work waiting for its turn behind the running job. */
-export interface AmfQueuedWork { readonly taskId: string; readonly runId: string; readonly operation: string }
-export interface AmfProductionList {
+export type AmfQueuedWork = AmfProductionWorkV01;
+export interface AmfProductionList extends AmfProductionLaneV01 {
   readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[];
-  /** A Unity job runs now; work asked for meanwhile waits in `queue`. */
-  readonly busy: boolean;
-  readonly queue: readonly AmfQueuedWork[];
   readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[] }[];
 }
 export interface AmfProductionPlan {
@@ -102,6 +99,7 @@ export interface AmfProductionPort {
   saveRecipe(runId: string, title: string): Promise<AmfSavedRecipe>;
   prepareRecipe(recipeId: string, editorPath: string): Promise<AmfProductionAccepted>;
   list(): Promise<AmfProductionList>;
+  setCapacity(capacity: AmfProductionCapacity): Promise<AmfProductionCapacity>;
   get(runId: string): Promise<AmfProductionRun>;
   prepare(sources: readonly AmfSourceChoice[], editorPath: string): Promise<AmfProductionAccepted>;
   plan(runId: string, selection: AmfAssemblySelection): Promise<AmfProductionPlan>;
@@ -128,6 +126,8 @@ export interface AmfProductionPort {
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string => typeof v === "string";
 const texts = (v: unknown): v is string[] => Array.isArray(v) && v.every(text);
+const work = (v: unknown): v is AmfProductionWorkV01 => record(v) && text(v.taskId) && v.taskId.length > 0
+  && text(v.runId) && v.runId.length > 0 && text(v.operation) && v.operation.startsWith("amf.production.");
 const phases: readonly string[] = AMF_RUN_PHASES;
 const roles = ["auto", "avatar", "outfit", "dependency"];
 const savedRecipe = (v: unknown): v is AmfSavedRecipe => record(v) && isAmfRecipeDocument(v.recipe) && Number.isSafeInteger(v.revision) && Number(v.revision) > 0 && text(v.updatedAt);
@@ -257,8 +257,15 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       const v = await call({ method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.sources) || !v.sources.every(source) || !Array.isArray(v.editors) || !v.editors.every(editor)
         || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames))
-        || !Array.isArray(v.queue) || v.queue.length > 64 || !v.queue.every(q => record(q) && text(q.taskId) && text(q.runId) && text(q.operation) && q.operation.startsWith("amf.production."))) throw new Error("amf_production_list_invalid");
+        || !isAmfProductionCapacity(v.capacity) || !Array.isArray(v.running) || v.running.length > v.capacity || !v.running.every(work)
+        || v.busy !== (v.running.length > 0)
+        || !Array.isArray(v.queue) || v.queue.length > 64 || !v.queue.every(work)) throw new Error("amf_production_list_invalid");
       return v as unknown as AmfProductionList;
+    },
+    async setCapacity(capacity) {
+      const v = await call({ method: "amf.production.setCapacity", params: { schemaVersion: "0.1", capacity } });
+      if (!record(v) || v.schemaVersion !== "0.1" || !isAmfProductionCapacity(v.capacity) || v.capacity !== capacity) throw new Error("amf_production_capacity_invalid");
+      return v.capacity;
     },
     async get(runId) { const v = await call({ method: "amf.production.get", params: { schemaVersion: "0.1", runId } }); if (!isAmfProductionRun(v) || v.runId !== runId) throw new Error("amf_production_run_invalid"); return v; },
     async prepare(sources, editorPath) { return accepted(await call({ method: "amf.production.prepare", params: { schemaVersion: "0.1", sources, editorPath } }), strings.amfProduction.preparing); },

@@ -18,6 +18,22 @@ pub(crate) enum Delivery {
     Bundled,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LegacyPolicy {
+    /// lilToon's historical rule: a bundled copy always leaves for the official package.
+    ReplaceAlways,
+    /// A bundled copy leaves only when the exact official release covers every shader GUID in it.
+    ReplaceWhenCovered,
+}
+
+/// One upstream release line whose shader GUIDs differ from every other line.
+pub(crate) struct VersionLine {
+    /// The `major.minor` prefix shared by every release of this line.
+    pub line: &'static str,
+    /// Lower-case shader GUIDs read from this line's newest release package.
+    pub shader_guids: &'static [&'static str],
+}
+
 pub(crate) struct KnownPackage {
     pub id: &'static str,
     pub display_name: &'static str,
@@ -37,6 +53,9 @@ pub(crate) struct KnownPackage {
     pub material_markers: &'static [&'static str],
     /// Lower-case shader GUIDs read from the official package's `.meta` files.
     pub shader_guids: &'static [&'static str],
+    /// Release lines, oldest first; a GUID belongs to the newest line that carries it.
+    pub version_lines: &'static [VersionLine],
+    pub legacy_policy: LegacyPolicy,
     /// Legacy install locations used when the cached feed declares none.
     pub legacy_folders: &'static [&'static str],
     pub legacy_files: &'static [&'static str],
@@ -44,7 +63,26 @@ pub(crate) struct KnownPackage {
 
 impl KnownPackage {
     fn detects_materials(&self) -> bool {
-        !self.material_markers.is_empty() || !self.shader_guids.is_empty()
+        !self.material_markers.is_empty() || !self.shader_guids.is_empty() || !self.version_lines.is_empty()
+    }
+
+    fn contains_shader(&self, guid: &str) -> bool {
+        self.shader_guids.contains(&guid)
+            || self.version_lines.iter().any(|line| line.shader_guids.contains(&guid))
+    }
+
+    /// The newest line carrying this GUID, so a GUID shared by several lines resolves
+    /// to the release that still ships it.
+    fn line_for_guid(&self, guid: &str) -> Option<&VersionLine> {
+        self.version_lines.iter().rev().find(|line| line.shader_guids.contains(&guid))
+    }
+
+    fn line_for_version(&self, version: &str) -> Option<&'static str> {
+        let line = version_line(version)?;
+        self.version_lines
+            .iter()
+            .find(|candidate| candidate.line == line)
+            .map(|candidate| candidate.line)
     }
 }
 
@@ -68,6 +106,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &["_lilToonVersion"],
         shader_guids: &[],
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceAlways,
         legacy_folders: &["Assets\\lilToon"],
         legacy_files: &[],
     },
@@ -81,7 +121,9 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         license_checked: CHECKED,
         delivery: Delivery::Auto,
         material_markers: &[],
-        shader_guids: POIYOMI_TOON_GUIDS,
+        shader_guids: &[],
+        version_lines: POIYOMI_TOON_LINES,
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &["Assets\\_PoiyomiShaders"],
         legacy_files: &[],
     },
@@ -96,6 +138,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Guide,
         material_markers: &[],
         shader_guids: &[],
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
     },
@@ -110,6 +154,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: UNLITWF_GUIDS,
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &["Assets\\Unlit_WF_ShaderSuite"],
         legacy_files: &[],
     },
@@ -124,6 +170,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Bundled,
         material_markers: &[],
         shader_guids: TOON_STANDARD_GUIDS,
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
     },
@@ -138,6 +186,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: &[],
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
     },
@@ -152,6 +202,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: &[],
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
     },
@@ -166,6 +218,8 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: &[],
+        version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
     },
@@ -191,7 +245,7 @@ pub(crate) fn detect_material(table: &[KnownPackage], material: &[u8]) -> Option
     table
         .iter()
         .enumerate()
-        .find(|(_, package)| package.shader_guids.contains(&guid.as_str()))
+        .find(|(_, package)| package.contains_shader(&guid))
         .map(|(index, _)| MaterialMatch { package: index, shader_guid: Some(guid) })
 }
 
@@ -202,36 +256,105 @@ fn shader_guid(text: &str) -> Option<String> {
     (guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit())).then_some(guid)
 }
 
-/// What one package needs from preparation: a bundled legacy copy arrived, and the
-/// shader GUIDs the selected materials reference.
+/// The shader GUIDs the selected materials of one package reference.
 #[derive(Default)]
 pub(crate) struct PackageNeed {
-    pub bundled_copy: bool,
     pub shaders: BTreeSet<String>,
 }
 pub(crate) type PackageNeeds = BTreeMap<usize, PackageNeed>;
 
-/// The `auto` packages to install, in table order. A package is required when a
-/// bundled legacy copy arrived or a detected shader is not provided by the selected
-/// sources. Recipe pins win, and a package the project already carries is not reinstalled.
-pub(crate) fn auto_install_plan(
+/// A legacy copy found inside the selected sources: every shader GUID it carries,
+/// read from the staged `.shader` metadata.
+#[derive(Default)]
+pub(crate) struct LegacyCopy {
+    pub present: bool,
+    pub shaders: BTreeSet<String>,
+    /// A `.shader` whose metadata could not be read, so coverage cannot be proven.
+    pub unreadable_shader: bool,
+}
+pub(crate) type LegacyCopies = BTreeMap<usize, LegacyCopy>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Install {
+    /// The newest resolving release (lilToon and UnlitWF, whose GUIDs are version-stable).
+    Latest,
+    /// The newest release of one version line, pinned through `PackageRequestV1.version`.
+    Line(&'static str),
+}
+
+#[derive(Debug)]
+pub(crate) struct PackageAction {
+    pub install: Option<Install>,
+    /// `false` imports the legacy copy exactly as before, `true` leaves it to the official package.
+    pub replace_legacy: bool,
+}
+
+/// What preparation does with one package. Installation and legacy replacement are
+/// linked: a copy that cannot be replaced completely imports unchanged and nothing is
+/// installed, so an old copy never meets a different official release.
+pub(crate) fn package_action(
     table: &[KnownPackage],
-    needs: &PackageNeeds,
+    index: usize,
+    need: &PackageNeed,
+    legacy: &LegacyCopy,
     provided_guids: &HashMap<String, String>,
-    package_pins: &BTreeMap<String, String>,
-    installed: &serde_json::Value,
-) -> Vec<usize> {
-    needs
+    installed_version: Option<&str>,
+    pinned: bool,
+) -> PackageAction {
+    let package = &table[index];
+    if !matches!(package.delivery, Delivery::Auto) {
+        // Guide and SDK-bundled packages are never installed or replaced by this path.
+        return PackageAction { install: None, replace_legacy: false };
+    }
+    let needed: BTreeSet<&String> = need
+        .shaders
         .iter()
-        .filter(|(index, need)| {
-            let package = &table[**index];
-            matches!(package.delivery, Delivery::Auto)
-                && (need.bundled_copy || need.shaders.iter().any(|guid| !provided_guids.contains_key(guid)))
-                && !package_pins.contains_key(package.id)
-                && installed.get(package.id).is_none()
-        })
-        .map(|(index, _)| *index)
-        .collect()
+        .filter(|guid| !provided_guids.contains_key(guid.as_str()))
+        .collect();
+    if matches!(package.legacy_policy, LegacyPolicy::ReplaceAlways) {
+        // lilToon: bundled copies always leave, even with a Recipe pin or an installed package.
+        return PackageAction {
+            install: (!pinned && installed_version.is_none() && (legacy.present || !needed.is_empty())).then_some(Install::Latest),
+            replace_legacy: legacy.present,
+        };
+    }
+    let keep = PackageAction { install: None, replace_legacy: false };
+    if pinned || installed_version.is_some() {
+        return keep;
+    }
+    if package.version_lines.is_empty() {
+        if legacy.present {
+            let covered = !legacy.unreadable_shader && !legacy.shaders.is_empty()
+                && legacy.shaders.iter().chain(need.shaders.iter()).all(|guid| package.contains_shader(guid));
+            return if covered {
+                PackageAction { install: Some(Install::Latest), replace_legacy: true }
+            } else {
+                keep
+            };
+        }
+        return PackageAction { install: (!needed.is_empty()).then_some(Install::Latest), replace_legacy: false };
+    }
+    let line_of = |guid: &String| package.line_for_guid(guid).map(|line| line.line);
+    let material_lines: BTreeSet<&str> = need.shaders.iter().filter_map(&line_of).collect();
+    let provided_lines: BTreeSet<&str> = provided_guids.keys().filter_map(&line_of).collect();
+    if legacy.present {
+        let copy_lines: BTreeSet<&str> = legacy.shaders.iter().filter_map(&line_of).collect();
+        let covered = !legacy.unreadable_shader && !legacy.shaders.is_empty()
+            && legacy.shaders.iter().all(|guid| line_of(guid).is_some())
+            && copy_lines.len() == 1
+            && material_lines.iter().all(|line| copy_lines.contains(line))
+            && provided_lines.iter().all(|line| copy_lines.contains(line));
+        return if covered {
+            PackageAction { install: Some(Install::Line(copy_lines.iter().next().expect("one line"))), replace_legacy: true }
+        } else {
+            keep
+        };
+    }
+    let needed_lines: BTreeSet<&str> = needed.iter().filter_map(|guid| line_of(guid)).collect();
+    if needed_lines.len() != 1 || provided_lines.iter().any(|line| !needed_lines.contains(line)) {
+        return keep;
+    }
+    PackageAction { install: Some(Install::Line(needed_lines.iter().next().expect("one line"))), replace_legacy: false }
 }
 
 /// The Recipe-pinned packages whose feeds project creation registers. Packages project
@@ -341,45 +464,89 @@ fn collect_legacy_paths(value: Option<&serde_json::Value>, into: &mut BTreeSet<S
 /// Reads a subscribed feed's local cache without network access. The cache file name
 /// matches `VrcGetLibBackend::add_remote_repo`; a missing or unreadable cache simply
 /// leaves the table's fallback declarations in charge.
-fn cached_legacy_declaration(environment_root: &Path, feed_url: &str, package_id: &str) -> Option<(Vec<String>, Vec<String>)> {
+fn cached_feed(environment_root: &Path, feed_url: &str) -> Option<serde_json::Value> {
     let path = environment_root
         .join("Repos")
         .join(format!("{}.json", vua_orchestrator::fnv1a_hex(feed_url.as_bytes())));
-    let feed: serde_json::Value = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
-    legacy_declaration(&feed, package_id)
+    serde_json::from_slice(&fs::read(path).ok()?).ok()
+}
+
+fn cached_legacy_declaration(environment_root: &Path, feed_url: &str, package_id: &str) -> Option<(Vec<String>, Vec<String>)> {
+    legacy_declaration(&cached_feed(environment_root, feed_url)?, package_id)
+}
+
+/// The newest cached release of one version line, used to pin the installation.
+/// `None` means the cache holds no stable release of that line.
+pub(crate) fn latest_cached_line_version(environment_root: &Path, feed_url: &str, package_id: &str, line: &str) -> Option<String> {
+    let feed = cached_feed(environment_root, feed_url)?;
+    let versions = feed.get("packages")?.get(package_id)?.get("versions")?.as_object()?;
+    versions
+        .keys()
+        .filter(|version| !version.contains('-') && version_line(version).as_deref() == Some(line))
+        .max_by(|a, b| version_key(a).cmp(&version_key(b)))
+        .cloned()
+}
+
+fn version_line(version: &str) -> Option<String> {
+    let mut parts = version.split('.');
+    Some(format!("{}.{}", parts.next()?, parts.next()?))
+}
+
+fn version_key(version: &str) -> Vec<u64> {
+    version.split('.').map(|part| part.parse().unwrap_or(0)).collect()
+}
+
+#[derive(Default)]
+struct GuideNeed {
+    count: usize,
+    lines: BTreeSet<&'static str>,
 }
 
 /// One `amf.package.guide` warning per package the missing materials point at: every
-/// recognized `guide` package, and every recognized `auto` package the project does
-/// not carry, whose automatic installation has not landed.
+/// recognized `guide` package, and every recognized `auto` package whose needed version
+/// lines the project does not carry. The message names the affected version lines.
 pub(crate) fn guide_diagnostics<'a>(
     table: &[KnownPackage],
     materials: impl IntoIterator<Item = &'a [u8]>,
     installed_versions: &BTreeMap<String, String>,
 ) -> Vec<Diagnostic> {
-    let mut counts = BTreeMap::<usize, usize>::new();
+    let mut counts = BTreeMap::<usize, GuideNeed>::new();
     for material in materials {
         if let Some(found) = detect_material(table, material) {
-            *counts.entry(found.package).or_default() += 1;
+            let package = &table[found.package];
+            let need = counts.entry(found.package).or_default();
+            need.count += 1;
+            if let Some(line) = found.shader_guid.as_deref().and_then(|guid| package.line_for_guid(guid)) {
+                need.lines.insert(line.line);
+            }
         }
     }
     counts
         .into_iter()
-        .filter_map(|(index, count)| {
+        .filter_map(|(index, need)| {
             let package = &table[index];
             let guided = match package.delivery {
                 Delivery::Guide => true,
-                Delivery::Auto => !installed_versions.contains_key(package.id),
                 Delivery::Bundled => false,
+                Delivery::Auto => match installed_versions.get(package.id) {
+                    None => true,
+                    Some(_) if package.version_lines.is_empty() => false,
+                    Some(version) => {
+                        let installed_line = package.line_for_version(version);
+                        !(need.lines.len() == 1 && need.lines.iter().next().copied() == installed_line)
+                    }
+                },
             };
             guided.then(|| Diagnostic {
                 code: "amf.package.guide".into(),
                 severity: DiagnosticSeverity::Warning,
                 message: format!(
-                    "{count} material{} need{} {}; get it from {}.",
-                    if count == 1 { "" } else { "s" },
-                    if count == 1 { "s" } else { "" },
+                    "{} material{} need{} {}{}; get it from {}.",
+                    need.count,
+                    if need.count == 1 { "" } else { "s" },
+                    if need.count == 1 { "s" } else { "" },
                     package.display_name,
+                    version_line_suffix(&need.lines),
                     package.official_url
                 ),
             })
@@ -387,47 +554,89 @@ pub(crate) fn guide_diagnostics<'a>(
         .collect()
 }
 
-// Read from com.poiyomi.toon 9.3.64: every `_PoiyomiShaders/Shaders/**.shader.meta`.
-const POIYOMI_TOON_GUIDS: &[&str] = &[
-    "00a679886ff24e74585a2a9d37b3c8d7",
-    "034460dc851505a42baca2ba6514f9f0",
-    "104003ab15a9f7a47b6ef0597225e771",
-    "1513582543e8f6c44b1981e8689f7a52",
-    "18de0e547c911de4e804ceaaa97a0b26",
-    "1b58d372fe360874a8fb767d53f955b0",
-    "21e56665a7e45184b9013fb9e4f7bc96",
-    "231d95ff7213dd74f82af136b256fb32",
-    "23f6705aff8bf964c87bfb3dd66ab345",
-    "24edb77705ad65a49afb831f72747592",
-    "3210d19aa4851e148b6848177a017f02",
-    "3eefd743f727e99419fa501e889c4998",
-    "47c3851517c96c84aae06d328a2581f6",
-    "5ab467a3a3d657b40836c4493ff3e51d",
-    "5ca92f1e9fc35504aba297fd1acd62df",
-    "68d4032c05798c44eafe02f272e6895c",
-    "73da03e2cd0afa940968d9c487e2474d",
-    "7845a1ca48a75804c8925b2bd5680f7f",
-    "784867d15973a4847b1a6048d42c1565",
-    "7bca35b6e5a09ee4cbdff5cc54a9bd49",
-    "917b37092bae034459c28c00a3a19b54",
-    "9444ce77bf4418748b1e8591b9d97f85",
-    "9cdbe9241ea4aaa48944028272700834",
-    "a49dd2fba12886c499261512c6eaaa80",
-    "a6839ad792f95aa41a941c7317aa1fe1",
-    "aa7e588ee69e46f429e3daa4b3068311",
-    "add1d40d10695a24b9e91e172ccb9525",
-    "bdbac715113578048ab7114aa3379a1d",
-    "c0aca4001823bf74e8a9538b3075bf56",
-    "c933bce24d9d90747a5def016febd042",
-    "cef5dc16b30fdbb46b08ab424d41d1c0",
-    "d0091594032d90d46b8d5eaeaf065a17",
-    "d141019541e4e44479fbd71ad42a2cf6",
-    "e99d2df55dac44a4c921122fe7cf6ba7",
-    "eda2412ac7ab2db45a47a521f6d7d8a6",
-    "fc2c2d7b9ec11d34785997ccbb86f496",
+fn version_line_suffix(lines: &BTreeSet<&str>) -> String {
+    let lines: Vec<_> = lines.iter().copied().collect();
+    match lines.len() {
+        0 => String::new(),
+        1 => format!(" {}", lines[0]),
+        2 => format!(" {} and {}", lines[0], lines[1]),
+        _ => format!(" {} and {}", lines[..lines.len() - 1].join(", "), lines[lines.len() - 1]),
+    }
+}
+
+// Each line was read from that line's newest release package, only from its own
+// `_PoiyomiShaders/Shaders/<line>/**.shader.meta`: 8.1.167, 9.0.61, 9.1.30, 9.2.79,
+// 9.3.64 and 10.0.25. No GUID is shared between two lines.
+static POIYOMI_TOON_LINES: &[VersionLine] = &[
+    VersionLine {
+        line: "8.1",
+        shader_guids: &[
+            "034460dc851505a42baca2ba6514f9f0",
+            "24edb77705ad65a49afb831f72747592",
+            "5ca92f1e9fc35504aba297fd1acd62df",
+            "784867d15973a4847b1a6048d42c1565",
+            "c0aca4001823bf74e8a9538b3075bf56",
+            "d0091594032d90d46b8d5eaeaf065a17",
+        ],
+    },
+    VersionLine {
+        line: "9.0",
+        shader_guids: &[
+            "23f6705aff8bf964c87bfb3dd66ab345",
+            "68d4032c05798c44eafe02f272e6895c",
+            "aa7e588ee69e46f429e3daa4b3068311",
+            "bdbac715113578048ab7114aa3379a1d",
+            "fc2c2d7b9ec11d34785997ccbb86f496",
+        ],
+    },
+    VersionLine {
+        line: "9.1",
+        shader_guids: &[
+            "18de0e547c911de4e804ceaaa97a0b26",
+            "3eefd743f727e99419fa501e889c4998",
+            "7845a1ca48a75804c8925b2bd5680f7f",
+            "7bca35b6e5a09ee4cbdff5cc54a9bd49",
+            "cef5dc16b30fdbb46b08ab424d41d1c0",
+        ],
+    },
+    VersionLine {
+        line: "9.2",
+        shader_guids: &[
+            "00a679886ff24e74585a2a9d37b3c8d7",
+            "104003ab15a9f7a47b6ef0597225e771",
+            "1b58d372fe360874a8fb767d53f955b0",
+            "3210d19aa4851e148b6848177a017f02",
+            "73da03e2cd0afa940968d9c487e2474d",
+        ],
+    },
+    VersionLine {
+        line: "9.3",
+        shader_guids: &[
+            "21e56665a7e45184b9013fb9e4f7bc96",
+            "47c3851517c96c84aae06d328a2581f6",
+            "9444ce77bf4418748b1e8591b9d97f85",
+            "a6839ad792f95aa41a941c7317aa1fe1",
+            "d141019541e4e44479fbd71ad42a2cf6",
+            "e99d2df55dac44a4c921122fe7cf6ba7",
+            "eda2412ac7ab2db45a47a521f6d7d8a6",
+        ],
+    },
+    VersionLine {
+        line: "10.0",
+        shader_guids: &[
+            "997f84ffc30f9ca439a796739ced421c",
+            "9ea5d2df175e6f84785d5fffd69809a5",
+            "a19e06d869c537d4391955e43f631173",
+            "aaeaef15081a5154eac3e71b584c5472",
+            "b357c1b1407f3ad4eba47df501cc613c",
+            "e9f30272e2d12c945851329f504df73d",
+            "fa7f9dc5d41366249bd0098f22c3c1cd",
+        ],
+    },
 ];
 
 // Read from jp.whiteflare.unlitwf 2.9.0: every `Runtime/Shaders/**.shader.meta`.
+// The 2.14.0 release carries exactly the same 84 GUIDs (checked 2026-10-19).
 const UNLITWF_GUIDS: &[&str] = &[
     "0299954f2a9b0994f8c9587945948766",
     "06e9294a93df4474cac2f4157b5e1d1d",
@@ -526,6 +735,11 @@ const TOON_STANDARD_GUIDS: &[&str] = &[
 mod tests {
     use super::*;
 
+    const POIYOMI_92: &str = "104003ab15a9f7a47b6ef0597225e771";
+    const POIYOMI_93: &str = "9444ce77bf4418748b1e8591b9d97f85";
+    const POIYOMI_100: &str = "997f84ffc30f9ca439a796739ced421c";
+    const UNKNOWN_GUID: &str = "0123456789abcdef0123456789abcdef";
+
     fn index(table: &[KnownPackage], id: &str) -> usize {
         table.iter().position(|package| package.id == id).unwrap()
     }
@@ -534,26 +748,142 @@ mod tests {
         format!("Material:\n  m_Shader: {{fileID: 4800000, guid: {guid}, type: 3}}\n{extra}").into_bytes()
     }
 
-    fn need(bundled_copy: bool, shaders: &[&str]) -> PackageNeed {
-        PackageNeed {
-            bundled_copy,
-            shaders: shaders.iter().map(|shader| (*shader).to_owned()).collect(),
-        }
+    fn need(shaders: &[&str]) -> PackageNeed {
+        PackageNeed { shaders: shaders.iter().map(|shader| (*shader).to_owned()).collect() }
+    }
+
+    fn copy(shaders: &[&str]) -> LegacyCopy {
+        LegacyCopy { present: true, shaders: shaders.iter().map(|shader| (*shader).to_owned()).collect(), unreadable_shader: false }
+    }
+
+    fn action(index: usize, need: PackageNeed, legacy: LegacyCopy, installed: Option<&str>) -> PackageAction {
+        package_action(KNOWN_PACKAGES, index, &need, &legacy, &HashMap::new(), installed, false)
+    }
+
+    fn poiyomi() -> usize {
+        index(KNOWN_PACKAGES, "com.poiyomi.toon")
     }
 
     #[test]
-    fn shader_guid_signals_name_poiyomi_unlitwf_and_toon_standard() {
-        for (guid, id) in [
-            ("9444CE77BF4418748B1E8591B9D97F85", "com.poiyomi.toon"),
-            ("a3678756e883b9349ac22fce33313139", "jp.whiteflare.unlitwf"),
-            ("e765db0afa7ecfc44ade2e4e2491f65a", "com.vrchat.base"),
+    fn shader_guid_signals_name_the_package_and_version_line() {
+        for (guid, id, line) in [
+            (POIYOMI_93, "com.poiyomi.toon", Some("9.3")),
+            ("104003AB15A9F7A47B6EF0597225E771", "com.poiyomi.toon", Some("9.2")),
+            (POIYOMI_100, "com.poiyomi.toon", Some("10.0")),
+            ("a3678756e883b9349ac22fce33313139", "jp.whiteflare.unlitwf", None),
+            ("e765db0afa7ecfc44ade2e4e2491f65a", "com.vrchat.base", None),
         ] {
             let found = detect_material(KNOWN_PACKAGES, &material(guid, "")).unwrap();
-            assert_eq!(KNOWN_PACKAGES[found.package].id, id);
+            let package = &KNOWN_PACKAGES[found.package];
+            assert_eq!(package.id, id);
             assert_eq!(found.shader_guid.as_deref(), Some(guid.to_ascii_lowercase().as_str()));
+            assert_eq!(package.line_for_guid(found.shader_guid.as_deref().unwrap()).map(|line| line.line), line);
         }
-        assert!(detect_material(KNOWN_PACKAGES, &material("0123456789abcdef0123456789abcdef", "")).is_none());
-        assert!(detect_material(KNOWN_PACKAGES, b"Material:\n  m_Shader: {fileID: 46, type: 0}\n").is_none());
+        // The retired 8.0 line has no release on the feed, so it stays undetected.
+        assert!(detect_material(KNOWN_PACKAGES, &material("231d95ff7213dd74f82af136b256fb32", "")).is_none());
+        assert!(detect_material(KNOWN_PACKAGES, &material(UNKNOWN_GUID, "")).is_none());
+    }
+
+    #[test]
+    fn poiyomi_materials_install_only_their_single_missing_version_line() {
+        let installed_none = None;
+        let first = action(poiyomi(), need(&[POIYOMI_93]), LegacyCopy::default(), installed_none);
+        assert_eq!(first.install, Some(Install::Line("9.3")));
+        assert!(!first.replace_legacy);
+
+        let ten = action(poiyomi(), need(&[POIYOMI_100]), LegacyCopy::default(), None);
+        assert_eq!(ten.install, Some(Install::Line("10.0")));
+
+        // Two version lines cannot be resolved by one install.
+        let mixed = action(poiyomi(), need(&[POIYOMI_92, POIYOMI_93]), LegacyCopy::default(), None);
+        assert_eq!(mixed.install, None);
+
+        // An installed different line stays untouched; an installed same line is not reinstalled.
+        assert_eq!(action(poiyomi(), need(&[POIYOMI_93]), LegacyCopy::default(), Some("10.0.25")).install, None);
+        assert_eq!(action(poiyomi(), need(&[POIYOMI_93]), LegacyCopy::default(), Some("9.3.64")).install, None);
+
+        // A selected source providing the shader already satisfies the material.
+        let provided = HashMap::from([(POIYOMI_93.to_owned(), "Assets/x.shader".to_owned())]);
+        let action = package_action(KNOWN_PACKAGES, poiyomi(), &need(&[POIYOMI_93]), &LegacyCopy::default(), &provided, None, false);
+        assert_eq!(action.install, None);
+    }
+
+    #[test]
+    fn a_poiyomi_copy_is_replaced_only_when_one_line_covers_every_shader() {
+        let covered = action(poiyomi(), PackageNeed::default(), copy(&[POIYOMI_93, "21e56665a7e45184b9013fb9e4f7bc96"]), None);
+        assert_eq!(covered.install, Some(Install::Line("9.3")));
+        assert!(covered.replace_legacy);
+
+        // A 9.3 copy also serves 9.3 materials; the pinned line comes from the copy.
+        let with_material = action(poiyomi(), need(&[POIYOMI_93]), copy(&[POIYOMI_93]), None);
+        assert_eq!(with_material.install, Some(Install::Line("9.3")));
+        assert!(with_material.replace_legacy);
+
+        for legacy in [
+            copy(&[POIYOMI_93, UNKNOWN_GUID]),
+            copy(&[POIYOMI_92, POIYOMI_93]),
+            copy(&[]),
+        ] {
+            let action = action(poiyomi(), PackageNeed::default(), legacy, None);
+            assert_eq!(action.install, None, "the copy imports unchanged");
+            assert!(!action.replace_legacy);
+        }
+
+        // Copy and material lines disagree, or the project already carries the package.
+        assert_eq!(action(poiyomi(), need(&[POIYOMI_93]), copy(&[POIYOMI_92]), None).install, None);
+        let installed = action(poiyomi(), PackageNeed::default(), copy(&[POIYOMI_93]), Some("9.3.64"));
+        assert_eq!(installed.install, None);
+        assert!(!installed.replace_legacy);
+    }
+
+    #[test]
+    fn liltoon_keeps_its_historical_install_and_copy_behavior() {
+        let liltoon = index(KNOWN_PACKAGES, "jp.lilxyzw.liltoon");
+        let shader = "df12117ecd77c31469c224178886498e";
+        let bundled = action(liltoon, PackageNeed::default(), copy(&[]), None);
+        assert_eq!(bundled.install, Some(Install::Latest));
+        assert!(bundled.replace_legacy, "the TshirtShorts bundled copy still leaves for the official package");
+
+        assert_eq!(action(liltoon, need(&[shader]), LegacyCopy::default(), None).install, Some(Install::Latest));
+        assert_eq!(action(liltoon, need(&[shader]), LegacyCopy::default(), Some("1.10.0")).install, None);
+        assert_eq!(action(liltoon, PackageNeed::default(), LegacyCopy::default(), None).install, None);
+
+        let pinned = package_action(KNOWN_PACKAGES, liltoon, &PackageNeed::default(), &copy(&[]), &HashMap::new(), None, true);
+        assert_eq!(pinned.install, None);
+        assert!(pinned.replace_legacy, "a Recipe pin still skips the bundled copy");
+
+        let installed = action(liltoon, PackageNeed::default(), copy(&[]), Some("1.10.0"));
+        assert_eq!(installed.install, None);
+        assert!(installed.replace_legacy);
+    }
+
+    #[test]
+    fn unlitwf_installs_latest_and_replaces_only_covered_copies() {
+        let unlitwf = index(KNOWN_PACKAGES, "jp.whiteflare.unlitwf");
+        let shader = "a3678756e883b9349ac22fce33313139";
+        assert_eq!(action(unlitwf, need(&[shader]), LegacyCopy::default(), None).install, Some(Install::Latest));
+        assert_eq!(action(unlitwf, need(&[shader]), LegacyCopy::default(), Some("2.14.0")).install, None);
+
+        let covered = action(unlitwf, PackageNeed::default(), copy(&[shader]), None);
+        assert_eq!(covered.install, Some(Install::Latest));
+        assert!(covered.replace_legacy);
+        let unknown = action(unlitwf, PackageNeed::default(), copy(&[shader, UNKNOWN_GUID]), None);
+        assert_eq!(unknown.install, None);
+        assert!(!unknown.replace_legacy);
+        let installed = action(unlitwf, PackageNeed::default(), copy(&[shader]), Some("2.9.0"));
+        assert_eq!(installed.install, None);
+        assert!(!installed.replace_legacy);
+    }
+
+    #[test]
+    fn guide_and_sdk_bundled_packages_never_install_or_replace() {
+        let bundled = action(index(KNOWN_PACKAGES, "com.vrchat.base"), need(&["e765db0afa7ecfc44ade2e4e2491f65a"]), LegacyCopy::default(), None);
+        assert_eq!(bundled.install, None);
+        assert!(!bundled.replace_legacy);
+
+        let pro = action(index(KNOWN_PACKAGES, "com.poiyomi.pro"), need(&[POIYOMI_93]), copy(&[POIYOMI_93]), None);
+        assert_eq!(pro.install, None);
+        assert!(!pro.replace_legacy);
     }
 
     #[test]
@@ -576,49 +906,7 @@ mod tests {
     }
 
     #[test]
-    fn a_bundled_legacy_copy_is_skipped_and_still_installs_the_official_package() {
-        let entries = legacy_entries(KNOWN_PACKAGES, None);
-        let liltoon = index(KNOWN_PACKAGES, "jp.lilxyzw.liltoon");
-        // The TshirtShorts package's bundled lilToon_1.4.0.unitypackage sits under Assets/lilToon.
-        assert_eq!(legacy_owner(&entries, "assets/liltoon/liltoon_1.4.0.unitypackage"), Some(liltoon));
-        let needs = PackageNeeds::from([(liltoon, need(true, &[]))]);
-        assert_eq!(
-            auto_install_plan(KNOWN_PACKAGES, &needs, &HashMap::new(), &BTreeMap::new(), &serde_json::json!({})),
-            [liltoon]
-        );
-    }
-
-    #[test]
-    fn table_entries_carry_evidence_and_pin_only_material_driven_feeds() {
-        for package in KNOWN_PACKAGES {
-            assert!(package.id.contains('.'), "{}", package.id);
-            assert!(package.feed_url.starts_with("https://"), "{}", package.id);
-            assert!(package.official_url.starts_with("https://"), "{}", package.id);
-            assert!(!package.license.is_empty(), "{}", package.id);
-            assert!(package.license_url.starts_with("https://"), "{}", package.id);
-            assert_eq!(package.license_checked.len(), 10, "{}", package.id);
-            assert!(
-                package.shader_guids.iter().all(|guid| {
-                    guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
-                }),
-                "{}",
-                package.id
-            );
-        }
-        // SDK and Modular Avatar pins keep their existing registration path during
-        // project creation; only material-driven auto packages register their feed.
-        let pins = BTreeMap::from([
-            ("com.vrchat.avatars".to_owned(), "3.10.5".to_owned()),
-            ("nadena.dev.modular-avatar".to_owned(), "1.18.7".to_owned()),
-            ("jp.lilxyzw.liltoon".to_owned(), "1.10.0".to_owned()),
-            ("com.poiyomi.toon".to_owned(), "9.3.64".to_owned()),
-        ]);
-        let ids: Vec<_> = pinned_auto_packages(KNOWN_PACKAGES, &pins).map(|package| package.id).collect();
-        assert_eq!(ids, ["jp.lilxyzw.liltoon", "com.poiyomi.toon"]);
-    }
-
-    #[test]
-    fn cached_feed_manifests_override_legacy_defaults_without_network() {
+    fn cached_feeds_supply_legacy_paths_and_exact_line_versions() {
         let root = std::env::temp_dir().join(format!("vua-known-packages-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let liltoon = index(KNOWN_PACKAGES, "jp.lilxyzw.liltoon");
@@ -643,50 +931,89 @@ mod tests {
         assert_eq!(legacy_owner(&entries, "assets/liltoon"), Some(liltoon), "an empty declaration falls back to the table");
         std::fs::write(&cache, b"not json").unwrap();
         assert_eq!(legacy_owner(&legacy_entries(KNOWN_PACKAGES, Some(&root)), "assets/liltoon"), Some(liltoon));
+
+        let poiyomi_feed = KNOWN_PACKAGES[poiyomi()].feed_url;
+        let poiyomi_cache = root.join("Repos").join(format!("{}.json", vua_orchestrator::fnv1a_hex(poiyomi_feed.as_bytes())));
+        std::fs::write(&poiyomi_cache, serde_json::to_vec(&serde_json::json!({
+            "packages": {"com.poiyomi.toon": {"versions": {
+                "9.2.79": {}, "9.3.63": {}, "9.3.64": {}, "10.0.25": {}, "10.0.26-beta.1": {}
+            }}}
+        })).unwrap()).unwrap();
+        assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "9.3").as_deref(), Some("9.3.64"));
+        assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "9.2").as_deref(), Some("9.2.79"));
+        assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "10.0").as_deref(), Some("10.0.25"));
+        assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "8.1"), None);
         std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
-    fn auto_installs_cover_first_preparation_and_material_changes() {
-        let liltoon = index(KNOWN_PACKAGES, "jp.lilxyzw.liltoon");
-        let poiyomi = index(KNOWN_PACKAGES, "com.poiyomi.toon");
-        let shader = "df12117ecd77c31469c224178886498e";
-        let no_pins = BTreeMap::new();
-        let no_guids = HashMap::new();
-        let needs = PackageNeeds::from([(liltoon, need(false, &[shader]))]);
+    fn table_entries_carry_evidence_and_pin_only_material_driven_feeds() {
+        for package in KNOWN_PACKAGES {
+            assert!(package.id.contains('.'), "{}", package.id);
+            assert!(package.feed_url.starts_with("https://"), "{}", package.id);
+            assert!(package.official_url.starts_with("https://"), "{}", package.id);
+            assert!(!package.license.is_empty(), "{}", package.id);
+            assert!(package.license_url.starts_with("https://"), "{}", package.id);
+            assert_eq!(package.license_checked.len(), 10, "{}", package.id);
+            let valid = |guid: &&str| guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
+            assert!(package.shader_guids.iter().all(valid), "{}", package.id);
+            assert!(package.version_lines.iter().flat_map(|line| line.shader_guids).all(valid), "{}", package.id);
+        }
+        // No Poiyomi GUID is shared between two version lines.
+        let poiyomi_lines = KNOWN_PACKAGES[poiyomi()].version_lines;
+        let all: BTreeSet<_> = poiyomi_lines.iter().flat_map(|line| line.shader_guids).collect();
+        assert_eq!(all.len(), poiyomi_lines.iter().map(|line| line.shader_guids.len()).sum::<usize>());
+        assert_eq!(poiyomi_lines.iter().map(|line| line.line).collect::<Vec<_>>(), ["8.1", "9.0", "9.1", "9.2", "9.3", "10.0"]);
 
-        // First preparation: the project carries nothing yet.
-        assert_eq!(auto_install_plan(KNOWN_PACKAGES, &needs, &no_guids, &no_pins, &serde_json::json!({})), [liltoon]);
-        // A material change on a line that already installed lilToon installs nothing.
-        let installed = serde_json::json!({"jp.lilxyzw.liltoon": "1.10.0"});
-        assert!(auto_install_plan(KNOWN_PACKAGES, &needs, &no_guids, &no_pins, &installed).is_empty());
-        // A Recipe pin owns the version instead.
-        let pins = BTreeMap::from([("jp.lilxyzw.liltoon".to_owned(), "1.8.0".to_owned())]);
-        assert!(auto_install_plan(KNOWN_PACKAGES, &needs, &no_guids, &pins, &serde_json::json!({})).is_empty());
-        // A selected source carrying the shader provides it already.
-        let provided = HashMap::from([(shader.to_owned(), "Assets/x.shader".to_owned())]);
-        assert!(auto_install_plan(KNOWN_PACKAGES, &needs, &provided, &no_pins, &serde_json::json!({})).is_empty());
-        // A bundled legacy copy alone still installs the official package.
-        let bundled = PackageNeeds::from([(liltoon, need(true, &[]))]);
-        assert_eq!(auto_install_plan(KNOWN_PACKAGES, &bundled, &no_guids, &no_pins, &serde_json::json!({})), [liltoon]);
-        // Several missing auto packages install in table order.
-        let both = PackageNeeds::from([(poiyomi, need(false, &["9444ce77bf4418748b1e8591b9d97f85"])), (liltoon, need(false, &[shader]))]);
-        assert_eq!(auto_install_plan(KNOWN_PACKAGES, &both, &no_guids, &no_pins, &serde_json::json!({})), [liltoon, poiyomi]);
-        // Guide and SDK-bundled packages are never installed by this path.
-        let guided = PackageNeeds::from([
-            (index(KNOWN_PACKAGES, "com.poiyomi.pro"), need(true, &[])),
-            (index(KNOWN_PACKAGES, "com.vrchat.base"), need(false, &["e765db0afa7ecfc44ade2e4e2491f65a"])),
+        // SDK and Modular Avatar pins keep their existing registration path during
+        // project creation; only material-driven auto packages register their feed.
+        let pins = BTreeMap::from([
+            ("com.vrchat.avatars".to_owned(), "3.10.5".to_owned()),
+            ("nadena.dev.modular-avatar".to_owned(), "1.18.7".to_owned()),
+            ("jp.lilxyzw.liltoon".to_owned(), "1.10.0".to_owned()),
+            ("com.poiyomi.toon".to_owned(), "9.3.64".to_owned()),
         ]);
-        assert!(auto_install_plan(KNOWN_PACKAGES, &guided, &no_guids, &no_pins, &serde_json::json!({})).is_empty());
+        let ids: Vec<_> = pinned_auto_packages(KNOWN_PACKAGES, &pins).map(|package| package.id).collect();
+        assert_eq!(ids, ["jp.lilxyzw.liltoon", "com.poiyomi.toon"]);
     }
 
     #[test]
-    fn guide_diagnostics_name_the_package_material_count_and_official_page() {
+    fn guide_diagnostics_name_version_lines_and_material_counts() {
+        let nine_two = material(POIYOMI_92, "");
+        let nine_three = material(POIYOMI_93, "");
+        let unknown = material(UNKNOWN_GUID, "");
+        let materials = [nine_two.as_slice(), nine_three.as_slice(), unknown.as_slice()];
+
+        let diagnostics = guide_diagnostics(KNOWN_PACKAGES, materials, &BTreeMap::new());
+        assert_eq!(diagnostics.len(), 1, "one warning per package, not per line");
+        assert_eq!(diagnostics[0].code, "amf.package.guide");
+        assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
+        assert_eq!(diagnostics[0].message, "2 materials need Poiyomi Toon Shader 9.2 and 9.3; get it from https://www.poiyomi.com/.");
+
+        let single = [nine_three.as_slice()];
+        let diagnostics = guide_diagnostics(KNOWN_PACKAGES, single, &BTreeMap::new());
+        assert_eq!(diagnostics[0].message, "1 material needs Poiyomi Toon Shader 9.3; get it from https://www.poiyomi.com/.");
+
+        // The project carries 10.0 while the material needs 9.3: the guide names 9.3.
+        let installed = BTreeMap::from([("com.poiyomi.toon".to_owned(), "10.0.25".to_owned())]);
+        let diagnostics = guide_diagnostics(KNOWN_PACKAGES, materials, &installed);
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].message, "2 materials need Poiyomi Toon Shader 9.2 and 9.3; get it from https://www.poiyomi.com/.");
+
+        // A project on the needed line needs no guide; another line still gets one.
+        let installed = BTreeMap::from([("com.poiyomi.toon".to_owned(), "9.3.64".to_owned())]);
+        assert!(guide_diagnostics(KNOWN_PACKAGES, [nine_three.as_slice()], &installed).is_empty());
+        assert_eq!(guide_diagnostics(KNOWN_PACKAGES, materials, &installed).len(), 1);
+    }
+
+    #[test]
+    fn guide_diagnostics_without_version_lines_keep_their_wording() {
         const AUTO_GUID: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         const BUNDLED_GUID: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         let entry = |id: &'static str, display_name: &'static str, delivery: Delivery, markers: &'static [&'static str], guids: &'static [&'static str]| KnownPackage {
             id, display_name, feed_url: "", official_url: "https://example.com/get", license: "MIT", license_url: "",
-            license_checked: "", delivery, material_markers: markers, shader_guids: guids, legacy_folders: &[], legacy_files: &[],
+            license_checked: "", delivery, material_markers: markers, shader_guids: guids, version_lines: &[],
+            legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
         };
         let table = [
             entry("example.auto", "Example Auto", Delivery::Auto, &[], &[AUTO_GUID]),
@@ -694,17 +1021,14 @@ mod tests {
             entry("example.bundled", "Example Bundled", Delivery::Bundled, &[], &[BUNDLED_GUID]),
         ];
         let auto = material(AUTO_GUID, "");
-        let guide_one = material("0123456789abcdef0123456789abcdef", "  m_Floats:\n    - _ExampleGuideVersion: 3\n");
-        let guide_two = material("0123456789abcdef0123456789abcdef", "    - _ExampleGuideVersion: 4\n");
+        let guide_one = material(UNKNOWN_GUID, "  m_Floats:\n    - _ExampleGuideVersion: 3\n");
+        let guide_two = material(UNKNOWN_GUID, "    - _ExampleGuideVersion: 4\n");
         let bundled = material(BUNDLED_GUID, "");
         let unknown = material("cccccccccccccccccccccccccccccccc", "");
         let materials = [auto.as_slice(), guide_one.as_slice(), guide_two.as_slice(), bundled.as_slice(), unknown.as_slice()];
 
-        let nothing_installed = BTreeMap::new();
-        let diagnostics = guide_diagnostics(&table, materials, &nothing_installed);
+        let diagnostics = guide_diagnostics(&table, materials, &BTreeMap::new());
         assert_eq!(diagnostics.len(), 2, "the bundled and unknown materials produce no guide");
-        assert_eq!(diagnostics[0].code, "amf.package.guide");
-        assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
         assert_eq!(diagnostics[0].message, "1 material needs Example Auto; get it from https://example.com/get.");
         assert_eq!(diagnostics[1].message, "2 materials need Example Guide; get it from https://example.com/get.");
 

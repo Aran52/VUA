@@ -80,12 +80,23 @@ impl NativeAmfProduction {
         )?
         .with_cached_metadata()
     }
-    /// Installs the newest release of a known package from its official feed that resolves for this project.
-    fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage) -> Result<(), AppErrorV1> {
+    /// Installs a known package from its official feed: the newest resolving release, or the
+    /// newest release of one version line pinned through the request's exact version.
+    fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage, line: Option<&str>) -> Result<(), AppErrorV1> {
         let backend = self.package_backend()?;
         ensure_repo(&backend, package.feed_url, package.display_name)?;
+        let version = match line {
+            Some(line) => Some(known_packages::latest_cached_line_version(
+                &self.root.join("vpm-environment"),
+                package.feed_url,
+                package.id,
+                line,
+            )
+            .ok_or_else(|| err("dependencies_unavailable", format!("The {} feed offers no stable {line} release of {}.", package.display_name, package.id)))?),
+            None => None,
+        };
         let p = project(run);
-        let request = [PackageRequestV1 { package_id: package.id.into(), version: None }];
+        let request = [PackageRequestV1 { package_id: package.id.into(), version }];
         let preview = backend.preview_install(&p, &request)?;
         if preview.destructive || !preview.conflicts.is_empty() {
             return Err(err(
@@ -1092,6 +1103,10 @@ fn import_choices(
         let table = known_packages::KNOWN_PACKAGES;
         let legacy = known_packages::legacy_entries(table, Some(&adapter.root.join("vpm-environment")));
         let mut needs = known_packages::PackageNeeds::new();
+        let mut legacy_copies = known_packages::LegacyCopies::new();
+        // Legacy copies wait for the package action: only a copy the exact official
+        // release covers completely leaves for that release; the others import as before.
+        let mut pending_legacy: Vec<(usize, usize, PathBuf, String)> = Vec::new();
         let available = adapter
             .sources()?
             .into_iter()
@@ -1122,7 +1137,7 @@ fn import_choices(
             )
             .map_err(|e| err("source_invalid", e))?;
             let mut asset_paths = Vec::new();
-            let mut bundled_known_package = false;
+            let mut has_legacy = false;
             for folder in
                 fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
             {
@@ -1151,75 +1166,27 @@ fn import_choices(
                         "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
                     ));
                 }
-                // A legacy copy of a known package shipped inside a material package: the current
-                // official VPM package takes its place, so materials render with maintained shaders.
                 if let Some(owner) = known_packages::legacy_owner(&legacy, &folded) {
-                    needs.entry(owner).or_default().bundled_copy = true;
-                    bundled_known_package = true;
+                    has_legacy = true;
+                    let copy = legacy_copies.entry(owner).or_default();
+                    copy.present = true;
+                    if folded.ends_with(".shader") {
+                        match fs::read_to_string(folder.join("asset.meta")) {
+                            Ok(metadata) => match legacy_shader_guid(&metadata) {
+                                Some(guid) => {
+                                    copy.shaders.insert(guid);
+                                }
+                                None => copy.unreadable_shader = true,
+                            },
+                            Err(_) => copy.unreadable_shader = true,
+                        }
+                    }
+                    pending_legacy.push((sources.len(), owner, folder, logical));
                     continue;
                 }
-                let guid = folder
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                if guid.len() != 32 || !guid.bytes().all(|c| c.is_ascii_hexdigit()) {
-                    return Err(err("source_invalid", "Invalid Unity asset GUID."));
-                }
-                let metadata = fs::read_to_string(folder.join("asset.meta")).map_err(|e| {
-                    err(
-                        "source_invalid",
-                        format!("Read metadata for {logical}: {e}"),
-                    )
-                })?;
-                validate_metadata_guid(&metadata, &guid, &logical)?;
-                if let Some(previous) = guids.insert(guid.clone(), logical.clone()) {
-                    if previous != logical {
-                        return Err(err(
-                            "asset_conflict",
-                            format!("GUID {guid} maps to both {previous} and {logical}."),
-                        ));
-                    }
-                }
-                for (input, target) in [
-                    (folder.join("asset"), logical.clone()),
-                    (folder.join("asset.meta"), format!("{logical}.meta")),
-                ] {
-                    if !input.is_file() {
-                        continue;
-                    }
-                    if let Some(previous) = files.get(&target) {
-                        if vua_unity_bridge::material_exec::sha256_file(previous)
-                            .map_err(|e| err("source_invalid", e))?
-                            != vua_unity_bridge::material_exec::sha256_file(&input)
-                                .map_err(|e| err("source_invalid", e))?
-                        {
-                            return Err(err("asset_conflict", format!("Selected packages contain different files at {target}. Choose compatible package versions.")));
-                        }
-                    } else {
-                        files.insert(target, input);
-                    }
-                }
-                if !folder.join("asset.meta").is_file() {
-                    return Err(err(
-                        "source_invalid",
-                        format!("Asset has no Unity metadata: {logical}"),
-                    ));
-                }
-                if folder.join("asset").is_file() {
-                    if folded.ends_with(".mat") {
-                        let material = fs::read(folder.join("asset")).map_err(|e| err("source_invalid", e))?;
-                        if let Some(found) = known_packages::detect_material(table, &material) {
-                            let need = needs.entry(found.package).or_default();
-                            if let Some(guid) = found.shader_guid {
-                                need.shaders.insert(guid);
-                            }
-                        }
-                    }
-                    asset_paths.push(logical);
-                }
+                import_staged_folder(&folder, logical, table, &mut files, &mut guids, &mut needs, &mut asset_paths)?;
             }
-            if asset_paths.is_empty() && !bundled_known_package {
+            if asset_paths.is_empty() && !has_legacy {
                 return Err(err(
                     "source_invalid",
                     format!("{} contains no supported Assets/ inputs.", source.name),
@@ -1235,14 +1202,45 @@ fn import_choices(
                 asset_paths,
             });
         }
+        let empty_need = known_packages::PackageNeed::default();
+        let empty_copy = known_packages::LegacyCopy::default();
+        let mut actions = BTreeMap::<usize, known_packages::PackageAction>::new();
+        for index in needs.keys().chain(legacy_copies.keys()).copied().collect::<BTreeSet<_>>() {
+            let package = &table[index];
+            actions.insert(
+                index,
+                known_packages::package_action(
+                    table,
+                    index,
+                    needs.get(&index).unwrap_or(&empty_need),
+                    legacy_copies.get(&index).unwrap_or(&empty_copy),
+                    &guids,
+                    run.result["packageVersions"].get(package.id).and_then(serde_json::Value::as_str),
+                    run.package_pins.contains_key(package.id),
+                ),
+            );
+        }
+        for (source_index, package, folder, logical) in pending_legacy {
+            if actions.get(&package).is_some_and(|action| action.replace_legacy) {
+                continue;
+            }
+            import_staged_folder(&folder, logical, table, &mut files, &mut guids, &mut needs, &mut sources[source_index].asset_paths)?;
+        }
+        for source in &mut sources {
+            source.asset_paths.sort();
+        }
         // Validate the entire batch before the first asset copy; shared identical files are reused.
         validate_asset_layout(files.keys().map(String::as_str))?;
         // Materials whose shader none of the selected packages carries render pink until the
         // known package is in the project. Recipe pins and installed packages are left alone.
-        for index in known_packages::auto_install_plan(table, &needs, &guids, &run.package_pins, &run.result["packageVersions"]) {
+        for (index, action) in actions {
+            let Some(install) = action.install else { continue; };
             let package = &table[index];
             ctx.emit_progress(material_progress(run, package.display_name));
-            adapter.install_known_package(run, package)?;
+            match install {
+                known_packages::Install::Latest => adapter.install_known_package(run, package, None)?,
+                known_packages::Install::Line(line) => adapter.install_known_package(run, package, Some(line))?,
+            }
         }
         let project = Path::new(&run.project_root);
         if let Some(previous) = previous {
@@ -1268,6 +1266,88 @@ fn import_choices(
             fs::copy(original, destination).map_err(|e| err("import_failed", e))?;
         }
         Ok(sources)
+}
+
+/// Imports one staged asset entry after the usual GUID, metadata and conflict checks,
+/// recording the package its materials need.
+fn import_staged_folder(
+    folder: &Path,
+    logical: String,
+    table: &[KnownPackage],
+    files: &mut BTreeMap<String, PathBuf>,
+    guids: &mut HashMap<String, String>,
+    needs: &mut known_packages::PackageNeeds,
+    asset_paths: &mut Vec<String>,
+) -> Result<(), AppErrorV1> {
+    let folded = logical.to_ascii_lowercase();
+    let guid = folder
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    if guid.len() != 32 || !guid.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Err(err("source_invalid", "Invalid Unity asset GUID."));
+    }
+    let metadata = fs::read_to_string(folder.join("asset.meta")).map_err(|e| {
+        err(
+            "source_invalid",
+            format!("Read metadata for {logical}: {e}"),
+        )
+    })?;
+    validate_metadata_guid(&metadata, &guid, &logical)?;
+    if let Some(previous) = guids.insert(guid.clone(), logical.clone()) {
+        if previous != logical {
+            return Err(err(
+                "asset_conflict",
+                format!("GUID {guid} maps to both {previous} and {logical}."),
+            ));
+        }
+    }
+    for (input, target) in [
+        (folder.join("asset"), logical.clone()),
+        (folder.join("asset.meta"), format!("{logical}.meta")),
+    ] {
+        if !input.is_file() {
+            continue;
+        }
+        if let Some(previous) = files.get(&target) {
+            if vua_unity_bridge::material_exec::sha256_file(previous)
+                .map_err(|e| err("source_invalid", e))?
+                != vua_unity_bridge::material_exec::sha256_file(&input)
+                    .map_err(|e| err("source_invalid", e))?
+            {
+                return Err(err("asset_conflict", format!("Selected packages contain different files at {target}. Choose compatible package versions.")));
+            }
+        } else {
+            files.insert(target, input);
+        }
+    }
+    if !folder.join("asset.meta").is_file() {
+        return Err(err(
+            "source_invalid",
+            format!("Asset has no Unity metadata: {logical}"),
+        ));
+    }
+    if folder.join("asset").is_file() {
+        if folded.ends_with(".mat") {
+            let material = fs::read(folder.join("asset")).map_err(|e| err("source_invalid", e))?;
+            if let Some(found) = known_packages::detect_material(table, &material) {
+                let need = needs.entry(found.package).or_default();
+                if let Some(guid) = found.shader_guid {
+                    need.shaders.insert(guid);
+                }
+            }
+        }
+        asset_paths.push(logical);
+    }
+    Ok(())
+}
+
+/// The lower-case GUID a staged `.shader` declares in its `asset.meta`.
+fn legacy_shader_guid(metadata: &str) -> Option<String> {
+    let guid = metadata.lines().find_map(|line| line.strip_prefix("guid:").map(str::trim))?;
+    let guid = guid.to_ascii_lowercase();
+    (guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit())).then_some(guid)
 }
 
 /// Before a material change: the files only the previous materials used leave the work project,

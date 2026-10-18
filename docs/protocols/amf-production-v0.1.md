@@ -312,16 +312,21 @@ running and waits up to 90 seconds for the client. A packaged (MSIX) Hub starts 
 application identity, so the client reads the license from Hub's package folder.
 
 Preparation resolves missing shaders through the [known packages](../development/known-packages.md)
-table, on the first preparation and on a line's material change alike. When a selected package
-bundles a legacy copy of an `auto` package — recognized from the feed cache's
-`legacyFolders`/`legacyFiles`, or the table's fallback before the first feed refresh — or carries
-a material whose shader none of the selected packages provides, preparation installs the newest
-resolving release from the package's official feed. A package the project already carries or a
-Recipe pins is left as it is, and installation failures keep failing the step. After Unity
-reports `facts.missingShaderMaterials`, each recognized `guide` package, and each recognized
-`auto` package still absent from the project's VPM lock, adds one `amf.package.guide` warning
-naming the package, the affected material count and the official page. `bundled` packages are
-detected without any installation.
+table, on the first preparation and on a line's material change alike. When a selected material
+needs an `auto` package whose shader none of the selected sources provides, and the project does
+not carry the package and no Recipe pins it, preparation installs from the package's official
+feed: the newest stable release of the material's single version line, pinned as an exact
+`PackageRequestV1.version`, or the newest resolving release for packages without version lines.
+Materials spanning several lines and projects already carrying the package get no install.
+A legacy copy bundled inside a selected package — located through the feed cache's
+`legacyFolders`/`legacyFiles`, or the table's fallback before the first feed refresh — leaves
+for the official package only when the exact release about to be installed covers every
+`.shader` GUID in the copy; lilToon keeps its historical always-replace rule. Any other copy
+imports unchanged and nothing is installed for it. Installation failures keep failing the step.
+After Unity reports `facts.missingShaderMaterials`, each recognized `guide` package, and each
+recognized `auto` package whose needed version lines the project does not carry, adds one
+`amf.package.guide` warning naming the package, the affected material count, the needed version
+lines and the official page. `bundled` packages are detected without any installation.
 
 ## Evidence limits
 
@@ -331,7 +336,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
-- 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, legacy-copy skipping from feed declarations and the `amf.package.guide` diagnostic.
+- 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, per-line pinned installs, legacy-copy replacement only when the exact release covers the copy, and the `amf.package.guide` diagnostic naming needed version lines.
 - 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.
 - 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
 - 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.

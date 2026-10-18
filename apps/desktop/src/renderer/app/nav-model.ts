@@ -39,6 +39,7 @@ export type PageId =
   | "settings-accounts"
   | "settings-theme"
   | "settings-experimental"
+  | "settings-debug"
   | "settings-about";
 
 type NavTabKey = keyof Strings["nav"]["tabs"];
@@ -141,6 +142,7 @@ export const settingsModule: ModuleDef = {
         { id: "settings-accounts", labelKey: "settingsAccounts" },
         { id: "settings-theme", labelKey: "settingsTheme" },
         { id: "settings-experimental", labelKey: "settingsExperimental" },
+        { id: "settings-debug", labelKey: "settingsDebug" },
         { id: "settings-about", labelKey: "settingsAbout" },
       ],
     },

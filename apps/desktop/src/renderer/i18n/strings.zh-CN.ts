@@ -258,6 +258,7 @@ demoTaskTitle: "演示任务",
       settingsLanguage: "语言",
       settingsTheme: "主题",
       settingsExperimental: "实验性",
+      settingsDebug: "调试信息",
       settingsVersion: "版本",
       settingsAbout: "关于",
       settingsDonate: "捐赠",
@@ -2969,6 +2970,7 @@ rolled_back: "已回滚",
      *  +两行开关。行1「生成 VPM 包替代」=全局默认模式写面(bdl-commands v0.2 全局层
      *  setGlobalDefaultMode);行2「生成后删除原始素材文件」=危险开关,008 路径 a 接线(生成完成→逐条目
      *  独立删除任务),开启必经危险确认对话框 */
+    debug: { unavailable: "开启 Avatar 工厂模块后，可以在这里查看生产记录。" },
     experimental: {
       taskDiagnosticsTitle: "任务诊断",
       taskDiagnosticsDesc: "查看原始任务队列与恢复状态。下载进度请看通知中心。",

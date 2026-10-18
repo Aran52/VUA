@@ -247,6 +247,7 @@ demoTaskTitle: "デモタスク",
       settingsLanguage: "言語",
       settingsTheme: "テーマ",
       settingsExperimental: "実験的な機能",
+      settingsDebug: "デバッグ情報",
       settingsVersion: "バージョン",
       settingsAbout: "VUA について",
       settingsDonate: "寄付",
@@ -2959,6 +2960,7 @@ rolled_back: "ロールバック済み",
      *  未接続の設定(グローバル自動削除は凍結済みエントリレベルコマンドの範囲を
      *  超える。wire 面は proposal 008 の裁决に従う)。有効化には危険確認
      *  ダイアログが必須で、未接続表示が常時付く */
+    debug: { unavailable: "アバター工場モジュールをオンにすると、生産記録を確認できます。" },
     experimental: {
       taskDiagnosticsTitle: "タスク診断",
       taskDiagnosticsDesc: "生のタスクキューと復旧状態を確認します。ダウンロード進捗は通知センターに表示されます。",

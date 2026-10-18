@@ -1,5 +1,5 @@
-/** The release room: finished Avatars as an album with their turntable and upload, and the
- * production records under their own tab. */
+/** The release room: finished Avatars as an album with their turntable and upload. The production
+ * records live in Settings → Debugging information. */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import type { AiUploadConfirmationV01 } from "@vua/contracts";
@@ -8,7 +8,6 @@ import type { PageId } from "../../../app/nav-model.ts";
 import { EmptyState } from "../../../components/primitives/EmptyState.tsx";
 import { format, formatDateTime, formatShortDateTime, strings, termLabel } from "../../../i18n/index.ts";
 import { runStartedAt } from "../factory-model.ts";
-import { ReleasePage } from "../../release/ReleasePage.tsx";
 import { useAiRequests } from "../../ai-requests/use-ai-requests.ts";
 import { requestRunId } from "../../ai-requests/ai-request-routing.ts";
 import { ReleaseAlbum, type AlbumSpread } from "./ReleaseAlbum.tsx";
@@ -19,7 +18,6 @@ import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, ru
 import "./release-album.css";
 
 const copy = strings.releaseRoom;
-type Tab = "album" | "records";
 
 /** A failed start in plain words; the backend's detail stays under Details. */
 export function ActionError({ error, onCheckAgain }: { error: unknown; onCheckAgain?: () => void }) {
@@ -228,18 +226,12 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
 
 export function ReleaseAlbumPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const gateway = useGateway();
-  const [tab, setTab] = useState<Tab>("album");
   const production = gateway.amfProduction, release = gateway.amfRelease;
   return <div className="vua-page vua-release-room" data-focus-scope>
     <header className="vua-release-room__header">
       <h1>{copy.title}</h1>
-      <div className="vua-release-room__tabs" role="tablist" aria-label={strings.factory.rooms.release.name}>
-        {(["album", "records"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={tab === key}
-          data-nav-id={`release-tab-${key}`} onClick={() => setTab(key)}>{copy.tabs[key]}</button>)}
-      </div>
     </header>
-    {tab === "records" ? <ReleasePage onNavigate={onNavigate} />
-      : production && release ? <Album production={production} release={release} onNavigate={onNavigate} />
+    {production && release ? <Album production={production} release={release} onNavigate={onNavigate} />
       : <EmptyState title={format(strings.amfProduction.unavailable, { amf: termLabel("amf") })} />}
   </div>;
 }

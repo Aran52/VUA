@@ -1,5 +1,6 @@
 import { createLiveDeploymentPort } from "./live-deployment-port.ts";
 import { createScenarioEnvironmentPort } from "./scenario-environment-port.ts";
+import { createUnityLicensePort } from "./unity-license-port.ts";
 import { createAmfModulePort } from "./amf-module-port.ts";
 import { createDistributionPort } from "./distribution-port.ts";
 import { createLivePlayPort } from "./live-play-port.ts";
@@ -161,6 +162,7 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
   return {
     deployment: createLiveDeploymentPort(client),
     scenarios: createScenarioEnvironmentPort(client),
+    unityLicense: createUnityLicensePort(client),
     play: createLivePlayPort(client),
     tools: createLiveToolPort(client),
     managers: createCreatorInventoryPort(client),

@@ -268,4 +268,12 @@
 .vua-scenario-preparation__controls { display: flex; gap: 12px; flex-wrap: wrap; margin-block: 16px; }
 .vua-scenario-preparation select { margin: 8px 16px 8px 8px; }
 .vua-unity-license-guide > div { display: flex; gap: 12px; flex-wrap: wrap; }
+/* The observed license state sits above the guide, with its one next step. */
+.vua-unity-license-guide > .vua-unity-license-status { display: block; max-width: 42rem; margin-block: 0 16px; padding: 12px 16px;
+  border: 1px solid var(--vua-border-subtle); border-left: 4px solid var(--vua-border-strong); border-radius: var(--vua-radius-md, 8px); background: var(--vua-bg-raised); }
+.vua-unity-license-status[data-state="active"] { border-left-color: var(--vua-success); }
+.vua-unity-license-status[data-state="attention"] { border-left-color: var(--vua-warning); }
+.vua-unity-license-status__title { font-weight: 600; margin: 0 0 4px; }
+.vua-unity-license-status > p { margin-block: 4px; }
+.vua-unity-license-status > button { margin-top: 8px; }
 .vua-deployment li { margin-block: 12px; }

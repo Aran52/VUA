@@ -26,9 +26,12 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
     messages, cached project fingerprints, permission modes and stated recommendations, the
     work queue, workshop stations with in-place material changes and line deletion, production
     started from the materials room, the quit prompt, restore after an interrupted assembly, and
-    production records in Settings. The slice rows below link each pull request.
-- In review on the fork: Aran52/VUA#21 (known packages), #22 (the Bridge v5 result schema covers
-  every field Unity writes) and #23 (Unity work on different lines side by side).
+    production records in Settings;
+  - on 2026-10-19 (Aran52/VUA#21–#23): the known-packages table, which installs lilToon,
+    Poiyomi Toon by version line and UnlitWF from their feeds and names the official page for
+    packages players get themselves; a Bridge v5 result schema that covers every field Unity
+    writes; and Unity work on different lines side by side, up to a capacity of three. The slice
+    rows below link each pull request.
 - VUA-Project/VUA#86 keeps notification rows in place while downloads progress.
 - Real runs on 2026-10-16/17, with evidence in `_local_eval/`:
   - P-02 (Meiyun with the T-shirt & shorts) assembled with correct shading (lilToon 2.3.4); its
@@ -54,7 +57,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 5 | Unity editor handoff | P-02 | |
 | 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide remains |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
-| 8 | Known packages | P-01, P-03 | in review: the known-packages table with detection and installs (Aran52/VUA#21); the package page by permission mode (items 3–4) remains |
+| 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |
 | 11 | Unity sign-in and license | A-01 | |
@@ -73,7 +76,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 24 | Finer usual durations | — | when the estimates prove too rough |
 | 25 | Production records in Settings | — | done (Aran52/VUA#13) |
 | 26 | VRChat Avatar list in the release room | P-02 | built (Aran52/VUA#17); awaits the author's real-account check |
-| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; awaits the author's real-run check. Item 2's engine in review (Aran52/VUA#23); its workshop setting remains |
+| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; awaits the author's real-run check. Item 2's engine is in (Aran52/VUA#23); its workshop setting remains |
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
@@ -183,6 +186,18 @@ changes" confirming each change with every detail adjustable.
    asking; "decide on its own" shows it with "Next step" and "Handle dependencies for me"; "ask
    before changes" shows every package, version and feed.
 4. The package page lists work projects with installed versions, updates and Recipe pins.
+
+Done so far (Aran52/VUA#21): the [known packages](known-packages.md) table, detection by
+material marker or shader GUID, installs from the official feed on a line's first preparation
+and on a material change, Poiyomi Toon pinned to the material's version line, and the
+`amf.package.guide` warning for packages the player gets themselves. Remaining: items 3 and 4,
+and two follow-ups from the review:
+
+- A bundled Poiyomi copy leaves for the official package only when it holds a single version
+  line. Poiyomi releases also ship their older lines, so real bundled copies mostly import
+  unchanged. Recording each release's full set of shader GUIDs would let those copies leave too.
+- A preparation-level test that imports or skips a bundled copy's files as decided; the decision
+  itself is tested.
 
 **Done when** P-01 resolves its missing shader through a known package.
 
@@ -378,6 +393,11 @@ interactive Editor. Work requested while a task runs waits for it (Candidate
 1. Uploads and other Unity work requested while a task runs wait in a visible queue and start
    in order; the player can remove a waiting item.
 2. Later, on machines with enough memory, work on different projects may run side by side.
+
+Item 2's engine is in (Aran52/VUA#23, [amf-production 0.19.0](../protocols/amf-production-v0.1.md#queue)):
+`amf.production.setCapacity` sets a capacity of 1–3 while no Unity work runs or waits, and
+uploads, editor handoffs and deletions run alone. Remaining: the workshop setting, and the rooms
+reading several running jobs instead of one.
 
 **Done when** an upload requested during a reinspection starts by itself when the reinspection
 ends.

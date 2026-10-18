@@ -67,6 +67,8 @@ export interface AmfProductionList extends AmfProductionLaneV01 {
 export interface AmfProductionPlan {
   readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection;
   readonly inputs: readonly { readonly sourceId: string; readonly name: string; readonly role: "avatar" | "outfit" | "import_only" }[];
+  /** Assembling rebuilds the line on another Avatar prefab, behind a restore point. */
+  readonly rebuild?: boolean;
 }
 export interface AmfProductionAccepted { readonly runId: string; readonly taskId: string }
 export interface AmfSavedRecipe { readonly recipe: AmfRecipeDocument; readonly revision: number; readonly updatedAt: string }

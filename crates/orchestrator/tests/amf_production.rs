@@ -403,6 +403,47 @@ fn an_sdk_fix_runs_only_offered_items_behind_a_restore_point_and_keeps_the_phase
     assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
 }
 #[test]
+fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
+    let h = Harness::new();
+    h.prepared();
+    let run = h.engine.get("n3-test").unwrap();
+    let digest = plan_digest(&run, &selection()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
+    // VUA ended in the middle of a second assembly: the run file still reads as assembling,
+    // its assembly step is still running and the work project is half written.
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored["phase"] = serde_json::json!("assembling");
+    let mut step = stored["steps"].as_array().unwrap().last().unwrap().clone();
+    step["key"] = serde_json::json!("assembly");
+    step["state"] = serde_json::json!("running");
+    step["endedAt"] = serde_json::Value::Null;
+    stored["steps"].as_array_mut().unwrap().push(step);
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    let state = Path::new(&run.project_root).join("Assets/state");
+    fs::write(&state, "half-assembled").unwrap();
+
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    assert_eq!(plan["currentChanged"], true);
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the restore point taken before the assembly");
+    assert_eq!(restored.phase, "ready");
+    let interrupted = restored.steps.iter().rev().find(|step| step.key == "assembly").unwrap();
+    assert_eq!(interrupted.state, "interrupted", "the stopped assembly is not recorded as succeeded");
+}
+#[test]
+fn a_run_that_never_changed_in_unity_keeps_asking_for_a_new_check() {
+    let h = Harness::new();
+    h.prepared();
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored["phase"] = serde_json::json!("inspecting");
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    assert_eq!(h.engine.rollback_plan("n3-test").unwrap_err().code, "vua.amf_production.inspect_required");
+}
+#[test]
 fn failure_restores_and_requires_explicit_reinspection() {
     let h = Harness::new();
     h.prepared();

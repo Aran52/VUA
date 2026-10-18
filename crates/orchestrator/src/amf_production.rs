@@ -284,6 +284,16 @@ impl Drop for FingerprintCheck<'_> {
     }
 }
 
+/// A Unity change that a forced end interrupted: the run still reads as assembling, its last step
+/// (assembly or an SDK fix) never finished, and the restore point taken right before it is kept.
+/// The provider runs one task at a time and refuses restores while one runs, so a run in this
+/// state when a restore is asked for is one VUA stopped mid-change.
+fn interrupted_change(run: &ProductionRun) -> bool {
+    run.phase == "assembling"
+        && run.snapshot_id.is_some()
+        && run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix") && step.state == "running")
+}
+
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
 /// outfits it assembled.
 fn still_assembled(run: &ProductionRun) -> bool {
@@ -1147,7 +1157,7 @@ impl AmfProductionEngine {
     }
     pub fn rollback_plan(&self, run_id: &str) -> Result<serde_json::Value, AppErrorV1> {
         let run = self.get(run_id)?;
-        if !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "cancelled" | "stopped") {
+        if !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "cancelled" | "stopped") && !interrupted_change(&run) {
             return Err(production_error(
                 "inspect_required",
                 "Reinspect interrupted work before reviewing a restore.",
@@ -1171,6 +1181,14 @@ impl AmfProductionEngine {
             return Err(production_error("plan_drift", "The project or restore point changed. Review the restore again."));
         }
         let mut run = self.get(run_id)?;
+        // A change a forced end interrupted never finished; it is recorded as interrupted, not
+        // as succeeded by the next step.
+        if interrupted_change(&run) {
+            if let Some(step) = run.steps.last_mut() {
+                step.state = "interrupted".into();
+                step.ended_at = Some(SystemClock.now_rfc3339());
+            }
+        }
         let target = run.snapshot_id.clone().expect("reviewed restore point");
         let target_selection = run.snapshot_selection.clone();
         let current_selection = run.selection.clone();

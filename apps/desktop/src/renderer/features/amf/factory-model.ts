@@ -37,6 +37,13 @@ export function phaseStatus(phase: AmfRunPhase): LineStatus {
   return "attention";
 }
 
+/** VUA ended in the middle of an assembly or an SDK fix: the line asks for a new check and its last
+ * step reads as interrupted, so the restore point taken right before that change is the way back. */
+export function interruptedChange(line: LineFacts): boolean {
+  const last = line.steps[line.steps.length - 1];
+  return line.phase === "inspect_required" && last !== undefined && (last.key === "assembly" || last.key === "sdk_fix") && last.state === "interrupted";
+}
+
 export function lineStatus(line: LineFacts): LineStatus {
   return lineBusy(line) ? "running" : phaseStatus(line.phase);
 }

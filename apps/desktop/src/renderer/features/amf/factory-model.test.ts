@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemblesWithoutAsking, currentStation, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
+import { assemblesWithoutAsking, currentStation, interruptedChange, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
 
 const steps = (...pairs: [string, string][]) => pairs.map(([key, state]) => ({ key, state }));
 
@@ -93,5 +93,18 @@ describe("full access", () => {
     expect(assemblesWithoutAsking("full", prepared, { busy: true, chosen: true })).toBe(false);
     expect(assemblesWithoutAsking("full", prepared, { busy: false, chosen: false })).toBe(false);
     expect(assemblesWithoutAsking("full", { ...prepared, phase: "preparing" as const }, go)).toBe(false);
+  });
+});
+
+describe("a change VUA stopped midway", () => {
+  const steps = (key: string, state: string) => [{ key: "snapshot", state: "succeeded" }, { key, state }];
+  it("offers the restore point for an interrupted assembly or SDK fix", () => {
+    expect(interruptedChange({ phase: "inspect_required", steps: steps("assembly", "interrupted") })).toBe(true);
+    expect(interruptedChange({ phase: "inspect_required", steps: steps("sdk_fix", "interrupted") })).toBe(true);
+  });
+  it("leaves interrupted checks and finished changes to a new check", () => {
+    expect(interruptedChange({ phase: "inspect_required", steps: steps("reinspect", "interrupted") })).toBe(false);
+    expect(interruptedChange({ phase: "failed", steps: steps("assembly", "failed") })).toBe(false);
+    expect(interruptedChange({ phase: "inspect_required", steps: [] })).toBe(false);
   });
 });

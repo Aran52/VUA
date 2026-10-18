@@ -208,8 +208,10 @@ when the job starts, and a job that cannot start then ends `failed` with that re
 first, each with `taskId`, `runId` and `operation`. Cancelling a queued task through
 `task.requestCancellation` ends it `cancelled` without running it. `plan`, `rollbackPlan` and
 `recipeApplyPlan` answer `busy` while work for that run runs or waits; saving, importing and
-exporting Recipes answer `busy` while a job runs. Work on different projects side by side is a
-later step for machines with enough memory.
+exporting Recipes answer `busy` while a job runs. Work still waiting when VUA closes does not start
+at the next launch; its task asks for inspection like other unfinished work, and the run keeps the
+state it had. Work on different projects side by side is a later step for machines with enough
+memory.
 
 ## Previews
 

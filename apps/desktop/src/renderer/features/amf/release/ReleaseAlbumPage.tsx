@@ -218,6 +218,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
       right: live => run ? <>
         <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null} actions={{
           busy: ownWork(runId),
+          uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
           otherWork,
           queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },

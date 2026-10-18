@@ -20,6 +20,8 @@ export interface QueuedWork {
 export interface SheetActions {
   /** This Avatar's own work runs or waits. */
   readonly busy: boolean;
+  /** An upload of this Avatar runs or waits; another upload would repeat it. */
+  readonly uploadBlocked?: boolean;
   /** Another line's work runs; what this page starts now waits for it. */
   readonly otherWork?: boolean;
   readonly queued?: QueuedWork | null;
@@ -258,7 +260,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
       {live && actions?.queued && <QueuedNotice queued={actions.queued} />}
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
         {!(live && uploadQueued) && <>
-          <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}
+          <button type="button" className="vua-release-upload__button" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
             onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
           {!(live && actions?.queued) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy : actions?.otherWork ? copy.upload.busy
             : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>}

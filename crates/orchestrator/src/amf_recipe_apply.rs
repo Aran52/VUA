@@ -120,7 +120,7 @@ impl AmfProductionEngine {
         let run = self.get(run_id)?;
         validate_selection_subset(&run, &selection)?;
         let target = plan.target(choice, &selection);
-        self.execute_assembly(run, selection, digest, Some(target), ctx)
+        self.execute_assembly(run, selection, digest, Some(target), false, ctx)
     }
 }
 

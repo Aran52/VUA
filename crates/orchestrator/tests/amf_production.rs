@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -27,6 +27,12 @@ struct TestPlatform {
     fail_replace: AtomicBool,
     /// Unity holds the work project.
     editor_open: AtomicBool,
+    /// The Avatar package carries a second Avatar prefab.
+    alt_avatar: AtomicBool,
+    /// How often the work scene was cleared for a rebuild.
+    cleared: AtomicUsize,
+    /// Every selection Unity assembled, in order.
+    assembled_with: Mutex<Vec<AssemblySelection>>,
     snapshots: AtomicUsize,
     root: PathBuf,
 }
@@ -147,13 +153,18 @@ impl AmfProductionPlatform for TestPlatform {
         for file in ["front.png", "candidate-000.png", "unreported.png"] {
             fs::write(previews.join(file), b"\x89PNG\r\n\x1a\nsynthetic").unwrap();
         }
+        let mut prefabs = candidates();
+        if self.alt_avatar.load(Ordering::SeqCst) {
+            prefabs.push(PrefabCandidate { path: "Assets/AvatarAlt.prefab".into(), name: "Avatar Alt".into(), preview: None, ..candidates().remove(0) });
+        }
+        let assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
         Ok(ObservedProject {
-            prefabs: candidates(),
+            prefabs,
             unity_fingerprint: "scene-before".into(),
             editor_version: "2022.3.22f1c1".into(),
             result: serde_json::json!({"synthetic":true,
                 "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection),
+                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then_some(assembled),
                     "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
                         {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
                 "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}}),
@@ -162,7 +173,7 @@ impl AmfProductionPlatform for TestPlatform {
     fn assemble(
         &self,
         run: &ProductionRun,
-        _: &AssemblySelection,
+        selection: &AssemblySelection,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         fs::write(Path::new(&run.project_root).join("Assets/state"), "after").unwrap();
@@ -172,7 +183,13 @@ impl AmfProductionPlatform for TestPlatform {
                 "Synthetic failure after a mutation.",
             ));
         }
+        self.assembled_with.lock().unwrap().push(selection.clone());
         self.inspect(run, watch)
+    }
+    fn clear_work_scene(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+        self.cleared.fetch_add(1, Ordering::SeqCst);
+        fs::write(Path::new(&run.project_root).join("Assets/state"), "fresh").unwrap();
+        Ok(())
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         fs::read_to_string(project.join("Assets/state"))
@@ -260,6 +277,9 @@ impl Harness {
             wait_for_stop: AtomicBool::new(false),
             fail_replace: AtomicBool::new(false),
             editor_open: AtomicBool::new(false),
+            alt_avatar: AtomicBool::new(false),
+            cleared: AtomicUsize::new(0),
+            assembled_with: Mutex::new(Vec::new()),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
         });
@@ -983,4 +1003,53 @@ fn deleting_a_line_removes_its_work_project_and_records() {
     assert!(!release.exists());
     assert!(h.engine.get("n3-test").is_err());
     assert!(h.engine.list().unwrap().is_empty());
+}
+
+fn alt_selection() -> AssemblySelection {
+    AssemblySelection { avatar_prefab: "Assets/AvatarAlt.prefab".into(), ..selection() }
+}
+
+#[test]
+fn another_base_on_a_finished_line_rebuilds_it_behind_a_restore_point() {
+    let h = Harness::new();
+    h.platform.alt_avatar.store(true, Ordering::SeqCst);
+    let before = assembled(&h);
+    assert_eq!(before.phase, "succeeded");
+    assert_eq!(h.engine.plan("n3-test", &selection()).unwrap()["rebuild"], false);
+    let plan = h.engine.plan("n3-test", &alt_selection()).unwrap();
+    assert_eq!(plan["rebuild"], true);
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", alt_selection(), &digest, ctx)));
+    let rebuilt = h.engine.get("n3-test").unwrap();
+    assert_eq!(rebuilt.phase, "succeeded");
+    assert_eq!(h.platform.cleared.load(Ordering::SeqCst), 1);
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
+    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&alt_selection()));
+    assert_eq!(rebuilt.selection, Some(alt_selection()));
+    assert_eq!(rebuilt.snapshot_selection, Some(selection()));
+    assert_eq!(rebuilt.result["facts"]["observedSelection"]["avatarPrefab"], "Assets/AvatarAlt.prefab");
+    let keys: Vec<_> = rebuilt.steps.iter().rev().take(3).map(|step| step.key.as_str()).collect();
+    assert_eq!(keys, ["assembly", "inspect", "snapshot"]);
+    // The restore point brings the earlier base back.
+    assert!(restore_reviewed(&h));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.selection, Some(selection()));
+    assert_eq!(fs::read_to_string(Path::new(&restored.project_root).join("Assets/state")).unwrap(), "after");
+}
+
+#[test]
+fn a_failed_rebuild_restores_the_earlier_base_and_its_facts() {
+    let h = Harness::new();
+    h.platform.alt_avatar.store(true, Ordering::SeqCst);
+    let before = assembled(&h);
+    let digest = h.engine.plan("n3-test", &alt_selection()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    h.platform.fail.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |engine, ctx| engine.assemble("n3-test", alt_selection(), &digest, ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(), "after");
+    assert_eq!(failed.result["facts"]["observedSelection"], before.result["facts"]["observedSelection"]);
+    assert_eq!(failed.unity_fingerprint, before.unity_fingerprint);
+    assert_eq!(failed.project_fingerprint, before.project_fingerprint);
 }

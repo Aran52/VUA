@@ -366,6 +366,10 @@ fn route(
     if method == "amf.production.open" && !queued {
         service.engine.precheck_open(&run_id)?;
     }
+    if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
+        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete") {
+        service.engine.precheck_closed(&run_id)?;
+    }
     if method == "amf.production.delete" && service.run_busy(&run_id) {
         return Err(production_error("busy", "This line has work running or waiting."));
     }

@@ -8,6 +8,8 @@ export function useAiRequests() {
   const [snapshot, setSnapshot] = useState<AiToolsSnapshotV01 | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  /** The reason the last decision failed, such as `upload_confirmation_required`. */
+  const [failure, setFailure] = useState<string | null>(null);
   useEffect(() => {
     if (!port) return;
     let alive = true;
@@ -19,8 +21,9 @@ export function useAiRequests() {
   /** `confirmation` is the player's upload confirmation from the Release page's dialog. */
   const resolve = async (id: string, decision: "approve" | "reject", confirmation?: AiUploadConfirmationV01) => {
     if (!port) return;
-    setBusy(true); setFailed(false);
-    try { setSnapshot(await port.resolve(id, decision, confirmation)); } catch { setFailed(true); } finally { setBusy(false); }
+    setBusy(true); setFailed(false); setFailure(null);
+    try { setSnapshot(await port.resolve(id, decision, confirmation)); }
+    catch (error) { setFailed(true); setFailure(error instanceof Error ? error.message : null); } finally { setBusy(false); }
   };
-  return { port, snapshot, setSnapshot, busy, setBusy, failed, setFailed, resolve };
+  return { port, snapshot, setSnapshot, busy, setBusy, failed, setFailed, failure, resolve };
 }

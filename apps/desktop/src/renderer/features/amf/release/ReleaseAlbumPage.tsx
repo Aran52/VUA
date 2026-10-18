@@ -11,6 +11,7 @@ import { format, formatDateTime, formatShortDateTime, strings, termLabel } from 
 import { runStartedAt } from "../factory-model.ts";
 import { useAiRequests } from "../../ai-requests/use-ai-requests.ts";
 import { requestRunId } from "../../ai-requests/ai-request-routing.ts";
+import { onRequestRevealed } from "../../ai-requests/ai-request-reveal.ts";
 import { ReleaseAlbum, type AlbumSpread } from "./ReleaseAlbum.tsx";
 import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
@@ -140,6 +141,12 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     return () => { alive = false; clearInterval(timer); };
   }, [gateway, followed, states, runs]);
   const requests = (ai.snapshot?.requests ?? []).filter(request => request.tool === "vua_request_amf_upload" && request.state === "pending");
+  // An AI's upload request is confirmed here, with the Avatar's name and the rights statement.
+  useEffect(() => onRequestRevealed(id => {
+    const request = requests.find(item => item.id === id);
+    const runId = request ? requestRunId(request) : null;
+    if (request && runId) { setDialogError(null); setDialog({ runId, requestId: request.id }); }
+  }), [requests]);
 
   // 上传核对(vrchat-session v0.1):玩家开启实验性登录后才读;结果按 Avatar ID 记住
   const [avatarChecks, setAvatarChecks] = useState<Readonly<Record<string, VrchatAvatarCheck>>>({});

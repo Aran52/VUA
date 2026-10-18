@@ -1012,11 +1012,28 @@ fn deleting_a_line_removes_its_work_project_and_records() {
     assert!(h.engine.delete_run("n3-test").unwrap_err().code.ends_with("project_open"));
     assert!(Path::new(&run.project_root).exists(), "a project Unity holds stays");
     h.platform.editor_open.store(false, Ordering::SeqCst);
+    let records = h.root.join("production/records");
+    let own: Vec<_> = fs::read_dir(&records).unwrap().flatten().map(|entry| entry.path()).collect();
+    assert!(!own.is_empty(), "the assembly left its record");
+    let other = records.join("n3-other-0123456789abcdef.json");
+    fs::write(&other, "{}").unwrap();
     h.engine.delete_run("n3-test").unwrap();
     assert!(!Path::new(&run.project_root).exists());
     assert!(!release.exists());
-    assert!(h.engine.get("n3-test").is_err());
+    assert!(own.iter().all(|record| !record.exists()), "the line's assembly records leave with it");
+    assert!(other.exists(), "another line's record stays");
+    assert!(h.engine.get("n3-test").unwrap_err().code.ends_with("run_not_found"));
     assert!(h.engine.list().unwrap().is_empty());
+}
+
+#[test]
+fn work_on_a_project_unity_holds_is_refused_when_asked() {
+    let h = Harness::new();
+    assembled(&h);
+    h.engine.precheck_closed("n3-test").unwrap();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    assert!(h.engine.precheck_closed("n3-test").unwrap_err().code.ends_with("project_open"));
+    assert!(h.engine.precheck_closed("n3-missing").unwrap_err().code.ends_with("run_not_found"));
 }
 
 // --- lilToon brightness limit alignment ---

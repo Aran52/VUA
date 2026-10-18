@@ -178,15 +178,27 @@ function result(v: unknown): boolean {
       && (i.menuModified === undefined || typeof i.menuModified === "boolean"))))
     && (v.diagnostics === undefined || (Array.isArray(v.diagnostics) && v.diagnostics.every(d => record(d) && text(d.code) && text(d.message) && ["info","warning","error"].includes(String(d.severity)))));
 }
+// Each part of a run the renderer relies on, named so a rejected run says which part failed.
+const runChecks: readonly (readonly [string, (v: Record<string, unknown>) => boolean])[] = [
+  ["identity", v => v.schemaVersion === "0.1" && text(v.runId) && typeof v.phase === "string" && phases.includes(v.phase) && text(v.taskId) && editor(v.editor) && text(v.projectRoot)],
+  ["choices", v => Array.isArray(v.choices) && v.choices.every(choice)],
+  ["sources", v => Array.isArray(v.sources) && v.sources.every(s => choice(s) && record(s) && [s.itemName, s.name, s.sha256].every(text))],
+  ["prefabs", v => Array.isArray(v.prefabs) && v.prefabs.every(prefab)],
+  ["steps", v => Array.isArray(v.steps) && v.steps.every(isAmfStep)],
+  ["usualDurations", v => v.usualDurations === undefined || isAmfUsualDurations(v.usualDurations)],
+  ["progress", v => v.progress === undefined || v.progress === null || isAmfRunProgress(v.progress)],
+  ["error", v => (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))],
+  ["snapshotId", v => v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0)],
+  ["selection", v => v.selection === null || isAmfAssemblySelection(v.selection)],
+  ["result", v => result(v.result)],
+];
+/** The first part of a run the renderer cannot read, or null when the run is valid. */
+export function amfRunProblem(v: unknown): string | null {
+  if (!record(v)) return "record";
+  return runChecks.find(([, check]) => !check(v))?.[0] ?? null;
+}
 export function isAmfProductionRun(v: unknown): v is AmfProductionRun {
-  return record(v) && v.schemaVersion === "0.1" && text(v.runId) && typeof v.phase === "string" && phases.includes(v.phase) && text(v.taskId) && editor(v.editor) && text(v.projectRoot)
-    && Array.isArray(v.choices) && v.choices.every(choice) && Array.isArray(v.sources) && v.sources.every(s => choice(s) && record(s) && [s.itemName, s.name, s.sha256].every(text))
-    && Array.isArray(v.prefabs) && v.prefabs.every(prefab) && Array.isArray(v.steps) && v.steps.every(isAmfStep)
-    && (v.usualDurations === undefined || isAmfUsualDurations(v.usualDurations))
-    && (v.progress === undefined || v.progress === null || isAmfRunProgress(v.progress))
-    && (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))
-    && (v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0))
-    && (v.selection === null || isAmfAssemblySelection(v.selection)) && result(v.result);
+  return amfRunProblem(v) === null;
 }
 export function createAmfProductionPort(client: GatewayClient): AmfProductionPort {
   const call = async (body: AmfProductionBodyV01): Promise<unknown> => {
@@ -281,7 +293,12 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       if (!record(v) || v.schemaVersion !== "0.1" || !isAmfProductionCapacity(v.capacity) || v.capacity !== capacity) throw new Error("amf_production_capacity_invalid");
       return v.capacity;
     },
-    async get(runId) { const v = await call({ method: "amf.production.get", params: { schemaVersion: "0.1", runId } }); if (!isAmfProductionRun(v) || v.runId !== runId) throw new Error("amf_production_run_invalid"); return v; },
+    async get(runId) {
+      const v = await call({ method: "amf.production.get", params: { schemaVersion: "0.1", runId } });
+      const problem = amfRunProblem(v) ?? (record(v) && v.runId !== runId ? "runId" : null);
+      if (problem !== null) throw new Error(`amf_production_run_invalid: ${problem}`);
+      return v as AmfProductionRun;
+    },
     async prepare(sources, editorPath) { return accepted(await call({ method: "amf.production.prepare", params: { schemaVersion: "0.1", sources, editorPath } }), strings.amfProduction.preparing); },
     async plan(runId, selection) {
       const v = await call({ method: "amf.production.plan", params: { schemaVersion: "0.1", runId, selection } });

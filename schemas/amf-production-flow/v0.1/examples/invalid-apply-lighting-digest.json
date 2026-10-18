@@ -1,0 +1,12 @@
+{
+  "method": "amf.production.applyLighting",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-example",
+    "planDigest": "not-a-digest",
+    "materials": [
+      "Assets/Outfit/Coat.mat"
+    ]
+  }
+}

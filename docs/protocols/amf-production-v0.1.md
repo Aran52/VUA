@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.19.0
+> Document version: 0.20.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: AMF
@@ -44,6 +44,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
 | `amf.production.bakeTurntable` | Command | `runId` | Durable task baking the 60-frame turntable of the finished Avatar |
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
+| `amf.production.planLighting` | Query | `runId` | Digest-bound lilToon brightness alignment: the Avatar's reference limits, the outfit entries that differ and the shared materials left alone |
+| `amf.production.applyLighting` | Command | `runId`, `planDigest`, `materials` | Durable task acceptance; aligns the chosen reviewed materials behind a restore point and rechecks the project in Unity |
 
 Roles: `auto`, `avatar`, `outfit`, `dependency`. The player path starts with `auto` sources.
 Unity discovers actual prefabs. `recommendAssembly` in the contracts package starts the plan with a
@@ -155,7 +157,7 @@ restoration requires explicit reinspection. Original library inputs are never re
 ## Progress, stop and continue
 
 Step keys are `project`, `materials`, `inspect`, `reinspect`, `snapshot`, `assembly`,
-`protect_current` and `restore`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
+`protect_current`, `restore`, `turntable`, `upload`, `sdk_fix` and `lighting`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
 times; records written before step times carry `null`. Step states are `running`, `succeeded`,
 `failed` and `stopped`. `amf.production.get` shows the unfinished step of work whose task no
 longer runs as `interrupted`, next to the run phase `inspect_required`.
@@ -202,7 +204,7 @@ closed.
 
 Unity work has a capacity of 1, 2 or 3, defaulting to 1. The commands that start it — `prepare`, `prepareRecipe`,
 `assemble`, `reinspect`, `sdkFix`, `changeSources`, `applyRecipe`, `rollback`, `open`, `delete`,
-`bakeTurntable` and `upload` — are accepted while another job runs: their task stays `queued` and starts by itself,
+`bakeTurntable`, `upload` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
 in request order, when admitted by these rules:
 
 - At most `capacity` jobs run at once. Capacity 1 runs one job at a time in submission order.
@@ -254,6 +256,36 @@ project, returns to `ready` and keeps the choices that still name a present mate
 origin no longer applies. The restore point keeps the previous materials with the files, so
 `rollback` brings both back, and a restore across the change can itself be undone. A failure
 restores the protected project and the previous materials.
+
+### Aligning lilToon brightness limits
+
+`amf.production.planLighting` reviews an assembled line's lilToon materials: the Avatar's own
+brightness limits against each outfit material's `_LightMinLimit` and `_LightMaxLimit`, read from
+the work project's `.mat` files. It needs the Bridge's `materialUse` facts ([Bridge v5](unity-bridge-v5.md));
+a run whose last check predates them answers `inspect_required`, and a project changed since its
+last check answers `project_drift`.
+
+The reference pair is the Avatar's: among the Avatar's lilToon materials, the pair of the
+renderer whose name (the last hierarchy-path segment, case-insensitive) is `Body`. Without one,
+the most common pair across the Avatar's lilToon materials wins, one vote per material. An
+ambiguous Body pair, a tied vote and an Avatar without lilToon materials all report
+`reference: null` with a `referenceReason` (`tie` or `no_avatar_liltoon`) and no entries. Each
+outfit lilToon material (deduplicated by path) whose limits differ from the reference is one
+entry `{material, sourceId, current, proposed}`; values are the exact serialized text. A material
+shared by the Avatar and an outfit is never changed and is listed in `skipped` with its reason;
+non-lilToon materials never appear.
+
+`amf.production.applyLighting` takes the review's `planDigest` and a subset of its entry paths
+(`materials`), so each material can be confirmed on its own. A changed project or a different
+plan is refused before anything happens (`project_drift` / `plan_drift`). The task protects the
+work project (`snapshot`), writes the two value lines of each chosen material — nothing else in
+the file changes (`lighting`) — then rechecks the project in Unity (`inspect`) so the run's
+facts and fingerprint reflect the change, and re-reads each written file against the review.
+Any failure restores the protected project; the restore point is the workshop's ordinary restore
+target, so the change can be undone later. The run keeps its phase.
+
+Changing the line's materials (`changeSources`) re-imports the original packages, and this
+adjustment leaves with them; plan again afterwards.
 
 ### Deleting a line
 
@@ -362,6 +394,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.20.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
 - 0.19.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
 - 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, per-line pinned installs, legacy-copy replacement only when the exact release covers the copy, and the `amf.package.guide` diagnostic naming needed version lines.
 - 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.

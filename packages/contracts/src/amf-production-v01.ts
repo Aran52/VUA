@@ -9,6 +9,14 @@ export interface AmfOutfitSelection {
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
 export type AmfProductionCapacity = 1 | 2 | 3;
+/** The lilToon brightness limits of one material, as serialized in its file. */
+export interface AmfLightingLimits { readonly min: string; readonly max: string }
+/** One outfit material whose lilToon brightness limits differ from the Avatar's reference. */
+export interface AmfLightingEntry { readonly material: string; readonly sourceId: string; readonly current: AmfLightingLimits; readonly proposed: AmfLightingLimits }
+/** A material the lighting plan leaves unchanged, with the reason. */
+export interface AmfLightingSkip { readonly material: string; readonly reason: string }
+/** Why a lighting plan has no reference: the Avatar has no lilToon materials, or no unique pair wins. */
+export type AmfLightingReferenceReason = "no_avatar_liltoon" | "tie";
 export interface AmfProductionWorkV01 { readonly taskId: string; readonly runId: string; readonly operation: string }
 export interface AmfProductionCapacityResultV01 { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity }
 export interface AmfProductionLaneV01 {
@@ -39,6 +47,10 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.delete"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
+  /** Reviews the lilToon brightness alignment of an assembled line. */
+  | { readonly method: "amf.production.planLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
+  /** Aligns the chosen reviewed materials' lilToon brightness limits with the Avatar's, behind a restore point. */
+  | { readonly method: "amf.production.applyLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly materials: readonly string[] } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
   | { readonly method: "amf.production.prepare"; readonly params: { readonly schemaVersion: "0.1"; readonly sources: readonly AmfSourceChoice[]; readonly editorPath: string } }
   | { readonly method: "amf.production.plan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly selection: AmfAssemblySelection } }
@@ -51,7 +63,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "lighting"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
@@ -119,6 +131,11 @@ export function isAmfPreviewPath(value: unknown): value is string {
   return typeof value === "string" && value.length <= 512 && /^\.vua\/previews\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.png$/u.test(value)
     && !value.split("/").includes("..");
 }
+/** A material asset inside the work project: `Assets/**` ending in `.mat`. */
+export function isAmfMaterialPath(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 4096 && value.startsWith("Assets/") && /\.[mM][aA][tT]$/u.test(value)
+    && !/[\\:\u0000]/u.test(value) && !value.split("/").some(part => part === "" || part === "." || part === "..");
+}
 /** SDK items one fix request may name. */
 export const AMF_SDK_FIX_LIMIT = 16;
 /** Frames in a baked AMF turntable, camera yaw 0° to 354° in 6° steps. */
@@ -169,8 +186,13 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && new Set(value.sources.map((source: AmfSourceChoice) => source.sourceId)).size === value.sources.length;
     case "amf.production.delete": return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
-    case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan":
+    case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan": case "amf.production.planLighting":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.applyLighting":
+      return exact(value, ["schemaVersion", "runId", "planDigest", "materials"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)
+        && Array.isArray(value.materials) && value.materials.length >= 1 && value.materials.length <= 512
+        && value.materials.every(isAmfMaterialPath) && new Set(value.materials).size === value.materials.length;
     case "amf.production.rollback":
       return exact(value, ["schemaVersion", "runId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);

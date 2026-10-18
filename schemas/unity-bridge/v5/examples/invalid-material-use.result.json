@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-command",
+  "operation": "amf_inspect",
+  "status": "succeeded",
+  "changedPaths": [],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1",
+    "projectFingerprint": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-vector",
+    "prefabs": [],
+    "instances": [],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "materialUse": [
+      {
+        "owner": "avatar",
+        "renderer": "Body",
+        "material": "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Lit.mat"
+      }
+    ]
+  }
+}

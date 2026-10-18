@@ -12,6 +12,8 @@ use std::time::{Duration, Instant, SystemTime};
 
 mod release;
 pub use release::*;
+mod lighting;
+pub use lighting::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

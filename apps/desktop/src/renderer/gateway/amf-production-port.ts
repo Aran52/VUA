@@ -1,5 +1,6 @@
 import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
-  AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01 } from "@vua/contracts";
+  AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01,
+  AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip } from "@vua/contracts";
 import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
   AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
@@ -75,6 +76,13 @@ export interface AmfProductionRestorePlan {
   readonly runId: string; readonly planDigest: string; readonly snapshotId: string;
   readonly projectRoot: string; readonly currentChanged: boolean; readonly preserveCurrent: true;
 }
+/** The reviewed lilToon brightness alignment of an assembled line. */
+export interface AmfLightingPlan {
+  readonly runId: string; readonly planDigest: string;
+  readonly reference: AmfLightingLimits | null; readonly referenceReason: AmfLightingReferenceReason | null;
+  readonly entries: readonly AmfLightingEntry[]; readonly skipped: readonly AmfLightingSkip[];
+}
+export type { AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip } from "@vua/contracts";
 export interface AmfRecipeSharePlan {
   readonly recipeId: string; readonly title: string; readonly revision: number; readonly planDigest: string;
   readonly materials: readonly { readonly materialId: string; readonly packageName: string; readonly candidates: readonly string[]; readonly selectedProductId: string | null }[];
@@ -109,6 +117,10 @@ export interface AmfProductionPort {
   sdkFix(runId: string, fixes: readonly string[]): Promise<AmfProductionAccepted>;
   /** Changes the line's own materials behind a restore point; the line plans again. */
   changeSources(runId: string, sources: readonly AmfSourceChoice[]): Promise<AmfProductionAccepted>;
+  /** Reviews the lilToon brightness alignment of an assembled line: the Avatar's reference limits and the outfit entries that differ. */
+  planLighting(runId: string): Promise<AmfLightingPlan>;
+  /** Aligns the chosen reviewed materials with the Avatar's reference behind a restore point, then rechecks the project in Unity. */
+  applyLighting(runId: string, plan: AmfLightingPlan, materials: readonly string[]): Promise<AmfProductionAccepted>;
   /** Deletes a line with its work project and release record. */
   delete(runId: string): Promise<AmfProductionAccepted>;
   rollbackPlan(runId: string): Promise<AmfProductionRestorePlan>;
@@ -280,6 +292,23 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async reinspect(runId) { return accepted(await call({ method: "amf.production.reinspect", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.reinspect); },
     async sdkFix(runId, fixes) { return accepted(await call({ method: "amf.production.sdkFix", params: { schemaVersion: "0.1", runId, fixes: [...fixes] } }), strings.sdkReview.fixTitle); },
     async changeSources(runId, sources) { return accepted(await call({ method: "amf.production.changeSources", params: { schemaVersion: "0.1", runId, sources: [...sources] } }), strings.factory.panels.materials.change); },
+    async planLighting(runId) {
+      const v = await call({ method: "amf.production.planLighting", params: { schemaVersion: "0.1", runId } });
+      const limits = (l: unknown): l is AmfLightingLimits => record(l) && text(l.min) && text(l.max);
+      if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || typeof v.planDigest !== "string" || !/^[a-f0-9]{64}$/u.test(v.planDigest)
+        || !(v.reference === null || limits(v.reference))
+        || !(v.referenceReason === null || ["no_avatar_liltoon", "tie"].includes(String(v.referenceReason)))
+        || (v.reference === null) !== (v.referenceReason !== null)
+        || !Array.isArray(v.entries) || v.entries.length > 512
+        || !v.entries.every(e => record(e) && text(e.material) && text(e.sourceId) && limits(e.current) && limits(e.proposed))
+        || !Array.isArray(v.skipped) || v.skipped.length > 512
+        || !v.skipped.every(s => record(s) && text(s.material) && s.reason === "shared_with_avatar")) throw new Error("amf_production_lighting_plan_invalid");
+      return v as unknown as AmfLightingPlan;
+    },
+    async applyLighting(runId, plan, materials) {
+      if (plan.runId !== runId) throw new Error("amf_production_lighting_plan_invalid");
+      return accepted(await call({ method: "amf.production.applyLighting", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, materials: [...materials] } }), strings.factory.panels.materials.change);
+    },
     async delete(runId) { return accepted(await call({ method: "amf.production.delete", params: { schemaVersion: "0.1", runId } }), strings.factory.lineMenu.delete); },
     async rollbackPlan(runId) {
       const v = await call({ method: "amf.production.rollbackPlan", params: { schemaVersion: "0.1", runId } });

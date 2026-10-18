@@ -166,7 +166,8 @@
         "restore",
         "turntable",
         "upload",
-        "sdk_fix"
+        "sdk_fix",
+        "lighting"
       ]
     },
     "timestamp": {

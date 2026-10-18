@@ -109,7 +109,36 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const [dialogError, setDialogError] = useState<unknown>(null);
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload"; error: unknown } | null>(null);
-  const busy = list?.busy ?? false;
+  const otherWork = list?.busy ?? false;
+  const queuedFor = (runId: string) => list?.queue.find(item => item.runId === runId) ?? null;
+  const ownWork = (runId: string) => { const run = runs[runId]; return (run !== undefined && runBusy(run)) || queuedFor(runId) !== null || runningUpload(states[runId] ?? null) !== null; };
+  // Work started here, followed until it ends: one that waited and then could not start shows why.
+  const [followed, setFollowed] = useState<Readonly<Record<string, { taskId: string; kind: "bake" | "upload" }>>>({});
+  const follow = (runId: string, kind: "bake" | "upload", accepted: unknown) => {
+    const taskId = (accepted as { taskId?: unknown } | null)?.taskId;
+    if (typeof taskId === "string") setFollowed(previous => ({ ...previous, [runId]: { taskId, kind } }));
+  };
+  useEffect(() => {
+    const entries = Object.entries(followed);
+    if (entries.length === 0) return;
+    let alive = true;
+    const timer = setInterval(() => {
+      void gateway.task.snapshot().then(view => {
+        if (!alive) return;
+        for (const [runId, { taskId, kind }] of entries) {
+          const task = view.tasks.find(item => item.id === taskId);
+          if (task === undefined || !["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) continue;
+          setFollowed(previous => { const { [runId]: _ended, ...rest } = previous; return rest; });
+          // A failure the run already records (an upload record, a turntable step) speaks for itself.
+          const recorded = kind === "upload" ? (states[runId]?.uploads.some(upload => upload.uploadId.includes(taskId.replace(/[^A-Za-z0-9-]/gu, "").slice(0, 80))) ?? false)
+            : (runs[runId]?.steps.some(step => step.key === "turntable" && step.state === "failed") ?? false);
+          if (task.status === "failed" && !recorded) setActionError({ runId, kind, error: Object.assign(new Error(task.errorText ?? ""), { code: task.errorText }) });
+          refresh();
+        }
+      }, () => {});
+    }, 1500);
+    return () => { alive = false; clearInterval(timer); };
+  }, [gateway, followed, states, runs]);
   const requests = (ai.snapshot?.requests ?? []).filter(request => request.tool === "vua_request_amf_upload" && request.state === "pending");
 
   // 上传核对(vrchat-session v0.1):玩家开启实验性登录后才读;结果按 Avatar ID 记住
@@ -138,7 +167,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
 
   const act = (runId: string, kind: "bake" | "upload", work: () => Promise<unknown>) => {
     setActionError(null);
-    void work().then(refresh, error => setActionError({ runId, kind, error }));
+    void work().then(accepted => { follow(runId, kind, accepted); refresh(); }, error => setActionError({ runId, kind, error }));
   };
   const checkAgain = (runId: string) => act(runId, "upload", () => production.reinspect(runId));
   const confirm = async (confirmation: AiUploadConfirmationV01) => {
@@ -151,7 +180,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
         const decided = snapshot.requests.find(request => request.id === dialog.requestId);
         if (decided?.state === "failed") throw Object.assign(new Error(decided.error ?? ""), { code: decided.error });
       } else {
-        await release.upload(dialog.runId, confirmation);
+        follow(dialog.runId, "upload", await release.upload(dialog.runId, confirmation));
       }
       setDialog(null); refresh();
     } catch (error) {
@@ -183,12 +212,14 @@ function Album({ production, release, checksEnabled, onNavigate }: {
       key: runId, tab,
       left: live => run ? <div className="vua-album__left">
         <ReleaseStage production={production} release={release} run={run} turntable={state?.turntable ?? null} title={title} live={live} />
-        {live && <TurntableBar run={run} state={state} busy={busy} error={error?.kind === "bake" ? error.error : null}
+        {live && <TurntableBar run={run} state={state} busy={ownWork(runId)} error={error?.kind === "bake" ? error.error : null}
           onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
         <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null} actions={{
-          busy: busy || runBusy(run),
+          busy: ownWork(runId),
+          otherWork,
+          queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),

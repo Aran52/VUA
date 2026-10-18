@@ -76,7 +76,7 @@ const upload = (patch: Partial<AmfUpload>): AmfUpload => ({ uploadId: "upload-1"
   state: "succeeded", stage: "finishing", progress: 1, status: "", blueprintId: avatarId, firstUpload: true, reason: null, detail: "", errors: [], sdkSignIn: "vua_session", ...patch });
 
 export function releaseViewNames(): string[] {
-  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin"];
+  return ["release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued"];
 }
 
 export function releasePorts(view: string): { production: AmfProductionPort; release: AmfReleasePort } {
@@ -92,7 +92,7 @@ export function releasePorts(view: string): { production: AmfProductionPort; rel
     return { runId, editorOpen: false, uploads, turntable: runId === runs[2]!.runId ? null : { frames: 60, size: 512, bakedAt: "2026-10-17T05:30:00Z", current: true } };
   };
   const production = {
-    async list() { return { sources: [], editors: [], busy: false, runs: (view === "release-empty" ? [] : runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
+    async list() { return { sources: [], editors: [], busy: view === "release-queued", queue: view === "release-queued" ? [{ taskId: "task-queued-upload", runId: runs[0]!.runId, operation: "amf.production.upload" }] : [], runs: (view === "release-empty" ? [] : runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
     async get(runId: string) { return structuredClone(runs.find(run => run.runId === runId)!); },
     async previewImage(runId: string, path: string) { return frame(lookOf(runId), path.endsWith("side.png") ? 15 : path.endsWith("back.png") ? 30 : 0); },
     async reinspect(runId: string) { return { runId, taskId: "task" }; },

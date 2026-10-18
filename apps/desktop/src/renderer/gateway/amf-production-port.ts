@@ -58,8 +58,13 @@ export interface AmfSdkReview {
   readonly stats: readonly AmfSdkStat[];
   readonly detail: string;
 }
+/** Unity work waiting for its turn behind the running job. */
+export interface AmfQueuedWork { readonly taskId: string; readonly runId: string; readonly operation: string }
 export interface AmfProductionList {
-  readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[]; readonly busy: boolean;
+  readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[];
+  /** A Unity job runs now; work asked for meanwhile waits in `queue`. */
+  readonly busy: boolean;
+  readonly queue: readonly AmfQueuedWork[];
   readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[] }[];
 }
 export interface AmfProductionPlan {
@@ -247,7 +252,8 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async list() {
       const v = await call({ method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.sources) || !v.sources.every(source) || !Array.isArray(v.editors) || !v.editors.every(editor)
-        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames))) throw new Error("amf_production_list_invalid");
+        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames))
+        || !Array.isArray(v.queue) || v.queue.length > 64 || !v.queue.every(q => record(q) && text(q.taskId) && text(q.runId) && text(q.operation) && q.operation.startsWith("amf.production."))) throw new Error("amf_production_list_invalid");
       return v as unknown as AmfProductionList;
     },
     async get(runId) { const v = await call({ method: "amf.production.get", params: { schemaVersion: "0.1", runId } }); if (!isAmfProductionRun(v) || v.runId !== runId) throw new Error("amf_production_run_invalid"); return v; },

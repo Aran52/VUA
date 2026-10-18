@@ -291,3 +291,7 @@
 .vua-vrchat-shelf__facts { font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-badge.vua-vrchat-shelf__mark { position: absolute; top: calc(var(--vua-space-2) + 6px); inset-inline-start: calc(var(--vua-space-2) + 6px); background: var(--vua-bg-panel); box-shadow: 0 1px 4px color-mix(in srgb, black 25%, transparent); }
 [data-effects="off"] .vua-vrchat-shelf__card { transition: none; }
+
+/* Work of this Avatar waiting behind the running job. */
+.vua-release-upload__queued { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-1) var(--vua-space-3); padding: var(--vua-space-2) var(--vua-space-3); border: 1px dashed color-mix(in srgb, var(--room) 45%, var(--vua-border)); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--room) 6%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
+.vua-release-upload__queued > span { display: inline-flex; align-items: center; gap: 6px; color: var(--vua-text-strong); }

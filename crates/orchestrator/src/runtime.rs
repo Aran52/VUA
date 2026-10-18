@@ -94,9 +94,9 @@ use crate::journal::{
 use crate::sqlite_task_store::{NewTask, SqliteStoreError, SqliteTaskStore, TaskMutation};
 use crate::time::{Clock, TaskIdGenerator};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Condvar, Mutex};
 use std::time::Duration;
 
 /// Stable runtime error codes (ORC-ERR-001). Owned by the runtime module.
@@ -122,6 +122,98 @@ pub enum TaskExit {
 
 /// The unit of work executed on a dedicated worker thread (ORC-CON-002).
 pub type TaskJob = Box<dyn FnOnce(&TaskContext) -> Result<TaskExit, AppErrorV1> + Send>;
+
+/// Runs the jobs submitted to it one at a time, in submission order. A job waiting for its turn
+/// keeps its task `queued`; a cancel request while it waits ends the task `cancelled` without
+/// running the job.
+#[derive(Clone, Default)]
+pub struct TaskLane {
+    shared: Arc<(Mutex<LaneState>, Condvar)>,
+}
+
+#[derive(Default)]
+struct LaneState {
+    waiting: VecDeque<String>,
+    holder: Option<String>,
+}
+
+/// How often a waiting job looks for a cancel request.
+const LANE_CANCEL_POLL: Duration = Duration::from_millis(200);
+
+impl TaskLane {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn state(&self) -> std::sync::MutexGuard<'_, LaneState> {
+        self.shared.0.lock().expect("lane poisoned")
+    }
+
+    /// Tasks waiting for their turn, first in line first.
+    #[must_use]
+    pub fn waiting(&self) -> Vec<String> {
+        self.state().waiting.iter().cloned().collect()
+    }
+
+    /// The task whose job runs in the lane now.
+    #[must_use]
+    pub fn holder(&self) -> Option<String> {
+        self.state().holder.clone()
+    }
+
+    /// No job runs or waits in the lane.
+    #[must_use]
+    pub fn is_idle(&self) -> bool {
+        let state = self.state();
+        state.holder.is_none() && state.waiting.is_empty()
+    }
+
+    fn join(&self, task_id: &str) {
+        self.state().waiting.push_back(task_id.to_owned());
+    }
+
+    /// Waits for this task's turn. False when a cancel request came first; the task then leaves
+    /// the line and the next one moves up.
+    fn take_turn(&self, task_id: &str, cancelled: impl Fn() -> bool) -> bool {
+        loop {
+            // The cancel check reads the task store; it runs without the lane lock.
+            if cancelled() {
+                self.state().waiting.retain(|waiting| waiting != task_id);
+                self.shared.1.notify_all();
+                return false;
+            }
+            let mut state = self.state();
+            if state.holder.is_none() && state.waiting.front().map(String::as_str) == Some(task_id) {
+                state.waiting.pop_front();
+                state.holder = Some(task_id.to_owned());
+                return true;
+            }
+            let _ = self.shared.1.wait_timeout(state, LANE_CANCEL_POLL).expect("lane poisoned");
+        }
+    }
+
+    fn release(&self, task_id: &str) {
+        let mut state = self.state();
+        if state.holder.as_deref() == Some(task_id) {
+            state.holder = None;
+        }
+        drop(state);
+        self.shared.1.notify_all();
+    }
+}
+
+/// A job's turn in its lane; the next job moves up when it ends.
+struct LaneTurn {
+    lane: TaskLane,
+    task_id: String,
+}
+
+impl Drop for LaneTurn {
+    fn drop(&mut self) {
+        self.lane.release(&self.task_id);
+    }
+}
 
 pub struct SubmitRequest {
     /// Optional caller-supplied correlation id; generated when absent.
@@ -506,7 +598,13 @@ impl TaskRuntime {
     /// caller observes success (ORC-STA-006); a journal failure rejects the
     /// command without starting the job.
     pub fn submit(&self, request: SubmitRequest) -> Result<CommandAcceptedV1, AppErrorV1> {
-        self.submit_inner(request, None)
+        self.submit_inner(request, None, None)
+    }
+
+    /// Like [`Self::submit`], with the job waiting in `lane` until the jobs submitted to it
+    /// before have ended. The task stays `queued` while it waits.
+    pub fn submit_in_lane(&self, request: SubmitRequest, lane: &TaskLane) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_inner(request, None, Some(lane))
     }
 
     /// Atomically bind a command ID and fingerprint to durable task acceptance. Replays
@@ -519,13 +617,14 @@ impl TaskRuntime {
         command_id: &str,
         fingerprint: &str,
     ) -> Result<CommandAcceptedV1, AppErrorV1> {
-        self.submit_inner(request, Some((command_kind, command_id, fingerprint)))
+        self.submit_inner(request, Some((command_kind, command_id, fingerprint)), None)
     }
 
     fn submit_inner(
         &self,
         request: SubmitRequest,
         idempotency: Option<(&str, &str, &str)>,
+        lane: Option<&TaskLane>,
     ) -> Result<CommandAcceptedV1, AppErrorV1> {
         if !self.inner.journal_accepting.load(Ordering::Acquire) {
             return Err(AppErrorV1::new(
@@ -639,7 +738,10 @@ impl TaskRuntime {
             correlation_id,
         ));
 
-        self.spawn_worker(task_id.clone(), request.job);
+        if let Some(lane) = lane {
+            lane.join(&task_id);
+        }
+        self.spawn_worker(task_id.clone(), request.job, lane.cloned());
         if let Some(timeout) = request.timeout {
             self.spawn_watchdog(task_id, timeout);
         }
@@ -776,12 +878,23 @@ impl TaskRuntime {
         snapshots
     }
 
-    fn spawn_worker(self: &TaskRuntime, task_id: String, job: TaskJob) {
+    fn spawn_worker(self: &TaskRuntime, task_id: String, job: TaskJob, lane: Option<TaskLane>) {
         let runtime = self.clone();
         std::thread::spawn(move || {
             let context = TaskContext {
                 runtime,
                 task_id: task_id.clone(),
+            };
+            // A job in a lane waits for its turn while its task stays queued.
+            let _turn = match lane {
+                Some(lane) => {
+                    if !lane.take_turn(&task_id, || context.check_cancel()) {
+                        context.finish(TaskState::Cancelled, None, None);
+                        return;
+                    }
+                    Some(LaneTurn { lane, task_id: task_id.clone() })
+                }
+                None => None,
             };
             // queued → preparing → running (Fix 2): a transition failure
             // before execution (journal unwritable etc.) must terminate the

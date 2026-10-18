@@ -81,6 +81,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [taskQueued, setTaskQueued] = useState(false);
   const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
@@ -133,6 +134,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       try {
         const view = await gateway.task.snapshot(); if (!alive) return;
         const task = view.tasks.find(t => t.id === taskId);
+        setTaskQueued(task?.status === "queued");
         if (task && ["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) {
           setTaskId(null); setTaskAction(null); void refreshList();
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
@@ -229,6 +231,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
       <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
     </ConfirmDialog>
+    {taskQueued && taskId !== null && <Card><div className="vua-n3__queued" role="status"><p>{factory.queued.hint}</p>
+      <Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button></div></Card>}
     {error !== null && <Card><div role="alert"><strong>{copy.error}</strong><p className="vua-caption vua-text-secondary">{error}</p><Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button></div></Card>}
     {run === null && error !== null && /license/iu.test(error) ? <Card>
       <h2>{strings.unityLicense.retry}</h2><p>{strings.unityLicense.retryHint}</p>

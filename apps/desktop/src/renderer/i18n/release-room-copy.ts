@@ -60,7 +60,8 @@ export const releaseRoomCopy = {
     upload: {
       button: "Upload to VRChat",
       again: "Upload again",
-      busy: "Another factory task is running.",
+      busy: "Another factory task is running; an upload started now waits for it, then begins by itself.",
+      lineBusy: "Upload when this Avatar's current work ends.",
       unityOpen: "Unity has this project open; the upload uses the scene as it is there.",
       privateNote: "A new Avatar uploads as private; you choose who sees it on VRChat.",
       updateNote: "Uploading again updates the same Avatar on VRChat.",
@@ -77,6 +78,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "In progress", succeeded: "Uploaded", failed: "Did not finish", cancelled: "Stopped" },
     },
+    queue: { waiting: "{work} waits for the current task and starts by itself.", remove: "Remove from the queue", work: { upload: "The upload", bakeTurntable: "The turntable", reinspect: "The check", sdkFix: "The SDK fix", other: "This work" } },
     stages: {
       starting: "Opening Unity",
       sdk_panel: "Opening the VRChat SDK",
@@ -212,7 +214,8 @@ export const releaseRoomCopy = {
     upload: {
       button: "上传到 VRChat",
       again: "再次上传",
-      busy: "工厂里有另一个任务正在进行。",
+      busy: "工厂里有另一个任务正在进行，现在上传会等它结束后自动开始。",
+      lineBusy: "这个 Avatar 当前的工作结束后就能上传。",
       unityOpen: "Unity 正打开着这个工程，上传会使用 Unity 里当前的场景。",
       privateNote: "新的 Avatar 以私有状态上传，谁能看到由你在 VRChat 里决定。",
       updateNote: "再次上传会更新 VRChat 上的同一个 Avatar。",
@@ -229,6 +232,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "进行中", succeeded: "已上传", failed: "未完成", cancelled: "已停止" },
     },
+    queue: { waiting: "{work}排在当前任务之后，轮到时自动开始。", remove: "移出队列", work: { upload: "上传", bakeTurntable: "转台拍摄", reinspect: "检查", sdkFix: "SDK 修复", other: "这项工作" } },
     stages: {
       starting: "正在打开 Unity",
       sdk_panel: "正在打开 VRChat SDK",
@@ -364,7 +368,8 @@ export const releaseRoomCopy = {
     upload: {
       button: "VRChat にアップロード",
       again: "もう一度アップロード",
-      busy: "工場で別のタスクが進行中です。",
+      busy: "工場で別の作業が進行中です。今アップロードすると、その作業の後に自動で始まります。",
+      lineBusy: "このアバターの今の作業が終わるとアップロードできます。",
       unityOpen: "Unity がこのプロジェクトを開いています。アップロードには Unity で開いているシーンが使われます。",
       privateNote: "新しいアバターは非公開でアップロードされます。公開範囲は VRChat で決められます。",
       updateNote: "もう一度アップロードすると、VRChat の同じアバターが更新されます。",
@@ -381,6 +386,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "進行中", succeeded: "アップロード済み", failed: "未完了", cancelled: "停止" },
     },
+    queue: { waiting: "{work}は今の作業の後に自動で始まります。", remove: "キューから外す", work: { upload: "アップロード", bakeTurntable: "ターンテーブル撮影", reinspect: "チェック", sdkFix: "SDK の修正", other: "この作業" } },
     stages: {
       starting: "Unity を開いています",
       sdk_panel: "VRChat SDK を開いています",
@@ -516,7 +522,8 @@ export const releaseRoomCopy = {
     upload: {
       button: "VRChat에 업로드",
       again: "다시 업로드",
-      busy: "공장에서 다른 작업이 진행 중이에요.",
+      busy: "공장에서 다른 작업이 진행 중이에요. 지금 업로드하면 그 작업이 끝난 뒤 자동으로 시작돼요.",
+      lineBusy: "이 아바타의 현재 작업이 끝나면 업로드할 수 있어요.",
       unityOpen: "Unity가 이 프로젝트를 열고 있어요. 업로드에는 Unity에 열린 씬이 그대로 쓰여요.",
       privateNote: "새 아바타는 비공개로 업로드돼요. 공개 범위는 VRChat에서 정해요.",
       updateNote: "다시 업로드하면 VRChat의 같은 아바타가 업데이트돼요.",
@@ -533,6 +540,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "진행 중", succeeded: "업로드됨", failed: "끝나지 않음", cancelled: "멈춤" },
     },
+    queue: { waiting: "{work}은(는) 현재 작업 다음에 자동으로 시작돼요.", remove: "대기열에서 빼기", work: { upload: "업로드", bakeTurntable: "턴테이블 촬영", reinspect: "검사", sdkFix: "SDK 수정", other: "이 작업" } },
     stages: {
       starting: "Unity 여는 중",
       sdk_panel: "VRChat SDK 여는 중",

@@ -77,7 +77,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 24 | Finer usual durations | — | when the estimates prove too rough |
 | 25 | Production records in Settings | — | done |
 | 26 | VRChat Avatar list in the release room | P-02 | built; awaits the author's real-account check |
-| 27 | Queue factory work | P-02 | |
+| 27 | Queue factory work | P-02 | built: one job at a time, the rest wait in a visible queue; awaits the author's real-run check |
 | 28 | Quitting during a task | — | done |
 | 29 | Restore after an interrupted assembly | — | done |
 
@@ -375,7 +375,8 @@ The release room's "Production records" tab lists runs and their records for dia
 
 The factory runs one Unity task at a time. Unity itself can open several projects at once;
 VUA keeps to one because each Unity run uses most of the machine and an upload uses the
-interactive Editor. Today a second request is refused while a task runs.
+interactive Editor. Work requested while a task runs waits for it (Candidate
+[amf-production 0.16.0](../protocols/amf-production-v0.1.md#queue)).
 
 1. Uploads and other Unity work requested while a task runs wait in a visible queue and start
    in order; the player can remove a waiting item.

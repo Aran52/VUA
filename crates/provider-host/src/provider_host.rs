@@ -973,10 +973,10 @@ pub fn run_provider_host_with_legacy(
                     as Arc<dyn Fn() -> vua_orchestrator::EnvironmentCheckItemV1 + Send + Sync>
             }),
         };
-        Arc::new(crate::amf_production_routes::AmfProductionServices {
-            engine: vua_orchestrator::amf_production::AmfProductionEngine::new(root, Arc::new(platform)),
-            runtime: warehouse.runtime.clone(), busy: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-        })
+        Arc::new(crate::amf_production_routes::AmfProductionServices::new(
+            vua_orchestrator::amf_production::AmfProductionEngine::new(root, Arc::new(platform)),
+            warehouse.runtime.clone(),
+        ))
     });
     let mut state = HostState {
         amf_production,

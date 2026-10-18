@@ -11,6 +11,9 @@ import { controlPreview } from "./control-center-preview.tsx";
 import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
+import { UnityLicenseGuide } from "../../src/renderer/features/settings/UnityLicenseGuide.tsx";
+import type { UnityLicenseSnapshotV01 } from "@vua/contracts";
+import "../../src/renderer/features/deployer/deployer.css";
 import { Card } from "../../src/renderer/components/primitives/Card.tsx";
 import { Button } from "../../src/renderer/components/primitives/Button.tsx";
 import { strings } from "../../src/renderer/i18n/index.ts";
@@ -170,7 +173,22 @@ function MaterialsStartPreview() {
     {open ? <MaterialsStartDialog avatar={{ productId: "booth:1", title: "Meiyun formula", imageUrl: pixel }} onNavigate={() => {}} onClose={() => setOpen(false)} /> : null}
   </div>;
 }
-createRoot(document.getElementById("root")!).render(release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release, ...(vrchatOfRelease ? { vrchat: vrchatOfRelease } : {}) }}>
+// The Unity license status above the account guide: Hub needed, a license to check, and a passed check.
+const licenseFiles = (msix: boolean) => [{ kind: "classic_entitlement" as const, present: false, modifiedAt: null },
+  { kind: "msix_entitlement" as const, present: msix, modifiedAt: msix ? "2026-10-19T00:00:00.000Z" : null }, { kind: "legacy_ulf" as const, present: false, modifiedAt: null }];
+const licenseSnapshots: Record<string, UnityLicenseSnapshotV01> = {
+  "license-hub": { schemaVersion: "0.1", files: licenseFiles(true), hubType: "msix", hubRunning: false, licensingClientRunning: false, hubCliPresent: false, lastCheck: null, state: "needs_hub_client", nextAction: "start_hub" },
+  "license-check": { schemaVersion: "0.1", files: licenseFiles(true), hubType: "msix", hubRunning: true, licensingClientRunning: true, hubCliPresent: false, lastCheck: null, state: "likely_active", nextAction: "run_check" },
+  "license-active": { schemaVersion: "0.1", files: licenseFiles(true), hubType: "msix", hubRunning: true, licensingClientRunning: true, hubCliPresent: false,
+    lastCheck: { state: "active", editorVersion: "2022.3.22f1", checkedAt: "2026-10-19T09:30:00.000Z" }, state: "likely_active", nextAction: "none" },
+};
+const licensePort = licenseSnapshots[view] ? { snapshot: async () => licenseSnapshots[view]!, check: async () => ({ taskId: "task-license" }) } : undefined;
+createRoot(document.getElementById("root")!).render(licensePort ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, unityLicense: licensePort }, amfProduction: api }}>
+  <div className="vua-page" style={{ maxWidth: 760 }}>
+    <section className="vua-page__hero"><h1 className="vua-title">{strings.unityLicense.title}</h1></section>
+    <Card><UnityLicenseGuide /></Card>
+  </div>
+</GatewayProvider> : release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release, ...(vrchatOfRelease ? { vrchat: vrchatOfRelease } : {}) }}>
   <ReleasePreview view={view} />
 </GatewayProvider> : view.startsWith("settings-") ? <GatewayProvider gateway={{ ...gateway, ...(settingsVrchat ? { vrchat: settingsVrchat } : {}) }}>
   <div className="vua-page" style={{ maxWidth: 760 }}>

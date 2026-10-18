@@ -45,10 +45,19 @@ function filesIn(root) {
   });
 }
 const supplemental = {
+  "adobe-cmap-parser@0.4.1": "LICENSE-adobe-cmap-parser.txt",
+  "enum-map@2.7.3": "LICENSE-enum-map.txt",
+  "enum-map-derive@0.17.0": "LICENSE-enum-map-derive.txt",
+  "pdf-extract@0.10.0": "LICENSE-pdf-extract.txt",
+  "type1-encoding-parser@0.1.1": "LICENSE-type1-encoding-parser.txt",
   "vrc-get-vpm@0.0.16": "LICENSE-vrc-get-vpm.txt",
   "vrc-get-litedb@0.3.0-beta.8": "LICENSE-vrc-get-litedb.txt",
   "selectors@0.38.0": "LICENSE-MPL-2.0.txt",
 };
+const supplementalSources = new Set([
+  "adobe-cmap-parser@0.4.1", "enum-map@2.7.3", "enum-map-derive@0.17.0",
+  "pdf-extract@0.10.0", "type1-encoding-parser@0.1.1", "vrc-get-litedb@0.3.0-beta.8",
+]);
 const components = [];
 for (const item of metadata.packages.filter(item => seen.has(item.id) && item.source).sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version))) {
   const root = path.dirname(item.manifest_path);
@@ -59,9 +68,8 @@ for (const item of metadata.packages.filter(item => seen.has(item.id) && item.so
   const notices = [...licenseFiles].map(file => copy(file, `rust/${key}/${path.relative(root, file).replaceAll("..", "parent")}`));
   if (supplemental[key]) notices.push(copy(path.join(desktop, "packaging/licenses", supplemental[key]), `rust/${key}/${supplemental[key]}`));
   if (!item.license || !notices.length) throw new Error(`Dependency needs license review: ${key}`);
-  // Include the unmodified source of every MPL component, and the LiteDB
-  // package whose published archive declares MIT without a license file.
-  const sources = item.license.includes("MPL-2.0") || item.name === "vrc-get-litedb"
+  // Preserve original declarations and unmodified sources for manifest-only notices.
+  const sources = item.license.includes("MPL-2.0") || supplementalSources.has(key)
     ? files.filter(file => !path.basename(file).startsWith(".")).map(file => copy(file, `sources/${key}/${path.relative(root, file)}`)) : [];
   components.push({ ecosystem: "cargo", name: item.name, version: item.version, license: item.license,
     source: `https://crates.io/api/v1/crates/${item.name}/${item.version}/download`, repository: item.repository,
@@ -117,5 +125,5 @@ const inventory = {
   components,
 };
 fs.writeFileSync(path.join(output, "dependency-inventory.json"), JSON.stringify(inventory, null, 2) + "\n");
-fs.writeFileSync(path.join(output, "README.txt"), `VUA ${pkg.version} exact-build notices\n\nRead dependency-inventory.json for versions, source URLs and SHA-256 values.\nElectron's complete Chromium/Node notices are in electron/LICENSES.chromium.html.\nRust and JavaScript notices retain their original texts. Unmodified MPL source\npackages are supplied under sources/ and retain the Mozilla Public License 2.0.\nThe LiteDB source package and declared author/license metadata are also supplied.\nRuntime toolchain/System libraries retain their upstream distribution terms.\nExternal applications are obtained separately and are not contained in this ZIP.\n`);
+fs.writeFileSync(path.join(output, "README.txt"), `VUA ${pkg.version} exact-build notices\n\nRead dependency-inventory.json for versions, source URLs and SHA-256 values.\nElectron's complete Chromium/Node notices are in electron/LICENSES.chromium.html.\nRust and JavaScript notices retain their original texts. Unmodified MPL source\npackages are supplied under sources/ and retain the Mozilla Public License 2.0.\nPackages with supplemental manifest-only notices also retain their unmodified\nsource and original author/license declarations under sources/.\nRuntime toolchain/System libraries retain their upstream distribution terms.\nExternal applications are obtained separately and are not contained in this ZIP.\n`);
 console.log(JSON.stringify({ version: pkg.version, cargo: components.filter(item => item.ecosystem === "cargo").length, npm: npmSeen.size, electron: electronVersion, output: "out/release-notices" }));

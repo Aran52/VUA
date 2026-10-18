@@ -1,5 +1,6 @@
 import { isUnityLicenseParams, type UnityLicenseRequestV1 } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams } from "./environment-deployment.js";
+import { isTermsParams, type TermsRequestV1 } from "./terms-v01.js";
 import { isAmfProductionParams, type AmfProductionRequestV1 } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams, type ScenarioEnvironmentRequestV1 } from "./scenario-environment.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute } from "./play-session.js";
@@ -1097,6 +1098,7 @@ export type VrchatGatewayValueV1 = VrchatStatusValueV1 | VrchatSignInValueV1 | V
   | VrchatAvatarListValueV1 | VrchatAvatarImageValueV1 | VrchatOpenAvatarPageValueV1;
 
 export type DesktopGatewayRequestV1 =
+  | TermsRequestV1
   | UnityLicenseRequestV1
   | AmfProductionRequestV1
   | ScenarioEnvironmentRequestV1
@@ -1192,6 +1194,7 @@ export type DesktopGatewayRequestV1 =
 
 /** 方法 → 应用语义:Kernel 路由用;未知方法返回 undefined */
 export const DESKTOP_GATEWAY_METHOD_KINDS = {
+  "terms.getProduct": "query", "terms.checkUse": "query", "terms.refreshProduct": "command", "terms.refreshLibrary": "command",
   "environment.unityLicense": "query", "environment.checkUnityLicense": "command",
   "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query", "amf.production.previewImage": "query", "amf.production.releaseState": "query", "amf.production.turntableFrame": "query", "amf.production.planLighting": "query",
   "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
@@ -2034,6 +2037,8 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
     case "vrchat.openAvatarPage":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["avatarId", "commandId"])
         && isVrchatBlueprintId(value.params.avatarId) && isIdentifier(value.params.commandId);
+    case "terms.getProduct": case "terms.checkUse": case "terms.refreshProduct": case "terms.refreshLibrary":
+      return hasExactKeys(value, REQUEST_KEYS) && isTermsParams(value.method, value.params);
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
     case "environment.unityLicense": case "environment.checkUnityLicense":

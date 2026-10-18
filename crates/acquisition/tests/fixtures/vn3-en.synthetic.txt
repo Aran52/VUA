@@ -1,0 +1,123 @@
+Synthetic VN3 fixture: all identities and notes are fictional.
+1.Mainpurpose(s)ofusingtheDigitalContent
+A PersonalUse
+B CorporateUse
+Permitted to use in activities with commercial or non-profit-seeking purposes
+Please contact the Licensor(s)
+2.Uploadtointernetservices
+C Uploadtosocialcommunicationplatforms
+D Uploadtoonlinegamingplatforms
+E Permissionforusebythirdpartieswithintheonlineservice
+Permitted
+Permitted
+Prohibited
+3.SensationalExpressions
+F Sexualexpressions
+G ExpressionsofViolence
+H Politicalandreligiousactivities
+Permitted (Content Rating is required)
+Prohibited
+Prohibited
+4.Editing
+I Adjustment
+J Modification
+K ModifyingotherdatawiththeDigitalContentpermittedasmaterial
+L Outsourceofthemodificationprocess
+Permitted
+Permitted
+Permitted
+Permitted ONLY to be done between the User(s)
+5.Distributionandredistribution
+M Redistributionwithnochange(s)
+N Distributionofmodifieddigitalcontent
+Prohibited
+Prohibited
+6.Useonmediaand/orinotherproducts
+O Useinvideoproduction,live-streamingandbroadcasting
+P Useinpublicationsandelectronicpublications
+Q Usefortangiblegoods
+R Integrationintosoftware,suchasproductdevelopment
+Permitted
+Permitted
+Permitted
+Please contact the Licensor(s)
+7.Derivativework
+S Creationofcostumedatabyutilizingtheparametersofmeshesandweights
+T Creationofnewdigitalcontentoncostumesandtexturesthatcomplywithdataformat,withoutdivertingtheparametersofmeshesandweights
+U CreationofderivativeworksbasedontheDigitalContent(“derivativeworks”)
+Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted
+Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted
+Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted
+8.Others
+V Creditnotation
+W AssignmentofRightsandObligations,etc.
+Not necessary, but preferred
+Prohibited
+9.Specialnote
+X Special note
+Synthetic note: include the blue emblem.
+
+Terms for particular cases
+1. The Digital Content to be licensed
+Synthetic Example Mesh
+2. Conditions of use
+A. PersonalUse
+Permitted to use in activities with commercial or non-profit-seeking purposes
+B. CorporateUse
+Please contact the Licensor(s)
+C. Uploadtosocialcommunicationplatforms(includingVRChat,VirtualCast,cluster,etc.)forpersonaluse.
+Permitted
+D. Uploadtoonlinegamingplatformsforpersonaluse.
+Permitted
+E. Uploadtosocialcommunicationplatformsoronlinegamingplatformsforthepurposeofprovidingtothirdpartiesontheparticularplatform.
+Prohibited
+F. Sexualexpressions
+Permitted (Content Rating is required)
+G. Expressionsinvolvingviolence
+Prohibited
+H. Useinpoliticalactivitiesandreligiousactivities
+Prohibited
+I. Adjustingorreducingthenumberofpolygonswithoutdistortingappearance,orconvertingthefileformat.
+Permitted
+J. ModifytheDigitalContentoritspart(s),orusethemodifiedversionoftheDigitalContentunderthetermsthatwouldapplytotheoriginalversionoftheDigitalContent(whichincludescaseswheretheDigitalContentoritspart(s)formsthebasisofnewDigitalContent).
+Permitted
+K. UsetheDigitalContentoritspart(s)forthepurposeofmodifyingotherdigitalcontent(whichincludescaseswheretheDigitalContentoritspart(s)isusedasasupplementinthecourseofmodifyingotherDigitalContent).
+Permitted
+L. InstructathirdpartytomakeadjustmentormodificationtotheDigitalContentandprovidetheDigitalContenttoathirdpartyforsuchpurposes.
+Permitted ONLY to be done between the User(s)
+M. Redistributionoftheoriginalversion
+Prohibited
+N. Distributionofmodifiedversionofthedigitalcontent
+Prohibited
+O. Videoproduction,livestreaming(includingYouTube),andbroadcasting
+Permitted
+P. Useinphysicalandelectronicpublications
+Permitted
+Q. Useintangiblegoods(Merchandise)
+Permitted
+R. Distributionasabolt-onpartofsoftware(suchasgames)wheretheycannotbeeasilyextracted,whichispurelyforthepurposeofproductdevelopment,etc
+Please contact the Licensor(s)
+S. CreatenewcostumesoraccessoriesfortheDigitalContentbyusingmeshesandweightsextractedfromtheDigitalContent(exceptforcaseswherethechangescanhardlybenoticed)
+Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted
+T. Createnewcostumes,accessories,ortexture,etc.thatconformtothestandardsoftheDigitalContent,withoutusingmeshesandweightsextractedfromtheDigitalContent.
+Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted
+U. Createderivativeworks(so-called“doujinworks”,alsoknownasfanart)usingtheDigitalContentasamaintheme/bedrock,withoutusingtheoriginalversionoftheDigitalContentdirectly.
+Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted
+V. Creditforuse
+Not necessary, but preferred
+W. AssignmentofRightsandObligations,etc.
+Prohibited
+3. Special note
+X. Special note
+Synthetic note: include the blue emblem.
+4. Licensor(s) and their contact information
+Example Studio / public@example.invalid
+5. Credit notation
+Example Studio
+6. Recommended hashtags
+#SyntheticVN3
+7. License period and modification of the license
+Synthetic fixture period.
+8. Version of this Agreement
+0.42
+This Agreement was created by Example Studio on its own responsibility using the VN3 license generator version 1.10 based on the VN3 license version 1.10.

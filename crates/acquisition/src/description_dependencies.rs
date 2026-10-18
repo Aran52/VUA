@@ -76,6 +76,9 @@ pub fn record_description_dependencies(
         })?;
     }
     store.record_description_links(source_product_id, &targets, page_hash, observed_at)?;
+    if let Some(links) = crate::terms_links::description_html_links(html) {
+        store.record_terms_links(source_product_id, &links, observed_at)?;
+    }
     Ok(())
 }
 

@@ -18,7 +18,7 @@ import type {
 const AMF_OPERATION_TIMEOUT_MS = 120_000;
 const AMF_PREFIXES = ["amf.production.", "production.", "warehouse.", "catalog.", "library.", "download.", "downloads.", "dependencies.", "recipe.", "recipeDraft.", "plan.", "job.", "record.", "inspection.", "release.", "project.", "packages.", "overlay."];
 export function isAmfOperation(method: string): boolean {
-  return method === "environment.checkUnityLicense" || AMF_PREFIXES.some(prefix => method.startsWith(prefix));
+  return method.startsWith("terms.") || method === "environment.checkUnityLicense" || AMF_PREFIXES.some(prefix => method.startsWith(prefix));
 }
 
 interface Options {

@@ -1,0 +1,11 @@
+{
+  "method": "terms.checkUse",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "presetId": "anything",
+    "productIds": [
+      "booth:1"
+    ]
+  }
+}

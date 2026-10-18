@@ -39,6 +39,7 @@ export interface DeploymentPort {
 
 export interface EnvironmentPort {
   readonly scenarios?: import("./scenario-environment-port.ts").ScenarioEnvironmentPort;
+  readonly unityLicense?: import("./unity-license-port.ts").UnityLicensePort;
   readonly tools?: { observe(toolId: ExternalToolId): Promise<ExternalToolSnapshot>; act(toolId: ExternalToolId, action: ExternalToolAction, commandId: string): Promise<ExternalToolSnapshot> };
   readonly play?: PlayPort;
   readonly managers?: { inspect(): Promise<CreatorManagers> };

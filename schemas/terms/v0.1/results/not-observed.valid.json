@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "0.1",
+  "productId": "booth:1",
+  "state": "not_observed",
+  "observedAt": null,
+  "captureProblem": null,
+  "sources": [],
+  "effectiveLanguage": null,
+  "effectiveItems": [],
+  "warnings": [],
+  "hasSpecialNote": false,
+  "specialNotes": []
+}

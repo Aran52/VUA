@@ -97,6 +97,29 @@ fn full_inspection_result_carries_the_sdk_review_and_every_observed_field() {
     assert_eq!(data["usedSourceIds"][0], "source-avatar");
     assert_eq!(data["missingShaderMaterials"][0], "Assets/Synthetic/Broken.mat");
     assert_eq!(data["sdkFixesApplied"].as_array().unwrap().len(), 0);
+    let material_use = data["materialUse"].as_array().unwrap();
+    assert_eq!(material_use.len(), 4);
+    assert_eq!(material_use[0]["owner"], "avatar");
+    assert_eq!(material_use[0]["renderer"], "Body");
+    assert_eq!(material_use[0]["material"], "Assets/Synthetic/Body.mat");
+    assert_eq!(material_use[2]["owner"], "source-outfit");
+}
+
+/// Results written before material use existed stay valid; the list is capped at 512 entries.
+#[test]
+fn material_use_is_optional_and_bounded() {
+    let validator = jsonschema::validator_for(&read("result.schema.json")).unwrap();
+    let full = read("examples/inspection-full.valid.result.json");
+    let mut without = full.clone();
+    without["data"].as_object_mut().unwrap().remove("materialUse");
+    assert!(validator.is_valid(&without));
+    let mut foreign = full.clone();
+    foreign["data"]["materialUse"][0]["material"] = Value::String("Resources/unity_builtin_extra".into());
+    assert!(!validator.is_valid(&foreign));
+    let mut over = full;
+    let entries = vec![over["data"]["materialUse"][0].clone(); 513];
+    over["data"]["materialUse"] = Value::Array(entries);
+    assert!(!validator.is_valid(&over));
 }
 
 #[test]

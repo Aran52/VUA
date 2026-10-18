@@ -175,7 +175,7 @@ fn route(
     }
     let query = matches!(
         method,
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -201,13 +201,14 @@ fn route(
         "amf.production.recipeApplyPlan" => &["schemaVersion", "runId", "recipeId"],
         "amf.production.applyRecipe" if params.contains_key("avatarGlobalObjectId") => &["schemaVersion", "runId", "recipeId", "planDigest", "choice", "avatarGlobalObjectId"],
         "amf.production.applyRecipe" => &["schemaVersion", "runId", "recipeId", "planDigest", "choice"],
-        "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan" => {
+        "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan" | "amf.production.planLighting" => {
             &["schemaVersion", "runId"]
         }
         "amf.production.prepare" => &["schemaVersion", "sources", "editorPath"],
         "amf.production.plan" => &["schemaVersion", "runId", "selection"],
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
+        "amf.production.applyLighting" => &["schemaVersion", "runId", "planDigest", "materials"],
         "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
         "amf.production.changeSources" => &["schemaVersion", "runId", "sources"],
         "amf.production.delete" => &["schemaVersion", "runId"],
@@ -240,7 +241,7 @@ fn route(
         if id.len() > 256 || id.contains('\0') { return Err(production_error("params_invalid", "Invalid Avatar identity.")); }
         Some(id)
     } else { None };
-    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe") {
+    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting") {
         let digest = string("planDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
@@ -318,6 +319,13 @@ fn route(
         }
         return service.engine.plan(&run_id, &selection);
     }
+    if method == "amf.production.planLighting" {
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) {
+            return Err(production_error("busy", "This line has work running or waiting."));
+        }
+        return service.engine.plan_lighting(&run_id);
+    }
     if method == "amf.production.recipeApplyPlan" {
         let run_id = string("runId")?;
         if service.run_busy(&run_id) {
@@ -392,6 +400,16 @@ fn route(
         }
         fixes
     } else { Vec::new() };
+    let lighting_materials: Vec<String> = if method == "amf.production.applyLighting" {
+        let materials: Vec<String> = serde_json::from_value(params["materials"].clone())
+            .map_err(|_| production_error("params_invalid", "Name the reviewed materials to change."))?;
+        if materials.is_empty() || materials.len() > 512
+            || materials.iter().any(|material| !vua_orchestrator::amf_production::safe_material_path(material))
+            || materials.iter().collect::<std::collections::BTreeSet<_>>().len() != materials.len() {
+            return Err(production_error("params_invalid", "Name distinct reviewed materials to change."));
+        }
+        materials
+    } else { Vec::new() };
     let operation_run = run_id.clone();
     let worker = service.clone();
     let accepted = service.submit(SubmitRequest {
@@ -411,6 +429,7 @@ fn route(
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
+                "amf.production.applyLighting" => worker.engine.apply_lighting(&operation_run, &digest, &lighting_materials, ctx)?,
                 "amf.production.changeSources" => worker.engine.change_sources(&operation_run, changed_sources, ctx)?,
                 "amf.production.delete" => worker.engine.delete_run(&operation_run)?,
                 "amf.production.applyRecipe" => {

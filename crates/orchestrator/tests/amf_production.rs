@@ -35,6 +35,10 @@ struct TestPlatform {
     assembled_with: Mutex<Vec<AssemblySelection>>,
     snapshots: AtomicUsize,
     root: PathBuf,
+    /// The material use facts the next Unity check reports, when set.
+    material_use: std::sync::Mutex<serde_json::Value>,
+    /// Original file contents a restore writes back, as a real snapshot would.
+    restore_files: std::sync::Mutex<Vec<(PathBuf, Vec<u8>)>>,
 }
 /// A Unity step that imports until the player asks to stop, then ends as Unity would.
 fn unity_until_stopped(watch: &UnityWatch) -> AppErrorV1 {
@@ -158,16 +162,21 @@ impl AmfProductionPlatform for TestPlatform {
             prefabs.push(PrefabCandidate { path: "Assets/AvatarAlt.prefab".into(), name: "Avatar Alt".into(), preview: None, ..candidates().remove(0) });
         }
         let assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
+        let mut result = serde_json::json!({"synthetic":true,
+            "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
+                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then_some(assembled),
+                "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
+                    {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
+            "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
+        let material_use = self.material_use.lock().unwrap().clone();
+        if !material_use.is_null() {
+            result["facts"]["materialUse"] = material_use;
+        }
         Ok(ObservedProject {
             prefabs,
             unity_fingerprint: "scene-before".into(),
             editor_version: "2022.3.22f1c1".into(),
-            result: serde_json::json!({"synthetic":true,
-                "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then_some(assembled),
-                    "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
-                        {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
-                "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}}),
+            result,
         })
     }
     fn assemble(
@@ -229,6 +238,9 @@ impl AmfProductionPlatform for TestPlatform {
             fs::write(Path::new(&run.project_root).join("Assets/state"), "partial restore").unwrap();
             return Err(production_error("test_restore", "Synthetic partial restore."));
         }
+        for (path, bytes) in self.restore_files.lock().unwrap().drain(..) {
+            fs::write(path, bytes).unwrap();
+        }
         fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
         Ok(())
     }
@@ -282,6 +294,8 @@ impl Harness {
             assembled_with: Mutex::new(Vec::new()),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
+            material_use: std::sync::Mutex::new(serde_json::Value::Null),
+            restore_files: std::sync::Mutex::new(Vec::new()),
         });
         let engine = Arc::new(AmfProductionEngine::new(
             root.join("production"),
@@ -1003,6 +1017,289 @@ fn deleting_a_line_removes_its_work_project_and_records() {
     assert!(!release.exists());
     assert!(h.engine.get("n3-test").is_err());
     assert!(h.engine.list().unwrap().is_empty());
+}
+
+// --- lilToon brightness limit alignment ---
+
+/// A synthetic lilToon material with the two brightness limit lines.
+fn liltoon_mat(name: &str, min: &str, max: &str, newline: &str) -> Vec<u8> {
+    [
+        "%YAML 1.1".to_owned(),
+        "%TAG !u! tag:unity3d.com,2011:".to_owned(),
+        "--- !u!21 &2100000".to_owned(),
+        "Material:".to_owned(),
+        "  serializedVersion: 8".to_owned(),
+        format!("  m_Name: {name}"),
+        "  m_Shader: {fileID: 4800000, guid: DF12117ECD77C31469C224178886498E, type: 3}".to_owned(),
+        "  m_SavedProperties:".to_owned(),
+        "    serializedVersion: 3".to_owned(),
+        "    m_Floats:".to_owned(),
+        format!("    - _LightMaxLimit: {max}"),
+        format!("    - _LightMinLimit: {min}"),
+        "    - _lilToonVersion: 44".to_owned(),
+        "    m_TexEnvs: []".to_owned(),
+        "    m_Colors: []".to_owned(),
+    ]
+    .join(newline)
+    .into_bytes()
+}
+
+/// A synthetic non-lilToon material: no version marker, no lilToon limit lines.
+fn standard_mat(name: &str) -> Vec<u8> {
+    format!(
+        "%YAML 1.1\n--- !u!21 &2100000\nMaterial:\n  m_Name: {name}\n  m_Shader: {{fileID: 46, guid: 0000000000000000f000000000000000, type: 0}}\n  m_SavedProperties:\n    m_Floats: []\n"
+    )
+    .into_bytes()
+}
+
+fn write_mat(project_root: &str, relative: &str, bytes: &[u8]) {
+    let path = Path::new(project_root).join(relative);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, bytes).unwrap();
+}
+
+/// Assembles the run, then lets the platform report this material use and refreshes the facts.
+fn assembled_with_material_use(h: &Harness, uses: serde_json::Value) -> ProductionRun {
+    let run = assembled(h);
+    assert_eq!(run.phase, "succeeded");
+    *h.platform.material_use.lock().unwrap() = uses;
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    h.engine.get("n3-test").unwrap()
+}
+
+fn coat_entry() -> serde_json::Value {
+    serde_json::json!({"material":"Assets/Outfit/Coat.mat","sourceId":"outfit",
+        "current":{"min":"0.05","max":"1"},"proposed":{"min":"0.1","max":"1"}})
+}
+
+#[test]
+fn lighting_plan_uses_the_body_renderers_pair_and_apply_changes_only_the_two_lines() {
+    for newline in ["\n", "\r\n"] {
+        let h = Harness::new();
+        let run = assembled_with_material_use(&h, serde_json::json!([
+            {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+            {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+            {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        ]));
+        let project = run.project_root.clone();
+        write_mat(&project, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", newline));
+        write_mat(&project, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", newline));
+        let coat = liltoon_mat("Coat", "0.05", "1", newline);
+        write_mat(&project, "Assets/Outfit/Coat.mat", &coat);
+
+        let plan = h.engine.plan_lighting("n3-test").unwrap();
+        assert_eq!(plan["reference"], serde_json::json!({"min":"0.1","max":"1"}));
+        assert_eq!(plan["referenceReason"], serde_json::Value::Null);
+        assert_eq!(plan["entries"], serde_json::json!([coat_entry()]));
+        assert_eq!(plan["skipped"], serde_json::json!([]));
+        let digest = plan["planDigest"].as_str().unwrap().to_owned();
+        assert!(h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+
+        let updated = fs::read(Path::new(&project).join("Assets/Outfit/Coat.mat")).unwrap();
+        assert_eq!(updated, liltoon_mat("Coat", "0.1", "1", newline), "only the lower-limit line changed, {newline:?} endings intact");
+        let run = h.engine.get("n3-test").unwrap();
+        assert_eq!(run.phase, "succeeded");
+        assert!(run.snapshot_id.is_some(), "a restore point protects the change");
+        let keys: Vec<&str> = run.steps.iter().rev().take(3).map(|step| step.key.as_str()).collect();
+        assert_eq!(keys, ["inspect", "lighting", "snapshot"]);
+        assert_eq!(run.result["facts"]["materialUse"][2]["material"], "Assets/Outfit/Coat.mat", "the recheck refreshed the facts");
+    }
+}
+
+#[test]
+fn lighting_plan_prefers_body_over_the_majority_and_falls_back_to_it() {
+    // A Body pair different from every other Avatar material wins over the majority.
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+        {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.15", "0.9", "\n"));
+    write_mat(&run.project_root, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Avatar/Face.mat", &liltoon_mat("Face", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(plan["reference"], serde_json::json!({"min":"0.15","max":"0.9"}));
+    assert_eq!(plan["entries"][0]["proposed"], serde_json::json!({"min":"0.15","max":"0.9"}));
+
+    // Without a Body renderer the most common pair wins, one vote per Avatar material.
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+        {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
+        {"owner":"avatar","renderer":"Eye","material":"Assets/Avatar/Eye.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Avatar/Face.mat", &liltoon_mat("Face", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Avatar/Eye.mat", &liltoon_mat("Eye", "0.2", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(plan["reference"], serde_json::json!({"min":"0.1","max":"1"}));
+    assert_eq!(plan["entries"], serde_json::json!([coat_entry()]));
+}
+
+#[test]
+fn lighting_plan_has_no_entries_without_a_unique_reference() {
+    // A tied vote.
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Hair","material":"Assets/Avatar/Hair.mat"},
+        {"owner":"avatar","renderer":"Face","material":"Assets/Avatar/Face.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Hair.mat", &liltoon_mat("Hair", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Avatar/Face.mat", &liltoon_mat("Face", "0.2", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(plan["reference"], serde_json::Value::Null);
+    assert_eq!(plan["referenceReason"], "tie");
+    assert_eq!(plan["entries"], serde_json::json!([]));
+
+    // An Avatar without lilToon materials.
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &standard_mat("Body"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(plan["reference"], serde_json::Value::Null);
+    assert_eq!(plan["referenceReason"], "no_avatar_liltoon");
+    assert_eq!(plan["entries"], serde_json::json!([]));
+}
+
+#[test]
+fn lighting_plan_skips_shared_and_ignores_non_liltoon_materials() {
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"avatar","renderer":"Hair","material":"Assets/Shared/Shared.mat"},
+        {"owner":"outfit","renderer":"Outfit/Trim","material":"Assets/Shared/Shared.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        {"owner":"outfit","renderer":"Outfit/Cap","material":"Assets/Outfit/Cap.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    // The shared material still informs the Avatar's reference through its Body-less renderers.
+    write_mat(&run.project_root, "Assets/Shared/Shared.mat", &liltoon_mat("Shared", "0.05", "0.9", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Cap.mat", &standard_mat("Cap"));
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(plan["reference"], serde_json::json!({"min":"0.1","max":"1"}));
+    assert_eq!(plan["entries"], serde_json::json!([coat_entry()]));
+    assert_eq!(
+        plan["skipped"],
+        serde_json::json!([{"material":"Assets/Shared/Shared.mat","reason":"shared_with_avatar"}]),
+        "a material the Avatar and an outfit share is never changed"
+    );
+    assert!(!plan.to_string().contains("Cap.mat"), "a non-lilToon material never appears");
+}
+
+#[test]
+fn lighting_needs_an_assembled_undrifted_line_with_material_use_facts() {
+    let h = Harness::new();
+    h.prepared();
+    assert_eq!(h.engine.plan_lighting("n3-test").unwrap_err().code, "vua.amf_production.result_not_ready");
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(
+        h.engine.plan_lighting("n3-test").unwrap_err().code,
+        "vua.amf_production.inspect_required",
+        "a run checked before the Bridge reported material use asks for reinspection"
+    );
+    // A fresh check carries the facts; a project changed since then replans instead.
+    *h.platform.material_use.lock().unwrap() = serde_json::json!([]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "external edit").unwrap();
+    assert_eq!(h.engine.plan_lighting("n3-test").unwrap_err().code, "vua.amf_production.project_drift");
+}
+
+#[test]
+fn lighting_apply_refuses_a_stale_digest_and_unknown_materials_before_any_change() {
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    let coat = liltoon_mat("Coat", "0.05", "1", "\n");
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &coat);
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+
+    assert!(!h.job(|engine, ctx| engine.apply_lighting("n3-test", &"f".repeat(64), &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    // Materials outside the reviewed entries, duplicates and an empty choice are refused too.
+    let reviewed = digest.clone();
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &reviewed, &["Assets/Avatar/Body.mat".to_owned()], ctx)));
+    let reviewed = digest.clone();
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &reviewed, &[], ctx)));
+    let reviewed = digest.clone();
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &reviewed, &["Assets/Outfit/Coat.mat".to_owned(), "Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "refusals happen before any restore point");
+    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), coat);
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "succeeded");
+
+    // A project change between review and execution replans instead of executing.
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-change").unwrap();
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots);
+    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), coat);
+}
+
+#[test]
+fn a_failed_recheck_restores_the_written_materials() {
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    let coat = liltoon_mat("Coat", "0.05", "1", "\n");
+    let coat_path = Path::new(&run.project_root).join("Assets/Outfit/Coat.mat");
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &coat);
+    // The synthetic restore point brings the original file bytes back, as the real one does.
+    h.platform.restore_files.lock().unwrap().push((coat_path.clone(), coat.clone()));
+    let digest = h.engine.plan_lighting("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
+    h.platform.fail_inspect.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.phase, "failed");
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(fs::read(&coat_path).unwrap(), coat, "the failure restored the written material");
+    // The run keeps the observations that match the restored project.
+    assert_eq!(failed.result["facts"], run.result["facts"]);
+    assert_eq!(failed.unity_fingerprint, run.unity_fingerprint);
+}
+
+#[test]
+fn lighting_apply_accepts_a_reviewed_subset_and_the_plan_stays_reproducible() {
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+        {"owner":"outfit","renderer":"Outfit/Skirt","material":"Assets/Outfit/Skirt.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Skirt.mat", &liltoon_mat("Skirt", "0.05", "0.8", "\n"));
+    let plan = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(plan["entries"].as_array().unwrap().len(), 2);
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    // The chosen material changed; the other entry keeps its limits, and the next review
+    // proposes only what still differs.
+    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), liltoon_mat("Coat", "0.1", "1", "\n"));
+    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Skirt.mat")).unwrap(), liltoon_mat("Skirt", "0.05", "0.8", "\n"));
+    let next = h.engine.plan_lighting("n3-test").unwrap();
+    assert_eq!(next["entries"].as_array().unwrap().len(), 1);
+    assert_eq!(next["entries"][0]["material"], "Assets/Outfit/Skirt.mat");
+    assert_eq!(next["entries"][0]["proposed"], serde_json::json!({"min":"0.1","max":"1"}));
+    assert!(h.engine.rollback_plan("n3-test").is_ok(), "the restore point stays compatible with the workshop's restore");
 }
 
 fn alt_selection() -> AssemblySelection {

@@ -1232,6 +1232,23 @@ describe("amf-production v0.2 routing", () => {
       {schemaVersion:1,requestId:"capacity-bad",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:4}});
     expect(invoke).not.toHaveBeenCalled();
   });
+  it("forwards the lighting review as a query and its application as a digest-bound command", async () => {
+    const provider = new MockOrchestratorProviderV01();
+    await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"lighting-1",method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"query",method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"lighting-2",method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),materials:["Assets/Outfit/Coat.mat"]}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-lighting-2",method:"amf.production.applyLighting",
+      params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),materials:["Assets/Outfit/Coat.mat"]}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"lighting-bad",method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"bad",materials:["Assets/Outfit/Coat.mat"]}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
   const quad = {
     sourceFolder: "C:/materials/source",
     projectRoot: "C:/projects/target",

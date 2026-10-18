@@ -23,6 +23,8 @@ namespace Vua.Editor.Bridge
         private const string WorkCompany = "VUA";
         private const string WorkProduct = "VUA Avatar Work";
         private const int MaxReportedMaterials = 200;
+        // Renderer/material pairs the result lists for the active Avatar at most.
+        private const int MaxMaterialUse = 512;
         // Previews stay in the work project beside the Bridge files, outside Assets.
         private const string PreviewRoot = ".vua/previews";
         private const int ViewSize = 512;
@@ -41,6 +43,7 @@ namespace Vua.Editor.Bridge
             public string preview = "";
         }
         [Serializable] internal sealed class PreviewImage { public string view; public string path; }
+        [Serializable] internal sealed class MaterialUse { public string owner; public string renderer; public string material; }
         [Serializable] internal sealed class BoundObject
         {
             public string sourceId; public string prefabPath; public string globalObjectId;
@@ -60,6 +63,7 @@ namespace Vua.Editor.Bridge
             public List<string> missingShaderMaterials = new List<string>();
             public string sdkSignedIn = "unknown";
             public List<PreviewImage> previews = new List<PreviewImage>();
+            public List<MaterialUse> materialUse = new List<MaterialUse>();
             public TurntableFacts turntable = new TurntableFacts();
             public SdkReview sdkReview = new SdkReview();
             public List<string> sdkFixesApplied = new List<string>();
@@ -250,6 +254,36 @@ namespace Vua.Editor.Bridge
             }
             catch (Exception) { return "unknown"; }
         }
+        // The active Avatar's renderer materials: each SkinnedMeshRenderer/MeshRenderer under the
+        // Avatar root with every material asset it uses. A renderer under an owned outfit instance
+        // belongs to that outfit's source; the rest belong to the Avatar itself. Materials outside
+        // Assets/ (built-in or embedded) are not asset files and are skipped.
+        private static void CollectMaterialUse(GameObject avatar, Data data, Result result)
+        {
+            var outfits = data.instances.Where(i => i.exists && !string.IsNullOrEmpty(i.globalObjectId))
+                .Select(i => (i.sourceId, root: FindOwned(i.globalObjectId)))
+                .Where(o => o.root != null).ToList();
+            var truncated = false;
+            foreach (var renderer in avatar.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!(renderer is SkinnedMeshRenderer) && !(renderer is MeshRenderer)) continue;
+                var owner = "avatar";
+                foreach (var outfit in outfits)
+                    if (renderer.transform.IsChildOf(outfit.root.transform)) { owner = outfit.sourceId; break; }
+                var path = AnimationUtility.CalculateTransformPath(renderer.transform, avatar.transform);
+                foreach (var material in renderer.sharedMaterials)
+                {
+                    if (material == null) continue;
+                    var asset = AssetDatabase.GetAssetPath(material);
+                    if (!SafeAssetPath(asset) || !asset.EndsWith(".mat", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (data.materialUse.Count >= MaxMaterialUse) { truncated = true; break; }
+                    data.materialUse.Add(new MaterialUse { owner = owner, renderer = path, material = asset });
+                }
+                if (truncated) break;
+            }
+            if (truncated)
+                result.diagnostics.Add(BridgeDiagnostic.Warning("amf.material_use.truncated", "Material use was truncated at " + MaxMaterialUse + " entries."));
+        }
         private static bool MissingScripts(GameObject prefab) => prefab.GetComponentsInChildren<Component>(true).Any(c => c == null);
         private static Animator HumanAnimator(GameObject avatar) => avatar.GetComponentsInChildren<Animator>(true).FirstOrDefault(a => a.isHuman);
         private static List<string> Bones(GameObject avatar)
@@ -281,7 +315,7 @@ namespace Vua.Editor.Bridge
         private static void ObserveScene(Request request, Result result, Owners retainedOwners = null)
         {
             var data = result.data;
-            data.instances.Clear(); data.missingReferences = 0;
+            data.instances.Clear(); data.missingReferences = 0; data.materialUse.Clear();
             data.avatarName = null; data.avatarGlobalObjectId = null;
             data.sdkDescriptorRecognized = false; data.observedSelection = null;
             if (!File.Exists(OwnershipPath)) return;
@@ -367,6 +401,8 @@ namespace Vua.Editor.Bridge
             var dependencies = new HashSet<string>(EditorUtility.CollectDependencies(new UnityEngine.Object[] { avatar })
                 .Select(AssetDatabase.GetAssetPath).Where(path => !string.IsNullOrEmpty(path)));
             data.usedSourceIds = request.sources.Where(source => source.assetPaths.Any(dependencies.Contains)).Select(source => source.sourceId).ToList();
+            // Material use is the active Avatar's fact; retained same-scene Avatars are observed separately.
+            if (retainedOwners == null) CollectMaterialUse(avatar, data, result);
             if (!complete) result.diagnostics.Add(BridgeDiagnostic.Warning("amf.scene.relationships_changed", "Some saved object identities, bindings or switches need review. Previous settings do not prove the current scene."));
             if (data.missingReferences > 0 && !result.diagnostics.Any(d => d.code == "amf.references.missing"))
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.references.missing", "The result has missing mesh/material references. Review it in Unity."));

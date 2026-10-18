@@ -33,6 +33,18 @@ it("keeps AMF capacity unavailable in the mock provider", async () => {
   if (!response.ok) expect(response.error.code).toBe("vua.amf_production.unavailable");
 });
 
+it("keeps AMF lighting review and application unavailable in the mock provider", async () => {
+  const provider = new MockOrchestratorProviderV01();
+  await provider.start();
+  const plan = await provider.invoke({contractVersion:"0.1",requestId:"lighting-plan",correlationId:"lighting-plan",kind:"query",
+    method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}});
+  expect(plan.ok).toBe(false);
+  const apply = await provider.invoke({contractVersion:"0.1",requestId:"lighting-apply",correlationId:"lighting-apply",kind:"command",commandId:"lighting-apply",
+    method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),materials:["Assets/Outfit/Coat.mat"]}});
+  expect(apply.ok).toBe(false);
+  if (!apply.ok) expect(apply.error.code).toBe("vua.amf_production.unavailable");
+});
+
 function task(overrides: Partial<TaskSnapshotV01> = {}): TaskSnapshotV01 {
   return {
     contractVersion: APPLICATION_CONTRACT_VERSION,

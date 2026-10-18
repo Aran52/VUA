@@ -1,0 +1,12 @@
+{
+  "method": "amf.production.applyLighting",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-example",
+    "planDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "materials": [
+      "Assets/Outfit/Coat.mat"
+    ]
+  }
+}

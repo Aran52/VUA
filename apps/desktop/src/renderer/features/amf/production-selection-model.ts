@@ -10,6 +10,13 @@ export function initialProductionSelection(run: AmfProductionRun): AmfAssemblySe
   return recommendAssembly(run.prefabs, run.sources).selection;
 }
 
+/** Two selections assemble the same Avatar: the same Avatar and the same outfits, in any order. */
+export function sameSelection(a: AmfAssemblySelection, b: AmfAssemblySelection): boolean {
+  const key = (selection: AmfAssemblySelection) => JSON.stringify([selection.avatarPrefab,
+    selection.outfits.map(o => [o.sourceId, o.prefabPath, o.mode, o.bone, o.toggleName, o.active]).sort()]);
+  return key(a) === key(b);
+}
+
 export function updateOutfitSelection(selection: AmfAssemblySelection, sourceId: string, update: Partial<AmfOutfitSelection> | null): AmfAssemblySelection {
   const previous = selection.outfits.find(o => o.sourceId === sourceId);
   const others = selection.outfits.filter(o => o.sourceId !== sourceId);

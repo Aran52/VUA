@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.16.0
+> Document version: 0.17.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -23,6 +23,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection and effective input roles |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
 | `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
+| `amf.production.changeSources` | Command | `runId`, `sources: [{sourceId, role}]` | Durable task changing the line's own materials behind a restore point; the line plans again |
+| `amf.production.delete` | Command | `runId` | Durable task deleting the line's work project, release record and run record |
 | `amf.production.rollbackPlan` | Query | `runId` | Digest-bound restore point, current drift notice and current-state preservation promise |
 | `amf.production.rollback` | Command | `runId`, `planDigest` | Durable task acceptance; protect current state, restore, then inspect in Unity |
 | `amf.production.open` | Command | `runId` | Durable task acceptance; open project, select result and request official SDK panel |
@@ -198,8 +200,8 @@ closed.
 ### Queue
 
 Unity work runs one job at a time. The commands that start it — `prepare`, `prepareRecipe`,
-`assemble`, `reinspect`, `sdkFix`, `applyRecipe`, `rollback`, `open`, `bakeTurntable` and
-`upload` — are accepted while another job runs: their task stays `queued` and starts by itself,
+`assemble`, `reinspect`, `sdkFix`, `changeSources`, `applyRecipe`, `rollback`, `open`, `delete`,
+`bakeTurntable` and `upload` — are accepted while another job runs: their task stays `queued` and starts by itself,
 in request order, when the jobs before it end. Checks of the request itself (keys, plan digest
 shape, Avatar name, rights confirmation, SDK items) answer at once; checks against the work
 project and the run (Editor identity, `project_open`, `project_drift`, `result_not_ready`) run
@@ -212,6 +214,27 @@ exporting Recipes answer `busy` while a job runs. Work still waiting when VUA cl
 at the next launch; its task asks for inspection like other unfinished work, and the run keeps the
 state it had. Work on different projects side by side is a later step for machines with enough
 memory.
+
+### Changing a line's materials
+
+`amf.production.changeSources` gives a prepared line (`ready`, `succeeded`, `failed` or `stopped`) a
+different set of materials; the same set, a source no longer in the library, or a project that
+changed since its last check is refused before anything changes. The task protects the work
+project (`snapshot`), brings it to the new materials (`materials`) and checks it in Unity
+(`inspect`): files that only the previous materials used leave the project with the folders they
+leave empty, files the new materials share stay, a changed version replaces its file, new files
+arrive, and AMF's work scene `Assets/VUA` starts fresh. The line keeps its `runId` and work
+project, returns to `ready` and keeps the choices that still name a present material; a Recipe
+origin no longer applies. The restore point keeps the previous materials with the files, so
+`rollback` brings both back, and a restore across the change can itself be undone. A failure
+restores the protected project and the previous materials.
+
+### Deleting a line
+
+`amf.production.delete` removes a line: its work project with the restore points, previews and
+turntable inside it, its release record and its run record. Saved Recipes and Avatars uploaded to
+VRChat stay. A line with work running or waiting answers `busy`; a work project Unity holds
+answers `project_open` when the task starts.
 
 ## Previews
 
@@ -299,6 +322,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.
 - 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
 - 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.
 - 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.

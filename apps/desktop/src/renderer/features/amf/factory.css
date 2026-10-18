@@ -132,6 +132,26 @@ button.vua-factory__alert { cursor: pointer; }
 /* Workshop: the line list beside the selected line. */
 .vua-page.vua-workshop { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 22px; max-width: 1180px; }
 .vua-workshop__rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: 8px; }
+.vua-workshop__lines { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vua-workshop__line-item { position: relative; display: grid; gap: 4px; }
+.vua-workshop__line-item > .vua-workshop__line { width: 100%; padding-inline-end: 36px; }
+.vua-workshop__line-item[data-hidden] > .vua-workshop__line { opacity: 0.6; }
+/* A card closes from its corner: the x gives way to two bars, hide and delete. */
+.vua-workshop__line-close { position: absolute; inset-inline-end: 6px; bottom: 6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-secondary); cursor: pointer; opacity: 0.6; }
+.vua-workshop__line-close:hover, .vua-workshop__line-close:focus-visible { opacity: 1; background: color-mix(in srgb, var(--vua-text-strong) 8%, transparent); }
+.vua-workshop__line-close:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
+.vua-workshop__line-choices { display: grid; gap: 4px; animation: vua-line-choices var(--vua-motion-fast) ease-out; }
+.vua-workshop__line-choices > button { height: 26px; border: 0; font: var(--vua-font-caption); cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
+.vua-workshop__line-hide { background: color-mix(in srgb, var(--vua-text-secondary) 16%, var(--vua-bg-panel)); color: var(--vua-text-strong); }
+.vua-workshop__line-hide:hover { background: color-mix(in srgb, var(--vua-text-secondary) 26%, var(--vua-bg-panel)); }
+.vua-workshop__line-delete { background: var(--vua-error); color: var(--vua-on-status); }
+.vua-workshop__line-delete:hover { background: color-mix(in srgb, var(--vua-error) 85%, var(--vua-text-strong)); }
+.vua-workshop__line-choices > button:disabled { opacity: 0.45; cursor: not-allowed; }
+.vua-workshop__line-choices > button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
+@keyframes vua-line-choices { from { opacity: 0; transform: translateY(-4px); } }
+[data-effects="off"] .vua-workshop__line-choices, [data-effects="off"] .vua-line__station { animation: none; transition: none; }
+.vua-workshop__hidden-toggle { align-self: flex-start; padding: 2px 0; border: 0; background: none; color: var(--vua-text-secondary); font: var(--vua-font-caption); text-decoration: underline; cursor: pointer; }
+.vua-workshop__line:disabled { cursor: progress; }
 .vua-workshop__line { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: inherit; text-align: start; cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
 .vua-workshop__line > span:first-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: var(--vua-font-caption); }
 .vua-workshop__line:hover { border-color: var(--vua-accent); }
@@ -161,8 +181,14 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-mode-picker__text strong { font: var(--vua-font-body); font-weight: 650; }
 .vua-mode-picker__text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); white-space: nowrap; }
 .vua-mode-picker__mark { display: grid; place-items: center; color: var(--vua-text-strong); }
+/* Stations are places on the line: each opens its own panel below the strip. */
 .vua-line__stations { margin: 0; padding: 0; list-style: none; }
-.vua-line__station { position: relative; display: grid; gap: 4px; padding: 10px 12px 12px; border: 1px solid var(--vua-border); color: var(--vua-text-secondary); background: var(--vua-bg-panel); clip-path: var(--vua-shape-step); }
+.vua-line__stations > li { display: flex; }
+.vua-line__station { position: relative; display: grid; justify-items: start; gap: 4px; width: 100%; padding: 10px 12px 12px; border: 1px solid var(--vua-border); color: var(--vua-text-secondary); background: var(--vua-bg-panel); font: inherit; text-align: start; cursor: pointer; clip-path: var(--vua-shape-step); transition: background-color var(--vua-motion-fast), box-shadow var(--vua-motion-fast); }
+.vua-line__station:hover { background: color-mix(in srgb, currentColor 6%, var(--vua-bg-panel)); }
+.vua-line__station:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
+.vua-line__station[aria-pressed="true"] { background: color-mix(in srgb, currentColor 14%, var(--vua-bg-panel)); box-shadow: inset 0 -3px 0 currentColor; }
+.vua-line__station > svg { opacity: 0.85; }
 .vua-line__station strong { color: inherit; font: var(--vua-font-caption); }
 .vua-line__station small { font-size: 11px; }
 .vua-line__station[aria-current] { background: color-mix(in srgb, currentColor 8%, var(--vua-bg-panel)); }
@@ -173,6 +199,11 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-line__attention { border-inline-start: 4px solid var(--vua-error); }
 .vua-line__attention[data-status="stopped"] { border-inline-start-color: var(--vua-text-secondary); }
 .vua-line__sentence { font: var(--vua-font-title); line-height: 1.5; }
+.vua-line__panel h2 { margin-top: 0; }
+.vua-line__materials, .vua-line__found { display: grid; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+.vua-line__materials li { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--vua-border); background: var(--vua-bg-elevated); }
+.vua-line__materials small { font: var(--vua-font-caption); color: var(--vua-text-secondary); overflow-wrap: anywhere; }
+.vua-line__found li { font: var(--vua-font-body); }
 
 @media (max-width: 900px) {
   .vua-page.vua-workshop { grid-template-columns: minmax(0, 1fr); }

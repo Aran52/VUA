@@ -77,7 +77,6 @@ test("every page belongs to exactly its own module", () => {
   assert.equal(moduleOf("env-create"), "env");
   assert.equal(moduleOf("warehouse"), "production");
   assert.equal(moduleOf("recipe"), "production");
-  assert.equal(moduleOf("inspection"), "production");
   assert.equal(moduleOf("release"), "production");
   assert.equal(moduleOf("workshop"), "production");
   assert.equal(moduleOf("packages"), "production");
@@ -128,7 +127,7 @@ test("production sidebar is one flat group without a group label, pages in flow 
   assert.equal(production?.groups[0]?.labelKey, undefined);
   assert.deepEqual(
     production?.groups[0]?.pages.map((p) => p.id),
-    ["warehouse", "asset-browser", "recipe", "inspection", "release", "workshop", "packages"],
+    ["warehouse", "asset-browser", "recipe", "release", "workshop", "packages"],
   );
 });
 

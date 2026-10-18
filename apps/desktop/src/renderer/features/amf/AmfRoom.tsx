@@ -11,7 +11,7 @@ type TabKey = keyof typeof copy.tabs;
 
 export const ROOM_TABS: Record<RoomId, readonly { page: PageId; label: TabKey }[]> = {
   materials: [{ page: "warehouse", label: "library" }, { page: "asset-browser", label: "browse" }],
-  workshop: [{ page: "workshop", label: "lines" }, { page: "inspection", label: "inspection" }],
+  workshop: [{ page: "workshop", label: "lines" }],
   control: [{ page: "recipe", label: "recipes" }, { page: "packages", label: "packages" }],
   release: [],
 };

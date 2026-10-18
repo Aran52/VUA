@@ -129,6 +129,8 @@ fn wire_run(run: ProductionRun) -> Value {
                 .remove("assetPaths");
         }
     }
+    // The materials kept with a restore point stay inside the record.
+    value.as_object_mut().expect("run object").remove("snapshotSources");
     value
 }
 /// Padded standard base64, as data URLs and MCP image content expect.
@@ -182,6 +184,8 @@ fn route(
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
         "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
+        "amf.production.changeSources" => &["schemaVersion", "runId", "sources"],
+        "amf.production.delete" => &["schemaVersion", "runId"],
         _ => {
             return Err(production_error(
                 "method_invalid",
@@ -323,6 +327,15 @@ fn route(
     if method == "amf.production.open" && !queued {
         service.engine.precheck_open(&run_id)?;
     }
+    if method == "amf.production.delete" && service.run_busy(&run_id) {
+        return Err(production_error("busy", "This line has work running or waiting."));
+    }
+    let changed_sources: Vec<SourceChoice> = if method == "amf.production.changeSources" {
+        let choices: Vec<SourceChoice> = serde_json::from_value(params["sources"].clone())
+            .map_err(|e| production_error("sources_invalid", e.to_string()))?;
+        validate_choices(&choices)?;
+        choices
+    } else { Vec::new() };
     let selection: Option<AssemblySelection> = params
         .get("selection")
         .map(|s| serde_json::from_value(s.clone()))
@@ -367,6 +380,8 @@ fn route(
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
+                "amf.production.changeSources" => worker.engine.change_sources(&operation_run, changed_sources, ctx)?,
+                "amf.production.delete" => worker.engine.delete_run(&operation_run)?,
                 "amf.production.applyRecipe" => {
                     let (recipe, choice) = recipe_application.expect("Recipe application validated");
                     worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;

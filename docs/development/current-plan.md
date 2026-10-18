@@ -82,6 +82,12 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
 | 31 | Change a finished line's base Avatar | P-02 | next |
+| 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md) |
+| 33 | Switch options and built-result evidence | P-02, P-03 | planned from the reference study |
+| 34 | Evidence layers and toolchain profile | P-03, B-02 | planned from the reference study |
+| 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
+| 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
+| 37 | Creator credits | P-02 | planned |
 
 Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
 guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
@@ -460,12 +466,107 @@ outfit and adding to it is a common wish.
 **Done when** the author moves a finished Meiyun line from `Meiyu_改変` to `Meiyun`, keeps its
 outfits and adds one, and returns to the earlier base from the restore point.
 
+## 32 — Agent interface refinements
+
+Lessons 1–8 of the [reference study](../research/reference-projects-2026-10-19.md#vrcforge-the-agent-interface).
+
+1. Small edits (material values, a menu entry, removing one outfit) as preview and apply pairs:
+   the preview returns a digest, and the apply refuses a changed scene or hierarchy.
+2. Tool results state whether a mutation started, committed, persisted and was read back, and
+   whether a retry is safe.
+3. Run facts and Build Records as versioned MCP Resources; versioned SOPs as MCP Prompts with a
+   content hash.
+4. Help writes the connection into the chosen AI tool's configuration file, with STDIO next to
+   Streamable HTTP, when the player asks for it.
+5. A supervised hand adjustment in the open Editor: the agent prepares a proxy, the player drags
+   it, the agent finalizes.
+6. Reflection-only checks with Gesture Manager (switch behavior in Play Mode) and NDMF's
+   parameter count.
+
+**Done when** an agent completes a P-02 material adjustment through a preview and apply pair,
+reads the run as a Resource, and recovers from a dropped connection without a repeated write.
+
+## 33 — Switch options and built-result evidence
+
+Lessons 9–13 of the [reference study](../research/reference-projects-2026-10-19.md#vrcfury-and-modular-avatar-assembly-features).
+
+1. Switch options in the plan: saved state, default on, an exclusive group for main outfits and a
+   slider, built with MA's Object Toggle and Menu Item.
+2. Previews, the turntable and the menu check run on the NDMF-processed clone.
+3. The quality-check station lists mixed Write Defaults, empty layers, uneven anchor override and
+   bounds (fixed through MA Mesh Settings), duplicate PhysBones, unused bones and parameter order
+   across PC and mobile.
+4. The plan shows synced parameter bits against 256 before assembly.
+5. The intake check recognizes outfits carrying VRCFury components; the known packages list
+   VRCFury with `guide` delivery from its official VCC feed after its license check.
+
+**Done when** a P-02 line with two outfits in one exclusive group passes the quality check on its
+built result, and an outfit with VRCFury components shows the guide for VRCFury.
+
+## 34 — Evidence layers and toolchain profile
+
+Lessons 14–19 of the [reference study](../research/reference-projects-2026-10-19.md#vrchateditorskill-inspection-and-evidence).
+
+1. Each fact on the check stations and the release page carries its evidence layer: static
+   source, Unity-resolved, NDMF-built, SDK build, client runtime or confirmed upload.
+2. The intake check records the providers the Avatar and outfits use as a toolchain profile.
+3. The result's Expressions Menu tree, traced to parameters and objects, joins the Build Record and
+   the Recipe.
+4. Changes to shared assets copy them after listing their users; generated output stays untouched.
+5. The first symptom playbooks (menu missing, parameter without effect, merged Animator missing,
+   wrong binding, wrong switch default) become SOPs for slice 15.
+
+**Done when** the P-03 result shows its menu map with evidence layers, and an agent diagnoses a
+missing menu item from the playbook SOP.
+
+## 35 — Start card, preflight and attribution
+
+Lessons 20–28 of the [reference study](../research/reference-projects-2026-10-19.md#vrchat-avatar-acceptance-workflow-flow-and-acceptance).
+
+1. One start card per line with the recommendations prefilled: delivery layer, size limit,
+   quality and performance trade-off, menu structure and language, upload authority.
+2. Before assembly the plan predicts each outfit's size, triangles, material slots, texture
+   memory, PhysBones and parameter bits.
+3. The release page attributes the change from the base Avatar to each outfit and shows the SDK's
+   uncompressed size with a warning line at 90 % of its limit.
+4. Menus keep the creator's parts menu, with main outfits exclusive and at most 8 controls per
+   page.
+5. Body-shape variants of the Avatar need matching outfit support before assembly.
+6. One targeted repair per defect, then restore or isolate; uploads private by default.
+7. Local lessons from the player's corrections, keyed by the materials they concern.
+8. A finished state requires the Build Record's evidence to close.
+
+**Done when** a P-03 line runs from one start card to a release page that attributes each
+outfit's cost, and a repeated correction is suggested from its lesson on the next line.
+
+## 36 — Licensed entry guide
+
+Designed in the [licensed entry guide](licensed-entry-guide.md) (author ruling, 2026-10-19).
+
+1. The author verifies pixiv sign-up, BOOTH, card payment and PayPal from the remote host on a
+   mainland China network.
+2. The guide's six parts as versioned SOPs in four languages, opened from Help and the library.
+3. A reachability check for the sites the guide's steps use, built on the website tests.
+
+**Done when** a player in mainland China with no pixiv account completes a first BOOTH purchase
+guided by VUA alone, and the purchase arrives in the library.
+
+## 37 — Creator credits
+
+1. The release room lists, for each finished Avatar, its materials with their creators and BOOTH
+   pages, from the Build Record's provenance.
+
+**Done when** the P-02 result's album entry names Meiyun's and the outfit's creators with links
+to their BOOTH pages.
+
 ## Open decisions
 
 - Styles: built-in only first or shareable data from the start; how the two briefs translate
   into tokens, motifs and motion.
 - Known packages beyond the shaders, SDK and Modular Avatar (for example Avatar Optimizer,
   VRCFury), each after a license check.
+- Network steps for players in mainland China: which sites the licensed entry guide and Quest's
+  first activation report, after the author's verification; VUA names no accelerator or proxy.
 
 ## Scheduled after these slices
 

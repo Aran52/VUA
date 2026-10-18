@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Updated: 2026-10-16
+> Updated: 2026-10-19
 
 ## Product definition
 
@@ -155,6 +155,17 @@ requirements on that distinction. VUA does not actively support piracy: do not a
 acquisition paths or guidance specifically for pirated-material platforms, or bypass purchase,
 authentication or access controls. This does not add a material-rights certification, source
 blacklist or scanning requirement. The provenance and sharing rules above remain authoritative.
+VUA tolerates the files players bring: it never pushes a player toward licensed materials, gives
+no advice about a player's sources and does not lecture (user ruling, 2026-10-19).
+
+**Licensed entry guide (user ruling, 2026-10-19).** For players in mainland China who want to
+enter the licensed ecosystem and could not before, VUA offers a guide: pixiv sign-up, BOOTH's
+price system, notes on getting a Visa or Mastercard card that pays abroad, buying with it or
+PayPal, reading a product's terms of use, and encouraging text, images and animations about
+licensed bases and materials. The player opens it from Help or the library; the library's
+contents never open it. VUA links to the official sites and leaves sign-in, card applications and
+payment to the player there; it recommends no bank, card product or network product. The
+[guide's design](development/licensed-entry-guide.md) owns its contents.
 
 **Managed library re-download (user ruling, 2026-10-07).** An already-downloaded product shows
 Re-download; the action replaces its managed file rather than storing another copy. The exact
@@ -311,6 +322,12 @@ gate derives risk from declared capabilities and behavior.
 - **Recoverable:** long-running tasks define state, cancellation, retry, recovery, and manual handoff.
 - **Least privilege:** remote content, plugins, and third-party components receive only required
   capabilities.
+- **Restraint (user ruling, 2026-10-19):** the core of the VRChat Avatar ecosystem is the Japanese
+  player and creator community, highly sensitive to copyright and wary of AI. VUA ships no
+  built-in model service or agent harness; the player's own agent connects through the local MCP
+  adapter under the player's approval. VUA supports legitimate platforms only, as the
+  [local material ruling](#production-scope-and-product-rulings-user-ruling-2026-09-22) states.
+  Ideas from other tools pass this test before VUA adopts them.
 
 ## N1 device and network onboarding
 

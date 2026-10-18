@@ -1,0 +1,8 @@
+{
+  "method": "environment.checkUnityLicense",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "editorPath": "C:/Synthetic/2022.3.22f1/Editor/Unity.exe"
+  }
+}

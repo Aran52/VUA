@@ -116,6 +116,7 @@ struct OutboundFrame<'a> {
 }
 
 struct HostState {
+    unity_license: Option<Arc<crate::unity_license::UnityLicenseService>>,
     amf_production: Option<Arc<crate::amf_production_routes::AmfProductionServices>>,
     store: Arc<SqliteTaskStore>,
     provider_instance_id: String,
@@ -978,7 +979,16 @@ pub fn run_provider_host_with_legacy(
             warehouse.runtime.clone(),
         ))
     });
+    let license_amf = amf_production.clone();
+    let unity_license = Some(Arc::new(crate::unity_license::UnityLicenseService {
+        probe: Arc::new(crate::unity_license::NativeLicenseProbe::system().with_editors(Arc::new(move || {
+            license_amf.as_ref().map_or_else(|| Ok(Vec::new()), |amf| amf.engine.editors())
+        }))),
+        root: database_path.parent().unwrap_or_else(|| Path::new(".")).join("unity-license"),
+        amf: amf_production.clone(), runner: Arc::new(vua_orchestrator::StdProcessRunner), clock: Arc::new(SystemClock),
+    }));
     let mut state = HostState {
+        unity_license,
         amf_production,
         store,
         provider_instance_id,
@@ -1362,6 +1372,9 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
         ));
     }
     let method = request.get("method").and_then(Value::as_str).unwrap_or("");
+    if matches!(method, "environment.unityLicense" | "environment.checkUnityLicense") {
+        return crate::unity_license_routes::request(state.unity_license.as_ref(), method, request, request_id, correlation_id);
+    }
     if method.starts_with("amf.production.") {
         return crate::amf_production_routes::request(state.amf_production.clone(), method, request, request_id, correlation_id);
     }
@@ -1857,6 +1870,10 @@ fn served_capabilities(state: &HostState) -> Value {
     capabilities.as_array_mut().expect("capabilities array").push(json!({
         "operationId": "amf.production", "availability": if state.amf_production.is_some() { "available" } else { "unavailable" }
     }));
+    capabilities.as_array_mut().expect("capabilities array").extend([
+        json!({"operationId":"environment.unityLicense","availability":if state.unity_license.is_some() {"available"} else {"unavailable"}}),
+        json!({"operationId":"environment.checkUnityLicense","availability":if state.amf_production.is_some() {"available"} else {"unavailable"}}),
+    ]);
     capabilities
 }
 
@@ -11824,6 +11841,7 @@ mod tests {
             )
             .unwrap();
         let mut state = HostState {
+            unity_license: None,
             store: Arc::new(store),
             amf_production: None,
             provider_instance_id: "provider-test".into(),
@@ -11978,6 +11996,7 @@ mod tests {
     #[test]
     fn runtime_event_queue_drains_completely() {
         let state = HostState {
+            unity_license: None,
             amf_production: None,
             store: Arc::new(SqliteTaskStore::open_in_memory().unwrap()),
             provider_instance_id: "provider-test".into(),

@@ -45,6 +45,21 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("keeps passive license detection on the host without AMF and runs checks on the AMF authority", async () => {
+    const { provider, host, amf, activations } = setup(); await provider.start();
+    const read: ApplicationRequestV01 = {contractVersion:"0.1",requestId:"license-read",correlationId:"license-read",kind:"query",
+      method:"environment.unityLicense",params:{schemaVersion:"0.1"}};
+    const check: ApplicationRequestV01 = {contractVersion:"0.1",requestId:"license-check",correlationId:"license-check",kind:"command",commandId:"license-once",
+      method:"environment.checkUnityLicense",params:{schemaVersion:"0.1",editorPath:"C:/synthetic/Unity.exe"}};
+    await provider.invoke(read);
+    expect(host.calls.map(call=>call.method)).toEqual(["environment.unityLicense"]);
+    expect((await provider.invoke(check)).ok).toBe(false); expect(activations()).toBe(0); expect(amf.calls).toHaveLength(0);
+    await provider.setAmfEnabled(true); host.calls.length = 0; amf.calls.length = 0;
+    await provider.invoke(read); await provider.invoke(check);
+    expect(amf.calls.map(call=>call.method)).toEqual(["environment.unityLicense","environment.checkUnityLicense"]);
+    expect(host.calls).toHaveLength(0);
+    await provider.prepareShutdown({timeoutMs:100});
+  });
   it("admits update restart only after host/AMF work and shell transfers finish", async () => {
     let busy = false; const { provider, host, amf, saved } = setup({ shellBusy: () => busy });
     await provider.start(); await provider.setAmfEnabled(true);

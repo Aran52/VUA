@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-18
+> Updated: 2026-10-19
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -13,7 +13,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-19 |
-| docs/protocols/ai-tools-v0.1.md | 0.5.0 | Candidate | Integration | 2026-10-18 |
+| docs/protocols/ai-tools-v0.1.md | 0.6.0 | Candidate | Integration | 2026-10-19 |
 | docs/protocols/amf-production-v0.1.md | 0.19.0 | Candidate | AMF | 2026-10-19 |
 | docs/protocols/amf-recipe-v0.4.md | 0.3.0 | Candidate | AMF | 2026-10-15 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -74,6 +74,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/release-handoff-v0.1.md | 0.1 | Frozen | Core | 2026-09-16 |
 | docs/protocols/release-handoff-v0.2.md | 0.2 | Frozen | Core | 2026-09-21 |
 | docs/protocols/scenario-environment-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-13 |
+| docs/protocols/unity-license-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-19 |
 | docs/protocols/superseded/bdl-commands-v0.1.md | 0.1 | Superseded | Data | 2026-09-07 |
 | docs/protocols/superseded/bdl-commands-v0.2.md | 0.2 | Superseded | Data | 2026-09-08 |
 | docs/protocols/superseded/bdl-commands-v0.3.md | 0.3 | Superseded | Data | 2026-09-08 |
@@ -153,6 +154,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/release-handoff/v0.1 | 0.1 | Frozen | Core | 2026-09-16 |
 | schemas/release-handoff/v0.2 | 0.2 | Frozen | Core | 2026-09-21 |
 | schemas/scenario-environment/v0.1 | 0.1 | Candidate | Environment | 2026-10-13 |
+| schemas/unity-license/v0.1 | 0.1 | Candidate | Environment | 2026-10-19 |
 | schemas/unity-bridge/handshake/v1.0 | 1.0 | Frozen | Production | 2026-09-16 |
 | schemas/unity-bridge/v4 | v4 | Frozen | Production | 2026-09-20 |
 | schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-19 |

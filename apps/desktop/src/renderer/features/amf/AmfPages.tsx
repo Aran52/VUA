@@ -18,7 +18,7 @@ export default function AmfPages({ page, navigate, prepareEnv }: {
 
 function RoomPage({ page, navigate, prepareEnv }: { page: PageId; navigate: (page: PageId) => void; prepareEnv: () => void }) {
   switch (page) {
-    case "asset-browser": return <AssetBrowserPage />;
+    case "asset-browser": return <AssetBrowserPage onNavigate={navigate} />;
     case "warehouse": return <WarehousePage onNavigate={navigate} />;
     case "recipe": return <ControlRecipesPage onNavigate={navigate} />;
     case "workshop": return <AmfProductionPage onPrepareEnv={prepareEnv} onNavigate={navigate} />;

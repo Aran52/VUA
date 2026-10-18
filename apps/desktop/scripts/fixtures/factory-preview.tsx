@@ -1,16 +1,19 @@
 // Synthetic preview of the AMF base map and workshop for visual review; no production claims.
-import React from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx";
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
 import { FactoryMap, type Room } from "../../src/renderer/features/amf/FactoryMap.tsx";
 import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
+import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsStartDialog.tsx";
 import { controlPreview } from "./control-center-preview.tsx";
-import type { AmfProductionPort, AmfProductionRun } from "../../src/renderer/gateway/index.ts";
+import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
 import { Card } from "../../src/renderer/components/primitives/Card.tsx";
+import { Button } from "../../src/renderer/components/primitives/Button.tsx";
+import { strings } from "../../src/renderer/i18n/index.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/app-shell.css";
@@ -46,6 +49,40 @@ const api = {
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
   async previewImage() { return pixel; },
 } as unknown as AmfProductionPort;
+// The materials-start views: the library's products mapped to the AMF sources above,
+// plus one unrelated dress so the "other outfits" fold has a row.
+const materialProducts = [
+  { productId: "booth:1", title: "Meiyun formula", entry: "a" },
+  { productId: "booth:2", title: "T-shirt & shorts for Meiyun", entry: "b" },
+  { productId: "booth:3", title: "Meiyun Costume 4", entry: "c" },
+  { productId: "booth:4", title: "Dress for Kikyu", entry: "d" },
+];
+const materialFacts = new Map(materialProducts.map(product => [product.productId, {
+  storage: { state: "present", storedCopies: 1, presentCopies: 1, missingCopies: 0, changedCopies: 0, unreadableCopies: 0, supersededGeneratedCopies: 0, currentGeneratedCopies: 0, productionQualification: "not_evaluated" },
+  sources: ["bought" as const], operation: null,
+  localEntries: [{ entryId: product.entry, displayName: product.productId === "booth:1" ? "Meiyun_v2.1.0.zip" : product.title }],
+}]));
+const libraryApi: LibraryBrowserPort = {
+  async list() {
+    const items = materialProducts.map(product => ({
+      productId: product.productId, title: product.title, libraryType: "bought" as const, importedArtifacts: 1, shopName: "Sample shop", variantName: null,
+      price: { currency: "JPY", amount: "1000" }, imageUrl: pixel, imageUrls: [pixel], availability: "available" as const, availabilityRaw: null, entityCount: 0, entityTypes: [],
+    }));
+    return { catalog: { schemaVersion: 1 as const, kind: "results" as const, items, total: items.length, vocabulary: { availabilities: ["available" as const], entityTypes: [], relationKinds: [] } },
+      localEntries: [], facts: materialFacts, sourceCategories: [], total: items.length, offset: 0, limit: 200 };
+  },
+  async productFiles(productId: string) { return { productId, items: [] }; },
+};
+const materialSources = [...sources, { sourceId: "dress", itemId: "d", itemName: "Kikyu_Dress_v1.2.zip", name: "Kikyu_Dress.unitypackage" }];
+const materialsApi: AmfProductionPort = {
+  ...api,
+  async list() {
+    const listed = await api.list();
+    return { ...listed, sources: view.endsWith("-missing") ? materialSources.filter(source => source.itemId !== "a") : materialSources };
+  },
+} as AmfProductionPort;
+const readyModule = { snapshot: async () => ({ schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const }),
+  subscribe: () => () => {}, setEnabled: async () => ({ outcome: "failed" as const, snapshot: { schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const } }) };
 const gateway = emptyGateway(null);
 const selected = view.startsWith("workshop-") ? view.slice("workshop-".length) : "";
 try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-automation-level-v01", view.endsWith("auto") ? "auto" : "semi"); } catch { /* preview only */ }
@@ -60,6 +97,17 @@ const settingsVrchat = view.startsWith("settings-vrchat")
     ? { enabled: true, state: "signed_in", account: { displayName: "Aran", thumbnail: pixel }, rememberPassword: true, pendingMethods: [], canCheckUploads: true }
     : { enabled: true, state: "signed_out", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: false })
   : undefined;
+/** The materials-start preview: a stand-in for the library drawer's action row and
+ * the real "Start production" panel over it. */
+function MaterialsStartPreview() {
+  const [open, setOpen] = useState(true);
+  return <div className="vua-page">
+    <div className="vua-warehouse-detail__content" style={{ maxWidth: 420 }}>
+      <Button variant="primary" className="vua-warehouse-detail__start" onClick={() => setOpen(true)}>{strings.factory.materialsStart.startCta}</Button>
+    </div>
+    {open ? <MaterialsStartDialog avatar={{ productId: "booth:1", title: "Meiyun formula", imageUrl: pixel }} onNavigate={() => {}} onClose={() => setOpen(false)} /> : null}
+  </div>;
+}
 createRoot(document.getElementById("root")!).render(release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release, ...(vrchatOfRelease ? { vrchat: vrchatOfRelease } : {}) }}>
   <ReleasePreview view={view} />
 </GatewayProvider> : view.startsWith("settings-") ? <GatewayProvider gateway={{ ...gateway, ...(settingsVrchat ? { vrchat: settingsVrchat } : {}) }}>
@@ -67,6 +115,8 @@ createRoot(document.getElementById("root")!).render(release ? <GatewayProvider g
     <section className="vua-page__hero"><h1 className="vua-title">设置 · 实验性</h1></section>
     <Card><VrchatSignInSection /></Card>
   </div>
+</GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
+  <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} /></AmfRoom>}
 </GatewayProvider>);

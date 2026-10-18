@@ -24,6 +24,9 @@ import type { DataSource } from "./types.ts";
 export interface VuaGateway {
   readonly aiTools?: import("@vua/contracts").DesktopAiToolsApiV01 | undefined;
   readonly amfProduction?: import("./amf-production-port.ts").AmfProductionPort | undefined;
+  /** 素材库列表共享端口(与 library-browser-instance 同一实现);未注入时
+   * 消费方退单例——预览/测试借此替换素材库读数 */
+  readonly libraryBrowser?: import("./library-browser-port.ts").LibraryBrowserPort | undefined;
   readonly amfRelease?: import("./amf-release-port.ts").AmfReleasePort | undefined;
   /** vrchat-session v0.1(实验性 VRChat 登录):恒 live 基线,无宿主时诚实缺席 */
   readonly vrchat?: import("./vrchat-port.ts").VrchatPort | undefined;

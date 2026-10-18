@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server as HttpServer, type Ser
 import { Server, type Tool, type CallToolResult } from "@modelcontextprotocol/server";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/server/validators/ajv";
 import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
+import { recommendAssembly, type AmfCandidateFacts, type AmfSourceFacts } from "@vua/contracts";
 import { isAiUploadConfirmationV01, isDesktopGatewayRequestV1, type AiActionRequestV01, type AiConnectionLocale, type AiToolsSnapshotV01, type AiUploadConfirmationV01, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1 } from "@vua/contracts";
 import { AI_TOOLS, aiGatewayRequest, withUploadConfirmation, type AiToolSpec } from "./ai-tool-catalog.js";
 import { aiConnectionPrompt } from "./ai-connection-prompt.js";
@@ -252,12 +253,24 @@ export class AiToolsServer {
         approval.view = { ...approval.view, state: "withdrawn", error: "withdrawn_by_ai" }; this.changed();
         return this.result({ whatHappened: "The request no longer waits for the player. Nothing was run.", nextAction: spec.next, expectedResult: spec.expected, data: approval.view });
       }
-      const request = aiGatewayRequest(spec, structuredClone(args), `ai-${randomUUID()}`);
+      let input: Record<string, unknown> = args;
+      let recommendation: ReturnType<typeof recommendAssembly> | null = null;
+      if (name === "vua_amf_plan" && input.selection === undefined) {
+        const run = await this.invoke({ schemaVersion: 1, requestId: `recommend-${randomUUID()}`, method: "amf.production.get", params: { schemaVersion: "0.1", runId: String(input.runId) } }) as { prefabs?: readonly AmfCandidateFacts[]; sources?: readonly AmfSourceFacts[] };
+        recommendation = recommendAssembly(run.prefabs ?? [], run.sources ?? []);
+        if (!recommendation.selection.avatarPrefab || recommendation.selection.outfits.length === 0 || recommendation.outfits.some(outfit => outfit.path === null)) {
+          return this.result({ whatHappened: "VUA could not pick every part on its own; no plan was made.", error: "recommendation_needs_player",
+            nextAction: "Show the player the tied candidates, then call vua_amf_plan with the selection they choose.", expectedResult: spec.expected, data: { recommendation } }, true);
+        }
+        input = { ...input, selection: recommendation.selection };
+      }
+      const request = aiGatewayRequest(spec, structuredClone(input), `ai-${randomUUID()}`);
       if (spec.command) {
         const approval = await this.queue(spec, request);
         return this.result({ whatHappened: "A concrete request is waiting for the player in VUA. Execution has not started.", nextAction: spec.next, expectedResult: spec.expected, data: approval });
       }
-      const data = await this.invoke(request);
+      const read = await this.invoke(request);
+      const data = recommendation && read !== null && typeof read === "object" ? { ...read, recommendation } : read;
       const images = name === "vua_amf_run" ? await this.previews(String(args.runId), data) : [];
       return this.result({ whatHappened: "The requested facts or plan were read. No change was made.", nextAction: spec.next, expectedResult: spec.expected, data }, false, images);
     } catch (error) {

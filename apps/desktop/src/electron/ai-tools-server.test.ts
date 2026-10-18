@@ -215,3 +215,26 @@ describe("the experimental VRChat sign-in stays outside the AI tool catalog", ()
     expect(result).toBeDefined();
   });
 });
+
+describe("vua_amf_plan without a selection", () => {
+  const prefab = (sourceId: string, name: string, isAvatar: boolean) => ({ sourceId, path: `Assets/${sourceId}/${name}.prefab`, name, isAvatar,
+    hasSkinnedMesh: !isAvatar, hasMergeArmature: !isAvatar, hasMissingScripts: false, humanoidBones: [] });
+  const run = (avatars: readonly string[]) => ({ runId: "n3-test", prefabs: [...avatars.map(name => prefab("avatar", name, true)), prefab("outfit", "TshirtShorts_Meiyun", false)],
+    sources: [{ sourceId: "avatar", role: "auto", itemName: "Meiyun_v2.1.0.zip" }, { sourceId: "outfit", role: "auto", itemName: "TshirtShorts_Meiyun_v1.00.zip" }] });
+  it("plans VUA's stated recommendation and says why", async () => {
+    const { client, calls } = await setup(async request => request.method === "amf.production.get"
+      ? envelope(request, run(["Meiyu_改変 2P", "Meiyu_改変", "Meiyun"])) : envelope(request, { planDigest: "d".repeat(64) }));
+    const result = await client.callTool({ name: "vua_amf_plan", arguments: { runId: "n3-test" } });
+    expect(result.isError).toBeFalsy();
+    const planned = calls.find(call => call.method === "amf.production.plan");
+    expect(planned?.params).toMatchObject({ selection: { avatarPrefab: "Assets/avatar/Meiyu_改変.prefab", outfits: [{ prefabPath: "Assets/outfit/TshirtShorts_Meiyun.prefab", toggleName: "TshirtShorts" }] } });
+    expect(JSON.stringify(data(result))).toContain("creator_base");
+  });
+  it("hands an equal tie back to the player without planning", async () => {
+    const { client, calls } = await setup(async request => envelope(request, run(["Alpha", "Beta"])));
+    const result = await client.callTool({ name: "vua_amf_plan", arguments: { runId: "n3-test" } });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(data(result))).toContain("recommendation_needs_player");
+    expect(calls.some(call => call.method === "amf.production.plan")).toBe(false);
+  });
+});

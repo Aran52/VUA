@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.14.0
+> Document version: 0.15.0
 > Status: Candidate
 > Updated: 2026-10-18
 > Owner: AMF
@@ -43,8 +43,11 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
 
 Roles: `auto`, `avatar`, `outfit`, `dependency`. The player path starts with `auto` sources.
-Unity discovers actual prefabs; a unique Avatar/outfit candidate is preselected, while ambiguity
-or a static attachment target requires a choice. Assembly requires an observed Avatar and at
+Unity discovers actual prefabs. `recommendAssembly` in the contracts package starts the plan with a
+stated recommendation over those candidates: for the Avatar, the creator's base for outfits (改変),
+then the prefab named after its package, then the package's top-level prefab; for each outfit, the
+only candidate or the one that names the Avatar. Equally plausible candidates or a static
+attachment target require a choice. Assembly requires an observed Avatar and at
 least one outfit. Unselected automatic inputs are explicitly shown as `import_only`, not silently
 claimed as assembled dependencies. Source IDs resolve only through the module's present local
 library; no renderer-provided source or project paths are accepted. Editor paths are reverified
@@ -278,6 +281,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.
 - 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.
 - 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
 - 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ph-r.com/vua/schemas/unity-license/v0.1/request.schema.json",
+  "title": "Unity license requests v0.1 (Candidate)",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "environment.unityLicense"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "environment.checkUnityLicense"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "editorPath"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "editorPath": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

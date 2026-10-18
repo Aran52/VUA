@@ -581,6 +581,9 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "terms.checkUse":
       return { ...base, kind: "query", method: request.method, params: request.params };
+    case "environment.checkUnityLicense":
+      return { ...base, kind: "command", commandId: `license-${request.requestId}`, method: request.method, params: request.params };
+    case "environment.unityLicense":
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
     case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.turntableFrame":
       return { ...base, kind: "query", method: request.method, params: request.params };

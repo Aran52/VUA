@@ -30,5 +30,6 @@ export * from "./manager-apps.js";
 export * from "./amf-module.js";
 export * from "./desktop-distribution.js";
 export * from "./scenario-environment.js";
+export * from "./unity-license-v01.js";
 export * from "./desktop-ai-tools.js";
 export * from "./terms-v01.js";

@@ -18,6 +18,12 @@ it("serves conforming terms samples with unknown evidence kept outside the match
   if (check.ok && isTermsUseCheckV01(check.value)) { expect(check.value.matchingProductIds).toEqual([]); expect(check.value.combination.decision).toBe("unknown"); }
 });
 
+it("reports license operations as unavailable without inventing observations", async () => {
+  const provider = new MockOrchestratorProviderV01(); await provider.start();
+  const response = await provider.invoke({contractVersion:"0.1",requestId:"license",correlationId:"license",kind:"query",method:"environment.unityLicense",params:{schemaVersion:"0.1"}});
+  expect(response.ok).toBe(false); if (!response.ok) expect(response.error.code).toBe("vua.unity_license.unavailable");
+});
+
 it("keeps AMF capacity unavailable in the mock provider", async () => {
   const provider = new MockOrchestratorProviderV01();
   await provider.start();

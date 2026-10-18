@@ -175,3 +175,4 @@ pub mod amf_recipe;
 pub mod amf_recipe_share;
 pub mod amf_recipe_apply;
 pub mod scenario_environment;
+pub mod unity_license;

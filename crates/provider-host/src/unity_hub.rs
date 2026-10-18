@@ -65,28 +65,38 @@ pub(crate) fn ensure_licensing_client(launch: Option<HubLaunch>, cancelled: impl
     false
 }
 
-#[cfg(windows)]
-fn hidden(command: &mut std::process::Command) -> &mut std::process::Command {
-    use std::os::windows::process::CommandExt;
-    command.creation_flags(0x0800_0000)
-}
-
-#[cfg(windows)]
 fn licensing_client_running() -> bool {
-    hidden(std::process::Command::new("tasklist").args([
-        "/FI",
-        &format!("IMAGENAME eq {LICENSING_CLIENT}"),
-        "/FO",
-        "CSV",
-        "/NH",
-    ]))
-    .output()
-    .is_ok_and(|output| String::from_utf8_lossy(&output.stdout).contains(LICENSING_CLIENT))
+    running_processes().is_some_and(|names| names.iter().any(|name| name.eq_ignore_ascii_case(LICENSING_CLIENT)))
 }
 
 #[cfg(not(windows))]
-fn licensing_client_running() -> bool {
-    false
+pub(crate) fn running_processes() -> Option<Vec<String>> { None }
+
+/// Native process names only: no shell, tasklist, executable paths or command lines.
+#[cfg(windows)]
+pub(crate) fn running_processes() -> Option<Vec<String>> {
+    use std::mem::{size_of, zeroed};
+    use windows_sys::Win32::{Foundation::{CloseHandle, GetLastError, ERROR_NO_MORE_FILES, INVALID_HANDLE_VALUE},
+        System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS}};
+    // SAFETY: this scope owns the snapshot handle; all process-entry buffers have the required
+    // size and live through each synchronous Win32 call. Every path closes the owned handle.
+    unsafe {
+        let handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if handle == INVALID_HANDLE_VALUE { return None; }
+        let mut entry: PROCESSENTRY32W = zeroed();
+        entry.dwSize = size_of::<PROCESSENTRY32W>() as u32;
+        if Process32FirstW(handle, &mut entry) == 0 { CloseHandle(handle); return None; }
+        let mut names = Vec::new();
+        loop {
+            let end = entry.szExeFile.iter().position(|c| *c == 0).unwrap_or(entry.szExeFile.len());
+            names.push(String::from_utf16_lossy(&entry.szExeFile[..end]));
+            if Process32NextW(handle, &mut entry) == 0 {
+                let complete = GetLastError() == ERROR_NO_MORE_FILES;
+                CloseHandle(handle);
+                return complete.then_some(names);
+            }
+        }
+    }
 }
 
 #[cfg(windows)]

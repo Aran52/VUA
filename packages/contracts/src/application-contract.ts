@@ -1,3 +1,4 @@
+import { isUnityLicenseParams } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
 import { isTermsParams, type TermsPresetId, type ProductTermsV01, type TermsUseCheckV01, type TermsAcceptedV01 } from "./terms-v01.js";
 import { isAmfProductionParams } from "./amf-production-v01.js";
@@ -2845,6 +2846,8 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshLibrary"; readonly params: {readonly schemaVersion: "0.1"} })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.unityLicense"; readonly params: {readonly schemaVersion: "0.1"} })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "environment.checkUnityLicense"; readonly params: {readonly schemaVersion: "0.1"; readonly editorPath: string} })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollback" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> })
@@ -3231,6 +3234,12 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
     return value.kind === (command ? "command" : "query") && (!command || isIdentifier(value.commandId))
       && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", ...(command ? ["commandId"] : [])])
       && isTermsParams(value.method, value.params);
+  }
+  if (value.method === "environment.unityLicense" || value.method === "environment.checkUnityLicense") {
+    return value.kind === (value.method === "environment.unityLicense" ? "query" : "command")
+      && (value.kind !== "command" || isIdentifier(value.commandId))
+      && hasExactKeys(value, ["contractVersion","requestId","correlationId","kind","method","params", ...(value.kind === "command" ? ["commandId"] : [])])
+      && isUnityLicenseParams(value.method, value.params);
   }
   if (typeof value.method === "string" && value.method.startsWith("amf.production.")) {
     const query = ["amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage", "amf.production.releaseState", "amf.production.turntableFrame"].includes(value.method);

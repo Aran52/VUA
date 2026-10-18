@@ -738,6 +738,11 @@ impl AmfProductionPlatform for NativeAmfProduction {
     fn replace_sources(&self, run: &ProductionRun, previous: &[PreparedSource], ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
         import_choices(self, run, ctx, Some(previous))
     }
+    fn clear_work_scene(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+        let project = Path::new(&run.project_root);
+        reject_editor_lock(project)?;
+        clear_work_area(project).map_err(|e| err("rebuild_failed", e))
+    }
     fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         let operation = if Path::new(&run.project_root)
             .join("Assets/VUA/Production.unity")
@@ -1376,9 +1381,15 @@ fn retire_previous(project: &Path, previous: &[PreparedSource], kept: &BTreeSet<
         }
     }
     prune_empty_folders(project, &removed);
+    clear_work_area(project).map_err(|e| err("import_failed", e))
+}
+
+/// AMF's work area holds the work scene and its object ownership; without it the next
+/// inspection prepares a fresh scene.
+fn clear_work_area(project: &Path) -> std::io::Result<()> {
     let work_area = project.join("Assets/VUA");
     if work_area.is_dir() {
-        fs::remove_dir_all(&work_area).map_err(|e| err("import_failed", e))?;
+        fs::remove_dir_all(&work_area)?;
     }
     let _ = fs::remove_file(project.join("Assets/VUA.meta"));
     Ok(())

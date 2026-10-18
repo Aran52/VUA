@@ -42,6 +42,12 @@ const runs: Record<string, AmfProductionRun> = {
   finished: { ...base("finished", "succeeded", [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "succeeded"]]),
     result: { facts: { sdkDescriptorRecognized: true, missingReferences: 0, avatarName: "Meiyu_改変", instances: [{ sourceId: "outfit", bindingVerified: true, menuVerified: true, menuModified: true }], missingShaderMaterials: [], sdkSignedIn: "no" } } },
 };
+// A finished line whose package also carries the standard Meiyun prefab; the preview picks it to show the rebuild note.
+const outfitChoice = { sourceId: "outfit", prefabPath: "Assets/Outfit/Outfit.prefab", mode: "merge_armature" as const, bone: "", toggleName: "TshirtShorts", active: true };
+runs.rebuild = { ...runs.finished!, runId: "rebuild",
+  prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
+  selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
+  result: { facts: { ...runs.finished!.result!.facts!, observedSelection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] } } } } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   async list() { return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: true, queue: [],
@@ -93,6 +99,7 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   inspect: { run: "waiting", clicks: ["workshop-station-inspect"] },
   "line-menu": { run: "finished", clicks: ["workshop-line-close"] },
   delete: { run: "finished", clicks: ["workshop-line-close", "workshop-line-delete"] },
+  rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
 function ClickThrough({ clicks }: { clicks: readonly string[] }) {
@@ -107,6 +114,20 @@ function ClickThrough({ clicks }: { clicks: readonly string[] }) {
     }, 350);
     return () => clearInterval(timer);
   }, [clicks]);
+  return null;
+}
+// Chooses another Avatar in the plan's Avatar list the way the player does.
+function PickAvatar({ path }: { path: string }) {
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      const select = [...document.querySelectorAll<HTMLSelectElement>("select")].find(item => [...item.options].some(option => option.value === path));
+      if (!select) return;
+      clearInterval(timer);
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, path);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }, 150);
+    return () => clearInterval(timer);
+  }, [path]);
   return null;
 }
 // Opens the line's mode menu the way the player does, and for full access chooses it to show the warning.
@@ -155,7 +176,7 @@ createRoot(document.getElementById("root")!).render(release ? <GatewayProvider g
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
-  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}</AmfRoom>}
+  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
 </GatewayProvider>);
 
 // Mid-flight frame: the capture runs 2.5 s after load; the camera move takes 0.65 s.

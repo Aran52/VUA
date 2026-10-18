@@ -231,6 +231,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const observed = run?.result?.facts?.observedSelection ?? null;
   const planOpen = run !== null && !busy && restorePlan === null && (run.phase === "ready" || run.phase === "succeeded");
   const unchangedPlan = run?.phase === "succeeded" && observed !== null && sameSelection(selection, observed);
+  // Another base on an assembled line rebuilds the whole line on it.
+  const rebuilding = observed !== null && selection.avatarPrefab !== "" && selection.avatarPrefab !== observed.avatarPrefab;
   const canChange = run !== null && !busy && run.sources.length > 0 && ["ready", "succeeded", "failed", "stopped"].includes(run.phase);
   const currentIds = run?.choices.map(choice => choice.sourceId) ?? [];
   const sameMaterials = changing !== null && changing.length === currentIds.length && changing.every(id => currentIds.includes(id));
@@ -351,9 +353,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
-        <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>
+        {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>}
         {unchangedPlan && <p className="vua-caption vua-text-secondary">{panels.plan.current}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)}>{factory.adjust}</Button>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)} data-nav-id="workshop-plan-adjust">{factory.adjust}</Button>
           <Button variant="primary" disabled={requesting || unchangedPlan || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
       </Card>}
       {shown === "plan" && planOpen && plan === null && showDetails && <>
@@ -361,6 +363,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           {avatars.length !== 1 ? <label className="vua-n3__field">{copy.chooseAvatar}<select value={selection.avatarPrefab} onChange={e => edit({...selection,avatarPrefab:e.target.value})}><option value="">{copy.choosePrefab}</option>{avatars.map(p => <option key={`${p.sourceId}-${p.path}`} value={p.path}>{p.name} — {p.path}</option>)}</select></label> : <p>{format(copy.preparedAvatar,{name:avatar?.name ?? avatars[0]?.name ?? ""})}</p>}
           {port && <AmfCandidateGallery port={port} runId={run.runId} candidates={avatars} chosen={selection.avatarPrefab} label={copy.chooseAvatar} onChoose={p => edit({...selection,avatarPrefab:p.path})}/>}
           {avatars.length === 0 && <p role="alert">{copy.noCandidate}</p>}
+          {rebuilding && <p className="vua-n3__notice">{copy.rebuildNote}</p>}
         </Card>
         {run.sources.filter(source => source.role !== "dependency" && source.role !== "avatar").map(source => {
           const options = run.prefabs.filter(p => p.sourceId === source.sourceId && !p.isAvatar);
@@ -388,7 +391,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
         <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
-        <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>
+        {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
       {shown === "assemble" && <Card className="vua-line__panel">

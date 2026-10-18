@@ -68,6 +68,10 @@ parser. `pdf-extract` reexports the MIT-licensed `lopdf` document model and read
 without an external executable. These dependencies can be removed by replacing the local
 extraction/parser implementation while preserving its synthetic PDF, wording and unknown-evidence
 tests. Their exact transitive versions and license notices are captured by the distribution inventory.
+The PDF dependency graph includes manifest-only license declarations for `adobe-cmap-parser`,
+`enum-map`, `enum-map-derive`, `pdf-extract` and `type1-encoding-parser`. Their pinned supplemental
+MIT texts, original declarations and unmodified published sources follow the
+[supplemental provenance](apps/desktop/packaging/licenses/README.md) records.
 
 The Unity Bridge package declares VRChat Avatars SDK and Modular Avatar as Unity package
 dependencies. They are resolved from their own package sources and are not relicensed by VUA.

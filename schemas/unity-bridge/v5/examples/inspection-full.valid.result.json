@@ -155,6 +155,28 @@
     "missingShaderMaterials": [
       "Assets/Synthetic/Broken.mat"
     ],
+    "materialUse": [
+      {
+        "owner": "avatar",
+        "renderer": "Body",
+        "material": "Assets/Synthetic/Body.mat"
+      },
+      {
+        "owner": "avatar",
+        "renderer": "Face",
+        "material": "Assets/Synthetic/Face.mat"
+      },
+      {
+        "owner": "source-outfit",
+        "renderer": "Synthetic Outfit/Top",
+        "material": "Assets/Synthetic/Outfit.mat"
+      },
+      {
+        "owner": "source-accessory",
+        "renderer": "Armature/Hips/Spine/LeftHand/Synthetic Accessory",
+        "material": "Assets/Synthetic/Accessory.mat"
+      }
+    ],
     "sdkSignedIn": "yes",
     "previews": [
       {

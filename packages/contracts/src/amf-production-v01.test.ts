@@ -16,6 +16,23 @@ describe("AMF material-first Candidate boundary", () => {
       expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"capacity",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity}})).toBe(false);
     }
   });
+  it("registers the lighting review as a query and its digest-bound application as a command", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.planLighting"]).toBe("query");
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.applyLighting"]).toBe("command");
+    const digest = "b".repeat(64);
+    const materials = ["Assets/Outfit/Coat.mat"];
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"lighting",method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}})).toBe(true);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"lighting",method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:digest,materials}})).toBe(true);
+    for (const params of [
+      {schemaVersion:"0.1",runId:"n3-test",planDigest:digest,materials:[]},
+      {schemaVersion:"0.1",runId:"n3-test",planDigest:digest,materials:["Assets/Outfit/Coat.mat","Assets/Outfit/Coat.mat"]},
+      {schemaVersion:"0.1",runId:"n3-test",planDigest:digest,materials:["Assets/Outfit/Coat.png"]},
+      {schemaVersion:"0.1",runId:"n3-test",planDigest:digest,materials:["../Outside.mat"]},
+      {schemaVersion:"0.1",runId:"n3-test",planDigest:"bad",materials},
+    ]) {
+      expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"lighting",method:"amf.production.applyLighting",params})).toBe(false);
+    }
+  });
   it("consumes the shared positive and negative native request vectors", () => {
     const root = new URL("../../../schemas/amf-production-flow/v0.1/examples/", import.meta.url);
     for (const name of readdirSync(root)) {

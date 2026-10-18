@@ -71,6 +71,12 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-capacity-missing.json"),
         read("examples/invalid-capacity-four.json"),
         read("examples/invalid-capacity-fraction.json"),
+        read("examples/invalid-plan-lighting-command.json"),
+        read("examples/invalid-apply-lighting-query.json"),
+        read("examples/invalid-apply-lighting-digest.json"),
+        read("examples/invalid-apply-lighting-materials.json"),
+        read("examples/invalid-apply-lighting-extra.json"),
+        read("examples/invalid-apply-lighting-path.json"),
     ];
     let mut lines = String::new();
     for (index, case) in cases.iter().enumerate() {

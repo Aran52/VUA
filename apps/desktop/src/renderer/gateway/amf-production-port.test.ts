@@ -101,6 +101,27 @@ describe("AMF production response boundary", () => {
       await expect(port.setCapacity(2)).rejects.toThrow("capacity_invalid");
     }
   });
+  it("reads the reviewed lighting plan and applies a chosen subset by its digest", async () => {
+    const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),
+      reference:{min:"0.1",max:"1"},referenceReason:null,
+      entries:[{material:"Assets/Outfit/Coat.mat",sourceId:"outfit",current:{min:"0.05",max:"1"},proposed:{min:"0.1",max:"1"}}],
+      skipped:[{material:"Assets/Shared/Body.mat",reason:"shared_with_avatar"}]};
+    let response: unknown = plan;
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    const reviewed = await port.planLighting("n3-test");
+    expect(reviewed.entries[0]?.proposed.min).toBe("0.1");
+    expect(requests[0]).toMatchObject({method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}});
+    for (const invalid of [{...plan,reference:null},{...plan,referenceReason:"tie",reference:{min:"0.1",max:"1"}},{...plan,planDigest:"z".repeat(64)},{...plan,entries:[{material:"Assets/Outfit/Coat.mat"}]}]) {
+      response = invalid;
+      await expect(port.planLighting("n3-test")).rejects.toThrow("lighting_plan_invalid");
+    }
+    response = {schemaVersion:"0.1",runId:"n3-test",taskId:"task-lighting"};
+    await port.applyLighting("n3-test",reviewed,["Assets/Outfit/Coat.mat"]);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:plan.planDigest,materials:["Assets/Outfit/Coat.mat"]}});
+    await expect(port.applyLighting("n3-other",reviewed,["Assets/Outfit/Coat.mat"])).rejects.toThrow("lighting_plan_invalid");
+  });
   it("turns a reported preview into a PNG data URL", async () => {
     const path = ".vua/previews/n3-test-1/front.png";
     let response: unknown = {schemaVersion:"0.1",runId:"n3-test",path,mediaType:"image/png",data:"iVBORw0KGgoAAAANSUhEUg=="};

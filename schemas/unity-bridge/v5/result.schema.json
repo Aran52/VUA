@@ -24,6 +24,35 @@
       "maxLength": 256,
       "pattern": "^[^\\u0000]+$"
     },
+    "materialUseEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "renderer",
+        "material"
+      ],
+      "properties": {
+        "owner": {
+          "$ref": "#/$defs/sourceId"
+        },
+        "renderer": {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "material": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/assetPath"
+            },
+            {
+              "pattern": "\\.[mM][aA][tT]$"
+            }
+          ]
+        }
+      }
+    },
     "previewPath": {
       "type": "string",
       "minLength": 1,
@@ -531,6 +560,13 @@
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/assetPath"
+          }
+        },
+        "materialUse": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "$ref": "#/$defs/materialUseEntry"
           }
         },
         "sdkSignedIn": {

@@ -1,6 +1,6 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.10.1
+> Document version: 0.11.0
 > Status: Candidate
 > Updated: 2026-10-19
 
@@ -50,6 +50,15 @@ project. `sdkSignedIn` is `yes` when the SDK holds a saved sign-in for that prod
 holds none and `unknown` when the SDK cannot be asked. `missingShaderMaterials` lists the selected
 sources' materials and the active Avatar's renderer materials that Unity draws with its error
 shader because their shader is absent, with the warning `amf.shaders.missing`.
+
+After inspection and assembly, `materialUse` lists the active Avatar's renderer materials as
+`{owner, renderer, material}`: every `SkinnedMeshRenderer` and `MeshRenderer` under the Avatar
+root with each `.mat` asset its `sharedMaterials` use. `renderer` is the renderer's hierarchy path
+relative to the Avatar root (empty for a renderer on the root itself). A renderer under an owned
+outfit instance belongs to that outfit's `sourceId`; the rest belong to `owner` `"avatar"`.
+Materials outside `Assets/` — built-in and embedded ones — are skipped. The list holds at most
+512 entries; a longer list is truncated with the warning `amf.material_use.truncated`. Results
+written before this fact existed carry no `materialUse`.
 
 After inspection and assembly, `sdkReview` carries the VRChat SDK's own checks of the active owned
 Avatar. The Bridge runs the SDK control panel's Avatar check (the avatar builder's
@@ -162,6 +171,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.11.0 (2026-10-19): report the active Avatar's renderer material use (`materialUse`) after inspection and assembly, bounded and attributed to the Avatar or the owning outfit.
 - 0.10.1 (2026-10-19): the result schema covers every field Unity writes, verified against real preparation, inspection, assembly and turntable results; SDK fix results are covered by a synthetic vector.
 - 0.10.0 (2026-10-18): `amf_sdk_fix` runs the SDK's own Auto Fix for chosen items of its Avatar check.
 - 0.9.0 (2026-10-18): read the VRChat SDK's own Avatar checks and performance ratings into `sdkReview` after inspection and assembly.

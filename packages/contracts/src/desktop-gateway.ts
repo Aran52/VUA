@@ -1,3 +1,4 @@
+import { isUnityLicenseParams, type UnityLicenseRequestV1 } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams } from "./environment-deployment.js";
 import { isAmfProductionParams, type AmfProductionRequestV1 } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams, type ScenarioEnvironmentRequestV1 } from "./scenario-environment.js";
@@ -1096,6 +1097,7 @@ export type VrchatGatewayValueV1 = VrchatStatusValueV1 | VrchatSignInValueV1 | V
   | VrchatAvatarListValueV1 | VrchatAvatarImageValueV1 | VrchatOpenAvatarPageValueV1;
 
 export type DesktopGatewayRequestV1 =
+  | UnityLicenseRequestV1
   | AmfProductionRequestV1
   | ScenarioEnvironmentRequestV1
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> }
@@ -1190,6 +1192,7 @@ export type DesktopGatewayRequestV1 =
 
 /** 方法 → 应用语义:Kernel 路由用;未知方法返回 undefined */
 export const DESKTOP_GATEWAY_METHOD_KINDS = {
+  "environment.unityLicense": "query", "environment.checkUnityLicense": "command",
   "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query", "amf.production.previewImage": "query", "amf.production.releaseState": "query", "amf.production.turntableFrame": "query", "amf.production.planLighting": "query",
   "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
   "amf.production.prepare": "command", "amf.production.assemble": "command", "amf.production.reinspect": "command", "amf.production.open": "command", "amf.production.rollback": "command", "amf.production.saveRecipe": "command", "amf.production.prepareRecipe": "command", "amf.production.exportRecipe": "command", "amf.production.importRecipe": "command", "amf.production.applyRecipe": "command", "amf.production.bakeTurntable": "command", "amf.production.upload": "command", "amf.production.sdkFix": "command", "amf.production.changeSources": "command", "amf.production.delete": "command", "amf.production.setCapacity": "command", "amf.production.applyLighting": "command",
@@ -2033,6 +2036,8 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
         && isVrchatBlueprintId(value.params.avatarId) && isIdentifier(value.params.commandId);
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
+    case "environment.unityLicense": case "environment.checkUnityLicense":
+      return hasExactKeys(value, REQUEST_KEYS) && isUnityLicenseParams(value.method, value.params);
     case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.turntableFrame": case "amf.production.planLighting":
     case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.applyLighting":
       return hasExactKeys(value, REQUEST_KEYS) && isAmfProductionParams(value.method, value.params);

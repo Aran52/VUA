@@ -1,0 +1,500 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ph-r.com/vua/schemas/unity-license/v0.1/result.schema.json",
+  "title": "Unity license results v0.1 (Candidate)",
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$"
+    },
+    "lastCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "editorVersion",
+        "checkedAt"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "active",
+            "not_activated",
+            "needs_hub_client",
+            "unknown"
+          ]
+        },
+        "editorVersion": {
+          "enum": [
+            "2022.3.22f1",
+            "2022.3.22f1c1"
+          ]
+        },
+        "checkedAt": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "files",
+        "hubType",
+        "hubRunning",
+        "licensingClientRunning",
+        "hubCliPresent",
+        "lastCheck",
+        "state",
+        "nextAction"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "present",
+                "modifiedAt"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "classic_entitlement"
+                },
+                "present": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "modifiedAt": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/timestamp"
+                    }
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "present": {
+                        "enum": [
+                          false,
+                          null
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "modifiedAt": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "present",
+                "modifiedAt"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "msix_entitlement"
+                },
+                "present": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "modifiedAt": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/timestamp"
+                    }
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "present": {
+                        "enum": [
+                          false,
+                          null
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "modifiedAt": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "present",
+                "modifiedAt"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "legacy_ulf"
+                },
+                "present": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "modifiedAt": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/timestamp"
+                    }
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "present": {
+                        "enum": [
+                          false,
+                          null
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "modifiedAt": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "items": false
+        },
+        "hubType": {
+          "enum": [
+            "classic",
+            "msix",
+            "none"
+          ]
+        },
+        "hubRunning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "licensingClientRunning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "hubCliPresent": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lastCheck": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/lastCheck"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "likely_active",
+            "needs_hub_client",
+            "not_found",
+            "unknown"
+          ]
+        },
+        "nextAction": {
+          "enum": [
+            "none",
+            "start_hub",
+            "sign_in_and_activate",
+            "run_check"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "needs_hub_client"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nextAction": {
+                "const": "start_hub"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "not_found"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nextAction": {
+                "const": "sign_in_and_activate"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nextAction": {
+                "const": "run_check"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "likely_active"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nextAction": {
+                "enum": [
+                  "none",
+                  "run_check",
+                  "sign_in_and_activate"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "nextAction": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "const": "likely_active"
+              },
+              "lastCheck": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "const": "active"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "likely_active"
+              },
+              "nextAction": {
+                "const": "sign_in_and_activate"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lastCheck": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "const": "not_activated"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "state",
+        "editorVersion",
+        "checkedAt",
+        "reason"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "not_activated",
+            "needs_hub_client",
+            "unknown"
+          ]
+        },
+        "editorVersion": {
+          "enum": [
+            "2022.3.22f1",
+            "2022.3.22f1c1"
+          ]
+        },
+        "checkedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "The license check was cancelled.",
+                "Unity could not be started.",
+                "Unity did not finish within five minutes.",
+                "Unity's check log could not be read completely.",
+                "The licensing client could not be observed.",
+                "Unity exited without completing the license check."
+              ]
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "enum": [
+                  "The license check was cancelled.",
+                  "Unity could not be started.",
+                  "Unity did not finish within five minutes.",
+                  "Unity's check log could not be read completely.",
+                  "The licensing client could not be observed.",
+                  "Unity exited without completing the license check."
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "taskId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-]{1,256}$"
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/snapshot"
+    },
+    {
+      "$ref": "#/$defs/check"
+    },
+    {
+      "$ref": "#/$defs/accepted"
+    }
+  ]
+}

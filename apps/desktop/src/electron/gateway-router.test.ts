@@ -1194,6 +1194,17 @@ describe("bdl-queries v0.2 routing", () => {
 });
 
 describe("amf-production v0.2 routing", () => {
+  it("routes passive license detection and the explicit check with their separate kinds", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider,"invoke");
+    const context = {provider,productVersion:"0.6.7",platform:"win32",rendererUrl};
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, {schemaVersion:1,requestId:"license-read",method:"environment.unityLicense",params:{schemaVersion:"0.1"}});
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({kind:"query",method:"environment.unityLicense",params:{schemaVersion:"0.1"}}));
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, {schemaVersion:1,requestId:"license-check",method:"environment.checkUnityLicense",params:{schemaVersion:"0.1",editorPath:"C:/synthetic/Unity.exe"}});
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({kind:"command",commandId:"license-license-check",method:"environment.checkUnityLicense"}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, {schemaVersion:1,requestId:"license-bad",method:"environment.unityLicense",params:{schemaVersion:"0.1",licensePath:"C:/private"}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
   it("forwards capacity as an AMF command with its closed params", async () => {
     const provider = new MockOrchestratorProviderV01();
     await provider.start();

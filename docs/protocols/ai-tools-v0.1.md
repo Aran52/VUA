@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.5.0
+> Document version: 0.6.0
 > Status: Candidate
-> Updated: 2026-10-18
+> Updated: 2026-10-19
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -46,6 +46,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | --- | --- |
 | `vua_status`, `vua_tasks`, `vua_task` | Current capabilities/task facts |
 | `vua_sop`, `vua_check_environment` | Independent [scenario read family](scenario-environment-v0.1.md) |
+| `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
 | `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
 | `vua_tool_status`, `vua_request_tool` | Candidate VRCFT connection; no invented hardware/module acceptance |
@@ -115,6 +116,7 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
+- 0.6.0 (2026-10-19): expose metadata-only Unity license hints and historical check evidence through `vua_unity_license`.
 - 0.5.0 (2026-10-18): `vua_amf_plan` without a selection plans VUA's recommendation or returns the tied candidates.
 - 0.4.0 (2026-10-17): read a finished Avatar's release state with `vua_amf_release`, and request a managed upload with `vua_request_amf_upload`, confirmed on the release page with the player's rights confirmation.
 - 0.3.0 (2026-10-17): report the running AMF step, its Unity stage and elapsed and usual seconds through `vua_amf_run`.

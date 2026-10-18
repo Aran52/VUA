@@ -30,6 +30,11 @@ struct LaneView {
 }
 
 impl AmfProductionServices {
+    /// Non-production Unity checks share admission without becoming production runs.
+    pub(crate) fn submit_exclusive(&self, request: SubmitRequest, kind: &str, command_id: &str, fingerprint: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
+        let _entries = self.entries.lock().expect("lane entries poisoned");
+        self.runtime.submit_idempotent_in_lane(request, &self.lane, TaskLanePolicy { key: None, exclusive: true }, kind, command_id, fingerprint)
+    }
     pub(crate) fn new(engine: AmfProductionEngine, runtime: TaskRuntime) -> Self {
         let lane = TaskLane::with_capacity(engine.capacity()).expect("validated stored capacity");
         Self { engine, runtime, lane, entries: Mutex::new(Vec::new()) }

@@ -8,6 +8,12 @@ import {
 } from "@vua/contracts";
 import { MockOrchestratorProviderV01 } from "./mock-provider.js";
 
+it("reports license operations as unavailable without inventing observations", async () => {
+  const provider = new MockOrchestratorProviderV01(); await provider.start();
+  const response = await provider.invoke({contractVersion:"0.1",requestId:"license",correlationId:"license",kind:"query",method:"environment.unityLicense",params:{schemaVersion:"0.1"}});
+  expect(response.ok).toBe(false); if (!response.ok) expect(response.error.code).toBe("vua.unity_license.unavailable");
+});
+
 it("keeps AMF capacity unavailable in the mock provider", async () => {
   const provider = new MockOrchestratorProviderV01();
   await provider.start();

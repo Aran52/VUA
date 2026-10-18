@@ -90,6 +90,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 37 | Creator credits | P-02 | planned |
 | 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
 | 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
+| 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 
 Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
 guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
@@ -615,6 +616,35 @@ by creating a D3D12 device on each; the renderer polls every 2 seconds while VUA
 
 **Done when** the title bar names the bottleneck during a P-02 run, and the panel's own sampling
 stays under a measured budget with VRChat running on the development machine.
+
+## 40 — Notification center redesign
+
+Author review, 2026-10-19. The bell is a 16 px outline icon in the secondary text color, and its
+badge counts only running tasks and waiting AI requests. The panel opens over a full-window blur
+and closes on an outside click, an outside scroll, Escape or when the window loses focus, so it
+cannot stay open while the player works. Rows use different layouts for downloads, counted
+progress, errors with raw codes, AI requests and the AMF failure line, and show no times. "Show
+completed" has no effect: the notification hook never passes the set of tasks that finished in
+this session, and the setting leaves with this slice.
+
+1. The bell shows what waits: an alert color for a failure, the accent for something the player
+   must confirm, a progress ring while work runs, and a dot for results not yet seen.
+2. A pin turns the panel into a side drawer without a backdrop that stays open beside the page;
+   unpinned, it keeps today's popover behavior.
+3. One card layout for every entry: status icon, title and time; one line of state or result (for
+   AMF work the step with its elapsed and usual time); an optional progress bar; actions on the
+   right; error codes under "Details". AI requests and AMF failures use the same card.
+4. Three sections replace "Show completed": needs you (AI requests, failures, waiting for input),
+   running, and finished this session with "Clear all". Older history stays in production records
+   in Settings. Each kind of work keeps its own latest finished entry, so a turntable bake no longer
+   hides the assembly that preceded it.
+5. A long task that finishes or fails while VUA is in the background raises a Windows
+   notification.
+6. The cleared-entry list keeps only entries of tasks that still exist.
+
+**Done when** the author follows a P-02 assembly in the pinned drawer while using the workshop,
+sees a failure on the bell without opening it, and gets a Windows notification for a task that
+finished in the background.
 
 ## Open decisions
 

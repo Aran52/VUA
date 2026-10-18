@@ -1,13 +1,12 @@
 type1-encoding-parser 0.1.1
 
-The published Cargo.toml declares MIT and these authors:
+Upstream manifest declares MIT and this author:
 Jeff Muizelaar <jmuizelaar@mozilla.com>
 
-The published package contains no standalone license text. Its unmodified source
-and original Cargo.toml are supplied alongside this notice. This reproduces the
-MIT permission text alongside the original upstream author/license declarations.
-Repository: https://github.com/jrmuizel/type1-encoding-parser
-Published package source revision: 55d193e28c9a5909be02a5b1f91fd3f76b076747
+The published archive and its source repository do not contain a standalone license text. Its
+unmodified source and original Cargo.toml are supplied alongside this notice. This reproduces the
+MIT permission text; it does not invent or replace an upstream copyright notice.
+Source: https://github.com/jrmuizel/type1-encoding-parser/commit/55d193e28c9a5909be02a5b1f91fd3f76b076747
 
 MIT License
 

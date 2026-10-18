@@ -1,13 +1,12 @@
 adobe-cmap-parser 0.4.1
 
-The published Cargo.toml declares MIT and these authors:
+Upstream manifest declares MIT and this author:
 Jeff Muizelaar <jmuizelaar@mozilla.com>
 
-The published package contains no standalone license text. Its unmodified source
-and original Cargo.toml are supplied alongside this notice. This reproduces the
-MIT permission text alongside the original upstream author/license declarations.
-Repository: https://github.com/jrmuizel/adobe-cmap-parser
-Published package source revision: ac107d55f0d31a9d47955082238ab9e4fb157cdb
+The published archive and its source repository do not contain a standalone license text. Its
+unmodified source and original Cargo.toml are supplied alongside this notice. This reproduces the
+MIT permission text; it does not invent or replace an upstream copyright notice.
+Source: https://github.com/jrmuizel/adobe-cmap-parser/commit/ac107d55f0d31a9d47955082238ab9e4fb157cdb
 
 MIT License
 

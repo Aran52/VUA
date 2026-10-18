@@ -116,6 +116,19 @@ fn synthetic_languages_versions_conditions_and_special_notes_are_parsed() {
     }
 }
 #[test]
+fn lettered_paragraphs_in_special_notes_preserve_the_complete_original_note() {
+    let note = "A. Keep the fictional blue emblem.\nW. Send a fictional postcard.\nX. Keep this last paragraph too.";
+    let document = parsed(&EN.replace("Synthetic note: include the blue emblem.", note));
+    assert_eq!(document.special_note.as_deref(), Some(note));
+    assert_eq!(document.items[23].raw_text, note);
+    assert_eq!(document.items[23].summary_raw_text.as_deref(), Some(note));
+    assert!(!document.items[..23]
+        .iter()
+        .any(|item| item.value == "unknown"));
+    assert!(!document.warnings.iter().any(|w| w.code == "duplicate_item"));
+}
+
+#[test]
 fn unknown_wording_version_missing_items_and_summary_conflicts_never_become_permission() {
     let future = parsed(&EN.replace("generator version 1.10", "generator version 9.99"));
     assert_eq!(future.status, "unrecognized");
@@ -235,6 +248,57 @@ fn seven_presets_preserve_conditions_notes_and_the_software_embedding_scope() {
         }
     }
 }
+#[test]
+fn commercial_checks_keep_private_use_limits_and_require_explicit_personal_commercial_permission() {
+    let store = BdlStore::open_in_memory().unwrap();
+    let commercial =
+        "Permitted to use in activities with commercial or non-profit-seeking purposes";
+    product(&store, "booth:1", None);
+    attach(
+        &store,
+        "booth:1",
+        "private",
+        &parsed(&EN.replace(
+            "Publicizing for both commercial and non-profit-seeking purposes (including distribution and transmission) is permitted",
+            "Permitted to use in private and personal arena only",
+        )),
+    );
+    let outfit = terms::check_use(&store, "outfit_for_sale", &["booth:1".into()]).unwrap();
+    assert_eq!(outfit.combination.decision, "nonconforming");
+    assert!(outfit
+        .combination
+        .blocking_items
+        .iter()
+        .any(|i| i.item.as_deref() == Some("S") && i.reason == "commercial_use_not_permitted"));
+    assert!(outfit
+        .combination
+        .conditions
+        .iter()
+        .any(|i| i.condition == "private_use_only"));
+    assert_eq!(
+        terms::check_use(&store, "vrchat_personal", &["booth:1".into()])
+            .unwrap()
+            .combination
+            .decision,
+        "conforms"
+    );
+    product(&store, "booth:2", None);
+    attach(
+        &store,
+        "booth:2",
+        "unspecified-commercial",
+        &parsed(&EN.replace(commercial, "Permitted")),
+    );
+    let vtuber = terms::check_use(&store, "vtuber_individual", &["booth:2".into()]).unwrap();
+    assert_eq!(vtuber.combination.decision, "unknown");
+    assert!(vtuber.matching_product_ids.is_empty());
+    assert!(vtuber
+        .combination
+        .blocking_items
+        .iter()
+        .any(|i| i.item.as_deref() == Some("A") && i.reason == "commercial_permission_unknown"));
+}
+
 #[test]
 fn combinations_take_the_strictest_item_and_unknown_is_never_a_match() {
     let store = BdlStore::open_in_memory().unwrap();

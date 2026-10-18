@@ -69,6 +69,7 @@ corresponding summary evidence. An unalignable summary group makes its affected 
 Document metadata contains generator/VN3 versions, language, content title, licensor,
 credit notation, hashtags, agreement version and the original special note. Explicit
 no-note markers are treated as empty notes. The source PDF stays in AMF's local data directory.
+Lettered paragraphs inside X remain part of its original free text.
 
 Within one product, Japanese evidence takes priority. Disagreement between Japanese and
 English evidence, or between multiple documents of the same language, makes the affected

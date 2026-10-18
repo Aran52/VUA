@@ -209,17 +209,24 @@ pub fn parse_text(raw: &str, sha: &str) -> TermsDocument {
         + text.flat[start..]
             .find(metadata[2])
             .unwrap_or(text.flat.len() - start);
+    let items_start = text.flat[start..end]
+        .find(metadata[1])
+        .map_or(start, |at| start + at + metadata[1].len());
     let tags = Regex::new(r"([A-X])\.").expect("item regex");
-    let marks: Vec<_> = tags
-        .captures_iter(&text.flat[start..end])
+    let mut marks: Vec<_> = tags
+        .captures_iter(&text.flat[items_start..end])
         .map(|c| {
             (
                 c[1].to_owned(),
-                start + c.get(0).unwrap().start(),
-                start + c.get(0).unwrap().end(),
+                items_start + c.get(0).unwrap().start(),
+                items_start + c.get(0).unwrap().end(),
             )
         })
         .collect();
+    // X is the final free-text item; lettered paragraphs inside it remain note evidence.
+    if let Some(last) = marks.iter().position(|m| m.0 == "X") {
+        marks.truncate(last + 1);
+    }
     let summary = summary(&text, start, language);
     for letter in 'A'..='X' {
         let key = letter.to_string();

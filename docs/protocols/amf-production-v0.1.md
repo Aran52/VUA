@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.18.0
+> Document version: 0.19.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: AMF
@@ -234,8 +234,8 @@ file. The chosen capacity applies to all Editors and lines in that AMF provider 
 
 AMF serializes writes to its private VPM environment with one process-wide mutex, including
 backend initialization, feed registration and refresh, SDK metadata, package resolution,
-downloads and installation. A separate process-wide mutex protects ZIP extraction into the
-shared package cache. Unity Hub's licensing-client check, startup and readiness wait share
+downloads and installation, and the reads of cached feeds that locate bundled package copies.
+A separate process-wide mutex protects ZIP extraction into the shared package cache. Unity Hub's licensing-client check, startup and readiness wait share
 another mutex, released before Unity executes. Project files, Bridge requests, fingerprints,
 snapshots and release records belong to individual managed projects or runs and use per-run
 exclusion. SQLite task and BDL writes retain their existing transactional locks. Interactive
@@ -337,8 +337,22 @@ Before each Unity run and Editor handoff, AMF starts Unity Hub when its licensin
 running and waits up to 90 seconds for the client. A packaged (MSIX) Hub starts through its
 application identity, so the client reads the license from Hub's package folder.
 
-Preparation installs lilToon from its official feed when a selected package bundles lilToon or
-carries a lilToon material whose shader none of the selected packages provides.
+Preparation resolves missing shaders through the [known packages](../development/known-packages.md)
+table, on the first preparation and on a line's material change alike. When a selected material
+needs an `auto` package whose shader none of the selected sources provides, and the project does
+not carry the package and no Recipe pins it, preparation installs from the package's official
+feed: the newest stable release of the material's single version line, pinned as an exact
+`PackageRequestV1.version`, or the newest resolving release for packages without version lines.
+Materials spanning several lines and projects already carrying the package get no install.
+A legacy copy bundled inside a selected package — located through the feed cache's
+`legacyFolders`/`legacyFiles`, or the table's fallback before the first feed refresh — leaves
+for the official package only when the exact release about to be installed covers every
+`.shader` GUID in the copy; lilToon keeps its historical always-replace rule. Any other copy
+imports unchanged and nothing is installed for it. Installation failures keep failing the step.
+After Unity reports `facts.missingShaderMaterials`, each recognized `guide` package, and each
+recognized `auto` package whose needed version lines the project does not carry, adds one
+`amf.package.guide` warning naming the package, the affected material count, the needed version
+lines and the official page. `bundled` packages are detected without any installation.
 
 ## Evidence limits
 
@@ -348,7 +362,8 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
-- 0.18.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
+- 0.19.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
+- 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, per-line pinned installs, legacy-copy replacement only when the exact release covers the copy, and the `amf.package.guide` diagnostic naming needed version lines.
 - 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.
 - 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
 - 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.

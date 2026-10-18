@@ -13,6 +13,320 @@
     "diagnostics",
     "data"
   ],
+  "$defs": {
+    "assetPath": {
+      "type": "string",
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
+    },
+    "sourceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\u0000]+$"
+    },
+    "previewPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^\\.vua/previews/[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.png$"
+    },
+    "boundObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "prefabPath",
+        "globalObjectId",
+        "binding",
+        "bindingVerified",
+        "menuVerified",
+        "menuModified"
+      ],
+      "properties": {
+        "sourceId": {
+          "$ref": "#/$defs/sourceId"
+        },
+        "prefabPath": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 0
+            },
+            {
+              "$ref": "#/$defs/assetPath"
+            }
+          ]
+        },
+        "globalObjectId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 0
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "pattern": "^[^\\u0000]+$"
+            }
+          ]
+        },
+        "binding": {
+          "enum": [
+            "merge_armature",
+            "attach_to_bone",
+            "unresolved"
+          ]
+        },
+        "bindingVerified": {
+          "type": "boolean"
+        },
+        "menuVerified": {
+          "type": "boolean"
+        },
+        "menuModified": {
+          "type": "boolean"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "prefabMatches": {
+          "type": "boolean"
+        },
+        "bone": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*$"
+        },
+        "toggleName": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*$"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "outfit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "prefabPath",
+        "mode",
+        "bone",
+        "toggleName",
+        "active"
+      ],
+      "properties": {
+        "sourceId": {
+          "$ref": "#/$defs/sourceId"
+        },
+        "prefabPath": {
+          "$ref": "#/$defs/assetPath"
+        },
+        "mode": {
+          "enum": [
+            "merge_armature",
+            "attach_to_bone"
+          ]
+        },
+        "bone": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*$"
+        },
+        "toggleName": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*$"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "avatarPrefab",
+        "outfits"
+      ],
+      "properties": {
+        "avatarPrefab": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 0
+            },
+            {
+              "$ref": "#/$defs/assetPath"
+            }
+          ]
+        },
+        "outfits": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/outfit"
+          }
+        }
+      }
+    },
+    "avatarObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "globalObjectId",
+        "name",
+        "activeTarget",
+        "observedSelection",
+        "instances",
+        "sdkDescriptorRecognized",
+        "missingReferences"
+      ],
+      "properties": {
+        "globalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000]+$"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[^\\u0000]*$"
+        },
+        "activeTarget": {
+          "type": "boolean"
+        },
+        "observedSelection": {
+          "$ref": "#/$defs/selection"
+        },
+        "instances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boundObject"
+          }
+        },
+        "sdkDescriptorRecognized": {
+          "type": "boolean"
+        },
+        "missingReferences": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "sdkReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "platform",
+        "overall",
+        "issues",
+        "stats",
+        "detail"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_run",
+            "checked",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "platform": {
+          "enum": [
+            "",
+            "pc",
+            "android"
+          ]
+        },
+        "overall": {
+          "enum": [
+            "",
+            "None",
+            "Excellent",
+            "Good",
+            "Medium",
+            "Poor",
+            "VeryPoor"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "level",
+              "text",
+              "canFix"
+            ],
+            "properties": {
+              "level": {
+                "enum": [
+                  "error",
+                  "warning",
+                  "info"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "canFix": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "stats": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "category",
+              "rating",
+              "text"
+            ],
+            "properties": {
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "rating": {
+                "enum": [
+                  "Excellent",
+                  "Good",
+                  "Medium",
+                  "Poor",
+                  "VeryPoor"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]*$"
+              }
+            }
+          }
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 600,
+          "pattern": "^[^\\u0000]*$"
+        }
+      }
+    }
+  },
   "properties": {
     "schemaVersion": {
       "const": 5
@@ -127,14 +441,10 @@
             ],
             "properties": {
               "sourceId": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 256,
-                "pattern": "^[^\\u0000]+$"
+                "$ref": "#/$defs/sourceId"
               },
               "path": {
-                "type": "string",
-                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
+                "$ref": "#/$defs/assetPath"
               },
               "name": {
                 "type": "string",
@@ -162,6 +472,17 @@
                   "maxLength": 4096,
                   "pattern": "^[^\\u0000]+$"
                 }
+              },
+              "preview": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 0
+                  },
+                  {
+                    "$ref": "#/$defs/previewPath"
+                  }
+                ]
               }
             }
           }
@@ -169,50 +490,7 @@
         "instances": {
           "type": "array",
           "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "sourceId",
-              "prefabPath",
-              "globalObjectId",
-              "binding",
-              "bindingVerified",
-              "menuVerified",
-              "menuModified"
-            ],
-            "properties": {
-              "sourceId": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 256,
-                "pattern": "^[^\\u0000]+$"
-              },
-              "prefabPath": {
-                "type": "string",
-                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
-              },
-              "globalObjectId": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 4096,
-                "pattern": "^[^\\u0000]+$"
-              },
-              "binding": {
-                "enum": [
-                  "merge_armature",
-                  "attach_to_bone"
-                ]
-              },
-              "bindingVerified": {
-                "type": "boolean"
-              },
-              "menuVerified": {
-                "type": "boolean"
-              },
-              "menuModified": {
-                "type": "boolean"
-              }
-            }
+            "$ref": "#/$defs/boundObject"
           }
         },
         "sdkDescriptorRecognized": {
@@ -227,6 +505,64 @@
         "missingReferences": {
           "type": "integer",
           "minimum": 0
+        },
+        "hasMissingScripts": {
+          "type": "boolean"
+        },
+        "observedSelection": {
+          "$ref": "#/$defs/selection"
+        },
+        "usedSourceIds": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/sourceId"
+          }
+        },
+        "avatars": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/avatarObservation"
+          }
+        },
+        "missingShaderMaterials": {
+          "type": "array",
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/assetPath"
+          }
+        },
+        "sdkSignedIn": {
+          "enum": [
+            "yes",
+            "no",
+            "unknown"
+          ]
+        },
+        "previews": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "view",
+              "path"
+            ],
+            "properties": {
+              "view": {
+                "enum": [
+                  "front",
+                  "side",
+                  "back"
+                ]
+              },
+              "path": {
+                "$ref": "#/$defs/previewPath"
+              }
+            }
+          }
         },
         "turntable": {
           "type": "object",
@@ -253,6 +589,20 @@
                 512
               ]
             }
+          }
+        },
+        "sdkReview": {
+          "$ref": "#/$defs/sdkReview"
+        },
+        "sdkFixesApplied": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600,
+            "pattern": "^[^\\u0000]+$"
           }
         }
       }

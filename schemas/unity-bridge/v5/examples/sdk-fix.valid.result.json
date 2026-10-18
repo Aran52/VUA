@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-sdk-fix",
+  "operation": "amf_sdk_fix",
+  "status": "succeeded",
+  "changedPaths": [
+    "Assets/VUA/Production.unity"
+  ],
+  "diagnostics": [
+    {
+      "code": "amf.sdk.fix_unavailable",
+      "severity": "warning",
+      "message": "1 chosen items no longer offer an SDK fix."
+    }
+  ],
+  "data": {
+    "editorVersion": "2022.3.22f1",
+    "projectFingerprint": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+    "prefabs": [],
+    "instances": [
+      {
+        "sourceId": "source-outfit",
+        "prefabPath": "Assets/Synthetic/Outfit.prefab",
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-23456",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true,
+        "exists": true,
+        "prefabMatches": true,
+        "bone": "",
+        "toggleName": "Synthetic Outfit",
+        "active": true
+      }
+    ],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "hasMissingScripts": false,
+    "observedSelection": {
+      "avatarPrefab": "Assets/Synthetic/Avatar.prefab",
+      "outfits": [
+        {
+          "sourceId": "source-outfit",
+          "prefabPath": "Assets/Synthetic/Outfit.prefab",
+          "mode": "merge_armature",
+          "bone": "",
+          "toggleName": "Synthetic Outfit",
+          "active": true
+        }
+      ]
+    },
+    "usedSourceIds": [
+      "source-avatar",
+      "source-outfit"
+    ],
+    "avatars": [
+      {
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+        "name": "Synthetic Avatar",
+        "activeTarget": true,
+        "observedSelection": {
+          "avatarPrefab": "Assets/Synthetic/Avatar.prefab",
+          "outfits": [
+            {
+              "sourceId": "source-outfit",
+              "prefabPath": "Assets/Synthetic/Outfit.prefab",
+              "mode": "merge_armature",
+              "bone": "",
+              "toggleName": "Synthetic Outfit",
+              "active": true
+            }
+          ]
+        },
+        "instances": [
+          {
+            "sourceId": "source-outfit",
+            "prefabPath": "Assets/Synthetic/Outfit.prefab",
+            "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-23456",
+            "binding": "merge_armature",
+            "bindingVerified": true,
+            "menuVerified": true,
+            "menuModified": true,
+            "exists": true,
+            "prefabMatches": true,
+            "bone": "",
+            "toggleName": "Synthetic Outfit",
+            "active": true
+          }
+        ],
+        "sdkDescriptorRecognized": true,
+        "missingReferences": 0
+      }
+    ],
+    "missingShaderMaterials": [],
+    "sdkSignedIn": "yes",
+    "previews": [
+      {
+        "view": "front",
+        "path": ".vua/previews/n3-vector-sdk-fix/front.png"
+      },
+      {
+        "view": "side",
+        "path": ".vua/previews/n3-vector-sdk-fix/side.png"
+      },
+      {
+        "view": "back",
+        "path": ".vua/previews/n3-vector-sdk-fix/back.png"
+      }
+    ],
+    "turntable": {
+      "folder": "",
+      "frames": 0,
+      "size": 0
+    },
+    "sdkReview": {
+      "state": "checked",
+      "platform": "pc",
+      "overall": "Good",
+      "issues": [
+        {
+          "level": "warning",
+          "text": "This avatar has unused components.",
+          "canFix": true
+        }
+      ],
+      "stats": [
+        {
+          "category": "PolyCount",
+          "rating": "Good",
+          "text": "This avatar is within the recommended polygon range."
+        }
+      ],
+      "detail": ""
+    },
+    "sdkFixesApplied": [
+      "This avatar has unused components."
+    ]
+  }
+}

@@ -14,6 +14,7 @@ use vua_orchestrator::{
     UnityOperation, UnityPayload, VpmBackend,
 };
 use vua_unity_bridge::UnityBatchBridge;
+use crate::known_packages::{self, KnownPackage};
 
 mod release_handoff;
 
@@ -37,16 +38,9 @@ fn project(run: &ProductionRun) -> ProjectRef {
 }
 
 // Only the private AMF package environment is updated, never VCC/ALCOM subscriptions.
-const MA_REPO: &str = "https://vpm.nadena.dev/vpm.json";
+const MA_REPO: &str = known_packages::MODULAR_AVATAR_FEED;
 /// How often a running Unity step reads its log and checks for a stop.
 const UNITY_POLL: Duration = Duration::from_millis(500);
-const LILTOON_REPO: &str = "https://lilxyzw.github.io/vpm-repos/vpm.json";
-const LILTOON_PACKAGE: &str = "jp.lilxyzw.liltoon";
-
-/// lilToon's unitypackage installs into Assets/lilToon; material packages often ship a copy there.
-fn is_bundled_liltoon(folded_path: &str) -> bool {
-    folded_path == "assets/liltoon" || folded_path.starts_with("assets/liltoon/")
-}
 
 /// Subscribes the private environment to a feed and makes sure its manifest is cached.
 fn ensure_repo(
@@ -86,17 +80,17 @@ impl NativeAmfProduction {
         )?
         .with_cached_metadata()
     }
-    /// Installs the newest lilToon from its official feed that resolves for this project.
-    fn install_liltoon(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
+    /// Installs the newest release of a known package from its official feed that resolves for this project.
+    fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage) -> Result<(), AppErrorV1> {
         let backend = self.package_backend()?;
-        ensure_repo(&backend, LILTOON_REPO, "lilToon")?;
+        ensure_repo(&backend, package.feed_url, package.display_name)?;
         let p = project(run);
-        let request = [PackageRequestV1 { package_id: LILTOON_PACKAGE.into(), version: None }];
+        let request = [PackageRequestV1 { package_id: package.id.into(), version: None }];
         let preview = backend.preview_install(&p, &request)?;
         if preview.destructive || !preview.conflicts.is_empty() {
             return Err(err(
                 "dependencies_conflict",
-                format!("lilToon installation needs explicit conflict handling: {:?}", preview.conflicts),
+                format!("{} installation needs explicit conflict handling: {:?}", package.display_name, preview.conflicts),
             ));
         }
         backend.apply_install(&p, &request, &preview.digest)?;
@@ -359,6 +353,7 @@ impl NativeAmfProduction {
             })
             .collect::<BTreeMap<_, _>>();
         normalize_observed_selection(&mut facts)?;
+        append_known_package_guides(&mut diagnostics, Path::new(&run.project_root), &facts, &package_versions);
         let data = serde_json::json!({"facts":facts,"packageVersions":package_versions,"diagnostics":diagnostics,"officialSdkChecks":"not_run","visualReview":"pending"});
         Ok(ObservedProject {
             prefabs,
@@ -443,6 +438,32 @@ fn normalize_observed_selection(facts: &mut serde_json::Value) -> Result<(), App
         }
     }
     Ok(())
+}
+
+/// Unity stays the source of missing-shader facts; the known-package table only names
+/// which package each missing material needs. Materials that cannot be read keep the
+/// Bridge's own `amf.shaders.missing` diagnostic without a package guide.
+fn append_known_package_guides(
+    diagnostics: &mut Vec<vua_orchestrator::Diagnostic>,
+    project: &Path,
+    facts: &serde_json::Value,
+    package_versions: &BTreeMap<String, String>,
+) {
+    let Some(missing) = facts["missingShaderMaterials"].as_array() else { return; };
+    let mut materials = Vec::new();
+    for path in missing.iter().filter_map(serde_json::Value::as_str) {
+        if !safe_asset_path(path) || !path.to_ascii_lowercase().ends_with(".mat") {
+            continue;
+        }
+        if let Ok(material) = fs::read(project.join(path)) {
+            materials.push(material);
+        }
+    }
+    diagnostics.extend(known_packages::guide_diagnostics(
+        known_packages::KNOWN_PACKAGES,
+        materials.iter().map(Vec::as_slice),
+        package_versions,
+    ));
 }
 
 impl AmfProductionPlatform for NativeAmfProduction {
@@ -660,9 +681,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
         let backend = self.package_backend()?;
         backend.ensure_official_sdk_cache()?;
         ensure_repo(&backend, MA_REPO, "Modular Avatar")?;
-        // A reproduced Recipe pins lilToon up front; its feed is needed only then.
-        if run.package_pins.contains_key(LILTOON_PACKAGE) {
-            ensure_repo(&backend, LILTOON_REPO, "lilToon")?;
+        // A reproduced Recipe pins its known packages up front; only then are their feeds needed.
+        for package in known_packages::pinned_auto_packages(known_packages::KNOWN_PACKAGES, &run.package_pins) {
+            ensure_repo(&backend, package.feed_url, package.display_name)?;
         }
         if let Some(error) = ctx.cancellation_error("amf-production") {
             return Err(error);
@@ -905,17 +926,6 @@ fn hash_text(value: &str) -> String {
         .collect()
 }
 
-/// The shader GUID of a lilToon material (it records `_lilToonVersion`), in lower case.
-fn liltoon_material_shader(material: &[u8]) -> Option<String> {
-    let text = String::from_utf8_lossy(material);
-    if !text.contains("_lilToonVersion") {
-        return None;
-    }
-    let reference = text.lines().find_map(|line| line.trim_start().strip_prefix("m_Shader:"))?;
-    let guid = reference.split("guid:").nth(1)?.split([',', '}']).next()?.trim().to_ascii_lowercase();
-    (guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit())).then_some(guid)
-}
-
 fn validate_metadata_guid(meta: &str, guid: &str, path: &str) -> Result<(), AppErrorV1> {
     let mut actual = meta
         .lines()
@@ -1079,8 +1089,9 @@ fn import_choices(
         let mut sources = Vec::new();
         let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
         let mut guids = HashMap::<String, String>::new();
-        let mut needs_liltoon = false;
-        let mut liltoon_shaders = BTreeSet::new();
+        let table = known_packages::KNOWN_PACKAGES;
+        let legacy = known_packages::legacy_entries(table, Some(&adapter.root.join("vpm-environment")));
+        let mut needs = known_packages::PackageNeeds::new();
         let available = adapter
             .sources()?
             .into_iter()
@@ -1111,7 +1122,7 @@ fn import_choices(
             )
             .map_err(|e| err("source_invalid", e))?;
             let mut asset_paths = Vec::new();
-            let mut bundled_liltoon = false;
+            let mut bundled_known_package = false;
             for folder in
                 fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
             {
@@ -1140,10 +1151,11 @@ fn import_choices(
                         "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
                     ));
                 }
-                // A copy of lilToon shipped inside a material package: the current official VPM
-                // package takes its place, so materials render with the maintained shaders.
-                if is_bundled_liltoon(&folded) {
-                    bundled_liltoon = true;
+                // A legacy copy of a known package shipped inside a material package: the current
+                // official VPM package takes its place, so materials render with maintained shaders.
+                if let Some(owner) = known_packages::legacy_owner(&legacy, &folded) {
+                    needs.entry(owner).or_default().bundled_copy = true;
+                    bundled_known_package = true;
                     continue;
                 }
                 let guid = folder
@@ -1197,13 +1209,17 @@ fn import_choices(
                 if folder.join("asset").is_file() {
                     if folded.ends_with(".mat") {
                         let material = fs::read(folder.join("asset")).map_err(|e| err("source_invalid", e))?;
-                        liltoon_shaders.extend(liltoon_material_shader(&material));
+                        if let Some(found) = known_packages::detect_material(table, &material) {
+                            let need = needs.entry(found.package).or_default();
+                            if let Some(guid) = found.shader_guid {
+                                need.shaders.insert(guid);
+                            }
+                        }
                     }
                     asset_paths.push(logical);
                 }
             }
-            needs_liltoon |= bundled_liltoon;
-            if asset_paths.is_empty() && !bundled_liltoon {
+            if asset_paths.is_empty() && !bundled_known_package {
                 return Err(err(
                     "source_invalid",
                     format!("{} contains no supported Assets/ inputs.", source.name),
@@ -1221,12 +1237,12 @@ fn import_choices(
         }
         // Validate the entire batch before the first asset copy; shared identical files are reused.
         validate_asset_layout(files.keys().map(String::as_str))?;
-        // lilToon materials whose shader none of the selected packages carries render pink
-        // until the lilToon package is in the project.
-        needs_liltoon |= liltoon_shaders.iter().any(|shader| !guids.contains_key(shader));
-        if needs_liltoon && !run.package_pins.contains_key(LILTOON_PACKAGE) && run.result["packageVersions"].get(LILTOON_PACKAGE).is_none() {
-            ctx.emit_progress(material_progress(run, "lilToon"));
-            adapter.install_liltoon(run)?;
+        // Materials whose shader none of the selected packages carries render pink until the
+        // known package is in the project. Recipe pins and installed packages are left alone.
+        for index in known_packages::auto_install_plan(table, &needs, &guids, &run.package_pins, &run.result["packageVersions"]) {
+            let package = &table[index];
+            ctx.emit_progress(material_progress(run, package.display_name));
+            adapter.install_known_package(run, package)?;
         }
         let project = Path::new(&run.project_root);
         if let Some(previous) = previous {
@@ -1389,8 +1405,10 @@ mod tests {
     #[test]
     fn liltoon_materials_name_their_shader() {
         let material = b"Material:\n  m_Name: Tshirt\n  m_Shader: {fileID: 4800000, guid: DF12117ECD77C31469C224178886498E, type: 3}\n  m_Floats:\n    - _lilToonVersion: 44\n";
-        assert_eq!(liltoon_material_shader(material).as_deref(), Some("df12117ecd77c31469c224178886498e"));
-        assert_eq!(liltoon_material_shader(b"Material:\n  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}\n"), None);
+        let found = known_packages::detect_material(known_packages::KNOWN_PACKAGES, material).unwrap();
+        assert_eq!(known_packages::KNOWN_PACKAGES[found.package].id, "jp.lilxyzw.liltoon");
+        assert_eq!(found.shader_guid.as_deref(), Some("df12117ecd77c31469c224178886498e"));
+        assert!(known_packages::detect_material(known_packages::KNOWN_PACKAGES, b"Material:\n  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}\n").is_none());
     }
 
     #[test]
@@ -1464,10 +1482,15 @@ mod tests {
 
     #[test]
     fn bundled_liltoon_copies_are_recognized_by_their_install_folder() {
-        assert!(is_bundled_liltoon("assets/liltoon"));
-        assert!(is_bundled_liltoon("assets/liltoon/shader/lts.shader"));
-        assert!(!is_bundled_liltoon("assets/liltoonextras/readme.txt"));
-        assert!(!is_bundled_liltoon("assets/amenbo/tshirt&shorts/material/liltoon.mat"));
+        let entries = known_packages::legacy_entries(known_packages::KNOWN_PACKAGES, None);
+        let liltoon = |path: &str| {
+            known_packages::legacy_owner(&entries, path)
+                .is_some_and(|owner| known_packages::KNOWN_PACKAGES[owner].id == "jp.lilxyzw.liltoon")
+        };
+        assert!(liltoon("assets/liltoon"));
+        assert!(liltoon("assets/liltoon/shader/lts.shader"));
+        assert!(!liltoon("assets/liltoonextras/readme.txt"));
+        assert!(!liltoon("assets/amenbo/tshirt&shorts/material/liltoon.mat"));
     }
 
     #[test]

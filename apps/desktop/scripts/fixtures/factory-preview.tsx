@@ -24,7 +24,7 @@ const sources = [
 ];
 const base = (runId: string, phase: AmfProductionRun["phase"], steps: [string, string, string?][], outfit = "outfit"): AmfProductionRun => ({
   schemaVersion: "0.1", runId, phase, taskId: "task-" + runId, editor: { path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }, projectRoot: "C:/work/" + runId,
-  choices: [], sources: [sources[0]!, sources.find(s => s.sourceId === outfit)!].map(s => ({ ...s, role: s.sourceId === "avatar" ? "avatar" as const : "outfit" as const, sha256: "a".repeat(64) })),
+  choices: [{ sourceId: "avatar", role: "auto" }, { sourceId: outfit, role: "auto" }], sources: [sources[0]!, sources.find(s => s.sourceId === outfit)!].map(s => ({ ...s, role: s.sourceId === "avatar" ? "avatar" as const : "outfit" as const, sha256: "a".repeat(64) })),
   prefabs: [{ sourceId: "avatar", path: "Assets/Meiyun/Meiyu_改変.prefab", name: "Meiyu_改変", isAvatar: true, hasSkinnedMesh: true, hasMergeArmature: false, hasMissingScripts: false, humanoidBones: ["Head"] },
     { sourceId: outfit, path: "Assets/Outfit/Outfit.prefab", name: outfit === "outfit" ? "TshirtShorts_Meiyun" : "Meiyun_Costume4", isAvatar: false, hasSkinnedMesh: true, hasMergeArmature: true, hasMissingScripts: false, humanoidBones: [] }],
   steps: steps.map(([key, state, detail]) => ({ key, name: key, state, detail: detail ?? "" })), selection: null, error: null, recovery: null, result: null, snapshotId: null,
@@ -50,7 +50,28 @@ const api = {
 const gateway = emptyGateway(null);
 const selected = view.startsWith("workshop-") ? view.slice("workshop-".length) : "";
 try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("auto") ? "full" : "ask"); } catch { /* preview only */ }
-const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : selected.replace(/-auto$/u, "");
+// Views that open a station or a line card the way the player does, and the line they show.
+const clickThrough: Record<string, { run: string; clicks: string[] }> = {
+  materials: { run: "finished", clicks: ["workshop-station-prepare", "workshop-change-materials"] },
+  inspect: { run: "waiting", clicks: ["workshop-station-inspect"] },
+  "line-menu": { run: "finished", clicks: ["workshop-line-close"] },
+  delete: { run: "finished", clicks: ["workshop-line-close", "workshop-line-delete"] },
+};
+const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
+function ClickThrough({ clicks }: { clicks: readonly string[] }) {
+  React.useEffect(() => {
+    let at = 0;
+    const timer = setInterval(() => {
+      const target = document.querySelector<HTMLButtonElement>(`[data-nav-id=${clicks[at]}]`);
+      if (!target) return;
+      target.click();
+      at += 1;
+      if (at >= clicks.length) clearInterval(timer);
+    }, 350);
+    return () => clearInterval(timer);
+  }, [clicks]);
+  return null;
+}
 // Opens the line's mode menu the way the player does, and for full access chooses it to show the warning.
 function ChooseMode({ full }: { full: boolean }) {
   React.useEffect(() => {
@@ -84,7 +105,7 @@ createRoot(document.getElementById("root")!).render(release ? <GatewayProvider g
     <Card><VrchatSignInSection /></Card>
   </div>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
-  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}</AmfRoom>}
+  {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}</AmfRoom>}
 </GatewayProvider>);
 
 // Mid-flight frame: the capture runs 2.5 s after load; the camera move takes 0.65 s.

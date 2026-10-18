@@ -541,7 +541,7 @@ function renderPage(
       return <HelpPage page={page} navigate={actions.navigate} onAccounts={actions.openAccounts} startTour={actions.startTour} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
     case "env-play": case "env-create":
       return <RouteEnvironmentPage zone={page === "env-play" ? "play" : "create"} onAccounts={actions.openAccounts} onOpenAmf={() => actions.navigate("warehouse")} />;
-    case "warehouse": case "asset-browser": case "recipe": case "inspection": case "release": case "packages": case "workshop":
+    case "warehouse": case "asset-browser": case "recipe": case "release": case "packages": case "workshop":
       return <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<p role="status">{format(strings.amfModule.loading, { amf: TERMS.amf })}</p>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>;
     case "settings-modules":
       return <ModulesPage onOpen={() => actions.navigate("warehouse")} />;

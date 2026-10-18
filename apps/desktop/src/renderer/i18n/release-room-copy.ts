@@ -78,7 +78,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "In progress", succeeded: "Uploaded", failed: "Did not finish", cancelled: "Stopped" },
     },
-    queue: { waiting: "{work} waits for the current task and starts by itself.", remove: "Remove from the queue", work: { upload: "The upload", bakeTurntable: "The turntable", reinspect: "The check", sdkFix: "The SDK fix", other: "This work" } },
+    queue: { waiting: "{work} waits for the current task and starts by itself.", remove: "Remove from the queue", work: { upload: "The upload", bakeTurntable: "The turntable", reinspect: "The check", sdkFix: "The SDK fix", changeSources: "The material change", delete: "Deleting the line", other: "This work" } },
     stages: {
       starting: "Opening Unity",
       sdk_panel: "Opening the VRChat SDK",
@@ -232,7 +232,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "进行中", succeeded: "已上传", failed: "未完成", cancelled: "已停止" },
     },
-    queue: { waiting: "{work}排在当前任务之后，轮到时自动开始。", remove: "移出队列", work: { upload: "上传", bakeTurntable: "转台拍摄", reinspect: "检查", sdkFix: "SDK 修复", other: "这项工作" } },
+    queue: { waiting: "{work}排在当前任务之后，轮到时自动开始。", remove: "移出队列", work: { upload: "上传", bakeTurntable: "转台拍摄", reinspect: "检查", sdkFix: "SDK 修复", changeSources: "更换原料", delete: "删除产线", other: "这项工作" } },
     stages: {
       starting: "正在打开 Unity",
       sdk_panel: "正在打开 VRChat SDK",
@@ -386,7 +386,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "進行中", succeeded: "アップロード済み", failed: "未完了", cancelled: "停止" },
     },
-    queue: { waiting: "{work}は今の作業の後に自動で始まります。", remove: "キューから外す", work: { upload: "アップロード", bakeTurntable: "ターンテーブル撮影", reinspect: "チェック", sdkFix: "SDK の修正", other: "この作業" } },
+    queue: { waiting: "{work}は今の作業の後に自動で始まります。", remove: "キューから外す", work: { upload: "アップロード", bakeTurntable: "ターンテーブル撮影", reinspect: "チェック", sdkFix: "SDK の修正", changeSources: "素材の入れ替え", delete: "ラインの削除", other: "この作業" } },
     stages: {
       starting: "Unity を開いています",
       sdk_panel: "VRChat SDK を開いています",
@@ -540,7 +540,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "진행 중", succeeded: "업로드됨", failed: "끝나지 않음", cancelled: "멈춤" },
     },
-    queue: { waiting: "{work}은(는) 현재 작업 다음에 자동으로 시작돼요.", remove: "대기열에서 빼기", work: { upload: "업로드", bakeTurntable: "턴테이블 촬영", reinspect: "검사", sdkFix: "SDK 수정", other: "이 작업" } },
+    queue: { waiting: "{work}은(는) 현재 작업 다음에 자동으로 시작돼요.", remove: "대기열에서 빼기", work: { upload: "업로드", bakeTurntable: "턴테이블 촬영", reinspect: "검사", sdkFix: "SDK 수정", changeSources: "에셋 바꾸기", delete: "라인 삭제", other: "이 작업" } },
     stages: {
       starting: "Unity 여는 중",
       sdk_panel: "VRChat SDK 여는 중",

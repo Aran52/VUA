@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "0.1",
+  "presetId": "adult_content",
+  "products": [
+    {
+      "productId": "booth:1",
+      "sourceState": "not_public",
+      "decision": "unknown",
+      "blockingItems": [
+        {
+          "productId": "booth:1",
+          "item": null,
+          "termKey": null,
+          "reason": "not_public"
+        }
+      ],
+      "conditions": [],
+      "advisories": [],
+      "hasSpecialNote": false,
+      "specialNotes": []
+    }
+  ],
+  "matchingProductIds": [],
+  "combination": {
+    "decision": "unknown",
+    "blockingItems": [
+      {
+        "productId": "booth:1",
+        "item": null,
+        "termKey": null,
+        "reason": "not_public"
+      }
+    ],
+    "conditions": [],
+    "advisories": [],
+    "hasSpecialNote": false,
+    "specialNotes": []
+  }
+}

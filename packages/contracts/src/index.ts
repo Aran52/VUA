@@ -31,3 +31,4 @@ export * from "./amf-module.js";
 export * from "./desktop-distribution.js";
 export * from "./scenario-environment.js";
 export * from "./desktop-ai-tools.js";
+export * from "./terms-v01.js";

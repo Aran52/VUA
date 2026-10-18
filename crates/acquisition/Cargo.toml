@@ -14,6 +14,12 @@ scraper = "0.27.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11.0"
+pdf-extract = "=0.10.0"
+regex = "1"
+unicode-normalization = "0.1"
+url = "2"
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "stream"] }
+tokio = { version = "1.53.1", default-features = false, features = ["rt", "time", "net", "macros"] }
 zip = { version = "4.6", default-features = false, features = ["deflate"] }
 vua-bdl-store = { path = "../bdl-store" }
 vua-orchestrator = { path = "../orchestrator" }

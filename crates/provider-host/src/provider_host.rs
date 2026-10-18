@@ -184,6 +184,7 @@ pub struct WarehouseConfig {
 }
 
 struct WarehouseServices {
+    terms: Arc<vua_acquisition::terms::TermsService>,
     bdl: Arc<BdlStore>,
     warehouse_root: PathBuf,
     global_default: ArtifactMode,
@@ -869,6 +870,7 @@ pub fn run_provider_host_with_legacy(
                 let library_maintenance = vua_acquisition::library_maintenance::LibraryMaintenance::new(
                     store.clone(),config.bdl.clone(),runtime.clone(),config.warehouse_root.clone(),library_downloads.clone());
                 Ok(Arc::new(WarehouseServices {
+                    terms: Arc::new(vua_acquisition::terms::TermsService::new(config.bdl.clone(),runtime.clone(),vua_acquisition::terms::owned_cache_root(config.warehouse_root.parent().unwrap_or(&config.warehouse_root)),Arc::new(vua_acquisition::terms::download::PublicTermsDownloader::default()),Arc::new(SystemClock))),
                     bdl: config.bdl,
                     warehouse_root: config.warehouse_root,
                     global_default: config.global_default,
@@ -1362,6 +1364,9 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
         ));
     }
     let method = request.get("method").and_then(Value::as_str).unwrap_or("");
+    if method.starts_with("terms.") {
+        return crate::terms_routes::request(state.warehouse.as_ref().map(|w|&w.terms),method,request,request_id,correlation_id);
+    }
     if method.starts_with("amf.production.") {
         return crate::amf_production_routes::request(state.amf_production.clone(), method, request, request_id, correlation_id);
     }
@@ -1857,6 +1862,7 @@ fn served_capabilities(state: &HostState) -> Value {
     capabilities.as_array_mut().expect("capabilities array").push(json!({
         "operationId": "amf.production", "availability": if state.amf_production.is_some() { "available" } else { "unavailable" }
     }));
+    capabilities.as_array_mut().expect("capabilities array").extend(["terms.getProduct","terms.checkUse","terms.refreshProduct","terms.refreshLibrary"].map(|operation|json!({"operationId":operation,"availability":if state.warehouse.is_some(){"available"}else{"unavailable"}})));
     capabilities
 }
 

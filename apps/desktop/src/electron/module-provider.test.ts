@@ -45,6 +45,17 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("keeps terms reads and refreshes within the enabled AMF process", async () => {
+    const { provider, host, amf, activations } = setup(); await provider.start();
+    const read = { contractVersion: "0.1", requestId: "terms", correlationId: "terms", kind: "query", method: "terms.getProduct", params: { schemaVersion: "0.1", productId: "booth:1" } } as const;
+    const unavailable = await provider.invoke(read); expect(unavailable).toMatchObject({ ok: false, error: { code: "vua.amf.unavailable" } });
+    expect(host.calls).toEqual([]); expect(activations()).toBe(0);
+    await provider.setAmfEnabled(true);
+    await provider.invoke(read);
+    await provider.invoke({ contractVersion: "0.1", requestId: "refresh", correlationId: "refresh", kind: "command", method: "terms.refreshProduct", commandId: "refresh", params: { schemaVersion: "0.1", productId: "booth:1" } });
+    expect(amf.calls.map(call => call.method)).toEqual(["terms.getProduct", "terms.refreshProduct"]); expect(host.calls).toEqual([]);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
   it("admits update restart only after host/AMF work and shell transfers finish", async () => {
     let busy = false; const { provider, host, amf, saved } = setup({ shellBusy: () => busy });
     await provider.start(); await provider.setAmfEnabled(true);

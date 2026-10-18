@@ -1,4 +1,5 @@
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
+import { isTermsParams, type TermsPresetId, type ProductTermsV01, type TermsUseCheckV01, type TermsAcceptedV01 } from "./terms-v01.js";
 import { isAmfProductionParams } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams } from "./scenario-environment.js";
 import { isNetworkParams, type NetworkIntent, type NetworkResult } from "./environment-network.js";
@@ -2839,6 +2840,10 @@ export interface DeploymentPlanQuery extends ApplicationRequestBaseV01 { readonl
 export interface DeploymentExecuteCommand extends ApplicationRequestBaseV01 { readonly kind: "command"; readonly method: "environment.executeDeployment"; readonly commandId: string; readonly params: DeploymentExecuteParams }
 
 export type ApplicationRequestV01 =
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.getProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.checkUse"; readonly params: {readonly schemaVersion: "0.1"; readonly presetId: TermsPresetId; readonly productIds: readonly string[]} })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshLibrary"; readonly params: {readonly schemaVersion: "0.1"} })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollback" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity"; readonly params: Readonly<Record<string, unknown>> })
@@ -3014,6 +3019,7 @@ export interface DemoTaskStartedV01 {
 }
 
 export type ApplicationSuccessValueV01 =
+  | ProductTermsV01 | TermsUseCheckV01 | TermsAcceptedV01
   | ManagerAppsResult
   | PlaySessionResult
   | ExternalToolResult
@@ -3219,6 +3225,12 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (value.method === "environment.getScenarioSop" || value.method === "environment.checkScenarioEnvironment") {
     return value.kind === "query" && hasExactKeys(value,["contractVersion","requestId","correlationId","kind","method","params"])
       && isScenarioEnvironmentParams(value.method,value.params);
+  }
+  if (typeof value.method === "string" && value.method.startsWith("terms.")) {
+    const command = value.method === "terms.refreshProduct" || value.method === "terms.refreshLibrary";
+    return value.kind === (command ? "command" : "query") && (!command || isIdentifier(value.commandId))
+      && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", ...(command ? ["commandId"] : [])])
+      && isTermsParams(value.method, value.params);
   }
   if (typeof value.method === "string" && value.method.startsWith("amf.production.")) {
     const query = ["amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage", "amf.production.releaseState", "amf.production.turntableFrame"].includes(value.method);

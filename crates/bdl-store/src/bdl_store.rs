@@ -63,8 +63,11 @@ pub use library_records::{RemoveLocalEntries, RemovedLocalEntries};
 mod library_cards;
 pub use library_cards::{LibraryCardTarget, RemoveLibraryCards};
 
-pub const BDL_FORMAT_VERSION: &str = "0.10";
-const BDL_MIGRATION_VERSION: i64 = 11;
+#[path = "terms.rs"]
+pub mod terms;
+
+pub const BDL_FORMAT_VERSION: &str = "0.11";
+const BDL_MIGRATION_VERSION: i64 = 12;
 const MIGRATION_001: &str = include_str!("../../../schemas/bdl/v0.1/001_initial.sql");
 const MIGRATION_002: &str = include_str!("../../../schemas/bdl/v0.2/002_dependency_observations.sql");
 const MIGRATION_003: &str = include_str!("../../../schemas/bdl/v0.3/003_library_type.sql");
@@ -76,6 +79,7 @@ const MIGRATION_008: &str = include_str!("../../../schemas/bdl/v0.7/008_library_
 const MIGRATION_009: &str = include_str!("../../../schemas/bdl/v0.8/009_removed_local_entries.sql");
 const MIGRATION_010: &str = include_str!("../../../schemas/bdl/v0.9/010_removed_library_cards.sql");
 const MIGRATION_011: &str = include_str!("../../../schemas/bdl/v0.10/011_description_links.sql");
+const MIGRATION_012: &str = include_str!("../../../schemas/bdl/v0.11/012_vn3_terms.sql");
 
 #[derive(Debug)]
 pub enum BdlStoreError {
@@ -1042,7 +1046,7 @@ impl BdlStore {
             // Execute the remaining frozen migrations atomically. Their guarded
             // format stamps still refuse foreign metadata instead of repairing it.
             let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            for (index, sql) in [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011].iter().enumerate() {
+            for (index, sql) in [MIGRATION_001, MIGRATION_002, MIGRATION_003, MIGRATION_004, MIGRATION_005, MIGRATION_006, MIGRATION_007, MIGRATION_008, MIGRATION_009, MIGRATION_010, MIGRATION_011, MIGRATION_012].iter().enumerate() {
                 if migration <= index as i64 { transaction.execute_batch(sql)?; }
             }
             transaction.pragma_update(None, "user_version", BDL_MIGRATION_VERSION)?;

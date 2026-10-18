@@ -35,3 +35,4 @@ mod unity_hub;
 mod amf_production_routes;
 mod amf_release_routes;
 mod scenario_routes;
+mod terms_routes;

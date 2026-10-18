@@ -1,7 +1,7 @@
 # BDL architecture boundary
 
 > Scope: AMF-owned BDL module
-> Updated: 2026-10-12
+> Updated: 2026-10-19
 
 BDL base storage is always available **inside an enabled AMF**, independently of its experimental
 forensics switch. AMF itself is optional; the VUA host never opens BDL, and stores module selection
@@ -51,6 +51,20 @@ stores the normalized metadata AMF decides to persist. N5 audits which paths are
   [product boundary](../product-boundary.md)).
 - This section does not change the existing persistence format or query contracts — the frozen
   faces of `schemas/bdl/` and `schemas/bdl-queries/` do not automatically move because of it.
+
+## VN3 terms
+
+AMF acquisition captures license candidates from BOOTH author descriptions. Explicit terms
+refresh tasks retrieve public Drive/Docs PDFs into AMF's local content-addressed cache and
+apply a versioned deterministic parser. BDL format 0.11 stores source states, document metadata,
+original fragments, item values and product provenance. The typed Gateway reads this evidence
+through [`terms.getProduct` and `terms.checkUse`](../protocols/terms-v0.1.md), including the
+seven use presets and the strictest decision across selected materials.
+
+Missing, inaccessible and unrecognized evidence remains unknown for use checks. Japanese
+documents supply the primary item values; conflicting evidence makes the affected item
+unknown. Conditions and original special notes accompany each decision. Product import and
+read queries use local observations; explicit refresh commands own public document access.
 
 ## Layering
 

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "0.1",
+  "presetId": "adult_content",
+  "products": [
+    {
+      "productId": "booth:1",
+      "sourceState": "parsed",
+      "decision": "conforms",
+      "blockingItems": [],
+      "conditions": [
+        {
+          "productId": "booth:1",
+          "item": "F",
+          "condition": "content_rating_required"
+        }
+      ],
+      "advisories": [],
+      "hasSpecialNote": true,
+      "specialNotes": [
+        {
+          "productId": "booth:1",
+          "sourceId": "drive:synthetic",
+          "language": "en",
+          "text": "Fictional note: include the blue emblem."
+        }
+      ]
+    }
+  ],
+  "matchingProductIds": [
+    "booth:1"
+  ],
+  "combination": {
+    "decision": "conforms",
+    "blockingItems": [],
+    "conditions": [
+      {
+        "productId": "booth:1",
+        "item": "F",
+        "condition": "content_rating_required"
+      }
+    ],
+    "advisories": [],
+    "hasSpecialNote": false,
+    "specialNotes": []
+  }
+}

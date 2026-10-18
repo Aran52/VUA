@@ -51,6 +51,19 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(calls[1]!.params).toEqual({ schemaVersion: "0.1", intent });
     expect(service.snapshot().requests).toEqual([]);
   });
+  it("exposes only the passive Unity license tool and dispatches no check or approval", async () => {
+    const { client, calls, service } = await setup();
+    const catalog = await client.listTools();
+    const tool = catalog.tools.find(tool=>tool.name === "vua_unity_license");
+    expect(tool?.description).toContain("Starts no program");
+    expect(AI_TOOLS.some(tool=>tool.method === "environment.checkUnityLicense")).toBe(false);
+    await client.callTool({name:"vua_unity_license",arguments:{}});
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({method:"environment.unityLicense",params:{schemaVersion:"0.1"}});
+    expect(service.snapshot().requests).toEqual([]);
+    expect((await client.callTool({name:"vua_unity_license",arguments:{editorPath:"C:/synthetic/Unity.exe"}})).isError).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
   it("queues the concrete installation, deduplicates retries, and requires a local approval", async () => {
     const { client, calls, service } = await setup();
     const args = { intent: { purposes: ["desktop_play"] }, confirmedDigest: digest };

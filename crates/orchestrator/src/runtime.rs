@@ -672,6 +672,12 @@ impl TaskRuntime {
         self.submit_inner(request, None, Some((lane, policy)))
     }
 
+    /// Durable command replay shares the same acceptance and lane ordering transaction.
+    pub fn submit_idempotent_in_lane(&self, request: SubmitRequest, lane: &TaskLane, policy: TaskLanePolicy,
+        command_kind: &str, command_id: &str, fingerprint: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_inner(request, Some((command_kind, command_id, fingerprint)), Some((lane, policy)))
+    }
+
     /// Atomically bind a command ID and fingerprint to durable task acceptance. Replays
     /// return the original receipt without spawning another worker, including after restart.
     /// This uses the existing SQLite idempotency table; it introduces no persistence format.

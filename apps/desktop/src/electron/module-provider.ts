@@ -18,7 +18,7 @@ import type {
 const AMF_OPERATION_TIMEOUT_MS = 120_000;
 const AMF_PREFIXES = ["amf.production.", "production.", "warehouse.", "catalog.", "library.", "download.", "downloads.", "dependencies.", "recipe.", "recipeDraft.", "plan.", "job.", "record.", "inspection.", "release.", "project.", "packages.", "overlay."];
 export function isAmfOperation(method: string): boolean {
-  return AMF_PREFIXES.some(prefix => method.startsWith(prefix));
+  return method === "environment.checkUnityLicense" || AMF_PREFIXES.some(prefix => method.startsWith(prefix));
 }
 
 interface Options {
@@ -190,6 +190,12 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   async invoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01> {
+    // The AMF worker owns the shared Unity lane and the historical check. Passive detection
+    // remains available from the host while that optional worker is absent or restarting.
+    if (request.method === "environment.unityLicense" && this.amfReady()) {
+      const response = await this.#optionalInvoke(request);
+      if (response !== undefined) return response;
+    }
     if (request.method === "application.getSnapshot" || request.method === "task.list") return this.#aggregate(request);
     if (isAmfOperation(request.method)) {
       if (!this.amfReady()) return this.#unavailable(request);

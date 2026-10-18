@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "0.1",
+  "files": [
+    {
+      "kind": "classic_entitlement",
+      "present": false,
+      "modifiedAt": null
+    },
+    {
+      "kind": "msix_entitlement",
+      "present": true,
+      "modifiedAt": "2026-10-19T00:00:00.000Z"
+    },
+    {
+      "kind": "legacy_ulf",
+      "present": false,
+      "modifiedAt": null
+    }
+  ],
+  "hubType": "msix",
+  "hubRunning": true,
+  "licensingClientRunning": true,
+  "hubCliPresent": true,
+  "lastCheck": null,
+  "state": "likely_active",
+  "nextAction": "none"
+}

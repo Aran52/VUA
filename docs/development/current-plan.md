@@ -545,11 +545,15 @@ Designed in the [licensed entry guide](licensed-entry-guide.md) (author ruling, 
 
 1. The author verifies pixiv sign-up, BOOTH, card payment and PayPal from the remote host on a
    mainland China network.
-2. The guide's six parts as versioned SOPs in four languages, opened from Help and the library.
-3. A reachability check for the sites the guide's steps use, built on the website tests.
+2. The guide's six parts as versioned SOPs in four languages for every player outside Japan,
+   opened from Help and the library; the mainland China payment note is chosen by the player at
+   the payment step.
+3. Images and animations download as content packs when a part opens.
+4. A reachability check for the sites the guide's steps use, built on the website tests.
 
 **Done when** a player in mainland China with no pixiv account completes a first BOOTH purchase
-guided by VUA alone, and the purchase arrives in the library.
+guided by VUA alone, the purchase arrives in the library, and a player who never opens the guide
+downloads none of its content packs.
 
 ## 37 — Creator credits
 

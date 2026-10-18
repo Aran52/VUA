@@ -1,17 +1,36 @@
 # Licensed entry guide
 
 > Updated: 2026-10-19
-> Scope: a guide for players in mainland China who want to buy licensed Avatars and materials
+> Scope: a guide to a first BOOTH purchase for players outside Japan, with regional notes chosen by the player
 > Status: Draft
 
 ## Purpose
 
-Many players in mainland China want to use licensed Avatars and materials and have had no
-practical way in: a pixiv account, BOOTH's prices, a card that pays abroad and the purchase itself
-are each a hurdle. VUA offers them a path, following the author's ruling of 2026-10-19 in the
+Many players outside Japan want to use licensed Avatars and materials and have had no practical
+way in: a pixiv account, BOOTH's prices, a card that pays abroad and the purchase itself are each
+a hurdle. Players in mainland China meet the most of them. VUA offers one guide for all of them,
+following the author's ruling of 2026-10-19 in the
 [product boundary](../product-boundary.md#production-scope-and-product-rulings-user-ruling-2026-09-22).
 It serves the same Japanese creators whose community VUA is built for: every completed purchase
 supports them.
+
+## One guide, regional notes by choice
+
+Most of the guide holds for every player outside Japan. The parts that depend on where a player
+lives — the card and payment notes and the reachability check — are regional notes. At the
+payment step the guide asks where the player's card was issued, and the player's answer selects
+the note; the choice is kept locally and can be changed. VUA infers no location: the UI language,
+the network and the system region select nothing, as on the
+[Play network tile](../architecture/network-onboarding.md#user-outcome-and-approximate-regional-references).
+The first regional note is mainland China; others follow as players ask for them.
+
+## Delivery
+
+The guide's text is part of its SOPs and arrives with them. Images and animations form a content
+pack per part and regional note, downloaded from VUA's [official hosting](../release/official-hosting.md)
+when the player opens that part. A player who never opens a part downloads
+nothing for it. Content updates follow the SOP version, independent of VUA releases, so a
+changed payment rule reaches players without a new installer.
 
 The guide follows two rules from the product boundary:
 
@@ -31,14 +50,15 @@ cards, sign-up steps) are written only after verification and show their verific
 | --- | --- |
 | 1. pixiv account | What pixiv and BOOTH are, why BOOTH needs a pixiv account, the sign-up steps on the official page, two-step verification |
 | 2. BOOTH prices | Prices in Japanese yen including consumption tax; digital delivery and the download page; one product with several variants and its supported Avatars (対応アバター); free items; the optional boost; the purchase history VUA's library reads |
-| 3. Paying abroad | What a card needs to pay a Japanese shop: an international network such as Visa or Mastercard, foreign-currency settlement and its fees, the yen exchange rate; the questions to ask a bank; no bank or product is recommended |
+| 3. Paying abroad | What a card needs to pay a Japanese shop: an international network such as Visa or Mastercard, foreign-currency settlement and its fees, the yen exchange rate; the questions to ask a bank; no bank or product is recommended. Regional notes add what applies where the card was issued, starting with mainland China (dual-currency cards, PayPal) |
 | 4. Buying | BOOTH's checkout with the card or PayPal as BOOTH currently accepts them, the confirmation mail, then VUA's library downloading the purchase |
 | 5. Terms of use | Reading a product's terms, such as the VN3 license and a creator's own 利用規約: what may be changed, uploaded and shared, and what stays forbidden; the terms page linked from each library entry |
 | 6. Why licensed | Text, images and short animations about the creators behind each Avatar and outfit, updates and support from the creator, and the community around a base Avatar |
 
 ## Network reachability
 
-Some steps need sites that may not respond from mainland China, pixiv among them. VUA keeps its
+Some steps need sites that may not respond from every network, pixiv from mainland China among
+them. The check is part of the guide for every player and needs no regional choice. VUA keeps its
 existing rule for these cases (the "Network and activation" row of
 [broader N1 acceptance](../development-outline.md#broader-n1-acceptance-after-the-first-play-release)): it checks the sites a step needs and reports what it observed, and it names no
 accelerator, proxy or other network product.

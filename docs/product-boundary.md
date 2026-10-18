@@ -162,8 +162,10 @@ no advice about a player's sources and does not lecture (user ruling, 2026-10-19
 enter the licensed ecosystem and could not before, VUA offers a guide: pixiv sign-up, BOOTH's
 price system, notes on getting a Visa or Mastercard card that pays abroad, buying with it or
 PayPal, reading a product's terms of use, and encouraging text, images and animations about
-licensed bases and materials. The player opens it from Help or the library; the library's
-contents never open it. VUA links to the official sites and leaves sign-in, card applications and
+licensed bases and materials. The guide serves every player outside Japan; regional notes, first
+for mainland China, are selected by the player's own answer, and VUA infers no location. Its
+images and animations download only when the player opens them. The player opens it from Help or
+the library; the library's contents never open it. VUA links to the official sites and leaves sign-in, card applications and
 payment to the player there; it recommends no bank, card product or network product. The
 [guide's design](development/licensed-entry-guide.md) owns its contents.
 

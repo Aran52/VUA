@@ -118,6 +118,7 @@ content-addressed parsed documents and individual item rows. `term_observations`
 product-level provenance using `extracted_by: "vn3-parser/1"`. Each stored column supports
 source tracing, document display, cache reuse or a use-preset decision. Existing query
 responses keep their contract versions and fields.
+AMF's distribution metadata advertises BDL 0.11 writes and reads alongside its prior readable versions.
 The request/result schemas and executable examples are in
 [`schemas/terms/v0.1`](../../schemas/terms/v0.1). Candidate refresh tasks use the AMF task
 store and place local PDFs under AMF's `terms/<source-kind>/<file-id>/<sha256>.pdf` directory.

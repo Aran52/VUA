@@ -66,6 +66,14 @@ fn migration_from_v010_keeps_products_human_evidence_and_description_links() {
     drop(connection);
     let store = BdlStore::open(&path).unwrap();
     assert_eq!(BDL_FORMAT_VERSION, "0.11");
+    let component: Value = serde_json::from_str(include_str!(
+        "../../../apps/desktop/distribution/amf-version.json"
+    ))
+    .unwrap();
+    assert_eq!(component["bdlWrite"], BDL_FORMAT_VERSION);
+    let readable = component["bdlRead"].as_array().unwrap();
+    assert!(readable.iter().any(|v| v == "0.10"));
+    assert!(readable.iter().any(|v| v == BDL_FORMAT_VERSION));
     let product = store.terms_product("booth:1").unwrap().unwrap();
     assert_eq!(product.description.as_deref(), Some("Kept description"));
     assert_eq!(

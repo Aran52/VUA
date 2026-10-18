@@ -14,7 +14,7 @@ const views = ["map", "map-flight", "map-control", "map-materials", "map-release
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part", "control-recipes-list", "control-recipes-many", "control-recipes-empty",
   "control-packages", "control-packages-project", "control-packages-unlisted", "control-packages-repos",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued",
-  "settings-vrchat", "settings-vrchat-account", "materials-start", "materials-start-missing"];
+  "settings-vrchat", "settings-vrchat-account", "license-hub", "license-check", "license-active", "materials-start", "materials-start-missing"];
 const only = process.argv.find(arg => arg.startsWith("--only="))?.slice("--only=".length) ?? "";
 let server;
 app.on("window-all-closed", () => {});

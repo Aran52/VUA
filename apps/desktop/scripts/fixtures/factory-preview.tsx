@@ -50,7 +50,9 @@ runs.rebuild = { ...runs.finished!, runId: "rebuild",
   result: { facts: { ...runs.finished!.result!.facts!, observedSelection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] } } } } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
-  async list() { return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: true, queue: [],
+  // The capacity view shows an idle factory, where the setting can change; the others have a line running.
+  async list() { const idle = view === "workshop-capacity"; return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: !idle, queue: [],
+    capacity: idle ? 2 : 1, running: idle ? [] : [{ taskId: "task-running", runId: "running", operation: "amf.production.prepare" }],
     runs: Object.values(runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
@@ -99,6 +101,7 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   inspect: { run: "waiting", clicks: ["workshop-station-inspect"] },
   "line-menu": { run: "finished", clicks: ["workshop-line-close"] },
   delete: { run: "finished", clicks: ["workshop-line-close", "workshop-line-delete"] },
+  capacity: { run: "finished", clicks: [] },
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");

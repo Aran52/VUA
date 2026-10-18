@@ -17,7 +17,8 @@ export function AssetBrowserPage({ onNavigate }: { onNavigate: (page: PageId) =>
   const copy = strings.browser;
   const start = strings.factory.materialsStart;
   const amf = useAmfModule();
-  const amfReady = amf.state === "ready" && useGateway().amfProduction !== undefined;
+  const gateway = useGateway();
+  const amfReady = amf.state === "ready" && gateway.amfProduction !== undefined;
   const session = useMemo(() => siteBrowserSession(window.vua?.desktopBrowser, "assets"), []);
   const browserState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   useEffect(() => { session.ensureInitial(); }, [session]);

@@ -93,9 +93,9 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
   const avatarSources = useMemo(() => ready ? ready.list.sources.filter(source => ready.avatarEntryIds.includes(source.itemId)) : [], [ready]);
   const { fitted, others } = useMemo(() => ready
     ? groupOutfitsByFit(
-      { productName: avatar.title, materialName: ready.avatarMaterialNames.join(" ") || null },
+      { productName: avatar.title, packageNames: [...ready.avatarMaterialNames, ...avatarSources.flatMap(source => [source.itemName, source.name])] },
       ready.items.map(item => ({ item, productName: item.productName, materialName: [item.itemName, ...item.files].join(" ") })))
-    : { fitted: [], others: [] }, [ready, avatar.title]);
+    : { fitted: [], others: [] }, [ready, avatar.title, avatarSources]);
   const checkedSources = useMemo(() => ready ? ready.items.filter(item => checked.has(item.itemId)).flatMap(item => item.sources.map(source => source.sourceId)) : [], [ready, checked]);
   const canStart = ready !== null && !starting && avatarSources.length > 0 && ready.list.editors.length > 0 && (checked.size > 0 || ready.items.length === 0);
 

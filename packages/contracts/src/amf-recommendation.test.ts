@@ -46,5 +46,19 @@ describe("recommending the Avatar and outfits", () => {
     expect(packageBaseName("Meiyun_v2.1.0.zip")).toBe("meiyun");
     expect(packageBaseName("TshirtShorts_Meiyun_v1.00.zip")).toBe("tshirtshortsmeiyun");
     expect(packageBaseName("Karin v1.4.unitypackage")).toBe("karin");
+    expect(packageBaseName("Manuka_ver1.02.zip")).toBe("manuka");
+    expect(packageBaseName("Rusk ver.3.0.unitypackage")).toBe("rusk");
+    expect(packageBaseName("Lime_version2.zip")).toBe("lime");
+  });
+});
+
+describe("an Avatar the player named", () => {
+  it("is chosen over an Avatar prefab that ships inside an outfit package", () => {
+    const prefab = (sourceId: string, path: string, isAvatar: boolean) => ({ sourceId, path, name: path.split("/").pop()!.replace(".prefab", ""), isAvatar,
+      hasSkinnedMesh: true, hasMergeArmature: !isAvatar, hasMissingScripts: false, humanoidBones: [] });
+    const result = recommendAssembly(
+      [prefab("avatar", "Assets/Meiyun/Meiyun.prefab", true), prefab("outfit", "Assets/Shirt/Shirt.prefab", false), prefab("outfit", "Assets/Shirt/Sample Meiyun.prefab", true)],
+      [{ sourceId: "avatar", role: "avatar", itemName: "Meiyun_v2.1.0.zip" }, { sourceId: "outfit", role: "auto", itemName: "Shirt_Meiyun_v1.0.zip" }]);
+    expect(result.selection.avatarPrefab).toBe("Assets/Meiyun/Meiyun.prefab");
   });
 });

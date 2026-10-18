@@ -53,6 +53,25 @@ and usual durations come from the backend in delivery 1.
 **Needs attention:** one card with the cause in plain words, one next action and the technical
 detail under "Details". A license failure links to the Unity sign-in and license guide.
 
+## Materials room: starting from a chosen Avatar
+
+The library detail of a product the catalog lists as an Avatar shows **Start production**; the
+browse tab offers the same while a BOOTH Avatar item page is open. The panel shows the Avatar
+with its thumbnail and lists the library's outfits: those whose product or material names
+mention the Avatar come first with a **Fits** mark, and the rest fold under "Other outfits"
+where they stay selectable. The Avatar's names are its package names without version and
+extension ("Meiyun_v2.1.0.zip" → "meiyun") and a name its product title quotes in 「」 or 『』;
+the fit compares them with the outfit's names ignoring case, character width and spaces.
+
+When the Avatar's package is not yet a production material — the workshop's material list has
+no entry for it — the panel explains the next step (download it from the product page or import
+the file) and links to the browse tab. **Start the line** opens the workshop with a new line
+already preparing the Avatar and the checked outfits through the same preparation path the
+workshop's own button uses. A single Avatar package is named as the Avatar and the outfits come as
+automatic materials, so a package without a wearable prefab, such as a bundled lilToon, never
+has to be dressed; an Avatar with several packages, or one started without outfits, comes as
+automatic materials too, and outfits can join the line later from its materials station.
+
 ## Permission modes
 
 The workshop works like an AI agent's permission modes (author ruling, 2026-10-18): the player

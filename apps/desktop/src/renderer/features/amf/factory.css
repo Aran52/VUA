@@ -219,3 +219,30 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-line__bar { display: block; height: 6px; background: var(--vua-bg-elevated); border-radius: var(--vua-radius-pill); overflow: hidden; }
 .vua-line__bar > span { display: block; height: 100%; background: var(--vua-accent); border-radius: inherit; transition: width var(--vua-motion-slow) linear; }
 .vua-workshop__line-extra { font: var(--vua-font-caption); color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }
+
+/* Start production from the materials room: the Avatar header and the outfit picks. */
+.vua-start { display: grid; gap: var(--vua-space-3); min-width: min(420px, 76vw); }
+.vua-start__avatar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); clip-path: var(--vua-shape-cut-sm); }
+.vua-start__thumb { width: 56px; height: 56px; flex: none; object-fit: cover; border: 1px solid var(--vua-border); background: var(--vua-bg-elevated); }
+.vua-start__thumb--empty { display: block; }
+.vua-start__avatar-kind { display: block; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-start__avatar-name { display: block; font: var(--vua-font-body); color: var(--vua-text-strong); overflow-wrap: anywhere; }
+.vua-start__hint { margin: 0; color: var(--vua-text-secondary); }
+.vua-start__group { margin: 0; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-start__picks { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.vua-start__pick { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); cursor: pointer; }
+.vua-start__pick:hover { border-color: var(--vua-accent); }
+.vua-start__pick[data-selected] { border-color: var(--vua-accent); background: color-mix(in srgb, var(--vua-accent) 9%, var(--vua-bg-panel)); }
+.vua-start__pick-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.vua-start__pick-text strong { color: var(--vua-text-strong); overflow-wrap: anywhere; }
+.vua-start__pick-text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vua-start__fits { flex: none; padding: 2px 10px; border: 1px solid currentColor; border-radius: var(--vua-radius-pill); font-size: 12px; color: var(--vua-success); }
+.vua-start__others { border: 1px solid var(--vua-border); }
+.vua-start__others summary { padding: 8px 12px; font: var(--vua-font-caption); color: var(--vua-text-secondary); cursor: pointer; }
+.vua-start__others .vua-start__picks { padding: 0 8px 8px; }
+.vua-start__notice { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--vua-warning); color: var(--vua-text-strong); }
+.vua-start__notice p { margin: 0; color: var(--vua-text-secondary); }
+.vua-start__actions { display: flex; justify-content: flex-end; gap: 10px; }
+.vua-start__loading { display: grid; gap: 10px; }
+.vua-start__browse { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); clip-path: var(--vua-shape-cut-sm); }
+.vua-start__browse span { flex: 1; min-width: 160px; color: var(--vua-text-strong); overflow-wrap: anywhere; }

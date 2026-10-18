@@ -26,9 +26,12 @@ export interface AmfRecommendation {
 }
 
 const fold = (text: string) => text.normalize("NFKC").toLowerCase().replace(/[\s_\-.()（）［］[\]]+/gu, "");
-/** "Meiyun_v2.1.0.zip" → "meiyun": a package's own name without its version and extension. */
+/** "Meiyun_v2.1.0.zip" → "meiyun", "Manuka_ver1.02.zip" → "manuka": a package's own name without
+ * its version and extension. */
 export function packageBaseName(itemName: string): string {
-  const stem = itemName.replace(/\.(zip|unitypackage|7z|rar)$/iu, "").replace(/[\s_-]*v?\d+(?:\.\d+)+[a-z]?$/iu, "").replace(/[\s_-]*v\d+$/iu, "");
+  const stem = itemName.replace(/\.(zip|unitypackage|7z|rar)$/iu, "")
+    .replace(/[\s_-]*(?:ver(?:sion)?\.?|v)?\s*\d+(?:\.\d+)+[a-z]?$/iu, "")
+    .replace(/[\s_-]*(?:ver(?:sion)?\.?|v)\s*\d+$/iu, "");
   return fold(stem);
 }
 const VARIANT = /(?:^|[\s_-])(?:\d+p|change\s*colou?r|colou?r\s*\d*|costume\s*\d*|ver\s*\d+|quest|android|pc|lite|mobile)$/iu;
@@ -52,7 +55,9 @@ function narrow<T extends { readonly name: string }>(items: readonly T[], rules:
 }
 
 export function recommendAssembly(prefabs: readonly AmfCandidateFacts[], sources: readonly AmfSourceFacts[]): AmfRecommendation {
-  const avatarSources = sources.filter(source => source.role === "avatar" || source.role === "auto");
+  // A material the player named as the Avatar holds it; otherwise any automatic material may.
+  const named = sources.filter(source => source.role === "avatar");
+  const avatarSources = named.length > 0 ? named : sources.filter(source => source.role === "auto");
   const avatarCandidates = [...new Map(prefabs
     .filter(prefab => prefab.isAvatar && !prefab.hasMissingScripts && avatarSources.some(source => source.sourceId === prefab.sourceId))
     .map(prefab => [prefab.path, prefab])).values()];

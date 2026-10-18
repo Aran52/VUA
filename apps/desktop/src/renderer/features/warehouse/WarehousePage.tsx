@@ -40,7 +40,8 @@ import {
 } from "../../gateway/index.ts";
 import { format, strings, termLabel } from "../../i18n/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
-import { ProductionFlowSectionHost } from "../workshop/ProductionFlowSectionHost.tsx";
+import { MaterialsStartDialog } from "../amf/MaterialsStartDialog.tsx";
+import { useAmfModule } from "../../gateway/index.ts";
 import { useDebugMode } from "../../app/debug-mode.ts";
 import { useCardSpotlight } from "./use-card-spotlight.ts";
 import type { RecipeAssetRef } from "../../gateway/index.ts";
@@ -545,7 +546,7 @@ function DetailContent({
 export function WarehousePage({
   onNavigate,
 }: {
-  /** 素材直产链记录卡「去出厂」链钮透传(029 A6 迁入);与流水线同一导航原语 */
+  /** 「开始制作」面板的跨页动作(进车间/去浏览页);与页面导航同一原语 */
   onNavigate?: ((target: PageId) => void) | undefined;
 }) {
   const dataSource = useDataSource();
@@ -825,6 +826,11 @@ export function WarehousePage({
   // ——终态任务按通知中心纪律默认不再显示,完成反馈必须发生在用户正看
   // 着的地方(按钮旁),页面同时刷新让卡片立即可见
   const gateway = useGateway();
+  // 从素材间开始制作(计划 20):AMF 模块就绪且详情认定是 Avatar 商品时,侧栏
+  // 给出「开始制作」;未就绪整段不出现(沿用发起位诚实隐藏纪律,不占视觉位)
+  const amfModule = useAmfModule();
+  const amfStartReady = amfModule.state === "ready" && gateway.amfProduction !== undefined;
+  const [startAvatar, setStartAvatar] = useState<{ productId: string; title: string | null; imageUrl: string | null } | null>(null);
   // 统一卡片墙数据源:本地条目(经 acquire 快照,与云端卡同一墙渲染)
   const acquireView = useAcquireView();
   const localEntries = dataSource === "fixture"
@@ -1851,6 +1857,20 @@ export function WarehousePage({
               ) : detailState.view.kind === "detail" ? (
                 /* key=productId:切换商品时重置组件内状态(如来源跳转失败标记) */
                 <><div className="vua-warehouse-detail__content">
+                  {/* Avatar 商品的醒目发起位(计划 20):打开「开始制作」确认面板 */}
+                  {amfStartReady && detailState.view.product.entities.some((entity) => entity.entityType === "avatar") ? (
+                    <Button
+                      variant="primary"
+                      className="vua-warehouse-detail__start"
+                      onClick={() => setStartAvatar({
+                        productId: selectedId,
+                        title: detailState.view.kind === "detail" ? detailState.view.product.title : null,
+                        imageUrl: detailState.view.kind === "detail" ? detailState.view.product.imageUrl : null,
+                      })}
+                    >
+                      {strings.factory.materialsStart.startCta}
+                    </Button>
+                  ) : null}
                   <LibraryBadges facts={libraryPage?.facts.get(selectedId)} />
                   <Button onClick={() => void openBooth(selectedId)}>{copy.sourceSearch.openBooth}</Button>
                   <Button variant="default" onClick={() => setChecklistProduct({ productId: selectedId, title: detailState.view.kind === "detail" ? detailState.view.product.title ?? selectedId : selectedId })}>{copy.libraryState.manageFiles}</Button>
@@ -1915,12 +1935,16 @@ export function WarehousePage({
         ) : null}
         </>
       ) : null}
-      {/* 素材直产链发起位(029 A6/未决项 1 桌面落形,用户裁决 2026-09-22 操作者
-          第 162 批):原寄宿车间页,现落位本页动作位——素材直产链的语义起点是
-          素材(pickMaterial),与连续素材获取路径(§8.3)同页承接;v0.1 用例面
-          与组件行为零改动。production capability 未就绪时整段诚实隐藏(live
-          默认不可用,由宿主 hidden 态保证),不占视觉位 */}
-      <ProductionFlowSectionHost onNavigate={onNavigate} />
+      {/* 素材直产链发起位(029 A6)已由「开始制作」确认面板接替(计划 20,单一
+          发起位):Avatar 商品详情出发,经同一条 amf.production.prepare 路径
+          在车间开工;旧 ProductionFlowSectionHost 不再挂载 */}
+      {startAvatar !== null ? (
+        <MaterialsStartDialog
+          avatar={startAvatar}
+          onNavigate={(target) => onNavigate?.(target)}
+          onClose={() => setStartAvatar(null)}
+        />
+      ) : null}
       {cardMenu !== null ? (
         <ContextMenu menu={cardMenu} onClose={() => setCardMenu(null)} />
       ) : null}

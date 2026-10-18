@@ -56,7 +56,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done |
 | 5 | Unity editor handoff | P-02 | |
-| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide and the SDK's own checks are in; one-click fixes, plain-word messages and the build guide remain |
+| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks, one-click fixes (Aran52/VUA#12) and plain-word messages are in; the build and upload guide remains |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes and stated recommendations in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table is assigned |
 | 9 | Material tuning | P-02, P-03 | |
@@ -70,7 +70,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
 | 19 | Experimental VRChat sign-in | P-02 | merged (Aran52/VUA#5); the upload check reads VRChat's real list shape since slice 26; awaits the real-account checks |
-| 20 | Start production from the materials room | P-02 | assigned |
+| 20 | Start production from the materials room | P-02 | built (Aran52/VUA#19); awaits the author's real-run check |
 | 21 | Faster project fingerprints | — | done (Aran52/VUA#7) |
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
@@ -148,9 +148,9 @@ signed in to the SDK.
 Done so far: the sign-in guide on the release page, and the SDK's own checks. The Bridge runs
 the SDK panel's Avatar check without opening the panel; the release page groups its items as
 "fix before uploading", reminders and notes, shows the performance rank for the build target
-with what it means for other players, and lists the categories rated below Good. Remaining:
-one-click fixes through the Bridge for the items the SDK can fix, plain-word versions of the
-most common SDK messages, and the build and upload guide.
+with what it means for other players, and lists the categories rated below Good. The SDK's own
+Auto Fix runs from the release page behind a restore point, and the most common SDK messages
+read in plain words with the original one click away. Remaining: the build and upload guide.
 
 **Eval:** P-02 outside-help count. **Done when** the author uploads the P-02 result guided by
 VUA alone.

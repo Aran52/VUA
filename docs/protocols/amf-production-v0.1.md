@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.20.0
+> Document version: 0.21.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: AMF
@@ -21,7 +21,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.setCapacity` | Command | `capacity: 1 \| 2 \| 3` | Saved `capacity` with `schemaVersion: "0.1"` |
 | `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, usual step durations and the running step's progress |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
-| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection and effective input roles |
+| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles and `rebuild` |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
 | `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
 | `amf.production.changeSources` | Command | `runId`, `sources: [{sourceId, role}]` | Durable task changing the line's own materials behind a restore point; the line plans again |
@@ -105,6 +105,17 @@ This Candidate currently compares owned managed Avatars and already prepared inp
 new input packages to a retained project, selecting unowned scene targets, explicit removal,
 and external-project intake remain separate work. Old development work projects need the updated
 Candidate Bridge and reinspection before this new capability can be used.
+
+### Another base on an assembled line
+
+`plan` reports `rebuild: true` when the selection names another Avatar prefab than the one Unity
+observes on an assembled line. Assembling it rebuilds the line: after the restore point, AMF
+removes its work scene (`Assets/VUA`), Unity prepares a fresh one, and the new base and every
+chosen outfit are assembled as in a first assembly, so every `outfit` input needs its target.
+Imported materials and packages stay. If a step fails, the restore point brings the earlier scene
+back and the run keeps its earlier observations; after success, a reviewed restore returns to the
+earlier base. With the same base, assembly binds the active object and writes only new or changed
+outfits, as before.
 
 ## Project fingerprints
 
@@ -394,7 +405,8 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
-- 0.20.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
+- 0.21.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
+- 0.20.0 (2026-10-19): another Avatar prefab on an assembled line rebuilds the line on that base behind a restore point; `plan` reports it as `rebuild`.
 - 0.19.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
 - 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, per-line pinned installs, legacy-copy replacement only when the exact release covers the copy, and the `amf.package.guide` diagnostic naming needed version lines.
 - 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.

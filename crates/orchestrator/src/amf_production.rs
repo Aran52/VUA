@@ -403,6 +403,11 @@ pub trait AmfProductionPlatform: Send + Sync {
     ) -> Result<Vec<PreparedSource>, AppErrorV1> {
         Err(production_error("change_unavailable", "Changing a line's materials is unavailable on this platform."))
     }
+    /// Removes AMF's work scene and its object ownership, so the next inspection starts a
+    /// fresh scene. Imported materials and packages stay.
+    fn clear_work_scene(&self, _run: &ProductionRun) -> Result<(), AppErrorV1> {
+        Err(production_error("rebuild_unavailable", "Rebuilding a line on another base is unavailable on this platform."))
+    }
     /// Unity steps report their progress through `watch` and end Unity when it asks to stop.
     fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1>;
     fn assemble(
@@ -1197,7 +1202,7 @@ impl AmfProductionEngine {
         Ok(
             serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "planDigest":digest,"inputs":inputs,
             "selection":selection,"editor":run.editor,"projectRoot":run.project_root,
-            "preserveOriginals":true,"officialSdkChecks":"not_run"}),
+            "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run"}),
         )
     }
     pub fn assemble(
@@ -1216,8 +1221,9 @@ impl AmfProductionEngine {
             ));
         }
         self.ensure_project_matches(&mut run)?;
+        let rebuild = rebuilds_base(&run, &selection);
         let observed: Option<AssemblySelection> = serde_json::from_value(run.result["facts"]["observedSelection"].clone()).ok();
-        let target = if let Some(current) = observed {
+        let target = if let Some(current) = observed.filter(|_| !rebuild) {
             let id = run.result["facts"]["avatarGlobalObjectId"].as_str().filter(|id| !id.is_empty())
                 .ok_or_else(|| production_error("inspect_required", "Reinspect the current Avatar identity before editing."))?;
             Some(crate::amf_recipe_apply::RecipeApplyTarget {
@@ -1226,7 +1232,7 @@ impl AmfProductionEngine {
                     .map(|outfit| outfit.source_id.clone()).collect(),
             })
         } else { None };
-        self.execute_assembly(run, selection, digest, target, ctx)
+        self.execute_assembly(run, selection, digest, target, rebuild, ctx)
     }
     pub(crate) fn execute_assembly(
         &self,
@@ -1234,6 +1240,7 @@ impl AmfProductionEngine {
         selection: AssemblySelection,
         digest: &str,
         target: Option<crate::amf_recipe_apply::RecipeApplyTarget>,
+        rebuild: bool,
         ctx: &TaskContext,
     ) -> Result<(), AppErrorV1> {
         // The comparison and execution are separate reads. Check again at the
@@ -1251,12 +1258,20 @@ impl AmfProductionEngine {
         run.selection = Some(selection.clone());
         run.confirmed_digest = Some(digest.into());
         let mut snapshot = None;
+        // A rebuild replaces the observed facts before assembly; a restore brings these back with the files.
+        let observed_before = rebuild.then(|| (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone()));
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the prepared project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = previous_selection.clone();
             run.snapshot_sources = None;
+            if rebuild {
+                // Another base starts from a fresh work scene; the base and every chosen outfit are assembled on it.
+                self.step(&mut run, ctx, "inspect", "Start a fresh work scene for the new base")?;
+                self.platform.clear_work_scene(&run)?;
+                self.update_observations(&mut run, ctx)?;
+            }
             self.step(
                 &mut run,
                 ctx,
@@ -1312,7 +1327,12 @@ impl AmfProductionEngine {
         if result.is_err() {
             if let Some(snapshot) = snapshot {
                 run.recovery = Some(match self.platform.restore(&run, &snapshot) {
-                    Ok(()) => "restored".into(),
+                    Ok(()) => {
+                        if let Some((prefabs, facts, unity, project)) = observed_before {
+                            (run.prefabs, run.result, run.unity_fingerprint, run.project_fingerprint) = (prefabs, facts, unity, project);
+                        }
+                        "restored".into()
+                    }
                     Err(error) => format!("restore_failed: {}", error.code),
                 });
             }
@@ -1451,11 +1471,9 @@ pub fn validate_selection(
     let observed: Option<AssemblySelection> = if run.result["facts"]["observedSelection"].is_null() { None }
         else { Some(serde_json::from_value(run.result["facts"]["observedSelection"].clone())
             .map_err(|_| production_error("inspect_required", "Current Avatar relationships need inspection."))?) };
-    validate_selection_inner(run, selection, observed.is_none())?;
-    if let Some(current) = observed {
-        if current.avatar_prefab != selection.avatar_prefab {
-            return Err(production_error("avatar_target_changed", "Choose a new Avatar to change the base prefab."));
-        }
+    let rebuild = observed.as_ref().is_some_and(|current| current.avatar_prefab != selection.avatar_prefab);
+    validate_selection_inner(run, selection, observed.is_none() || rebuild)?;
+    if let Some(current) = observed.filter(|_| !rebuild) {
         for retained in &current.outfits {
             let chosen = selection.outfits.iter().find(|outfit| outfit.source_id == retained.source_id)
                 .ok_or_else(|| production_error("explicit_removal_required", "An existing outfit cannot be removed by omitting it from the selection."))?;
@@ -1468,6 +1486,13 @@ pub fn validate_selection(
         }
     }
     Ok(())
+}
+
+/// Whether assembling `selection` rebuilds an assembled line on another Avatar prefab: the
+/// work scene starts fresh and the base and every chosen outfit are assembled again.
+pub fn rebuilds_base(run: &ProductionRun, selection: &AssemblySelection) -> bool {
+    serde_json::from_value::<AssemblySelection>(run.result["facts"]["observedSelection"].clone())
+        .is_ok_and(|current| current.avatar_prefab != selection.avatar_prefab)
 }
 
 pub(crate) fn validate_selection_subset(run: &ProductionRun, selection: &AssemblySelection) -> Result<(), AppErrorV1> {

@@ -692,176 +692,11 @@ impl AmfProductionPlatform for NativeAmfProduction {
         refresh_bridge_package(&p.root)?;
         Ok(())
     }
-    fn import_sources(
-        &self,
-        run: &ProductionRun,
-        ctx: &TaskContext,
-    ) -> Result<Vec<PreparedSource>, AppErrorV1> {
-        let mut sources = Vec::new();
-        let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
-        let mut guids = HashMap::<String, String>::new();
-        let mut needs_liltoon = false;
-        let mut liltoon_shaders = BTreeSet::new();
-        let available = self
-            .sources()?
-            .into_iter()
-            .map(|s| (s.source_id.clone(), s))
-            .collect::<HashMap<_, _>>();
-        for choice in &run.choices {
-            if let Some(error) = ctx.cancellation_error("amf-production") {
-                return Err(error);
-            }
-            let source = available.get(&choice.source_id).cloned().ok_or_else(|| {
-                err(
-                    "source_missing",
-                    "Selected local input is no longer present.",
-                )
-            })?;
-            ctx.emit_progress(material_progress(run, &source.item_name));
-            let package_path = self.package_path(&source)?;
-            let sha256 = vua_unity_bridge::material_exec::sha256_file(&package_path)
-                .map_err(|e| err("source_unreadable", e))?;
-            if run.recipe_source_hashes.get(&source.source_id).is_some_and(|expected| sha256.strip_prefix("sha256:").unwrap_or(&sha256) != expected) {
-                return Err(err("recipe_material_changed", format!("{} changed after Recipe resolution. Restore the required original before retrying.", source.name)));
-            }
-            let staged = vua_unity_bridge::production_job::stage_original_source(
-                &package_path,
-                Path::new(&run.project_root),
-                &format!("{}-{}", run.run_id, sources.len()),
-                &sha256,
-            )
-            .map_err(|e| err("source_invalid", e))?;
-            let mut asset_paths = Vec::new();
-            let mut bundled_liltoon = false;
-            for folder in
-                fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
-            {
-                let folder = folder.map_err(|e| err("source_invalid", e))?.path();
-                if !folder.is_dir() {
-                    continue;
-                }
-                let pathname = folder.join("pathname");
-                if !pathname.is_file() {
-                    continue;
-                }
-                let logical = fs::read_to_string(pathname)
-                    .map_err(|e| err("source_invalid", e))?
-                    .trim()
-                    .replace('\\', "/");
-                if !safe_asset_path(&logical) {
-                    return Err(err(
-                        "source_invalid",
-                        format!("Only Assets/ package paths are supported: {logical}"),
-                    ));
-                }
-                let folded = logical.to_ascii_lowercase();
-                if folded == "assets/vua" || folded.starts_with("assets/vua/") {
-                    return Err(err(
-                        "asset_conflict",
-                        "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
-                    ));
-                }
-                // A copy of lilToon shipped inside a material package: the current official VPM
-                // package takes its place, so materials render with the maintained shaders.
-                if is_bundled_liltoon(&folded) {
-                    bundled_liltoon = true;
-                    continue;
-                }
-                let guid = folder
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                if guid.len() != 32 || !guid.bytes().all(|c| c.is_ascii_hexdigit()) {
-                    return Err(err("source_invalid", "Invalid Unity asset GUID."));
-                }
-                let metadata = fs::read_to_string(folder.join("asset.meta")).map_err(|e| {
-                    err(
-                        "source_invalid",
-                        format!("Read metadata for {logical}: {e}"),
-                    )
-                })?;
-                validate_metadata_guid(&metadata, &guid, &logical)?;
-                if let Some(previous) = guids.insert(guid.clone(), logical.clone()) {
-                    if previous != logical {
-                        return Err(err(
-                            "asset_conflict",
-                            format!("GUID {guid} maps to both {previous} and {logical}."),
-                        ));
-                    }
-                }
-                for (input, target) in [
-                    (folder.join("asset"), logical.clone()),
-                    (folder.join("asset.meta"), format!("{logical}.meta")),
-                ] {
-                    if !input.is_file() {
-                        continue;
-                    }
-                    if let Some(previous) = files.get(&target) {
-                        if vua_unity_bridge::material_exec::sha256_file(previous)
-                            .map_err(|e| err("source_invalid", e))?
-                            != vua_unity_bridge::material_exec::sha256_file(&input)
-                                .map_err(|e| err("source_invalid", e))?
-                        {
-                            return Err(err("asset_conflict", format!("Selected packages contain different files at {target}. Choose compatible package versions.")));
-                        }
-                    } else {
-                        files.insert(target, input);
-                    }
-                }
-                if !folder.join("asset.meta").is_file() {
-                    return Err(err(
-                        "source_invalid",
-                        format!("Asset has no Unity metadata: {logical}"),
-                    ));
-                }
-                if folder.join("asset").is_file() {
-                    if folded.ends_with(".mat") {
-                        let material = fs::read(folder.join("asset")).map_err(|e| err("source_invalid", e))?;
-                        liltoon_shaders.extend(liltoon_material_shader(&material));
-                    }
-                    asset_paths.push(logical);
-                }
-            }
-            needs_liltoon |= bundled_liltoon;
-            if asset_paths.is_empty() && !bundled_liltoon {
-                return Err(err(
-                    "source_invalid",
-                    format!("{} contains no supported Assets/ inputs.", source.name),
-                ));
-            }
-            asset_paths.sort();
-            sources.push(PreparedSource {
-                source_id: choice.source_id.clone(),
-                role: choice.role,
-                name: source.name,
-                item_name: source.item_name,
-                sha256,
-                asset_paths,
-            });
-        }
-        // Validate the entire batch before the first asset copy; shared identical files are reused.
-        validate_asset_layout(files.keys().map(String::as_str))?;
-        // lilToon materials whose shader none of the selected packages carries render pink
-        // until the lilToon package is in the project.
-        needs_liltoon |= liltoon_shaders.iter().any(|shader| !guids.contains_key(shader));
-        if needs_liltoon && !run.package_pins.contains_key(LILTOON_PACKAGE) {
-            ctx.emit_progress(material_progress(run, "lilToon"));
-            self.install_liltoon(run)?;
-        }
-        for (relative, original) in files {
-            let destination = Path::new(&run.project_root).join(&relative);
-            if destination.exists() {
-                return Err(err(
-                    "asset_conflict",
-                    format!("Work project already contains {relative}."),
-                ));
-            }
-            fs::create_dir_all(destination.parent().expect("asset parent"))
-                .map_err(|e| err("import_failed", e))?;
-            fs::copy(original, destination).map_err(|e| err("import_failed", e))?;
-        }
-        Ok(sources)
+    fn import_sources(&self, run: &ProductionRun, ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
+        import_choices(self, run, ctx, None)
+    }
+    fn replace_sources(&self, run: &ProductionRun, previous: &[PreparedSource], ctx: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> {
+        import_choices(self, run, ctx, Some(previous))
     }
     fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         let operation = if Path::new(&run.project_root)
@@ -1232,6 +1067,231 @@ fn open_editor(run: &ProductionRun) -> Result<(), AppErrorV1> {
     Ok(())
 }
 
+/// Imports the run's chosen materials into its work project. With `previous`, the project already
+/// holds those materials: the files only they used leave, changed files are replaced and the AMF
+/// work scene starts fresh.
+fn import_choices(
+    adapter: &NativeAmfProduction,
+    run: &ProductionRun,
+    ctx: &TaskContext,
+    previous: Option<&[PreparedSource]>,
+) -> Result<Vec<PreparedSource>, AppErrorV1> {
+        let mut sources = Vec::new();
+        let mut files: BTreeMap<String, PathBuf> = BTreeMap::new();
+        let mut guids = HashMap::<String, String>::new();
+        let mut needs_liltoon = false;
+        let mut liltoon_shaders = BTreeSet::new();
+        let available = adapter
+            .sources()?
+            .into_iter()
+            .map(|s| (s.source_id.clone(), s))
+            .collect::<HashMap<_, _>>();
+        for choice in &run.choices {
+            if let Some(error) = ctx.cancellation_error("amf-production") {
+                return Err(error);
+            }
+            let source = available.get(&choice.source_id).cloned().ok_or_else(|| {
+                err(
+                    "source_missing",
+                    "Selected local input is no longer present.",
+                )
+            })?;
+            ctx.emit_progress(material_progress(run, &source.item_name));
+            let package_path = adapter.package_path(&source)?;
+            let sha256 = vua_unity_bridge::material_exec::sha256_file(&package_path)
+                .map_err(|e| err("source_unreadable", e))?;
+            if run.recipe_source_hashes.get(&source.source_id).is_some_and(|expected| sha256.strip_prefix("sha256:").unwrap_or(&sha256) != expected) {
+                return Err(err("recipe_material_changed", format!("{} changed after Recipe resolution. Restore the required original before retrying.", source.name)));
+            }
+            let staged = vua_unity_bridge::production_job::stage_original_source(
+                &package_path,
+                Path::new(&run.project_root),
+                &match previous { None => format!("{}-{}", run.run_id, sources.len()), Some(_) => format!("{}-r{}-{}", run.run_id, run.revision, sources.len()) },
+                &sha256,
+            )
+            .map_err(|e| err("source_invalid", e))?;
+            let mut asset_paths = Vec::new();
+            let mut bundled_liltoon = false;
+            for folder in
+                fs::read_dir(&staged.source_package_path).map_err(|e| err("source_invalid", e))?
+            {
+                let folder = folder.map_err(|e| err("source_invalid", e))?.path();
+                if !folder.is_dir() {
+                    continue;
+                }
+                let pathname = folder.join("pathname");
+                if !pathname.is_file() {
+                    continue;
+                }
+                let logical = fs::read_to_string(pathname)
+                    .map_err(|e| err("source_invalid", e))?
+                    .trim()
+                    .replace('\\', "/");
+                if !safe_asset_path(&logical) {
+                    return Err(err(
+                        "source_invalid",
+                        format!("Only Assets/ package paths are supported: {logical}"),
+                    ));
+                }
+                let folded = logical.to_ascii_lowercase();
+                if folded == "assets/vua" || folded.starts_with("assets/vua/") {
+                    return Err(err(
+                        "asset_conflict",
+                        "Selected source uses the reserved AMF work-scene directory Assets/VUA.",
+                    ));
+                }
+                // A copy of lilToon shipped inside a material package: the current official VPM
+                // package takes its place, so materials render with the maintained shaders.
+                if is_bundled_liltoon(&folded) {
+                    bundled_liltoon = true;
+                    continue;
+                }
+                let guid = folder
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
+                if guid.len() != 32 || !guid.bytes().all(|c| c.is_ascii_hexdigit()) {
+                    return Err(err("source_invalid", "Invalid Unity asset GUID."));
+                }
+                let metadata = fs::read_to_string(folder.join("asset.meta")).map_err(|e| {
+                    err(
+                        "source_invalid",
+                        format!("Read metadata for {logical}: {e}"),
+                    )
+                })?;
+                validate_metadata_guid(&metadata, &guid, &logical)?;
+                if let Some(previous) = guids.insert(guid.clone(), logical.clone()) {
+                    if previous != logical {
+                        return Err(err(
+                            "asset_conflict",
+                            format!("GUID {guid} maps to both {previous} and {logical}."),
+                        ));
+                    }
+                }
+                for (input, target) in [
+                    (folder.join("asset"), logical.clone()),
+                    (folder.join("asset.meta"), format!("{logical}.meta")),
+                ] {
+                    if !input.is_file() {
+                        continue;
+                    }
+                    if let Some(previous) = files.get(&target) {
+                        if vua_unity_bridge::material_exec::sha256_file(previous)
+                            .map_err(|e| err("source_invalid", e))?
+                            != vua_unity_bridge::material_exec::sha256_file(&input)
+                                .map_err(|e| err("source_invalid", e))?
+                        {
+                            return Err(err("asset_conflict", format!("Selected packages contain different files at {target}. Choose compatible package versions.")));
+                        }
+                    } else {
+                        files.insert(target, input);
+                    }
+                }
+                if !folder.join("asset.meta").is_file() {
+                    return Err(err(
+                        "source_invalid",
+                        format!("Asset has no Unity metadata: {logical}"),
+                    ));
+                }
+                if folder.join("asset").is_file() {
+                    if folded.ends_with(".mat") {
+                        let material = fs::read(folder.join("asset")).map_err(|e| err("source_invalid", e))?;
+                        liltoon_shaders.extend(liltoon_material_shader(&material));
+                    }
+                    asset_paths.push(logical);
+                }
+            }
+            needs_liltoon |= bundled_liltoon;
+            if asset_paths.is_empty() && !bundled_liltoon {
+                return Err(err(
+                    "source_invalid",
+                    format!("{} contains no supported Assets/ inputs.", source.name),
+                ));
+            }
+            asset_paths.sort();
+            sources.push(PreparedSource {
+                source_id: choice.source_id.clone(),
+                role: choice.role,
+                name: source.name,
+                item_name: source.item_name,
+                sha256,
+                asset_paths,
+            });
+        }
+        // Validate the entire batch before the first asset copy; shared identical files are reused.
+        validate_asset_layout(files.keys().map(String::as_str))?;
+        // lilToon materials whose shader none of the selected packages carries render pink
+        // until the lilToon package is in the project.
+        needs_liltoon |= liltoon_shaders.iter().any(|shader| !guids.contains_key(shader));
+        if needs_liltoon && !run.package_pins.contains_key(LILTOON_PACKAGE) && run.result["packageVersions"].get(LILTOON_PACKAGE).is_none() {
+            ctx.emit_progress(material_progress(run, "lilToon"));
+            adapter.install_liltoon(run)?;
+        }
+        let project = Path::new(&run.project_root);
+        if let Some(previous) = previous {
+            retire_previous(project, previous, &files.keys().cloned().collect())?;
+        }
+        for (relative, original) in files {
+            let destination = project.join(&relative);
+            if destination.exists() {
+                if previous.is_none() {
+                    return Err(err(
+                        "asset_conflict",
+                        format!("Work project already contains {relative}."),
+                    ));
+                }
+                // A file the line keeps stays as it is; a changed version replaces it.
+                if vua_unity_bridge::material_exec::sha256_file(&destination).map_err(|e| err("import_failed", e))?
+                    == vua_unity_bridge::material_exec::sha256_file(&original).map_err(|e| err("source_invalid", e))? {
+                    continue;
+                }
+            }
+            fs::create_dir_all(destination.parent().expect("asset parent"))
+                .map_err(|e| err("import_failed", e))?;
+            fs::copy(original, destination).map_err(|e| err("import_failed", e))?;
+        }
+        Ok(sources)
+}
+
+/// Before a material change: the files only the previous materials used leave the work project,
+/// the folders they leave empty go with their Unity metadata, and AMF's work scene starts fresh.
+fn retire_previous(project: &Path, previous: &[PreparedSource], kept: &BTreeSet<String>) -> Result<(), AppErrorV1> {
+    let mut removed = Vec::new();
+    for asset in previous.iter().flat_map(|source| source.asset_paths.iter()).filter(|asset| safe_asset_path(asset)) {
+        for relative in [asset.clone(), format!("{asset}.meta")] {
+            let path = project.join(&relative);
+            if !kept.contains(&relative) && path.is_file() {
+                fs::remove_file(&path).map_err(|e| err("import_failed", e))?;
+                removed.push(relative);
+            }
+        }
+    }
+    prune_empty_folders(project, &removed);
+    let work_area = project.join("Assets/VUA");
+    if work_area.is_dir() {
+        fs::remove_dir_all(&work_area).map_err(|e| err("import_failed", e))?;
+    }
+    let _ = fs::remove_file(project.join("Assets/VUA.meta"));
+    Ok(())
+}
+
+/// Removes the folders the removed files leave empty, with their Unity folder metadata, up to Assets.
+fn prune_empty_folders(project: &Path, removed: &[String]) {
+    let mut folders = removed.iter()
+        .flat_map(|relative| Path::new(relative).ancestors().skip(1).map(Path::to_path_buf).collect::<Vec<_>>())
+        .filter(|folder| folder.starts_with("Assets") && folder.as_path() != Path::new("Assets"))
+        .collect::<Vec<_>>();
+    folders.sort_by_key(|folder| std::cmp::Reverse(folder.components().count()));
+    folders.dedup();
+    for folder in folders {
+        let path = project.join(&folder);
+        if fs::read_dir(&path).is_ok_and(|mut entries| entries.next().is_none()) && fs::remove_dir(&path).is_ok() {
+            let _ = fs::remove_file(project.join(format!("{}.meta", folder.to_string_lossy())));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1382,6 +1442,24 @@ mod tests {
         ], ..run };
         // Four files, plus Assets/Meiyun and Assets/Meiyun/Textures.
         assert_eq!(imported_asset_count(&run), 6);
+    }
+
+    #[test]
+    fn a_material_change_retires_only_the_files_the_previous_materials_alone_used() {
+        let project = std::env::temp_dir().join(format!("vua-amf-retire-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&project);
+        let file = |relative: &str| { let path = project.join(relative); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, relative).unwrap(); };
+        for relative in ["Assets/Old/Coat.prefab", "Assets/Old/Coat.prefab.meta", "Assets/Old.meta", "Assets/Shared/Body.mat", "Assets/Shared/Body.mat.meta",
+            "Assets/VUA/Production.unity", "Assets/VUA/Ownership.json", "Assets/VUA.meta", "outside.txt"] { file(relative); }
+        let previous = [PreparedSource { source_id: "old".into(), role: SourceRole::Auto, name: "old.unitypackage".into(), item_name: "old".into(), sha256: String::new(),
+            asset_paths: vec!["Assets/Old/Coat.prefab".into(), "Assets/Shared/Body.mat".into(), "../outside.txt".into()] }];
+        let kept = ["Assets/Shared/Body.mat".to_owned(), "Assets/Shared/Body.mat.meta".to_owned()].into_iter().collect();
+        retire_previous(&project, &previous, &kept).unwrap();
+        assert!(!project.join("Assets/Old").exists() && !project.join("Assets/Old.meta").exists(), "a folder left empty leaves with its metadata");
+        assert!(project.join("Assets/Shared/Body.mat").is_file() && project.join("Assets/Shared/Body.mat.meta").is_file(), "a file the new materials share stays");
+        assert!(!project.join("Assets/VUA").exists() && !project.join("Assets/VUA.meta").exists(), "the work scene starts fresh");
+        assert!(project.join("outside.txt").is_file(), "only Assets paths are touched");
+        std::fs::remove_dir_all(&project).unwrap();
     }
 
     #[test]

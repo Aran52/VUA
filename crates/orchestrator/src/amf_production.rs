@@ -317,6 +317,14 @@ pub fn step_progress(run_id: &str, step: &ProductionStep) -> serde_json::Value {
         "startedAt":step.started_at.clone().unwrap_or_default()})
 }
 
+/** A line's materials, kept with a restore point taken before they changed. */
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceSnapshot {
+    pub choices: Vec<SourceChoice>,
+    pub sources: Vec<PreparedSource>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductionRun {
@@ -344,6 +352,9 @@ pub struct ProductionRun {
     pub snapshot_id: Option<String>,
     #[serde(default)]
     pub snapshot_selection: Option<AssemblySelection>,
+    /// The line's materials at the restore point, when that point was taken before they changed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot_sources: Option<SourceSnapshot>,
     #[serde(default)]
     pub recipe_id: Option<String>,
     #[serde(default)]
@@ -379,6 +390,17 @@ pub trait AmfProductionPlatform: Send + Sync {
         run: &ProductionRun,
         ctx: &TaskContext,
     ) -> Result<Vec<PreparedSource>, AppErrorV1>;
+    /// Brings a prepared work project to the run's current choices: the files of materials no
+    /// longer chosen leave, changed files are replaced, new ones arrive, and the AMF work scene
+    /// starts fresh. `previous` are the materials the project holds now.
+    fn replace_sources(
+        &self,
+        _run: &ProductionRun,
+        _previous: &[PreparedSource],
+        _ctx: &TaskContext,
+    ) -> Result<Vec<PreparedSource>, AppErrorV1> {
+        Err(production_error("change_unavailable", "Changing a line's materials is unavailable on this platform."))
+    }
     /// Unity steps report their progress through `watch` and end Unity when it asks to stop.
     fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1>;
     fn assemble(
@@ -440,6 +462,30 @@ type RecordSignature = Vec<(std::ffi::OsString, u64, Option<SystemTime>)>;
 
 /// Run phases during which a task works on the run.
 pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "restoring"];
+
+/// Removes a folder tree; read-only files, as Unity and Git leave some, are made writable first.
+fn remove_tree(path: &Path) -> std::io::Result<()> {
+    if fs::remove_dir_all(path).is_ok() || !path.exists() {
+        return Ok(());
+    }
+    let mut pending = vec![path.to_path_buf()];
+    while let Some(folder) = pending.pop() {
+        for entry in fs::read_dir(&folder)?.flatten() {
+            let entry_path = entry.path();
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                pending.push(entry_path);
+            } else if let Ok(metadata) = entry.metadata() {
+                let mut permissions = metadata.permissions();
+                if permissions.readonly() {
+                    #[allow(clippy::permissions_set_readonly_false)]
+                    permissions.set_readonly(false);
+                    let _ = fs::set_permissions(&entry_path, permissions);
+                }
+            }
+        }
+    }
+    fs::remove_dir_all(path)
+}
 
 pub fn production_error(code: &str, detail: impl Into<String>) -> AppErrorV1 {
     AppErrorV1::new(
@@ -727,6 +773,7 @@ impl AmfProductionEngine {
             confirmed_digest: None,
             snapshot_id: None,
             snapshot_selection: None,
+            snapshot_sources: None,
             recipe_id: None,
             package_pins: BTreeMap::new(),
             recipe_source_hashes: BTreeMap::new(),
@@ -911,6 +958,93 @@ impl AmfProductionEngine {
         run.project_fingerprint = current;
         Ok(())
     }
+    /// The line's own materials change: VUA protects the work project, brings it to the new
+    /// materials and builds a fresh work scene, and the line returns to planning. The restore
+    /// point keeps the previous project and materials.
+    pub fn change_sources(&self, run_id: &str, choices: Vec<SourceChoice>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        validate_choices(&choices)?;
+        let mut run = self.get(run_id)?;
+        if run.sources.is_empty() || !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "stopped") {
+            return Err(production_error("inspect_required", "Check the work project again before changing its materials."));
+        }
+        let sources = self.sources()?;
+        if let Some(missing) = choices.iter().find(|choice| !sources.iter().any(|s| s.source_id == choice.source_id)) {
+            return Err(production_error("source_missing", format!("Source {} is no longer present.", missing.source_id)));
+        }
+        let key = |choices: &[SourceChoice]| { let mut ids = choices.iter().map(|c| format!("{}:{:?}", c.source_id, c.role)).collect::<Vec<_>>(); ids.sort(); ids };
+        if key(&choices) == key(&run.choices) {
+            return Err(production_error("sources_unchanged", "Choose a different set of materials for this line."));
+        }
+        self.ensure_project_matches(&mut run)?;
+        let previous = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
+        run.task_id = ctx.task_id().into();
+        run.phase = "preparing".into();
+        run.error = None;
+        run.recovery = None;
+        run.confirmed_digest = None;
+        let mut snapshot = None;
+        let result = (|| {
+            self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
+            snapshot = Some(self.platform.snapshot(&run)?);
+            run.snapshot_id = snapshot.clone();
+            run.snapshot_selection = run.selection.clone();
+            run.snapshot_sources = Some(previous.clone());
+            self.step(&mut run, ctx, "materials", "Change the line's materials")?;
+            run.choices = choices.clone();
+            run.sources = self.platform.replace_sources(&run, &previous.sources, ctx)?;
+            self.save(&run)?;
+            self.step(&mut run, ctx, "inspect", "Identify actual Avatar and outfit prefabs")?;
+            self.update_observations(&mut run, ctx)?;
+            if let Some(error) = ctx.cancellation_error("amf-production") {
+                return Err(error);
+            }
+            // The line plans again; what still names a present material stays chosen.
+            run.selection = run.selection.take().map(|mut selection| {
+                selection.outfits.retain(|outfit| run.sources.iter().any(|s| s.source_id == outfit.source_id));
+                if !run.prefabs.iter().any(|p| p.is_avatar && p.path == selection.avatar_prefab) {
+                    selection.avatar_prefab.clear();
+                }
+                selection
+            }).filter(|selection| !selection.avatar_prefab.is_empty() || !selection.outfits.is_empty());
+            run.recipe_id = None;
+            run.recipe_source_hashes.clear();
+            run.completed_at = None;
+            run.phase = "ready".into();
+            Ok(())
+        })();
+        if result.is_err() {
+            if let Some(snapshot) = snapshot {
+                run.recovery = Some(match self.platform.restore(&run, &snapshot) {
+                    Ok(()) => {
+                        run.choices = previous.choices.clone();
+                        run.sources = previous.sources.clone();
+                        "restored".into()
+                    }
+                    Err(error) => format!("restore_failed: {}", error.code),
+                });
+            }
+        }
+        self.finish(&mut run, result)
+    }
+    /// Deletes a line: its work project with the restore points, previews and turntable inside it,
+    /// its release record and its run record. Recipes saved from it and Avatars uploaded from it stay.
+    pub fn delete_run(&self, run_id: &str) -> Result<(), AppErrorV1> {
+        let run = self.get(run_id)?;
+        let project = PathBuf::from(&run.project_root);
+        if self.platform.editor_open(&project) {
+            return Err(production_error("project_open", "Close Unity for this line, then delete it."));
+        }
+        if project.exists() {
+            remove_tree(&project).map_err(|e| production_error("delete_failed", e.to_string()))?;
+        }
+        let release = self.root.join("releases").join(format!("{run_id}.json"));
+        if release.exists() {
+            fs::remove_file(release).map_err(io_error)?;
+        }
+        fs::remove_file(self.run_file(run_id)?).map_err(io_error)?;
+        *self.usual.lock().expect("AMF durations poisoned") = None;
+        Ok(())
+    }
     pub fn reinspect(&self, run_id: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
         let mut run = self.get(run_id)?;
         if run.sources.is_empty() {
@@ -968,6 +1102,7 @@ impl AmfProductionEngine {
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = run.selection.clone();
+            run.snapshot_sources = None;
             self.step(&mut run, ctx, "sdk_fix", "Run the VRChat SDK's Auto Fix")?;
             let observed = self.platform.sdk_fix(&run, &fixes, &self.watch(&run, ctx))?;
             if let Some(error) = ctx.cancellation_error("amf-production") {
@@ -1093,6 +1228,7 @@ impl AmfProductionEngine {
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = previous_selection.clone();
+            run.snapshot_sources = None;
             self.step(
                 &mut run,
                 ctx,
@@ -1192,6 +1328,8 @@ impl AmfProductionEngine {
         let target = run.snapshot_id.clone().expect("reviewed restore point");
         let target_selection = run.snapshot_selection.clone();
         let current_selection = run.selection.clone();
+        let target_sources = run.snapshot_sources.clone();
+        let current_sources = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
         run.task_id = ctx.task_id().into();
         run.phase = "restoring".into();
         run.error = None;
@@ -1208,12 +1346,18 @@ impl AmfProductionEngine {
             safety = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = safety.clone();
             run.snapshot_selection = current_selection.clone();
+            // Restoring across a material change brings the earlier materials back with the files.
+            run.snapshot_sources = target_sources.as_ref().map(|_| current_sources.clone());
             self.step(&mut run, ctx, "restore", "Restore the reviewed project state")?;
             if self.platform.fingerprint(Path::new(&run.project_root))? != current {
                 return Err(production_error("project_drift", "The project changed while protecting it. Review the restore again."));
             }
             mutated = true;
             self.platform.restore(&run, &target)?;
+            if let Some(earlier) = &target_sources {
+                run.choices = earlier.choices.clone();
+                run.sources = earlier.sources.clone();
+            }
             self.step(&mut run, ctx, "reinspect", "Verify the restored project in Unity")?;
             self.update_observations(&mut run, ctx)?;
             if let Some(error) = ctx.cancellation_error("amf-production") { return Err(error); }

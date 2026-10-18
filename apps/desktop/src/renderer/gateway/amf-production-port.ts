@@ -109,6 +109,10 @@ export interface AmfProductionPort {
   reinspect(runId: string): Promise<AmfProductionAccepted>;
   /** Runs the VRChat SDK's own Auto Fix for items its last check offers one for, by the SDK's exact words. */
   sdkFix(runId: string, fixes: readonly string[]): Promise<AmfProductionAccepted>;
+  /** Changes the line's own materials behind a restore point; the line plans again. */
+  changeSources(runId: string, sources: readonly AmfSourceChoice[]): Promise<AmfProductionAccepted>;
+  /** Deletes a line with its work project and release record. */
+  delete(runId: string): Promise<AmfProductionAccepted>;
   rollbackPlan(runId: string): Promise<AmfProductionRestorePlan>;
   rollback(runId: string, plan: AmfProductionRestorePlan): Promise<AmfProductionAccepted>;
   open(runId: string): Promise<AmfProductionAccepted>;
@@ -268,6 +272,8 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async assemble(runId, plan) { return accepted(await call({ method: "amf.production.assemble", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, selection: plan.selection } }), strings.amfProduction.assembling); },
     async reinspect(runId) { return accepted(await call({ method: "amf.production.reinspect", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.reinspect); },
     async sdkFix(runId, fixes) { return accepted(await call({ method: "amf.production.sdkFix", params: { schemaVersion: "0.1", runId, fixes: [...fixes] } }), strings.sdkReview.fixTitle); },
+    async changeSources(runId, sources) { return accepted(await call({ method: "amf.production.changeSources", params: { schemaVersion: "0.1", runId, sources: [...sources] } }), strings.factory.panels.materials.change); },
+    async delete(runId) { return accepted(await call({ method: "amf.production.delete", params: { schemaVersion: "0.1", runId } }), strings.factory.lineMenu.delete); },
     async rollbackPlan(runId) {
       const v = await call({ method: "amf.production.rollbackPlan", params: { schemaVersion: "0.1", runId } });
       if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || !text(v.planDigest) || !/^[a-f0-9]{64}$/u.test(v.planDigest)

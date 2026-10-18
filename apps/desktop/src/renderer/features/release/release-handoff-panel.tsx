@@ -216,16 +216,11 @@ export function HandoffPanel({
           {format(copy.projectLine, { projectId: phase.fact.projectId })}
         </p>
         <p className="vua-caption vua-text-secondary">{copy.sdkNote}</p>
-        {/* 检查证据指引(023 核心表态第 4 点:导航是 IA 问题不是数据问题):
-         *  纯页面级导航,不携带检查身份,零跨源推导;回调未接不渲染按钮;
-         *  术语经 termLabel 流动,不硬编码进文案(术语守卫) */}
-        <p className="vua-caption vua-text-secondary">
-          {format(copy.inspectNote, { page: termLabel("inspection") })}
-        </p>
+        {/* 检查落在车间工位(检查页已退役);纯页面级导航,回调未接不渲染按钮 */}
         {onNavigate !== undefined ? (
           <div className="vua-page__actions">
-            <Button variant="subtle" onClick={() => onNavigate("inspection")}>
-              {format(copy.gotoInspection, { page: termLabel("inspection") })}
+            <Button variant="subtle" onClick={() => onNavigate("workshop")}>
+              {copy.entryWorkshop}
             </Button>
           </div>
         ) : null}

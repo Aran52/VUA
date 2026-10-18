@@ -80,6 +80,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 27 | Queue factory work | P-02 | built: one job at a time, the rest wait in a visible queue; awaits the author's real-run check |
 | 28 | Quitting during a task | — | done |
 | 29 | Restore after an interrupted assembly | — | done |
+| 30 | Workshop stations and line management | P-02 | built; awaits the author's real-run check |
 
 Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Permission
 modes. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
@@ -405,6 +406,23 @@ player reinspects first and then restores from the workshop.
    "Continue".
 
 **Done when** a line interrupted during assembly returns to its pre-assembly state in one step.
+
+## 30 — Workshop stations and line management
+
+Author request, 2026-10-18.
+
+1. The workshop's separate checks page leaves; the product boundary dropped it on 2026-09-22, and
+   the checks live in the intake-check and quality-check stations and the release room.
+2. Each station on a line is a place to click: materials, intake check, plan, assembly and
+   quality check each open their own panel; without a choice the page follows the line.
+3. A line changes its own materials in place ([amf-production 0.17.0](../protocols/amf-production-v0.1.md#changing-a-lines-materials))
+   behind a restore point that keeps the earlier materials; a finished line can change its plan
+   and assemble only what changed.
+4. Each line card closes from its corner: hide, or delete after a confirmation, which removes
+   the work project and the line's records.
+
+**Done when** the author swaps the outfit of a finished line on that same line, brings the earlier
+outfit back from the restore point, and deletes a test line whose work folder is then gone.
 
 ## Open decisions
 

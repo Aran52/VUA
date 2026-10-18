@@ -162,7 +162,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
-- 0.10.1 (2026-10-19): the result schema covers every field Unity writes, verified against real inspection, assembly, preparation, SDK-fix-shaped and turntable results.
+- 0.10.1 (2026-10-19): the result schema covers every field Unity writes, verified against real preparation, inspection, assembly and turntable results; SDK fix results are covered by a synthetic vector.
 - 0.10.0 (2026-10-18): `amf_sdk_fix` runs the SDK's own Auto Fix for chosen items of its Avatar check.
 - 0.9.0 (2026-10-18): read the VRChat SDK's own Avatar checks and performance ratings into `sdkReview` after inspection and assembly.
 - 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA.

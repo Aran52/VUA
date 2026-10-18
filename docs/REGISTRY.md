@@ -87,7 +87,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.10.0 | Candidate | Production | 2026-10-18 |
+| docs/protocols/unity-bridge-v5.md | 0.10.1 | Candidate | Production | 2026-10-19 |
 | docs/protocols/website-tests-v0.1.md | 0.3 | Candidate | Environment | 2026-10-11 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
@@ -155,6 +155,6 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/scenario-environment/v0.1 | 0.1 | Candidate | Environment | 2026-10-13 |
 | schemas/unity-bridge/handshake/v1.0 | 1.0 | Frozen | Production | 2026-09-16 |
 | schemas/unity-bridge/v4 | v4 | Frozen | Production | 2026-09-20 |
-| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-17 |
+| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-19 |
 | schemas/website-tests/v0.1/ | 0.1 | Candidate | Environment | 2026-10-07 |
 | schemas/windows-distribution/v0.1/ | 0.1 | Candidate | Integration | 2026-10-13 |

@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-18
+> Updated: 2026-10-19
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -10,22 +10,25 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 
 - `main` carries the Ibis releases (v0.6.7).
 - `slice/north-star` (VUA-Project/VUA#83) adds the north star, the Eval and the documentation rules.
-- `slice/n3-n4-ma-production` (VUA-Project/VUA#84) carries the AMF production work. Since the
-  first real run it also holds the MSIX Hub detection (#85) and these changes, reviewed on the
-  Aran52 fork (Aran52/VUA#1–#4) and checked in real runs:
-  - the material-first production path with Recipe v0.4, the local MCP adapter, six Steam tool
-    connections, and the fixes from the first real runs;
-  - Unity Hub starts before Unity work; work projects share the product `VUA Avatar Work`, so
-    the SDK sign-in is shared; the Bridge reports SDK sign-in and materials without their shader;
-  - lilToon installs from its feed for bundled copies and for lilToon materials whose shader is
-    absent;
-  - result and candidate previews; live Unity progress with Stop and Continue and usual
-    durations on this computer;
+- `slice/n3-n4-ma-production` (VUA-Project/VUA#84) is the production branch of this stage. It
+  carries the AMF production work, the MSIX Hub detection (#85), and the slices merged on the
+  Aran52 fork:
+  - from the first real runs (Aran52/VUA#1–#4): the material-first production path with Recipe
+    v0.4, the local MCP adapter, six Steam tool connections, Unity Hub starting before Unity
+    work, one shared product name for work projects so the SDK sign-in carries over, lilToon
+    from its feed, result and candidate previews, and live Unity progress with Stop and Continue;
   - the AMF interface as an Avatar factory: a base map with animated rooms and a camera, the
-    workshop's production lines with stations and automation levels, the control center with
-    the Recipe graph and a VCC-style package manager, and the release room's album with the
-    60-frame turntable and managed upload;
-  - token groundwork for the [skin system](skin-system.md).
+    workshop's production lines with stations and permission modes, the control center with the
+    Recipe graph and a VCC-style package manager, and the release room's album with the
+    60-frame turntable and managed upload; token groundwork for the [skin system](skin-system.md);
+  - on 2026-10-17/18 (Aran52/VUA#5–#20): the [experimental VRChat sign-in](vrchat-account.md)
+    and the account's Avatar list, the SDK's own checks with its Auto Fix and plain-word
+    messages, cached project fingerprints, permission modes and stated recommendations, the
+    work queue, workshop stations with in-place material changes and line deletion, production
+    started from the materials room, the quit prompt, restore after an interrupted assembly, and
+    production records in Settings. The slice rows below link each pull request.
+- In review on the fork: Aran52/VUA#21 (known packages), #22 (the Bridge v5 result schema covers
+  every field Unity writes) and #23 (Unity work on different lines side by side).
 - VUA-Project/VUA#86 keeps notification rows in place while downloads progress.
 - Real runs on 2026-10-16/17, with evidence in `_local_eval/`:
   - P-02 (Meiyun with the T-shirt & shorts) assembled with correct shading (lilToon 2.3.4); its
@@ -37,13 +40,6 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
 - The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
   hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
-- Merged into the production branch on 2026-10-18:
-  - the [experimental VRChat sign-in](vrchat-account.md) in VUA, which hands its session to the
-    SDK for managed uploads and checks uploads against the player's Avatar list (Aran52/VUA#5);
-    the author's real-account checks remain;
-  - the VRChat SDK's own Avatar checks and performance rank on the release page (Aran52/VUA#6);
-  - cached project fingerprints: an unchanged Meiyun project checks in about 0.7 s instead of
-    a cold 73 s, shown as its own stage (Aran52/VUA#7).
 - Release target (author, 2026-10-18): the next published release with AMF by the end of
   October 2026, numbered under the [version policy](../release/versioning.md).
 
@@ -54,15 +50,15 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 1 | Integrate | — | next: the author merges #83, #84 and #86 with the organization account |
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
-| 4 | Result previews | P-02 | done |
+| 4 | Result previews | P-02 | done (Aran52/VUA#1) |
 | 5 | Unity editor handoff | P-02 | |
-| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks, one-click fixes (Aran52/VUA#12) and plain-word messages are in; the build and upload guide remains |
-| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes and stated recommendations in the workshop and `vua_amf_plan`; the image confirmation remains |
-| 8 | Known packages | P-01, P-03 | next: the VCC-style package manager is in; the known-packages table is assigned |
+| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide remains |
+| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
+| 8 | Known packages | P-01, P-03 | in review: the known-packages table with detection and installs (Aran52/VUA#21); the package page by permission mode (items 3–4) remains |
 | 9 | Material tuning | P-02, P-03 | |
 | 10 | Face tracking add-on | P-03 | |
 | 11 | Unity sign-in and license | A-01 | |
-| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 |
+| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4) |
 | 13 | Appearance and one-click styles | — | architecture and tokens ready; needs a design session |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
@@ -75,16 +71,16 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
 | 24 | Finer usual durations | — | when the estimates prove too rough |
-| 25 | Production records in Settings | — | done |
-| 26 | VRChat Avatar list in the release room | P-02 | built; awaits the author's real-account check |
-| 27 | Queue factory work | P-02 | built: one job at a time, the rest wait in a visible queue; awaits the author's real-run check |
-| 28 | Quitting during a task | — | done |
-| 29 | Restore after an interrupted assembly | — | done |
-| 30 | Workshop stations and line management | P-02 | built; awaits the author's real-run check |
+| 25 | Production records in Settings | — | done (Aran52/VUA#13) |
+| 26 | VRChat Avatar list in the release room | P-02 | built (Aran52/VUA#17); awaits the author's real-account check |
+| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; awaits the author's real-run check. Item 2's engine in review (Aran52/VUA#23); its workshop setting remains |
+| 28 | Quitting during a task | — | done (Aran52/VUA#14) |
+| 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
+| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
 
-Suggested next order: 1 Integrate, 6 SDK step, 8 Known packages, 5 Editor handoff, 7 Permission
-modes. Integration first keeps the production branch close to `main`; 6 and 8 close the largest
-gaps a newcomer meets in P-02 and P-01.
+Suggested next order: 1 Integrate, 8 Known packages, the rest of 6 (build and upload guide), 5
+Editor handoff, the rest of 7 (image confirmation). Integration first keeps the production branch
+close to `main`; 6 and 8 close the largest gaps a newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
@@ -442,3 +438,16 @@ review, and N7 clean-machine installation.
   job at a time. CI runs the full Rust, TypeScript, smoke and installer checks.
 - Mainland China network cases run on the author's remote host.
 - The author supplies real materials, account sign-ins and human UI review.
+- Each slice is built on a `slice/<slug>` branch in its own worktree, branched from the stage's
+  production branch named under "Where things stand", and returns to it through a pull request
+  on the fork once CI is green. The author merges the production branch into `main` with the
+  organization account.
+- Claude integrates: it reviews pull requests from other assistants, fixes what blocks a merge on
+  their branch, merges, and keeps this plan's status. Other assistants report status in their
+  pull request.
+- The main checkout runs the author's dev VUA from the production branch and is rebuilt after
+  merges while VUA is idle. Electron runs in other worktrees use the main checkout's Electron
+  through `ELECTRON_OVERRIDE_DIST_PATH`, because Windows asks about network access once per
+  Electron path.
+- Task prompts for other assistants and their ledger stay in `_local_real_machine/prompts/`;
+  machine runbooks and helper scripts stay in `_local_environment/`.

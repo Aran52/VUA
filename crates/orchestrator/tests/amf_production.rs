@@ -14,6 +14,8 @@ use vua_orchestrator::{
     SystemClock, TaskContext, TaskExit, TaskRuntime,
 };
 
+const PIPELINE_FIX: &str = "This avatar has no pipeline manager component.";
+
 struct TestPlatform {
     fail: AtomicBool,
     fail_restore: AtomicBool,
@@ -134,7 +136,9 @@ impl AmfProductionPlatform for TestPlatform {
             editor_version: "2022.3.22f1c1".into(),
             result: serde_json::json!({"synthetic":true,
                 "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection)},
+                    "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then(selection),
+                    "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
+                        {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
                 "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}}),
         })
     }
@@ -166,6 +170,15 @@ impl AmfProductionPlatform for TestPlatform {
         let mut observed = self.assemble(run, selection, watch)?;
         observed.result["facts"]["observedSelection"] = serde_json::to_value(selection).unwrap();
         observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
+        Ok(observed)
+    }
+    fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        if self.fail.load(Ordering::SeqCst) {
+            fs::write(Path::new(&run.project_root).join("Assets/state"), "half-fixed").unwrap();
+            return Err(production_error("test_failure", "Synthetic failure inside the SDK fix."));
+        }
+        let mut observed = self.inspect(run, watch)?;
+        observed.result["facts"]["sdkFixesApplied"] = serde_json::json!(fixes);
         Ok(observed)
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
@@ -365,6 +378,29 @@ fn a_reinspected_finished_avatar_stays_finished_until_its_scene_changes() {
     fs::write(Path::new(&run.project_root).join("Assets/state"), "player-change").unwrap();
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
     assert_eq!(h.engine.get("n3-test").unwrap().phase, "ready", "a changed scene goes back to planning");
+}
+#[test]
+fn an_sdk_fix_runs_only_offered_items_behind_a_restore_point_and_keeps_the_phase() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    for refused in [vec![], vec!["This avatar is shorter than average.".to_owned()], vec!["Unknown item".to_owned()],
+        vec![PIPELINE_FIX.to_owned(), PIPELINE_FIX.to_owned()], vec![PIPELINE_FIX.to_owned(); 17]] {
+        assert!(!h.job(move |engine, ctx| engine.sdk_fix("n3-test", refused, ctx)));
+    }
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a refused request takes no restore point");
+    assert!(h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let fixed = h.engine.get("n3-test").unwrap();
+    assert_eq!(fixed.phase, "succeeded", "the finished Avatar stays finished");
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots + 1);
+    assert_eq!(fixed.result["facts"]["sdkFixesApplied"], serde_json::json!([PIPELINE_FIX]));
+    let keys: Vec<&str> = fixed.steps.iter().rev().take(2).map(|step| step.key.as_str()).collect();
+    assert_eq!(keys, ["sdk_fix", "snapshot"]);
+    h.platform.fail.store(true, Ordering::SeqCst);
+    assert!(!h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "after");
 }
 #[test]
 fn failure_restores_and_requires_explicit_reinspection() {

@@ -195,6 +195,7 @@ function Album({ production, release, onNavigate }: { production: AmfProductionP
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),
+          onSdkFix: fixes => act(runId, "upload", () => production.sdkFix(runId, fixes)),
         }}
           avatarCheck={checksEnabled && avatarId !== null ? avatarChecks[avatarId] ?? null : null}
           {...(checksEnabled && avatarId !== null ? { onRefreshAvatarCheck: () => refreshCheck(avatarId) } : {})} />

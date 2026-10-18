@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
+import { sdkMessageKey } from "./sdk-messages.ts";
 import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
@@ -15,6 +16,8 @@ export interface SheetActions {
   readonly onUpload: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
+  /** Runs the SDK's own Auto Fix for the chosen items. */
+  readonly onSdkFix?: (fixes: readonly string[]) => void;
 }
 
 /** How this upload's SDK sign-in happened, as one plain line; unknown stays unsaid. */
@@ -45,21 +48,44 @@ function AvatarCheckBlock({ check, onRefresh, busy }: { check: VrchatAvatarCheck
   </div>;
 }
 
-/** SDK items in the SDK's own (English) words. */
+/** SDK items in plain words where VUA knows the message, with the SDK's own sentence one click away. */
 function SdkIssues({ issues, icon }: { issues: readonly AmfSdkIssue[]; icon: "error-circle" | "warning" | "question" }) {
-  return <ul className="vua-album__checks">{issues.map(issue => <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
-    <Icon name={icon} size={16} /><span><span lang="en">{issue.text}</span>
-      {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span></li>)}</ul>;
+  return <ul className="vua-album__checks">{issues.map(issue => {
+    const plain = sdkMessageKey(issue.text);
+    return <li key={issue.text} data-state={icon === "question" ? "info" : "attention"}>
+      <Icon name={icon} size={16} /><span><span>{plain ? sdkCopy.messages[plain] : <span lang="en">{issue.text}</span>}
+        {issue.canFix && <small className="vua-sdk-review__fix">{sdkCopy.sdkFix}</small>}</span>
+        {plain && <details className="vua-sdk-review__original"><summary>{sdkCopy.original}</summary><span lang="en">{issue.text}</span></details>}</span></li>;
+  })}</ul>;
+}
+
+/** The SDK's Auto Fix for the items it offers one for, after the player reads what happens. */
+function SdkFix({ items, busy, onFix }: { items: readonly AmfSdkIssue[]; busy: boolean; onFix: (fixes: readonly string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
+  if (!open) return <button type="button" className="vua-sdk-review__fix-button" disabled={busy} onClick={() => setOpen(true)} data-nav-id="release-sdk-fix">
+    <Icon name="edit" size={16} />{format(sdkCopy.fixButton, { count: String(items.length) })}</button>;
+  return <div className="vua-sdk-review__fix-confirm" role="group" aria-label={sdkCopy.fixTitle}>
+    <strong>{sdkCopy.fixTitle}</strong>
+    <p className="vua-caption">{sdkCopy.fixBody}</p>
+    <ul>{items.map(item => <li key={item.text} lang="en">{item.text}</li>)}</ul>
+    <div className="vua-sdk-review__fix-actions">
+      <button type="button" className="vua-sdk-review__fix-button" disabled={busy} onClick={() => { setOpen(false); onFix(items.map(item => item.text)); }}>{sdkCopy.fixConfirm}</button>
+      <button type="button" className="vua-release-upload__link" onClick={() => setOpen(false)}>{sdkCopy.fixCancel}</button>
+    </div>
+  </div>;
 }
 
 /** The SDK panel's own checks and performance rank, grouped by what the player does next. */
-function SdkReviewBlock({ run, busy, onCheckAgain }: { run: AmfProductionRun; busy: boolean; onCheckAgain?: () => void }) {
+function SdkReviewBlock({ run, busy, onFix, onCheckAgain }: { run: AmfProductionRun; busy: boolean; onFix?: (fixes: readonly string[]) => void; onCheckAgain?: () => void }) {
   const view = sdkReviewView(run);
   const again = onCheckAgain && <button type="button" className="vua-release-upload__link" disabled={busy} onClick={onCheckAgain} data-nav-id="release-sdk-recheck">{sdkCopy.checkAgain}</button>;
   // An Avatar checked before the SDK checks existed reads them at its next check.
   if (!view) return run.result?.facts ? <section className="vua-album__block vua-sdk-review">
     <h3>{sdkCopy.title}</h3><p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p>{again}</section> : null;
   const clear = view.mustFix.length === 0 && view.reminders.length === 0;
+  const fixable = [...view.mustFix, ...view.reminders].filter(issue => issue.canFix);
+  const applied = run.result?.facts?.sdkFixesApplied?.length ?? 0;
   return <section className="vua-album__block vua-sdk-review">
     <h3>{sdkCopy.title}</h3>
     {view.state === "not_run" ? <p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p> : <>
@@ -76,6 +102,8 @@ function SdkReviewBlock({ run, busy, onCheckAgain }: { run: AmfProductionRun; bu
           <h4>{sdkCopy.reminders}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.remindersHint}</p>
           <SdkIssues issues={view.reminders} icon="warning" /></div>}
         {clear && <p className="vua-sdk-review__clear"><Icon name="check" size={16} />{sdkCopy.allClear}</p>}
+        {applied > 0 && <p className="vua-caption vua-text-secondary">{format(sdkCopy.fixApplied, { count: String(applied) })}</p>}
+        {onFix && <SdkFix items={fixable} busy={busy} onFix={onFix} />}
         {view.state === "partial" && <p className="vua-caption vua-text-secondary">{sdkCopy.partial}</p>}
       </>}
       {view.rankItems.length > 0 && <div className="vua-sdk-review__group" data-group="rank">
@@ -200,7 +228,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
       <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
-    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} />
+    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
         <button type="button" className="vua-release-upload__button" disabled={live && (!actions || actions.busy)} tabIndex={live ? 0 : -1}

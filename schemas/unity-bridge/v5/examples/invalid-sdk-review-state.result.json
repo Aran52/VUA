@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-sdk-review-state",
+  "operation": "amf_inspect",
+  "status": "succeeded",
+  "changedPaths": [],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1",
+    "projectFingerprint": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+    "prefabs": [],
+    "instances": [],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "sdkReview": {
+      "state": "running",
+      "platform": "pc",
+      "overall": "Good",
+      "issues": [],
+      "stats": [],
+      "detail": ""
+    }
+  }
+}

@@ -100,7 +100,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 | 41 | VN3 terms and filtering by use | P-02 | backend prompt written; to be assigned |
 | 42 | Labeled restore points | P-02 | planned; how many points a line keeps is the author's call (three proposed) |
-| 43 | Fixes from the MCP round | P-02 | next |
+| 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
 | 44 | MCP payloads and identity | P-02 | planned |
 
 Suggested next order: 43 Fixes from the MCP round, 42 Labeled restore points, 1 Integrate, the

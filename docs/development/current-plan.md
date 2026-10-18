@@ -43,6 +43,13 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   - the turntable bake, Stop (Unity's whole process tree ended in 12 s) and Continue worked.
 - The author's review found texture memory and lilToon brightness limits to tune, the SDK panel
   hard for newcomers, and the SDK sign-in asked again after the move to the shared product name.
+- A real-machine round through the MCP adapter on 2026-10-19, with evidence in
+  `_local_eval/2026-10-19-mcp-real-run.md`: an external agent drove VUA and the author approved each
+  request. P-02 and P-01 on new lines, queueing and cancelling a waiting task, stop and continue, a
+  material change, deleting a line and a second managed upload ("AMF test2") passed. Opening the
+  project for the SDK timed out waiting for the SDK panel, and a restore after a material change
+  and a new assembly returned to the later state. Slices 42–44 and items in 5 and 6 take the
+  findings.
 - Release: on 2026-10-19 the author postponed the next release, planned for the end of October,
   for a stage pause and a real-machine test round through the MCP adapter; it is numbered under
   the [version policy](../release/versioning.md) when it is cut.
@@ -55,14 +62,14 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done (Aran52/VUA#1) |
-| 5 | Unity editor handoff | P-02 | |
-| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide remains |
+| 5 | Unity editor handoff | P-02 | next: in the MCP round the project opened with the Avatar selected, and the handoff timed out waiting for the SDK panel (item 3) |
+| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide and the SDK panel's own Auto Fix in the facts (item 4) remain |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
-| 9 | Material tuning | P-02, P-03 | assigned: item 2's engine, Bridge facts and contracts |
+| 9 | Material tuning | P-02, P-03 | in progress: item 2's engine, Bridge facts and contracts (Aran52/VUA#29); its workshop entry and item 1 remain |
 | 10 | Face tracking add-on | P-03 | |
-| 11 | Unity sign-in and license | — | assigned: the detection and check engine and contracts |
-| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4) |
+| 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
+| 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
 | 13 | Appearance and one-click styles | — | architecture and tokens ready; needs a design session |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
@@ -77,16 +84,29 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 24 | Finer usual durations | — | when the estimates prove too rough |
 | 25 | Production records in Settings | — | done (Aran52/VUA#13) |
 | 26 | VRChat Avatar list in the release room | P-02 | built (Aran52/VUA#17); awaits the author's real-account check |
-| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; awaits the author's real-run check. Item 2's engine is in (Aran52/VUA#23); its workshop setting remains |
+| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; queueing and cancelling verified in the 2026-10-19 MCP round. Item 2's engine is in (Aran52/VUA#23); its workshop setting remains |
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
-| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); awaits the author's real-run check; removing an outfit through the plan remains |
+| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); the material change and deletion verified in the 2026-10-19 MCP round, whose restore found slice 42's gap; removing an outfit through the plan remains |
 | 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
+| 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md) |
+| 33 | Switch options and built-result evidence | P-02, P-03 | planned from the reference study |
+| 34 | Evidence layers and toolchain profile | P-03, B-02 | planned from the reference study |
+| 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
+| 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
+| 37 | Creator credits | P-02 | planned |
+| 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
+| 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
+| 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
+| 41 | VN3 terms and filtering by use | P-02 | backend prompt written; to be assigned |
+| 42 | Labeled restore points | P-02 | planned; how many points a line keeps is the author's call (three proposed) |
+| 43 | Fixes from the MCP round | P-02 | next |
+| 44 | MCP payloads and identity | P-02 | planned |
 
-Suggested next order: 31 Base change, 1 Integrate, the rest of 8, the rest of 6 (build and upload
-guide), 5 Editor handoff, the rest of 7 (image confirmation). 31 removes a dead end on finished
-lines; integration keeps the production branch close to `main`; 6 and 8 close the largest gaps a
-newcomer meets in P-02 and P-01.
+Suggested next order: 43 Fixes from the MCP round, 42 Labeled restore points, 1 Integrate, the
+rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
+confirmation). 43 and 42 remove the traps the MCP round met; integration keeps the production
+branch close to `main`; 6 and 8 close the largest gaps a newcomer meets in P-02 and P-01.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
@@ -137,6 +157,10 @@ signed in to the SDK.
    send a receipt.
 2. When work needs a project an Editor holds, the request card offers "Save and close Unity,
    then continue". After the look check, the page offers "Done checking, close Unity".
+3. Opening the project for the SDK succeeds once Unity holds the project with the Avatar
+   selected; when the SDK panel does not open by itself, the page says how to open it (VRChat SDK
+   → Show Control Panel). In the MCP round the panel stayed closed on this machine, and the open
+   task failed with `sdk_handoff_timeout`.
 
 **Done when** a held project continues without closing Unity by hand.
 
@@ -146,6 +170,9 @@ signed in to the SDK.
 2. VUA shows each item in plain words as "must fix before upload", "reminder, upload still
    works" or "affects the performance rank", with a one-click fix where VUA can make it.
 3. An illustrated guide to the SDK panel in four languages: sign-in, build, warnings, upload.
+4. An Auto Fix the player makes in the SDK panel during an upload reaches the line's facts: VUA
+   reads the SDK's check again after the upload, so the release page and `vua_amf_run` stop showing
+   the fixed error.
 
 Done so far: the sign-in guide on the release page, and the SDK's own checks. The Bridge runs
 the SDK panel's Avatar check without opening the panel; the release page groups its items as
@@ -460,12 +487,264 @@ outfit and adding to it is a common wish.
 **Done when** the author moves a finished Meiyun line from `Meiyu_改変` to `Meiyun`, keeps its
 outfits and adds one, and returns to the earlier base from the restore point.
 
+## 32 — Agent interface refinements
+
+Lessons 1–8 of the [reference study](../research/reference-projects-2026-10-19.md#vrcforge-the-agent-interface).
+
+1. Small edits (material values, a menu entry, removing one outfit) as preview and apply pairs:
+   the preview returns a digest, and the apply refuses a changed scene or hierarchy.
+2. Tool results state whether a mutation started, committed, persisted and was read back, and
+   whether a retry is safe.
+3. Run facts and Build Records as versioned MCP Resources; versioned SOPs as MCP Prompts with a
+   content hash.
+4. Help writes the connection into the chosen AI tool's configuration file, with STDIO next to
+   Streamable HTTP, when the player asks for it.
+5. A supervised hand adjustment in the open Editor: the agent prepares a proxy, the player drags
+   it, the agent finalizes.
+6. Reflection-only checks with Gesture Manager (switch behavior in Play Mode) and NDMF's
+   parameter count.
+
+**Done when** an agent completes a P-02 material adjustment through a preview and apply pair,
+reads the run as a Resource, and recovers from a dropped connection without a repeated write.
+
+## 33 — Switch options and built-result evidence
+
+Lessons 9–13 of the [reference study](../research/reference-projects-2026-10-19.md#vrcfury-and-modular-avatar-assembly-features).
+
+1. Switch options in the plan: saved state, default on, an exclusive group for main outfits and a
+   slider, built with MA's Object Toggle and Menu Item.
+2. Previews, the turntable and the menu check run on the NDMF-processed clone.
+3. The quality-check station lists mixed Write Defaults, empty layers, uneven anchor override and
+   bounds (fixed through MA Mesh Settings), duplicate PhysBones, unused bones and parameter order
+   across PC and mobile.
+4. The plan shows synced parameter bits against 256 before assembly.
+5. The intake check recognizes outfits carrying VRCFury components; the known packages list
+   VRCFury with `guide` delivery from its official VCC feed after its license check.
+
+**Done when** a P-02 line with two outfits in one exclusive group passes the quality check on its
+built result, and an outfit with VRCFury components shows the guide for VRCFury.
+
+## 34 — Evidence layers and toolchain profile
+
+Lessons 14–19 of the [reference study](../research/reference-projects-2026-10-19.md#vrchateditorskill-inspection-and-evidence).
+
+1. Each fact on the check stations and the release page carries its evidence layer: static
+   source, Unity-resolved, NDMF-built, SDK build, client runtime or confirmed upload.
+2. The intake check records the providers the Avatar and outfits use as a toolchain profile.
+3. The result's Expressions Menu tree, traced to parameters and objects, joins the Build Record and
+   the Recipe.
+4. Changes to shared assets copy them after listing their users; generated output stays untouched.
+5. The first symptom playbooks (menu missing, parameter without effect, merged Animator missing,
+   wrong binding, wrong switch default) become SOPs for slice 15.
+
+**Done when** the P-03 result shows its menu map with evidence layers, and an agent diagnoses a
+missing menu item from the playbook SOP.
+
+## 35 — Start card, preflight and attribution
+
+Lessons 20–28 of the [reference study](../research/reference-projects-2026-10-19.md#vrchat-avatar-acceptance-workflow-flow-and-acceptance).
+
+1. One start card per line with the recommendations prefilled: delivery layer, size limit,
+   quality and performance trade-off, menu structure and language, upload authority.
+2. Before assembly the plan predicts each outfit's size, triangles, material slots, texture
+   memory, PhysBones and parameter bits.
+3. The release page attributes the change from the base Avatar to each outfit and shows the SDK's
+   uncompressed size with a warning line at 90 % of its limit.
+4. Menus keep the creator's parts menu, with main outfits exclusive and at most 8 controls per
+   page.
+5. Body-shape variants of the Avatar need matching outfit support before assembly.
+6. One targeted repair per defect, then restore or isolate; uploads private by default.
+7. Local lessons from the player's corrections, keyed by the materials they concern.
+8. A finished state requires the Build Record's evidence to close.
+
+**Done when** a P-03 line runs from one start card to a release page that attributes each
+outfit's cost, and a repeated correction is suggested from its lesson on the next line.
+
+## 36 — Licensed entry guide
+
+Designed in the [licensed entry guide](licensed-entry-guide.md) (author ruling, 2026-10-19).
+
+1. The author verifies pixiv sign-up, BOOTH, card payment and PayPal from the remote host on a
+   mainland China network.
+2. The guide's six parts as versioned SOPs in four languages for every player outside Japan,
+   opened from Help and the library; the mainland China payment note is chosen by the player at
+   the payment step.
+3. Images and animations download as content packs when a part opens.
+4. A reachability check for the sites the guide's steps use, built on the website tests.
+
+**Done when** a player in mainland China with no pixiv account completes a first BOOTH purchase
+guided by VUA alone, the purchase arrives in the library, and a player who never opens the guide
+downloads none of its content packs.
+
+## 37 — Creator credits
+
+1. The release room lists, for each finished Avatar, its materials with their creators and BOOTH
+   pages, from the Build Record's provenance.
+
+**Done when** the P-02 result's album entry names Meiyun's and the outfit's creators with links
+to their BOOTH pages.
+
+## 38 — Steadier regional latency
+
+The Play network tile compares VRChat's four regions with
+[Oracle reference origins](../architecture/network-onboarding.md#user-outcome-and-approximate-regional-references):
+one warm-up and the median of three HEAD responses on one connection per region
+([website-tests 0.3](../protocols/website-tests-v0.1.md)). The author finds the results unsteady.
+A run from this development machine on 2026-10-19 (curl, eight requests per region) showed
+steady response times after TLS, Tokyo 11–32 ms and Amsterdam 231–239 ms, and single TCP
+connections up to ten times slower than the region's median. Three samples on one connection let
+two such outliers decide the value, and international routes can differ per connection.
+
+1. Measure on two or three connections per region: one warm-up each, then nine HEAD responses
+   in total spaced about 150 ms apart. Report the minimum as the region's value, with the median
+   and the spread from the minimum to the 90th percentile.
+2. Sample the four regions in turn (Tokyo, US West, US East, Europe, then again), so all four see
+   the same moments of the network; regional tests wait for running website tests.
+3. The tile shows the regions in order with a tier; regions within 15 ms or 10 % of each other
+   read as close, and a large spread reads as unsteady. Milliseconds stay in the expanded
+   details.
+4. When a reference resolves into `198.18.0.0/15` or a proxy is set for VUA's process, the result
+   says it was measured through a proxy on this computer, whose route can differ from the game's.
+5. A new website-tests version records the method; the four origins and the wire shape stay.
+6. Calibration: on two or three networks, including the remote host on a mainland China network,
+   the author joins an instance in each region and notes VRChat's own Ping; the tile's first
+   region is compared with the lowest in-game Ping.
+
+**Done when** repeated tests on one network give the same first region, and the calibration
+runs agree with the in-game Ping on the first region. Real UDP measurement through VUA-hosted
+echo endpoints is decided after the calibration.
+
+## 39 — Resource panel that guides
+
+The title bar shows 100 % minus the mean of CPU, GPU, RAM and VRAM, with a warning from 90 %.
+A native helper samples PDH counters every 2 seconds and re-enumerates adapters every 30 seconds
+by creating a D3D12 device on each; the renderer polls every 2 seconds while VUA runs.
+
+1. The title bar names the tightest resource or a state (plenty, getting tight, tight) from the
+   highest reading instead of the mean, at a fixed width.
+2. The panel ties readings to VUA's work: the largest memory users with VUA's own tasks marked
+   (for example a Unity import), a suggested production capacity from total memory, and VRAM next
+   to the Avatar's texture memory from slice 9.
+3. The title bar shows a reading smoothed over about 10 seconds; the panel shows the last minute
+   as a sparkline kept in memory only.
+4. Lighter sampling: polling stops while the window is hidden and slows to 5 seconds while the
+   panel is closed; each adapter's integrated or discrete kind is cached by LUID, so a D3D12
+   device is created only for a new adapter; the cost of the `GPU Engine(*)` counter is measured
+   with VRChat running.
+
+**Done when** the title bar names the bottleneck during a P-02 run, and the panel's own sampling
+stays under a measured budget with VRChat running on the development machine.
+
+## 40 — Notification center redesign
+
+Author review, 2026-10-19. The bell is a 16 px outline icon in the secondary text color, and its
+badge counts only running tasks and waiting AI requests. The panel opens over a full-window blur
+and closes on an outside click, an outside scroll, Escape or when the window loses focus, so it
+cannot stay open while the player works. Rows use different layouts for downloads, counted
+progress, errors with raw codes, AI requests and the AMF failure line, and show no times. "Show
+completed" has no effect: the notification hook never passes the set of tasks that finished in
+this session, and the setting leaves with this slice.
+
+1. The bell shows what waits: an alert color for a failure, the accent for something the player
+   must confirm, a progress ring while work runs, and a dot for results not yet seen.
+2. A pin turns the panel into a side drawer without a backdrop that stays open beside the page;
+   unpinned, it keeps today's popover behavior.
+3. One card layout for every entry: status icon, title and time; one line of state or result (for
+   AMF work the step with its elapsed and usual time); an optional progress bar; actions on the
+   right; error codes under "Details". AI requests and AMF failures use the same card.
+4. Three sections replace "Show completed": needs you (AI requests, failures, waiting for input),
+   running, and finished this session with "Clear all". Older history stays in production records
+   in Settings. Each kind of work keeps its own latest finished entry, so a turntable bake no longer
+   hides the assembly that preceded it.
+5. A long task that finishes or fails while VUA is in the background raises a Windows
+   notification.
+6. The cleared-entry list keeps only entries of tasks that still exist.
+
+**Done when** the author follows a P-02 assembly in the pinned drawer while using the workshop,
+sees a failure on the bell without opening it, and gets a Windows notification for a task that
+finished in the background.
+
+## 41 — VN3 terms and filtering by use
+
+Many Avatar bases and outfits link their VN3 license from the BOOTH description, mostly as Google
+Drive or Docs PDFs. VN3 documents come from its license generator: items A–X with a small closed
+set of values, a generator and VN3 version in the footer, and a free-text special note that takes
+precedence over the rest. Read on 2026-10-19 from Shinano's English VN3 document (generator 1.11,
+VN3 1.10). BDL's `term_observations` table exists without a writer.
+
+1. Recognize license links in product descriptions and fetch public documents one at a time,
+   without cookies, from Google's public download endpoints; cache them by content hash on this
+   computer.
+2. A versioned rule parser turns each document into its A–X values with conditions, such as
+   permitted with a content rating; unrecognized wording or versions stay unknown. No AI service
+   reads the documents.
+3. BDL stores documents, items and their link to products; a terms contract answers a product's
+   terms and checks one material or an Avatar's materials against use presets (VRChat personal
+   use, individual and corporate VTubers, game development, outfits for sale, merchandise and
+   publications, adult content), with the strictest item deciding and unknown never passing.
+4. Claude adds the library and release-room views and the MCP tool afterwards.
+
+The backend is assigned through `h-vn3-terms.md` in the task ledger. A catalog-wide index built
+on VUA's servers waits for the author's decision.
+
+**Done when** Shinano's terms read F as permitted with a content rating and R as contact the
+licensor, and an Avatar's materials are checked together for a chosen use.
+
+## 42 — Labeled restore points
+
+Found in the MCP round, 2026-10-19. Each line keeps one restore point, and every protected change
+replaces it. After a material change and a new assembly, the restore returned to the state before
+that assembly; the state before the material change was gone, and the panel named neither.
+
+1. Each line keeps its most recent restore points (three proposed), each labeled with the change
+   it came before, its materials, its Avatar and when it was taken.
+2. The assembly station lists them; restoring one protects the current state first, as today.
+3. `vua_amf_run` lists them; restoring stays the player's action.
+
+**Done when** the author changes a line's outfit, assembles, and brings the earlier outfit back
+from its labeled point.
+
+## 43 — Fixes from the MCP round
+
+Issues 2–5 and 10 of the round's report, and one found while reading its records.
+
+1. An upload an AI requests is confirmed on the release page: the request card takes the player
+   there instead of approving in place, and a failed approval names its cause instead of "could
+   not connect".
+2. The line page clears a load error once the run loads again and keeps the field that failed
+   validation; the transient failure seen twice in the round is found and fixed.
+3. Reading a run that does not exist reports `run_not_found` instead of `store_failed`.
+4. A request for a project that Unity holds is refused when it is made, without a failed task;
+   the line page's progress line updates when a task ends.
+5. Deleting a line also removes its assembly records.
+6. The workshop showed two line cards for one run once; it is reproduced and the list fixed.
+
+**Done when** the round's upload, delete and stop cases repeat without a misleading message, a
+stale banner or a stray record.
+
+## 44 — MCP payloads and identity
+
+Agent-side findings of the round, rated per tool in its report.
+
+1. `vua_tasks` takes a limit and a state filter, newest first.
+2. `vua_amf_run` and `vua_library` stay compact: humanoid bones as a count and image URLs only
+   when asked for.
+3. `vua_status` reports the build: product version, commit and build time.
+4. Errors carry their plain-language message next to the code and the next action.
+5. Tasks and run facts say who started them: the player, the workshop's automation or an AI
+   request.
+
+**Done when** an agent repeats the round's reads at under 10 KB each and names the build it
+tests.
+
 ## Open decisions
 
 - Styles: built-in only first or shareable data from the start; how the two briefs translate
   into tokens, motifs and motion.
 - Known packages beyond the shaders, SDK and Modular Avatar (for example Avatar Optimizer,
   VRCFury), each after a license check.
+- Network steps for players in mainland China: which sites the licensed entry guide and Quest's
+  first activation report, after the author's verification; VUA names no accelerator or proxy.
 
 ## Scheduled after these slices
 

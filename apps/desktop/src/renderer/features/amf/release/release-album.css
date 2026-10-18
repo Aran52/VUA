@@ -265,3 +265,29 @@
 .vua-sdk-review__original summary { cursor: pointer; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-sdk-review__original > span { display: block; margin-top: 2px; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-sdk-review li small.vua-sdk-review__fix { display: inline-block; margin-inline-start: var(--vua-space-2); padding: 0 6px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-pill); vertical-align: 1px; }
+
+/* The room's two views: the album and the account's Avatars on VRChat. */
+.vua-release-room__tabs { display: inline-flex; gap: var(--vua-space-1); padding: 3px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-pill); background: var(--vua-bg-panel); }
+.vua-release-room__tabs button { padding: 6px 16px; border: 0; border-radius: var(--vua-radius-pill); background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-body); cursor: pointer; }
+.vua-release-room__tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--room) 16%, var(--vua-bg-panel)); color: var(--vua-text-strong); }
+.vua-release-room__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+
+/* The account's own Avatars on VRChat. */
+.vua-vrchat-shelf { display: grid; gap: var(--vua-space-3); }
+.vua-vrchat-shelf__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2); font: var(--vua-font-caption); }
+.vua-vrchat-shelf__bar .vua-release-upload__link { display: inline-flex; align-items: center; gap: 6px; }
+.vua-vrchat-shelf__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: var(--vua-space-3); margin: 0; padding: 0; list-style: none; }
+.vua-vrchat-shelf__grid > li { display: flex; }
+.vua-vrchat-shelf__card {
+  position: relative; display: grid; align-content: start; gap: 4px; width: 100%; padding: var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card);
+  background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-body); text-align: start; cursor: pointer;
+  transition: border-color var(--vua-motion-fast), background-color var(--vua-motion-fast);
+}
+.vua-vrchat-shelf__card:hover { border-color: color-mix(in srgb, var(--room) 55%, var(--vua-border)); background: color-mix(in srgb, var(--room) 6%, var(--vua-bg-panel)); }
+.vua-vrchat-shelf__card:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-vrchat-shelf__card strong { margin-top: 4px; overflow-wrap: anywhere; }
+.vua-vrchat-shelf__picture { display: grid; place-items: center; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--room) 10%, var(--vua-bg-elevated)); color: var(--vua-text-secondary); }
+.vua-vrchat-shelf__picture img { width: 100%; height: 100%; object-fit: cover; }
+.vua-vrchat-shelf__facts { font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-badge.vua-vrchat-shelf__mark { position: absolute; top: calc(var(--vua-space-2) + 6px); inset-inline-start: calc(var(--vua-space-2) + 6px); background: var(--vua-bg-panel); box-shadow: 0 1px 4px color-mix(in srgb, black 25%, transparent); }
+[data-effects="off"] .vua-vrchat-shelf__card { transition: none; }

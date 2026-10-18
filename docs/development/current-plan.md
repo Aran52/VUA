@@ -69,14 +69,14 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 16 | Eval runs | all `ready` cases | |
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
-| 19 | Experimental VRChat sign-in | P-02 | merged (Aran52/VUA#5); awaits the real-account checks |
+| 19 | Experimental VRChat sign-in | P-02 | merged (Aran52/VUA#5); the upload check reads VRChat's real list shape since slice 26; awaits the real-account checks |
 | 20 | Start production from the materials room | P-02 | assigned |
 | 21 | Faster project fingerprints | — | done (Aran52/VUA#7) |
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
 | 24 | Finer usual durations | — | when the estimates prove too rough |
 | 25 | Production records in Settings | — | done |
-| 26 | VRChat Avatar list in the release room | P-02 | after the real-account checks of slice 19 |
+| 26 | VRChat Avatar list in the release room | P-02 | built; awaits the author's real-account check |
 | 27 | Queue factory work | P-02 | |
 | 28 | Quitting during a task | — | done |
 | 29 | Restore after an interrupted assembly | — | done |

@@ -8,10 +8,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import type {
-  VrchatAvatarCheckValueV1, VrchatGatewayRequestV1, VrchatGatewayValueV1, VrchatSignInValueV1,
-  VrchatStatusValueV1, VrchatTwoFactorMethodV1,
+  VrchatAvatarCheckValueV1, VrchatAvatarImageValueV1, VrchatAvatarListValueV1, VrchatGatewayRequestV1, VrchatGatewayValueV1,
+  VrchatSignInValueV1, VrchatStatusValueV1, VrchatTwoFactorMethodV1,
 } from "@vua/contracts";
-import { VrchatRequestError, vrchatClient, type VrchatClient, type VrchatCookies, type VrchatUser } from "./vrchat-client.js";
+import {
+  VrchatRequestError, vrchatClient, type VrchatAvatarSummary, type VrchatClient, type VrchatCookies, type VrchatUser,
+} from "./vrchat-client.js";
 
 interface SecretStorage {
   isEncryptionAvailable(): boolean;
@@ -69,12 +71,21 @@ interface PendingTwoFactor {
   readonly password: string | null;
 }
 
+/** The account's Avatars as last read during this launch. */
+interface AvatarList {
+  readonly listedAt: string;
+  readonly complete: boolean;
+  readonly avatars: readonly VrchatAvatarSummary[];
+}
+
 export interface VrchatSessionDeps {
   readonly directory: string;
   readonly version: string;
   readonly secrets: SecretStorage;
   readonly client?: VrchatClient;
   readonly now?: () => number;
+  /** Opens an Avatar's VRChat page in the player's own browser. */
+  readonly openExternal?: (url: string) => Promise<void>;
 }
 
 const ACCOUNT_FILE = "vrchat-account.json";
@@ -86,6 +97,8 @@ const HANDOFFS_FILE = "vrchat-handoffs.json";
 export const SDK_SESSION_FILE = "vrchat-session.json";
 const RESEND_INTERVAL_MS = 30_000;
 const KEPT_CHECKS = 50;
+/** Thumbnails kept in memory for this launch, at most 128 KiB each. */
+const KEPT_IMAGES = 200;
 
 const EMPTY_ACCOUNT: AccountFile = { version: "0.1", enabled: false, rememberPassword: false, displayName: null, checkedAt: null };
 
@@ -143,6 +156,8 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
   let checks: Record<string, StoredCheck> = loadChecks();
   let session: SessionState | null = null;
   let pending: PendingTwoFactor | null = null;
+  let avatarList: AvatarList | null = null;
+  const avatarImages = new Map<string, string | null>();
   let lastResendAt = 0;
   const handoffFiles = new Set<string>();
   let lifecycle: Promise<unknown> = Promise.resolve();
@@ -315,6 +330,27 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
     return status();
   }
 
+  /** Runs a read with the session; when VRChat ended it mid-read, a remembered password may renew it once. */
+  async function withSession<T extends object>(read: (cookies: VrchatCookies) => Promise<T | "expired">): Promise<T | "signed_out"> {
+    if (session === null) await refreshSession();
+    const current = session;
+    if (current === null) return "signed_out";
+    const first = await read(current.cookies);
+    if (first !== "expired") return first;
+    dropSession(true);
+    account = { ...account, displayName: null };
+    saveAccount();
+    await refreshSession();
+    const renewed = session;
+    if (renewed === null) return "signed_out";
+    const retry = await read(renewed.cookies);
+    return retry === "expired" ? "signed_out" : retry;
+  }
+
+  const foundCheck = (avatar: VrchatAvatarSummary, checkedAt: string): StoredCheck =>
+    ({ state: "found", checkedAt, name: avatar.name, releaseStatus: avatar.releaseStatus, platforms: avatar.platforms, updatedAt: avatar.updatedAt });
+  const missingCheck = (checkedAt: string): StoredCheck => ({ state: "not_found", checkedAt, name: "", releaseStatus: "", platforms: [], updatedAt: "" });
+
   function describe(entry: StoredCheck): VrchatAvatarCheckValueV1["avatar"] {
     return entry.state === "found"
       ? { name: entry.name, releaseStatus: entry.releaseStatus, platforms: [...entry.platforms], updatedAt: entry.updatedAt }
@@ -327,47 +363,76 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
     return { schemaVersion: "0.1", blueprintId, state: entry.state, checkedAt: entry.checkedAt, avatar: describe(entry) };
   }
 
-  async function lookupAvatar(blueprintId: string): Promise<VrchatAvatarCheckValueV1> {
-    const current = session;
-    if (current === null) return { schemaVersion: "0.1", blueprintId, state: "signed_out", checkedAt: null, avatar: null };
-    const lookup = await client.findAvatar(blueprintId, current.cookies);
-    if (lookup.kind === "expired") {
-      // VRChat ended the session mid-read; a remembered password may renew it once.
-      dropSession(true);
-      account = { ...account, displayName: null };
-      saveAccount();
-      await refreshSession();
-      const renewed = session;
-      if (renewed === null) return { schemaVersion: "0.1", blueprintId, state: "signed_out", checkedAt: null, avatar: null };
-      const retry = await client.findAvatar(blueprintId, renewed.cookies);
-      if (retry.kind === "expired") return { schemaVersion: "0.1", blueprintId, state: "signed_out", checkedAt: null, avatar: null };
-      if (retry.kind === "found") return rememberCheck(blueprintId, {
-        state: "found", checkedAt: new Date(now()).toISOString(), name: retry.avatar.name,
-        releaseStatus: retry.avatar.releaseStatus, platforms: retry.avatar.platforms, updatedAt: retry.avatar.updatedAt,
-      });
-      return rememberCheck(blueprintId, { state: "not_found", checkedAt: new Date(now()).toISOString(), name: "", releaseStatus: "", platforms: [], updatedAt: "" });
-    }
-    if (lookup.kind === "found") {
-      return rememberCheck(blueprintId, {
-        state: "found", checkedAt: new Date(now()).toISOString(), name: lookup.avatar.name,
-        releaseStatus: lookup.avatar.releaseStatus, platforms: lookup.avatar.platforms, updatedAt: lookup.avatar.updatedAt,
-      });
-    }
-    return rememberCheck(blueprintId, { state: "not_found", checkedAt: new Date(now()).toISOString(), name: "", releaseStatus: "", platforms: [], updatedAt: "" });
-  }
-
   async function avatarCheck(blueprintId: string, refresh: boolean): Promise<VrchatAvatarCheckValueV1> {
     const cached = checks[blueprintId];
     if (!refresh && cached !== undefined) {
       return { schemaVersion: "0.1", blueprintId, state: cached.state, checkedAt: cached.checkedAt, avatar: describe(cached) };
     }
     if (!account.enabled) return { schemaVersion: "0.1", blueprintId, state: "signed_out", checkedAt: null, avatar: null };
-    if (session === null) await refreshSession();
     try {
-      return await lookupAvatar(blueprintId);
+      const lookup = await withSession(async cookies => {
+        const found = await client.findAvatar(blueprintId, cookies);
+        return found.kind === "expired" ? "expired" as const : found;
+      });
+      if (lookup === "signed_out") return { schemaVersion: "0.1", blueprintId, state: "signed_out", checkedAt: null, avatar: null };
+      const checkedAt = new Date(now()).toISOString();
+      return rememberCheck(blueprintId, lookup.kind === "found" ? foundCheck(lookup.avatar, checkedAt) : missingCheck(checkedAt));
     } catch {
       return { schemaVersion: "0.1", blueprintId, state: "error", checkedAt: cached?.checkedAt ?? null, avatar: cached ? describe(cached) : null };
     }
+  }
+
+  function listValue(state: VrchatAvatarListValueV1["state"], list: AvatarList | null): VrchatAvatarListValueV1 {
+    return {
+      schemaVersion: "0.1", state, listedAt: list?.listedAt ?? null, complete: list?.complete ?? false,
+      avatars: (list?.avatars ?? []).map(avatar => ({
+        id: avatar.id, name: avatar.name, releaseStatus: avatar.releaseStatus, platforms: [...avatar.platforms],
+        updatedAt: avatar.updatedAt, hasImage: avatar.thumbnailUrl !== null,
+      })),
+    };
+  }
+
+  /** The list also answers the upload checks VUA keeps: found again, or gone from a complete list. */
+  function noteListedChecks(list: AvatarList): void {
+    let changed = false;
+    for (const id of Object.keys(checks)) {
+      const avatar = list.avatars.find(item => item.id === id);
+      if (avatar !== undefined) { checks = { ...checks, [id]: foundCheck(avatar, list.listedAt) }; changed = true; }
+      else if (list.complete) { checks = { ...checks, [id]: missingCheck(list.listedAt) }; changed = true; }
+    }
+    if (changed) saveChecks();
+  }
+
+  async function avatars(refresh: boolean): Promise<VrchatAvatarListValueV1> {
+    if (!account.enabled) return listValue("signed_out", null);
+    if (!refresh && avatarList !== null && session !== null) return listValue("listed", avatarList);
+    try {
+      const read = await withSession(async cookies => {
+        const listed = await client.listAvatars(cookies);
+        return listed.kind === "expired" ? "expired" as const : listed;
+      });
+      if (read === "signed_out") { avatarList = null; return listValue("signed_out", null); }
+      const newestFirst = [...read.avatars].sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
+      avatarList = { listedAt: new Date(now()).toISOString(), complete: read.complete, avatars: newestFirst };
+      // A failed thumbnail gets another try with the new list.
+      for (const [url, image] of avatarImages) if (image === null) avatarImages.delete(url);
+      noteListedChecks(avatarList);
+      return listValue("listed", avatarList);
+    } catch {
+      return listValue("error", avatarList);
+    }
+  }
+
+  async function avatarImage(avatarId: string): Promise<VrchatAvatarImageValueV1> {
+    const url = avatarList?.avatars.find(avatar => avatar.id === avatarId)?.thumbnailUrl ?? null;
+    const current = session;
+    if (url === null || current === null) return { schemaVersion: "0.1", avatarId, image: null };
+    if (!avatarImages.has(url)) {
+      const image = await client.fetchThumbnail(url, current.cookies);
+      avatarImages.set(url, image);
+      for (const oldest of avatarImages.keys()) { if (avatarImages.size <= KEPT_IMAGES) break; avatarImages.delete(oldest); }
+    }
+    return { schemaVersion: "0.1", avatarId, image: avatarImages.get(url) ?? null };
   }
 
   /** Commands run one at a time so a second click cannot race the first. */
@@ -380,6 +445,8 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
   async function endSession(forget: boolean): Promise<VrchatStatusValueV1> {
     try { if (session !== null) await client.logout(session.cookies); } catch { /* VRChat ends its side when it can. */ }
     clearSdkHandoffs();
+    avatarList = null;
+    avatarImages.clear();
     if (forget) {
       session = null; pending = null;
       secrets = null;
@@ -471,6 +538,18 @@ export function vrchatSession(deps: VrchatSessionDeps): VrchatSessionService {
         return serialize(() => endSession(true));
       case "vrchat.avatarCheck":
         return serialize(() => avatarCheck(request.params.blueprintId, request.params.refresh === true));
+      case "vrchat.avatars":
+        return serialize(() => avatars(request.params.refresh === true));
+      case "vrchat.avatarImage":
+        return serialize(() => avatarImage(request.params.avatarId));
+      case "vrchat.openAvatarPage": {
+        // The page is public on VRChat's site; opening it needs no VUA sign-in.
+        if (deps.openExternal === undefined) return { schemaVersion: "0.1", opened: false };
+        try {
+          await deps.openExternal(`https://vrchat.com/home/avatar/${request.params.avatarId}`);
+          return { schemaVersion: "0.1", opened: true };
+        } catch { return { schemaVersion: "0.1", opened: false }; }
+      }
     }
   }
 

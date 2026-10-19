@@ -247,6 +247,11 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-start__browse { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); clip-path: var(--vua-shape-cut-sm); }
 .vua-start__browse span { flex: 1; min-width: 160px; color: var(--vua-text-strong); overflow-wrap: anywhere; }
 
+/* The lilToon brightness alignment: one row per outfit material, its limits from and to. */
+.vua-lighting__entries { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; max-width: 40rem; }
+.vua-lighting__entries li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.vua-lighting__entries label { display: inline-flex; align-items: center; gap: 8px; }
+
 /* How many Unity jobs run at once, at the foot of the line list. */
 .vua-workshop__capacity { display: grid; gap: 6px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vua-border-subtle); }
 .vua-workshop__capacity-choices { display: inline-flex; gap: 4px; }

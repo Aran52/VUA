@@ -66,7 +66,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide and the SDK panel's own Auto Fix in the facts (item 4) remain |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
-| 9 | Material tuning | P-02, P-03 | in progress: item 2's engine, Bridge facts and contracts (Aran52/VUA#29); its workshop entry and item 1 remain |
+| 9 | Material tuning | P-02, P-03 | in progress: item 2 is in, with its engine (Aran52/VUA#29) and the quality-check entry; the author's check in a dark world and item 1 remain |
 | 10 | Face tracking add-on | P-03 | |
 | 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |

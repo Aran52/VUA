@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.11.0
+> Document version: 0.12.0
 > Status: Candidate
-> Updated: 2026-10-19
+> Updated: 2026-10-20
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -148,13 +148,16 @@ project it is installed into.
    are `sdk_panel`, `sign_in`, `checking`, `building`, `uploading` and `finishing`; VUA adds
    `starting` before the Editor answers. `progress` is the upload share from 0 to 1, or -1.
 5. It ends with one `.vua/bridge/amf-upload.result.json`: `{runId, uploadId, outcome, blueprintId,
-   reason, detail, errors, firstUpload, sceneSaved}`. `outcome` is `succeeded`, `failed` or
+   reason, detail, errors, firstUpload, sceneSaved, sdkReview}`. `outcome` is `succeeded`, `failed` or
    `cancelled`. `reason` names why an upload did not succeed: `sign_in_required`,
    `no_publish_permission`, `validation` (with the SDK's `errors`), `ownership`,
    `agreement_declined`, `build`, `build_blocked`, `upload`, `thumbnail_missing`, `avatar_missing`,
    `scene_not_saved`, `interrupted`, `editor_unavailable`, `timeout`, `cancelled` or `unknown`;
    `detail` carries the SDK's own message. After a first upload the SDK writes the new blueprint ID
    into the scene, and the observer saves the work scene so later uploads update the same Avatar.
+   `sdkReview` is the SDK's Avatar check read again once the upload ends, in the shape inspection
+   reports it, so an Auto Fix the player made in the SDK panel during the upload reaches VUA; it
+   stays `not_run` when the work scene or the Avatar is not open.
 
 Stop writes `.vua/bridge/amf-upload.cancel` with the upload ID; the observer cancels the SDK's
 token and answers `cancelled`. A domain reload ends a running upload: the observer remembers the
@@ -171,6 +174,7 @@ from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
 ## Document changelog
 
+- 0.12.0 (2026-10-20): the upload receipt carries `sdkReview`, the SDK's Avatar check read again after the upload.
 - 0.11.0 (2026-10-19): report the active Avatar's renderer material use (`materialUse`) after inspection and assembly, bounded and attributed to the Avatar or the owning outfit.
 - 0.10.1 (2026-10-19): the result schema covers every field Unity writes, verified against real preparation, inspection, assembly and turntable results; SDK fix results are covered by a synthetic vector.
 - 0.10.0 (2026-10-18): `amf_sdk_fix` runs the SDK's own Auto Fix for chosen items of its Avatar check.

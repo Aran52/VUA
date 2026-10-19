@@ -14,6 +14,7 @@ import { aiToolsCopy } from "./ai-tools-copy.ts";
 import { vrchatCopy } from "./vrchat-copy.ts";
 import { scenarioCopy } from "./scenario-copy.ts";
 import { unityLicenseCopy } from "./unity-license-copy.ts";
+import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
@@ -43,6 +44,7 @@ export const strings: Strings = {
   vrchat: vrchatCopy.ko,
   scenarioEnvironment: scenarioCopy.ko,
   unityLicense: unityLicenseCopy.ko,
+  useTerms: useTermsCopy.ko,
   environmentCards: environmentCopy["ko"],
   journey: journeyCopy["ko"],
   websiteTests: {

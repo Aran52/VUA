@@ -30,6 +30,8 @@ export interface VuaGateway {
   readonly amfRelease?: import("./amf-release-port.ts").AmfReleasePort | undefined;
   /** vrchat-session v0.1(实验性 VRChat 登录):恒 live 基线,无宿主时诚实缺席 */
   readonly vrchat?: import("./vrchat-port.ts").VrchatPort | undefined;
+  /** VN3 terms read from products' public license links (terms v0.1). */
+  readonly terms?: import("./terms-port.ts").TermsPort | undefined;
   readonly distribution?: import("@vua/contracts").DesktopDistributionApiV01 | undefined;
   readonly amfModule: import("@vua/contracts").AmfModuleApiV01;
   readonly environment: EnvironmentPort;

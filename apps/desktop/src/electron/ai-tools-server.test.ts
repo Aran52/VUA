@@ -64,6 +64,21 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect((await client.callTool({name:"vua_unity_license",arguments:{editorPath:"C:/synthetic/Unity.exe"}})).isError).toBe(true);
     expect(calls).toHaveLength(1);
   });
+  it("reads recorded VN3 terms and checks one use across products without fetching or queueing", async () => {
+    const { client, calls, service } = await setup();
+    await client.callTool({name:"vua_terms",arguments:{productId:"booth:6082686"}});
+    await client.callTool({name:"vua_terms_check",arguments:{presetId:"vrchat_personal",productIds:["booth:6082686","booth:5813187"]}});
+    expect(calls.map(call=>[call.method,call.params])).toEqual([
+      ["terms.getProduct",{schemaVersion:"0.1",productId:"booth:6082686"}],
+      ["terms.checkUse",{schemaVersion:"0.1",presetId:"vrchat_personal",productIds:["booth:6082686","booth:5813187"]}],
+    ]);
+    expect(AI_TOOLS.some(tool=>tool.method?.startsWith("terms.refresh"))).toBe(false);
+    for (const args of [{productId:"6082686"},{productId:"booth:0"}]) expect((await client.callTool({name:"vua_terms",arguments:args})).isError).toBe(true);
+    expect((await client.callTool({name:"vua_terms_check",arguments:{presetId:"anything",productIds:["booth:1"]}})).isError).toBe(true);
+    expect((await client.callTool({name:"vua_terms_check",arguments:{presetId:"adult_content",productIds:[]}})).isError).toBe(true);
+    expect(calls).toHaveLength(2);
+    expect(service.snapshot().requests).toEqual([]);
+  });
   it("queues the concrete installation, deduplicates retries, and requires a local approval", async () => {
     const { client, calls, service } = await setup();
     const args = { intent: { purposes: ["desktop_play"] }, confirmedDigest: digest };
@@ -210,7 +225,7 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
   });

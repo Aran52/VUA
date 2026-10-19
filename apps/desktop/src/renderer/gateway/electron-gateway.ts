@@ -233,6 +233,7 @@ export function createElectronGateway(
     libraryBrowser: createLiveLibraryBrowserPort(client),
     amfRelease: createAmfReleasePort(client),
     vrchat: createVrchatPort(client),
+    terms: createTermsPort(client),
     distribution: createDistributionPort(host?.distribution),
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
@@ -276,3 +277,4 @@ import { createAmfProductionPort } from "./amf-production-port.ts";
 import { createLiveLibraryBrowserPort } from "./library-browser-port.ts";
 import { createAmfReleasePort } from "./amf-release-port.ts";
 import { createVrchatPort } from "./vrchat-port.ts";
+import { createTermsPort } from "./terms-port.ts";

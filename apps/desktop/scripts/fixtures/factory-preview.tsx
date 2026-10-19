@@ -12,6 +12,9 @@ import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "..
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
 import { UnityLicenseGuide } from "../../src/renderer/features/settings/UnityLicenseGuide.tsx";
+import { ProductTerms } from "../../src/renderer/features/warehouse/ProductTerms.tsx";
+import { termsPreviewPort } from "./terms-preview.tsx";
+import "../../src/renderer/features/warehouse/warehouse.css";
 import type { UnityLicenseSnapshotV01 } from "@vua/contracts";
 import "../../src/renderer/features/deployer/deployer.css";
 import { Card } from "../../src/renderer/components/primitives/Card.tsx";
@@ -186,7 +189,11 @@ const licenseSnapshots: Record<string, UnityLicenseSnapshotV01> = {
     lastCheck: { state: "active", editorVersion: "2022.3.22f1", checkedAt: "2026-10-19T09:30:00.000Z" }, state: "likely_active", nextAction: "none" },
 };
 const licensePort = licenseSnapshots[view] ? { snapshot: async () => licenseSnapshots[view]!, check: async () => ({ taskId: "task-license" }) } : undefined;
-createRoot(document.getElementById("root")!).render(licensePort ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, unityLicense: licensePort }, amfProduction: api }}>
+createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
+  <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
+    <ProductTerms productId="booth:1" title="Sample Avatar" />
+  </div></aside></div>
+</GatewayProvider> : licensePort ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, unityLicense: licensePort }, amfProduction: api }}>
   <div className="vua-page" style={{ maxWidth: 760 }}>
     <section className="vua-page__hero"><h1 className="vua-title">{strings.unityLicense.title}</h1></section>
     <Card><UnityLicenseGuide /></Card>
@@ -204,5 +211,7 @@ createRoot(document.getElementById("root")!).render(licensePort ? <GatewayProvid
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
 </GatewayProvider>);
 
+// The items view opens the list of every VN3 item the way the player does.
+if (view === "terms-items") setTimeout(() => document.querySelector<HTMLElement>(".vua-terms__items summary")?.click(), 1200);
 // Mid-flight frame: the capture runs 2.5 s after load; the camera move takes 0.65 s.
 if (view === "map-flight") setTimeout(() => document.querySelector<HTMLElement>("[data-nav-id=door-workshop], [data-nav-id=room-workshop]")?.click(), 2200);

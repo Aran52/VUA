@@ -58,6 +58,7 @@ const api = {
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
   async previewImage() { return pixel; },
+  async open(runId: string) { return { runId, taskId: "task-open" }; },
 } as unknown as AmfProductionPort;
 // The materials-start views: the library's products mapped to the AMF sources above,
 // plus one unrelated dress so the "other outfits" fold has a row.
@@ -93,7 +94,11 @@ const materialsApi: AmfProductionPort = {
 } as AmfProductionPort;
 const readyModule = { snapshot: async () => ({ schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const }),
   subscribe: () => () => {}, setEnabled: async () => ({ outcome: "failed" as const, snapshot: { schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const } }) };
-const gateway = emptyGateway(null);
+const empty = emptyGateway(null);
+// The open views: Unity still starting, and Unity holding the project with the Avatar selected.
+const gateway = view === "workshop-opening" || view === "workshop-opened" ? { ...empty, task: { ...empty.task, async snapshot() {
+  return { schemaVersion: 1 as const, tasks: [{ id: "task-open", title: "Open Unity", status: view === "workshop-opened" ? "completed" as const : "running" as const, originPage: "workshop", cancellable: false }] };
+} } } as typeof empty : empty;
 const selected = view.startsWith("workshop-") ? view.slice("workshop-".length) : "";
 try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("auto") ? "full" : "ask"); } catch { /* preview only */ }
 // Views that open a station or a line card the way the player does, and the line they show.
@@ -103,6 +108,8 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   "line-menu": { run: "finished", clicks: ["workshop-line-close"] },
   delete: { run: "finished", clicks: ["workshop-line-close", "workshop-line-delete"] },
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
+  opening: { run: "finished", clicks: ["workshop-open"] },
+  opened: { run: "finished", clicks: ["workshop-open"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
 function ClickThrough({ clicks }: { clicks: readonly string[] }) {

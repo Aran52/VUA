@@ -10,7 +10,7 @@ const PROGRESS: &str = "amf-upload.progress.json";
 const RECEIPT: &str = "amf-upload.result.json";
 const CANCEL: &str = "amf-upload.cancel";
 /// Unity starting and opening the SDK panel on a slow computer.
-const PICKUP_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+pub(super) const PICKUP_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 /// Signing in, checking, building and uploading together.
 const UPLOAD_TIMEOUT: Duration = Duration::from_secs(90 * 60);
 /// Time the Editor has to end the SDK's work after a stop.

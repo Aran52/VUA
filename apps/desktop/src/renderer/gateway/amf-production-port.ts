@@ -326,7 +326,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     },
     async applyLighting(runId, plan, materials) {
       if (plan.runId !== runId) throw new Error("amf_production_lighting_plan_invalid");
-      return accepted(await call({ method: "amf.production.applyLighting", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, materials: [...materials] } }), strings.factory.panels.materials.change);
+      return accepted(await call({ method: "amf.production.applyLighting", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, materials: [...materials] } }), strings.factory.panels.lighting.task);
     },
     async delete(runId) { return accepted(await call({ method: "amf.production.delete", params: { schemaVersion: "0.1", runId } }), strings.factory.lineMenu.delete); },
     async rollbackPlan(runId) {

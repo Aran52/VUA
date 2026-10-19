@@ -102,6 +102,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 42 | Line revisions and saved fits | P-02 | planned: state records replace project copies (author, 2026-10-19); revisions first, fits second |
 | 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
 | 44 | MCP result envelope | P-02 | planned: the round's payload findings with slice 32's commit-aware results and Resources |
+| 45 | Source hints from owned file names | — | planned |
+| 46 | Library migration grouping | — | planned; executes the migration design |
+| 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
 
 Suggested next order: 43 Fixes from the MCP round, 42 Line revisions and saved fits, 1 Integrate, the
 rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
@@ -768,6 +771,61 @@ of slice 32, so the result shape changes once.
 **Done when** an agent repeats the round's reads at under 10 KB each, reads a run's full facts as a
 Resource, names the build it tests, and after a dropped connection decides from a task read
 whether to retry.
+
+## 45 — Source hints from owned file names
+
+Author decision, 2026-10-20. Source hints in `source_hint` (`crates/acquisition/src/library_reconcile.rs`)
+compare a local entry's names with product IDs and titles of known products. Account sync already
+records each owned file's BOOTH name in `product_downloadables.anchor_text` (BDL v0.4); in the
+author's library on 2026-10-19, 84 of 85 owned file names were distinct. Filename cleanup rules of
+the kind VRCAL uses stay out: they guess and can remove meaningful words.
+
+1. A local original whose file name equals exactly one owned file name suggests that file's
+   product, ranked after an explicit association and existing mapping, before product IDs and
+   titles. A name shared by several owned files suggests nothing.
+2. The hint stays a read-model suggestion; content equality still comes from the hash
+   verification, which reports equal or unverified content as today.
+
+**Done when** a local copy of an owned BOOTH file suggests its product by its file name in the
+library, and a file name shared by two products suggests none.
+
+## 46 — Library migration grouping
+
+The library's "Import multiple items" entry previews a chosen directory read-only. The
+[migration design](library-migration-design.md) defines the grouping the player confirms: each
+directory is one material, a collection to review, or excluded; loose files are grouped,
+separated or excluded; every observed file has exactly one disposition, and groups never
+overlap. This slice executes it.
+
+1. The preview offers the three choices per directory, the bulk "these selected sibling folders
+   are separate materials", and loose-file grouping, with undo before submission.
+2. Confirmed materials, unassigned, excluded and unreadable areas show separately; the import
+   runs only on confirmed complete groups and names any remainder.
+3. Each confirmed group becomes one library entry through the existing copy-in intake, keeping
+   its relative paths; originals stay unchanged.
+4. The grouping is a versioned migration manifest, the same document slice 47's agent writes.
+
+**Done when** the author migrates a real local collection with wrappers, mixed loose files and
+nested collections into the library, with every file accounted for.
+
+## 47 — Library migration through the player's agent
+
+Author idea, 2026-10-20: the player tells a connected agent "organize my library into a format
+VUA can use", and the agent handles the corner cases of each personal folder layout. VUA publishes
+the format and keeps the validation and the copy.
+
+1. An MCP read returns the migration manifest's schema, its rules and an example: materials as
+   groups of files under a chosen root, optional names, BOOTH product IDs as claims, excluded
+   paths, and the coverage and no-overlap rules of slice 46.
+2. The agent reads the folders itself and requests an import with a manifest. VUA validates it
+   (paths inside the root, files present, full coverage, no overlap) and shows it in the migration
+   preview as proposed groups; the player confirms like any other AI request, and the permission
+   modes decide how much is shown.
+3. The agent changes no files; product IDs in a manifest remain claims, checked like the player's
+   own association.
+
+**Done when** an agent turns a real messy collection into a manifest that VUA accepts, and the
+player imports it after reviewing the proposed groups.
 
 ## Open decisions
 

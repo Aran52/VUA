@@ -84,7 +84,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 24 | Finer usual durations | — | when the estimates prove too rough |
 | 25 | Production records in Settings | — | done (Aran52/VUA#13) |
 | 26 | VRChat Avatar list in the release room | P-02 | built (Aran52/VUA#17); awaits the author's real-account check |
-| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; queueing and cancelling verified in the 2026-10-19 MCP round. Item 2's engine is in (Aran52/VUA#23); its workshop setting remains |
+| 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; queueing and cancelling verified in the 2026-10-19 MCP round. Item 2: the engine (Aran52/VUA#23) and the workshop setting are in; a run with two lines side by side remains |
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); the material change and deletion verified in the 2026-10-19 MCP round, whose restore found slice 42's gap; removing an outfit through the plan remains |

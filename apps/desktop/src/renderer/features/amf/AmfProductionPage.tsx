@@ -249,6 +249,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   return <div className="vua-page vua-n3 vua-workshop">
     <WorkshopRail lines={lines} current={runId} onSelect={selectLine} onNew={newPreparation}
+      capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
     <div className="vua-workshop__main">
     <ConfirmDialog open={confirmFull} danger title={factory.fullAccess.title} cancelLabel={factory.fullAccess.cancel} confirmLabel={factory.fullAccess.confirm}

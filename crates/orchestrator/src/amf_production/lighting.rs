@@ -44,6 +44,59 @@ pub struct LightingLimits {
     pub max: String,
 }
 
+/// One material's recorded brightness limits: the exact serialized value text of both limits,
+/// as version records and Recipes carry them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MaterialLighting {
+    pub material: String,
+    pub min: String,
+    pub max: String,
+}
+
+/// A serialized brightness value: bounded decimal text, as Unity writes it (`0.05`, `1`,
+/// `-0.5`, `1e-05`). The Recipe schema carries the same grammar as a pattern.
+pub fn valid_lighting_value(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    if bytes.first() == Some(&b'-') {
+        index += 1;
+    }
+    match bytes.get(index) {
+        Some(b'0') => index += 1,
+        Some(first) if first.is_ascii_digit() => {
+            while bytes.get(index).is_some_and(u8::is_ascii_digit) {
+                index += 1;
+            }
+        }
+        _ => return false,
+    }
+    if bytes.get(index) == Some(&b'.') {
+        index += 1;
+        let start = index;
+        while bytes.get(index).is_some_and(u8::is_ascii_digit) {
+            index += 1;
+        }
+        if index == start {
+            return false;
+        }
+    }
+    if matches!(bytes.get(index), Some(b'e') | Some(b'E')) {
+        index += 1;
+        if matches!(bytes.get(index), Some(b'+') | Some(b'-')) {
+            index += 1;
+        }
+        let start = index;
+        while bytes.get(index).is_some_and(u8::is_ascii_digit) {
+            index += 1;
+        }
+        if index == start {
+            return false;
+        }
+    }
+    index == bytes.len() && !text.is_empty() && text.len() <= 64
+}
+
 /// One outfit material whose limits differ from the reference, with current and proposed values.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -383,6 +436,35 @@ fn verify_lighting(project: &Path, entries: &[LightingEntry]) -> Result<(), AppE
     Ok(())
 }
 
+/// The brightness limits every in-use lilToon material currently carries, for version records
+/// and Recipes. A run without material-use facts or with unreadable materials records nothing;
+/// the retained full-copy snapshot stays the hard guarantee for such runs.
+pub(crate) fn current_lighting(run: &ProductionRun) -> Vec<MaterialLighting> {
+    let Ok(uses) = material_use(run) else {
+        return Vec::new();
+    };
+    let Ok(materials) = read_material_limits(Path::new(&run.project_root), &uses) else {
+        return Vec::new();
+    };
+    let mut recorded = Vec::new();
+    let mut seen = BTreeSet::new();
+    for use_ in &uses {
+        if !seen.insert(use_.material.as_str()) {
+            continue;
+        }
+        let Some(limits) = materials.get(use_.material.as_str()) else { continue };
+        let (Some(min), Some(max)) = (limits.min.as_ref(), limits.max.as_ref()) else { continue };
+        if limits.liltoon {
+            recorded.push(MaterialLighting {
+                material: use_.material.clone(),
+                min: min.clone(),
+                max: max.clone(),
+            });
+        }
+    }
+    recorded
+}
+
 impl AmfProductionEngine {
     /// The line's lighting plan as its assembled facts and current material files produce it.
     fn lighting_plan(&self, run: &ProductionRun) -> Result<(LightingPlanData, String), AppErrorV1> {
@@ -419,6 +501,55 @@ impl AmfProductionEngine {
             "entries": plan.entries,
             "skipped": plan.skipped,
         }))
+    }
+
+    /// Writes recorded brightness values into the named materials and verifies them in Unity:
+    /// the exact-value counterpart of `apply_lighting`, with no reviewed plan or digest. Used
+    /// by version-record replays and Recipe adjustments. Callers wrap it in their own steps.
+    pub(crate) fn apply_lighting_values(
+        &self,
+        run: &mut ProductionRun,
+        values: &[MaterialLighting],
+        ctx: &TaskContext,
+    ) -> Result<(), AppErrorV1> {
+        let project = Path::new(&run.project_root).to_path_buf();
+        let mut entries = Vec::with_capacity(values.len());
+        for value in values {
+            if !safe_material_path(&value.material)
+                || !valid_lighting_value(&value.min)
+                || !valid_lighting_value(&value.max)
+            {
+                return Err(production_error(
+                    "material_invalid",
+                    format!("A recorded lighting value is malformed: {}", value.material),
+                ));
+            }
+            let bytes = fs::read(material_file(&project, &value.material)?)
+                .map_err(|e| production_error("material_unreadable", format!("{}: {e}", value.material)))?;
+            let limits = parse_material_limits(&bytes);
+            let (Some(min), Some(max)) = (limits.min, limits.max) else {
+                return Err(production_error(
+                    "material_invalid",
+                    format!("{} must carry exactly one {LIGHT_MIN_LIMIT} and one {LIGHT_MAX_LIMIT} line.", value.material),
+                ));
+            };
+            entries.push(LightingEntry {
+                material: value.material.clone(),
+                source_id: String::new(),
+                current: LightingLimits { min, max },
+                proposed: LightingLimits { min: value.min.clone(), max: value.max.clone() },
+            });
+        }
+        write_lighting(&project, &entries)?;
+        if let Some(error) = ctx.cancellation_error("amf-production") {
+            return Err(error);
+        }
+        // Unity must import the written files before the verification reads them back.
+        self.update_observations(run, ctx)?;
+        if let Some(error) = ctx.cancellation_error("amf-production") {
+            return Err(error);
+        }
+        verify_lighting(&project, &entries)
     }
 
     /// Aligns the chosen materials behind a restore point, then rechecks the project in Unity so
@@ -464,12 +595,15 @@ impl AmfProductionEngine {
         let mut snapshot = None;
         // The recheck replaces the observed facts; a restore brings these back with the files.
         let observed_before = (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone());
+        let mut revision_id = None;
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = run.selection.clone();
             run.snapshot_sources = None;
+            revision_id = Some(self.record_revision(&mut run, RevisionKind::Lighting, false));
+            self.save(&run)?;
             self.step(&mut run, ctx, "lighting", "Align lilToon brightness limits")?;
             write_lighting(Path::new(&run.project_root), &chosen)?;
             if let Some(error) = ctx.cancellation_error("amf-production") {
@@ -495,8 +629,17 @@ impl AmfProductionEngine {
                     Err(error) => format!("restore_failed: {}", error.code),
                 });
             }
+            // A change whose automatic restore brought the project back leaves no state
+            // behind worth a version record.
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+                if let Some(id) = &revision_id {
+                    run.revisions.retain(|revision| revision.id != *id);
+                }
+            }
         }
-        self.finish(&mut run, result)
+        let outcome = self.finish(&mut run, result);
+        self.prune_snapshots(&run);
+        outcome
     }
 }
 

@@ -155,6 +155,15 @@ fn wire_run(run: ProductionRun) -> Value {
     }
     // The materials kept with a restore point stay inside the record.
     value.as_object_mut().expect("run object").remove("snapshotSources");
+    // A version list shows each record's summary; the full replay state stays in the record.
+    if let Some(revisions) = value["revisions"].as_array_mut() {
+        for revision in revisions {
+            revision
+                .as_object_mut()
+                .expect("revision object")
+                .remove("state");
+        }
+    }
     value
 }
 /// Padded standard base64, as data URLs and MCP image content expect.
@@ -175,7 +184,7 @@ fn route(
     }
     let query = matches!(
         method,
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -208,6 +217,8 @@ fn route(
         "amf.production.plan" => &["schemaVersion", "runId", "selection"],
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
+        "amf.production.revisionPlan" => &["schemaVersion", "runId", "revisionId"],
+        "amf.production.restoreRevision" => &["schemaVersion", "runId", "revisionId", "planDigest"],
         "amf.production.applyLighting" => &["schemaVersion", "runId", "planDigest", "materials"],
         "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
         "amf.production.changeSources" => &["schemaVersion", "runId", "sources"],
@@ -241,7 +252,14 @@ fn route(
         if id.len() > 256 || id.contains('\0') { return Err(production_error("params_invalid", "Invalid Avatar identity.")); }
         Some(id)
     } else { None };
-    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting") {
+    let revision_id = if matches!(method, "amf.production.revisionPlan" | "amf.production.restoreRevision") {
+        let id = string("revisionId")?;
+        if id.len() > 128 || !id.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')) {
+            return Err(production_error("params_invalid", "Invalid version record identity."));
+        }
+        Some(id)
+    } else { None };
+    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision") {
         let digest = string("planDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
@@ -302,6 +320,13 @@ fn route(
             return Err(production_error("busy", "This line has work running or waiting."));
         }
         return service.engine.rollback_plan(&run_id);
+    }
+    if method == "amf.production.revisionPlan" {
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) {
+            return Err(production_error("busy", "This line has work running or waiting."));
+        }
+        return service.engine.revision_plan(&run_id, &revision_id.expect("version record identity validated"));
     }
     if method == "amf.production.plan" {
         let run_id = string("runId")?;
@@ -367,7 +392,8 @@ fn route(
         service.engine.precheck_open(&run_id)?;
     }
     if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
-        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete") {
+        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete"
+        | "amf.production.restoreRevision") {
         service.engine.precheck_closed(&run_id)?;
     }
     if method == "amf.production.delete" && service.run_busy(&run_id) {
@@ -441,6 +467,12 @@ fn route(
                     worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;
                 }
                 "amf.production.rollback" => worker.engine.rollback(&operation_run, &digest, ctx)?,
+                "amf.production.restoreRevision" => worker.engine.restore_revision(
+                    &operation_run,
+                    revision_id.as_deref().expect("version record identity validated"),
+                    &digest,
+                    ctx,
+                )?,
                 "amf.production.open" => {
                     return worker.engine.open(&operation_run, ctx).map(TaskExit::Done)
                 }
@@ -639,6 +671,27 @@ mod tests {
         wait_until(|| service.lane.is_idle());
         assert_eq!(list(&service)["busy"], false);
         assert_eq!(list(&service)["running"], json!([]));
+        drop(service);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn revision_methods_validate_their_params_before_touching_a_run() {
+        let root = std::env::temp_dir().join(format!("vua-amf-revisions-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let err = |method: &str, kind: &str, params: Value| {
+            route(service.clone(), method, &json!({"kind":kind,"params":params})).unwrap_err().code
+        };
+        // The kind must match the operation.
+        assert_eq!(err("amf.production.revisionPlan", "command", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1"})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.restoreRevision", "query", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1","planDigest":"a".repeat(64)})), "vua.amf_production.params_invalid");
+        // The version record identity is a bounded plain identifier.
+        assert_eq!(err("amf.production.revisionPlan", "query", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev/1"})), "vua.amf_production.params_invalid");
+        // A restore needs a reviewed plan digest.
+        assert_eq!(err("amf.production.restoreRevision", "command", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1","planDigest":"xyz"})), "vua.amf_production.params_invalid");
+        // Well-formed requests reach the engine.
+        assert_eq!(err("amf.production.revisionPlan", "query", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1"})), "vua.amf_production.run_not_found");
+        assert_eq!(err("amf.production.restoreRevision", "command", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1","planDigest":"a".repeat(64)})), "vua.amf_production.run_not_found");
         drop(service);
         std::fs::remove_dir_all(root).unwrap();
     }

@@ -14,6 +14,8 @@ mod release;
 pub use release::*;
 mod lighting;
 pub use lighting::*;
+mod revisions;
+pub use revisions::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -360,6 +362,15 @@ pub struct ProductionRun {
     /// The line's materials at the restore point, when that point was taken before they changed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_sources: Option<SourceSnapshot>,
+    /// The line's version records, newest first, taken before each protected change.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub revisions: Vec<ProductionRevision>,
+    /// The SDK fixes applied to this line, named by the SDK's exact words, in application order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sdk_fixes_applied: Vec<String>,
+    /// Adjustments a Recipe declares, written into the project after its first assembly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recipe_adjustments: Option<crate::amf_recipe::RecipeAdjustments>,
     #[serde(default)]
     pub recipe_id: Option<String>,
     #[serde(default)]
@@ -444,6 +455,16 @@ pub trait AmfProductionPlatform: Send + Sync {
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1>;
+    /// The current content identity (`sha256:<hex>`) of a library source, or None when the
+    /// library no longer holds it. Restoring a version refuses sources it cannot verify.
+    fn source_content_hash(&self, _source_id: &str) -> Result<Option<String>, AppErrorV1> {
+        Ok(None)
+    }
+    /// Deletes every retained full-copy snapshot of the run's project except `keep`. Best
+    /// effort: problems come back as diagnostics and never fail the calling operation.
+    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &str) -> Vec<String> {
+        Vec::new()
+    }
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
         -> Result<serde_json::Value, AppErrorV1>;
     /// Bakes the 60-frame turntable of the assembled Avatar into the work project.
@@ -473,29 +494,7 @@ type RecordSignature = Vec<(std::ffi::OsString, u64, Option<SystemTime>)>;
 /// Run phases during which a task works on the run.
 pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "restoring"];
 
-/// Removes a folder tree; read-only files, as Unity and Git leave some, are made writable first.
-fn remove_tree(path: &Path) -> std::io::Result<()> {
-    if fs::remove_dir_all(path).is_ok() || !path.exists() {
-        return Ok(());
-    }
-    let mut pending = vec![path.to_path_buf()];
-    while let Some(folder) = pending.pop() {
-        for entry in fs::read_dir(&folder)?.flatten() {
-            let entry_path = entry.path();
-            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-                pending.push(entry_path);
-            } else if let Ok(metadata) = entry.metadata() {
-                let mut permissions = metadata.permissions();
-                if permissions.readonly() {
-                    #[allow(clippy::permissions_set_readonly_false)]
-                    permissions.set_readonly(false);
-                    let _ = fs::set_permissions(&entry_path, permissions);
-                }
-            }
-        }
-    }
-    fs::remove_dir_all(path)
-}
+use crate::filesystem::remove_tree;
 
 pub fn production_error(code: &str, detail: impl Into<String>) -> AppErrorV1 {
     AppErrorV1::new(
@@ -544,6 +543,16 @@ pub fn validate_choices(choices: &[SourceChoice]) -> Result<(), AppErrorV1> {
         ));
     }
     Ok(())
+}
+
+/// One reviewed assembly execution: the selection, the reviewed digest, an optional Recipe
+/// overlay target, whether the base is rebuilt and the Recipe adjustments to write afterwards.
+pub(crate) struct AssemblyExecution<'a> {
+    pub selection: AssemblySelection,
+    pub digest: &'a str,
+    pub target: Option<crate::amf_recipe_apply::RecipeApplyTarget>,
+    pub rebuild: bool,
+    pub adjustments: Option<crate::amf_recipe::RecipeAdjustments>,
 }
 
 impl AmfProductionEngine {
@@ -697,6 +706,12 @@ impl AmfProductionEngine {
                 "Run project binding changed.",
             ));
         }
+        // Records written before version records existed read with one synthesized `assembly`
+        // version built from their retained restore point. Nothing is discarded.
+        let mut run = run;
+        if let Some(legacy) = legacy_revision(&run) {
+            run.revisions.push(legacy);
+        }
         Ok(run)
     }
     pub fn list(&self) -> Result<Vec<ProductionRun>, AppErrorV1> {
@@ -736,7 +751,7 @@ impl AmfProductionEngine {
             run.project_fingerprint = current;
             self.save(&run)?;
         }
-        let recipe = crate::amf_recipe::ProductionRecipe::from_run(&run, recipe_id, title)?;
+        let recipe = crate::amf_recipe::ProductionRecipe::from_run(&run, recipe_id, title, current_adjustments(&run))?;
         if self.recipe_store().get(recipe_id).map_err(io_error)?.is_some() { return Err(production_error("recipe_exists", "Save a revised Recipe under a new identity.")); }
         self.retain_recipe_origin(&run, &recipe)?;
         self.recipe_store().save(recipe_id, &serde_json::to_value(recipe).map_err(io_error)?, 0).map_err(io_error)
@@ -764,6 +779,7 @@ impl AmfProductionEngine {
         let mut run = self.get(run_id)?;
         run.recipe_source_hashes = recipe.materials.iter().map(|material| (resolved[&material.id].clone(), material.sha256.clone())).collect();
         run.recipe_id = Some(recipe_id.into()); run.package_pins = recipe.packages; run.selection = Some(selection);
+        run.recipe_adjustments = recipe.adjustments.clone();
         self.save(&run)
     }
     pub fn begin(
@@ -812,6 +828,9 @@ impl AmfProductionEngine {
             snapshot_id: None,
             snapshot_selection: None,
             snapshot_sources: None,
+            revisions: Vec::new(),
+            sdk_fixes_applied: Vec::new(),
+            recipe_adjustments: None,
             recipe_id: None,
             package_pins: BTreeMap::new(),
             recipe_source_hashes: BTreeMap::new(),
@@ -908,6 +927,38 @@ impl AmfProductionEngine {
                 Err(error)
             }
         }
+    }
+    /// Keeps exactly one full-copy snapshot per line: once the run record naming the current
+    /// restore point is persisted, every unreferenced snapshot directory under
+    /// `.vua/snapshots/` is deleted. Pruning is best-effort; problems are recorded in a
+    /// bounded diagnostics file and never fail the operation they follow.
+    fn prune_snapshots(&self, run: &ProductionRun) {
+        let Some(keep) = run.snapshot_id.as_deref() else { return };
+        let diagnostics = self.platform.prune_snapshots(run, keep);
+        if diagnostics.is_empty() {
+            return;
+        }
+        let path = self.root.join("snapshot-prune.json");
+        let _ = (|| -> Result<(), AppErrorV1> {
+            let mut entries: Vec<serde_json::Value> = fs::read(&path)
+                .ok()
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+                .unwrap_or_default();
+            for diagnostic in diagnostics {
+                entries.push(serde_json::json!({
+                    "at": SystemClock.now_rfc3339(),
+                    "runId": run.run_id,
+                    "diagnostic": diagnostic,
+                }));
+            }
+            let len = entries.len();
+            if len > 50 {
+                entries.drain(..len - 50);
+            }
+            let pending = path.with_extension("pending");
+            fs::write(&pending, serde_json::to_vec_pretty(&entries).map_err(io_error)?).map_err(io_error)?;
+            fs::rename(&pending, &path).map_err(io_error)
+        })();
     }
     pub fn prepare(&self, run_id: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
         let mut run = self.get(run_id)?;
@@ -1021,12 +1072,15 @@ impl AmfProductionEngine {
         run.recovery = None;
         run.confirmed_digest = None;
         let mut snapshot = None;
+        let mut revision_id = None;
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = run.selection.clone();
             run.snapshot_sources = Some(previous.clone());
+            revision_id = Some(self.record_revision(&mut run, RevisionKind::Materials, false));
+            self.save(&run)?;
             self.step(&mut run, ctx, "materials", "Change the line's materials")?;
             run.choices = choices.clone();
             run.sources = self.platform.replace_sources(&run, &previous.sources, ctx)?;
@@ -1061,8 +1115,17 @@ impl AmfProductionEngine {
                     Err(error) => format!("restore_failed: {}", error.code),
                 });
             }
+            // A change whose automatic restore brought the project back leaves no state
+            // behind worth a version record.
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+                if let Some(id) = &revision_id {
+                    run.revisions.retain(|revision| revision.id != *id);
+                }
+            }
         }
-        self.finish(&mut run, result)
+        let outcome = self.finish(&mut run, result);
+        self.prune_snapshots(&run);
+        outcome
     }
     /// Deletes a line: its work project with the restore points, previews and turntable inside it,
     /// its release record and its run record. Recipes saved from it and Avatars uploaded from it stay.
@@ -1145,27 +1208,17 @@ impl AmfProductionEngine {
         run.error = None;
         run.recovery = None;
         let mut snapshot = None;
+        let mut revision_id = None;
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = run.selection.clone();
             run.snapshot_sources = None;
+            revision_id = Some(self.record_revision(&mut run, RevisionKind::SdkFix, false));
+            self.save(&run)?;
             self.step(&mut run, ctx, "sdk_fix", "Run the VRChat SDK's Auto Fix")?;
-            let observed = self.platform.sdk_fix(&run, &fixes, &self.watch(&run, ctx))?;
-            if let Some(error) = ctx.cancellation_error("amf-production") {
-                return Err(error);
-            }
-            if observed.editor_version != run.editor.version {
-                return Err(production_error("editor_drift", "The actual Editor version changed."));
-            }
-            run.prefabs = observed.prefabs;
-            run.result = observed.result;
-            run.unity_fingerprint = observed.unity_fingerprint;
-            let _check = FingerprintCheck::begin(self, &run, ctx);
-            run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
-            run.revision = run.revision.checked_add(1)
-                .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
+            self.run_sdk_fixes(&mut run, &fixes, ctx)?;
             run.phase = phase.clone();
             run.confirmed_digest = None;
             Ok(())
@@ -1177,8 +1230,49 @@ impl AmfProductionEngine {
                     Err(error) => format!("restore_failed: {}", error.code),
                 });
             }
+            // A change whose automatic restore brought the project back leaves no state
+            // behind worth a version record.
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+                if let Some(id) = &revision_id {
+                    run.revisions.retain(|revision| revision.id != *id);
+                }
+            }
         }
-        self.finish(&mut run, result)
+        let outcome = self.finish(&mut run, result);
+        self.prune_snapshots(&run);
+        outcome
+    }
+    /// Runs the SDK's Auto Fix inside an already-protected step and takes over the observed
+    /// facts. Applied items accumulate on the run so version records can replay them.
+    pub(crate) fn run_sdk_fixes(
+        &self,
+        run: &mut ProductionRun,
+        fixes: &[String],
+        ctx: &TaskContext,
+    ) -> Result<(), AppErrorV1> {
+        let observed = self.platform.sdk_fix(run, fixes, &self.watch(run, ctx))?;
+        if let Some(error) = ctx.cancellation_error("amf-production") {
+            return Err(error);
+        }
+        if observed.editor_version != run.editor.version {
+            return Err(production_error("editor_drift", "The actual Editor version changed."));
+        }
+        let applied: Vec<String> =
+            serde_json::from_value(observed.result["facts"]["sdkFixesApplied"].clone())
+                .unwrap_or_default();
+        run.prefabs = observed.prefabs;
+        run.result = observed.result;
+        run.unity_fingerprint = observed.unity_fingerprint;
+        for fix in applied {
+            if !run.sdk_fixes_applied.contains(&fix) {
+                run.sdk_fixes_applied.push(fix);
+            }
+        }
+        let _check = FingerprintCheck::begin(self, run, ctx);
+        run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
+        run.revision = run.revision.checked_add(1)
+            .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
+        Ok(())
     }
     pub fn plan(
         &self,
@@ -1217,7 +1311,9 @@ impl AmfProductionEngine {
         Ok(
             serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "planDigest":digest,"inputs":inputs,
             "selection":selection,"editor":run.editor,"projectRoot":run.project_root,
-            "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run"}),
+            "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
+            "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
+                "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes}))}),
         )
     }
     pub fn assemble(
@@ -1247,17 +1343,16 @@ impl AmfProductionEngine {
                     .map(|outfit| outfit.source_id.clone()).collect(),
             })
         } else { None };
-        self.execute_assembly(run, selection, digest, target, rebuild, ctx)
+        let adjustments = run.recipe_adjustments.clone();
+        self.execute_assembly(run, AssemblyExecution { selection, digest, target, rebuild, adjustments }, ctx)
     }
     pub(crate) fn execute_assembly(
         &self,
         mut run: ProductionRun,
-        selection: AssemblySelection,
-        digest: &str,
-        target: Option<crate::amf_recipe_apply::RecipeApplyTarget>,
-        rebuild: bool,
+        execution: AssemblyExecution<'_>,
         ctx: &TaskContext,
     ) -> Result<(), AppErrorV1> {
+        let AssemblyExecution { selection, digest, target, rebuild, adjustments } = execution;
         // The comparison and execution are separate reads. Check again at the
         // mutation boundary, including for Recipe application.
         let (matches_boundary, current) = self.project_state(&run)?;
@@ -1273,6 +1368,7 @@ impl AmfProductionEngine {
         run.selection = Some(selection.clone());
         run.confirmed_digest = Some(digest.into());
         let mut snapshot = None;
+        let mut revision_id = None;
         // A rebuild replaces the observed facts before assembly; a restore brings these back with the files.
         let observed_before = rebuild.then(|| (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone()));
         let result = (|| {
@@ -1281,6 +1377,12 @@ impl AmfProductionEngine {
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = previous_selection.clone();
             run.snapshot_sources = None;
+            revision_id = Some(self.record_revision(
+                &mut run,
+                if rebuild { RevisionKind::Rebuild } else { RevisionKind::Assembly },
+                false,
+            ));
+            self.save(&run)?;
             if rebuild {
                 // Another base starts from a fresh work scene; the base and every chosen outfit are assembled on it.
                 self.step(&mut run, ctx, "inspect", "Start a fresh work scene for the new base")?;
@@ -1325,6 +1427,24 @@ impl AmfProductionEngine {
             run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
             run.phase = "succeeded".into();
             run.completed_at = Some(SystemClock.now_rfc3339());
+            // A Recipe's recorded adjustments land on its first successful assembly: the
+            // lighting values are written and the SDK fixes run with the same replay
+            // functions a version-record restore uses, then Unity rechecks the project.
+            if let Some(adjustments) = &adjustments {
+                if !adjustments.lighting.is_empty() {
+                    self.step(&mut run, ctx, "lighting", "Write the Recipe's recorded lighting values")?;
+                    self.apply_lighting_values(&mut run, &adjustments.lighting, ctx)?;
+                }
+                if !adjustments.sdk_fixes.is_empty() {
+                    self.step(&mut run, ctx, "sdk_fix", "Run the Recipe's recorded SDK fixes")?;
+                    self.run_sdk_fixes(&mut run, &adjustments.sdk_fixes, ctx)?;
+                }
+                if !adjustments.lighting.is_empty() || !adjustments.sdk_fixes.is_empty() {
+                    self.step(&mut run, ctx, "inspect", "Recheck the assembled project in Unity")?;
+                    self.update_observations(&mut run, ctx)?;
+                }
+                run.recipe_adjustments = None;
+            }
             Self::close_step(&mut run, "succeeded");
             let record =
                 self.root
@@ -1351,8 +1471,17 @@ impl AmfProductionEngine {
                     Err(error) => format!("restore_failed: {}", error.code),
                 });
             }
+            // A change whose automatic restore brought the project back leaves no state
+            // behind worth a version record.
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+                if let Some(id) = &revision_id {
+                    run.revisions.retain(|revision| revision.id != *id);
+                }
+            }
         }
-        self.finish(&mut run, result)
+        let outcome = self.finish(&mut run, result);
+        self.prune_snapshots(&run);
+        outcome
     }
     pub fn rollback_plan(&self, run_id: &str) -> Result<serde_json::Value, AppErrorV1> {
         let run = self.get(run_id)?;
@@ -1400,6 +1529,8 @@ impl AmfProductionEngine {
         run.confirmed_digest = None;
         let mut safety = None;
         let mut mutated = false;
+        let edited = self.edited_in_unity(&run);
+        let undo = self.record_revision(&mut run, RevisionKind::Restore, edited);
         let result = (|| {
             self.step(&mut run, ctx, "protect_current", "Protect the current project before restoring")?;
             let current = self.platform.fingerprint(Path::new(&run.project_root))?;
@@ -1441,7 +1572,16 @@ impl AmfProductionEngine {
             // the current state. Explicit reinspection must establish it again.
             run.result = serde_json::Value::Null;
         }
-        self.finish(&mut run, result)
+        // A restore that never touched the project, or whose automatic recovery brought
+        // it back, leaves no state behind worth a version record.
+        if result.is_err()
+            && !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed"))
+        {
+            run.revisions.retain(|revision| revision.id != undo);
+        }
+        let outcome = self.finish(&mut run, result);
+        self.prune_snapshots(&run);
+        outcome
     }
     /// Work that changes a line's project needs Unity to let go of it; asking while Unity holds
     /// the project is refused at once instead of failing later as a task.
@@ -1488,11 +1628,24 @@ impl AmfProductionEngine {
     }
 }
 
+/// A line's current VUA adjustments as a Recipe records them: the brightness limits each
+/// in-use lilToon material carries and the SDK fixes applied so far. Lines without either
+/// produce no `adjustments` section.
+pub(crate) fn current_adjustments(run: &ProductionRun) -> Option<crate::amf_recipe::RecipeAdjustments> {
+    let lighting = lighting::current_lighting(run);
+    if lighting.is_empty() && run.sdk_fixes_applied.is_empty() {
+        return None;
+    }
+    Some(crate::amf_recipe::RecipeAdjustments {
+        lighting,
+        sdk_fixes: run.sdk_fixes_applied.clone(),
+    })
+}
+
 pub fn validate_selection(
     run: &ProductionRun,
     selection: &AssemblySelection,
-) -> Result<(), AppErrorV1> {
-    let observed: Option<AssemblySelection> = if run.result["facts"]["observedSelection"].is_null() { None }
+) -> Result<(), AppErrorV1> {    let observed: Option<AssemblySelection> = if run.result["facts"]["observedSelection"].is_null() { None }
         else { Some(serde_json::from_value(run.result["facts"]["observedSelection"].clone())
             .map_err(|_| production_error("inspect_required", "Current Avatar relationships need inspection."))?) };
     let rebuild = observed.as_ref().is_some_and(|current| current.avatar_prefab != selection.avatar_prefab);
@@ -1646,7 +1799,8 @@ pub fn plan_digest(
     let value = serde_json::json!({"runId":run.run_id,"revision":run.revision,"editor":run.editor,"projectRoot":run.project_root,
         "sources":run.sources,"prefabs":run.prefabs,"projectFingerprint":run.project_fingerprint,
         "unityFingerprint":run.unity_fingerprint,"selection":selection,"recipeId":run.recipe_id,
-        "recipeSourceHashes":run.recipe_source_hashes,"packagePins":run.package_pins});
+        "recipeSourceHashes":run.recipe_source_hashes,"packagePins":run.package_pins,
+        "recipeAdjustments":run.recipe_adjustments});
     Ok(
         Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
             .iter()

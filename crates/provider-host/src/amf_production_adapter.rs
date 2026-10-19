@@ -819,6 +819,18 @@ impl AmfProductionPlatform for NativeAmfProduction {
             )
             .map_err(|e| err("restore_failed", e))
     }
+    fn source_content_hash(&self, source_id: &str) -> Result<Option<String>, AppErrorV1> {
+        let Some(source) = self.sources()?.into_iter().find(|source| source.source_id == source_id) else {
+            return Ok(None);
+        };
+        let path = self.package_path(&source)?;
+        vua_unity_bridge::material_exec::sha256_file(&path)
+            .map(Some)
+            .map_err(|e| err("source_unreadable", e))
+    }
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+        FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
+    }
     fn open(
         &self,
         run: &ProductionRun,

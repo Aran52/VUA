@@ -172,6 +172,40 @@ describe("AMF production response boundary", () => {
     response = {...plan,snapshotId:""}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     await expect(port.rollback("n3-other",{...plan,preserveCurrent:true})).rejects.toThrow("restore_plan_invalid");
   });
+  it("accepts a run without revisions and rejects malformed revision items", () => {
+    expect(isAmfProductionRun(run)).toBe(true);
+    const revision = {id:"rev-1",before:"assembly",takenAt:"2026-10-18T00:00:00Z",editedInUnity:false,
+      summary:{avatar:null,outfits:[],sources:["coat"],lightingMaterials:0,sdkFixes:[]}};
+    expect(isAmfProductionRun({...run,revisions:[revision]})).toBe(true);
+    expect(amfRunProblem({...run,revisions:[revision]})).toBeNull();
+    expect(amfRunProblem({...run,revisions:"none"})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,before:"everything"}]})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,editedInUnity:"no"}]})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,summary:{...revision.summary,lightingMaterials:-1}}]})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,summary:{...revision.summary,avatar:7}}]})).toBe("revisions");
+  });
+  it("reads a revision plan and binds its restore to this run and revision", async () => {
+    const plan = {schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:"c".repeat(64),before:"assembly" as const,takenAt:"2026-10-18T00:00:00Z",
+      summary:{avatar:"Avatar",outfits:["Coat"],sources:["avatar","coat"],lightingMaterials:1,sdkFixes:[]},editedInUnity:true,warning:null,
+      steps:[{key:"materials",skipped:false},{key:"assembly",skipped:false,rebuild:false},
+        {key:"lighting",skipped:false,materials:[{material:"Assets/Coat.mat",min:"0.1",max:"1"}]},{key:"sdk_fix",skipped:true,fixes:[]}]};
+    let response: unknown = plan;
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.revisionPlan("n3-test","rev-1")).editedInUnity).toBe(true);
+    expect(requests[0]).toMatchObject({method:"amf.production.revisionPlan",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1"}});
+    response = {...plan,planDigest:"z".repeat(64)}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    response = {...plan,before:"everything"}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    response = {...plan,revisionId:"rev-2"}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    const {steps: _missing, ...withoutSteps} = plan; response = withoutSteps;
+    await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    response = {...plan,steps:[{key:"upload",skipped:false}]}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    await expect(port.restoreRevision("n3-other",plan)).rejects.toThrow("revision_plan_invalid");
+    response = {schemaVersion:"0.1",operation:"amf.production.restoreRevision",runId:"n3-test",taskId:"task-restore"};
+    await port.restoreRevision("n3-test",plan);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.restoreRevision",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:plan.planDigest}});
+  });
   it("binds comparison and execution to the chosen observed Avatar", async () => {
     const plan = {runId:"n3-test",recipeId:"recipe-test",title:"Recipe",avatarName:"Same name",avatarGlobalObjectId:"other-avatar",planDigest:"d".repeat(64),retainedOutfits:0,overlayBlocker:null,
       conflicts:[],recipeSelection:selection,currentSelection:selection,targets:[{globalObjectId:"active-avatar",name:"Same name",verified:true},{globalObjectId:"other-avatar",name:"Same name",verified:true}]};

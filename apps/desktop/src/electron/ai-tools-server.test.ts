@@ -318,7 +318,7 @@ describe("MCP result envelope", () => {
     expect(data(releaseTool).data).toMatchObject({ uploadCount: 10, uploads: release.uploads.slice(0, 3).map(({ detail: _detail, ...upload }) => upload) });
     expect(releaseTool.content).toContainEqual(expect.objectContaining({ type: "resource_link", uri: "vua://amf/runs/n3-report/release" }));
     expect((await client.readResource({ uri: "vua://amf/runs/n3-report/release" })).contents[0]).toHaveProperty("text", JSON.stringify(release));
-    expect(calls.every(call => ["amf.production.list", "amf.production.get", "amf.production.releaseState"].includes(call.method))).toBe(true);
+    expect(calls.every(call => ["amf.production.list", "amf.production.get", "amf.production.releaseState", "amf.production.previewImage"].includes(call.method))).toBe(true);
   });
   it("keeps one image for products and local source matches, with an explicit full-image read", async () => {
     const library = { ...reportLibrary, items: [...reportLibrary.items, { kind: "local", entry: { entryId: "local" }, sourceMatch: { product: reportLibrary.items[0]!.product } }] };
@@ -409,7 +409,8 @@ describe("MCP result envelope", () => {
     expect((data(await client.callTool({ name: "vua_tasks" })).data as { tasks: unknown[] }).tasks).toEqual(expect.arrayContaining([expect.objectContaining({ taskId: actual.taskId, requestedBy: "ai_request" }), expect.objectContaining({ taskId: "vua-task", requestedBy: "vua" })]));
   });
   it("keeps report-shaped default text reads under 10,000 UTF-8 bytes", async () => {
-    const { client } = await setup(async request => envelope(request, request.method === "app.snapshot" ? reportStatus : request.method === "task.list" ? reportTasks
+    const { client } = await setup(async request => envelope(request, request.method === "amf.production.previewImage" ? { mediaType: "image/png", data: "iVBORw0KGgoSYNTHETIC" }
+      : request.method === "app.snapshot" ? reportStatus : request.method === "task.list" ? reportTasks
       : request.method === "library.list" ? reportLibrary : request.method === "amf.production.list" ? { runs: [{ runId: reportRun.runId }] } : reportRun));
     const sizes: Record<string, { before: number; after: number }> = {};
     for (const [name, args, raw] of [["vua_status", {}, reportStatus], ["vua_tasks", {}, reportTasks], ["vua_amf_run", { runId: reportRun.runId }, reportRun], ["vua_library", {}, reportLibrary]] as const) {
@@ -417,12 +418,14 @@ describe("MCP result envelope", () => {
       expect(response.isError).toBeFalsy();
       const after = (response.content ?? []).reduce((sum, part) => sum + (part.type === "text" ? Buffer.byteLength(part.text) : 0), 0);
       const spec = AI_TOOLS.find(tool => tool.name === name)!;
-      const before = Buffer.byteLength(JSON.stringify({ whatHappened: "The requested facts or plan were read. No change was made.",
+      const labels = (response.content ?? []).slice(1).reduce((sum, part) => sum + (part.type === "text" ? Buffer.byteLength(part.text) : 0), 0);
+      const before = labels + Buffer.byteLength(JSON.stringify({ whatHappened: "The requested facts or plan were read. No change was made.",
         nextAction: name === "vua_tasks" ? "Inspect a relevant task using vua_task." : spec.next,
         expectedResult: name === "vua_tasks" ? "Actual task states and recovery facts." : name === "vua_status" ? "Actual capability availability." : spec.expected, data: raw }));
       sizes[name] = { before, after };
       expect(after, name).toBeLessThan(10_000);
       if (name === "vua_tasks") expect(data(response).data).toMatchObject({ total: 80, hasMore: true, tasks: expect.arrayContaining([expect.objectContaining({ taskId: "report-task-079" })]) });
+      if (name === "vua_amf_run") expect(response.content?.filter(part => part.type === "image")).toHaveLength(12);
     }
     console.info("Synthetic MCP text bytes", JSON.stringify(sizes));
   });

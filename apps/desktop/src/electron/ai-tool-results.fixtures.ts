@@ -1,7 +1,8 @@
 /** Synthetic shapes from the MCP round's counts; all names, paths and URLs are invented. */
 const bones = Array.from({ length: 50 }, (_, i) => `HumanoidBone${String(i).padStart(2, "0")}`);
 const prefabs = Array.from({ length: 9 }, (_, i) => ({ sourceId: `material-${i}`, path: `Assets/SyntheticMaterial${i}/Avatar${i}.prefab`, name: `Avatar${i}`, isAvatar: i < 3,
-  hasSkinnedMesh: true, hasMergeArmature: i >= 3, hasMissingScripts: false, humanoidBones: bones }));
+  hasSkinnedMesh: true, hasMergeArmature: i >= 3, hasMissingScripts: false, humanoidBones: bones,
+  preview: `.vua/previews/n3-report-1/candidate-${String(i).padStart(3, "0")}.png` }));
 export const reportRun = {
   schemaVersion: "0.1", runId: "n3-report", taskId: "report-task-079", revision: 7, phase: "ready", recovery: null,
   createdAt: "2026-10-20T00:00:00.000Z", completedAt: "2026-10-20T00:01:00.000Z",
@@ -10,7 +11,8 @@ export const reportRun = {
   sources: Array.from({ length: 9 }, (_, i) => ({ sourceId: `material-${i}`, role: "auto", itemName: `SyntheticMaterial${i}.unitypackage` })),
   steps: ["project", "materials", "inspect"].map(key => ({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-20T00:00:00.000Z", endedAt: "2026-10-20T00:01:00.000Z" })),
   prefabs, result: { officialSdkChecks: "not_run", visualReview: "pending", diagnostics: [], facts: {
-    prefabs, avatarName: "SyntheticAvatar", missingReferences: 0, hasMissingScripts: false, previews: [],
+    prefabs, avatarName: "SyntheticAvatar", missingReferences: 0, hasMissingScripts: false,
+    previews: ["front", "side", "back"].map(view => ({ view, path: `.vua/previews/n3-report-1/${view}.png` })),
     instances: Array.from({ length: 9 }, (_, i) => ({ sourceId: `material-${i}`, prefabPath: prefabs[i]!.path, globalObjectId: `GlobalObjectId-${i}`, bindingVerified: true, menuVerified: true })),
     materialUse: Array.from({ length: 100 }, (_, i) => ({ owner: `SyntheticAvatar/Armature/Hips/Spine/Chest/Outfit${i}`, renderer: `SyntheticAvatar/Armature/Hips/Spine/Chest/Outfit${i}/SyntheticRenderer`, material: `Assets/SyntheticMaterial${i}/Materials/Clothing/SyntheticOutfitMaterial${i}.mat` })),
     sdkReview: { state: "checked", platform: "StandaloneWindows64", overall: "Good", issues: [], stats: [{ category: "Triangles", rating: "Good", text: "Synthetic SDK rating." }] },

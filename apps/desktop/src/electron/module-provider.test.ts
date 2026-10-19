@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ApplicationRequestV01, ApplicationResponseV01, AmfModuleSnapshotV01, TaskSnapshotV01 } from "@vua/contracts";
 import { MockOrchestratorProviderV01, type OrchestratorProviderV01, type ProviderStatusV01 } from "@vua/orchestrator-provider";
 import { ModuleProvider } from "./module-provider.js";
@@ -45,6 +45,32 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("keeps terms reads and refreshes within the enabled AMF process", async () => {
+    const { provider, host, amf, activations } = setup(); await provider.start();
+    const read = { contractVersion: "0.1", requestId: "terms", correlationId: "terms", kind: "query", method: "terms.getProduct", params: { schemaVersion: "0.1", productId: "booth:1" } } as const;
+    const unavailable = await provider.invoke(read); expect(unavailable).toMatchObject({ ok: false, error: { code: "vua.amf.unavailable" } });
+    expect(host.calls).toEqual([]); expect(activations()).toBe(0);
+    await provider.setAmfEnabled(true);
+    await provider.invoke(read);
+    await provider.invoke({ contractVersion: "0.1", requestId: "refresh", correlationId: "refresh", kind: "command", method: "terms.refreshProduct", commandId: "refresh", params: { schemaVersion: "0.1", productId: "booth:1" } });
+    expect(amf.calls.map(call => call.method)).toEqual(["terms.getProduct", "terms.refreshProduct"]); expect(host.calls).toEqual([]);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it("keeps passive license detection on the host without AMF and runs checks on the AMF authority", async () => {
+    const { provider, host, amf, activations } = setup(); await provider.start();
+    const read: ApplicationRequestV01 = {contractVersion:"0.1",requestId:"license-read",correlationId:"license-read",kind:"query",
+      method:"environment.unityLicense",params:{schemaVersion:"0.1"}};
+    const check: ApplicationRequestV01 = {contractVersion:"0.1",requestId:"license-check",correlationId:"license-check",kind:"command",commandId:"license-once",
+      method:"environment.checkUnityLicense",params:{schemaVersion:"0.1",editorPath:"C:/synthetic/Unity.exe"}};
+    await provider.invoke(read);
+    expect(host.calls.map(call=>call.method)).toEqual(["environment.unityLicense"]);
+    expect((await provider.invoke(check)).ok).toBe(false); expect(activations()).toBe(0); expect(amf.calls).toHaveLength(0);
+    await provider.setAmfEnabled(true); host.calls.length = 0; amf.calls.length = 0;
+    await provider.invoke(read); await provider.invoke(check);
+    expect(amf.calls.map(call=>call.method)).toEqual(["environment.unityLicense","environment.checkUnityLicense"]);
+    expect(host.calls).toHaveLength(0);
+    await provider.prepareShutdown({timeoutMs:100});
+  });
   it("admits update restart only after host/AMF work and shell transfers finish", async () => {
     let busy = false; const { provider, host, amf, saved } = setup({ shellBusy: () => busy });
     await provider.start(); await provider.setAmfEnabled(true);
@@ -54,6 +80,26 @@ describe("host / optional AMF process boundary", () => {
     expect(host.shutdownCalls).toBe(0); expect(amf.shutdownCalls).toBe(0);
     busy = false; expect(await provider.prepareForUpdate()).toBe(true);
     expect(host.shutdownCalls).toBe(1); expect(amf.shutdownCalls).toBe(1); expect(saved).toEqual([true]);
+  });
+  it("waits for an AMF operation that reads the whole work project", async () => {
+    let finish: (response: ApplicationResponseV01) => void = () => undefined;
+    class SlowSave extends Port {
+      override async invoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01> {
+        if (request.method !== "amf.production.saveRecipe") return super.invoke(request);
+        return new Promise(resolve => { finish = resolve; });
+      }
+    }
+    const slow = new SlowSave({ capabilities: [] });
+    const { provider } = setup({ enabled: true, factory: () => slow });
+    await provider.start();
+    vi.useFakeTimers();
+    try {
+      const pending = provider.invoke({ contractVersion: "0.1", requestId: "save", correlationId: "save", kind: "command", method: "amf.production.saveRecipe", commandId: "save", params: {} } as unknown as ApplicationRequestV01);
+      await vi.advanceTimersByTimeAsync(10_000);
+      finish({ contractVersion: "0.1", requestId: "save", ok: true, value: {} } as unknown as ApplicationResponseV01);
+      expect((await pending).ok).toBe(true);
+    } finally { vi.useRealTimers(); }
+    await provider.prepareShutdown({ timeoutMs: 100 });
   });
   it("keeps VRCFT queries and actions on the host while AMF is disabled", async () => {
     const { provider, host, amf, activations } = setup(); await provider.start();
@@ -116,6 +162,21 @@ describe("host / optional AMF process boundary", () => {
     const blocked = await provider.invoke({ contractVersion: "0.1", requestId: "recipe", correlationId: "recipe", kind: "query", method: "recipe.list", params: {} });
     expect(!blocked.ok && blocked.error.code).toBe("vua.amf.unavailable");
     expect(host.calls.every(call => !call.method.startsWith("recipe."))).toBe(true);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+
+  it("waits for a failed AMF process to exit before starting AMF again", async () => {
+    const order: string[] = [];
+    class FailingStart extends Port {
+      override async start(): Promise<never> { this.failed = true; throw new Error("corrupt BDL"); }
+      async waitForExit(): Promise<boolean> { order.push("previous exited"); return true; }
+    }
+    const instances: OrchestratorProviderV01[] = [new FailingStart({ capabilities: [] }), new Port({ capabilities: [{ operationId: "production.recipes", availability: "available" }] })];
+    const { provider } = setup({ factory: () => { order.push("created"); return instances.shift()!; } });
+    await provider.start();
+    expect((await provider.setAmfEnabled(true)).outcome).toBe("failed");
+    expect((await provider.setAmfEnabled(true)).snapshot.state).toBe("ready");
+    expect(order).toEqual(["created", "previous exited", "created"]);
     await provider.prepareShutdown({ timeoutMs: 100 });
   });
 

@@ -1,4 +1,5 @@
 import { ModalOwnerContext, useModalLayer } from "./modal-layer.tsx";
+import { useDialogMotion } from "./dialog-motion.ts";
 import type { ReactNode } from "react";
 import { Button } from "./Button.tsx";
 import "./confirm-dialog.css";
@@ -31,13 +32,15 @@ export function ConfirmDialog({
   onConfirm,
 }: ConfirmDialogProps) {
   const modal = useModalLayer(open, onCancel);
+  const shown = useDialogMotion(open, modal.overlayRef, modal.panelRef);
 
-  if (!open) return null;
+  if (!shown) return null;
   return (
     <ModalOwnerContext value={modal.id}>
       <div
         ref={modal.overlayRef}
         className="vua-confirm-dialog__overlay"
+        data-closing={open ? undefined : true}
         onClick={modal.closeTop}
         data-testid="confirm-dialog-overlay"
       >

@@ -1,0 +1,7 @@
+{
+  "method": "terms.refreshLibrary",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1"
+  }
+}

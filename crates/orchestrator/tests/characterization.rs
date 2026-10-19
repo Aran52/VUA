@@ -14,11 +14,16 @@ use vua_orchestrator::{
     WorkflowStage,
 };
 
-fn unique_suffix() -> u128 {
-    SystemTime::now()
+/// Unique per call: parallel tests can read the same clock value on Windows, so the
+/// process id and a counter keep their temp projects apart.
+fn unique_suffix() -> String {
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_nanos()
+        .as_nanos();
+    let serial = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    format!("{}-{nanos}-{serial}", std::process::id())
 }
 
 fn project() -> ProjectRef {

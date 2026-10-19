@@ -1,9 +1,20 @@
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
 import { fileDropCopy } from "./file-drop-copy.ts";
 import { helpCopy } from "./help-copy.ts";
 import { distributionCopy } from "./distribution-copy.ts";
 import { moduleCopy } from "./module-copy.ts";
+import { amfProductionCopy } from "./amf-production-copy.ts";
+import { factoryCopy } from "./factory-copy.ts";
+import { controlCenterCopy } from "./control-center-copy.ts";
+import { releaseRoomCopy } from "./release-room-copy.ts";
+import { sdkReviewCopy } from "./sdk-review-copy.ts";
+import { aiToolsCopy } from "./ai-tools-copy.ts";
+import { vrchatCopy } from "./vrchat-copy.ts";
+import { scenarioCopy } from "./scenario-copy.ts";
+import { unityLicenseCopy } from "./unity-license-copy.ts";
+import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
@@ -18,11 +29,22 @@ import type { Strings } from "./strings.en.ts";
  */
 export const strings: Strings = {
   faceTracking: faceTrackingCopy["ja"],
+  toolConnection: toolConnectionCopy["ja"],
   browser: browserCopy["ja"],
   fileDrop: fileDropCopy["ja"],
   helpUi: helpCopy["ja"],
   distribution: distributionCopy["ja"],
   amfModule: moduleCopy["ja"],
+  amfProduction: amfProductionCopy.ja,
+  factory: factoryCopy.ja,
+  controlCenter: controlCenterCopy.ja,
+  releaseRoom: releaseRoomCopy.ja,
+  sdkReview: sdkReviewCopy.ja,
+  aiTools: aiToolsCopy.ja,
+  vrchat: vrchatCopy.ja,
+  scenarioEnvironment: scenarioCopy.ja,
+  unityLicense: unityLicenseCopy.ja,
+  useTerms: useTermsCopy.ja,
   environmentCards: environmentCopy["ja"],
   journey: journeyCopy["ja"],
   websiteTests: {
@@ -227,6 +249,7 @@ demoTaskTitle: "デモタスク",
       settingsLanguage: "言語",
       settingsTheme: "テーマ",
       settingsExperimental: "実験的な機能",
+      settingsDebug: "デバッグ情報",
       settingsVersion: "バージョン",
       settingsAbout: "VUA について",
       settingsDonate: "寄付",
@@ -2939,6 +2962,7 @@ rolled_back: "ロールバック済み",
      *  未接続の設定(グローバル自動削除は凍結済みエントリレベルコマンドの範囲を
      *  超える。wire 面は proposal 008 の裁决に従う)。有効化には危険確認
      *  ダイアログが必須で、未接続表示が常時付く */
+    debug: { unavailable: "アバター工場モジュールをオンにすると、生産記録を確認できます。" },
     experimental: {
       taskDiagnosticsTitle: "タスク診断",
       taskDiagnosticsDesc: "生のタスクキューと復旧状態を確認します。ダウンロード進捗は通知センターに表示されます。",

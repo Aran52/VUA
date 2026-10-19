@@ -17,6 +17,7 @@ path = "src/bin/vua-orchestrator-provider.rs"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11.0"
+zip = { version = "4.6", default-features = false, features = ["deflate"] }
 vua-acquisition = { path = "../acquisition" }
 vua-bdl-store = { path = "../bdl-store" }
 vua-orchestrator = { path = "../orchestrator" }
@@ -27,6 +28,7 @@ vua-unity-bridge = { path = "../unity-bridge" }
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",
     "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
     "Win32_Storage",
     "Win32_Storage_FileSystem",
     "Win32_System_IO",

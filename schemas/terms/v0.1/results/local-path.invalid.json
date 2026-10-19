@@ -1,0 +1,435 @@
+{
+  "schemaVersion": "0.1",
+  "productId": "booth:1",
+  "state": "parsed",
+  "observedAt": "2026-10-19T00:00:00.000Z",
+  "captureProblem": null,
+  "sources": [
+    {
+      "sourceId": "drive:synthetic",
+      "sourceKind": "drive",
+      "sourceUrl": "https://drive.google.com/file/d/synthetic/view",
+      "googleFileId": "synthetic",
+      "status": "parsed",
+      "fetchedAt": "2026-10-19T00:00:00.000Z",
+      "problem": null,
+      "document": {
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "parserVersion": "vn3-parser/1",
+        "status": "parsed",
+        "generatorVersion": "1.11",
+        "vn3Version": "1.10",
+        "language": "en",
+        "contentTitle": "Synthetic example mesh",
+        "licensor": "Example Studio",
+        "creditNotation": "Example Studio",
+        "hashtags": [
+          "#SyntheticVN3"
+        ],
+        "agreementVersion": "0.42",
+        "specialNote": "Fictional note: include the blue emblem.",
+        "warnings": [],
+        "items": [
+          {
+            "item": "A",
+            "termKey": "vn3.A.personal_use",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "B",
+            "termKey": "vn3.B.corporate_use",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "C",
+            "termKey": "vn3.C.social_platform_upload",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "D",
+            "termKey": "vn3.D.gaming_platform_upload",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "E",
+            "termKey": "vn3.E.third_party_use",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "F",
+            "termKey": "vn3.F.sexual_expression",
+            "value": "permitted",
+            "condition": "content_rating_required",
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "G",
+            "termKey": "vn3.G.violence",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "H",
+            "termKey": "vn3.H.political_religious_use",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "I",
+            "termKey": "vn3.I.adjustment",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "J",
+            "termKey": "vn3.J.modification",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "K",
+            "termKey": "vn3.K.modify_other_data",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "L",
+            "termKey": "vn3.L.outsource_modification",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "M",
+            "termKey": "vn3.M.redistribution",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "N",
+            "termKey": "vn3.N.modified_distribution",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "O",
+            "termKey": "vn3.O.video_streaming",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "P",
+            "termKey": "vn3.P.publication",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "Q",
+            "termKey": "vn3.Q.merchandise",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "R",
+            "termKey": "vn3.R.software_integration",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "S",
+            "termKey": "vn3.S.mesh_weight_derivative",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "T",
+            "termKey": "vn3.T.independent_derivative",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "U",
+            "termKey": "vn3.U.fan_works",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "V",
+            "termKey": "vn3.V.credit",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "W",
+            "termKey": "vn3.W.rights_assignment",
+            "value": "permitted",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          },
+          {
+            "item": "X",
+            "termKey": "vn3.X.special_note",
+            "value": "unknown",
+            "condition": null,
+            "rawText": "Synthetic fictional clause.",
+            "summaryRawText": null
+          }
+        ]
+      },
+      "localPath": "C:/private/license.pdf"
+    }
+  ],
+  "effectiveLanguage": "en",
+  "effectiveItems": [
+    {
+      "item": "A",
+      "termKey": "vn3.A.personal_use",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "B",
+      "termKey": "vn3.B.corporate_use",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "C",
+      "termKey": "vn3.C.social_platform_upload",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "D",
+      "termKey": "vn3.D.gaming_platform_upload",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "E",
+      "termKey": "vn3.E.third_party_use",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "F",
+      "termKey": "vn3.F.sexual_expression",
+      "value": "permitted",
+      "condition": "content_rating_required",
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "G",
+      "termKey": "vn3.G.violence",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "H",
+      "termKey": "vn3.H.political_religious_use",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "I",
+      "termKey": "vn3.I.adjustment",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "J",
+      "termKey": "vn3.J.modification",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "K",
+      "termKey": "vn3.K.modify_other_data",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "L",
+      "termKey": "vn3.L.outsource_modification",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "M",
+      "termKey": "vn3.M.redistribution",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "N",
+      "termKey": "vn3.N.modified_distribution",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "O",
+      "termKey": "vn3.O.video_streaming",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "P",
+      "termKey": "vn3.P.publication",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "Q",
+      "termKey": "vn3.Q.merchandise",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "R",
+      "termKey": "vn3.R.software_integration",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "S",
+      "termKey": "vn3.S.mesh_weight_derivative",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "T",
+      "termKey": "vn3.T.independent_derivative",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "U",
+      "termKey": "vn3.U.fan_works",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "V",
+      "termKey": "vn3.V.credit",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "W",
+      "termKey": "vn3.W.rights_assignment",
+      "value": "permitted",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    },
+    {
+      "item": "X",
+      "termKey": "vn3.X.special_note",
+      "value": "unknown",
+      "condition": null,
+      "rawText": "Synthetic fictional clause.",
+      "summaryRawText": null
+    }
+  ],
+  "warnings": [],
+  "hasSpecialNote": true,
+  "specialNotes": [
+    {
+      "productId": "booth:1",
+      "sourceId": "drive:synthetic",
+      "language": "en",
+      "text": "Fictional note: include the blue emblem."
+    }
+  ]
+}

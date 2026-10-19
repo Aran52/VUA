@@ -1,0 +1,15 @@
+{
+  "expect": "reject",
+  "cases": [
+    {
+      "table": "terms_sources",
+      "values": {
+        "source_id": "link:synthetic",
+        "source_kind": "link",
+        "source_url": "https://example.invalid/terms",
+        "google_file_id": null,
+        "status": "parsed"
+      }
+    }
+  ]
+}

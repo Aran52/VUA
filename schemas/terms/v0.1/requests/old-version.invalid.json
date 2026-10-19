@@ -1,0 +1,8 @@
+{
+  "method": "terms.getProduct",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.2",
+    "productId": "booth:1"
+  }
+}

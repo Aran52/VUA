@@ -7,6 +7,43 @@ import {
   type TaskSnapshotV01,
 } from "@vua/contracts";
 import { MockOrchestratorProviderV01 } from "./mock-provider.js";
+import { isProductTermsV01, isTermsUseCheckV01 } from "@vua/contracts";
+
+it("serves conforming terms samples with unknown evidence kept outside the match set", async () => {
+  const provider = new MockOrchestratorProviderV01(); await provider.start();
+  const detail = await provider.invoke({ contractVersion: "0.1", requestId: "terms-detail", correlationId: "terms-detail", kind: "query", method: "terms.getProduct", params: { schemaVersion: "0.1", productId: "booth:1" } });
+  expect(detail.ok && isProductTermsV01(detail.value)).toBe(true);
+  const check = await provider.invoke({ contractVersion: "0.1", requestId: "terms-check", correlationId: "terms-check", kind: "query", method: "terms.checkUse", params: { schemaVersion: "0.1", presetId: "adult_content", productIds: ["booth:1", "booth:2"] } });
+  expect(check.ok && isTermsUseCheckV01(check.value)).toBe(true);
+  if (check.ok && isTermsUseCheckV01(check.value)) { expect(check.value.matchingProductIds).toEqual([]); expect(check.value.combination.decision).toBe("unknown"); }
+});
+
+it("reports license operations as unavailable without inventing observations", async () => {
+  const provider = new MockOrchestratorProviderV01(); await provider.start();
+  const response = await provider.invoke({contractVersion:"0.1",requestId:"license",correlationId:"license",kind:"query",method:"environment.unityLicense",params:{schemaVersion:"0.1"}});
+  expect(response.ok).toBe(false); if (!response.ok) expect(response.error.code).toBe("vua.unity_license.unavailable");
+});
+
+it("keeps AMF capacity unavailable in the mock provider", async () => {
+  const provider = new MockOrchestratorProviderV01();
+  await provider.start();
+  const response = await provider.invoke({contractVersion:"0.1",requestId:"capacity",correlationId:"capacity",kind:"command",commandId:"capacity",
+    method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}});
+  expect(response.ok).toBe(false);
+  if (!response.ok) expect(response.error.code).toBe("vua.amf_production.unavailable");
+});
+
+it("keeps AMF lighting review and application unavailable in the mock provider", async () => {
+  const provider = new MockOrchestratorProviderV01();
+  await provider.start();
+  const plan = await provider.invoke({contractVersion:"0.1",requestId:"lighting-plan",correlationId:"lighting-plan",kind:"query",
+    method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}});
+  expect(plan.ok).toBe(false);
+  const apply = await provider.invoke({contractVersion:"0.1",requestId:"lighting-apply",correlationId:"lighting-apply",kind:"command",commandId:"lighting-apply",
+    method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),materials:["Assets/Outfit/Coat.mat"]}});
+  expect(apply.ok).toBe(false);
+  if (!apply.ok) expect(apply.error.code).toBe("vua.amf_production.unavailable");
+});
 
 function task(overrides: Partial<TaskSnapshotV01> = {}): TaskSnapshotV01 {
   return {

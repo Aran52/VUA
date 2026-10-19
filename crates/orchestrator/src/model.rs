@@ -75,6 +75,14 @@ pub enum UnityOperation {
     /// never modified (preview-scene isolation; the mutating pipeline skips
     /// the scene-save step for this operation).
     BuildPreview,
+    /// Candidate v5, separate AMF entry point; frozen v1-v4 are unchanged.
+    AmfPrepare,
+    AmfInspect,
+    AmfAssemble,
+    /// Bakes the 60-frame turntable of the assembled AMF Avatar into the work project (v5).
+    AmfTurntable,
+    /// Runs the VRChat SDK's own Auto Fix for the items the player chose from its Avatar check (v5).
+    AmfSdkFix,
 }
 
 impl UnityOperation {
@@ -89,6 +97,10 @@ impl UnityOperation {
                 | Self::ExecuteProductionJob
                 | Self::RestoreProject
                 | Self::BuildPreview
+                | Self::AmfPrepare
+                | Self::AmfAssemble
+                | Self::AmfTurntable
+                | Self::AmfSdkFix
         )
     }
 }

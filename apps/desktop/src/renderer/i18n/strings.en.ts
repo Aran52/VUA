@@ -1,9 +1,20 @@
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
 import { fileDropCopy } from "./file-drop-copy.ts";
 import { helpCopy } from "./help-copy.ts";
 import { distributionCopy } from "./distribution-copy.ts";
 import { moduleCopy } from "./module-copy.ts";
+import { amfProductionCopy } from "./amf-production-copy.ts";
+import { factoryCopy } from "./factory-copy.ts";
+import { controlCenterCopy } from "./control-center-copy.ts";
+import { releaseRoomCopy } from "./release-room-copy.ts";
+import { sdkReviewCopy } from "./sdk-review-copy.ts";
+import { aiToolsCopy } from "./ai-tools-copy.ts";
+import { vrchatCopy } from "./vrchat-copy.ts";
+import { scenarioCopy } from "./scenario-copy.ts";
+import { unityLicenseCopy } from "./unity-license-copy.ts";
+import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
@@ -24,11 +35,22 @@ import { journeyCopy } from "./journey-copy.ts";
  */
 export const strings = {
   faceTracking: faceTrackingCopy["en"],
+  toolConnection: toolConnectionCopy["en"],
   browser: browserCopy["en"],
   fileDrop: fileDropCopy["en"],
   helpUi: helpCopy["en"],
   distribution: distributionCopy["en"],
   amfModule: moduleCopy["en"],
+  amfProduction: amfProductionCopy.en,
+  factory: factoryCopy.en,
+  controlCenter: controlCenterCopy.en,
+  releaseRoom: releaseRoomCopy.en,
+  sdkReview: sdkReviewCopy.en,
+  aiTools: aiToolsCopy.en,
+  vrchat: vrchatCopy.en,
+  scenarioEnvironment: scenarioCopy.en,
+  unityLicense: unityLicenseCopy.en,
+  useTerms: useTermsCopy.en,
   environmentCards: environmentCopy["en"],
   journey: journeyCopy["en"],
   websiteTests: {
@@ -235,6 +257,7 @@ demoTaskTitle: "Demo task",
       settingsLanguage: "Language",
       settingsTheme: "Theme",
       settingsExperimental: "Experimental features",
+      settingsDebug: "Debugging information",
       settingsVersion: "Version",
       settingsAbout: "About VUA",
       settingsDonate: "Donate",
@@ -3003,6 +3026,7 @@ demoTaskTitle: "Demo task",
      *  global auto-delete exceeds the frozen entry-level command; the wire
      *  face follows proposal 008), guarded by a danger confirm dialog and
      *  permanently labeled as unwired. */
+    debug: { unavailable: "Turn on the Avatar factory module to read its production records." },
     experimental: {
       taskDiagnosticsTitle: "Task diagnostics",
       taskDiagnosticsDesc: "Inspect the raw task queue and recovery state. Downloads and progress are available in the notification center.",

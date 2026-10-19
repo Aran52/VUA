@@ -68,21 +68,22 @@ technical-details area.
 
 ## AI agents
 
-VUA runs an MCP server on the player's computer. The player's own agent supplies conversation
-and planning; VUA supplies facts, SOPs, operations and verification. The first MCP slice exposes
-read-only observation.
+VUA runs a local [MCP server](protocols/ai-tools-v0.1.md) on the player's computer. The player's
+own agent supplies conversation and planning; VUA supplies facts, SOPs, operations and
+verification. The player turns the connection on in Help and gives the pairing prompt to their
+agent.
 
 | Level | The agent can | Granted by |
 | --- | --- | --- |
-| Observe | Read facts, SOPs, tasks and records | Enabling MCP access in VUA |
-| Prepare | Create plans, previews and dry runs | Enabling MCP access in VUA |
-| Act | Execute a plan | The player approving that plan in VUA |
-| Protected | Run high-risk steps as defined by the [risk gate](tool-catalog/risk-gate-v1.md), such as process termination or elevation | The player confirming each step in VUA |
+| Observe | Read facts, SOPs, tasks and records | Turning the connection on |
+| Prepare | Create plans, previews and dry runs | Turning the connection on |
+| Act | Request an action, which VUA shows as a concrete draft | The player confirming that action in VUA |
+| Protected | Request high-risk steps as defined by the [risk gate](tool-catalog/risk-gate-v1.md), such as process termination or elevation | The player confirming each step in VUA after its warning |
 | Player only | Sign-in, purchases, license acceptance, final VRChat upload | The player, in the official application |
 
-Standing approvals for selected low-risk operations are defined with the first MCP slice that
-executes changes. Task history records which client started each task. Tool results contain the
-facts the operation needs; material files, account data and screenshots stay on the computer.
+Approval receipts record every agent request and its outcome. Eval agent runs show which
+low-risk operations could later run under a standing approval. Tool results contain the facts
+the operation needs; material files, account data and screenshots stay on the computer.
 
 ## SOPs
 

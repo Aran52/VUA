@@ -1,0 +1,7 @@
+{
+  "method": "environment.unityLicense",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1"
+  }
+}

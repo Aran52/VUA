@@ -116,6 +116,8 @@ struct OutboundFrame<'a> {
 }
 
 struct HostState {
+    unity_license: Option<Arc<crate::unity_license::UnityLicenseService>>,
+    amf_production: Option<Arc<crate::amf_production_routes::AmfProductionServices>>,
     store: Arc<SqliteTaskStore>,
     provider_instance_id: String,
     recovered_nonterminal_tasks: HashSet<String>,
@@ -183,6 +185,7 @@ pub struct WarehouseConfig {
 }
 
 struct WarehouseServices {
+    terms: Arc<vua_acquisition::terms::TermsService>,
     bdl: Arc<BdlStore>,
     warehouse_root: PathBuf,
     global_default: ArtifactMode,
@@ -224,7 +227,7 @@ pub struct EnvironmentConfig {
 struct EnvironmentServices {
     roots: EnvironmentRoots,
     play: vua_project_manager::play_session::PlayService,
-    tools: vua_orchestrator::external_tools::ToolService,
+    tools: HashMap<&'static str, vua_orchestrator::external_tools::ToolService>,
     network: vua_orchestrator::network::NetworkService,
     deployment: vua_orchestrator::deployment::DeploymentService,
     engine: EnvironmentEngine,
@@ -868,6 +871,7 @@ pub fn run_provider_host_with_legacy(
                 let library_maintenance = vua_acquisition::library_maintenance::LibraryMaintenance::new(
                     store.clone(),config.bdl.clone(),runtime.clone(),config.warehouse_root.clone(),library_downloads.clone());
                 Ok(Arc::new(WarehouseServices {
+                    terms: Arc::new(vua_acquisition::terms::TermsService::new(config.bdl.clone(),runtime.clone(),vua_acquisition::terms::owned_cache_root(config.warehouse_root.parent().unwrap_or(&config.warehouse_root)),Arc::new(vua_acquisition::terms::download::PublicTermsDownloader::default()),Arc::new(SystemClock))),
                     bdl: config.bdl,
                     warehouse_root: config.warehouse_root,
                     global_default: config.global_default,
@@ -932,7 +936,7 @@ pub fn run_provider_host_with_legacy(
         Ok(Arc::new(EnvironmentServices {
             roots: config.roots.clone(),
             play: vua_project_manager::play_session::PlayService::windows(config.roots.clone()),
-            tools: vua_orchestrator::external_tools::ToolService::new(Arc::new(vua_project_manager::steam_tools::SteamToolPlatform::new(config.roots.clone())), Arc::new(SystemClock)),
+            tools: vua_orchestrator::external_tools::STEAM_TOOLS.iter().map(|spec| (spec.tool_id, vua_orchestrator::external_tools::ToolService::new(Arc::new(vua_project_manager::steam_tools::SteamToolPlatform::new(config.roots.clone(), spec)), Arc::new(SystemClock), spec.tool_id))).collect(),
             network: vua_orchestrator::network::NetworkService::new(
                 Arc::new(vua_project_manager::network_probe::HttpsNetworkProbe),
                 Arc::new(SystemClock),
@@ -954,7 +958,40 @@ pub fn run_provider_host_with_legacy(
     let editor_verify: EditorPathVerifier = editor_verifier.unwrap_or_else(|| {
         Arc::new(|input: &Path| verify_editor_path_system(input))
     });
+    let amf_production = warehouse.as_ref().map(|warehouse| {
+        let root = warehouse.warehouse_root.parent().unwrap_or(&warehouse.warehouse_root).join("amf-production");
+        let platform = crate::amf_production_adapter::NativeAmfProduction {
+            bdl: warehouse.bdl.clone(), root: root.clone(),
+            editor_roots: project_ops.as_ref().map(|ops| ops.editor_roots.as_ref().clone()).unwrap_or_else(|| vec![PathBuf::from("C:/Program Files/Unity/Hub/Editor")]),
+            explicit_editor: std::env::var_os("VUA_UNITY_EDITOR").map(PathBuf::from),
+            // The AMF process runs without the host's environment services, so it finds Hub itself.
+            unity_hub: Some({
+                let engine = Arc::new(EnvironmentEngine::new(
+                    Arc::new(vua_orchestrator::StdProcessRunner),
+                    Arc::new(SystemClock),
+                    environment.as_ref().map(|services| services.roots.clone()).unwrap_or_default(),
+                    Arc::new(vua_project_manager::VccSettingsFileReader),
+                ));
+                Arc::new(move || engine.inspect_unity_hub())
+                    as Arc<dyn Fn() -> vua_orchestrator::EnvironmentCheckItemV1 + Send + Sync>
+            }),
+        };
+        Arc::new(crate::amf_production_routes::AmfProductionServices::new(
+            vua_orchestrator::amf_production::AmfProductionEngine::new(root, Arc::new(platform)),
+            warehouse.runtime.clone(),
+        ))
+    });
+    let license_amf = amf_production.clone();
+    let unity_license = Some(Arc::new(crate::unity_license::UnityLicenseService {
+        probe: Arc::new(crate::unity_license::NativeLicenseProbe::system().with_editors(Arc::new(move || {
+            license_amf.as_ref().map_or_else(|| Ok(Vec::new()), |amf| amf.engine.editors())
+        }))),
+        root: database_path.parent().unwrap_or_else(|| Path::new(".")).join("unity-license"),
+        amf: amf_production.clone(), runner: Arc::new(vua_orchestrator::StdProcessRunner), clock: Arc::new(SystemClock),
+    }));
     let mut state = HostState {
+        unity_license,
+        amf_production,
         store,
         provider_instance_id,
         use_cases,
@@ -1337,6 +1374,15 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
         ));
     }
     let method = request.get("method").and_then(Value::as_str).unwrap_or("");
+    if method.starts_with("terms.") {
+        return crate::terms_routes::request(state.warehouse.as_ref().map(|w|&w.terms),method,request,request_id,correlation_id);
+    }
+    if matches!(method, "environment.unityLicense" | "environment.checkUnityLicense") {
+        return crate::unity_license_routes::request(state.unity_license.as_ref(), method, request, request_id, correlation_id);
+    }
+    if method.starts_with("amf.production.") {
+        return crate::amf_production_routes::request(state.amf_production.clone(), method, request, request_id, correlation_id);
+    }
     if method.starts_with("production.") {
         return production_request(state, method, request, request_id, correlation_id);
     }
@@ -1430,6 +1476,9 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     }
     if matches!(method, "tools.observeConnection" | "tools.actConnection") {
         return crate::external_tool_routes::request(state.environment.as_ref().map(|s| &s.tools), request, request_id, correlation_id);
+    }
+    if matches!(method, "environment.getScenarioSop" | "environment.checkScenarioEnvironment") {
+        return crate::scenario_routes::request(state.environment.as_ref().map(|s| &s.deployment),method,request,request_id,correlation_id);
     }
     if matches!(method, "environment.planDeployment" | "environment.executeDeployment") {
         return crate::deployment_routes::request(state.environment.as_ref().map(|s| &s.deployment), method, request, request_id, correlation_id);
@@ -1813,12 +1862,24 @@ fn served_capabilities(state: &HostState) -> Value {
             "availability": packages_repo_lifecycle_ops_availability,
         },
     ]);
+    capabilities.as_array_mut().expect("capabilities array").extend([
+        json!({"operationId":"environment.getScenarioSop","availability":"available"}),
+        deployment_capability(state,"environment.checkScenarioEnvironment"),
+    ]);
     capabilities.as_array_mut().expect("capabilities array").push(json!({
         "operationId": "library.importPaths", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }
     }));
     capabilities.as_array_mut().expect("capabilities array").push(json!({
         "operationId": "library.removeCards", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }
     }));
+    capabilities.as_array_mut().expect("capabilities array").push(json!({
+        "operationId": "amf.production", "availability": if state.amf_production.is_some() { "available" } else { "unavailable" }
+    }));
+    capabilities.as_array_mut().expect("capabilities array").extend(["terms.getProduct","terms.checkUse","terms.refreshProduct","terms.refreshLibrary"].map(|operation|json!({"operationId":operation,"availability":if state.warehouse.is_some(){"available"}else{"unavailable"}})));
+    capabilities.as_array_mut().expect("capabilities array").extend([
+        json!({"operationId":"environment.unityLicense","availability":if state.unity_license.is_some() {"available"} else {"unavailable"}}),
+        json!({"operationId":"environment.checkUnityLicense","availability":if state.amf_production.is_some() {"available"} else {"unavailable"}}),
+    ]);
     capabilities
 }
 
@@ -2581,7 +2642,7 @@ fn warehouse_submit_task(
 /// The version nibble is `7` and the variant bits are `10xx` so every
 /// identity satisfies the frozen `uuidV7` pattern shared by the recipe
 /// v0.3 suite and the production-use-case v0.2 word list.
-fn uuid_v7_identity() -> String {
+pub(crate) fn uuid_v7_identity() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let ms = std::time::SystemTime::now()
@@ -9020,7 +9081,7 @@ fn packages_create_project(
     }
 }
 
-fn app_error_category(category: ErrorCategory) -> &'static str {
+pub(crate) fn app_error_category(category: ErrorCategory) -> &'static str {
     match category {
         ErrorCategory::Validation => "validation",
         ErrorCategory::Conflict => "conflict",
@@ -9790,7 +9851,7 @@ pub(crate) fn application_error(
 /// shape (no empty-params field appears). The U19 record-state blocked
 /// rejection is the first admission-time emitter: it carries the record's
 /// original `state` value so the localized wording can name it.
-fn application_error_with_params(
+pub(crate) fn application_error_with_params(
     request_id: &str,
     correlation_id: &str,
     code: &str,
@@ -11786,7 +11847,9 @@ mod tests {
             )
             .unwrap();
         let mut state = HostState {
+            unity_license: None,
             store: Arc::new(store),
+            amf_production: None,
             provider_instance_id: "provider-test".into(),
             recovered_nonterminal_tasks: HashSet::new(),
             production: None,
@@ -11939,6 +12002,8 @@ mod tests {
     #[test]
     fn runtime_event_queue_drains_completely() {
         let state = HostState {
+            unity_license: None,
+            amf_production: None,
             store: Arc::new(SqliteTaskStore::open_in_memory().unwrap()),
             provider_instance_id: "provider-test".into(),
             recovered_nonterminal_tasks: HashSet::new(),

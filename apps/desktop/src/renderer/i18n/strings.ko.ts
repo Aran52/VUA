@@ -1,9 +1,20 @@
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
 import { fileDropCopy } from "./file-drop-copy.ts";
 import { helpCopy } from "./help-copy.ts";
 import { distributionCopy } from "./distribution-copy.ts";
 import { moduleCopy } from "./module-copy.ts";
+import { amfProductionCopy } from "./amf-production-copy.ts";
+import { factoryCopy } from "./factory-copy.ts";
+import { controlCenterCopy } from "./control-center-copy.ts";
+import { releaseRoomCopy } from "./release-room-copy.ts";
+import { sdkReviewCopy } from "./sdk-review-copy.ts";
+import { aiToolsCopy } from "./ai-tools-copy.ts";
+import { vrchatCopy } from "./vrchat-copy.ts";
+import { scenarioCopy } from "./scenario-copy.ts";
+import { unityLicenseCopy } from "./unity-license-copy.ts";
+import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
@@ -18,11 +29,22 @@ import type { Strings } from "./strings.en.ts";
  */
 export const strings: Strings = {
   faceTracking: faceTrackingCopy["ko"],
+  toolConnection: toolConnectionCopy["ko"],
   browser: browserCopy["ko"],
   fileDrop: fileDropCopy["ko"],
   helpUi: helpCopy["ko"],
   distribution: distributionCopy["ko"],
   amfModule: moduleCopy["ko"],
+  amfProduction: amfProductionCopy.ko,
+  factory: factoryCopy.ko,
+  controlCenter: controlCenterCopy.ko,
+  releaseRoom: releaseRoomCopy.ko,
+  sdkReview: sdkReviewCopy.ko,
+  aiTools: aiToolsCopy.ko,
+  vrchat: vrchatCopy.ko,
+  scenarioEnvironment: scenarioCopy.ko,
+  unityLicense: unityLicenseCopy.ko,
+  useTerms: useTermsCopy.ko,
   environmentCards: environmentCopy["ko"],
   journey: journeyCopy["ko"],
   websiteTests: {
@@ -227,6 +249,7 @@ demoTaskTitle: "데모 작업",
       settingsLanguage: "언어",
       settingsTheme: "테마",
       settingsExperimental: "실험 기능",
+      settingsDebug: "디버그 정보",
       settingsVersion: "버전",
       settingsAbout: "VUA 정보",
       settingsDonate: "후원",
@@ -2926,6 +2949,7 @@ rolled_back: "롤백됨",
      *  위험 토글, 미연결 설정(전역 자동 삭제는 동결된 항목 수준 명령의 범위를
      *  넘으므로 wire 면은 proposal 008 결정을 따름). 활성화에는 위험 확인
      *  대화상자가 필수이며 미연결 표시가 항상 붙습니다 */
+    debug: { unavailable: "아바타 공장 모듈을 켜면 여기서 생산 기록을 볼 수 있어요." },
     experimental: {
       taskDiagnosticsTitle: "작업 진단",
       taskDiagnosticsDesc: "원본 작업 대기열과 복구 상태를 확인합니다. 다운로드 진행 상황은 알림 센터에 표시됩니다.",

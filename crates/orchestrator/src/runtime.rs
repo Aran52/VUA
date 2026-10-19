@@ -94,9 +94,9 @@ use crate::journal::{
 use crate::sqlite_task_store::{NewTask, SqliteStoreError, SqliteTaskStore, TaskMutation};
 use crate::time::{Clock, TaskIdGenerator};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Condvar, Mutex};
 use std::time::Duration;
 
 /// Stable runtime error codes (ORC-ERR-001). Owned by the runtime module.
@@ -122,6 +122,160 @@ pub enum TaskExit {
 
 /// The unit of work executed on a dedicated worker thread (ORC-CON-002).
 pub type TaskJob = Box<dyn FnOnce(&TaskContext) -> Result<TaskExit, AppErrorV1> + Send>;
+
+/// Admits up to its capacity in submission order, respecting shared keys and exclusive jobs.
+/// Waiting tasks stay `queued` and can be cancelled without running their jobs.
+#[derive(Clone, Default)]
+pub struct TaskLane {
+    shared: Arc<(Mutex<LaneState>, Condvar)>,
+}
+
+struct LaneState {
+    capacity: usize,
+    waiting: VecDeque<LaneJob>,
+    running: Vec<LaneJob>,
+}
+
+impl Default for LaneState {
+    fn default() -> Self {
+        Self { capacity: 1, waiting: VecDeque::new(), running: Vec::new() }
+    }
+}
+
+/// Jobs with the same key cannot overlap. An exclusive job runs alone.
+#[derive(Clone, Default)]
+pub struct TaskLanePolicy {
+    pub key: Option<String>,
+    pub exclusive: bool,
+}
+
+struct LaneJob {
+    task_id: String,
+    policy: TaskLanePolicy,
+}
+
+/// One coherent view of admission, including jobs that acquired a slot before execution.
+pub struct TaskLaneSnapshot {
+    pub capacity: usize,
+    pub running: Vec<String>,
+    pub waiting: Vec<String>,
+}
+
+/// How often a waiting job looks for a cancel request.
+const LANE_CANCEL_POLL: Duration = Duration::from_millis(200);
+
+impl TaskLane {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_capacity(capacity: usize) -> Result<Self, AppErrorV1> {
+        let lane = Self::new();
+        lane.set_capacity(capacity)?;
+        Ok(lane)
+    }
+
+    /// Reconfiguration requires an idle lane, so it never interrupts or reorders accepted work.
+    pub fn set_capacity(&self, capacity: usize) -> Result<(), AppErrorV1> {
+        if !(1..=3).contains(&capacity) {
+            return Err(AppErrorV1::new("vua.task.lane_capacity_invalid", ErrorCategory::Validation,
+                "errors.task.laneCapacityInvalid", "task-lane"));
+        }
+        let mut state = self.state();
+        if !state.running.is_empty() || !state.waiting.is_empty() {
+            return Err(AppErrorV1::new("vua.task.lane_busy", ErrorCategory::Conflict,
+                "errors.task.laneBusy", "task-lane"));
+        }
+        state.capacity = capacity;
+        Ok(())
+    }
+
+    fn state(&self) -> std::sync::MutexGuard<'_, LaneState> {
+        self.shared.0.lock().expect("lane poisoned")
+    }
+
+    /// Tasks waiting for their turn, first in line first.
+    #[must_use]
+    pub fn waiting(&self) -> Vec<String> {
+        self.snapshot().waiting
+    }
+
+    /// The first running task, retained for callers of the single-slot lane.
+    #[must_use]
+    pub fn holder(&self) -> Option<String> {
+        self.state().running.first().map(|job| job.task_id.clone())
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> TaskLaneSnapshot {
+        let state = self.state();
+        TaskLaneSnapshot {
+            capacity: state.capacity,
+            running: state.running.iter().map(|job| job.task_id.clone()).collect(),
+            waiting: state.waiting.iter().map(|job| job.task_id.clone()).collect(),
+        }
+    }
+
+    /// No job runs or waits in the lane.
+    #[must_use]
+    pub fn is_idle(&self) -> bool {
+        let state = self.state();
+        state.running.is_empty() && state.waiting.is_empty()
+    }
+
+    fn join(&self, task_id: &str, policy: TaskLanePolicy) {
+        self.state().waiting.push_back(LaneJob { task_id: task_id.to_owned(), policy });
+    }
+
+    /// Waits for this task's turn. False when a cancel request came first; the task then leaves
+    /// the line and the next one moves up.
+    fn take_turn(&self, task_id: &str, cancelled: impl Fn() -> bool) -> bool {
+        loop {
+            // The cancel check reads the task store; it runs without the lane lock.
+            if cancelled() {
+                self.state().waiting.retain(|waiting| waiting.task_id != task_id);
+                self.shared.1.notify_all();
+                return false;
+            }
+            let mut state = self.state();
+            // A blocked head prevents later jobs overtaking it, even with a free slot.
+            let admitted = state.waiting.front().is_some_and(|head| {
+                head.task_id == task_id && state.running.len() < state.capacity
+                    && (!head.policy.exclusive || state.running.is_empty())
+                    && state.running.iter().all(|job| !job.policy.exclusive
+                        && (head.policy.key.is_none() || head.policy.key != job.policy.key))
+            });
+            if admitted {
+                let head = state.waiting.pop_front().expect("head checked");
+                state.running.push(head);
+                drop(state);
+                self.shared.1.notify_all();
+                return true;
+            }
+            let _ = self.shared.1.wait_timeout(state, LANE_CANCEL_POLL).expect("lane poisoned");
+        }
+    }
+
+    fn release(&self, task_id: &str) {
+        let mut state = self.state();
+        state.running.retain(|job| job.task_id != task_id);
+        drop(state);
+        self.shared.1.notify_all();
+    }
+}
+
+/// A job's turn in its lane; the next job moves up when it ends.
+struct LaneTurn {
+    lane: TaskLane,
+    task_id: String,
+}
+
+impl Drop for LaneTurn {
+    fn drop(&mut self) {
+        self.lane.release(&self.task_id);
+    }
+}
 
 pub struct SubmitRequest {
     /// Optional caller-supplied correlation id; generated when absent.
@@ -506,7 +660,22 @@ impl TaskRuntime {
     /// caller observes success (ORC-STA-006); a journal failure rejects the
     /// command without starting the job.
     pub fn submit(&self, request: SubmitRequest) -> Result<CommandAcceptedV1, AppErrorV1> {
-        self.submit_inner(request, None)
+        self.submit_inner(request, None, None)
+    }
+
+    /// Like [`Self::submit`], with FIFO admission through the lane's capacity.
+    pub fn submit_in_lane(&self, request: SubmitRequest, lane: &TaskLane) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_in_lane_with_policy(request, lane, TaskLanePolicy::default())
+    }
+
+    pub fn submit_in_lane_with_policy(&self, request: SubmitRequest, lane: &TaskLane, policy: TaskLanePolicy) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_inner(request, None, Some((lane, policy)))
+    }
+
+    /// Durable command replay shares the same acceptance and lane ordering transaction.
+    pub fn submit_idempotent_in_lane(&self, request: SubmitRequest, lane: &TaskLane, policy: TaskLanePolicy,
+        command_kind: &str, command_id: &str, fingerprint: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
+        self.submit_inner(request, Some((command_kind, command_id, fingerprint)), Some((lane, policy)))
     }
 
     /// Atomically bind a command ID and fingerprint to durable task acceptance. Replays
@@ -519,13 +688,14 @@ impl TaskRuntime {
         command_id: &str,
         fingerprint: &str,
     ) -> Result<CommandAcceptedV1, AppErrorV1> {
-        self.submit_inner(request, Some((command_kind, command_id, fingerprint)))
+        self.submit_inner(request, Some((command_kind, command_id, fingerprint)), None)
     }
 
     fn submit_inner(
         &self,
         request: SubmitRequest,
         idempotency: Option<(&str, &str, &str)>,
+        lane: Option<(&TaskLane, TaskLanePolicy)>,
     ) -> Result<CommandAcceptedV1, AppErrorV1> {
         if !self.inner.journal_accepting.load(Ordering::Acquire) {
             return Err(AppErrorV1::new(
@@ -627,6 +797,10 @@ impl TaskRuntime {
                     recovery_disposition: TaskRecoveryDisposition::None,
                 },
             );
+            // Join under the acceptance lock so simultaneous submitters retain durable order.
+            if let Some((lane, policy)) = &lane {
+                lane.join(&task_id, policy.clone());
+            }
         }
 
         self.inner.publish(self.inner.make_event_at(
@@ -639,7 +813,7 @@ impl TaskRuntime {
             correlation_id,
         ));
 
-        self.spawn_worker(task_id.clone(), request.job);
+        self.spawn_worker(task_id.clone(), request.job, lane.map(|(lane, _)| lane.clone()));
         if let Some(timeout) = request.timeout {
             self.spawn_watchdog(task_id, timeout);
         }
@@ -776,12 +950,23 @@ impl TaskRuntime {
         snapshots
     }
 
-    fn spawn_worker(self: &TaskRuntime, task_id: String, job: TaskJob) {
+    fn spawn_worker(self: &TaskRuntime, task_id: String, job: TaskJob, lane: Option<TaskLane>) {
         let runtime = self.clone();
         std::thread::spawn(move || {
             let context = TaskContext {
                 runtime,
                 task_id: task_id.clone(),
+            };
+            // A job in a lane waits for its turn while its task stays queued.
+            let _turn = match lane {
+                Some(lane) => {
+                    if !lane.take_turn(&task_id, || context.check_cancel()) {
+                        context.finish(TaskState::Cancelled, None, None);
+                        return;
+                    }
+                    Some(LaneTurn { lane, task_id: task_id.clone() })
+                }
+                None => None,
             };
             // queued → preparing → running (Fix 2): a transition failure
             // before execution (journal unwritable etc.) must terminate the

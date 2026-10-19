@@ -1,9 +1,20 @@
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
+import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
 import { fileDropCopy } from "./file-drop-copy.ts";
 import { helpCopy } from "./help-copy.ts";
 import { distributionCopy } from "./distribution-copy.ts";
 import { moduleCopy } from "./module-copy.ts";
+import { amfProductionCopy } from "./amf-production-copy.ts";
+import { factoryCopy } from "./factory-copy.ts";
+import { controlCenterCopy } from "./control-center-copy.ts";
+import { releaseRoomCopy } from "./release-room-copy.ts";
+import { sdkReviewCopy } from "./sdk-review-copy.ts";
+import { aiToolsCopy } from "./ai-tools-copy.ts";
+import { vrchatCopy } from "./vrchat-copy.ts";
+import { scenarioCopy } from "./scenario-copy.ts";
+import { unityLicenseCopy } from "./unity-license-copy.ts";
+import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
@@ -22,11 +33,22 @@ import type { Strings } from "./strings.en.ts";
  */
 export const strings: Strings = {
   faceTracking: faceTrackingCopy["zh-CN"],
+  toolConnection: toolConnectionCopy["zh-CN"],
   browser: browserCopy["zh-CN"],
   fileDrop: fileDropCopy["zh-CN"],
   helpUi: helpCopy["zh-CN"],
   distribution: distributionCopy["zh-CN"],
   amfModule: moduleCopy["zh-CN"],
+  amfProduction: amfProductionCopy["zh-CN"],
+  factory: factoryCopy["zh-CN"],
+  controlCenter: controlCenterCopy["zh-CN"],
+  releaseRoom: releaseRoomCopy["zh-CN"],
+  sdkReview: sdkReviewCopy["zh-CN"],
+  aiTools: aiToolsCopy["zh-CN"],
+  vrchat: vrchatCopy["zh-CN"],
+  scenarioEnvironment: scenarioCopy["zh-CN"],
+  unityLicense: unityLicenseCopy["zh-CN"],
+  useTerms: useTermsCopy["zh-CN"],
   environmentCards: environmentCopy["zh-CN"],
   journey: journeyCopy["zh-CN"],
   websiteTests: {
@@ -238,6 +260,7 @@ demoTaskTitle: "演示任务",
       settingsLanguage: "语言",
       settingsTheme: "主题",
       settingsExperimental: "实验性",
+      settingsDebug: "调试信息",
       settingsVersion: "版本",
       settingsAbout: "关于",
       settingsDonate: "捐赠",
@@ -2949,6 +2972,7 @@ rolled_back: "已回滚",
      *  +两行开关。行1「生成 VPM 包替代」=全局默认模式写面(bdl-commands v0.2 全局层
      *  setGlobalDefaultMode);行2「生成后删除原始素材文件」=危险开关,008 路径 a 接线(生成完成→逐条目
      *  独立删除任务),开启必经危险确认对话框 */
+    debug: { unavailable: "开启 Avatar 工厂模块后，可以在这里查看生产记录。" },
     experimental: {
       taskDiagnosticsTitle: "任务诊断",
       taskDiagnosticsDesc: "查看原始任务队列与恢复状态。下载进度请看通知中心。",

@@ -89,9 +89,6 @@ function HandoffAdmissionArea({
         <p className="vua-caption vua-text-secondary">{reason}</p>
         {onNavigate !== undefined ? (
           <div className="vua-page__actions">
-            <Button variant="subtle" onClick={() => onNavigate("inspection")}>
-              {format(handoffCopy.gotoInspection, { page: termLabel("inspection") })}
-            </Button>
             <Button variant="subtle" onClick={() => onNavigate("workshop")}>
               {handoffCopy.entryWorkshop}
             </Button>
@@ -110,8 +107,8 @@ function HandoffAdmissionArea({
       <p className="vua-caption vua-text-secondary">{handoffCopy.recoveredBlockNote}</p>
       {onNavigate !== undefined ? (
         <div className="vua-page__actions">
-          <Button variant="subtle" onClick={() => onNavigate("inspection")}>
-            {format(handoffCopy.gotoInspection, { page: termLabel("inspection") })}
+          <Button variant="subtle" onClick={() => onNavigate("workshop")}>
+            {handoffCopy.entryWorkshop}
           </Button>
         </div>
       ) : null}

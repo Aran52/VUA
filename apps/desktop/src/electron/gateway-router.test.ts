@@ -15,6 +15,20 @@ function request(): unknown {
 }
 
 describe("Electron Desktop Gateway routing", () => {
+  it("routes stored terms reads and explicit refresh commands with closed parameters", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
+    const context = { provider, productVersion: "0.6.7", platform: "win32", rendererUrl };
+    for (const [method, params, kind] of [["terms.getProduct", { schemaVersion: "0.1", productId: "booth:1" }, "query"],
+      ["terms.checkUse", { schemaVersion: "0.1", presetId: "adult_content", productIds: ["booth:1"] }, "query"],
+      ["terms.refreshProduct", { schemaVersion: "0.1", productId: "booth:1" }, "command"],
+      ["terms.refreshLibrary", { schemaVersion: "0.1" }, "command"]] as const) {
+      await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "terms", method, params });
+      expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({ method, kind, params, ...(kind === "command" ? { commandId: "terms-terms" } : {}) }));
+    }
+    invoke.mockClear();
+    const response = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, { schemaVersion: 1, requestId: "bad-terms", method: "terms.refreshProduct", params: { schemaVersion: "0.1", productId: "booth:1", url: "https://example.invalid/private" } });
+    expect(response).toMatchObject({ ok: false, error: { code: "invalid_request" } }); expect(invoke).not.toHaveBeenCalled();
+  });
   it("routes fixed external-tool actions to the host and rejects custom launch targets", async () => {
     const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider, "invoke");
     const context = { provider, productVersion: "0.6.0", platform: "win32", rendererUrl };
@@ -1194,6 +1208,47 @@ describe("bdl-queries v0.2 routing", () => {
 });
 
 describe("amf-production v0.2 routing", () => {
+  it("routes passive license detection and the explicit check with their separate kinds", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start(); const invoke = vi.spyOn(provider,"invoke");
+    const context = {provider,productVersion:"0.6.7",platform:"win32",rendererUrl};
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, {schemaVersion:1,requestId:"license-read",method:"environment.unityLicense",params:{schemaVersion:"0.1"}});
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({kind:"query",method:"environment.unityLicense",params:{schemaVersion:"0.1"}}));
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, {schemaVersion:1,requestId:"license-check",method:"environment.checkUnityLicense",params:{schemaVersion:"0.1",editorPath:"C:/synthetic/Unity.exe"}});
+    expect(invoke).toHaveBeenLastCalledWith(expect.objectContaining({kind:"command",commandId:"license-license-check",method:"environment.checkUnityLicense"}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke(context, `${rendererUrl}/`, {schemaVersion:1,requestId:"license-bad",method:"environment.unityLicense",params:{schemaVersion:"0.1",licensePath:"C:/private"}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("forwards capacity as an AMF command with its closed params", async () => {
+    const provider = new MockOrchestratorProviderV01();
+    await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"capacity-1",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-capacity-1",
+      method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:2}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"capacity-bad",method:"amf.production.setCapacity",params:{schemaVersion:"0.1",capacity:4}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("forwards the lighting review as a query and its application as a digest-bound command", async () => {
+    const provider = new MockOrchestratorProviderV01();
+    await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"lighting-1",method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"query",method:"amf.production.planLighting",params:{schemaVersion:"0.1",runId:"n3-test"}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"lighting-2",method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),materials:["Assets/Outfit/Coat.mat"]}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-lighting-2",method:"amf.production.applyLighting",
+      params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),materials:["Assets/Outfit/Coat.mat"]}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"lighting-bad",method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"bad",materials:["Assets/Outfit/Coat.mat"]}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
   const quad = {
     sourceFolder: "C:/materials/source",
     projectRoot: "C:/projects/target",
@@ -1751,5 +1806,91 @@ describe("bdl-queries v0.5 routing (dependencies.lookup / dependencies.listByPro
     );
     expect(filtered).toMatchObject({ ok: false, error: { code: "invalid_request" } });
     expect(invoke).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("vrchat-session v0.1 routing (experimental VRChat sign-in)", () => {
+  const vrchatFace = (handle = vi.fn(async () => ({ schemaVersion: "0.1", enabled: false, state: "signed_out", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: false }))) => ({
+    handle,
+    snapshot: () => ({ experimentalEnabled: true, signedIn: true }),
+    writeSdkHandoff: vi.fn(async () => {}),
+    discardSdkHandoff: vi.fn(),
+  });
+
+  it("routes vrchat methods to Electron Main without touching the Provider", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    const handle = vrchatFace().handle;
+    const context: DesktopGatewayRouteContext = { provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: { handle, snapshot: () => ({ experimentalEnabled: false, signedIn: false }), writeSdkHandoff: vi.fn(), discardSdkHandoff: vi.fn() } };
+    const response = await routeDesktopGatewayInvoke(context, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "vr-1", method: "vrchat.status", params: {} });
+    expect(response).toMatchObject({ ok: true, value: { schemaVersion: "0.1", state: "signed_out" } });
+    expect(handle).toHaveBeenCalledTimes(1);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("keeps vrchat methods unavailable when no session service is wired", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    const response = await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "vr-2", method: "vrchat.signIn", params: { username: "Aran", password: "pw", rememberPassword: false, commandId: "cmd" } });
+    expect(response).toMatchObject({ ok: false, error: { code: "unsupported_method" } });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("writes the SDK session handoff before an upload reaches the Provider", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    const order: string[] = [];
+    const face = {
+      handle: vi.fn(async () => ({ schemaVersion: "0.1", enabled: true, state: "signed_in", account: null, rememberPassword: false, pendingMethods: [], canCheckUploads: true })),
+      snapshot: () => ({ experimentalEnabled: true, signedIn: true }),
+      writeSdkHandoff: vi.fn(async () => { order.push("handoff"); }),
+      discardSdkHandoff: vi.fn(() => { order.push("discard"); }),
+    };
+    invoke.mockImplementation(async () => { order.push("provider"); return { ok: true, value: { taskId: "task-1", runId: "n3-1" } }; });
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "up-1", method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "n3-1", avatarName: "Meiyun", rightsConfirmed: true } });
+    expect(order).toEqual(["handoff", "provider"]);
+    // Other commands never trigger the handoff.
+    order.length = 0;
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "open-1", method: "amf.production.open", params: { schemaVersion: "0.1", runId: "n3-1" } });
+    expect(order).toEqual(["provider"]);
+    // An upload the Provider rejects leaves no session file behind.
+    order.length = 0;
+    invoke.mockImplementation(async () => { order.push("provider"); return { ok: false, error: { contractVersion: "0.1", code: "vua.amf_production.upload_busy", category: "conflict", messageKey: "errors.amf.uploadBusy", recoverable: true, retryable: true, correlationId: "up-2" } } as never; });
+    await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "up-2", method: "amf.production.upload", params: { schemaVersion: "0.1", runId: "n3-1", avatarName: "Meiyun", rightsConfirmed: true } });
+    expect(order).toEqual(["handoff", "provider", "discard"]);
+  });
+
+  it("derives the snapshot's two vrchat booleans and nothing more", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start();
+    const response = await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: vrchatFace() },
+      `${rendererUrl}/`, request());
+    expect(response).toMatchObject({ ok: true });
+    if (!response.ok) throw new Error("expected a snapshot");
+    expect(response.value.vrchat).toEqual({ experimentalEnabled: true, signedIn: true });
+    const withoutService = await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl },
+      `${rendererUrl}/`, request());
+    if (!withoutService.ok) throw new Error("expected a snapshot");
+    expect(withoutService.value.vrchat).toEqual({ experimentalEnabled: false, signedIn: false });
+  });
+
+  it("never echoes sign-in credentials in a vrchat answer", async () => {
+    const provider = new MockOrchestratorProviderV01(); await provider.start();
+    const seen: unknown[] = [];
+    const face = {
+      handle: vi.fn(async (value: unknown) => { seen.push(value); return { outcome: "signed_in" }; }),
+      snapshot: () => ({ experimentalEnabled: true, signedIn: false }),
+      writeSdkHandoff: vi.fn(),
+      discardSdkHandoff: vi.fn(),
+    };
+    const response = await routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7", platform: "win32", rendererUrl, vrchat: face }, `${rendererUrl}/`,
+      { schemaVersion: 1, requestId: "vr-3", method: "vrchat.signIn", params: { username: "Aran", password: "secret-pw", rememberPassword: false, commandId: "cmd" } });
+    expect(response).toMatchObject({ ok: true, value: { outcome: "signed_in" } });
+    expect(JSON.stringify(response)).not.toContain("secret-pw");
+    expect(seen).toHaveLength(1);
   });
 });

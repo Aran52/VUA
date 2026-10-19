@@ -1,0 +1,19 @@
+{
+  "expect": "reject",
+  "cases": [
+    {
+      "table": "vn3_document_items",
+      "values": {
+        "source_id": "drive:synthetic",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parser_version": "vn3-parser/1",
+        "item": "F",
+        "term_key": "vn3.F.sexual_expression",
+        "value": "permitted",
+        "condition": "guess_permission",
+        "raw_text": "Synthetic permitted clause.",
+        "summary_raw_text": null
+      }
+    }
+  ]
+}

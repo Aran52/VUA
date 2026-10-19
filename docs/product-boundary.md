@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Updated: 2026-10-16
+> Updated: 2026-10-19
 
 ## Product definition
 
@@ -13,15 +13,21 @@ AI agents they direct, the same facts, SOPs and permissioned operations. The
 includes players new to Unity and to the software VRChat relies on.
 
 Desktop play and PICO streaming are play scenarios. The first-party AMF module supplies the
-Avatar-production scenario. Ibis installs AMF with VUA and enables it for new users; saved
-enable/disable choices are remembered, and existing profiles without a choice keep AMF disabled
-even when legacy BDL data is present. External Avatar-editing modules are scheduled after Ibis.
-BDL is private to AMF.
+Avatar-production scenario. VUA installs AMF and enables it by default, and keeps a player's
+saved enable/disable choice (user correction, 2026-10-14). External Avatar-editing modules are
+scheduled after Ibis. BDL is private to AMF.
 
 AMF owns Recipe-first production and reproducible production records. The VUA host works with or
 without AMF and BDL. The Wizard chooses a path by goal, device and current facts, and installed
 modules decide what appears in the main directory.
 [Host/module architecture](architecture/modules.md) owns activation, migration and lifecycle.
+
+**Material-first production (user ruling, 2026-10-13).** The player starts by selecting
+materials. VUA prepares an independent managed project and chooses the Avatar, materials and
+assembly relationships automatically when the observed facts determine them; the player chooses
+where a target is ambiguous or unsupported. Existing projects stay as they are. The player reviews
+menu options and changes, then VUA executes, reports the result and hands off to the SDK.
+Portable Recipes belong to N4, and N3 closes with its real-material acceptance rows.
 
 ## Accepted product areas
 
@@ -149,6 +155,19 @@ requirements on that distinction. VUA does not actively support piracy: do not a
 acquisition paths or guidance specifically for pirated-material platforms, or bypass purchase,
 authentication or access controls. This does not add a material-rights certification, source
 blacklist or scanning requirement. The provenance and sharing rules above remain authoritative.
+VUA tolerates the files players bring: it never pushes a player toward licensed materials, gives
+no advice about a player's sources and does not lecture (user ruling, 2026-10-19).
+
+**Licensed entry guide (user ruling, 2026-10-19).** For players in mainland China who want to
+enter the licensed ecosystem and could not before, VUA offers a guide: pixiv sign-up, BOOTH's
+price system, notes on getting a Visa or Mastercard card that pays abroad, buying with it or
+PayPal, reading a product's terms of use, and encouraging text, images and animations about
+licensed bases and materials. The guide serves every player outside Japan; regional notes, first
+for mainland China, are selected by the player's own answer, and VUA infers no location. Its
+images and animations download only when the player opens them. The player opens it from Help or
+the library; the library's contents never open it. VUA links to the official sites and leaves sign-in, card applications and
+payment to the player there; it recommends no bank, card product or network product. The
+[guide's design](development/licensed-entry-guide.md) owns its contents.
 
 **Managed library re-download (user ruling, 2026-10-07).** An already-downloaded product shows
 Re-download; the action replaces its managed file rather than storing another copy. The exact
@@ -305,6 +324,12 @@ gate derives risk from declared capabilities and behavior.
 - **Recoverable:** long-running tasks define state, cancellation, retry, recovery, and manual handoff.
 - **Least privilege:** remote content, plugins, and third-party components receive only required
   capabilities.
+- **Restraint (user ruling, 2026-10-19):** the core of the VRChat Avatar ecosystem is the Japanese
+  player and creator community, highly sensitive to copyright and wary of AI. VUA ships no
+  built-in model service or agent harness; the player's own agent connects through the local MCP
+  adapter under the player's approval. VUA supports legitimate platforms only, as the
+  [local material ruling](#production-scope-and-product-rulings-user-ruling-2026-09-22) states.
+  Ideas from other tools pass this test before VUA adopts them.
 
 ## N1 device and network onboarding
 
@@ -495,13 +520,16 @@ Unity/BOOTH registration is optional for players; purchases and SDK upload remai
 BOOTH library acquisition remains the separate N5 requirement, not an N1 account-system expansion.
 
 After the first usable delivery, attempt VRChat web-information reading as a separate slice.
-The author's intended local sign-in persistence is a deferred experimental option, off by default:
-before the first experimental login, explain conflict with the written platform credential/session
-policy and possible account sanctions up to a ban, and let the user decline persistence. Put the
-switch in Experimental settings. This is recorded product intent, not an implemented feature or
-platform permission. Its implementation must define browser-owned local storage, expiry/clearing,
-logout and consent behavior without exposing secrets to application or Agent data paths. Consent
-does not change platform terms. It is not an N1 prerequisite or permission for cloud account control.
+Experimental VRChat sign-in in VUA (user ruling, 2026-10-18): an Experimental setting, off by
+default. Before the first sign-in VUA explains the conflict with VRChat's written credential and
+session policy and possible account action up to a ban, and the player accepts or leaves it off.
+The player signs in in VUA with username, password and the two-factor code VRChat asks for; VUA
+keeps the session and, only when the player also chooses "Remember my password", the password, both
+encrypted per Windows user, outside application state, the Gateway, task records, logs and the MCP
+adapter. Sign-out and forgetting clear them. VUA uses the session to sign the official SDK in before
+a managed upload and to read the player's own Avatar list to check uploads; requests identify VUA,
+stay few and back off. Consent does not change platform terms. The design lives in
+[VRChat sign-in](development/vrchat-account.md).
 
 Sources checked 2026-09-30: [SDK upload prerequisites](https://creators.vrchat.com/avatars/creating-your-first-avatar/)
 and [VRChat Creator Guidelines](https://hello.vrchat.com/creator-guidelines).
@@ -515,16 +543,15 @@ User-adopted implementation boundary (2026-09-29), informed by the
 - Use supported external surfaces, OSC, launch options, necessary local logs and documented
   configuration fields. Never inject, hook or patch the VRChat client or bypass EAC. Hidden
   configuration and undocumented client behavior are not authorized by an existing third-party tool.
-- VUA application features do not collect or extract VRChat login credentials, including passwords,
-  tokens, cookies and session data. Users type into official pages, not VUA-owned credential forms;
-  temporary browser state is confined to the isolated browser. Do not import another application's
-  session. The account-onboarding section supersedes the previous blanket ban only for this guided
-  browser flow and records the separate, deferred experimental persistence direction. BOOTH's N5
+- Outside the experimental VRChat sign-in above, VUA does not collect or extract VRChat login
+  credentials, including passwords, tokens, cookies and session data; temporary browser state is
+  confined to the isolated browser. Do not import another application's session. BOOTH's N5
   acquisition session remains a distinct, authorized local boundary.
 - User initiation is necessary for account changes, but is not sufficient authorization for an
   undocumented operation or credential access. Unsupported operations stay unavailable; direct
-  the user to the official flow. No cloud account control and no automatic upload on a user's
-  behalf, including from their device; final Avatar login/upload stays in the official SDK.
+  the user to the official flow. No cloud account control. Avatar uploads run through the official
+  SDK builder on the player's device after the player's own confirmation of the content rights for
+  each upload (managed upload, user ruling 2026-10-17).
 - Store only necessary data locally by default; no unnecessary friend-activity tracking, profiling
   or cross-user database. Sanitize logs and retain purchased files locally.
 - Any future allowed API adapter needs bounded request rates, backoff and accurate identification,
@@ -605,8 +632,8 @@ User-adopted implementation boundary (2026-09-29), informed by the
   bypasses anti-cheat.
 - The first delivery phase supplies the capability protocol and security model; marketplace
   governance follows a later release decision.
-- Final VRChat Avatar login and upload remain a user action in the official SDK flow; VUA prepares
-  and validates. A technical check passing does not guarantee appearance and behavior match player
+- VRChat Avatar uploads run through the official SDK, started by the player and confirmed per upload
+  (managed upload, user ruling 2026-10-17); VUA prepares, validates and reports the SDK's result. A technical check passing does not guarantee appearance and behavior match player
   expectations (this must be stated clearly to the user), and a check that did not run must never
   display as passed (user ruling, 2026-09-22).
 
@@ -660,5 +687,15 @@ afterward, only the versions and operations actually exercised may be reported a
 Current development is continuing Beta under the N sequence. The historical v0.6.0 artifact remains
 unchanged; this ruling is not a new product release. Runtime-tool deployment is active. Community
 plugin execution and a marketplace still require their separately accepted security decisions.
+
+**External Agent access (user ruling, 2026-10-13).** VUA runs a local MCP server for the
+player's own AI tool through the [Candidate adapter](protocols/ai-tools-v0.1.md). The player turns
+the connection on and gives the pairing prompt, with its local token, to their AI tool; VUA stores
+the token encrypted and keeps it out of snapshots and logs. The tools reuse the typed Gateway,
+module readiness, the versioned Bridge and the existing task and recovery authorities, and reach
+only VUA's own facts and operations. Every change an agent requests waits for the player's
+confirmation in VUA. [SOP, checks and installation](protocols/scenario-environment-v0.1.md) are
+separate calls, and VUA shows [registration and activation guidance](compatibility/unity-editor.md)
+before the Unity Editor runs.
 
 **Library presentation and intake (user ruling, 2026-10-12).** The visible local source means user-imported material, rather than every downloaded local file. The separate [card-removal face](protocols/library-records-v0.2.md) extends the initial local-record removal to complete entry and account-product card presentations, with files/references retained and no automatic restoration by sync. **Import a local item** keeps explicit per-path copy-in; its adjacent arrow opens **Import multiple items (library migration)**. Material boundaries must not be silently guessed. The current migration preview is read-only; its [grouping design](development/library-migration-design.md) is a draft and does not grant a new writer or declare N5 accepted.

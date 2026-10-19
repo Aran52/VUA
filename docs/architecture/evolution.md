@@ -1,6 +1,6 @@
 # N-sequence architecture evolution
 
-> Updated: 2026-10-10
+> Updated: 2026-10-13
 > Scope: Incremental software and documentation structure for N1-N7
 
 ## Accepted direction
@@ -33,29 +33,23 @@ when a measured dependency, build, packaging, or independent lifecycle problem j
 
 ## Existing Agents as tool consumers
 
-The author's 2026-10-10 direction is for VUA to supply stable tools to an Agent already available
-on the user's computer. The external Agent owns conversation, model selection and planning;
-VUA owns observed facts, bounded operations, task state and verification. Do not make a VUA-owned
-Agent harness, chat runtime or model-service/API-key configuration a prerequisite. This is a future
-increment, not an implemented API or an additional Ibis release requirement.
+VUA supplies tools to the AI agent the player already uses. The agent owns conversation, model
+choice and planning; VUA owns observed facts, bounded operations, task state and verification.
 
-MCP is a candidate adapter, alongside another narrow local interface. The
-[MCP tools specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
-supports named tools with input schemas and optional structured output schemas. Transport choice
-does not establish reproducibility: VUA must retain concrete inputs, relevant versions, plan or
-task identities, actual inspection results and existing production records. Model suggestions
-remain suggestions until the normal execution and verification path succeeds.
+The [Candidate MCP adapter](../protocols/ai-tools-v0.1.md) lives in Electron Main and serves
+authenticated loopback Streamable HTTP through the official MCP SDK. Its desktop control face
+belongs to the typed Gateway, and host tools work whether or not AMF is enabled. Read tools return
+facts and plans directly. Each change request becomes a concrete draft in VUA that the player
+confirms; acceptance means the task was dispatched, and the agent reads the task for its outcome.
+[SOP, software checks and installation](../protocols/scenario-environment-v0.1.md) are separate
+calls, and Unity installation stays separate from licensed Editor execution.
 
-Start a future slice with read-only facts and a bounded plan for one already supported scenario.
-Mutation entry points must reuse the existing task authority, idempotency, project leases,
-confirmation and recovery discipline. Route host work to the host and AMF work to a ready AMF;
-deterministic Unity changes still cross the versioned Bridge. Do not introduce an Agent shortcut
-around module readiness or expose arbitrary shell commands, scripts or filesystem access.
-
-Tool responses should contain the minimum normalized facts needed by the operation. Existing
-local-data and credential boundaries continue to apply; opening tool access is not authorization
-to disclose material contents, account sessions or screenshots. Define concrete tool schemas and
-acceptance from the first executable scenario, rather than a speculative general plugin framework.
+Change requests reuse the existing task authority, idempotency, project leases, confirmation and
+recovery. Host work goes to the host and AMF work to a ready AMF; deterministic Unity changes
+cross the versioned Bridge. The tool catalog is a fixed set of typed tools. Responses carry the
+normalized facts the operation needs plus the inputs, versions, plan or task identities and
+inspection results that make a run reproducible; material contents, account sessions and
+screenshots stay local. New tools grow from Eval cases.
 
 ## User-facing capabilities and implementation owners
 

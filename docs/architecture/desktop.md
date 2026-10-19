@@ -1,7 +1,7 @@
 # Electron desktop and presentation architecture
 
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-10-13
+> Updated: 2026-10-14
 
 ## Technology decision
 
@@ -84,8 +84,10 @@ The [design standard](../design/design-standard.md#3-platform-and-information-ar
 owns the accepted layout, logo colors, unavailable peers and preserved visual preferences.
 
 Environment contains Play, Tools and Avatar editing. Tools groups the planned tracking,
-translation, VR utilities and capture integrations, independently of AMF. Its unwired entries
-offer collapsible descriptions with disabled development actions, not installed/launchable plugin claims. Help is a global topbar
+translation, VR utilities and capture integrations, independently of AMF. The six fixed Steam
+entries share the Candidate connection card (discovery/install handoff/launch/status); the
+remaining unwired entries offer collapsible descriptions with disabled development actions,
+not installed/launchable plugin claims. Help is a global topbar
 parallelogram beside Settings, with no sidebar duplicate; its active state covers all Help children.
 Home exposes it among global actions, and Search retains its entry. Help contains Getting started, the app tour, Knowledge encyclopedia and
 In-game assistant. The encyclopedia is a main-window page with hardware introductions and

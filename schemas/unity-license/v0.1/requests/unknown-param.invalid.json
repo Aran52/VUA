@@ -1,0 +1,8 @@
+{
+  "method": "environment.unityLicense",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "licensePath": "C:/private.xml"
+  }
+}

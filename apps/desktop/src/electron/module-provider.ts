@@ -15,9 +15,10 @@ import type {
   ProviderUnsubscribe, ProviderShutdownResultV01, ContinueShutdownRequestV01,
 } from "@vua/orchestrator-provider";
 
-const AMF_PREFIXES = ["production.", "warehouse.", "catalog.", "library.", "download.", "downloads.", "dependencies.", "recipe.", "recipeDraft.", "plan.", "job.", "record.", "inspection.", "release.", "project.", "packages.", "overlay."];
+const AMF_OPERATION_TIMEOUT_MS = 120_000;
+const AMF_PREFIXES = ["amf.production.", "production.", "warehouse.", "catalog.", "library.", "download.", "downloads.", "dependencies.", "recipe.", "recipeDraft.", "plan.", "job.", "record.", "inspection.", "release.", "project.", "packages.", "overlay."];
 export function isAmfOperation(method: string): boolean {
-  return AMF_PREFIXES.some(prefix => method.startsWith(prefix));
+  return method.startsWith("terms.") || method === "environment.checkUnityLicense" || AMF_PREFIXES.some(prefix => method.startsWith(prefix));
 }
 
 interface Options {
@@ -121,7 +122,10 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   async #startAmf(): Promise<void> {
+    const previous = this.#amf;
     this.#detachAmf();
+    // A failed start can leave its process exiting while it still holds module data.
+    if (previous?.status().state === "failed") await previous.waitForExit?.(5_000);
     try {
       const amf = this.options.createAmf();
       this.#amf = amf;
@@ -173,22 +177,30 @@ export class ModuleProvider implements OrchestratorProviderV01 {
         messageKey: "errors.amf.unavailable", recoverable: true, retryable: true, correlationId: request.correlationId } };
   }
 
-  async #optionalInvoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01 | undefined> {
+  /** Snapshot merges wait briefly; an AMF operation the player asked for may read the whole work
+   * project (a Recipe save fingerprints it), so it waits up to two minutes. */
+  async #optionalInvoke(request: ApplicationRequestV01, timeoutMs = 3_000): Promise<ApplicationResponseV01 | undefined> {
     const amf = this.#amf;
     if (!this.#enabled || amf?.status().state !== "ready") return undefined;
     let timeout: NodeJS.Timeout | undefined;
     try {
-      return await Promise.race([amf.invoke(request), new Promise<undefined>(resolve => { timeout = setTimeout(() => resolve(undefined), 3_000); })]);
+      return await Promise.race([amf.invoke(request), new Promise<undefined>(resolve => { timeout = setTimeout(() => resolve(undefined), timeoutMs); })]);
     } catch { return undefined; }
     finally { if (timeout) clearTimeout(timeout); }
   }
 
   async invoke(request: ApplicationRequestV01): Promise<ApplicationResponseV01> {
+    // The AMF worker owns the shared Unity lane and the historical check. Passive detection
+    // remains available from the host while that optional worker is absent or restarting.
+    if (request.method === "environment.unityLicense" && this.amfReady()) {
+      const response = await this.#optionalInvoke(request);
+      if (response !== undefined) return response;
+    }
     if (request.method === "application.getSnapshot" || request.method === "task.list") return this.#aggregate(request);
     if (isAmfOperation(request.method)) {
       if (!this.amfReady()) return this.#unavailable(request);
       if (request.kind === "command") this.#mutations += 1;
-      try { return await this.#optionalInvoke(request) ?? this.#unavailable(request); }
+      try { return await this.#optionalInvoke(request, AMF_OPERATION_TIMEOUT_MS) ?? this.#unavailable(request); }
       finally { if (request.kind === "command") this.#mutations -= 1; }
     }
     if (request.method === "task.get" || request.method === "task.requestCancellation") {

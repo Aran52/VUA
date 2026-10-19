@@ -20,12 +20,12 @@ export type PageId =
   | "help-tour"
   | "help-game-assistant"
   | "help-encyclopedia"
+  | "help-ai"
   | "env-play"
   | "env-create"
   | "warehouse"
   | "asset-browser"
   | "recipe"
-  | "inspection"
   | "release"
   | "workshop"
   | "packages"
@@ -38,6 +38,7 @@ export type PageId =
   | "settings-accounts"
   | "settings-theme"
   | "settings-experimental"
+  | "settings-debug"
   | "settings-about";
 
 type NavTabKey = keyof Strings["nav"]["tabs"];
@@ -107,15 +108,14 @@ export const businessModules: readonly ModuleDef[] = [
     // 2026-09-20 导航重构(用户裁决):无组标签平铺,与其它模块一致——
     // 素材导入/搭配草稿不再是独立页,收敛为仓储页/配方页 hero 内的
     // 内容型弹窗(ContentDialog 承载原页面组件,见 WarehousePage/
-    // RecipePage);检查页(BG-15,设计标准 §8.6)保持独立页,是主流程
-    // 「装配 → 检测 → SDK 交接」中独立于车间的检测落点
+    // RecipePage);检查页按产品边界(2026-09-22 用户裁决)退役,检查
+    // 落在车间的「入库检查」与「质检」工位,检查服务与证据保留
     groups: [
       {
         pages: [
           { id: "warehouse", labelKey: null, labelTerms: ["warehouse"] },
           { id: "asset-browser", labelKey: "assetBrowser" },
           { id: "recipe", labelKey: null, labelTerms: ["recipe"] },
-          { id: "inspection", labelKey: null, labelTerms: ["inspection"] },
           { id: "release", labelKey: "release" },
           // 2026-09-25 用户裁决:复合术语序列(装配 → 生产 → 检测)退役为
           // 「车间」——术语行退化成自指缩写,直给词面更诚实
@@ -140,6 +140,7 @@ export const settingsModule: ModuleDef = {
         { id: "settings-accounts", labelKey: "settingsAccounts" },
         { id: "settings-theme", labelKey: "settingsTheme" },
         { id: "settings-experimental", labelKey: "settingsExperimental" },
+        { id: "settings-debug", labelKey: "settingsDebug" },
         { id: "settings-about", labelKey: "settingsAbout" },
       ],
     },
@@ -152,7 +153,7 @@ const pageModule = new Map<PageId, AppSectionId>(
   modules.flatMap((m) => m.groups.flatMap((g) => g.pages.map((p) => [p.id, m.id] as const))),
 );
 
-for (const [page, section] of [["home", "settings"], ["help", "env"], ["help-wizard", "env"], ["help-tour", "env"], ["help-game-assistant", "env"], ["help-encyclopedia", "env"], ["environment-hub", "env"], ["avatar-hub", "production"]] as const) pageModule.set(page, section);
+for (const [page, section] of [["home", "settings"], ["help", "env"], ["help-wizard", "env"], ["help-tour", "env"], ["help-game-assistant", "env"], ["help-encyclopedia", "env"], ["help-ai", "env"], ["environment-hub", "env"], ["avatar-hub", "production"]] as const) pageModule.set(page, section);
 
 const pageIds = new Set<string>(pageModule.keys());
 

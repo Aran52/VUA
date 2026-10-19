@@ -1,0 +1,19 @@
+{
+  "expect": "reject",
+  "cases": [
+    {
+      "table": "vn3_documents",
+      "values": {
+        "source_id": "drive:synthetic",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "parser_version": "vn3-parser/1",
+        "status": "parsed",
+        "generator_version": "9.99",
+        "vn3_version": "1.10",
+        "language": "en",
+        "hashtags": "[]",
+        "warnings": "[]"
+      }
+    }
+  ]
+}

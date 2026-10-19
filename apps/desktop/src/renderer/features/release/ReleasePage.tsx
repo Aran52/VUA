@@ -26,6 +26,7 @@ import type { PedestalMood } from "../../components/three/scenes/pedestal.ts";
 import { useConveyor } from "./use-conveyor.ts";
 import { ReleaseRecordsSection } from "./release-records-section.tsx";
 import "./release.css";
+import { AmfProductionRecords } from "../amf/AmfProductionRecords.tsx";
 
 /* 展台(S-IX-2):three.js 装饰层懒加载,不挡展柜首屏 */
 const PedestalCanvas = lazy(() => import("../../components/three/PedestalCanvas.tsx"));
@@ -202,8 +203,11 @@ function pedestalMoodOf(project: ReleaseProject | null): PedestalMood {
 
 export function ReleasePage({
   onNavigate,
+  heading,
 }: {
   onNavigate?: ((target: PageId) => void) | undefined;
+  /** The page title; Settings shows the records under its own name. */
+  heading?: string | undefined;
 }) {
   const gateway = useGateway();
   const isFixture = useDataSource() === "fixture";
@@ -211,6 +215,7 @@ export function ReleasePage({
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hasN3Runs, setHasN3Runs] = useState(false);
   /* 选中切换计数:驱动展台 flourish(经控制通道流入,不重建场景) */
   const [flourishKey, setFlourishKey] = useState(0);
   const conveyor = useConveyor<HTMLDivElement>();
@@ -264,7 +269,7 @@ export function ReleasePage({
     <div className="vua-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">
-          {strings.nav.pages.release}
+          {heading ?? strings.nav.pages.release}
           {isFixture ? (
             <>
               {" "}
@@ -274,6 +279,7 @@ export function ReleasePage({
         </h1>
       </section>
 
+      {onNavigate && <AmfProductionRecords onHasRuns={setHasN3Runs} open={() => onNavigate("workshop")} />}
       {loadFailed ? (
         <Card>
           <EmptyState
@@ -294,11 +300,11 @@ export function ReleasePage({
             <Skeleton width="60%" />
           </div>
         </Card>
-      ) : wall.kind === "not-connected" ? (
+      ) : wall.kind === "not-connected" ? hasN3Runs ? null : (
         <Card>
           <EmptyState title={copy.notConnectedTitle} description={copy.notConnectedDescription} />
         </Card>
-      ) : projects !== null && projects.length === 0 ? (
+      ) : projects !== null && projects.length === 0 ? hasN3Runs ? null : (
         <Card>
           <EmptyState title={copy.emptyTitle} description={copy.emptyDescription} />
         </Card>

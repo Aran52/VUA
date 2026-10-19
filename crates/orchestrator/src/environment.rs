@@ -597,6 +597,11 @@ impl EnvironmentEngine {
             self.check_unity_hub()]
     }
 
+    /// The Unity Hub finding alone, for starting Hub before Unity work.
+    pub fn inspect_unity_hub(&self) -> EnvironmentCheckItemV1 {
+        self.check_unity_hub()
+    }
+
     // --- play zone: Steam chain ---
 
     /// Locates the Steam install (registry first, then candidate roots)

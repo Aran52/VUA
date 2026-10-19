@@ -1,0 +1,304 @@
+{
+  "parserVersion": "vn3-parser/1",
+  "versions": [
+    [
+      "1.10",
+      "1.10"
+    ],
+    [
+      "1.11",
+      "1.10"
+    ]
+  ],
+  "keys": {
+    "A": "vn3.A.personal_use",
+    "B": "vn3.B.corporate_use",
+    "C": "vn3.C.social_platform_upload",
+    "D": "vn3.D.gaming_platform_upload",
+    "E": "vn3.E.third_party_use",
+    "F": "vn3.F.sexual_expression",
+    "G": "vn3.G.violence",
+    "H": "vn3.H.political_religious_use",
+    "I": "vn3.I.adjustment",
+    "J": "vn3.J.modification",
+    "K": "vn3.K.modify_other_data",
+    "L": "vn3.L.outsource_modification",
+    "M": "vn3.M.redistribution",
+    "N": "vn3.N.modified_distribution",
+    "O": "vn3.O.video_streaming",
+    "P": "vn3.P.publication",
+    "Q": "vn3.Q.merchandise",
+    "R": "vn3.R.software_integration",
+    "S": "vn3.S.mesh_weight_derivative",
+    "T": "vn3.T.independent_derivative",
+    "U": "vn3.U.fan_works",
+    "V": "vn3.V.credit",
+    "W": "vn3.W.rights_assignment",
+    "X": "vn3.X.special_note"
+  },
+  "headings": {
+    "en": {
+      "A": "PersonalUse",
+      "B": "CorporateUse",
+      "C": "Uploadtosocialcommunicationplatforms(includingVRChat,VirtualCast,cluster,etc.)forpersonaluse.",
+      "D": "Uploadtoonlinegamingplatformsforpersonaluse.",
+      "E": "Uploadtosocialcommunicationplatformsoronlinegamingplatformsforthepurposeofprovidingtothirdpartiesontheparticularplatform.",
+      "F": "Sexualexpressions",
+      "G": "Expressionsinvolvingviolence",
+      "H": "Useinpoliticalactivitiesandreligiousactivities",
+      "I": "Adjustingorreducingthenumberofpolygonswithoutdistortingappearance,orconvertingthefileformat.",
+      "J": "ModifytheDigitalContentoritspart(s),orusethemodifiedversionoftheDigitalContentunderthetermsthatwouldapplytotheoriginalversionoftheDigitalContent(whichincludescaseswheretheDigitalContentoritspart(s)formsthebasisofnewDigitalContent).",
+      "K": "UsetheDigitalContentoritspart(s)forthepurposeofmodifyingotherdigitalcontent(whichincludescaseswheretheDigitalContentoritspart(s)isusedasasupplementinthecourseofmodifyingotherDigitalContent).",
+      "L": "InstructathirdpartytomakeadjustmentormodificationtotheDigitalContentandprovidetheDigitalContenttoathirdpartyforsuchpurposes.",
+      "M": "Redistributionoftheoriginalversion",
+      "N": "Distributionofmodifiedversionofthedigitalcontent",
+      "O": "Videoproduction,livestreaming(includingYouTube),andbroadcasting",
+      "P": "Useinphysicalandelectronicpublications",
+      "Q": "Useintangiblegoods(Merchandise)",
+      "R": "Distributionasabolt-onpartofsoftware(suchasgames)wheretheycannotbeeasilyextracted,whichispurelyforthepurposeofproductdevelopment,etc",
+      "S": "CreatenewcostumesoraccessoriesfortheDigitalContentbyusingmeshesandweightsextractedfromtheDigitalContent(exceptforcaseswherethechangescanhardlybenoticed)",
+      "T": "Createnewcostumes,accessories,ortexture,etc.thatconformtothestandardsoftheDigitalContent,withoutusingmeshesandweightsextractedfromtheDigitalContent.",
+      "U": "Createderivativeworks(so-called“doujinworks”,alsoknownasfanart)usingtheDigitalContentasamaintheme/bedrock,withoutusingtheoriginalversionoftheDigitalContentdirectly.",
+      "V": "Creditforuse",
+      "W": "AssignmentofRightsandObligations,etc."
+    },
+    "ja": {
+      "A": "個人による利用",
+      "B": "法人による利用",
+      "C": "自ら利用する目的で、ソーシャルコミュニケーションプラットフォーム(VRChat、VirtualCast、cluster等を含みます)へアップロードすること",
+      "D": "自ら利用する目的で、オンラインゲームプラットフォームへアップロードすること",
+      "E": "そのプラットフォームにおいて第三者に利用させる目的で、ソーシャルコミュニケーションプラットフォームやオンラインゲームプラットフォームへアップロードすること",
+      "F": "性的表現への利用",
+      "G": "暴力的表現への利用",
+      "H": "政治活動への利用および、宗教活動への利用",
+      "I": "調整、外観を損なわない範囲でのポリゴン数削減、およびファイル形式を変換すること",
+      "J": "本データまたはパーツを改変することおよび、改変したデータを本データと同じ条件で利用すること(本データまたはパーツを主たる素体として、改変を行う場合を含みます)",
+      "K": "他のデータを改変する目的で、本データまたはパーツを用いること(本データまたはパーツを従たる素体として、他のモデルを主たる素体として改変を行う場合を含みます)",
+      "L": "調整または改変を第三者に委託して行うことおよび、委託のために本データを貸与すること",
+      "M": "未改変状態での再配布",
+      "N": "改変した本データを配布すること",
+      "O": "映像作品、配信(YouTubeを含みます)、放送への利用",
+      "P": "出版物および電子出版物への利用",
+      "Q": "有体物(グッズ)への利用",
+      "R": "製品開発等のためにソフトウェア(ゲームを含みます)へ組み込み、容易に取り出せない状態にして配布すること",
+      "S": "本データのメッシュやウェイトをコピーして、本データのための衣装データ等を作成すること(ただし改変が著しく少ない場合を除きます)",
+      "T": "本データのメッシュやウェイトを利用せずに、本データの規格に準拠した新たな衣装データ等やテクスチャデータ等を作成すること",
+      "U": "本データをそのまま利用しないで、本データをモチーフにした二次的著作物(いわゆる二次創作)を作成すること",
+      "V": "利用時のクレジット表記",
+      "W": "権利義務の譲渡等"
+    }
+  },
+  "groups": {
+    "en": [
+      "1.Mainpurpose(s)ofusingtheDigitalContent",
+      "2.Uploadtointernetservices",
+      "3.SensationalExpressions",
+      "4.Editing",
+      "5.Distributionandredistribution",
+      "6.Useonmediaand/orinotherproducts",
+      "7.Derivativework",
+      "8.Others",
+      "9.Specialnote"
+    ],
+    "ja": [
+      "1.利用主体",
+      "2.オンラインサービスへのアップロード",
+      "3.センシティブな表現",
+      "4.加工",
+      "5.再配布・配布",
+      "6.メディア・プロダクトへの使用",
+      "7.二次創作",
+      "8.その他",
+      "9.特記事項"
+    ]
+  },
+  "summaryLabels": {
+    "en": [
+      "PersonalUse",
+      "CorporateUse",
+      "Uploadtosocialcommunicationplatforms",
+      "Uploadtoonlinegamingplatforms",
+      "Permissionforusebythirdpartieswithintheonlineservice",
+      "Sexualexpressions",
+      "ExpressionsofViolence",
+      "Politicalandreligiousactivities",
+      "Adjustment",
+      "Modification",
+      "ModifyingotherdatawiththeDigitalContentpermittedasmaterial",
+      "Outsourceofthemodificationprocess",
+      "Redistributionwithnochange(s)",
+      "Distributionofmodifieddigitalcontent",
+      "Useinvideoproduction,live-streamingandbroadcasting",
+      "Useinpublicationsandelectronicpublications",
+      "Usefortangiblegoods",
+      "Integrationintosoftware,suchasproductdevelopment",
+      "Creationofcostumedatabyutilizingtheparametersofmeshesandweights",
+      "Creationofnewdigitalcontentoncostumesandtexturesthatcomplywithdataformat,withoutdivertingtheparametersofmeshesandweights",
+      "CreationofderivativeworksbasedontheDigitalContent(“derivativeworks”)",
+      "Creditnotation",
+      "AssignmentofRightsandObligations,etc."
+    ],
+    "ja": [
+      "個人利用",
+      "法人利用",
+      "ソーシャルコミュニケーションプラットフォームへのアップロード",
+      "オンラインゲームプラットフォームへのアップロード",
+      "オンラインサービス内での第三者への利用の許諾",
+      "性的表現",
+      "暴力的表現",
+      "政治活動・宗教活動",
+      "調整",
+      "改変",
+      "他のデータを改変するための利用",
+      "調整・改変の外部委託",
+      "未改変状態での再配布",
+      "改変したデータの配布",
+      "映像作品・配信・放送への利用",
+      "出版物・電子出版物への利用",
+      "有体物(グッズ)への利用",
+      "製品開発等のためのソフトウェアへの組み込み",
+      "メッシュやウェイトを転用した衣装データの作成",
+      "メッシュやウェイトを転用しないでデータの規格に準拠した新たな衣装データ・テクスチャデータの作成",
+      "データをモチーフにした二次的著作物(いわゆる二次創作)の作成",
+      "クレジット表記",
+      "権利義務の譲渡等"
+    ]
+  },
+  "values": [
+    {
+      "text": "Notnecessary,butpreferred",
+      "value": "permitted",
+      "condition": "credit_preferred"
+    },
+    {
+      "text": "Permitted",
+      "value": "permitted",
+      "condition": null
+    },
+    {
+      "text": "Permitted(ContentRatingisrequired)",
+      "value": "permitted",
+      "condition": "content_rating_required"
+    },
+    {
+      "text": "PermittedONLYtobedonebetweentheUser(s)",
+      "value": "permitted",
+      "condition": "between_users_only"
+    },
+    {
+      "text": "Permittedifthemodifiedversionisobviouslydifferentfromtheoriginalversion(nottobemistakenasanofficialrelease)",
+      "value": "permitted",
+      "condition": "modified_distinguishable"
+    },
+    {
+      "text": "Permittedinlimitedpublication(includingpermissiontopublishas“Private”onVRChat,forexample)",
+      "value": "permitted",
+      "condition": "limited_publication_only"
+    },
+    {
+      "text": "Permittedtouseinactivitieswithcommercialornon-profit-seekingpurposes",
+      "value": "permitted",
+      "condition": "commercial_and_non_profit"
+    },
+    {
+      "text": "Permittedtouseinprivateandpersonalarenaonly",
+      "value": "permitted",
+      "condition": "private_use_only"
+    },
+    {
+      "text": "PleasecontacttheLicensor(s)",
+      "value": "contact_licensor",
+      "condition": null
+    },
+    {
+      "text": "Prohibited",
+      "value": "prohibited",
+      "condition": null
+    },
+    {
+      "text": "Prohibited,exceptforprivateuse.",
+      "value": "prohibited",
+      "condition": "private_use_exception"
+    },
+    {
+      "text": "Publicizingforbothcommercialandnon-profit-seekingpurposes(includingdistributionandtransmission)ispermitted",
+      "value": "permitted",
+      "condition": "commercial_and_non_profit"
+    },
+    {
+      "text": "Publicizingfornon-profit-seekingactivitiesthatmayincurcharges(includingdistributionandtransmission)ispermitted",
+      "value": "permitted",
+      "condition": "non_profit_only"
+    },
+    {
+      "text": "オリジナルと異なることが分かる程度に改変した場合は許可します(公式書籍と誤解されないため)",
+      "value": "permitted",
+      "condition": "modified_distinguishable"
+    },
+    {
+      "text": "オリジナルと異なることが分かる程度に改変した場合は許可します(公式配信と誤解されないため)",
+      "value": "permitted",
+      "condition": "modified_distinguishable"
+    },
+    {
+      "text": "ユーザー間で行うことを許可します",
+      "value": "permitted",
+      "condition": "between_users_only"
+    },
+    {
+      "text": "不要ですがあると嬉しいです",
+      "value": "permitted",
+      "condition": "credit_preferred"
+    },
+    {
+      "text": "営利・非営利の目的問わず利用を許可します",
+      "value": "permitted",
+      "condition": "commercial_and_non_profit"
+    },
+    {
+      "text": "営利・非営利の目的問わず配布等(頒布、送信を含む)を許可します",
+      "value": "permitted",
+      "condition": "commercial_and_non_profit"
+    },
+    {
+      "text": "権利者に個別に問い合わせて下さい",
+      "value": "contact_licensor",
+      "condition": null
+    },
+    {
+      "text": "許可します",
+      "value": "permitted",
+      "condition": null
+    },
+    {
+      "text": "許可します(ただし棲み分けはおこなうこと)",
+      "value": "permitted",
+      "condition": "content_rating_required"
+    },
+    {
+      "text": "許可しません",
+      "value": "prohibited",
+      "condition": null
+    },
+    {
+      "text": "許可しません(ただし私的使用(プライベートな範囲での利用)については禁止しません)",
+      "value": "prohibited",
+      "condition": "private_use_exception"
+    },
+    {
+      "text": "非営利および非営利有償目的での配布等(頒布、送信を含む)を許可します",
+      "value": "permitted",
+      "condition": "non_profit_only"
+    },
+    {
+      "text": "対象を限定しての公開を許可します(例えばVRChatにてPrivateでの公開の許可を含みます)",
+      "value": "permitted",
+      "condition": "limited_publication_only"
+    },
+    {
+      "text": "私的かつ本人のみによる利用に限り許可します",
+      "value": "permitted",
+      "condition": "private_use_only"
+    }
+  ]
+}

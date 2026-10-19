@@ -37,9 +37,9 @@ External Avatar-editing modules are scheduled after Ibis.
 | Gate | User task | Status |
 | --- | --- | --- |
 | N1 | Detect, deploy and guide each scenario's prerequisites and SOP | Desktop and PICO play delivered in Ibis; real-machine acceptance rows open |
-| N2 | Connect optional external software from Steam, official installers or GitHub releases | VRCFT connection and device guidance delivered as Candidate; real installation and tracking rows open; other entries planned |
-| N3 | Produce a complex Avatar from real materials and hand it to the VRChat SDK | Current focus; production code from the M stages awaits its first real Unity run |
-| N4 | Save, share and reproduce Recipes | Follows N3 |
+| N2 | Connect optional external software from Steam, official installers or GitHub releases | Six Steam tools connected as Candidate with local discovery and launch evidence; fresh installation, tracking, calibration and human review rows open; VRCS and LIV planned |
+| N3 | Produce a complex Avatar from real materials and hand it to the VRChat SDK | Current focus; the material-first production path is implemented as Candidate and awaits its first real Unity run |
+| N4 | Save, share and reproduce Recipes | Recipe saving, sharing and overlay application implemented as Candidate; reproduction rows follow N3 |
 | N5 | Manage AMF materials and BOOTH acquisition | Library and acquisition paths delivered; real-account, material and human review rows open |
 | N6 | Interrupt, return, reinspect and retry every delivered path; disable or remove modules | Delivered with each path; cross-path review open |
 | N7 | Release host and module builds with compatibility and regression records | v0.6.7 delivered NSIS installers and AMF updates; clean-machine, blocked-GitHub, physical and human review rows open |
@@ -109,6 +109,7 @@ does not require AMF or BDL. AMF owns Avatar/material behavior, not the host's e
 | Host without active AMF | Fresh and legacy profiles can use host scenarios with AMF disabled or failed; no AMF/BDL queries are needed to inspect or prepare play/Unity prerequisites |
 | Module selection and lifecycle | The bundled Ibis AMF payload defaults to enabled for new profiles. Existing choices and old-profile defaults survive; the user can disable/re-enable it independently. Disabled navigation offers its explanation in Avatar editing; host startup, settings and scenario tasks remain usable |
 | One usable scenario | Connect choice → prerequisite check → plan/deployment → SOP → supported launch/handoff. Exercise return, reinspection and retry with that path under N6 before broadening it |
+| Independent preparation operations | SOP reads, software checks and installation plan/execute are separate calls from the UI and the MCP tools. Checks create no tasks and report the Unity license as not checked; running the Editor goes through the registration and activation handoff |
 
 This is an implementation order and ownership change, not a new generic plugin framework or
 evidence that a stage passed. Keep the existing physical and human acceptance rows below.
@@ -205,14 +206,21 @@ they are not first-round blockers. N5 BOOTH account-library acceptance remains u
 
 ## N2: external gameplay tools
 
-N2 covers optional modules and external-software connections, extending the original seven
-Steam tools with the explicitly selected VRCS entry. Reuse N1's prerequisite capabilities;
-support each application's actual Steam, official-installer or GitHub-release source rather
-than forcing every entry through Steam. A module supplies a chosen scenario/SOP, not a second
-copy of host environment management. VRCFT now has a Candidate Steam connection and device picker;
-the other Tools cards expose descriptions with disabled development actions. Neither the guide
-nor the presence of a card establishes physical tracking or accepted integrations.
-MioVRC and a public Agent/MCP integration remain outside Ibis.
+N2 connects optional external software: the original seven Steam tools plus VRCS. Each
+application uses its actual source — Steam, an official installer or a GitHub release — together
+with N1's prerequisite capabilities. A module supplies a scenario and its SOP; environment
+management stays in the host.
+
+Six Steam tools — VRCFT, Space Calibrator, OVR Advanced Settings, OVR Overlay Translator, OVR
+Toolkit and OyasumiVR — share the Candidate Steam connection: discovery, install handoff, launch
+and status observation. VRCFT also has its device picker and hardware SOP. VRCS and LIV are
+description cards for now. Local Windows runs on 2026-10-14 exercised discovery, reuse of
+installed software, Steam launch handoff and process observation for all six tools, and found
+launches slower than the observation window and normal-close failures; the findings are in
+[external-tool v0.2](protocols/external-tool-v0.2.md) and the raw evidence stays on the author's
+machine under `_local_real_machine/n2-steam-tools-20261014/`. Fresh installation, tracking and
+calibration, and human UI review are the remaining rows. MioVRC stays outside VUA. Agents reach
+these tools through the local [MCP adapter](protocols/ai-tools-v0.1.md).
 
 | Application / official distribution | Steam App ID | Purpose | Additional acceptance / timing |
 | --- | --- | --- | --- |
@@ -279,6 +287,15 @@ binary redistribution requires a separate review under [third-party notices](../
 
 Owner: **AMF**. The player combines owned materials in one project and hands the result to the
 VRChat SDK, working through AMF's factory stations rather than Unity concepts.
+
+The journey starts with selecting materials. VUA prepares the project and picks the Avatar,
+materials and relationships automatically when the observed facts determine them, and asks the
+player only where a target is ambiguous. The Candidate
+[material-first path](protocols/amf-production-v0.1.md) connects local inputs, an independent
+managed project with the real SDK and MA, prefab observation, supported bindings and switches,
+digest-bound confirmation, snapshots, retained results and the SDK handoff. Real Unity runs, the
+author's visual review and the full case below come next; existing-project import is separate
+work.
 
 Minimum case: **one real Avatar, at least two actively used dependencies or plugins and at least
 six other real materials, together in one project and one production run.** Each counted

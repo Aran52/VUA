@@ -1,7 +1,7 @@
 # AMF and Unity Bridge architecture
 
 > Scope: AMF application services, Recipe, Build Record, `unity/`
-> Updated: 2026-10-09
+> Updated: 2026-10-13
 
 ## AMF production model
 
@@ -18,6 +18,14 @@ project, dependencies, and execution steps.
 ```text
 Warehouse → Recipe → Assembly → Release
 ```
+
+The initial N3 player path also accepts local library materials directly, without requiring a
+saved Recipe. The Candidate [material-first face](../protocols/amf-production-v0.1.md) prepares an
+independent managed work project, installs real SDK/MA packages in a private package environment,
+imports the selected UnityPackages, and obtains actual prefab facts through separate
+[Bridge v5](../protocols/unity-bridge-v5.md) operations. A unique Avatar/outfit choice is automatic;
+ambiguity and static attachment targets remain explicit. The player edits switches, reviews the
+plan and sees actual per-step outcomes. This is not N4's portable Recipe implementation.
 
 - **Warehouse** discovers, downloads with authorization, previews, identifies, and organizes assets
   through the native browser/content manager and optional adapters.
@@ -73,7 +81,9 @@ redistribution-restricted asset contents.
 
 ## Unity editor compatibility
 
-The production path uses global Unity `2022.3.22f1` exactly. Projects declaring `2019.4.31f1` or
+The accepted development pair is global Unity `2022.3.22f1` and China `2022.3.22f1c1`, retaining
+the full executable/running identity. Candidate Bridge v5 explicitly admits that pair; legacy
+Bridge v1-v4 retain their frozen global-f1 gate and receipts. Projects declaring `2019.4.31f1` or
 `2022.3.6f1` enter the backup-and-migration path before Bridge work. Other Unity versions report their
 exact difference from the production target and receive installation guidance; VUA keeps
 `ProjectSettings/ProjectVersion.txt` unchanged. Tuanjie Engine is currently unsupported. The

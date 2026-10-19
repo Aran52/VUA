@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.22.0
+> Document version: 0.23.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: AMF
@@ -376,7 +376,11 @@ scene facts feed the separate Candidate [Recipe v0.4](amf-recipe-v0.4.md). Local
 new-project preparation and bounded managed-Avatar application do not establish the full N4 gate or player visual acceptance.
 
 Desktop launches the GUI Editor outside the strict AMF worker job after AMF admits the handoff.
-Unity returns a receipt for actual Avatar selection and official SDK panel invocation. This is a
+Unity returns a receipt once it holds the project. The open succeeds when the Avatar is selected;
+`sdkPanelRequested` records whether the SDK panel's menu ran, and the panel opens from VRChat SDK >
+Show Control Panel when it stays closed on screen. AMF waits up to 10 minutes for the receipt, as
+for a managed upload's pickup, because a project's first start imports every asset first. When
+Unity cannot start, Desktop answers with `reason: "editor_unavailable"`. This is a
 handoff, not a successful build/upload. Disabling AMF does not terminate that player's GUI Editor.
 
 Before each Unity run and Editor handoff, AMF starts Unity Hub when its licensing client is not
@@ -408,6 +412,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.23.0 (2026-10-19): `amf.production.open` succeeds once Unity selects the Avatar and keeps `sdkPanelRequested` as a fact; the receipt wait is 10 minutes, and an Editor that cannot start answers `editor_unavailable`.
 - 0.22.0 (2026-10-19): a missing run answers `run_not_found`; work that changes a project Unity holds answers `project_open` when it is requested; deleting a line also removes its assembly records.
 - 0.21.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
 - 0.20.0 (2026-10-19): another Avatar prefab on an assembled line rebuilds the line on that base behind a restore point; `plan` reports it as `rebuild`.

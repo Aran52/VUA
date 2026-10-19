@@ -61,7 +61,8 @@ export function errorFields(error: unknown, secrets: readonly string[] = []) {
   const candidate = error instanceof AiToolFailure ? error.code : error instanceof Error ? error.message : "request_failed";
   const code = /^[a-z][a-z0-9_.-]{0,127}$/u.test(candidate) ? candidate : "request_failed";
   const detail = error instanceof AiToolFailure ? error.publicMessage : undefined;
-  return { error: code, message: safeErrorMessage(detail ?? MESSAGES[code] ?? "VUA could not complete this request. Read its current facts and recovery action.", secrets),
+  const fallback = typeof MESSAGES[code] === "string" ? MESSAGES[code] : "VUA could not complete this request. Read its current facts and recovery action.";
+  return { error: code, message: safeErrorMessage(detail ?? fallback, secrets),
     nextAction: code.includes("license") ? "Open VUA Settings → Accounts → Unity, activate a valid license in Hub, then reinspect retained AMF work."
       : code === "review_pending_requests_first" ? "Ask the player to decide waiting requests in VUA, or withdraw one with vua_withdraw_request."
       : MCP_RETRYABLE_CODES[code] === true ? "Wait for the current work or connection to settle, then retry the same read or approval request."

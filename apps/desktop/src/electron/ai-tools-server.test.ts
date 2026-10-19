@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
-import { MCP_RETRYABLE_CODES, safeErrorMessage, taskChange } from "./ai-tool-results.js";
+import { MCP_RETRYABLE_CODES, errorFields, safeErrorMessage, taskChange } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
 import { reportLibrary, reportRun, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
@@ -347,9 +347,9 @@ describe("MCP result envelope", () => {
     for (const message of ["Failed at /home/synthetic/private/project", "Failed at \\\\host\\share\\private", `Pairing ${token}`]) expect(safeErrorMessage(message, [token])).not.toMatch(/private|home|host|a{43}/u);
     expect(safeErrorMessage('Failed: {"password":"synthetic-password","access_token":"synthetic-token"}')).not.toMatch(/synthetic-password|synthetic-token/u);
     for (const [error, retryable] of Object.entries(MCP_RETRYABLE_CODES)) {
-      const { errorFields } = await import("./ai-tool-results.js");
       expect(errorFields(new Error(error))).toMatchObject({ error, retryable, mutationStarted: false, message: expect.any(String), nextAction: expect.any(String) });
     }
+    expect(errorFields(new Error("constructor"))).toMatchObject({ error: "constructor", retryable: false, mutationStarted: false, message: expect.any(String), nextAction: expect.any(String) });
   });
   it("returns the full error envelope for oversized results and unexpected Gateway exceptions", async () => {
     let thrown = false;

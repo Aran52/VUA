@@ -95,6 +95,7 @@ impl AmfProductionPlatform for TestPlatform {
                 item_id: id.into(),
                 item_name: id.into(),
                 name: format!("{id}.unitypackage"),
+                product_ids: Vec::new(),
                 path: self.root.join(id),
                 archive_member: None,
             })

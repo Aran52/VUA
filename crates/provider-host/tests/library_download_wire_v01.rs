@@ -12,6 +12,11 @@ use vua_bdl_store::{
 use vua_orchestrator::SqliteTaskStore;
 use vua_provider_host::{run_provider_host_with_services, DownloadConfig, WarehouseConfig};
 
+/// The ceiling for a wire response or a task to finish. The waits poll and return as soon as
+/// the state arrives, so a generous ceiling costs nothing; Windows CI runners under load have
+/// taken longer than 5 seconds to finish a zip or removal task.
+const WIRE_WAIT: Duration = Duration::from_secs(60);
+
 fn zip_bytes(files: &[(&str, &[u8])]) -> Vec<u8> {
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for (name, bytes) in files {
@@ -65,7 +70,7 @@ fn library_intake_wire_keeps_files_expands_zip_and_replays_without_duplicate_ent
     loop {
         let task = world.tasks.task(task_id).unwrap().unwrap();
         if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded); break; }
-        assert!(start.elapsed() < Duration::from_secs(10));
+        assert!(start.elapsed() < WIRE_WAIT);
         std::thread::sleep(Duration::from_millis(5));
     }
     assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 1);
@@ -98,7 +103,7 @@ fn mixed_file_folder_intake_v02_is_scoped_idempotent_and_consumes_schema_vectors
     loop {
         let task = world.tasks.task(task_id).unwrap().unwrap();
         if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded); break; }
-        assert!(start.elapsed() < Duration::from_secs(10)); std::thread::sleep(Duration::from_millis(5));
+        assert!(start.elapsed() < WIRE_WAIT); std::thread::sleep(Duration::from_millis(5));
     }
     assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 3);
     let copies = world.bdl.library_copy_evidence().unwrap();
@@ -132,7 +137,7 @@ fn mixed_intake_refuses_warehouse_recursion_before_creating_an_entry() {
     loop {
         let task = world.tasks.task(task_id).unwrap().unwrap();
         if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Failed); break; }
-        assert!(start.elapsed() < Duration::from_secs(10)); std::thread::sleep(Duration::from_millis(5));
+        assert!(start.elapsed() < WIRE_WAIT); std::thread::sleep(Duration::from_millis(5));
     }
     assert!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().is_empty());
 }
@@ -446,7 +451,7 @@ impl Host {
                 return frame["payload"].clone();
             }
             assert!(
-                start.elapsed() < Duration::from_secs(5),
+                start.elapsed() < WIRE_WAIT,
                 "wire response missing: {method}"
             );
             std::thread::sleep(Duration::from_millis(5));
@@ -470,7 +475,7 @@ impl Host {
                     .clone();
             }
             assert!(
-                start.elapsed() < Duration::from_secs(5),
+                start.elapsed() < WIRE_WAIT,
                 "parent completion was not published"
             );
             std::thread::sleep(Duration::from_millis(5));
@@ -714,7 +719,7 @@ fn managed_removal_schema_wire_references_finality_and_restart_agree() {
         if response["value"]["state"] != "running" {
             break response["value"].clone();
         }
-        assert!(start.elapsed() < Duration::from_secs(5));
+        assert!(start.elapsed() < WIRE_WAIT);
         std::thread::sleep(Duration::from_millis(5));
     };
     assert_eq!(final_result["state"], "succeeded");
@@ -850,7 +855,7 @@ fn sync_finalization_and_download_completion_reconcile_migrated_local_files() {
             let tasks = world.tasks.idempotent_tasks("library.reconcileSources").unwrap();
             if tasks.iter().any(|row| key.is_none_or(|key| row.idempotency_key == key)
                 && world.tasks.task(&row.task_id).unwrap().is_some_and(|task| task.state.is_terminal())) { break; }
-            assert!(started.elapsed() < Duration::from_secs(5), "reconciliation was not dispatched");
+            assert!(started.elapsed() < WIRE_WAIT, "reconciliation was not dispatched");
             std::thread::sleep(Duration::from_millis(5));
         }
     };

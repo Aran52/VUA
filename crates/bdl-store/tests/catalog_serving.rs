@@ -443,7 +443,7 @@ fn d2_imported_artifacts_count_rides_the_catalog_entries() {
     assert_eq!(m["booth:4002"], 0, "uncorrelated stays cloud-only");
     // The entry finds its product the same way, for terms checks on production sources.
     assert_eq!(store.product_ids_for_warehouse_item(&item.warehouse_item_id).unwrap(), ["booth:4001"]);
-    assert_eq!(store.warehouse_item_ids_for_product("booth:4001").unwrap(), [item.warehouse_item_id.clone()]);
+    assert_eq!(store.warehouse_item_ids_for_product("booth:4001").unwrap(), vec![item.warehouse_item_id.clone()]);
     let unmapped = store.create_warehouse_item("D2 other", "imported_material", "2026-10-03T00:00:00.000Z").unwrap();
     assert!(store.product_ids_for_warehouse_item(&unmapped.warehouse_item_id).unwrap().is_empty());
 }

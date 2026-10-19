@@ -203,9 +203,13 @@ changed line or a changed project is refused as `plan_drift` and asks for a fres
 `restoreRevision` records the current state as a `restore` version first, so the restore is itself
 reversible, then protects the current project behind a full-copy snapshot and replays the recorded
 state with the existing steps: changed materials through the material-change path, the recorded
-selection assembled — rebuilt when the base differs — the recorded lighting values written back and
-verified in Unity, and the recorded SDK fixes that the line has not applied yet (applied SDK fixes
-cannot be unrun; a restore can only add the recorded ones). A final Unity inspection confirms the
+selection assembled, the recorded lighting values written back and verified in Unity, and the
+recorded SDK fixes that the line has not applied yet (applied SDK fixes cannot be unrun; a restore
+can only add the recorded ones). The assembly step reports `rebuild` when the work scene starts
+fresh: the version has another base, lacks an outfit or switch the line wears now, or recorded no
+assembly at all — then the line plans again, as after a material change. A material change starts
+the scene fresh by itself. A version record holds the line's state before its change, so the
+version taken before a line's first assembly has no selection. A final Unity inspection confirms the
 restored project. Any failed step names itself and restores the full copy taken before the replay.
 A run whose change VUA interrupted mid-step must be reinspected or restored through `rollback`
 first; replay review answers `inspect_required` there.

@@ -1430,9 +1430,10 @@ fn version_records_replay_the_materials_and_selection_of_a_finished_line() {
     let run = assembled(&h);
     assert_eq!(run.revisions.len(), 1);
     assert_eq!(run.revisions[0].before, RevisionKind::Assembly);
-    assert_eq!(run.revisions[0].state.selection, Some(selection()));
+    // The version records the prepared line before its first assembly.
+    assert_eq!(run.revisions[0].state.selection, None);
     assert_eq!(run.revisions[0].summary.sources, vec!["avatar", "outfit"]);
-    assert_eq!(run.revisions[0].summary.avatar.as_deref(), Some("Synthetic Avatar"));
+    assert_eq!(run.revisions[0].summary.avatar, None);
     assert!(!run.revisions[0].edited_in_unity);
 
     // The line changes its outfit and assembles again — the real-machine failure scenario.
@@ -1669,4 +1670,59 @@ fn a_recipe_records_adjustments_and_a_prepared_line_writes_them_after_its_first_
     assert_eq!(fs::read(Path::new(&project).join("Assets/Avatar/Body.mat")).unwrap(), liltoon_mat("Body", "0.1", "1", "\n"));
     let keys: Vec<&str> = assembled.steps.iter().map(|step| step.key.as_str()).collect();
     assert!(keys.contains(&"lighting") && keys.contains(&"sdk_fix"), "the adjustments ran as their own steps: {keys:?}");
+}
+
+#[test]
+fn a_restore_to_fewer_outfits_on_the_same_materials_starts_a_fresh_scene() {
+    let h = Harness::new();
+    assembled(&h);
+    // The same materials carry a second outfit: assemble one, then add the other in place.
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit", "outfit2"]), ctx)));
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
+    let mut both = selection();
+    both.outfits.extend(selection2().outfits);
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &both).unwrap();
+    let assemble_both = both.clone();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", assemble_both, &digest, ctx)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.selection, Some(both));
+    let target = run.revisions[0].clone();
+    assert_eq!(target.state.selection, Some(selection()));
+
+    // An in-place assembly cannot drop the second outfit; the replay starts a fresh scene.
+    let cleared = h.platform.cleared.load(Ordering::SeqCst);
+    let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
+    assert_eq!(plan["steps"][0]["skipped"], true);
+    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":true}));
+    assert!(restore_reviewed_revision(&h, &target.id), "{:?}", h.engine.get("n3-test").unwrap().error);
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.selection, Some(selection()));
+    assert_eq!(restored.phase, "succeeded");
+    assert_eq!(h.platform.cleared.load(Ordering::SeqCst), cleared + 1);
+    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&selection()));
+}
+
+#[test]
+fn a_restore_to_the_version_before_the_first_assembly_leaves_a_fresh_scene() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let target = run.revisions[0].clone();
+    assert_eq!(target.state.selection, None);
+    let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
+    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":true}));
+    let cleared = h.platform.cleared.load(Ordering::SeqCst);
+    let assemblies = h.platform.assembled_with.lock().unwrap().len();
+    assert!(restore_reviewed_revision(&h, &target.id));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.phase, "ready");
+    assert_eq!(restored.selection, None);
+    assert_eq!(restored.completed_at, None);
+    assert_eq!(h.platform.cleared.load(Ordering::SeqCst), cleared + 1);
+    assert_eq!(h.platform.assembled_with.lock().unwrap().len(), assemblies, "nothing is assembled");
+    // The restore's own version brings the assembly back.
+    assert_eq!(restored.revisions[0].state.selection, Some(selection()));
+    assert!(restore_reviewed_revision(&h, &restored.revisions[0].id.clone()));
+    let back = h.engine.get("n3-test").unwrap();
+    assert_eq!((back.phase.as_str(), back.selection), ("succeeded", Some(selection())));
 }

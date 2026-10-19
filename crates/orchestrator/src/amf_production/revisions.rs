@@ -249,24 +249,25 @@ fn replay_steps(run: &ProductionRun, revision: &ProductionRevision) -> ReplaySte
     let state = &revision.state;
     let materials =
         !state.choices.is_empty() && choices_key(&state.choices) != choices_key(&run.choices);
-    let assembly = state.selection.as_ref().is_some_and(|selection| {
-        // A selection whose outfits all left with their materials mirrors a line planning
-        // again: the replay changes the materials and assembles nothing.
-        !selection.outfits.is_empty()
-            && (materials || run.selection.as_ref() != state.selection.as_ref())
-    });
-    let rebuild = assembly
-        && !materials
+    // A version without outfits (taken before the first assembly, or whose outfits all left
+    // with their materials) mirrors a line planning again: the replay assembles nothing.
+    let target = state.selection.as_ref().filter(|selection| !selection.outfits.is_empty());
+    let assembly =
+        target.is_some() && (materials || run.selection.as_ref() != state.selection.as_ref());
+    // A material change already starts the work scene fresh. Otherwise the scene starts fresh
+    // when the version cannot be reached in place: another base, an outfit or switch the
+    // version does not have, or no assembly at all.
+    let rebuild = !materials
         && serde_json::from_value::<AssemblySelection>(
             run.result["facts"]["observedSelection"].clone(),
         )
-        .is_ok_and(|observed| {
-            observed.avatar_prefab
-                != state
-                    .selection
-                    .as_ref()
-                    .expect("assembly step has a selection")
-                    .avatar_prefab
+        .is_ok_and(|observed| match target {
+            Some(target) => {
+                assembly
+                    && (observed.avatar_prefab != target.avatar_prefab
+                        || check_retained_outfits(&observed, target).is_err())
+            }
+            None => !observed.outfits.is_empty(),
         });
     ReplaySteps {
         materials,
@@ -399,7 +400,7 @@ impl AmfProductionEngine {
             ),
             "steps": [
                 {"key": "materials", "skipped": !steps.materials},
-                {"key": "assembly", "skipped": !steps.assembly, "rebuild": steps.rebuild},
+                {"key": "assembly", "skipped": !steps.assembly && !steps.rebuild, "rebuild": steps.rebuild},
                 {"key": "lighting", "skipped": steps.lighting.is_empty(), "materials": steps.lighting},
                 {"key": "sdk_fix", "skipped": steps.sdk_fixes.is_empty(), "fixes": steps.sdk_fixes},
             ],
@@ -484,21 +485,22 @@ impl AmfProductionEngine {
                 self.update_observations(&mut run, ctx)
                     .map_err(|error| at_step("inspect", error))?;
             }
+            if steps.rebuild {
+                self.step(&mut run, ctx, "inspect", "Start a fresh work scene for the recorded version")
+                    .map_err(|error| at_step("inspect", error))?;
+                mutated = true;
+                self.platform
+                    .clear_work_scene(&run)
+                    .map_err(|error| at_step("inspect", error))?;
+                self.update_observations(&mut run, ctx)
+                    .map_err(|error| at_step("inspect", error))?;
+            }
             if steps.assembly {
                 let selection = revision
                     .state
                     .selection
                     .clone()
                     .expect("assembly step has a selection");
-                if steps.rebuild {
-                    self.step(&mut run, ctx, "inspect", "Start a fresh work scene for the new base")
-                        .map_err(|error| at_step("inspect", error))?;
-                    self.platform
-                        .clear_work_scene(&run)
-                        .map_err(|error| at_step("inspect", error))?;
-                    self.update_observations(&mut run, ctx)
-                        .map_err(|error| at_step("inspect", error))?;
-                }
                 let mut check = run.clone();
                 check.phase = "ready".into();
                 validate_selection(&check, &selection).map_err(|error| at_step("assembly", error))?;
@@ -594,13 +596,13 @@ impl AmfProductionEngine {
                 }
             }
             run.sdk_fixes_applied = applied;
-            if steps.materials && !steps.assembly {
+            if (steps.materials || steps.rebuild) && !steps.assembly {
                 run.completed_at = None;
             }
             run.phase = if steps.assembly {
                 "succeeded".into()
-            } else if steps.materials {
-                // The replay changed the materials without a recorded assembly: the line
+            } else if steps.materials || steps.rebuild {
+                // The replay left a fresh work scene without a recorded assembly: the line
                 // plans again, as a material change leaves it.
                 "ready".into()
             } else if matches!(entry_phase.as_str(), "ready" | "succeeded") {

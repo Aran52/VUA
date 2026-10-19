@@ -1377,11 +1377,14 @@ impl AmfProductionEngine {
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = previous_selection.clone();
             run.snapshot_sources = None;
+            // The version records the line as it was before this assembly.
+            run.selection = previous_selection.clone();
             revision_id = Some(self.record_revision(
                 &mut run,
                 if rebuild { RevisionKind::Rebuild } else { RevisionKind::Assembly },
                 false,
             ));
+            run.selection = Some(selection.clone());
             self.save(&run)?;
             if rebuild {
                 // Another base starts from a fresh work scene; the base and every chosen outfit are assembled on it.
@@ -1651,15 +1654,22 @@ pub fn validate_selection(
     let rebuild = observed.as_ref().is_some_and(|current| current.avatar_prefab != selection.avatar_prefab);
     validate_selection_inner(run, selection, observed.is_none() || rebuild)?;
     if let Some(current) = observed.filter(|_| !rebuild) {
-        for retained in &current.outfits {
-            let chosen = selection.outfits.iter().find(|outfit| outfit.source_id == retained.source_id)
-                .ok_or_else(|| production_error("explicit_removal_required", "An existing outfit cannot be removed by omitting it from the selection."))?;
-            if chosen.prefab_path != retained.prefab_path {
-                return Err(production_error("outfit_target_changed", "An existing outfit has a different object identity. Choose a new Avatar to change its prefab."));
-            }
-            if chosen.toggle_name.trim().is_empty() && !retained.toggle_name.trim().is_empty() {
-                return Err(production_error("explicit_removal_required", "An existing switch cannot be removed by clearing its name."));
-            }
+        check_retained_outfits(&current, selection)?;
+    }
+    Ok(())
+}
+
+/// An in-place assembly keeps every outfit the Avatar already wears, with the same prefab and
+/// switch; leaving one out needs an explicit removal.
+pub(crate) fn check_retained_outfits(current: &AssemblySelection, selection: &AssemblySelection) -> Result<(), AppErrorV1> {
+    for retained in &current.outfits {
+        let chosen = selection.outfits.iter().find(|outfit| outfit.source_id == retained.source_id)
+            .ok_or_else(|| production_error("explicit_removal_required", "An existing outfit cannot be removed by omitting it from the selection."))?;
+        if chosen.prefab_path != retained.prefab_path {
+            return Err(production_error("outfit_target_changed", "An existing outfit has a different object identity. Choose a new Avatar to change its prefab."));
+        }
+        if chosen.toggle_name.trim().is_empty() && !retained.toggle_name.trim().is_empty() {
+            return Err(production_error("explicit_removal_required", "An existing switch cannot be removed by clearing its name."));
         }
     }
     Ok(())

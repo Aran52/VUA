@@ -602,7 +602,7 @@
   flex-direction: column;
   gap: var(--vua-space-1);
   padding: var(--vua-space-2);
-  border: 1px solid var(--vua-border-subtle);
+  border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-md);
 }
 
@@ -737,7 +737,7 @@
   gap: var(--vua-space-2);
   margin-top: var(--vua-space-1);
   padding-top: var(--vua-space-2);
-  border-top: 1px solid var(--vua-border-subtle);
+  border-top: 1px solid var(--vua-border);
 }
 
 .vua-packages__repo-browse-head {
@@ -756,7 +756,7 @@
   flex-direction: column;
   gap: var(--vua-space-1);
   padding: var(--vua-space-2);
-  border: 1px solid var(--vua-border-subtle);
+  border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-md);
 }
 

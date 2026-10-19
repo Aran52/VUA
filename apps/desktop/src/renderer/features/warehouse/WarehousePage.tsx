@@ -78,6 +78,7 @@ import { LibraryCorner } from "./LibraryCorner.tsx";
 import { libraryCornerState, type LocalSourceSearchState } from "./library-corner-model.ts";
 import { boothSearchKeyword, exactBoothMatch } from "./booth-match-model.ts";
 import { BoothMatchDialog } from "./BoothMatchDialog.tsx";
+import { ProductTerms } from "./ProductTerms.tsx";
 import "./warehouse.css";
 import { clipSelectionRect, scrollSelectionRect } from "./marquee-model.ts";
 
@@ -1874,6 +1875,7 @@ export function WarehousePage({
                   <LibraryBadges facts={libraryPage?.facts.get(selectedId)} />
                   <Button onClick={() => void openBooth(selectedId)}>{copy.sourceSearch.openBooth}</Button>
                   <Button variant="default" onClick={() => setChecklistProduct({ productId: selectedId, title: detailState.view.kind === "detail" ? detailState.view.product.title ?? selectedId : selectedId })}>{copy.libraryState.manageFiles}</Button>
+                  <ProductTerms key={`terms-${selectedId}`} productId={selectedId} title={detailState.view.product.title ?? selectedId} />
                 </div><DetailContent
                   key={detailState.view.product.productId}
                   product={detailState.view.product}

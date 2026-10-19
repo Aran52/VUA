@@ -8,6 +8,8 @@ export interface AmfOutfitSelection {
 }
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
+/** Which state of the line a revision recorded; `restore` is the protected current state. */
+export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "lighting" | "restore";
 export type AmfProductionCapacity = 1 | 2 | 3;
 /** The lilToon brightness limits of one material, as serialized in its file. */
 export interface AmfLightingLimits { readonly min: string; readonly max: string }
@@ -52,6 +54,8 @@ export type AmfProductionBodyV01 =
   /** Aligns the chosen reviewed materials' lilToon brightness limits with the Avatar's, behind a restore point. */
   | { readonly method: "amf.production.applyLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly materials: readonly string[] } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
+  | { readonly method: "amf.production.revisionPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string } }
+  | { readonly method: "amf.production.restoreRevision"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string; readonly planDigest: string } }
   | { readonly method: "amf.production.prepare"; readonly params: { readonly schemaVersion: "0.1"; readonly sources: readonly AmfSourceChoice[]; readonly editorPath: string } }
   | { readonly method: "amf.production.plan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly selection: AmfAssemblySelection } }
   | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection } };
@@ -195,6 +199,13 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && value.materials.every(isAmfMaterialPath) && new Set(value.materials).size === value.materials.length;
     case "amf.production.rollback":
       return exact(value, ["schemaVersion", "runId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
+    case "amf.production.revisionPlan":
+      return exact(value, ["schemaVersion", "runId", "revisionId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId);
+    case "amf.production.restoreRevision":
+      return exact(value, ["schemaVersion", "runId", "revisionId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId)
         && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
     case "amf.production.prepare":
       return exact(value, ["schemaVersion", "sources", "editorPath"]) && text(value.editorPath) && Array.isArray(value.sources) && value.sources.length > 0 && value.sources.length <= 64

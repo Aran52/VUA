@@ -1,0 +1,10 @@
+{
+  "method": "amf.production.restoreRevision",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-example",
+    "revisionId": "rev-1",
+    "planDigest": "not-a-digest"
+  }
+}

@@ -1,17 +1,30 @@
 /** Candidate portable declarations. Local saving does not establish sharing provenance. */
 export interface AmfRecipeMaterial { readonly id: string; readonly packageName: string; readonly sha256: string }
 export interface AmfRecipeOutfit { readonly materialId: string; readonly prefabPath: string; readonly mode: "merge_armature" | "attach_to_bone"; readonly bone: string; readonly toggleName: string; readonly active: boolean }
+export interface AmfRecipeLighting { readonly material: string; readonly min: string; readonly max: string }
+export interface AmfRecipeAdjustments { readonly lighting: readonly AmfRecipeLighting[]; readonly sdkFixes: readonly string[] }
 export interface AmfRecipeDocument {
   readonly formatVersion: "0.4"; readonly recipeId: string; readonly title: string; readonly editorVersion: "2022.3.22f1" | "2022.3.22f1c1";
   readonly materials: readonly AmfRecipeMaterial[]; readonly avatar: { readonly materialId: string; readonly prefabPath: string };
   readonly outfits: readonly AmfRecipeOutfit[]; readonly packages: Readonly<Record<string, string>>;
+  readonly adjustments?: AmfRecipeAdjustments;
 }
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const exact = (v: Record<string, unknown>, keys: readonly string[]) => Object.keys(v).length === keys.length && keys.every(k => k in v);
 const label = (v: unknown, max: number): v is string => typeof v === "string" && v.trim().length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f-\u009f]/u.test(v);
 const assetPath = (v: unknown): v is string => typeof v === "string" && new TextEncoder().encode(v).length <= 2048 && v.startsWith("Assets/") && v.endsWith(".prefab") && !/[\\:\0]/u.test(v) && v.split("/").every(p => p !== "" && p !== "." && p !== "..");
+const materialPath = (v: unknown): v is string => typeof v === "string" && new TextEncoder().encode(v).length <= 2048 && v.startsWith("Assets/") && v.endsWith(".mat") && !/[\\:\0]/u.test(v) && v.split("/").every(p => p !== "" && p !== "." && p !== "..");
+const lightingValue = (v: unknown): v is string => typeof v === "string" && new TextEncoder().encode(v).length <= 64 && /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/u.test(v);
+const adjustments = (v: unknown): v is AmfRecipeAdjustments => {
+  if (!record(v) || !exact(v,["lighting","sdkFixes"]) || !Array.isArray(v.lighting) || v.lighting.length > 512
+    || !Array.isArray(v.sdkFixes) || v.sdkFixes.length > 16) return false;
+  for (const entry of v.lighting) {
+    if (!record(entry) || !exact(entry,["material","min","max"]) || !materialPath(entry.material) || !lightingValue(entry.min) || !lightingValue(entry.max)) return false;
+  }
+  return v.sdkFixes.every(fix => typeof fix === "string" && fix.length > 0 && [...fix].length <= 600 && !fix.includes("\0"));
+};
 export function isAmfRecipeDocument(v: unknown): v is AmfRecipeDocument {
-  if (!record(v) || !exact(v,["formatVersion","recipeId","title","editorVersion","materials","avatar","outfits","packages"])
+  if (!record(v) || !exact(v,"adjustments" in v ? ["formatVersion","recipeId","title","editorVersion","materials","avatar","outfits","packages","adjustments"] : ["formatVersion","recipeId","title","editorVersion","materials","avatar","outfits","packages"])
     || v.formatVersion !== "0.4" || typeof v.recipeId !== "string" || !/^[a-zA-Z0-9-]{1,100}$/u.test(v.recipeId) || !label(v.title,120)
     || !["2022.3.22f1","2022.3.22f1c1"].includes(String(v.editorVersion)) || !Array.isArray(v.materials) || v.materials.length < 1 || v.materials.length > 64
     || !Array.isArray(v.outfits) || v.outfits.length < 1 || v.outfits.length > 64 || !record(v.packages)) return false;
@@ -30,6 +43,7 @@ export function isAmfRecipeDocument(v: unknown): v is AmfRecipeDocument {
       || /[\u0000-\u001f\u007f-\u009f]/u.test(o.toggleName) || typeof o.active !== "boolean") return false;
     outfits.add(o.materialId);
   }
+  if ("adjustments" in v && !adjustments(v.adjustments)) return false;
   return Object.keys(v.packages).length <= 64 && typeof v.packages["com.vrchat.avatars"] === "string" && typeof v.packages["nadena.dev.modular-avatar"] === "string"
     && Object.entries(v.packages).every(([id, version]) => id.length <= 128 && id.includes(".") && /^[a-zA-Z0-9._-]+$/u.test(id) && typeof version === "string" && /^[a-zA-Z0-9.+-]{1,80}$/u.test(version));
 }

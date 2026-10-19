@@ -38,8 +38,17 @@ const uses: Record<TermsPresetId, TermsUseDecision> = {
 export function termsPreviewPort(view: string): TermsPort {
   return {
     product: async () => product(view),
-    checkUse: async presetId => ({ schemaVersion: "0.1", presetId, products: [{ productId: "booth:1", sourceState: "parsed", ...uses[presetId] }],
-      matchingProductIds: uses[presetId].decision === "conforms" ? ["booth:1"] : [], combination: uses[presetId] }),
+    checkUse: async (presetId, productIds) => {
+      // A second product whose terms were never read: it never passes.
+      const products = productIds.map(productId => productId === "booth:1" ? { productId, sourceState: "parsed" as const, ...uses[presetId] }
+        : { productId, sourceState: "not_observed" as const, ...decision("unknown"), hasSpecialNote: false, specialNotes: [],
+          blockingItems: [{ productId, item: null, termKey: null, reason: "not_observed" }] });
+      const rank = { conforms: 0, contact_licensor: 1, unknown: 2, nonconforming: 3 } as const;
+      const worst = products.reduce((a, b) => rank[b.decision] > rank[a.decision] ? b : a);
+      return { schemaVersion: "0.1", presetId, products, matchingProductIds: products.filter(p => p.decision === "conforms").map(p => p.productId),
+        combination: { decision: worst.decision, blockingItems: products.flatMap(p => p.blockingItems), conditions: products.flatMap(p => p.conditions),
+          advisories: products.flatMap(p => p.advisories), hasSpecialNote: products.some(p => p.hasSpecialNote), specialNotes: products.flatMap(p => p.specialNotes) } };
+    },
     refreshProduct: async () => ({ taskId: "task-terms" }),
   };
 }

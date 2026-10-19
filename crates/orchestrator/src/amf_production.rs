@@ -38,6 +38,9 @@ pub struct ProductionSource {
     pub item_id: String,
     pub item_name: String,
     pub name: String,
+    /// The BOOTH products the library entry maps to, for terms checks; empty when none is known.
+    #[serde(default)]
+    pub product_ids: Vec<String>,
     #[serde(skip)]
     pub path: PathBuf,
     #[serde(skip)]

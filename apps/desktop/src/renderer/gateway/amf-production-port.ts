@@ -8,7 +8,9 @@ import { registerTaskIdentity } from "./task-identity.ts";
 import type { Unsubscribe } from "./types.ts";
 import { strings } from "../i18n/index.ts";
 
-export interface AmfProductionSource { readonly sourceId: string; readonly itemId: string; readonly itemName: string; readonly name: string }
+export interface AmfProductionSource { readonly sourceId: string; readonly itemId: string; readonly itemName: string; readonly name: string;
+  /** The BOOTH products the library entry maps to; empty when none is known. */
+  readonly productIds?: readonly string[] }
 export interface AmfProductionEditor { readonly path: string; readonly version: string }
 export interface AmfPrefab {
   readonly sourceId: string; readonly path: string; readonly name: string; readonly isAvatar: boolean;
@@ -147,7 +149,8 @@ const roles = ["auto", "avatar", "outfit", "dependency"];
 const savedRecipe = (v: unknown): v is AmfSavedRecipe => record(v) && isAmfRecipeDocument(v.recipe) && Number.isSafeInteger(v.revision) && Number(v.revision) > 0 && text(v.updatedAt);
 const choice = (v: unknown) => record(v) && text(v.sourceId) && roles.includes(String(v.role));
 const editor = (v: unknown): v is AmfProductionEditor => record(v) && text(v.path) && (v.version === "2022.3.22f1" || v.version === "2022.3.22f1c1");
-const source = (v: unknown): v is AmfProductionSource => record(v) && [v.sourceId, v.itemId, v.itemName, v.name].every(text);
+const source = (v: unknown): v is AmfProductionSource => record(v) && [v.sourceId, v.itemId, v.itemName, v.name].every(text)
+  && (v.productIds === undefined || (Array.isArray(v.productIds) && v.productIds.length <= 64 && v.productIds.every(id => typeof id === "string" && /^[a-z]+:[A-Za-z0-9_-]{1,64}$/u.test(id))));
 const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path, v.name].every(text)
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview));

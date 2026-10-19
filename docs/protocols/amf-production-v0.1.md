@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.23.0
+> Document version: 0.24.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: AMF
@@ -67,7 +67,9 @@ material's own menu without adding a new toggle.
 Direct UnityPackages and safe UnityPackage members of local ZIP files are selectable without
 changing the library originals. Import preflight rejects differing content at a shared path,
 inconsistent GUID metadata, file/directory conflicts and Windows case collisions before copying.
-Malformed unrelated ZIP files are not offered as package sources.
+Malformed unrelated ZIP files are not offered as package sources. Each listed source names the
+BOOTH products its library entry maps to (`productIds`, from download provenance and local
+matches; empty when none is known), so a line's materials can be checked against [VN3 terms](terms-v0.1.md).
 
 The plan digest binds the observation revision, candidates, chosen inputs, Editor, project
 fingerprints and selection. Reinspection invalidates every earlier confirmation.
@@ -412,6 +414,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.24.0 (2026-10-19): each source in `amf.production.list` carries `productIds`, the BOOTH products its library entry maps to.
 - 0.23.0 (2026-10-19): `amf.production.open` succeeds once Unity selects the Avatar and keeps `sdkPanelRequested` as a fact; the receipt wait is 10 minutes, and an Editor that cannot start answers `editor_unavailable`.
 - 0.22.0 (2026-10-19): a missing run answers `run_not_found`; work that changes a project Unity holds answers `project_open` when it is requested; deleting a line also removes its assembly records.
 - 0.21.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.

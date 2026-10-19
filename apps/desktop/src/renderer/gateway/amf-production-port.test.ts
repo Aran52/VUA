@@ -94,6 +94,18 @@ describe("AMF production response boundary", () => {
     const {queue: _missing, ...withoutQueue} = list; response = withoutQueue;
     await expect(port.list()).rejects.toThrow("list_invalid");
   });
+  it("reads the BOOTH products each source maps to", async () => {
+    const source = {sourceId:"cpy-1",itemId:"whi-1",itemName:"Meiyun.zip",name:"Meiyun.unitypackage"};
+    const list = {schemaVersion:"0.1",sources:[{...source,productIds:["booth:4001"]},source],editors:[],runs:[],busy:false,capacity:1,running:[],queue:[]};
+    let response: unknown = list;
+    const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.list()).sources.map(item => item.productIds ?? [])).toEqual([["booth:4001"], []]);
+    for (const productIds of ["booth:4001", [""], [7]]) {
+      response = {...list,sources:[{...source,productIds}]};
+      await expect(port.list()).rejects.toThrow("list_invalid");
+    }
+  });
   it("sets capacity through the command and verifies the saved result", async () => {
     const requests: unknown[] = [];
     let result: unknown = {schemaVersion:"0.1",capacity:2};

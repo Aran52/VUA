@@ -1265,3 +1265,26 @@
   justify-content: flex-end;
   gap: var(--vua-space-2);
 }
+
+/* VN3 terms in the product drawer: each use's decision, the creator's special note and every item. */
+.vua-terms { display: flex; flex-direction: column; gap: var(--vua-space-2); min-width: 0; }
+.vua-terms p { margin: 0; overflow-wrap: anywhere; }
+.vua-terms__uses { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.vua-terms__uses li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--vua-border); }
+.vua-terms__uses small { grid-column: 1 / -1; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-terms__uses li[data-decision="conforms"] strong { color: var(--vua-success); }
+.vua-terms__uses li[data-decision="contact_licensor"] strong { color: var(--vua-warning); }
+.vua-terms__uses li[data-decision="nonconforming"] strong { color: var(--vua-error); }
+.vua-terms__uses li[data-decision="unknown"] strong, .vua-terms__uses li[data-decision="pending"] strong { color: var(--vua-text-secondary); font-weight: 500; }
+.vua-terms__note { display: grid; gap: 4px; }
+.vua-terms__note blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--vua-warning); background: var(--vua-bg-elevated);
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow: auto; }
+.vua-terms__items summary { cursor: pointer; color: var(--vua-text-secondary); }
+.vua-terms__items dl { margin: 8px 0 0; display: grid; gap: 2px; }
+.vua-terms__items dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; padding: 2px 0; }
+.vua-terms__items dt { overflow-wrap: anywhere; }
+.vua-terms__items dt span { display: inline-block; min-width: 1.2em; color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }
+.vua-terms__items dd { margin: 0; text-align: right; color: var(--vua-text-secondary); }
+.vua-terms__items div[data-value="prohibited"] dd { color: var(--vua-error); }
+.vua-terms__items div[data-value="contact_licensor"] dd { color: var(--vua-warning); }
+.vua-terms__link { border: 0; padding: 0; background: none; color: var(--vua-accent-text, var(--vua-accent)); font: inherit; cursor: pointer; text-align: left; overflow-wrap: anywhere; }

@@ -1,6 +1,6 @@
 # External Agent tools v0.1
 
-> Document version: 0.6.0
+> Document version: 0.7.0
 > Status: Candidate
 > Updated: 2026-10-19
 > Owner: Integration
@@ -51,6 +51,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
 | `vua_tool_status`, `vua_request_tool` | Candidate VRCFT connection; no invented hardware/module acceptance |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
+| `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
 | `vua_request_amf_prepare`, `vua_request_amf_assemble`, `vua_request_amf_reinspect`, `vua_request_amf_open` | Existing [AMF production](amf-production-v0.1.md) authority and Bridge v5 |
 | `vua_request_amf_upload` | [Managed upload](amf-production-v0.1.md#release); confirmed on the release page with the player's rights confirmation |
@@ -116,6 +117,7 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
+- 0.7.0 (2026-10-19): read recorded VN3 terms through `vua_terms` and check one use across several products through `vua_terms_check`.
 - 0.6.0 (2026-10-19): expose metadata-only Unity license hints and historical check evidence through `vua_unity_license`.
 - 0.5.0 (2026-10-18): `vua_amf_plan` without a selection plans VUA's recommendation or returns the tied candidates.
 - 0.4.0 (2026-10-17): read a finished Avatar's release state with `vua_amf_release`, and request a managed upload with `vua_request_amf_upload`, confirmed on the release page with the player's rights confirmation.

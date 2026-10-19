@@ -25,7 +25,7 @@ export async function launchAmfEditor(provider: OrchestratorProviderV01, runId: 
     child.once("error",()=>resolve(false)); child.once("spawn",()=>{child.unref();resolve(true);});
   });
   if (!success) {
-    fs.writeFileSync(path.join(run.projectRoot,".vua","bridge","amf-open.result.json"),JSON.stringify({schemaVersion:"0.1",runId,avatarSelected:false,sdkPanelRequested:false}));
+    fs.writeFileSync(path.join(run.projectRoot,".vua","bridge","amf-open.result.json"),JSON.stringify({schemaVersion:"0.1",runId,avatarSelected:false,sdkPanelRequested:false,reason:"editor_unavailable"}));
     failUpload(run.projectRoot, runId);
   }
 }

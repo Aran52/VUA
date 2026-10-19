@@ -31,17 +31,18 @@ export function LineTerms({ run, sources, onOpenMaterials }: { run: AmfProductio
   const [presetId, setPresetId] = useState<TermsPresetId>("vrchat_personal");
   const [check, setCheck] = useState<TermsUseCheckV01 | null>(null);
   const { products, unlinked } = useMemo(() => lineProducts(run, sources), [run, sources]);
-  const ids = useMemo(() => [...products.keys()], [products]);
+  // The album reads its list again while work runs; the check follows the products, not the list object.
+  const key = [...products.keys()].join(" ");
   useEffect(() => {
     setCheck(null);
-    if (!port || ids.length === 0) return;
+    if (!port || key === "") return;
     let alive = true;
-    void port.checkUse(presetId, ids).then(next => { if (alive) setCheck(next); }, () => {});
+    void port.checkUse(presetId, key.split(" ")).then(next => { if (alive) setCheck(next); }, () => {});
     return () => { alive = false; };
-  }, [port, presetId, ids]);
+  }, [port, presetId, key]);
   if (!port) return null;
   const openMaterials = <button type="button" className="vua-release-upload__link" onClick={onOpenMaterials}>{line.library}</button>;
-  if (ids.length === 0) return <section className="vua-album__block vua-line-terms">
+  if (key === "") return <section className="vua-album__block vua-line-terms">
     <h3>{line.title}</h3><p className="vua-caption vua-text-secondary">{line.none}</p>{openMaterials}
   </section>;
   const advisories = [...new Set(check?.combination.advisories.map(advisory => advisory.reason) ?? [])];

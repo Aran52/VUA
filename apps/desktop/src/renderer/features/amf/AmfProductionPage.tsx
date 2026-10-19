@@ -74,6 +74,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [plan, setPlan] = useState<AmfProductionPlan | null>(null);
   const [restorePlan, setRestorePlan] = useState<AmfProductionRestorePlan | null>(null);
   const [restored, setRestored] = useState(false);
+  // The line whose project Unity opened for the SDK step.
+  const [opened, setOpened] = useState<string | null>(null);
   const [recipeRefresh, setRecipeRefresh] = useState(0);
   const [recipePreview, setRecipePreview] = useState<AmfSavedRecipe | null>(null);
   const [sharingRecipe, setSharingRecipe] = useState<string | null>(null);
@@ -149,13 +151,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           setTaskId(null); setTaskAction(null); void refreshList();
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
           if (taskAction === "rollback" && ["completed", "completedWithWarnings"].includes(task.status)) setRestored(true);
+          if (taskAction === "open" && ["completed", "completedWithWarnings"].includes(task.status)) setOpened(runId);
           return;
         }
       } catch { /* Keep waiting for an authoritative terminal task fact. */ }
       if (alive) timer = setTimeout(() => { void observe(); }, 1000);
     };
     void observe(); return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };
-  }, [gateway, taskId, taskAction, refreshList]);
+  }, [gateway, taskId, taskAction, refreshList, runId]);
 
   const edit = (next: AmfAssemblySelection) => { setSelection(next); setPlan(null); setError(null); };
   const outfit = (id: string, patch: Partial<AmfOutfitSelection> | null) => edit(updateOutfitSelection(selection, id, patch));
@@ -171,7 +174,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan)
         : action === "reinspect" ? await port.reinspect(runId) : await port.open(runId);
       setTaskId(response.taskId); setTaskAction(action);
-      setRestored(false); setRestorePlan(null);
+      setRestored(false); setRestorePlan(null); setOpened(null);
       if (action === "prepare") { initialized.current = ""; setPlan(null); setSelection(blank); setRun(null); }
       if (action === "reinspect" || action === "rollback" || action === "changeSources") { initialized.current = ""; setPlan(null); setAdjusting(false); }
       if (action === "changeSources") setChanging(null);
@@ -425,7 +428,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <p className="vua-text-secondary">{copy.sdkNotRun}</p>
         {!!run.result?.facts?.missingReferences && <p className="vua-n3__notice">{copy.warning}</p>}
         {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{panels.check.toRelease}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }}>{taskAction === "open" ? copy.opening : copy.open}</Button></div>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{panels.check.toRelease}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button></div>
+        {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
+        {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}
       </Card>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}

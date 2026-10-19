@@ -62,7 +62,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done (Aran52/VUA#1) |
-| 5 | Unity editor handoff | P-02 | next: in the MCP round the project opened with the Avatar selected, and the handoff timed out waiting for the SDK panel (item 3) |
+| 5 | Unity editor handoff | P-02 | in progress: item 3 is in (Aran52/VUA#36), the open waits through a slow first import and names the SDK panel menu; items 1–2 remain |
 | 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide and the SDK panel's own Auto Fix in the facts (item 4) remain |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
 | 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
@@ -161,6 +161,12 @@ signed in to the SDK.
    selected; when the SDK panel does not open by itself, the page says how to open it (VRChat SDK
    → Show Control Panel). In the MCP round the panel stayed closed on this machine, and the open
    task failed with `sdk_handoff_timeout`.
+
+Item 3 is in (Aran52/VUA#36, [amf-production 0.23.0](../protocols/amf-production-v0.1.md)). The MCP
+round's Unity spent 82 seconds on the project's first import, and its receipt (Avatar selected, panel
+requested) arrived 30 seconds after the 180-second wait ended. The open now waits up to 10 minutes,
+as a managed upload does, succeeds once the Avatar is selected, and the workshop names VRChat SDK >
+Show Control Panel while Unity opens and after.
 
 **Done when** a held project continues without closing Unity by hand.
 

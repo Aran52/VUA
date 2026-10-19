@@ -843,31 +843,22 @@ impl AmfProductionPlatform for NativeAmfProduction {
         if std::env::var("VUA_AMF_HANDOFF_FROM_DESKTOP").as_deref() != Ok("1") {
             open_editor(run)?;
         }
+        // A project's first start imports every asset before the Editor's observer runs, so the
+        // wait matches the managed upload's.
         let start = std::time::Instant::now();
-        while start.elapsed() < std::time::Duration::from_secs(180) {
+        while start.elapsed() < release_handoff::PICKUP_TIMEOUT {
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 let _ = fs::remove_file(folder.join("amf-open.json"));
                 return Err(error);
             }
-            if let Ok(bytes) = fs::read(&receipt) {
-                let value: serde_json::Value =
-                    serde_json::from_slice(&bytes).map_err(|e| err("open_failed", e))?;
-                if value["runId"] != run.run_id
-                    || value["avatarSelected"] != true
-                    || value["sdkPanelRequested"] != true
-                {
-                    return Err(err(
-                        "sdk_handoff_incomplete",
-                        "Unity opened, but the Avatar or official SDK panel was not selected.",
-                    ));
-                }
+            if let Some(value) = open_receipt(&receipt, &run.run_id)? {
                 return Ok(value);
             }
             std::thread::sleep(std::time::Duration::from_millis(250));
         }
         Err(err(
             "sdk_handoff_timeout",
-            "Unity has not confirmed Avatar selection and SDK panel opening.",
+            "Unity did not report this project open within 10 minutes. Once Unity shows the project, VRChat SDK > Show Control Panel opens the upload panel.",
         ))
     }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
@@ -1030,6 +1021,28 @@ fn clear_stale_lock(project: &Path) {
     if !editor_holds_project(project) {
         let _ = fs::remove_file(project.join("Temp/UnityLockfile"));
     }
+}
+
+/// The Editor's answer to an open request, once it is complete. The handoff is done when Unity
+/// holds the project with the Avatar selected; `sdkPanelRequested` records whether the SDK's
+/// panel menu ran, and the page names that menu either way.
+fn open_receipt(path: &Path, run_id: &str) -> Result<Option<serde_json::Value>, AppErrorV1> {
+    let Some(value) = fs::read(path).ok().and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok()) else {
+        return Ok(None);
+    };
+    if value["runId"] != run_id {
+        return Err(err("open_failed", "Unity answered for another production line."));
+    }
+    if value["reason"] == "editor_unavailable" {
+        return Err(err("editor_unavailable", "Unity could not start. Check the Editor in Unity Hub, then open again."));
+    }
+    if value["avatarSelected"] != true {
+        return Err(err(
+            "sdk_handoff_incomplete",
+            "Unity opened the project and kept another scene, or the work scene no longer holds this Avatar. Open again and keep the VUA scene, or reinspect the line.",
+        ));
+    }
+    Ok(Some(value))
 }
 
 /// An Editor keeps `Temp/UnityLockfile` open while it has the project. A crashed batch run leaves
@@ -1594,6 +1607,25 @@ mod tests {
         assert!(liltoon("assets/liltoon/shader/lts.shader"));
         assert!(!liltoon("assets/liltoonextras/readme.txt"));
         assert!(!liltoon("assets/amenbo/tshirt&shorts/material/liltoon.mat"));
+    }
+
+    #[test]
+    fn the_open_is_done_once_unity_selects_the_avatar() {
+        let folder = std::env::temp_dir().join(format!("vua-amf-open-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let receipt = folder.join("amf-open.result.json");
+        let answer = |text: &str| { std::fs::write(&receipt, text).unwrap(); open_receipt(&receipt, "n3-open") };
+        assert_eq!(open_receipt(&receipt, "n3-open").unwrap(), None, "no answer yet");
+        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-op"#).unwrap(), None, "a half-written answer");
+        // The MCP round: Unity selected the Avatar, and the panel stayed closed on screen.
+        let value = answer(r#"{"schemaVersion":"0.1","runId":"n3-open","avatarSelected":true,"sdkPanelRequested":false}"#).unwrap().unwrap();
+        assert_eq!(value["sdkPanelRequested"], false);
+        assert!(answer(r#"{"schemaVersion":"0.1","runId":"n3-open","avatarSelected":true,"sdkPanelRequested":true}"#).unwrap().is_some());
+        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-open"}"#).unwrap_err().code, "vua.amf_production.sdk_handoff_incomplete");
+        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-open","avatarSelected":false,"sdkPanelRequested":false,"reason":"editor_unavailable"}"#).unwrap_err().code,
+            "vua.amf_production.editor_unavailable");
+        assert_eq!(answer(r#"{"schemaVersion":"0.1","runId":"n3-other","avatarSelected":true}"#).unwrap_err().code, "vua.amf_production.open_failed");
+        std::fs::remove_dir_all(&folder).unwrap();
     }
 
     #[test]

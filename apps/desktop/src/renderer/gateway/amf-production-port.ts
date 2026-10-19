@@ -1,6 +1,6 @@
 import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
   AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01,
-  AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip } from "@vua/contracts";
+  AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind } from "@vua/contracts";
 import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
   AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
@@ -34,6 +34,8 @@ export interface AmfProductionRun {
   readonly progress?: AmfRunProgressV01 | null;
   readonly selection: AmfAssemblySelection | null; readonly error: string | null; readonly recovery: string | null;
   readonly snapshotId: string | null;
+  /** Recorded states of the line, newest first; absent on runs made before revisions. */
+  readonly revisions?: readonly AmfProductionRevisionSummaryItem[];
   /** When assembly finished the Avatar. */
   readonly completedAt?: string | null;
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
@@ -80,13 +82,32 @@ export interface AmfProductionRestorePlan {
   readonly runId: string; readonly planDigest: string; readonly snapshotId: string;
   readonly projectRoot: string; readonly currentChanged: boolean; readonly preserveCurrent: true;
 }
+/** What one recorded revision captured of the line. */
+export interface AmfProductionRevisionSummary {
+  readonly avatar: string | null; readonly outfits: readonly string[]; readonly sources: readonly string[];
+  readonly lightingMaterials: number; readonly sdkFixes: readonly string[];
+}
+/** One revision of a run's history, newest first in `AmfProductionRun.revisions`. */
+export interface AmfProductionRevisionSummaryItem {
+  readonly id: string; readonly before: AmfProductionRevisionKind; readonly takenAt: string;
+  readonly summary: AmfProductionRevisionSummary; readonly editedInUnity: boolean;
+}
+/** The reviewed restore of a line to one recorded revision. */
+export interface AmfProductionRevisionPlan {
+  readonly runId: string; readonly revisionId: string; readonly planDigest: string;
+  readonly before: AmfProductionRevisionKind; readonly takenAt: string;
+  readonly summary: AmfProductionRevisionSummary; readonly editedInUnity: boolean; readonly warning: string | null;
+  readonly steps: readonly { readonly key: string; readonly skipped: boolean; readonly rebuild?: boolean;
+    readonly materials?: readonly { readonly material: string; readonly min: string; readonly max: string }[];
+    readonly fixes?: readonly string[] }[];
+}
 /** The reviewed lilToon brightness alignment of an assembled line. */
 export interface AmfLightingPlan {
   readonly runId: string; readonly planDigest: string;
   readonly reference: AmfLightingLimits | null; readonly referenceReason: AmfLightingReferenceReason | null;
   readonly entries: readonly AmfLightingEntry[]; readonly skipped: readonly AmfLightingSkip[];
 }
-export type { AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip } from "@vua/contracts";
+export type { AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind } from "@vua/contracts";
 export interface AmfRecipeSharePlan {
   readonly recipeId: string; readonly title: string; readonly revision: number; readonly planDigest: string;
   readonly materials: readonly { readonly materialId: string; readonly packageName: string; readonly candidates: readonly string[]; readonly selectedProductId: string | null }[];
@@ -129,6 +150,10 @@ export interface AmfProductionPort {
   delete(runId: string): Promise<AmfProductionAccepted>;
   rollbackPlan(runId: string): Promise<AmfProductionRestorePlan>;
   rollback(runId: string, plan: AmfProductionRestorePlan): Promise<AmfProductionAccepted>;
+  /** Reviews the restore of a line to one recorded revision before any mutation. */
+  revisionPlan(runId: string, revisionId: string): Promise<AmfProductionRevisionPlan>;
+  /** Restores the line to the reviewed revision, behind a restore point of the current state. */
+  restoreRevision(runId: string, plan: AmfProductionRevisionPlan): Promise<AmfProductionAccepted>;
   open(runId: string): Promise<AmfProductionAccepted>;
   /** A `data:image/png` URL for one preview the run reports. */
   previewImage(runId: string, path: string): Promise<string>;
@@ -155,6 +180,10 @@ const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path,
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview));
 const ratings: readonly string[] = AMF_SDK_RATINGS;
+const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "lighting", "restore"];
+const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
+  && (v.avatar === null || text(v.avatar)) && texts(v.outfits) && texts(v.sources)
+  && Number.isSafeInteger(v.lightingMaterials) && Number(v.lightingMaterials) >= 0 && texts(v.sdkFixes);
 export function isAmfSdkReview(v: unknown): v is AmfSdkReview {
   return record(v) && ["checked", "partial", "unavailable", "not_run"].includes(String(v.state))
     && ["pc", "android", ""].includes(String(v.platform)) && (v.overall === "" || v.overall === "None" || ratings.includes(String(v.overall)))
@@ -193,6 +222,9 @@ const runChecks: readonly (readonly [string, (v: Record<string, unknown>) => boo
   ["error", v => (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))],
   ["snapshotId", v => v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0)],
   ["selection", v => v.selection === null || isAmfAssemblySelection(v.selection)],
+  ["revisions", v => v.revisions === undefined || (Array.isArray(v.revisions)
+    && v.revisions.every(r => record(r) && text(r.id) && text(r.takenAt) && revisionKinds.includes(String(r.before))
+      && typeof r.editedInUnity === "boolean" && revisionSummary(r.summary)))],
   ["result", v => result(v.result)],
 ];
 /** The first part of a run the renderer cannot read, or null when the run is valid. */
@@ -341,6 +373,22 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async rollback(runId, plan) {
       if (plan.runId !== runId) throw new Error("amf_production_restore_plan_invalid");
       return accepted(await call({ method: "amf.production.rollback", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest } }), strings.amfProduction.restoring);
+    },
+    async revisionPlan(runId, revisionId) {
+      const v = await call({ method: "amf.production.revisionPlan", params: { schemaVersion: "0.1", runId, revisionId } });
+      if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || v.revisionId !== revisionId
+        || !text(v.planDigest) || !/^[a-f0-9]{64}$/u.test(v.planDigest)
+        || !revisionKinds.includes(String(v.before)) || !text(v.takenAt) || !revisionSummary(v.summary)
+        || typeof v.editedInUnity !== "boolean" || (v.warning !== null && !text(v.warning))
+        || !Array.isArray(v.steps) || !v.steps.every(s => record(s) && ["materials", "assembly", "lighting", "sdk_fix"].includes(String(s.key)) && typeof s.skipped === "boolean"
+          && (s.rebuild === undefined || typeof s.rebuild === "boolean")
+          && (s.materials === undefined || (Array.isArray(s.materials) && s.materials.every(m => record(m) && text(m.material) && text(m.min) && text(m.max))))
+          && (s.fixes === undefined || texts(s.fixes)))) throw new Error("amf_production_revision_plan_invalid");
+      return v as unknown as AmfProductionRevisionPlan;
+    },
+    async restoreRevision(runId, plan) {
+      if (plan.runId !== runId) throw new Error("amf_production_revision_plan_invalid");
+      return accepted(await call({ method: "amf.production.restoreRevision", params: { schemaVersion: "0.1", runId, revisionId: plan.revisionId, planDigest: plan.planDigest } }), strings.amfProduction.restoring);
     },
     async previewImage(runId, path) {
       const v = await call({ method: "amf.production.previewImage", params: { schemaVersion: "0.1", runId, path } });

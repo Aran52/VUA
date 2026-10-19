@@ -1,8 +1,8 @@
 # AMF production Recipe v0.4
 
-> Document version: 0.3.0
+> Document version: 0.4.0
 > Status: Candidate
-> Updated: 2026-10-15
+> Updated: 2026-10-19
 > Owner: AMF
 
 This format connects saved declarations to the real material-first production path. It is separate
@@ -17,6 +17,15 @@ derive from that digest. Prefab paths are package-relative `Assets/` paths. Abso
 warehouse copy IDs, scene GlobalObjectIds, snapshots and asset bodies are not document fields.
 Unknown fields are rejected. The current supported settings are binding mode, an observed humanoid
 bone, switch label and default activation. Arbitrary Unity edits are not represented by this format.
+
+An optional `adjustments` section records VUA's own adjustments to the assembled line: `lighting`
+names, per material (`Assets/` `.mat` path), the exact serialized lower and upper brightness limits
+as decimal text, and `sdkFixes` lists the SDK fixes applied, named by the SDK's exact words. Saving
+writes the line's current adjustments into the section; a Recipe without it carries none. A line
+prepared from a Recipe with adjustments — or a line a Recipe with adjustments is applied to —
+writes them after its first successful assembly with the same replay functions a version-record
+restore uses: the lighting values are written into the materials and verified in Unity, then the
+SDK fixes run. The assembly plan lists pending adjustments, and the plan digest binds them.
 
 Saving requires current project fingerprints and a verified saved-scene selection. The retained
 requested selection alone is insufficient. Capture includes selected inputs and dependencies
@@ -78,6 +87,8 @@ N4 acceptance and player visual review remain owned by
 [the N sequence](../development-outline.md#n4-recipe-and-multi-flow-reproduction).
 
 ## Document changelog
+
+- 0.4.0 (2026-10-19): record VUA's own adjustments — per-material brightness limits and applied SDK fixes — in the optional `adjustments` section, and write them after a prepared or applied line's first assembly.
 
 - 0.3.0 (2026-10-15): connect bounded managed-Avatar overlay choices and capture dependencies of only the active Avatar.
 

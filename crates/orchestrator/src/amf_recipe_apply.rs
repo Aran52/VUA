@@ -116,11 +116,15 @@ impl AmfProductionEngine {
         if plan.plan_digest != digest {
             return Err(production_error("plan_drift", "The Recipe or Avatar changed. Review their differences again."));
         }
+        let recipe: ProductionRecipe = serde_json::from_value(self.get_recipe(recipe_id)?.recipe)
+            .map_err(|_| invalid("Invalid stored Recipe."))?;
         let selection = plan.selection(choice)?;
         let run = self.get(run_id)?;
         validate_selection_subset(&run, &selection)?;
         let target = plan.target(choice, &selection);
-        self.execute_assembly(run, selection, digest, Some(target), false, ctx)
+        self.execute_assembly(run, crate::amf_production::AssemblyExecution {
+            selection, digest, target: Some(target), rebuild: false, adjustments: recipe.adjustments,
+        }, ctx)
     }
 }
 
@@ -228,7 +232,7 @@ mod tests {
         }).collect() };
         run.result=json!({"facts":{"avatarGlobalObjectId":"GlobalObjectId_V1-test-avatar", "avatarName":"My Avatar", "observedSelection":selection,"usedSourceIds":["avatar","coat","hat"]},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
-        let mut recipe=ProductionRecipe::from_run(&run,"recipe-overlay","A new coat switch").unwrap();
+        let mut recipe=ProductionRecipe::from_run(&run,"recipe-overlay","A new coat switch",None).unwrap();
         recipe.outfits.truncate(1);
         recipe.materials.retain(|m| m.sha256!="c".repeat(64));
         recipe.outfits[0].toggle_name="New coat".into(); recipe.outfits[0].active=false;
@@ -291,7 +295,7 @@ mod tests {
         run.sources[2].role=SourceRole::Dependency;
         run.result["facts"]["observedSelection"]["outfits"].as_array_mut().unwrap().truncate(1);
         run.result["facts"]["usedSourceIds"]=json!(["avatar","coat"]);
-        let recipe=ProductionRecipe::from_run(&run,"recipe-current-avatar","Only this Avatar").unwrap();
+        let recipe=ProductionRecipe::from_run(&run,"recipe-current-avatar","Only this Avatar",None).unwrap();
         assert_eq!(recipe.materials.len(),2);
         assert!(!recipe.materials.iter().any(|m|m.sha256=="c".repeat(64)));
     }

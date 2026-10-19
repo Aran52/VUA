@@ -14,8 +14,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-19 |
 | docs/protocols/ai-tools-v0.1.md | 0.8.0 | Candidate | Integration | 2026-10-20 |
-| docs/protocols/amf-production-v0.1.md | 0.24.0 | Candidate | AMF | 2026-10-19 |
-| docs/protocols/amf-recipe-v0.4.md | 0.3.0 | Candidate | AMF | 2026-10-15 |
+| docs/protocols/amf-production-v0.1.md | 0.25.0 | Candidate | AMF | 2026-10-19 |
+| docs/protocols/amf-recipe-v0.4.md | 0.4.0 | Candidate | AMF | 2026-10-19 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
 | docs/protocols/bdl-commands-v0.5.md | 0.5 | Frozen | Data | 2026-10-03 |

@@ -77,6 +77,17 @@ fn candidates() -> Vec<PrefabCandidate> {
             humanoid_bones: vec![],
             preview: None,
         },
+        PrefabCandidate {
+            source_id: "outfit2".into(),
+            path: "Assets/Outfit2.prefab".into(),
+            name: "Dress".into(),
+            is_avatar: false,
+            has_skinned_mesh: true,
+            has_merge_armature: false,
+            has_missing_scripts: false,
+            humanoid_bones: vec![],
+            preview: None,
+        },
     ]
 }
 impl AmfProductionPlatform for TestPlatform {
@@ -229,6 +240,16 @@ impl AmfProductionPlatform for TestPlatform {
         self.snapshots.fetch_add(1, Ordering::SeqCst);
         self.fingerprint(Path::new(&run.project_root))
     }
+    fn source_content_hash(&self, source_id: &str) -> Result<Option<String>, AppErrorV1> {
+        if !["avatar", "outfit", "outfit2"].contains(&source_id) {
+            return Ok(None);
+        }
+        Ok(Some(format!("sha256:{}", if source_id == "avatar" { "a".repeat(64) }
+            else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) })))
+    }
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+        vua_orchestrator::FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
+    }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1> {
         if run.phase == "restoring" {
             let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
@@ -321,6 +342,15 @@ impl Harness {
             + Send
             + 'static,
     ) -> bool {
+        self.run_job(action).is_ok()
+    }
+    /// A job whose failure code the test inspects.
+    fn run_job(
+        &self,
+        action: impl FnOnce(&AmfProductionEngine, &TaskContext) -> Result<(), AppErrorV1>
+            + Send
+            + 'static,
+    ) -> Result<(), String> {
         let engine = self.engine.clone();
         let (tx, rx) = std::sync::mpsc::channel();
         self.runtime
@@ -329,7 +359,7 @@ impl Harness {
                 timeout: None,
                 job: Box::new(move |ctx| {
                     let result = action(&engine, ctx);
-                    tx.send(result.is_ok()).unwrap();
+                    tx.send(result.as_ref().map(|_| ()).map_err(|error| error.code.clone())).unwrap();
                     result.map(|()| TaskExit::Done(serde_json::json!({"synthetic":true})))
                 }),
             })
@@ -1369,4 +1399,330 @@ fn a_failed_rebuild_restores_the_earlier_base_and_its_facts() {
     assert_eq!(failed.result["facts"]["observedSelection"], before.result["facts"]["observedSelection"]);
     assert_eq!(failed.unity_fingerprint, before.unity_fingerprint);
     assert_eq!(failed.project_fingerprint, before.project_fingerprint);
+}
+
+// --- Line version records and restores by replay ---
+
+fn selection2() -> AssemblySelection {
+    AssemblySelection {
+        avatar_prefab: "Assets/Avatar.prefab".into(),
+        outfits: vec![OutfitSelection {
+            source_id: "outfit2".into(),
+            prefab_path: "Assets/Outfit2.prefab".into(),
+            mode: BindingMode::MergeArmature,
+            bone: "".into(),
+            toggle_name: "Dress".into(),
+            active: true,
+        }],
+    }
+}
+
+fn restore_reviewed_revision(h: &Harness, revision_id: &str) -> bool {
+    let plan = h.engine.revision_plan("n3-test", revision_id).unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let revision_id = revision_id.to_owned();
+    h.job(move |engine, ctx| engine.restore_revision("n3-test", &revision_id, &digest, ctx))
+}
+
+#[test]
+fn version_records_replay_the_materials_and_selection_of_a_finished_line() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    assert_eq!(run.revisions.len(), 1);
+    assert_eq!(run.revisions[0].before, RevisionKind::Assembly);
+    // The version records the prepared line before its first assembly.
+    assert_eq!(run.revisions[0].state.selection, None);
+    assert_eq!(run.revisions[0].summary.sources, vec!["avatar", "outfit"]);
+    assert_eq!(run.revisions[0].summary.avatar, None);
+    assert!(!run.revisions[0].edited_in_unity);
+
+    // The line changes its outfit and assembles again — the real-machine failure scenario.
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection2()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection2(), &digest, ctx)));
+    let changed = h.engine.get("n3-test").unwrap();
+    assert_eq!(ids(&changed.sources), ["avatar", "outfit2"]);
+    assert_eq!(changed.revisions.len(), 3);
+    assert_eq!(changed.revisions[0].before, RevisionKind::Assembly);
+    assert_eq!(changed.revisions[1].before, RevisionKind::Materials);
+    assert_eq!(changed.revisions[1].state.choices, choices(&["avatar", "outfit"]));
+    assert_eq!(changed.revisions[1].state.sources[1].sha256, format!("sha256:{}", "b".repeat(64)));
+
+    // Restoring the version taken before the material change replays it: the earlier
+    // materials and the earlier assembly come back.
+    let plan = h.engine.revision_plan("n3-test", &changed.revisions[1].id).unwrap();
+    assert_eq!(plan["editedInUnity"], false);
+    assert_eq!(plan["steps"][0], serde_json::json!({"key":"materials","skipped":false}));
+    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":false}));
+    assert!(restore_reviewed_revision(&h, &changed.revisions[1].id.clone()));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(ids(&restored.sources), ["avatar", "outfit"]);
+    assert_eq!(restored.choices, run.choices);
+    assert_eq!(restored.selection, Some(selection()));
+    assert_eq!(restored.phase, "succeeded");
+    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&selection()));
+
+    // The restore recorded its own version first, so it is itself reversible.
+    assert_eq!(restored.revisions[0].before, RevisionKind::Restore);
+    assert!(restore_reviewed_revision(&h, &restored.revisions[0].id.clone()));
+    let back = h.engine.get("n3-test").unwrap();
+    assert_eq!(ids(&back.sources), ["avatar", "outfit2"]);
+    assert_eq!(back.selection, Some(selection2()));
+}
+
+#[test]
+fn a_restore_warns_when_unity_edited_the_project_and_still_replays() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let target = h.engine.get("n3-test").unwrap().revisions[0].id.clone();
+    // The player edited the project in Unity since VUA last checked it.
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "player-edit").unwrap();
+    let plan = h.engine.revision_plan("n3-test", &target).unwrap();
+    assert_eq!(plan["editedInUnity"], true);
+    assert!(plan["warning"].as_str().is_some());
+    assert!(restore_reviewed_revision(&h, &target));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(ids(&restored.sources), ["avatar", "outfit"]);
+    assert!(restored.revisions[0].edited_in_unity, "the undo version records the foreign edits");
+}
+
+#[test]
+fn a_restore_writes_back_the_recorded_lighting_values() {
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    // Align the outfit's lighting, then change to another outfit and assemble it: the version
+    // taken before the material change carries the aligned values.
+    let digest = h.engine.plan_lighting("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.apply_lighting("n3-test", &digest, &["Assets/Outfit/Coat.mat".to_owned()], ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let digest = h.engine.plan("n3-test", &selection2()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection2(), &digest, ctx)));
+    let changed = h.engine.get("n3-test").unwrap();
+    let target = changed.revisions.iter().find(|revision| revision.before == RevisionKind::Materials).unwrap().clone();
+    let coat = target.state.lighting.iter().find(|entry| entry.material == "Assets/Outfit/Coat.mat").unwrap();
+    assert_eq!((coat.min.as_str(), coat.max.as_str()), ("0.1", "1"), "the aligned values are recorded");
+    assert_eq!(target.summary.lighting_materials, 2);
+
+    // The material drifts afterwards; the restore writes the recorded values back.
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "1", "\n"));
+    let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
+    assert_eq!(plan["steps"][2]["skipped"], false);
+    assert!(restore_reviewed_revision(&h, &target.id.clone()));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(fs::read(Path::new(&run.project_root).join("Assets/Outfit/Coat.mat")).unwrap(), liltoon_mat("Coat", "0.1", "1", "\n"));
+    assert_eq!(restored.selection, Some(selection()));
+    assert_eq!(restored.phase, "succeeded");
+}
+
+#[test]
+fn version_records_are_bounded_and_the_oldest_leave() {
+    let h = Harness::new();
+    assembled(&h);
+    for round in 0..REVISION_LIMIT {
+        let next = if round % 2 == 0 { choices(&["avatar", "outfit2"]) } else { choices(&["avatar", "outfit"]) };
+        assert!(h.job(move |engine, ctx| engine.change_sources("n3-test", next, ctx)));
+    }
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.revisions.len(), REVISION_LIMIT);
+    assert!(run.revisions.iter().all(|revision| revision.before == RevisionKind::Materials),
+        "the first assembly's version was the oldest and left");
+    let unique: std::collections::BTreeSet<&str> = run.revisions.iter().map(|revision| revision.id.as_str()).collect();
+    assert_eq!(unique.len(), REVISION_LIMIT);
+}
+
+#[test]
+fn a_failed_change_restored_automatically_leaves_no_version() {
+    let h = Harness::new();
+    assembled(&h);
+    let before = h.engine.get("n3-test").unwrap().revisions.len();
+    h.platform.fail_replace.store(true, Ordering::SeqCst);
+    assert!(!h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(failed.revisions.len(), before, "the restored change recorded nothing");
+}
+
+#[test]
+fn only_the_referenced_full_copy_survives_a_protected_change() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let snapshots = Path::new(&run.project_root).join(".vua/snapshots");
+    // The restore point the next change takes is named "after" by this platform.
+    for name in ["before", "after", "n3-stale"] {
+        fs::create_dir_all(snapshots.join(name)).unwrap();
+    }
+    fs::write(snapshots.join("note.txt"), b"stray").unwrap();
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    assert!(!snapshots.join("before").exists(), "an unreferenced copy is pruned");
+    assert!(!snapshots.join("n3-stale").exists());
+    assert!(snapshots.join("after").exists(), "the referenced copy stays");
+    assert!(snapshots.join("note.txt").exists(), "a foreign file is left in place");
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.phase, "ready", "a pruning problem never fails the change");
+    let log: serde_json::Value = serde_json::from_slice(&fs::read(h.root.join("production/snapshot-prune.json")).unwrap()).unwrap();
+    assert!(log.as_array().unwrap().iter().any(|entry| entry["diagnostic"].as_str().unwrap().contains("note.txt")));
+}
+
+#[test]
+fn a_restore_whose_review_went_stale_is_refused_before_any_change() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let target = h.engine.get("n3-test").unwrap().revisions[0].id.clone();
+    let digest = h.engine.revision_plan("n3-test", &target).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    // The line changed after the review.
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let id = target.clone();
+    let stale = digest.clone();
+    assert_eq!(h.run_job(move |engine, ctx| engine.restore_revision("n3-test", &id, &stale, ctx)).unwrap_err(),
+        "vua.amf_production.plan_drift");
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(), "materials:avatar+outfit2");
+    // A version discarded between review and execution is refused as missing.
+    let digest = h.engine.revision_plan("n3-test", &target).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored.as_object_mut().unwrap().remove("revisions");
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    assert_eq!(h.run_job(move |engine, ctx| engine.restore_revision("n3-test", &target, &digest, ctx)).unwrap_err(),
+        "vua.amf_production.revision_missing");
+}
+
+#[test]
+fn a_restore_refuses_materials_whose_content_changed_in_the_library() {
+    let h = Harness::new();
+    assembled(&h);
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit2"]), ctx)));
+    let target = h.engine.get("n3-test").unwrap().revisions[0].id.clone();
+    // The library's copy of a recorded original changed.
+    h.platform.change_recipe_input.store(true, Ordering::SeqCst);
+    let error = h.engine.revision_plan("n3-test", &target).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.revision_source_missing");
+    let detail = error.params.as_ref().and_then(|params| params.get("detail")).map(|value| format!("{value:?}")).unwrap_or_default();
+    assert!(detail.contains("outfit.unitypackage"), "{detail}");
+    // And one the library no longer holds at all.
+    h.platform.change_recipe_input.store(false, Ordering::SeqCst);
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored["revisions"][0]["state"]["sources"][1]["sourceId"] = serde_json::json!("gone");
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    assert_eq!(h.engine.revision_plan("n3-test", &target).unwrap_err().code, "vua.amf_production.revision_source_missing");
+}
+
+#[test]
+fn a_record_from_before_version_records_reads_with_one_synthesized_version() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let file = h.root.join("production/runs/n3-test.json");
+    let mut stored: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+    stored.as_object_mut().unwrap().remove("revisions");
+    fs::write(&file, serde_json::to_vec_pretty(&stored).unwrap()).unwrap();
+    let read = h.engine.get("n3-test").unwrap();
+    assert_eq!(read.revisions.len(), 1);
+    let legacy = &read.revisions[0];
+    assert_eq!(legacy.before, RevisionKind::Assembly);
+    assert_eq!(legacy.id, format!("rev-legacy-{}", run.snapshot_id.as_deref().unwrap()));
+    assert_eq!(legacy.state.selection, run.snapshot_selection);
+    assert!(legacy.state.sources.is_empty(), "a restore point without materials leaves them empty");
+    assert!(legacy.state.lighting.is_empty() && legacy.state.sdk_fixes.is_empty());
+    assert!(!legacy.edited_in_unity);
+}
+
+#[test]
+fn a_recipe_records_adjustments_and_a_prepared_line_writes_them_after_its_first_assembly() {
+    let h = Harness::new();
+    let run = assembled_with_material_use(&h, serde_json::json!([
+        {"owner":"avatar","renderer":"Body","material":"Assets/Avatar/Body.mat"},
+        {"owner":"outfit","renderer":"Outfit/Coat","material":"Assets/Outfit/Coat.mat"},
+    ]));
+    write_mat(&run.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.1", "1", "\n"));
+    write_mat(&run.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.1", "1", "\n"));
+    assert!(h.job(|engine, ctx| engine.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let saved = h.engine.save_recipe("n3-test", "recipe-adjusted", "Adjusted").unwrap();
+    assert_eq!(saved.recipe["adjustments"]["sdkFixes"], serde_json::json!([PIPELINE_FIX]));
+    let lighting = saved.recipe["adjustments"]["lighting"].as_array().unwrap();
+    assert_eq!(lighting.len(), 2);
+    assert!(lighting.iter().all(|entry| entry["min"] == "0.1" && entry["max"] == "1"));
+
+    // A line prepared from the Recipe lists the adjustments in its assembly plan and writes
+    // them after the first successful assembly.
+    h.engine.begin_recipe("n3-adjusted", "recipe-adjusted", "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-adjusted", ctx)));
+    let prepared = h.engine.get("n3-adjusted").unwrap();
+    assert!(prepared.recipe_adjustments.is_some());
+    // The new project's materials still carry their original values.
+    write_mat(&prepared.project_root, "Assets/Avatar/Body.mat", &liltoon_mat("Body", "0.05", "0.9", "\n"));
+    write_mat(&prepared.project_root, "Assets/Outfit/Coat.mat", &liltoon_mat("Coat", "0.05", "0.9", "\n"));
+    let plan = h.engine.plan("n3-adjusted", &selection()).unwrap();
+    assert_eq!(plan["adjustments"]["sdkFixes"], serde_json::json!([PIPELINE_FIX]));
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let project = prepared.project_root.clone();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-adjusted", selection(), &digest, ctx)));
+    let assembled = h.engine.get("n3-adjusted").unwrap();
+    assert!(assembled.recipe_adjustments.is_none(), "the adjustments landed and are spent");
+    assert_eq!(assembled.sdk_fixes_applied, vec![PIPELINE_FIX.to_owned()]);
+    assert_eq!(fs::read(Path::new(&project).join("Assets/Outfit/Coat.mat")).unwrap(), liltoon_mat("Coat", "0.1", "1", "\n"));
+    assert_eq!(fs::read(Path::new(&project).join("Assets/Avatar/Body.mat")).unwrap(), liltoon_mat("Body", "0.1", "1", "\n"));
+    let keys: Vec<&str> = assembled.steps.iter().map(|step| step.key.as_str()).collect();
+    assert!(keys.contains(&"lighting") && keys.contains(&"sdk_fix"), "the adjustments ran as their own steps: {keys:?}");
+}
+
+#[test]
+fn a_restore_to_fewer_outfits_on_the_same_materials_starts_a_fresh_scene() {
+    let h = Harness::new();
+    assembled(&h);
+    // The same materials carry a second outfit: assemble one, then add the other in place.
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-test", choices(&["avatar", "outfit", "outfit2"]), ctx)));
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &selection()).unwrap();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
+    let mut both = selection();
+    both.outfits.extend(selection2().outfits);
+    let digest = plan_digest(&h.engine.get("n3-test").unwrap(), &both).unwrap();
+    let assemble_both = both.clone();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", assemble_both, &digest, ctx)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.selection, Some(both));
+    let target = run.revisions[0].clone();
+    assert_eq!(target.state.selection, Some(selection()));
+
+    // An in-place assembly cannot drop the second outfit; the replay starts a fresh scene.
+    let cleared = h.platform.cleared.load(Ordering::SeqCst);
+    let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
+    assert_eq!(plan["steps"][0]["skipped"], true);
+    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":true}));
+    assert!(restore_reviewed_revision(&h, &target.id), "{:?}", h.engine.get("n3-test").unwrap().error);
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.selection, Some(selection()));
+    assert_eq!(restored.phase, "succeeded");
+    assert_eq!(h.platform.cleared.load(Ordering::SeqCst), cleared + 1);
+    assert_eq!(h.platform.assembled_with.lock().unwrap().last(), Some(&selection()));
+}
+
+#[test]
+fn a_restore_to_the_version_before_the_first_assembly_leaves_a_fresh_scene() {
+    let h = Harness::new();
+    let run = assembled(&h);
+    let target = run.revisions[0].clone();
+    assert_eq!(target.state.selection, None);
+    let plan = h.engine.revision_plan("n3-test", &target.id).unwrap();
+    assert_eq!(plan["steps"][1], serde_json::json!({"key":"assembly","skipped":false,"rebuild":true}));
+    let cleared = h.platform.cleared.load(Ordering::SeqCst);
+    let assemblies = h.platform.assembled_with.lock().unwrap().len();
+    assert!(restore_reviewed_revision(&h, &target.id));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.phase, "ready");
+    assert_eq!(restored.selection, None);
+    assert_eq!(restored.completed_at, None);
+    assert_eq!(h.platform.cleared.load(Ordering::SeqCst), cleared + 1);
+    assert_eq!(h.platform.assembled_with.lock().unwrap().len(), assemblies, "nothing is assembled");
+    // The restore's own version brings the assembly back.
+    assert_eq!(restored.revisions[0].state.selection, Some(selection()));
+    assert!(restore_reviewed_revision(&h, &restored.revisions[0].id.clone()));
+    let back = h.engine.get("n3-test").unwrap();
+    assert_eq!((back.phase.as_str(), back.selection), ("succeeded", Some(selection())));
 }

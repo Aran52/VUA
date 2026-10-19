@@ -89,7 +89,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); the material change and deletion verified in the 2026-10-19 MCP round, whose restore found slice 42's gap; removing an outfit through the plan remains |
 | 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
-| 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md) |
+| 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md); item 2 and the Resources of item 3 move to 44 |
 | 33 | Switch options and built-result evidence | P-02, P-03 | planned from the reference study |
 | 34 | Evidence layers and toolchain profile | P-03, B-02 | planned from the reference study |
 | 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
@@ -99,11 +99,11 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 | 41 | VN3 terms and filtering by use | P-02 | built: the backend (Aran52/VUA#31), the library drawer and MCP reads (Aran52/VUA#37), and the release room's check (Aran52/VUA#38); the author's check with real products remains |
-| 42 | Labeled restore points | P-02 | planned; how many points a line keeps is the author's call (three proposed) |
+| 42 | Line revisions and saved fits | P-02 | planned: state records replace project copies (author, 2026-10-19); revisions first, fits second |
 | 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
-| 44 | MCP payloads and identity | P-02 | planned |
+| 44 | MCP result envelope | P-02 | planned: the round's payload findings with slice 32's commit-aware results and Resources |
 
-Suggested next order: 43 Fixes from the MCP round, 42 Labeled restore points, 1 Integrate, the
+Suggested next order: 43 Fixes from the MCP round, 42 Line revisions and saved fits, 1 Integrate, the
 rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
 confirmation). 43 and 42 remove the traps the MCP round met; integration keeps the production
 branch close to `main`; 6 and 8 close the largest gaps a newcomer meets in P-02 and P-01.
@@ -702,19 +702,35 @@ built on VUA's servers waits for the author's decision.
 **Done when** Shinano's terms read F as permitted with a content rating and R as contact the
 licensor, and an Avatar's materials are checked together for a chosen use.
 
-## 42 — Labeled restore points
+## 42 — Line revisions and saved fits
 
-Found in the MCP round, 2026-10-19. Each line keeps one restore point, and every protected change
-replaces it. After a material change and a new assembly, the restore returned to the state before
-that assembly; the state before the material change was gone, and the panel named neither.
+Found in the MCP round, 2026-10-19: each line keeps one restore point, every protected change
+replaces it, and the panel names neither. The author chose state records over project copies on
+the same day, and asked that adjustments the player makes in Unity be kept.
 
-1. Each line keeps its most recent restore points (three proposed), each labeled with the change
-   it came before, its materials, its Avatar and when it was taken.
-2. The assembly station lists them; restoring one protects the current state first, as today.
-3. `vua_amf_run` lists them; restoring stays the player's action.
+1. Before each protected change, the line records a revision of its state: the Recipe state
+   (materials by content, Avatar, outfits with their fits, pinned packages) with VUA's adjustments
+   (brightness values per material, SDK fixes), what changed, when, and a summary of its facts. A
+   revision takes kilobytes; a line keeps its last 50.
+2. Restoring a revision replays it through the existing steps: the materials change back, the line
+   assembles (or rebuilds on another base) with the recorded choices, and the recorded brightness
+   values, SDK fixes and fits apply. The plan names what changes and is digest-bound. Restoring
+   records the current state first, so it can be undone. The assembly station lists revisions;
+   `vua_amf_run` lists them, and restoring stays the player's action.
+3. One project copy per line remains for automatic recovery when a change fails or VUA stops during
+   it (slice 29); older copies are removed. When the project changed in Unity outside VUA, the
+   revision says so, and the restore plan names the changes it will replace.
+4. Recipe v0.4 carries VUA's adjustments and each outfit's fit, so a saved or shared Recipe
+   reproduces a tuned line.
+5. Saved fits. After an assembly the Bridge records the local position, rotation and scale of each
+   outfit's objects; an outfit's own offsets are part of that record. When the player saves the
+   work scene in Unity, the Bridge reports the objects that moved since. VUA offers to keep them as
+   a fit named "[outfit]For[Avatar]", which the player can rename; a kept fit applies whenever
+   that outfit is assembled on that Avatar again, and the plan names it. Textures stay out.
 
 **Done when** the author changes a line's outfit, assembles, and brings the earlier outfit back
-from its labeled point.
+from its revision; and a hair clip moved in Unity sits in place on the next line with the same
+Avatar.
 
 ## 43 — Fixes from the MCP round
 
@@ -734,20 +750,24 @@ Issues 2–5 and 10 of the round's report, and one found while reading its recor
 **Done when** the round's upload, delete and stop cases repeat without a misleading message, a
 stale banner or a stray record.
 
-## 44 — MCP payloads and identity
+## 44 — MCP result envelope
 
-Agent-side findings of the round, rated per tool in its report.
+Agent-side findings of the MCP round, rated per tool in its report, together with items 2 and 3
+of slice 32, so the result shape changes once.
 
 1. `vua_tasks` takes a limit and a state filter, newest first.
-2. `vua_amf_run` and `vua_library` stay compact: humanoid bones as a count and image URLs only
-   when asked for.
+2. Reads stay compact: `vua_amf_run` returns a summary with a link to the run's full facts as an
+   MCP Resource that carries its revision; `vua_library` returns one image per product unless asked
+   for more. The release state is a Resource too.
 3. `vua_status` reports the build: product version, commit and build time.
-4. Errors carry their plain-language message next to the code and the next action.
-5. Tasks and run facts say who started them: the player, the workshop's automation or an AI
-   request.
+4. Every error states its code, the plain-language message, the next action, whether a change
+   started and whether a retry is safe. Task reads add, for production work, whether the change
+   started, committed and was checked in Unity, and its recovery.
+5. Tasks say who started them: the player, the workshop's automation or an AI request.
 
-**Done when** an agent repeats the round's reads at under 10 KB each and names the build it
-tests.
+**Done when** an agent repeats the round's reads at under 10 KB each, reads a run's full facts as a
+Resource, names the build it tests, and after a dropped connection decides from a task read
+whether to retry.
 
 ## Open decisions
 

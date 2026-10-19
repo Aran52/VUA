@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
+import { MCP_RETRYABLE_CODES, safeErrorMessage, taskChange } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
+import { reportLibrary, reportRun, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
 
 const token = "a".repeat(43), digest = "b".repeat(64);
+const build = { version: "test", commit: "abc1234", dirty: false, builtAt: "2026-10-20T00:00:00.000Z" };
 const intent = { purposes: ["desktop_play"], editorRoot: "C:\\Program Files\\Unity\\Hub\\Editor", useMirrors: true };
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
@@ -14,7 +17,7 @@ function envelope(request: DesktopGatewayRequestV1, value: unknown): DesktopGate
 }
 async function setup(handler?: (request: DesktopGatewayRequestV1) => Promise<DesktopGatewayResponseV1>, now?: () => number) {
   const calls: DesktopGatewayRequestV1[] = [];
-  const service = new AiToolsServer({ version: "test", port: 0, now, load: () => ({ enabled: false, token }), save: () => {},
+  const service = new AiToolsServer({ version: "test", build, port: 0, now, load: () => ({ enabled: false, token }), save: () => {},
     invoke: async request => {
       calls.push(request);
       if (handler) return handler(request);
@@ -155,7 +158,7 @@ describe("built-in MCP, using the official HTTP client", () => {
   });
   it("brings waiting requests back after a restart and marks an interrupted dispatch", async () => {
     let saved: unknown = null;
-    const options = { version: "test", port: 0, load: () => ({ enabled: false, token }), save: () => {},
+    const options = { version: "test", build, port: 0, load: () => ({ enabled: false, token }), save: () => {},
       loadRequests: () => saved, saveRequests: (approvals: readonly unknown[]) => { saved = structuredClone(approvals); },
       invoke: async (request: DesktopGatewayRequestV1) => envelope(request, { playSession: { route: "desktop_play", software: [] } }) };
     const first = new AiToolsServer(options);
@@ -204,7 +207,7 @@ describe("built-in MCP, using the official HTTP client", () => {
     });
     const result = await client.callTool({ name: "vua_amf_run", arguments: { runId: "n3-test" } });
     expect(result.isError).toBeFalsy();
-    expect(result.content).toEqual([expect.objectContaining({ type: "text" }), { type: "text", text: "Assembled Avatar, front view" }, { type: "image", data: "iVBORw0KGgoFRONT", mimeType: "image/png" }]);
+    expect(result.content).toEqual([expect.objectContaining({ type: "text" }), expect.objectContaining({ type: "resource_link", uri: "vua://amf/runs/n3-test" }), { type: "text", text: "Assembled Avatar, front view" }, { type: "image", data: "iVBORw0KGgoFRONT", mimeType: "image/png" }]);
     expect(calls.map(request => [request.method, request.params])).toEqual([["amf.production.get", { schemaVersion: "0.1", runId: "n3-test" }],
       ["amf.production.previewImage", { schemaVersion: "0.1", runId: "n3-test", path: front }], ["amf.production.previewImage", { schemaVersion: "0.1", runId: "n3-test", path: coat }]]);
   });
@@ -264,5 +267,163 @@ describe("vua_amf_plan without a selection", () => {
     expect(result.isError).toBe(true);
     expect(JSON.stringify(data(result))).toContain("recommendation_needs_player");
     expect(calls.some(call => call.method === "amf.production.plan")).toBe(false);
+  });
+});
+
+describe("MCP result envelope", () => {
+  const task = (taskId: string, state = "running", extra = {}) => ({ contractVersion: "0.1", taskId, revision: 1, correlationId: taskId, state,
+    cancellationRequested: false, recoveryDisposition: "none", updatedAt: "2026-10-20T00:00:00.000Z", ...extra });
+  it("reports the injected build identity", async () => {
+    const { client } = await setup(async request => envelope(request, reportStatus));
+    expect(data(await client.callTool({ name: "vua_status" })).data).toEqual({ ...reportStatus, build });
+  });
+  it("validates pagination and states before invoking, then filters, sorts and bounds the task list", async () => {
+    const tasks = [task("old", "running", { updatedAt: "2026-10-19T00:00:00.000Z" }), task("new", "failed"), task("middle", "running", { updatedAt: "2026-10-19T23:00:00.000Z" })];
+    const { client, calls } = await setup(async request => envelope(request, request.method === "task.list" ? { revision: 3, tasks } : { runs: [] }));
+    for (const args of [{ limit: 0 }, { limit: 101 }, { limit: 1.5 }, { state: ["invented"] }, { state: "running" }, { state: ["running", "running"] }]) {
+      const result = await client.callTool({ name: "vua_tasks", arguments: args });
+      expect(result.isError).toBe(true);
+      expect(data(result)).toMatchObject({ error: "unsupported_tool_or_parameters", mutationStarted: false, retryable: false });
+    }
+    expect(calls).toEqual([]);
+    const result = data(await client.callTool({ name: "vua_tasks", arguments: { limit: 1, state: ["running"] } }));
+    expect(result.data).toMatchObject({ total: 2, hasMore: true, tasks: [{ taskId: "middle", requestedBy: "vua" }] });
+    expect(calls[0]).toMatchObject({ method: "task.list", params: {} });
+    expect((data(await client.callTool({ name: "vua_tasks", arguments: { limit: 100, state: [] } })).data as { tasks: unknown[] }).tasks).toHaveLength(3);
+  });
+  it("advertises Resources, paginates existing runs and reads complete current facts with revisions", async () => {
+    const full = { ...reportRun, revisions: [{ revision: 1, operation: "prepare", taskId: "earlier" }] };
+    const release = { schemaVersion: "0.1", runId: full.runId, turntable: null, editorOpen: false, uploads: Array.from({ length: 10 }, (_, i) => ({ uploadId: `upload-${i}`, state: "failed", stage: "build", reason: "sdk_refused", detail: "Synthetic SDK explanation" })) };
+    const { client, calls } = await setup(async request => envelope(request, request.method === "amf.production.list" ? { runs: Array.from({ length: 52 }, (_, i) => ({ runId: `n3-${i}` })) }
+      : request.method === "amf.production.releaseState" ? release : full));
+    expect(client.getServerCapabilities()?.resources).toBeDefined();
+    expect((await client.listResourceTemplates()).resourceTemplates.map(template => template.uriTemplate)).toEqual(["vua://amf/runs/{runId}", "vua://amf/runs/{runId}/release"]);
+    const page = await client.listResources({ cursor: "runs:0" });
+    expect(page.resources).toHaveLength(100);
+    expect(page.nextCursor).toBe("runs:50");
+    expect((await client.listResources({ cursor: page.nextCursor })).resources).toHaveLength(4);
+    const previous = calls.length;
+    for (const uri of ["vua://amf/runs/../escape", "vua://amf/runs/with_under", "vua://amf/runs/%2e%2e", "vua://amf/runs/n3-test?token=value", `vua://amf/runs/${"a".repeat(101)}`, "https://example.invalid/run"]) {
+      await expect(client.readResource({ uri })).rejects.toMatchObject({ code: -32602, data: { mutationStarted: false, retryable: false } });
+    }
+    await expect(client.listResources({ cursor: "invalid" })).rejects.toMatchObject({ code: -32602 });
+    expect(calls).toHaveLength(previous);
+    const resource = await client.readResource({ uri: "vua://amf/runs/n3-report" });
+    expect(resource.contents[0]).toMatchObject({ mimeType: "application/json", text: JSON.stringify(full) });
+    const summary = await client.callTool({ name: "vua_amf_run", arguments: { runId: full.runId } });
+    expect(data(summary).data).toMatchObject({ revision: 7, revisions: full.revisions, prefabs: [{ path: full.prefabs[0]!.path, name: "Avatar0", isAvatar: true, humanoidBoneCount: 50 }, ...full.prefabs.slice(1).map(prefab => ({ path: prefab.path, name: prefab.name, isAvatar: prefab.isAvatar, humanoidBoneCount: 50 }))] });
+    expect(JSON.stringify(data(summary))).not.toContain("humanoidBones");
+    expect(summary.content).toContainEqual(expect.objectContaining({ type: "resource_link", uri: "vua://amf/runs/n3-report" }));
+    const releaseTool = await client.callTool({ name: "vua_amf_release", arguments: { runId: full.runId } });
+    expect(data(releaseTool).data).toMatchObject({ uploadCount: 10, uploads: release.uploads.slice(0, 3).map(({ detail: _detail, ...upload }) => upload) });
+    expect(releaseTool.content).toContainEqual(expect.objectContaining({ type: "resource_link", uri: "vua://amf/runs/n3-report/release" }));
+    expect((await client.readResource({ uri: "vua://amf/runs/n3-report/release" })).contents[0]).toHaveProperty("text", JSON.stringify(release));
+    expect(calls.every(call => ["amf.production.list", "amf.production.get", "amf.production.releaseState"].includes(call.method))).toBe(true);
+  });
+  it("keeps one image for products and local source matches, with an explicit full-image read", async () => {
+    const library = { ...reportLibrary, items: [...reportLibrary.items, { kind: "local", entry: { entryId: "local" }, sourceMatch: { product: reportLibrary.items[0]!.product } }] };
+    const { client, calls } = await setup(async request => envelope(request, library));
+    const summary = data(await client.callTool({ name: "vua_library" })).data as typeof library;
+    expect(summary.items[0]!.product!.imageUrls).toHaveLength(1);
+    expect(summary.items.at(-1)!.sourceMatch!.product.imageUrls).toHaveLength(1);
+    expect(data(await client.callTool({ name: "vua_library", arguments: { includeImages: true } })).data).toEqual(library);
+    expect(calls.every(call => !("includeImages" in call.params))).toBe(true);
+    expect(calls[0]!.params).toEqual({ schemaVersion: "0.1", limit: 25 });
+    expect(reportLibrary.items[0]!.product.imageUrls).toHaveLength(28);
+  });
+  it("uses a conservative retry table and bounded, sanitized Gateway explanations in every error", async () => {
+    let code = "vua.amf_production.busy";
+    const detail = 'Wait for this line. password="synthetic-password" https://user:pass@example.invalid/?token=secret "C:\\Users\\Synthetic Player\\project" token=secret-value';
+    const { client } = await setup(async request => ({ schemaVersion: 1, requestId: request.requestId, ok: false, error: { code: "application", application: {
+      contractVersion: "0.1", code, category: "validation", messageKey: "errors.amfProduction.failed", params: { detail }, recoverable: true, retryable: true, correlationId: request.requestId,
+    } } }));
+    const failure = data(await client.callTool({ name: "vua_amf_run", arguments: { runId: "n3-test" } }));
+    expect(failure).toMatchObject({ error: code, mutationStarted: false, retryable: true, message: expect.stringContaining("Wait for this line."), nextAction: expect.any(String) });
+    expect(JSON.stringify(failure)).not.toMatch(/synthetic-password|secret-value|user:pass|Synthetic Player/u);
+    code = "vua.unknown.future";
+    expect(data(await client.callTool({ name: "vua_status" }))).toMatchObject({ error: code, retryable: false });
+    await expect(client.readResource({ uri: "vua://amf/runs/n3-test" })).rejects.toMatchObject({ data: { error: code, mutationStarted: false, retryable: false } });
+    expect([...safeErrorMessage("x".repeat(800))]).toHaveLength(512);
+    for (const message of ["Failed at /home/synthetic/private/project", "Failed at \\\\host\\share\\private", `Pairing ${token}`]) expect(safeErrorMessage(message, [token])).not.toMatch(/private|home|host|a{43}/u);
+    expect(safeErrorMessage('Failed: {"password":"synthetic-password","access_token":"synthetic-token"}')).not.toMatch(/synthetic-password|synthetic-token/u);
+    for (const [error, retryable] of Object.entries(MCP_RETRYABLE_CODES)) {
+      const { errorFields } = await import("./ai-tool-results.js");
+      expect(errorFields(new Error(error))).toMatchObject({ error, retryable, mutationStarted: false, message: expect.any(String), nextAction: expect.any(String) });
+    }
+  });
+  it("returns the full error envelope for oversized results and unexpected Gateway exceptions", async () => {
+    let thrown = false;
+    const { client } = await setup(async request => { if (thrown) throw new Error("private stack C:/private token=secret"); return envelope(request, { padding: "x".repeat(257 * 1024) }); });
+    const large = await client.callTool({ name: "vua_status" });
+    expect(large.isError).toBe(true);
+    expect(data(large)).toMatchObject({ error: "result_too_large", mutationStarted: false, retryable: false, message: expect.any(String), nextAction: expect.any(String) });
+    thrown = true;
+    expect(data(await client.callTool({ name: "vua_status" }))).toMatchObject({ error: "gateway_unavailable", retryable: true, mutationStarted: false });
+  });
+  it("shares the four-read bound with Resources and returns retry metadata when contended", async () => {
+    let entered = 0, ready!: () => void, release!: () => void;
+    const allEntered = new Promise<void>(resolve => { ready = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const { client } = await setup(async request => { if (++entered === 4) ready(); await gate; return envelope(request, {}); });
+    const reads = Array.from({ length: 4 }, () => client.callTool({ name: "vua_status" }));
+    try {
+      await allEntered;
+      expect(data(await client.callTool({ name: "vua_tasks" }))).toMatchObject({ error: "too_many_requests", message: expect.any(String), nextAction: expect.any(String), retryable: true, mutationStarted: false });
+      await expect(client.readResource({ uri: "vua://amf/runs/n3-test" })).rejects.toMatchObject({ data: { error: "too_many_requests", retryable: true, mutationStarted: false } });
+    } finally { release(); await Promise.all(reads); }
+  });
+  it("derives AMF changes only from matching task/run witnesses and keeps missing evidence unknown", async () => {
+    const queue = task("queued", "queued"), success = task("succeeded", "succeeded", { result: { operation: "amf.production", runId: "n3-ok" } });
+    const failed = task("failed", "failed", { error: { code: "vua.amf_production.assembly_failed" } });
+    const runs = [{ runId: "n3-ok", taskId: success.taskId, recovery: null, steps: [{ key: "reinspect", state: "succeeded" }] },
+      { runId: "n3-failed", taskId: failed.taskId, recovery: "restored", steps: [{ key: "assembly", state: "failed" }] }];
+    const { client } = await setup(async request => envelope(request, request.method === "task.list" ? { tasks: [queue, success, failed] }
+      : request.method === "task.get" ? failed : request.method === "amf.production.list" ? { runs, queue: [{ taskId: queue.taskId, runId: "n3-ok" }], running: [] }
+      : runs.find(run => request.method === "amf.production.get" && run.runId === request.params.runId)));
+    const tasks = (data(await client.callTool({ name: "vua_tasks" })).data as { tasks: Record<string, unknown>[] }).tasks;
+    expect(tasks.find(row => row.taskId === "queued")!.change).toMatchObject({ started: false, committed: false, checked: null, recovery: null, retrySafe: false });
+    expect(tasks.find(row => row.taskId === "succeeded")!.change).toEqual({ started: true, committed: true, checked: true, recovery: "none", retrySafe: false });
+    expect(data(await client.callTool({ name: "vua_task", arguments: { taskId: "failed" } })).data).toMatchObject({ requestedBy: "vua", change: { started: true, committed: false, checked: null, recovery: "restored", retrySafe: true } });
+    expect(taskChange(failed, null)).toEqual({ started: null, committed: false, checked: null, recovery: null, retrySafe: null });
+    expect(taskChange(failed, { taskId: "later-task", recovery: "restored", steps: [{ key: "inspect", state: "succeeded" }] })).toMatchObject({ started: null, recovery: null, retrySafe: null });
+    expect(taskChange(failed, { taskId: "failed", recovery: "restore_failed: io_error", steps: [] })).toMatchObject({ started: true, recovery: "restore_failed", retrySafe: false });
+    expect(taskChange(failed, null, true)).toMatchObject({ started: false, retrySafe: true });
+    expect(taskChange(task("ok", "succeeded_with_warnings"), { taskId: "ok", recovery: null, steps: [{ key: "upload", state: "succeeded" }] })).toMatchObject({ committed: true, checked: false });
+    expect(taskChange(task("cancelled", "cancelled"), null)).toMatchObject({ started: null, committed: false, checked: null, recovery: null, retrySafe: false });
+    expect(taskChange(task("future", "future_state"), null)).toEqual({ started: null, committed: null, checked: null, recovery: null, retrySafe: null });
+    for (const state of ["preparing", "running", "waiting_for_input", "paused"]) expect(taskChange(task("active", state), null)).toMatchObject({ started: true, committed: false, checked: null, recovery: null });
+  });
+  it("labels only player-approved dispatched tasks as ai_request, and never relabels a cancellation target", async () => {
+    const actual = task("test-installation", "queued");
+    const { client, service } = await setup(async request => envelope(request, request.method === "environment.planDeployment" ? { deploymentPlan: { digest } }
+      : request.method === "environment.executeDeployment" ? { taskId: actual.taskId } : request.method === "task.requestCancellation" ? { taskId: "vua-task", outcome: "requested" }
+      : request.method === "task.get" ? task(request.params.taskId) : request.method === "task.list" ? { tasks: [actual, task("vua-task")] } : { runs: [] }));
+    await client.callTool({ name: "vua_request_installation", arguments: { intent: { purposes: ["desktop_play"] }, confirmedDigest: digest } });
+    const approval = service.snapshot().requests[0]!;
+    expect(data(await client.callTool({ name: "vua_task", arguments: { taskId: actual.taskId } })).data).toMatchObject({ requestedBy: "vua" });
+    await service.resolve(approval.id, "approve");
+    expect(data(await client.callTool({ name: "vua_task", arguments: { taskId: actual.taskId } })).data).toMatchObject({ requestedBy: "ai_request" });
+    await client.callTool({ name: "vua_request_cancel_task", arguments: { taskId: "vua-task", observedRevision: 1 } });
+    await service.resolve(service.snapshot().requests.at(-1)!.id, "approve");
+    expect(data(await client.callTool({ name: "vua_task", arguments: { taskId: "vua-task" } })).data).toMatchObject({ requestedBy: "vua" });
+    expect((data(await client.callTool({ name: "vua_tasks" })).data as { tasks: unknown[] }).tasks).toEqual(expect.arrayContaining([expect.objectContaining({ taskId: actual.taskId, requestedBy: "ai_request" }), expect.objectContaining({ taskId: "vua-task", requestedBy: "vua" })]));
+  });
+  it("keeps report-shaped default text reads under 10,000 UTF-8 bytes", async () => {
+    const { client } = await setup(async request => envelope(request, request.method === "app.snapshot" ? reportStatus : request.method === "task.list" ? reportTasks
+      : request.method === "library.list" ? reportLibrary : request.method === "amf.production.list" ? { runs: [{ runId: reportRun.runId }] } : reportRun));
+    const sizes: Record<string, { before: number; after: number }> = {};
+    for (const [name, args, raw] of [["vua_status", {}, reportStatus], ["vua_tasks", {}, reportTasks], ["vua_amf_run", { runId: reportRun.runId }, reportRun], ["vua_library", {}, reportLibrary]] as const) {
+      const response = await client.callTool({ name, arguments: args });
+      expect(response.isError).toBeFalsy();
+      const after = (response.content ?? []).reduce((sum, part) => sum + (part.type === "text" ? Buffer.byteLength(part.text) : 0), 0);
+      const spec = AI_TOOLS.find(tool => tool.name === name)!;
+      const before = Buffer.byteLength(JSON.stringify({ whatHappened: "The requested facts or plan were read. No change was made.",
+        nextAction: name === "vua_tasks" ? "Inspect a relevant task using vua_task." : spec.next,
+        expectedResult: name === "vua_tasks" ? "Actual task states and recovery facts." : name === "vua_status" ? "Actual capability availability." : spec.expected, data: raw }));
+      sizes[name] = { before, after };
+      expect(after, name).toBeLessThan(10_000);
+      if (name === "vua_tasks") expect(data(response).data).toMatchObject({ total: 80, hasMore: true, tasks: expect.arrayContaining([expect.objectContaining({ taskId: "report-task-079" })]) });
+    }
+    console.info("Synthetic MCP text bytes", JSON.stringify(sizes));
   });
 });

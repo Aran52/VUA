@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.7.0
+> Document version: 0.8.0
 > Status: Candidate
-> Updated: 2026-10-19
+> Updated: 2026-10-20
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -63,6 +63,98 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 its reasons; when candidates are equally plausible it returns `recommendation_needs_player` with
 the candidates, and no plan is made.
 
+### Compact reads and Resources
+
+`vua_tasks` accepts optional `limit` (integer 1–100, default 20) and `state` (a unique array of
+`queued`, `preparing`, `running`, `waiting_for_input`, `paused`, `succeeded`,
+`succeeded_with_warnings`, `failed`, `cancelled`). An omitted or empty array selects all states.
+It returns `{contractVersion, revision, tasks, total, hasMore}` inside `data`. `total` counts
+matching tasks before the limit; `hasMore` reports remaining matching history. Tasks are ordered
+by `updatedAt`, newest first, with task ID as a stable tie-breaker. Each summary retains identity,
+revision, state, cancellation/recovery disposition, update time, error code and the result's
+operation/run reference. `vua_task {taskId}` reads the full task and the same derived evidence.
+
+`vua_status` adds `data.build: {version, commit, dirty, builtAt}`. Electron Main uses the same
+build-info source as the desktop build; packaged Main embeds that identity at build time, and
+the development Main loads the build-info module when starting the adapter.
+
+`vua_library` returns only the first `imageUrls` entry per product, including a local row's
+`sourceMatch.product`. `includeImages: true` returns the complete image lists. This option and
+the task filters belong to the MCP adapter; the existing Gateway calls retain their parameters.
+
+The server advertises the MCP `resources` capability and these templates:
+
+| URI template | Read through Gateway | Content |
+| --- | --- | --- |
+| `vua://amf/runs/{runId}` | `amf.production.get` | Complete current run, including its `revision` and any `revisions` |
+| `vua://amf/runs/{runId}/release` | `amf.production.releaseState` | Complete current release state |
+
+`resources/templates/list` discovers the templates. `resources/list` reads existing lines from
+`amf.production.list`, returning at most 50 lines (100 resources) per page and a `nextCursor`
+for the next page. `resources/read {uri}` returns `contents: [{uri, mimeType: "application/json",
+text}]`, where `text` is the complete Gateway value serialized as JSON. A run ID contains 1–100
+ASCII letters, digits or hyphens; validation precedes Gateway dispatch. Each read observes current
+facts. Compare the run's revision between reads to detect intervening work. Resource contents
+share the 256 KiB result bound and authenticated local connection with tools. Resource failures
+use MCP protocol errors whose `data` carries the error fields below.
+
+`vua_amf_run` returns a summary plus a `resource_link` to its run URI. The summary retains phase,
+revision, progress, selection, source names, the latest 20 steps with their total count, recovery
+and result-fact counts. Each prefab has only `path`, `name`, `isAvatar` and `humanoidBoneCount`.
+SDK review retains its state, platform, overall rating, issue counts by level and category
+ratings. The optional `revisions` field passes through unchanged. Rendered previews follow the
+link as before. `vua_amf_release` returns turntable/editor state and the latest three upload
+summaries, their total count within the Gateway view, and a link to the release URI. Read the
+Resource for full checks, bindings, diagnostics and upload explanations.
+
+The report-shaped synthetic regression fixtures assert fewer than 10,000 UTF-8 bytes of text
+per default `vua_status`, `vua_tasks`, `vua_amf_run` and `vua_library` response. This measurement
+includes preview labels and excludes image bytes and the separate structured-content mirror.
+
+### Errors, change evidence and task source
+
+Every tool error has `isError: true`, with the same JSON body in text and `structuredContent`:
+
+| Field | Meaning |
+| --- | --- |
+| `error` | Stable adapter or Gateway application error code |
+| `message` | Gateway `params.detail` when present, otherwise the adapter's plain-language explanation; capped at 512 Unicode characters after removing absolute paths, URLs, credentials and control characters |
+| `nextAction` | Action to resolve the error or reread facts |
+| `mutationStarted` | `false`: MCP calls read facts or queue player approval |
+| `retryable` | Whether the same arguments may succeed after transient contention or connection failure clears |
+
+The adapter owns this conservative retry table:
+
+| Code | `retryable` |
+| --- | --- |
+| `gateway_unavailable`, `too_many_requests`, `vua.amf_production.busy` | `true` |
+| `connection_disabled`, `unsupported_tool_or_parameters`, `approval_not_found`, `approval_not_waiting` | `false` |
+| `review_pending_requests_first`, `installation_plan_changed`, `assembly_plan_changed`, `material_or_editor_no_longer_available` | `false` |
+| `recommendation_needs_player`, `result_too_large`, `request_failed`, `internal`, `invalid_request`, `unsupported_method` | `false` |
+| Every other code, including future application codes | `false` |
+
+`vua_task` and `vua_tasks` attach `change` to identified AMF production tasks:
+
+| Field | Evidence |
+| --- | --- |
+| `started` | `false` while queued; `true` for preparing/running/waiting/paused/success states, or a matching current run task ID; otherwise `null` |
+| `committed` | `true` for `succeeded` or `succeeded_with_warnings`; `false` for other known task states; otherwise `null` |
+| `checked` | For a successful task matched by the run's current task ID, whether the last recorded step is `inspect` or `reinspect` and succeeded; otherwise `null` |
+| `recovery` | For that matching run, `null` maps to `"none"`, `"restored"` to `"restored"`, and `"restore_failed: <code>"` to `"restore_failed"`; absent or unrecognized evidence maps to `null` |
+| `retrySafe` | For a failed task, `true` with evidence it is still queued or its change was restored; `false` when started with a known unrecovered result; otherwise `null`. Other known task states return `false` |
+
+Task evidence is joined using completed-task AMF payloads, approved dispatch receipts, the
+production lane and the current run's task ID. A read fetches at most 100 distinct runs.
+Unavailable, removed, superseded or out-of-bound run evidence stays unknown. A later task's run
+steps or recovery never stand in for an earlier task. `checked` describes the final Unity
+inspection step; its SDK findings remain in the run Resource.
+
+Each task also has `requestedBy`: `"ai_request"` for a task actually dispatched by this adapter
+after the player confirmed it; `"vua"` for the remaining tasks, including player actions and
+workshop automation. The adapter remembers the latest 256 such task IDs in memory. Approval
+queueing, rejection and cancellation of an existing task preserve its source. A restart or
+eviction returns the conservative `"vua"` attribution until a new confirmed dispatch occurs.
+
 Read-only tools run immediately. Each `vua_request_*` queues an immutable concrete draft in VUA.
 Installation and assembly drafts re-read their plan before being offered; digest drift rejects
 the proposal. The player sees the actual software/materials/targets and expected consequence.
@@ -117,6 +209,7 @@ clients, guarding against Node/browser dependency-resolution differences in the 
 
 ## Document changelog
 
+- 0.8.0 (2026-10-20): add bounded task summaries and filters, full run/release Resources, compact AMF/library reads, build identity, sanitized error envelopes, AMF change evidence and approved-request task attribution.
 - 0.7.0 (2026-10-19): read recorded VN3 terms through `vua_terms` and check one use across several products through `vua_terms_check`.
 - 0.6.0 (2026-10-19): expose metadata-only Unity license hints and historical check evidence through `vua_unity_license`.
 - 0.5.0 (2026-10-18): `vua_amf_plan` without a selection plans VUA's recommendation or returns the tied candidates.

@@ -364,7 +364,9 @@ impl Harness {
                 }),
             })
             .unwrap();
-        rx.recv_timeout(Duration::from_secs(5)).unwrap()
+        // CI runs these tests in parallel, each with its own task store; a synthetic job that
+        // finishes in milliseconds locally can take seconds there. A hung job still fails.
+        rx.recv_timeout(Duration::from_secs(60)).unwrap()
     }
     fn prepared(&self) {
         self.engine

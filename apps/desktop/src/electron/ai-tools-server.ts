@@ -304,7 +304,9 @@ export class AiToolsServer {
     for (const task of tasks) {
       const result = record(task.result) ? task.result : null;
       const known = this.aiTasks.get(String(task.taskId));
-      if (result?.operation === "amf.production" && isRunId(result.runId)) runIds.set(String(task.taskId), result.runId);
+      // Editor handoff completes with the Bridge's receipt rather than the generic AMF Done tag.
+      const handoff = result?.schemaVersion === "0.1" && typeof result.avatarSelected === "boolean" && typeof result.sdkPanelRequested === "boolean";
+      if ((result?.operation === "amf.production" || handoff) && isRunId(result?.runId)) runIds.set(String(task.taskId), result.runId);
       else if (known?.runId) runIds.set(String(task.taskId), known.runId);
     }
     let list: unknown;

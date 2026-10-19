@@ -143,7 +143,7 @@ The adapter owns this conservative retry table:
 | `recovery` | For that matching run, `null` maps to `"none"`, `"restored"` to `"restored"`, and `"restore_failed: <code>"` to `"restore_failed"`; absent or unrecognized evidence maps to `null` |
 | `retrySafe` | For a failed task, `true` with evidence it is still queued or its change was restored; `false` when started with a known unrecovered result; otherwise `null`. Other known task states return `false` |
 
-Task evidence is joined using completed-task AMF payloads, approved dispatch receipts, the
+Task evidence is joined using completed-task AMF payloads and Editor handoff receipts, approved dispatch receipts, the
 production lane and the current run's task ID. A read fetches at most 100 distinct runs.
 Unavailable, removed, superseded or out-of-bound run evidence stays unknown. A later task's run
 steps or recovery never stand in for an earlier task. `checked` describes the final Unity

@@ -408,6 +408,15 @@ describe("MCP result envelope", () => {
     expect(data(await client.callTool({ name: "vua_task", arguments: { taskId: "vua-task" } })).data).toMatchObject({ requestedBy: "vua" });
     expect((data(await client.callTool({ name: "vua_tasks" })).data as { tasks: unknown[] }).tasks).toEqual(expect.arrayContaining([expect.objectContaining({ taskId: actual.taskId, requestedBy: "ai_request" }), expect.objectContaining({ taskId: "vua-task", requestedBy: "vua" })]));
   });
+  it("recognizes a player's completed Editor handoff receipt without borrowing the earlier run's checks", async () => {
+    const handoff = task("player-open", "succeeded", { result: { schemaVersion: "0.1", runId: "n3-open", avatarSelected: true, sdkPanelRequested: true } });
+    const { client } = await setup(async request => envelope(request, request.method === "task.get" ? handoff : request.method === "task.list" ? { tasks: [handoff] }
+      : request.method === "amf.production.list" ? { runs: [{ runId: "n3-open" }] }
+      : { runId: "n3-open", taskId: "earlier-inspection", recovery: "restored", steps: [{ key: "inspect", state: "succeeded" }] }));
+    const expected = { requestedBy: "vua", change: { started: true, committed: true, checked: null, recovery: null, retrySafe: false } };
+    expect(data(await client.callTool({ name: "vua_task", arguments: { taskId: handoff.taskId } })).data).toMatchObject(expected);
+    expect(data(await client.callTool({ name: "vua_tasks" })).data).toMatchObject({ tasks: [expected] });
+  });
   it("keeps report-shaped default text reads under 10,000 UTF-8 bytes", async () => {
     const { client } = await setup(async request => envelope(request, request.method === "amf.production.previewImage" ? { mediaType: "image/png", data: "iVBORw0KGgoSYNTHETIC" }
       : request.method === "app.snapshot" ? reportStatus : request.method === "task.list" ? reportTasks

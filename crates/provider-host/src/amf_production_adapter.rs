@@ -552,6 +552,10 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 .bdl
                 .entry_copies(&entry.warehouse_item_id)
                 .map_err(|e| err("library_failed", e))?;
+            let products = self
+                .bdl
+                .product_ids_for_warehouse_item(&entry.warehouse_item_id)
+                .map_err(|e| err("library_failed", e))?;
             for copy in copies {
                 let path = PathBuf::from(&copy.stored_path);
                 if copy.role.name() != "original" || !path.is_file() {
@@ -573,6 +577,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
                         item_id: entry.warehouse_item_id.clone(),
                         item_name: entry.display_name.clone(),
                         name: copy.relative_path,
+                        product_ids: products.clone(),
                         path,
                         archive_member: None,
                     });
@@ -607,6 +612,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
                             item_id: entry.warehouse_item_id.clone(),
                             item_name: entry.display_name.clone(),
                             name: member.replace('\\', "/"),
+                            product_ids: products.clone(),
                             path: path.clone(),
                             archive_member: Some(member.into()),
                         });
@@ -1654,7 +1660,7 @@ mod tests {
     fn extracted_copies_of_offered_zip_members_are_listed_once() {
         let source = |id: &str, item: &str, name: &str, member: Option<&str>| ProductionSource {
             source_id: id.into(), item_id: item.into(), item_name: "Meiyun.zip".into(), name: name.into(),
-            path: PathBuf::from("x"), archive_member: member.map(Into::into),
+            product_ids: Vec::new(), path: PathBuf::from("x"), archive_member: member.map(Into::into),
         };
         let kept = drop_expanded_duplicates(vec![
             source("cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa", "whi-1", "Meiyun/Meiyun.unitypackage", Some("Meiyun/Meiyun.unitypackage")),
@@ -1699,6 +1705,7 @@ mod tests {
             item_id: "item-1".into(),
             item_name: "衣装".into(),
             name: "PC/衣装.unitypackage".into(),
+            product_ids: Vec::new(),
             path: zip_path.clone(),
             archive_member: Some("PC/衣装.unitypackage".into()),
         };

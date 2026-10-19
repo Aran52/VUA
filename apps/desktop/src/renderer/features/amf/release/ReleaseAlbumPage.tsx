@@ -15,6 +15,7 @@ import { onRequestRevealed } from "../../ai-requests/ai-request-reveal.ts";
 import { ReleaseAlbum, type AlbumSpread } from "./ReleaseAlbum.tsx";
 import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
+import { LineTerms } from "./LineTerms.tsx";
 import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
 import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
 import { VrchatAvatarShelf } from "./VrchatAvatarShelf.tsx";
@@ -223,7 +224,8 @@ function Album({ production, release, checksEnabled, onNavigate }: {
           onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
-        <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null} actions={{
+        <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null}
+          terms={live && list ? <LineTerms run={run} sources={list.sources} onOpenMaterials={() => onNavigate("warehouse")} /> : null} actions={{
           busy: ownWork(runId),
           uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
           otherWork,

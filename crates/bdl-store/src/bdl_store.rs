@@ -2277,6 +2277,26 @@ impl BdlStore {
         Ok(rows)
     }
 
+    /// BOOTH products a warehouse entry's copies map to, through download provenance and local
+    /// matches (artifact_mappings); the inverse of `warehouse_item_ids_for_product`.
+    pub fn product_ids_for_warehouse_item(
+        &self,
+        warehouse_item_id: &str,
+    ) -> Result<Vec<String>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare(
+            "SELECT DISTINCT am.product_id
+             FROM artifact_copies ac
+             JOIN artifact_mappings am ON ac.artifact_sha256 = am.artifact_sha256
+             WHERE ac.warehouse_item_id = ?1
+             ORDER BY am.product_id",
+        )?;
+        let rows = statement
+            .query_map([warehouse_item_id], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
     /// 库页逐文件下载链接观察(v0.4,N5 静默下载切片):一次库页同步落一批。
     /// 幂等:同 downloadable_id 重见只推进 last_seen_* 与 anchor_text(页面
     /// 词面可能随语言变),first_seen_at 永不重写;文件从后续库页消失不删行

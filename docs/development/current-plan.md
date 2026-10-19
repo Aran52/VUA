@@ -98,7 +98,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
 | 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
-| 41 | VN3 terms and filtering by use | P-02 | in progress: the backend (Aran52/VUA#31), the library drawer and the MCP reads (Aran52/VUA#37) are in; the release room's check across a line's materials remains |
+| 41 | VN3 terms and filtering by use | P-02 | built: the backend (Aran52/VUA#31), the library drawer and MCP reads (Aran52/VUA#37), and the release room's check (Aran52/VUA#38); the author's check with real products remains |
 | 42 | Labeled restore points | P-02 | planned; how many points a line keeps is the author's call (three proposed) |
 | 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
 | 44 | MCP payloads and identity | P-02 | planned |
@@ -693,9 +693,11 @@ VN3 1.10). BDL's `term_observations` table exists without a writer.
 The backend is in (Aran52/VUA#31, [terms v0.1](../protocols/terms-v0.1.md)). The library's product
 drawer shows each use's decision with its conditions, the creator's special note first and every
 item, with a read-again action; `vua_terms` and `vua_terms_check` give agents the same evidence
-(Aran52/VUA#37, [ai-tools 0.7.0](../protocols/ai-tools-v0.1.md)). Remaining: the release room's check
-across a finished line's materials, which first maps each source to its BOOTH product. A
-catalog-wide index built on VUA's servers waits for the author's decision.
+(Aran52/VUA#37, [ai-tools 0.7.0](../protocols/ai-tools-v0.1.md)). The release room checks a finished
+line's Avatar and outfits together for one use before the upload; each material source names the
+BOOTH products its library entry maps to (Aran52/VUA#38, [amf-production 0.24.0](../protocols/amf-production-v0.1.md)).
+Remaining: the author's check with real products, starting with Shinano. A catalog-wide index
+built on VUA's servers waits for the author's decision.
 
 **Done when** Shinano's terms read F as permitted with a content rating and R as contact the
 licensor, and an Avatar's materials are checked together for a chosen use.

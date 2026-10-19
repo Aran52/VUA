@@ -205,7 +205,7 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
     <section className="vua-page__hero"><h1 className="vua-title">{strings.unityLicense.title}</h1></section>
     <Card><UnityLicenseGuide /></Card>
   </div>
-</GatewayProvider> : release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release, ...(vrchatOfRelease ? { vrchat: vrchatOfRelease } : {}) }}>
+</GatewayProvider> : release ? <GatewayProvider gateway={{ ...gateway, amfProduction: release.production, amfRelease: release.release, terms: termsPreviewPort(view), ...(vrchatOfRelease ? { vrchat: vrchatOfRelease } : {}) }}>
   <ReleasePreview view={view} />
 </GatewayProvider> : view.startsWith("settings-") ? <GatewayProvider gateway={{ ...gateway, ...(settingsVrchat ? { vrchat: settingsVrchat } : {}) }}>
   <div className="vua-page" style={{ maxWidth: 760 }}>
@@ -220,5 +220,7 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
 
 // The items view opens the list of every VN3 item the way the player does.
 if (view === "terms-items") setTimeout(() => document.querySelector<HTMLElement>(".vua-terms__items summary")?.click(), 1200);
+// The terms view scrolls the sheet to the terms check the way the player does.
+if (view === "release-terms") setTimeout(() => document.querySelector<HTMLElement>(".vua-line-terms")?.scrollIntoView({ block: "center" }), 1800);
 // Mid-flight frame: the capture runs 2.5 s after load; the camera move takes 0.65 s.
 if (view === "map-flight") setTimeout(() => document.querySelector<HTMLElement>("[data-nav-id=door-workshop], [data-nav-id=room-workshop]")?.click(), 2200);

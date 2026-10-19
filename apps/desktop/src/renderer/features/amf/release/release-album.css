@@ -295,3 +295,19 @@
 /* Work of this Avatar waiting behind the running job. */
 .vua-release-upload__queued { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-1) var(--vua-space-3); padding: var(--vua-space-2) var(--vua-space-3); border: 1px dashed color-mix(in srgb, var(--room) 45%, var(--vua-border)); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--room) 6%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
 .vua-release-upload__queued > span { display: inline-flex; align-items: center; gap: 6px; color: var(--vua-text-strong); }
+
+/* The terms check of the line's materials: one use, the combined decision, then each product. */
+.vua-line-terms { display: grid; gap: 8px; min-width: 0; }
+.vua-line-terms p { margin: 0; overflow-wrap: anywhere; }
+.vua-line-terms__use { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vua-line-terms__use select { min-width: 0; max-width: 100%; padding: 4px 8px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control, 8px);
+  background: var(--vua-bg-elevated); color: inherit; font: inherit; }
+.vua-line-terms__overall { font-weight: 600; }
+.vua-line-terms__products { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.vua-line-terms__products li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--vua-border); }
+.vua-line-terms__products span { overflow-wrap: anywhere; }
+.vua-line-terms__products small { grid-column: 1 / -1; color: var(--vua-text-secondary); font: var(--vua-font-caption); overflow-wrap: anywhere; }
+.vua-line-terms [data-decision="conforms"] > strong, .vua-line-terms__overall[data-decision="conforms"] { color: var(--vua-success); }
+.vua-line-terms [data-decision="contact_licensor"] > strong, .vua-line-terms__overall[data-decision="contact_licensor"] { color: var(--vua-warning); }
+.vua-line-terms [data-decision="nonconforming"] > strong, .vua-line-terms__overall[data-decision="nonconforming"] { color: var(--vua-error); }
+.vua-line-terms [data-decision="unknown"] > strong, .vua-line-terms__overall[data-decision="unknown"] { color: var(--vua-text-secondary); }

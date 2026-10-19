@@ -221,8 +221,10 @@ function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrc
 }
 
 /** The right page. A turning page shows the same content without its controls. */
-export function ReleaseSheet({ run, state, number, live, actions, notice, avatarCheck, onRefreshAvatarCheck, onOpenOnVrchat }: {
+export function ReleaseSheet({ run, state, number, live, actions, notice, terms, avatarCheck, onRefreshAvatarCheck, onOpenOnVrchat }: {
   run: AmfProductionRun; state: AmfReleaseState | null; number: number; live: boolean; actions?: SheetActions; notice?: ReactNode;
+  /** The terms check of the line's materials, shown before the upload. */
+  terms?: ReactNode;
   avatarCheck?: VrchatAvatarCheck | null; onRefreshAvatarCheck?: () => void;
   /** Opens a finished upload's page on VRChat's site. */
   onOpenOnVrchat?: (avatarId: string) => void;
@@ -255,6 +257,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, avatar
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
     <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
+    {terms}
     {/* A queued upload is the notice alone; other queued work keeps the button, disabled. */}
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {live && actions?.queued && <QueuedNotice queued={actions.queued} />}

@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.25.0
+> Document version: 0.26.0
 > Status: Candidate
-> Updated: 2026-10-19
+> Updated: 2026-10-20
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -405,7 +405,8 @@ VRChat sign-in and the SDK's own ownership agreement stay inside the SDK; VUA re
 `sdkSignedIn` from its facts. An AI Agent requests an upload as a pending request that the player
 approves on the release page with the same rights confirmation (see [AI tools](ai-tools-v0.1.md)).
 The release page shows the SDK's own checks of the finished Avatar from the run facts
-(`sdkReview`, read by [Bridge v5](unity-bridge-v5.md) during inspection and assembly): the
+(`sdkReview`, read by [Bridge v5](unity-bridge-v5.md) during inspection and assembly, and again in
+the Editor when a managed upload ends, so an Auto Fix the player made in the SDK panel shows): the
 performance rank for the build target, the items the SDK refuses an upload with, its reminders,
 and the categories rated below Good. The upload confirmation names how many items the SDK
 refuses an upload with; the SDK's own check during the upload decides.
@@ -462,6 +463,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.26.0 (2026-10-20): a managed upload replaces the run's `sdkReview` with the SDK check the Editor reads once the upload ends.
 - 0.25.0 (2026-10-19): protected changes record replayable version records (`revisions`, at most 50 per line), `amf.production.revisionPlan` and `amf.production.restoreRevision` restore a recorded version by replaying its materials, assembly, lighting values and SDK fixes, and each line retains exactly one full-copy snapshot for failure and interruption recovery.
 
 - 0.24.0 (2026-10-19): each source in `amf.production.list` carries `productIds`, the BOOTH products its library entry maps to.

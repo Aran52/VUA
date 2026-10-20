@@ -441,12 +441,12 @@ describe("MCP result envelope", () => {
 });
 
 describe("run summary", () => {
-  it("names the newest revisions and counts the rest, which stay in the run Resource", () => {
+  it("passes complete revision records through unchanged and counts them", () => {
     const revisions = Array.from({ length: 50 }, (_, index) => ({ id: `rev-${50 - index}`, before: "assembly", takenAt: "2026-10-20T00:00:00Z", editedInUnity: false,
       summary: { avatar: "Meiyun", outfits: ["T-shirt", "Shorts"], sources: ["Meiyun_v2.1.0", "Amenbo T-shirt & Shorts"], lightingMaterials: 12, sdkFixes: [] } }));
     const summary = runSummary({ runId: "n3-a", phase: "succeeded", revisions }) as Record<string, unknown>;
     expect(summary.revisionCount).toBe(50);
-    expect(summary.revisions).toEqual(revisions.slice(0, 5));
+    expect(summary.revisions).toEqual(revisions);
     expect("revisions" in (runSummary({ runId: "n3-a", phase: "ready" }) as Record<string, unknown>)).toBe(false);
   });
 });

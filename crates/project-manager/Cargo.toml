@@ -23,7 +23,7 @@ md-5 = "=0.10.6"
 # `url::Url`. Same major ("2") as the library's own dependency; owner
 # environment domain, removal rides the adapter if the library API ever
 # stops needing it.
-tokio = { version = "1.53.1", default-features = false, features = ["rt-multi-thread", "fs"] }
+tokio = { version = "1.53.1", default-features = false, features = ["rt-multi-thread", "fs", "net"] }
 url = "2"
 vrc-get-vpm = { version = "=0.0.16", features = ["rustls", "vrc-get-litedb", "experimental-project-management"] }
 vua-orchestrator = { path = "../orchestrator" }

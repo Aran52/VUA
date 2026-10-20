@@ -90,7 +90,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
 | docs/protocols/unity-bridge-v5.md | 0.12.0 | Candidate | Production | 2026-10-20 |
-| docs/protocols/website-tests-v0.1.md | 0.3 | Candidate | Environment | 2026-10-11 |
+| docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |

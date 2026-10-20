@@ -13,7 +13,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-19 |
-| docs/protocols/ai-tools-v0.1.md | 0.7.0 | Candidate | Integration | 2026-10-19 |
+| docs/protocols/ai-tools-v0.1.md | 0.8.0 | Candidate | Integration | 2026-10-20 |
 | docs/protocols/amf-production-v0.1.md | 0.27.0 | Candidate | AMF | 2026-10-20 |
 | docs/protocols/amf-recipe-v0.4.md | 0.5.0 | Candidate | AMF | 2026-10-20 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |

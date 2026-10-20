@@ -3,7 +3,9 @@ import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
+import type { AiBuildIdentity } from "./ai-tool-results.js";
 import { aiConnectionStore, aiRequestStore } from "./ai-connection-store.js";
+declare const __VUA_BUILD_INFO__: AiBuildIdentity;
 import fs from "node:fs";
 import path from "node:path";
 import type {
@@ -1890,6 +1892,7 @@ app.whenReady().then(async () => {
   });
   aiTools = new AiToolsServer({
     version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage), ...aiRequestStore(app.getPath("userData")),
+    build: typeof __VUA_BUILD_INFO__ === "undefined" ? (await import("../../scripts/build-info.mjs")).buildInfo : __VUA_BUILD_INFO__,
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
       platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
       resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId),

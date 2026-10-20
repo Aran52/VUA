@@ -316,7 +316,9 @@ export class AiToolsServer {
       if (typeof entry.taskId === "string" && selectedIds.has(entry.taskId) && isRunId(entry.runId)) runIds.set(entry.taskId, entry.runId);
     }
     if (record(list) && Array.isArray(list.queue)) for (const entry of list.queue.filter(record)) if (typeof entry.taskId === "string") queued.add(entry.taskId);
-    const unresolved = new Set(tasks.filter(task => !runIds.has(String(task.taskId))).map(task => String(task.taskId)));
+    // Only tasks that name AMF work are worth looking up in the runs; other host tasks never are.
+    const amfError = (task: Record<string, unknown>) => record(task.error) && typeof task.error.code === "string" && task.error.code.includes("amf");
+    const unresolved = new Set(tasks.filter(task => !runIds.has(String(task.taskId)) && amfError(task)).map(task => String(task.taskId)));
     const candidates = [...new Set([...runIds.values(), ...(unresolved.size > 0 && record(list) && Array.isArray(list.runs) ? list.runs.filter(record).map(run => run.runId).filter(isRunId) : [])])].slice(0, MAX_TASK_RUN_READS);
     const runs = new Map<string, Record<string, unknown>>();
     for (const id of candidates) {

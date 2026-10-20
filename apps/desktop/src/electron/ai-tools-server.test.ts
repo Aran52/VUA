@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
-import { MCP_RETRYABLE_CODES, errorFields, safeErrorMessage, taskChange } from "./ai-tool-results.js";
+import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
 import { reportLibrary, reportRun, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
@@ -437,5 +437,16 @@ describe("MCP result envelope", () => {
       if (name === "vua_amf_run") expect(response.content?.filter(part => part.type === "image")).toHaveLength(12);
     }
     console.info("Synthetic MCP text bytes", JSON.stringify(sizes));
+  });
+});
+
+describe("run summary", () => {
+  it("names the newest revisions and counts the rest, which stay in the run Resource", () => {
+    const revisions = Array.from({ length: 50 }, (_, index) => ({ id: `rev-${50 - index}`, before: "assembly", takenAt: "2026-10-20T00:00:00Z", editedInUnity: false,
+      summary: { avatar: "Meiyun", outfits: ["T-shirt", "Shorts"], sources: ["Meiyun_v2.1.0", "Amenbo T-shirt & Shorts"], lightingMaterials: 12, sdkFixes: [] } }));
+    const summary = runSummary({ runId: "n3-a", phase: "succeeded", revisions }) as Record<string, unknown>;
+    expect(summary.revisionCount).toBe(50);
+    expect(summary.revisions).toEqual(revisions.slice(0, 5));
+    expect("revisions" in (runSummary({ runId: "n3-a", phase: "ready" }) as Record<string, unknown>)).toBe(false);
   });
 });

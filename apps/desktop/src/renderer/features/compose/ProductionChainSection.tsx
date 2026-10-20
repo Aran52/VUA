@@ -186,7 +186,6 @@ export function ProductionChainSection() {
       <div className="vua-page__stack">
         <section>
           <h3 className="vua-warehouse-detail__section-title">{copy.title}</h3>
-          <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
           <p className="vua-caption vua-text-secondary" role="status">
             {format(copy.recipeLine, {
               recipeId: chain.recipe?.recipeId ?? "",
@@ -198,7 +197,6 @@ export function ProductionChainSection() {
               {copy.staleWarning}
             </p>
           ) : null}
-          <p className="vua-caption vua-text-secondary">{copy.inspectionNote}</p>
         </section>
 
         <section>

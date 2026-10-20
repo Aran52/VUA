@@ -3,7 +3,7 @@ export const scenarioCopy = {
     title: "Prepare this scenario", intro: "You can read the steps, check the software, or prepare an installation plan separately.",
     sop: "Read the steps", check: "Check software only", plan: "Plan installation", checking: "Checking software…", done: "The software check is complete. Nothing was installed.",
     ready: "The required software was found. Continue with sign-in and the scenario steps.", missing: "Some software is missing or uncertain. Review an installation plan to see what to do next.",
-    license: "This checks software files, not your Unity license. You can install the Editor first; activate a license in Hub before your first production run.",
+    license: "Activate a Unity license in Hub before your first production run.",
     next: "What you should see", failed: "This information could not be read. Try again; no installation has started.", choose: "Which scenario's steps?", connection: "How will you connect PICO?", unspecified: "I haven't chosen yet", usb: "USB cable", wifi: "Wi-Fi",
     steps: {
       check: { title: "See what's already installed", explanation: "VUA checks for software it can reuse. It does not install anything.", result: "Installed, missing and uncertain software are listed separately." },
@@ -25,7 +25,7 @@ export const scenarioCopy = {
     title: "准备这个情景", intro: "可以单独看步骤、查软件，也可以单独准备安装计划。",
     sop: "先看怎么做", check: "只检查软件", plan: "准备安装计划", checking: "正在检查软件…", done: "软件检查结束了，刚才没有安装任何东西。",
     ready: "需要的软件找到了。接下来按步骤完成登录和连接。", missing: "有的软件缺少或还不确定，可以看看安装计划，了解下一步要做什么。",
-    license: "这里检查的是软件文件，没有检查 Unity 许可证。可以先安装编辑器，第一次制作前再到 Hub 激活许可证。",
+    license: "第一次制作前，在 Unity Hub 激活许可证。",
     next: "完成后会看到", failed: "刚才没能读取这项信息，请重试。还没有开始安装。", choose: "想看哪个情景的步骤？", connection: "PICO 打算怎么连接？", unspecified: "还没决定", usb: "USB 数据线", wifi: "Wi-Fi",
     steps: {
       check: { title: "看看电脑上已经有什么", explanation: "VUA 会找可以复用的软件，这一步不会安装任何东西。", result: "分别列出已安装、缺少和还不确定的软件。" },
@@ -47,7 +47,7 @@ export const scenarioCopy = {
     title: "このシナリオを準備", intro: "手順、ソフトの確認、インストール計画を個別に利用できます。",
     sop: "手順を読む", check: "ソフトだけ確認", plan: "インストール計画", checking: "ソフトを確認中…", done: "ソフトの確認が終わりました。インストールは行っていません。",
     ready: "必要なソフトが見つかりました。手順に沿ってログインや接続を進めてください。", missing: "不足または不確かなソフトがあります。インストール計画で次の操作を確認できます。",
-    license: "ソフトのファイルだけを確認し、Unity のライセンスは確認していません。Editor を先にインストールし、制作前に Hub でライセンスを有効化できます。",
+    license: "初めて制作する前に、Unity Hub でライセンスを有効化してください。",
     next: "完了すると", failed: "情報を取得できませんでした。再試行してください。インストールは始まっていません。", choose: "どのシナリオの手順ですか？", connection: "PICO の接続方法は？", unspecified: "まだ決めていません", usb: "USB ケーブル", wifi: "Wi-Fi",
     steps: {
       check: { title: "インストール済みソフトを探す", explanation: "再利用できるソフトを確認します。インストールはしません。", result: "インストール済み、不足、不確かなソフトを別々に表示します。" },
@@ -69,7 +69,7 @@ export const scenarioCopy = {
     title: "이 시나리오 준비", intro: "절차 읽기, 소프트웨어 확인, 설치 계획을 각각 사용할 수 있어요.",
     sop: "절차 먼저 보기", check: "소프트웨어만 확인", plan: "설치 계획", checking: "소프트웨어 확인 중…", done: "소프트웨어 확인이 끝났어요. 아무것도 설치하지 않았어요.",
     ready: "필요한 소프트웨어를 찾았어요. 절차에 따라 로그인과 연결을 진행하세요.", missing: "누락되거나 확실하지 않은 소프트웨어가 있어요. 설치 계획에서 다음 단계를 확인하세요.",
-    license: "소프트웨어 파일만 확인했으며 Unity 라이선스는 확인하지 않았어요. Editor를 먼저 설치하고 첫 제작 전에 Hub에서 라이선스를 활성화하세요.",
+    license: "첫 제작 전에 Unity Hub에서 라이선스를 활성화하세요.",
     next: "완료 후 보일 결과", failed: "정보를 읽지 못했어요. 다시 시도하세요. 설치는 시작하지 않았어요.", choose: "어떤 시나리오의 절차인가요?", connection: "PICO를 어떻게 연결할까요?", unspecified: "아직 정하지 않았어요", usb: "USB 데이터 케이블", wifi: "Wi-Fi",
     steps: {
       check: { title: "이미 설치된 것 찾기", explanation: "재사용할 소프트웨어를 확인해요. 설치는 하지 않아요.", result: "설치됨, 누락됨, 불확실함을 따로 표시해요." },

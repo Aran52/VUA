@@ -4,7 +4,7 @@ export const vrchatCopy = {
   en: {
     settings: {
       title: "Sign in to VRChat in VUA",
-      subtitle: "Experimental. Keep the VRChat sign-in in VUA; a managed upload then starts with the SDK panel already signed in.",
+      subtitle: "A managed upload starts with the SDK panel already signed in.",
       riskTitle: "About signing in to VRChat here",
       riskBody: "VRChat's terms ask every player to keep their account credentials to themselves. Signing in through VUA is a third-party sign-in, and VRChat may act on the account, up to closing it. VUA and VRChat Inc. are not affiliated.",
       riskKeep: "VRChat issues the session. VUA keeps it on this computer, encrypted, and uses it to sign in, to start the VRChat SDK in Unity signed in for your uploads, and to read your own Avatar list.",
@@ -27,7 +27,6 @@ export const vrchatCopy = {
         userLabel: "Username or email",
         passwordLabel: "Password",
         remember: "Remember my password",
-        rememberHint: "With the password remembered, VUA can sign in again by itself when VRChat ends the session; a verification code may still be asked for.",
         submit: "Sign in",
         working: "Signing in…",
       },
@@ -85,7 +84,7 @@ export const vrchatCopy = {
   "zh-CN": {
     settings: {
       title: "在 VUA 中登录 VRChat",
-      subtitle: "实验性。把 VRChat 登录留在 VUA；托管上传时 SDK 面板直接处于登录状态。",
+      subtitle: "托管上传时，SDK 面板直接处于登录状态。",
       riskTitle: "关于在这里登录 VRChat",
       riskBody: "VRChat 的条款要求玩家自己保管账号凭据。通过 VUA 登录属于第三方登录，VRChat 可能对账号做出处理，最重可至封号。VUA 与 VRChat 公司没有关联。",
       riskKeep: "会话由 VRChat 发放。VUA 把它加密保存在这台电脑上，用于登录、上传时让 Unity 里的 VRChat SDK 直接处于登录状态，以及读取你自己的 Avatar 列表。",
@@ -108,7 +107,6 @@ export const vrchatCopy = {
         userLabel: "用户名或邮箱",
         passwordLabel: "密码",
         remember: "记住密码",
-        rememberHint: "记住密码后，VRChat 结束会话时 VUA 可以自动重新登录；仍可能需要输入验证码。",
         submit: "登录",
         working: "正在登录…",
       },
@@ -166,7 +164,7 @@ export const vrchatCopy = {
   ja: {
     settings: {
       title: "VUA 内で VRChat にログインする",
-      subtitle: "実験的機能です。VRChat のログインを VUA に任せると、アップロード時に SDK パネルが最初からログイン済みになります。",
+      subtitle: "アップロード時に SDK パネルが最初からログイン済みになります。",
       riskTitle: "ここでログインするについて",
       riskBody: "VRChat の利用規約は、アカウントの認証情報を本人が管理するよう求めています。VUA 経由のログインは第三者によるログインであり、VRChat がアカウントに対して措置を取る場合があり、最大でアカウント停止に至ります。VUA は VRChat 社と提携していません。",
       riskKeep: "セッションは VRChat が発行します。VUA はこのパソコン上に暗号化して保存し、ログイン、アップロード時に Unity の VRChat SDK をログイン済みで開くこと、自分のアバター一覧の読み取りに使います。",
@@ -189,7 +187,6 @@ export const vrchatCopy = {
         userLabel: "ユーザー名またはメールアドレス",
         passwordLabel: "パスワード",
         remember: "パスワードを記憶する",
-        rememberHint: "パスワードを記憶しておくと、VRChat 側でセッションが終わったとき VUA が自分で再ログインできます。確認コードの入力を求められることがあります。",
         submit: "ログイン",
         working: "ログイン中…",
       },
@@ -247,7 +244,7 @@ export const vrchatCopy = {
   ko: {
     settings: {
       title: "VUA에서 VRChat 로그인",
-      subtitle: "실험적 기능입니다. VRChat 로그인을 VUA에 맡기면 업로드 때 SDK 패널이 처음부터 로그인된 상태로 시작합니다.",
+      subtitle: "업로드할 때 SDK 패널이 처음부터 로그인된 상태로 시작합니다.",
       riskTitle: "여기서 로그인하기에 대해",
       riskBody: "VRChat 이용약관은 계정 자격 증명을 직접 관리하도록 안내합니다. VUA를 통한 로그인은 제3자 로그인이며, VRChat이 계정에 조치를 취할 수 있고 최대 계정 정지까지 이어질 수 있습니다. VUA는 VRChat사와 제휴하지 않았습니다.",
       riskKeep: "세션은 VRChat이 발급합니다. VUA는 이 컴퓨터에 암호화하여 저장하고, 로그인, 업로드할 때 Unity의 VRChat SDK를 로그인된 상태로 여는 일, 내 아바타 목록 읽기에 사용합니다.",
@@ -270,7 +267,6 @@ export const vrchatCopy = {
         userLabel: "사용자 이름 또는 이메일",
         passwordLabel: "비밀번호",
         remember: "비밀번호 기억하기",
-        rememberHint: "비밀번호를 기억해 두면 VRChat이 세션을 끝냈을 때 VUA가 스스로 다시 로그인합니다. 인증 코드를 요구할 수 있습니다.",
         submit: "로그인",
         working: "로그인 중…",
       },

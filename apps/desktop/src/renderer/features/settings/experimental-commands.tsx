@@ -81,24 +81,14 @@ export function ExperimentalCommands() {
   return (
     <div className="vua-page__stack vua-exp-card">
       <header className="vua-exp-card__header">
-        <div>
-          <h2 className="vua-title">{copy.title}</h2>
-          <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
-        </div>
+        <h2 className="vua-title">{copy.title}</h2>
       </header>
-
-      <div className="vua-exp-card__warning" role="note">
-        ⚠ {copy.warning}
-      </div>
 
       {/* 行 1:生成 VPM 包替代(全局默认模式写面;bdl-commands v0.2) */}
       <section className="vua-exp-card__row">
         <div className="vua-exp-card__text">
           <strong>{copy.generateTitle}</strong>
           <p className="vua-caption vua-text-secondary">{copy.generateDesc}</p>
-          {effective.kind === "unknown" ? (
-            <p className="vua-caption vua-text-secondary">{copy.globalReadUnknown}</p>
-          ) : null}
           {feedback !== null ? (
             <p className="vua-caption vua-text-secondary" role="status">
               {feedback}
@@ -118,7 +108,6 @@ export function ExperimentalCommands() {
       <section className="vua-exp-card__row">
         <div className="vua-exp-card__text">
           <strong>{copy.downloadChecklistTitle}</strong>
-          <p className="vua-caption vua-text-secondary">{copy.downloadChecklistDesc}</p>
         </div>
         <Toggle
           on={checklist}
@@ -135,7 +124,6 @@ export function ExperimentalCommands() {
             <strong>{copy.deleteTitle}</strong>{" "}
             <Badge tone="error">{copy.deleteBadge}</Badge>
           </p>
-          <p className="vua-caption vua-text-secondary">{copy.deleteDesc}</p>
         </div>
         <Toggle
           on={deleteFlag}

@@ -18,7 +18,7 @@ export function DistributionPanel({ host = false }: { host?: boolean }) {
   const id = view.state === "interrupted" ? view.pendingManifestId ?? view.target?.manifestId : view.target?.manifestId;
   return <Card><div className="vua-page__stack">
     <h2 className="vua-title">{host ? copy.title : text("amf")}</h2>
-    {view.available ? <p>{format(copy.installed, { host: view.hostVersion ?? "", amf: TERMS.amf, module: view.amfVersion ?? "" })}</p> : <p className="vua-text-secondary">{copy.offline}</p>}
+    {view.available ? <p>{format(copy.installed, { host: view.hostVersion ?? "", amf: TERMS.amf, module: view.amfVersion ?? "" })}</p> : null}
     {view.target?.newer && view.target.compatible ? <><p>{format(copy.available, { amf: TERMS.amf, version: view.target.amfVersion })}</p><p className="vua-caption">{format(copy.size, { size: (view.target.downloadBytes / 1_048_576).toFixed(1) })}</p></> : view.target && !view.target.compatible ? <p>{text("incompatible")}</p> : view.target && view.state === "idle" ? <p>{text("current")}</p> : null}
     {view.state === "downloading" && progress ? <div role="status"><progress aria-label={copy.download} max={progress.total || 1} value={progress.completed} /><p>{format(copy.staging, { done: (progress.completed / 1_048_576).toFixed(1), total: (progress.total / 1_048_576).toFixed(1), speed: (progress.bytesPerSecond / 1_048_576).toFixed(1) })}</p>{progress.fullPack ? <p>{text("fallback")}</p> : null}</div> : null}
     {view.state === "staged" ? <p role="status">{copy.staged}</p> : null}

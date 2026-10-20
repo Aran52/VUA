@@ -36,6 +36,7 @@ export function ReleaseUploadDialog({ proposedName, avatarId, picture, requested
           <input id={nameId} value={name} maxLength={128} onChange={event => setName(event.target.value)} aria-describedby={`${nameId}-hint`} />
           <small id={`${nameId}-hint`} className="vua-text-secondary">{copy.dialog.nameHint}</small>
         </label> : <p>{format(copy.dialog.update, { id: avatarId })}</p>}
+        {avatarId === null && <p className="vua-text-secondary">{copy.upload.privateNote}</p>}
         <label className="vua-release-dialog__rights">
           <input type="checkbox" checked={rights} onChange={event => setRights(event.target.checked)} data-nav-id="release-rights" />
           <span>{copy.dialog.rights}</span>

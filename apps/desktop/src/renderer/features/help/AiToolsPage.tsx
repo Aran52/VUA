@@ -54,23 +54,22 @@ export function AiToolsPage({ navigate }: { navigate: (page: PageId) => void }) 
   };
   if (!port) return <Card><p role="status">{copy.unavailable}</p></Card>;
   return <div className="vua-ai-tools">
-    <p>{copy.intro}</p>
     <Card>
-      <h2>{copy.first}</h2><p>{copy.firstHint}</p>
+      <h2>{copy.first}</h2>
       <div className="vua-ai-tools__controls"><Button variant="primary" disabled={busy} onClick={() => { void act(async () => setSnapshot(await port.setEnabled(!snapshot?.enabled))); }}>{snapshot?.enabled ? copy.disable : copy.enable}</Button>
         <span role="status">{snapshot?.enabled ? copy.on : copy.off}</span></div>
       {snapshot?.endpoint ? <p className="vua-caption">{copy.endpoint}: <code>{snapshot.endpoint}</code> · {copy.clients}: {snapshot.connections}</p> : null}
       {error || snapshot?.error ? <p role="alert">{copy.error}</p> : null}
     </Card>
     {snapshot?.enabled ? <Card>
-      <h2>{copy.second}</h2><p>{copy.paste}</p>
+      <h2>{copy.second}</h2>
       <textarea className="vua-ai-tools__prompt" rows={12} readOnly aria-label={copy.second} value={prompt} />
       <Button disabled={busy || !prompt} onClick={() => { void act(async () => { await port.copyPrompt(currentLocale); setCopied(true); }); }}>{copy.copy}</Button>
       {copied ? <p role="status">{copy.copied}</p> : null}<p className="vua-caption">{copy.private}</p>
       <h3>{copy.third}</h3><p>{copy.thirdHint}</p>
     </Card> : null}
     <section ref={approvalSection} className="vua-ai-tools__requests" aria-label={copy.requests}>
-      <h2>{copy.requests}</h2><p>{snapshot?.requests.length ? copy.approvalHint : copy.noRequests}</p>
+      <h2>{copy.requests}</h2>{snapshot?.requests.length ? null : <p>{copy.noRequests}</p>}
       {[...(snapshot?.requests ?? [])].reverse().map(request => requestPage(request) === "help-ai"
         ? <AiRequestCard key={request.id} request={request} busy={busy}
           onResolve={decision => { void act(async () => setSnapshot(await port.resolve(request.id, decision))); }} />

@@ -196,16 +196,20 @@ function AmfExperimentalCommands() {
 
 function ExperimentalSettingsPage() {
   const copy = strings.settings.experimental;
+  const vrchat = useGateway().vrchat;
   return <div className="vua-page">
     <section className="vua-page__hero"><h1 className="vua-title">{strings.nav.pages.settingsExperimental}</h1></section>
     <AmfExperimentalCommands />
-    <Card><VrchatSignInSection /></Card>
+    {vrchat !== undefined ? <Card><VrchatSignInSection /></Card> : null}
     <Card><div className="vua-page__stack">
-      <h3>{copy.taskDiagnosticsTitle}</h3><p className="vua-text-secondary">{copy.taskDiagnosticsDesc}</p>
+      <h3>{copy.taskDiagnosticsTitle}</h3>
       <Button disabled={window.vua?.window === undefined} onClick={() => void window.vua?.window.showOverlay("status")} data-nav-id="experimental-task-diagnostics">{copy.taskDiagnosticsOpen}</Button>
     </div></Card>
   </div>;
 }
+
+/** VUA cannot tell yet whether SteamVR is running (issue #27), so the automatic saver option stays hidden. */
+const steamVRDetection = false;
 
 function ThemeSettingsPage({
   theme,
@@ -261,7 +265,6 @@ function ThemeSettingsPage({
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.hcHeading}</h2>
-          <p className="vua-text-secondary">{copy.hcDescription}</p>
           <div>
             <select
               className="vua-settings-select"
@@ -286,25 +289,20 @@ function ThemeSettingsPage({
             >
               {saverOn ? copy.saverTurnOff : copy.saverTurnOn}
             </Button>
-            <span className="vua-text-secondary">
-              {saverSource === "off"
-                ? copy.saverStateOff
-                : saverSource === "manual"
-                  ? copy.saverStateManual
-                  : copy.saverStateAuto}
-            </span>
+            {saverSource === "auto" ? <span className="vua-text-secondary">{copy.saverStateAuto}</span> : null}
           </div>
-          <label className="vua-settings-check">
-            <input
-              type="checkbox"
-              checked={saverAuto}
-              aria-label={copy.saverAutoAria}
-              onChange={(event) => onSaverAutoChange(event.target.checked)}
-            />
-            <span>{copy.saverAutoLabel}</span>
-          </label>
-          {/* 诚实标注:SteamVR 运行检测未接入(issue #27),接入前自动路径不生效 */}
-          <p className="vua-caption vua-text-secondary">{copy.saverAutoNote}</p>
+          {/* The SteamVR option shows once VUA can tell that SteamVR is running (issue #27). */}
+          {steamVRDetection ? (
+            <label className="vua-settings-check">
+              <input
+                type="checkbox"
+                checked={saverAuto}
+                aria-label={copy.saverAutoAria}
+                onChange={(event) => onSaverAutoChange(event.target.checked)}
+              />
+              <span>{copy.saverAutoLabel}</span>
+            </label>
+          ) : null}
         </div>
       </Card>
     </div>
@@ -376,13 +374,11 @@ function VersionDetails() {
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.heading}</h2>
           <p className="vua-page__version">{format(copy.versionLine, { version: __VUA_BUILD_INFO__.version })}</p>
-          <p className="vua-text-secondary">{copy.description}</p>
         </div>
       </Card>
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.updateHeading}</h2>
-          <p className="vua-text-secondary">{copy.updateDescription}</p>
           <label className="vua-settings-toggle">
             <input
               type="checkbox"
@@ -422,7 +418,6 @@ function VersionDetails() {
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.debugHeading}</h2>
-          <p className="vua-text-secondary">{copy.debugDescription}</p>
           <label className="vua-settings-toggle">
             <input
               type="checkbox"
@@ -436,7 +431,6 @@ function VersionDetails() {
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.diagnosticsHeading}</h2>
-          <p className="vua-text-secondary">{copy.diagnosticsDescription}</p>
           {exportFailed ? (
             <p className="vua-caption vua-text-secondary">{copy.diagnosticsFailed}</p>
           ) : null}
@@ -463,15 +457,7 @@ function AboutPage() {
       <VersionDetails />
       <Card>
         <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.heading}</h2>
-          <p className="vua-text-secondary">{format(copy.description, { amf: TERMS.amf })}</p>
-        </div>
-      </Card>
-      <Card>
-        <div className="vua-page__stack">
           <h2 className="vua-title">{copy.contributorsHeading}</h2>
-          <p className="vua-text-secondary">{copy.contributorsDescription}</p>
-          <p className="vua-caption vua-text-secondary">{copy.repoImpact}</p>
           {repoFailed ? (
             <p className="vua-caption vua-text-secondary">{copy.repoFailed}</p>
           ) : null}

@@ -18,7 +18,7 @@ const developingRoutes = [
   { id: "index", title: "Valve Index", brand: "valve" },
 ] as const;
 export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
-  const [selected, setSelected] = useState<PlayRoute | typeof developingRoutes[number]["id"] | null>(null);
+  const [selected, setSelected] = useState<PlayRoute | null>(null);
   const [deployment, setDeployment] = useState<Partial<Record<PlayRoute, DeploymentCardState>>>({});
   const live = usePlaySessions();
   const desktopState = useCallback((s: DeploymentCardState) => setDeployment(p => ({ ...p, desktop_play: s })), []);
@@ -53,17 +53,14 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
         {route === "pico_pcvr" ? <div className="vua-environment-connection"><h3>{copy.connection}</h3><GuideEntryButton target={GUIDE_TARGETS.picoUsb} label={strings.journey.usb} /><GuideEntryButton target={GUIDE_TARGETS.picoWifi} label={strings.journey.wifi} /></div> : null}
         <div className="vua-route-platform"><Button variant="primary" disabled={!!live.unavailable[route] || (!session?.canStop && !installed) || !!live.pending[route] || session?.state === "stopping" || !!deployment[route]?.busy} onClick={() => void live.act(route, !!session?.canStop)}>{session?.canStop ? copy.stop.replace("{name}", title(route)) : copy.launch}</Button>
           <Button onClick={onAccounts} data-nav-id={`play-accounts-${route}`}>{strings.journey.accounts}</Button><GuideEntryButton target={GUIDE_TARGETS.vrchatFirstLaunch} label={strings.journey.guide} /><Button onClick={() => void window.vua?.window.showGameGuide()}>{strings.journey.gameGuide}</Button></div>
-        <p className="vua-caption">{copy.closeHint}</p>{session?.state === "running" ? <p role="status">{copy.runningHint}</p> : null}
+        {session?.state === "running" ? <p role="status">{copy.runningHint}</p> : null}
       </section>
       {session?.issue && selected !== route ? <p className="vua-environment-notice" role="status">{copy.issues[session.issue]} <Button variant="subtle" onClick={() => open(route)}>{strings.journey.guide}</Button></p> : null}
       </div>;
     })}
     {developingRoutes.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>
-      <EnvironmentCard title={route.title} brand={route.brand} id={`route-${route.id}`} action="unknown" status="" developing selected={selected === route.id} onDetails={() => toggle(route.id)} />
-      <section id={`route-${route.id}-details`} className="vua-environment-detail" hidden={selected !== route.id} aria-label={route.title}>
-      <header className="vua-environment-heading"><h2>{route.title}</h2><Button variant="subtle" data-back onClick={() => setSelected(null)}>{copy.closeDetails}</Button></header>
-      <p>{strings.helpUi.developmentHint}</p>
-    </section></div>)}
+      <EnvironmentCard title={route.title} brand={route.brand} id={`route-${route.id}`} action="unknown" status="" developing />
+    </div>)}
     </div>
     <Button variant="subtle" className="vua-play-hardware" data-nav-id="play-hardware-help" onClick={() => openEncyclopedia(GUIDE_TARGETS.hardware)}>{strings.journey.identifyHardware}</Button>
     <RuntimeFactsPanel />

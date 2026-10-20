@@ -50,7 +50,7 @@ function TurntableBar({ run, state, busy, error, onBake }: { run: AmfProductionR
         <span className="vua-text-secondary">{formatDateTime(turntable.bakedAt)}</span>
         <button type="button" className="vua-release-upload__link" onClick={onBake} disabled={busy}>{copy.turntable.bakeAgain}</button>
       </> : <>
-        <span className="vua-text-secondary">{turntable ? copy.turntable.stale : state?.editorOpen ? copy.turntable.unityOpen : copy.turntable.bakeHint}</span>
+        {turntable || state?.editorOpen ? <span className="vua-text-secondary">{turntable ? copy.turntable.stale : copy.turntable.unityOpen}</span> : null}
         <button type="button" className="vua-album__bake" onClick={onBake} disabled={busy || state?.editorOpen}>{turntable ? copy.turntable.bakeAgain : copy.turntable.bake}</button>
       </>}
     {failed && <p className="vua-album__failed" role="alert">{copy.turntable.failed}{step?.detail ? <details><summary>{copy.upload.details}</summary><p>{step.detail}</p></details> : null}</p>}
@@ -250,7 +250,6 @@ function Album({ production, release, checksEnabled, onNavigate }: {
       <span className="vua-album__ornament" data-place="top" data-skin-slot="album-cover" />
       <Icon name="avatar" size={24} />
       <h2>{copy.emptyTitle}</h2>
-      <p className="vua-text-secondary">{copy.emptyHint}</p>
       <button type="button" className="vua-album__bake" onClick={() => onNavigate("workshop")}>{copy.toWorkshop}</button>
     </div>;
   }

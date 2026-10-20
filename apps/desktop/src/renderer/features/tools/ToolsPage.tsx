@@ -80,7 +80,6 @@ function ToolCardView({
       ) : null}
       {tool.homepage ? (
         <div className="vua-tool-card__actions">
-          <p className="vua-caption vua-text-secondary">{copy.openHomepageImpact}</p>
           {openFailed ? (
             <p className="vua-caption vua-text-secondary">{copy.openHomepageFailed}</p>
           ) : null}
@@ -136,12 +135,7 @@ export function ToolsPage({ page }: { page: ToolsPageId }) {
         </h1>
       </section>
       {view.kind !== "catalog" ? (
-        <>
-          <Card>
-            <p className="vua-text-secondary">{copy.cardFieldsNote}</p>
-          </Card>
-          <EmptyState title={copy.notConnectedTitle} description={pageCopy.description} />
-        </>
+        <EmptyState title={copy.notConnectedTitle} />
       ) : groups.length === 0 ? (
         <Card>
           <EmptyState

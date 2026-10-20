@@ -14,7 +14,7 @@ export const unityLicenseCopy = {
     locate: "If Hub doesn't list the Editor, use Installs → Locate and select the Unity.exe VUA installed. Keep the version {amf} requires, including the accepted C1 edition.",
     resume: "Return to {amf} and reinspect the retained work. VUA will read the actual project again; review a fresh plan before assembling. Your original materials remain in the library.",
     expected: "You should see: an active license in Hub, then an actual Unity preparation/check result in {amf}. Installed software alone does not prove this.",
-    account: "Open official registration", download: "Get Unity Hub", policy: "Personal eligibility", official: "Official activation guide", retry: "License not active yet", retryHint: "Unity stopped before it could inspect the materials. Activate a valid license in Hub, then reinspect this retained work.", open: "Registration and activation guide", noBypass: "Unity Personal is activated through Hub. Batch mode and installer CLI do not replace activation; VUA does not collect a license serial or account password.",
+    account: "Open official registration", download: "Get Unity Hub", policy: "Personal eligibility", official: "Official activation guide", retry: "License not active yet", retryHint: "Unity stopped before it could inspect the materials. Activate a valid license in Hub, then reinspect this retained work.", open: "Registration and activation guide",
   },
   "zh-CN": {
     status: { active: "Unity 许可证可用", activeDetail: "{date} 检查：Unity {version} 用许可证正常打开。", notActivated: "许可证还没激活",
@@ -31,7 +31,7 @@ export const unityLicenseCopy = {
     locate: "如果 Hub 没列出编辑器，在安装页选择“定位”，找到 VUA 已安装的 Unity.exe。保留 {amf} 要求的版本，包括已支持的 C1 版。",
     resume: "回到 {amf}，重新检查刚才保留的工作工程。VUA 会重新读取实际情况，装配前再确认一份新计划。素材库中的原文件仍然保留。",
     expected: "完成后应看到：Hub 中有激活的许可证，{amf} 中有实际的 Unity 准备或检查结果。仅显示软件已安装还不能证明这一步完成。",
-    account: "打开官方注册页面", download: "获取 Unity Hub", policy: "查看 Personal 适用条件", official: "官方激活说明", retry: "Unity 许可证还没激活", retryHint: "Unity 在检查素材前停下了。先在 Hub 激活有效许可证，再重新检查这份保留的工程。", open: "查看注册与激活引导", noBypass: "Personal 通过 Hub 激活。批处理模式和安装用的 CLI 不能代替激活，VUA 不接收许可证序列号或账号密码。",
+    account: "打开官方注册页面", download: "获取 Unity Hub", policy: "查看 Personal 适用条件", official: "官方激活说明", retry: "Unity 许可证还没激活", retryHint: "Unity 在检查素材前停下了。先在 Hub 激活有效许可证，再重新检查这份保留的工程。", open: "查看注册与激活引导",
   },
   ja: {
     status: { active: "Unity のライセンスは有効です", activeDetail: "{date} の確認：Unity {version} がライセンス付きで起動しました。", notActivated: "ライセンスが有効化されていません",
@@ -48,7 +48,7 @@ export const unityLicenseCopy = {
     locate: "Hub に Editor がなければインストール → 検索/Locate で VUA が入れた Unity.exe を選びます。対応する C1 版を含め、{amf} が必要とするバージョンを維持してください。",
     resume: "{amf} に戻り、保留した作業を再検査します。実際の状態を読み直すので、新しい計画を確認してから組み立ててください。元の素材はライブラリに残ります。",
     expected: "Hub に有効なライセンスが表示され、{amf} に実際の Unity の準備・検査結果が出ます。インストール済み表示だけでは完了ではありません。",
-    account: "公式登録ページ", download: "Unity Hub を入手", policy: "Personal の利用条件", official: "公式の有効化手順", retry: "Unity のライセンスが未有効です", retryHint: "素材を検査する前に Unity が停止しました。Hub でライセンスを有効化して保留した作業を再検査してください。", open: "登録・有効化の案内", noBypass: "Personal の有効化は Hub で行います。バッチモードやインストール用 CLI は代わりになりません。VUA はシリアルやパスワードを受け取りません。",
+    account: "公式登録ページ", download: "Unity Hub を入手", policy: "Personal の利用条件", official: "公式の有効化手順", retry: "Unity のライセンスが未有効です", retryHint: "素材を検査する前に Unity が停止しました。Hub でライセンスを有効化して保留した作業を再検査してください。", open: "登録・有効化の案内",
   },
   ko: {
     status: { active: "Unity 라이선스를 쓸 수 있어요", activeDetail: "{date} 확인: Unity {version}이(가) 라이선스로 정상 실행됐어요.", notActivated: "라이선스가 활성화되지 않았어요",
@@ -65,6 +65,6 @@ export const unityLicenseCopy = {
     locate: "Hub에 Editor가 없으면 설치 → Locate에서 VUA가 설치한 Unity.exe를 선택하세요. 지원되는 C1 버전을 포함해 {amf}가 요구하는 버전을 유지하세요.",
     resume: "{amf}로 돌아와 보관된 작업을 재검사하세요. 실제 상태를 다시 읽고 새 계획을 확인한 뒤 조립하세요. 원본 소재는 라이브러리에 남아요.",
     expected: "Hub에 활성 라이선스가 표시되고 {amf}에 실제 Unity 준비·검사 결과가 나와야 해요. 설치됨 표시만으로 이 단계가 완료되지는 않아요.",
-    account: "공식 가입 페이지", download: "Unity Hub 받기", policy: "Personal 이용 조건", official: "공식 활성화 안내", retry: "Unity 라이선스가 아직 활성화되지 않았어요", retryHint: "소재 검사 전에 Unity가 멈췄어요. Hub에서 유효한 라이선스를 활성화한 뒤 보관된 작업을 재검사하세요.", open: "가입·활성화 안내", noBypass: "Personal은 Hub에서 활성화해요. 배치 모드와 설치 CLI는 활성화를 대신하지 않아요. VUA는 라이선스 일련번호나 비밀번호를 받지 않아요.",
+    account: "공식 가입 페이지", download: "Unity Hub 받기", policy: "Personal 이용 조건", official: "공식 활성화 안내", retry: "Unity 라이선스가 아직 활성화되지 않았어요", retryHint: "소재 검사 전에 Unity가 멈췄어요. Hub에서 유효한 라이선스를 활성화한 뒤 보관된 작업을 재검사하세요.", open: "가입·활성화 안내",
   },
 };

@@ -33,7 +33,7 @@ export const useTermsCopy = {
     source: "VN3 {version} · read {date}", sourceBy: "{licensor} · VN3 {version} · read {date}", open: "Open the document",
     final: "VUA reads the creator's document to help you choose; the document itself is the final word.",
     line: {
-      title: "Terms for this Avatar", use: "Use", intro: "Every material of this Avatar is checked together; the strictest item decides.",
+      title: "Terms for this Avatar", use: "Use",
       none: "These materials are not linked to BOOTH products yet. Link them in Materials to check their terms.",
       unlinked: "{count} materials have no BOOTH product link; their terms stay unchecked.",
       special: "Special notes come before every item; read them in Materials.", library: "Open Materials",
@@ -81,7 +81,7 @@ export const useTermsCopy = {
     source: "VN3 {version} · {date} 读取", sourceBy: "{licensor} · VN3 {version} · {date} 读取", open: "打开文件",
     final: "VUA 读取作者的文件帮你判断，以作者文件本身为准。",
     line: {
-      title: "这个 Avatar 的条款", use: "用途", intro: "把这个 Avatar 的所有素材放在一起检查，以最严格的条目为准。",
+      title: "这个 Avatar 的条款", use: "用途",
       none: "这些素材还没有对应到 BOOTH 商品。在「素材」里关联后，就能检查它们的条款。",
       unlinked: "有 {count} 个素材没有对应的 BOOTH 商品，它们的条款没有检查。",
       special: "特记事项优先于所有条目，请在「素材」里阅读。", library: "打开「素材」",
@@ -129,7 +129,7 @@ export const useTermsCopy = {
     source: "VN3 {version} · {date} に読み取り", sourceBy: "{licensor} · VN3 {version} · {date} に読み取り", open: "ファイルを開く",
     final: "VUA は作者のファイルを読み取って判断を助けます。最終的には作者のファイルに従ってください。",
     line: {
-      title: "この Avatar の規約", use: "用途", intro: "この Avatar のすべての素材をまとめて確認し、いちばん厳しい項目に従います。",
+      title: "この Avatar の規約", use: "用途",
       none: "これらの素材はまだ BOOTH の商品と結びついていません。「素材」で結びつけると規約を確認できます。",
       unlinked: "{count} 件の素材は BOOTH の商品と結びついていないため、規約を確認していません。",
       special: "特記事項はすべての項目に優先します。「素材」で読んでください。", library: "「素材」を開く",
@@ -177,7 +177,7 @@ export const useTermsCopy = {
     source: "VN3 {version} · {date}에 읽음", sourceBy: "{licensor} · VN3 {version} · {date}에 읽음", open: "파일 열기",
     final: "VUA는 제작자의 파일을 읽어 판단을 돕고, 최종 기준은 제작자의 파일이에요.",
     line: {
-      title: "이 Avatar의 약관", use: "용도", intro: "이 Avatar의 모든 소재를 함께 확인하고, 가장 엄격한 항목을 따라요.",
+      title: "이 Avatar의 약관", use: "용도",
       none: "이 소재들은 아직 BOOTH 상품과 연결되지 않았어요. '소재'에서 연결하면 약관을 확인할 수 있어요.",
       unlinked: "소재 {count}개는 BOOTH 상품과 연결되지 않아 약관을 확인하지 않았어요.",
       special: "특기 사항이 모든 항목보다 우선해요. '소재'에서 읽어 주세요.", library: "'소재' 열기",

@@ -7,7 +7,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { Skeleton } from "../../components/primitives/Skeleton.tsx";
 import { useGateway, type AmfProductionList, type AmfProductionSource, type LibraryBrowserPort, type LibraryCardFacts } from "../../gateway/index.ts";
-import { format, strings } from "../../i18n/index.ts";
+import { strings } from "../../i18n/index.ts";
 import { buildStartChoices, groupOutfitsByFit } from "./materials-fit-model.ts";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import "./factory.css";
@@ -150,7 +150,6 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
             <p>{copy.notSourceHint}</p>
             <Button onClick={() => { onNavigate("asset-browser"); onClose(); }}>{copy.goToBrowse}</Button>
           </div> : <>
-            <p className="vua-start__hint">{format(copy.panelHint, { avatar: avatar.title ?? avatar.productId })}</p>
             {ready.items.length === 0 ? <p className="vua-caption vua-text-secondary">{copy.outfitEmpty}</p> : <>
               <h3 className="vua-start__group">{copy.outfits}</h3>
               {pick(fitted, true)}

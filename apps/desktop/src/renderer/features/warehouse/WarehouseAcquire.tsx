@@ -480,10 +480,7 @@ export function WarehouseAcquire() {
 
   if (view.kind === "not-connected") {
     return (
-      <EmptyState
-        title={copy.states.notConnectedTitle}
-        description={copy.states.notConnectedDescription}
-      />
+      <EmptyState title={copy.states.notConnectedTitle} />
     );
   }
 
@@ -534,10 +531,7 @@ export function WarehouseAcquire() {
           {view.entries.length === 0 ? (
             <EmptyState title={copy.entriesTitle} description={copy.entriesEmpty} />
           ) : shown.length === 0 ? (
-            <EmptyState
-              title={cloudCopy.states.emptyResultTitle}
-              description={cloudCopy.states.emptyResultDescription}
-            />
+            <EmptyState title={cloudCopy.states.emptyResultTitle} />
           ) : (
             <div className="vua-warehouse__wall" role="list">
               {shown.map((card) => (

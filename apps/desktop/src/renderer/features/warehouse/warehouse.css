@@ -482,19 +482,6 @@
   margin: 0;
 }
 
-/* 3D 预览占位槽:细虚线边框 + 面板底,诚实表达"规划中",不做假渲染 */
-.vua-warehouse-detail__preview3d {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 120px;
-  padding: var(--vua-space-3);
-  border: 1px dashed var(--vua-border);
-  border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-canvas) 60%, transparent);
-  text-align: center;
-}
-
 .vua-warehouse-detail__badges {
   display: flex;
   flex-wrap: wrap;

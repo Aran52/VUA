@@ -83,13 +83,13 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
   const current = screen.kind === "project" ? projects.find(project => project.key === screen.key) ?? null : null;
   return <div className="vua-page vua-control vua-control--packages" data-focus-scope>
     <header className="vua-control__head">
-      <div><h1 className="vua-title">{copy.title}</h1><p className="vua-text-secondary">{copy.intro}</p></div>
+      <h1 className="vua-title">{copy.title}</h1>
       <span className="vua-control__switch" role="group" aria-label={copy.viewLabel}>
         {(["projects", "repos"] as const).map(option => <button type="button" key={option} aria-pressed={option === "repos" ? screen.kind === "repos" : screen.kind !== "repos"}
           onClick={() => setScreen({ kind: option })}><Icon name={option === "projects" ? "folder" : "cloud"} size={16}/>{copy.views[option]}</button>)}
       </span>
     </header>
-    {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2><p className="vua-text-secondary">{copy.notConnectedHint}</p></div>
+    {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2></div>
       : screen.kind === "repos" ? <ReposScreen view={live} blocks={blocks!} repos={repos} catalog={catalog} onChanged={() => setCatalogReload(value => value + 1)}/>
       : current !== null ? <ProjectScreen key={current.key} project={current} blocks={blocks!} repos={repos} catalog={catalog} onBack={() => setScreen({ kind: "projects" })} onNavigate={onNavigate}/>
       : <ProjectsScreen projects={projects} loading={work === null || registered === null} registeredFailed={registeredFailed}
@@ -265,7 +265,7 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
       </div>}
       {installed.kind === "loading" ? <p role="status" className="vua-caption vua-text-secondary">{copy.loadingPackages}</p>
         : installed.kind === "failed" ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{format(copy.failed, { code: installed.code })}</p><Button onClick={() => setReload(value => value + 1)}>{strings.amfProduction.retry}</Button></div>
-        : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedHint}</p></div>
+        : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedTitle}</p></div>
         : <div className="vua-control__table" role="table" aria-label={format(copy.installedHeading, { count: rows.installed.length })}>
           <div className="vua-control__tr vua-control__th" role="row">
             <span role="columnheader">{pkg.columns.name}</span><span role="columnheader">{pkg.columns.installed}</span><span role="columnheader">{pkg.columns.latest}</span><span role="columnheader"><span className="vua-control__sr">{copy.actions}</span></span>
@@ -356,7 +356,7 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
   };
   return <section className="vua-control__screen" aria-label={copy.repos.title}>
     <div className="vua-control__stage-bar">
-      <div><h2>{copy.repos.title}</h2><p className="vua-caption vua-text-secondary">{copy.repos.hint}</p></div>
+      <h2>{copy.repos.title}</h2>
       {blocks.repoWrites && adding === "closed" && <Button onClick={() => setAdding("form")}><Icon name="add" size={16}/>{copy.repos.add}</Button>}
     </div>
     {notice !== null && <p className="vua-control__notice" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}><Icon name={notice.tone === "error" ? "warning" : "check"} size={16}/>{notice.text}</p>}
@@ -397,7 +397,7 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
       event.preventDefault();
       void run("local", () => gateway.packages.registerLocalPackage(localPath.trim()), copy.repos.localAdded).then(ok => { if (ok) setLocalPath(""); });
     }}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
-      <div><h3>{copy.repos.localTitle}</h3><p className="vua-caption vua-text-secondary">{copy.repos.localHint}</p></div>
+      <h3>{copy.repos.localTitle}</h3>
       <label>{copy.repos.localPath}<input type="text" value={localPath} placeholder="C:\Packages\com.example.tool" onChange={event => setLocalPath(event.target.value)}/></label>
       <Button type="submit" disabled={busy !== null || localPath.trim() === ""}>{copy.repos.localAdd}</Button>
     </form>}

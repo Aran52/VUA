@@ -44,10 +44,12 @@ export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
         </section>
       </div>
       <div className="vua-card-entry" data-card-entry="route-unity6">
-        <RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing selected={detail === "unity6"} expanded={detail === "unity6"} controls="route-unity6-details" onClick={() => toggle("unity6")} />
-        <section id="route-unity6-details" className="vua-environment-detail" hidden={detail !== "unity6"}>
-          {detailHeader(strings.journey.unity6)}<p>{strings.helpUi.developmentHint}</p>{unity6.map(editor => <p key={editor.path}><strong>Unity {editor.version}</strong><br /><code>{editor.path}</code></p>)}
-        </section>
+        {unity6.length ? <>
+          <RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing selected={detail === "unity6"} expanded={detail === "unity6"} controls="route-unity6-details" onClick={() => toggle("unity6")} />
+          <section id="route-unity6-details" className="vua-environment-detail" hidden={detail !== "unity6"}>
+            {detailHeader(strings.journey.unity6)}{unity6.map(editor => <p key={editor.path}><strong>Unity {editor.version}</strong><br /><code>{editor.path}</code></p>)}
+          </section>
+        </> : <RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing disabled />}
       </div>
       {others.map(e => {
         const selected = typeof detail === "object" && detail?.path === e.path;
@@ -59,7 +61,7 @@ export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
           </section>
         </div>;
       })}
-    </div>{failed || !busy && !inventory?.editorsKnown ? <p role="status">{copy.inventoryUnknown}</p> : !busy && !others.length && !unity6.length ? <p className="vua-caption">{copy.noEditors}</p> : null}</section>
+    </div>{failed || !busy && !inventory?.editorsKnown ? <p role="status">{copy.inventoryUnknown}</p> : null}</section>
     <section className="vua-environment-section"><h2>{copy.managers}</h2><div className="vua-route-grid vua-manager-grid">
       {(["unity_hub", "vcc", "alcom"] as const).map(app => {
         const found = inventory?.apps?.find(a => a.component === app);
@@ -67,7 +69,7 @@ export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
         return <div className="vua-card-entry" data-card-entry={`manager-${app}`} key={app}>
           <div className="vua-manager-card" data-manager={app}><RouteTile title={name(app)} kind={app === "unity_hub" ? "unity" : undefined} icon="folder" id={`manager-${app}`} selected={detail === app} expanded={detail === app} controls={`manager-${app}-details`} onClick={() => toggle(app)} /><span className="vua-manager-card__status" role="status">{status}</span></div>
           <section id={`manager-${app}-details`} className="vua-environment-detail" hidden={detail !== app}>
-            {detailHeader(name(app))}<p>{copy.managerHint}</p>{app !== "unity_hub" ? <p>{config(inventory?.[app] ?? null)}</p> : null}{found?.path ? <><h3>{copy.paths}</h3><code>{found.path}</code></> : null}<Button onClick={() => void openExternalUrl(official(app))}>{copy.official}</Button>
+            {detailHeader(name(app))}{app !== "unity_hub" ? <p>{config(inventory?.[app] ?? null)}</p> : null}{found?.path ? <><h3>{copy.paths}</h3><code>{found.path}</code></> : null}<Button onClick={() => void openExternalUrl(official(app))}>{copy.official}</Button>
           </section>
         </div>;
       })}

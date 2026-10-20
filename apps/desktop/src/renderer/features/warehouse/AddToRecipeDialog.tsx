@@ -57,7 +57,6 @@ export function AddToRecipeDialog({ open, onClose, selections }: {
   return <ContentDialog open={open} title={copy.title} closeLabel={strings.common.dialogClose} onClose={onClose}>
     <div className="vua-add-to-recipe">
       <p className="vua-caption vua-text-secondary">{copy.selectionLabel}: {preview}</p>
-      <p className="vua-caption vua-text-secondary">{copy.draftNote}</p>
       {loading && drafts === null ? <><Skeleton width="100%" height={36} /><Skeleton width="100%" height={36} /></>
         : failed ? <div role="alert"><p>{copy.loadFailed}</p><Button variant="default" onClick={() => setRefresh((value) => value + 1)}>{strings.warehouse.detail.retry}</Button></div>
         : drafts !== null && drafts.length > 0 ? <ul className="vua-add-to-recipe__list" role="list">{drafts.map((draft) => <li key={draft.draftId}>

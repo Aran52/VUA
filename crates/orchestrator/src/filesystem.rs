@@ -389,6 +389,30 @@ impl FileSystemProjectStore {
 
 pub struct FileSystemSnapshotStore;
 
+/// Removes a folder tree; read-only files, as Unity and Git leave some, are made writable first.
+pub(crate) fn remove_tree(path: &Path) -> io::Result<()> {
+    if fs::remove_dir_all(path).is_ok() || !path.exists() {
+        return Ok(());
+    }
+    let mut pending = vec![path.to_path_buf()];
+    while let Some(folder) = pending.pop() {
+        for entry in fs::read_dir(&folder)?.flatten() {
+            let entry_path = entry.path();
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                pending.push(entry_path);
+            } else if let Ok(metadata) = entry.metadata() {
+                let mut permissions = metadata.permissions();
+                if permissions.readonly() {
+                    #[allow(clippy::permissions_set_readonly_false)]
+                    permissions.set_readonly(false);
+                    let _ = fs::set_permissions(&entry_path, permissions);
+                }
+            }
+        }
+    }
+    fs::remove_dir_all(path)
+}
+
 impl FileSystemSnapshotStore {
     /// The snapshot identifier grammar, as a single public source: non-empty
     /// ASCII alphanumeric plus `-` and `_`. Snapshot ids become path segments
@@ -500,6 +524,54 @@ impl FileSystemSnapshotStore {
                 Err(error)
             }
         }
+    }
+
+    /// Deletes every snapshot directory under this project's `.vua/snapshots` except `keep`.
+    /// Each entry's name must pass the snapshot-identifier grammar and symlinks are never
+    /// followed or removed, so nothing outside the project's own snapshot directory can be
+    /// touched. Removal problems are returned as diagnostics; pruning never fails the caller.
+    pub fn prune_unreferenced(&self, project_root: &Path, keep: &str) -> Vec<String> {
+        let mut diagnostics = Vec::new();
+        if validate_identifier(keep).is_err() {
+            diagnostics.push(format!("snapshot id {keep} is invalid; nothing pruned"));
+            return diagnostics;
+        }
+        let directory = project_root.join(".vua/snapshots");
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return diagnostics,
+            Err(error) => {
+                diagnostics.push(format!("snapshot directory unreadable: {error}"));
+                return diagnostics;
+            }
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                diagnostics.push("a snapshot entry with a non-UTF-8 name was left in place".to_string());
+                continue;
+            };
+            if name == keep {
+                continue;
+            }
+            if validate_identifier(name).is_err() {
+                diagnostics.push(format!("snapshot entry {name} is not a snapshot identifier; left in place"));
+                continue;
+            }
+            let Ok(metadata) = fs::symlink_metadata(entry.path()) else {
+                diagnostics.push(format!("snapshot entry {name} could not be inspected; left in place"));
+                continue;
+            };
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                diagnostics.push(format!("snapshot entry {name} is not a plain directory; left in place"));
+                continue;
+            }
+            match remove_tree(&entry.path()) {
+                Ok(()) => diagnostics.push(format!("snapshot {name} pruned")),
+                Err(error) => diagnostics.push(format!("snapshot {name} could not be pruned: {error}")),
+            }
+        }
+        diagnostics
     }
 
     /// Restores a verified scope-limited snapshot. The manifest must be

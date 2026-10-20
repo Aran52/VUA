@@ -1,0 +1,9 @@
+{
+  "method": "amf.production.renameFit",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "fitId": "fit-1792224000000000000",
+    "name": "Hair Clip on Meiyun"
+  }
+}

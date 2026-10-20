@@ -1,0 +1,7 @@
+{
+  "method": "amf.production.listFits",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1"
+  }
+}

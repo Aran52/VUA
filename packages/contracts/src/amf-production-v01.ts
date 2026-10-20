@@ -8,6 +8,8 @@ export interface AmfOutfitSelection {
 }
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
+/** Which state of the line a revision recorded; `restore` is the protected current state. */
+export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "lighting" | "restore";
 export type AmfProductionCapacity = 1 | 2 | 3;
 /** The lilToon brightness limits of one material, as serialized in its file. */
 export interface AmfLightingLimits { readonly min: string; readonly max: string }
@@ -52,6 +54,13 @@ export type AmfProductionBodyV01 =
   /** Aligns the chosen reviewed materials' lilToon brightness limits with the Avatar's, behind a restore point. */
   | { readonly method: "amf.production.applyLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly materials: readonly string[] } }
   | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
+  | { readonly method: "amf.production.revisionPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string } }
+  | { readonly method: "amf.production.restoreRevision"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string; readonly planDigest: string } }
+  | { readonly method: "amf.production.listFits"; readonly params: { readonly schemaVersion: "0.1" } }
+  /** Saves the line's pending manual fit adjustments of one source under a name; synchronous, no task. */
+  | { readonly method: "amf.production.saveFit"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sourceId: string; readonly name: string; readonly changesDigest: string } }
+  | { readonly method: "amf.production.renameFit"; readonly params: { readonly schemaVersion: "0.1"; readonly fitId: string; readonly name: string } }
+  | { readonly method: "amf.production.deleteFit"; readonly params: { readonly schemaVersion: "0.1"; readonly fitId: string } }
   | { readonly method: "amf.production.prepare"; readonly params: { readonly schemaVersion: "0.1"; readonly sources: readonly AmfSourceChoice[]; readonly editorPath: string } }
   | { readonly method: "amf.production.plan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly selection: AmfAssemblySelection } }
   | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection } };
@@ -93,6 +102,10 @@ const roles: readonly string[] = ["auto", "avatar", "outfit", "dependency"];
 
 const count = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 const runId = (value: unknown): value is string => text(value, 100) && /^[A-Za-z0-9-]+$/u.test(value);
+/** A saved fit's identity: `fit-` plus 1 to 72 word characters. */
+const fitId = (value: unknown): value is string => typeof value === "string" && /^fit-[A-Za-z0-9_-]{1,72}$/u.test(value);
+/** A fit's player-given name: 1 to 80 characters on one line, with a non-whitespace character. */
+const fitName = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0 && [...value].length <= 80 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
 /** A UTC timestamp as VUA writes it, `YYYY-MM-DDTHH:MM:SS.fffZ`. */
 export function isAmfTimestamp(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$/u.test(value) && !Number.isNaN(Date.parse(value));
@@ -196,6 +209,22 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     case "amf.production.rollback":
       return exact(value, ["schemaVersion", "runId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
+    case "amf.production.revisionPlan":
+      return exact(value, ["schemaVersion", "runId", "revisionId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId);
+    case "amf.production.restoreRevision":
+      return exact(value, ["schemaVersion", "runId", "revisionId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId)
+        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
+    case "amf.production.listFits": return exact(value, ["schemaVersion"]);
+    case "amf.production.saveFit":
+      return exact(value, ["schemaVersion", "runId", "sourceId", "name", "changesDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && text(value.sourceId, 256) && fitName(value.name)
+        && typeof value.changesDigest === "string" && /^[a-f0-9]{64}$/u.test(value.changesDigest);
+    case "amf.production.renameFit":
+      return exact(value, ["schemaVersion", "fitId", "name"]) && fitId(value.fitId) && fitName(value.name);
+    case "amf.production.deleteFit":
+      return exact(value, ["schemaVersion", "fitId"]) && fitId(value.fitId);
     case "amf.production.prepare":
       return exact(value, ["schemaVersion", "sources", "editorPath"]) && text(value.editorPath) && Array.isArray(value.sources) && value.sources.length > 0 && value.sources.length <= 64
         && value.sources.every(source => record(source) && exact(source, ["sourceId", "role"]) && text(source.sourceId, 256) && typeof source.role === "string" && roles.includes(source.role))

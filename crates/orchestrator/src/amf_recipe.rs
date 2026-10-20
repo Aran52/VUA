@@ -1,6 +1,6 @@
 //! Candidate Recipe v0.4: portable declarations for the actual MA production path.
 //! Paid files and machine-local identities are never part of this document.
-use crate::amf_production::{production_error, AssemblySelection, BindingMode, OutfitSelection, ProductionRun};
+use crate::amf_production::{production_error, valid_lighting_value, AssemblySelection, BindingMode, FitObject, MaterialLighting, OutfitSelection, ProductionRun};
 use crate::AppErrorV1;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -31,7 +31,28 @@ pub struct RecipeOutfit {
     pub active: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// The saved fit of one material's garment: every adjusted object with its local Transform.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecipeFit {
+    pub material_id: String,
+    pub objects: Vec<FitObject>,
+}
+
+/// VUA's own adjustments to the assembled line, replayed after the Recipe's first assembly:
+/// the brightness limits written into each material, the SDK fixes run, named by the SDK's
+/// exact words, and the fits each garment received. Older Recipes carry no `adjustments`;
+/// the section is optional, as is `fits` inside it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecipeAdjustments {
+    pub lighting: Vec<MaterialLighting>,
+    pub sdk_fixes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fits: Vec<RecipeFit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProductionRecipe {
     pub format_version: String,
@@ -42,6 +63,8 @@ pub struct ProductionRecipe {
     pub avatar: RecipePrefab,
     pub outfits: Vec<RecipeOutfit>,
     pub packages: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjustments: Option<RecipeAdjustments>,
 }
 
 fn invalid(detail: impl Into<String>) -> AppErrorV1 { production_error("recipe_invalid", detail) }
@@ -49,6 +72,17 @@ fn label(text: &str, max: usize) -> bool { !text.trim().is_empty() && text.chars
 fn asset_path(path: &str) -> bool {
     path.len() <= 2048 && path.starts_with("Assets/") && path.ends_with(".prefab")
         && !path.contains(['\\', ':', '\0']) && path.split('/').all(|p| !p.is_empty() && p != "." && p != "..")
+}
+/// A material path in a Recipe's adjustments: the same grammar as a prefab path, for `.mat`.
+fn material_path(path: &str) -> bool {
+    path.len() <= 2048 && path.starts_with("Assets/") && path.ends_with(".mat")
+        && !path.contains(['\\', ':', '\0']) && path.split('/').all(|p| !p.is_empty() && p != "." && p != "..")
+}
+
+/// A fit object's path: empty names the garment instance root, otherwise a `/`-joined
+/// child-name path with no empty segments.
+fn fit_object_path(path: &str) -> bool {
+    path.chars().count() <= 512 && (path.is_empty() || path.split('/').all(|segment| !segment.is_empty()))
 }
 
 impl ProductionRecipe {
@@ -83,10 +117,29 @@ impl ProductionRecipe {
                 || version.is_empty() || version.len() > 80 || !version.bytes().all(|b| b.is_ascii_alphanumeric() || b".-+".contains(&b))) {
             return Err(invalid("Recipe dependencies require exact observed package versions."));
         }
+        if let Some(adjustments) = &self.adjustments {
+            if adjustments.lighting.len() > 512 || adjustments.sdk_fixes.len() > crate::amf_production::SDK_FIX_LIMIT {
+                return Err(invalid("Recipe adjustments exceed their bounds."));
+            }
+            if adjustments.lighting.iter().any(|entry| !material_path(&entry.material)
+                || !valid_lighting_value(&entry.min) || !valid_lighting_value(&entry.max)) {
+                return Err(invalid("Recipe lighting adjustments name bounded material paths and serialized values."));
+            }
+            if adjustments.sdk_fixes.iter().any(|fix| fix.is_empty() || fix.chars().count() > 600 || fix.contains('\0')) {
+                return Err(invalid("Recipe SDK fixes name the SDK's exact words."));
+            }
+            if adjustments.fits.len() > 64
+                || adjustments.fits.iter().any(|fit| fit.objects.len() > 2048
+                    || fit.material_id.len() != 66 || !fit.material_id.starts_with("m-")
+                    || !fit.material_id[2..].bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    || fit.objects.iter().any(|object| !fit_object_path(&object.path))) {
+                return Err(invalid("Recipe fits name materials by content hash with bounded object paths."));
+            }
+        }
         Ok(())
     }
 
-    pub fn from_run(run: &ProductionRun, recipe_id: &str, title: &str) -> Result<Self, AppErrorV1> {
+    pub fn from_run(run: &ProductionRun, recipe_id: &str, title: &str, adjustments: Option<RecipeAdjustments>) -> Result<Self, AppErrorV1> {
         let selection: AssemblySelection = serde_json::from_value(run.result["facts"]["observedSelection"].clone())
             .map_err(|_| production_error("recipe_scene_unverified", "Reinspect a successfully assembled Avatar before saving a Recipe."))?;
         let source_by_id = run.sources.iter().map(|s| (s.source_id.as_str(), s)).collect::<BTreeMap<_, _>>();
@@ -110,7 +163,7 @@ impl ProductionRecipe {
         }).collect::<Result<Vec<_>, AppErrorV1>>()?;
         let recipe = Self { format_version: "0.4".into(), recipe_id: recipe_id.into(), title: title.trim().into(), editor_version: run.editor.version.clone(),
             materials: materials.into_values().collect(), avatar: RecipePrefab { material_id: format!("m-{}", avatar_sources[0].sha256.strip_prefix("sha256:").unwrap_or(&avatar_sources[0].sha256)), prefab_path: selection.avatar_prefab },
-            outfits, packages: serde_json::from_value(run.result["packageVersions"].clone()).map_err(|_| invalid("No observed dependency versions."))? };
+            outfits, packages: serde_json::from_value(run.result["packageVersions"].clone()).map_err(|_| invalid("No observed dependency versions."))?, adjustments };
         recipe.validate()?;
         Ok(recipe)
     }

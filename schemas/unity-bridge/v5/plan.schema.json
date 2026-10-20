@@ -118,6 +118,99 @@
                   },
                   "active": {
                     "type": "boolean"
+                  },
+                  "fit": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "objects"
+                    ],
+                    "properties": {
+                      "objects": {
+                        "type": "array",
+                        "maxItems": 2048,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "path",
+                            "localPosition",
+                            "localRotation",
+                            "localScale"
+                          ],
+                          "properties": {
+                            "path": {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            "localPosition": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "x",
+                                "y",
+                                "z"
+                              ],
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "localRotation": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "x",
+                                "y",
+                                "z",
+                                "w"
+                              ],
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                },
+                                "w": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "localScale": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "x",
+                                "y",
+                                "z"
+                              ],
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }

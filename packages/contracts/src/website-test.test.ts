@@ -21,4 +21,18 @@ describe("website test contract", () => {
     expect(isWebsiteTestResult({ websiteTests: [{ ...row, status: "timeout", httpStatus: null }] })).toBe(true);
     expect(isWebsiteTestResult({ websiteTests: [{ ...row, elapsedMs: -1 }] })).toBe(false);
   });
+  it("accepts a regional row only with a complete regional measurement", () => {
+    const row = { url: "https://objectstorage.ap-tokyo-1.oraclecloud.com/", status: "http_error", elapsedMs: 21, httpStatus: 404 };
+    const regional = { medianMs: 28, p90Ms: 35, samples: 9, connections: 3, viaProxy: true };
+    expect(isWebsiteTestResult({ websiteTests: [{ ...row, regional }] })).toBe(true);
+    for (const malformed of [
+      { ...row, regional: { medianMs: 28, p90Ms: 35, samples: 9, connections: 3 } },
+      { ...row, regional: { medianMs: 28, p90Ms: 35, samples: 9, connections: 3, viaProxy: "yes" } },
+      { ...row, regional: { medianMs: -1, p90Ms: 35, samples: 9, connections: 3, viaProxy: true } },
+      { ...row, regional: { medianMs: 28, p90Ms: 35, samples: 0, connections: 3, viaProxy: true } },
+      { ...row, regional: { medianMs: 28.5, p90Ms: 35, samples: 9, connections: 3, viaProxy: true } },
+      { ...row, regional: null },
+      { ...row, detail: regional },
+    ]) expect(isWebsiteTestResult({ websiteTests: [malformed] })).toBe(false);
+  });
 });

@@ -135,6 +135,24 @@ pub fn rfc3339(time: SystemTime) -> String {
     )
 }
 
+/// Formats a `SystemTime` as RFC 3339 UTC with exactly seven fractional digits, matching
+/// .NET's round-trip ("o") format so a plain string comparison orders both writings.
+pub fn rfc3339_100ns(time: SystemTime) -> String {
+    let duration = time.duration_since(UNIX_EPOCH).unwrap_or_default();
+    let ticks = (duration.as_nanos() / 100) as i64;
+    let fraction = ticks.rem_euclid(10_000_000);
+    let seconds = ticks.div_euclid(10_000_000);
+    let days = seconds.div_euclid(86_400);
+    let seconds_of_day = seconds.rem_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{fraction:07}Z",
+        hour = seconds_of_day / 3_600,
+        minute = (seconds_of_day % 3_600) / 60,
+        second = seconds_of_day % 60,
+    )
+}
+
 /// Reads a UTC timestamp in the form [`rfc3339`] writes (`YYYY-MM-DDTHH:MM:SS[.fff]Z`) as
 /// milliseconds since the Unix epoch.
 pub fn rfc3339_millis(text: &str) -> Option<i64> {
@@ -259,6 +277,15 @@ mod tests {
         assert_eq!(
             rfc3339(UNIX_EPOCH + Duration::from_millis(1_789_849_019_770)),
             "2026-09-19T20:16:59.770Z"
+        );
+    }
+
+    #[test]
+    fn formats_seven_fractional_digits_like_a_dotnet_round_trip_stamp() {
+        assert_eq!(rfc3339_100ns(UNIX_EPOCH), "1970-01-01T00:00:00.0000000Z");
+        assert_eq!(
+            rfc3339_100ns(UNIX_EPOCH + Duration::new(951_782_400, 123_456_700)),
+            "2000-02-29T00:00:00.1234567Z"
         );
     }
 

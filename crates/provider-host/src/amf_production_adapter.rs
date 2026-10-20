@@ -72,6 +72,13 @@ fn ensure_repo(
     Ok(())
 }
 
+/// Optional payloads one Bridge v5 request may carry beyond the selection.
+struct BridgeExtras<'a> {
+    apply_target: Option<&'a vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
+    sdk_fixes: Option<&'a [String]>,
+    fits: &'a [OutfitFit],
+}
+
 impl NativeAmfProduction {
     fn start_unity_hub(&self) {
         let launch = self.unity_hub.as_ref().and_then(|finding| crate::unity_hub::hub_launch(&finding().facts));
@@ -213,7 +220,7 @@ impl NativeAmfProduction {
         selection: Option<&AssemblySelection>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_with_target(run, operation, selection, None, watch)
+        self.bridge_with_target(run, operation, selection, None, &[], watch)
     }
     fn bridge_with_target(
         &self,
@@ -221,9 +228,10 @@ impl NativeAmfProduction {
         operation: UnityOperation,
         selection: Option<&AssemblySelection>,
         apply_target: Option<&vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
+        fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, operation, selection, apply_target, None, watch)
+        self.bridge_request(run, operation, selection, BridgeExtras { apply_target, sdk_fixes: None, fits }, watch)
     }
     /// One Bridge v5 run: the request file, the command and the observed result.
     fn bridge_request(
@@ -231,10 +239,10 @@ impl NativeAmfProduction {
         run: &ProductionRun,
         operation: UnityOperation,
         selection: Option<&AssemblySelection>,
-        apply_target: Option<&vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
-        sdk_fixes: Option<&[String]>,
+        extras: BridgeExtras<'_>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
+        let BridgeExtras { apply_target, sdk_fixes, fits } = extras;
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         clear_stale_lock(Path::new(&run.project_root));
@@ -246,6 +254,20 @@ impl NativeAmfProduction {
             run.run_id,
             super::provider_host::uuid_v7_identity()
         );
+        // Outfits with a resolved fit carry their objects into the plan file.
+        let selection = selection
+            .map(|selection| serde_json::to_value(selection).map_err(|e| err("request_invalid", e)))
+            .transpose()?
+            .map(|mut value| {
+                if let Some(outfits) = value["outfits"].as_array_mut() {
+                    for outfit in outfits {
+                        if let Some(fit) = fits.iter().find(|fit| Some(fit.source_id.as_str()) == outfit["sourceId"].as_str()) {
+                            outfit["fit"] = serde_json::json!({"objects": fit.objects});
+                        }
+                    }
+                }
+                value
+            });
         let mut request = serde_json::json!({"schemaVersion":"0.1","runId":run.run_id,
             "sources":run.sources.iter().map(|s| serde_json::json!({"sourceId":s.source_id,"role":s.role,"assetPaths":s.asset_paths})).collect::<Vec<_>>(),
             "selection":selection});
@@ -764,14 +786,15 @@ impl AmfProductionPlatform for NativeAmfProduction {
         &self,
         run: &ProductionRun,
         selection: &AssemblySelection,
+        fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         self.verify_assembly_sources(run)?;
-        self.bridge(run, UnityOperation::AmfAssemble, Some(selection), watch)
+        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), None, fits, watch)
     }
-    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, fits: &[OutfitFit], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.verify_assembly_sources(run)?;
-        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), Some(target), watch)
+        self.bridge_with_target(run, UnityOperation::AmfAssemble, Some(selection), Some(target), fits, watch)
     }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         reject_editor_lock(project)?;
@@ -818,6 +841,18 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 },
             )
             .map_err(|e| err("restore_failed", e))
+    }
+    fn source_content_hash(&self, source_id: &str) -> Result<Option<String>, AppErrorV1> {
+        let Some(source) = self.sources()?.into_iter().find(|source| source.source_id == source_id) else {
+            return Ok(None);
+        };
+        let path = self.package_path(&source)?;
+        vua_unity_bridge::material_exec::sha256_file(&path)
+            .map(Some)
+            .map_err(|e| err("source_unreadable", e))
+    }
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+        FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn open(
         &self,
@@ -868,7 +903,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         ))
     }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfSdkFix, None, None, Some(fixes), watch)
+        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { apply_target: None, sdk_fixes: Some(fixes), fits: &[] }, watch)
     }
     fn turntable(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge(run, UnityOperation::AmfTurntable, None, watch)

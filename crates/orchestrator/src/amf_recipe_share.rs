@@ -9,7 +9,7 @@ fn error(code: &str, detail: impl Into<String>) -> AppErrorV1 { production_error
 fn io(error: impl std::fmt::Display) -> AppErrorV1 { production_error("recipe_store_failed", error.to_string()) }
 pub fn valid_booth_id(id: &str) -> bool { !id.is_empty() && id.len() <= 20 && !id.starts_with('0') && id.bytes().all(|b| b.is_ascii_digit()) }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SharedRecipe {
     pub format_version: String,

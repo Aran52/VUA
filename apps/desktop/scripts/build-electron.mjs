@@ -4,6 +4,7 @@ import path from "node:path";
 import { readFileSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { assertBundledRuntime } from "./bundled-runtime.mjs";
+import { buildInfo } from "./build-info.mjs";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.resolve(desktop, "../..");
@@ -15,6 +16,7 @@ for (const entry of ["main", "preload"]) {
   await build({
     configFile: false,
     publicDir: false,
+    define: { __VUA_BUILD_INFO__: JSON.stringify(buildInfo) },
     root: desktop,
     resolve: { conditions: ["node"], alias: {
       // Some Node adapters use bare builtins. Normalize these before Vite's

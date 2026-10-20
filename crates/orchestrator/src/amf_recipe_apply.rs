@@ -1,5 +1,5 @@
 //! Reviewed Recipe overlays onto a retained, actually observed Avatar.
-use crate::amf_production::{production_error, validate_selection_subset, AmfProductionEngine, AssemblySelection, ProductionRun};
+use crate::amf_production::{production_error, validate_selection_subset, AmfProductionEngine, AssemblySelection, FitRef, ProductionRun};
 use crate::amf_recipe::ProductionRecipe;
 use crate::{AppErrorV1, TaskContext};
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,10 @@ pub struct RecipeApplyPlan {
     pub recipe_selection: AssemblySelection,
     pub current_selection: AssemblySelection,
     pub targets: Vec<RecipeAvatarTarget>,
+    /// The fits the application would apply per garment: the Recipe's own (no identity)
+    /// or a stored fit matching the garment and Avatar.
+    #[serde(default)]
+    pub fits: Vec<FitRef>,
 }
 
 impl RecipeApplyPlan {
@@ -102,6 +106,16 @@ impl AmfProductionEngine {
         let stored = self.get_recipe(recipe_id)?;
         let recipe: ProductionRecipe = serde_json::from_value(stored.recipe.clone()).map_err(|_| invalid("Invalid stored Recipe."))?;
         let mut plan = compare_recipe(&run, &recipe, avatar_id)?;
+        // Fits apply to whichever selection the choice assembles; cover both outfits sets.
+        let recipe_fits = recipe.adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
+        let mut fits = self.planned_fits(&run, &plan.recipe_selection, recipe_fits);
+        for outfit in &plan.current_selection.outfits {
+            if !fits.iter().any(|fit| fit.source_id == outfit.source_id) {
+                let single = AssemblySelection { avatar_prefab: plan.current_selection.avatar_prefab.clone(), outfits: vec![outfit.clone()] };
+                fits.extend(self.planned_fits(&run, &single, recipe_fits));
+            }
+        }
+        plan.fits = fits.iter().map(|fit| FitRef { source_id: fit.source_id.clone(), fit_id: fit.fit_id.clone(), name: fit.name.clone() }).collect();
         plan.plan_digest = Sha256::digest(serde_json::to_vec(&json!({
             "operation":"apply_recipe", "run":run, "recipe":stored, "comparison":plan,
         })).map_err(|_| invalid("Could not bind the Recipe comparison."))?).iter().map(|byte| format!("{byte:02x}")).collect();
@@ -116,11 +130,17 @@ impl AmfProductionEngine {
         if plan.plan_digest != digest {
             return Err(production_error("plan_drift", "The Recipe or Avatar changed. Review their differences again."));
         }
+        let recipe: ProductionRecipe = serde_json::from_value(self.get_recipe(recipe_id)?.recipe)
+            .map_err(|_| invalid("Invalid stored Recipe."))?;
         let selection = plan.selection(choice)?;
         let run = self.get(run_id)?;
         validate_selection_subset(&run, &selection)?;
         let target = plan.target(choice, &selection);
-        self.execute_assembly(run, selection, digest, Some(target), false, ctx)
+        let recipe_fits = recipe.adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
+        let fits = self.planned_fits(&run, &selection, recipe_fits);
+        self.execute_assembly(run, crate::amf_production::AssemblyExecution {
+            selection, digest, target: Some(target), rebuild: false, adjustments: recipe.adjustments, fits,
+        }, ctx)
     }
 }
 
@@ -200,7 +220,7 @@ fn compare_recipe(run: &ProductionRun, recipe: &ProductionRecipe, avatar_id: Opt
         avatar_name: targets.iter().find(|target|target.global_object_id == selected_id).expect("verified target").name.clone(),
         avatar_global_object_id: selected_id.into(), plan_digest: String::new(), conflicts,
         retained_outfits: current.outfits.iter().filter(|o| !incoming.outfits.iter().any(|n| n.source_id == o.source_id)).count(),
-        overlay_blocker: blocker, recipe_selection: incoming, current_selection: current, targets,
+        overlay_blocker: blocker, recipe_selection: incoming, current_selection: current, targets, fits: Vec::new(),
     })
 }
 
@@ -228,7 +248,7 @@ mod tests {
         }).collect() };
         run.result=json!({"facts":{"avatarGlobalObjectId":"GlobalObjectId_V1-test-avatar", "avatarName":"My Avatar", "observedSelection":selection,"usedSourceIds":["avatar","coat","hat"]},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
-        let mut recipe=ProductionRecipe::from_run(&run,"recipe-overlay","A new coat switch").unwrap();
+        let mut recipe=ProductionRecipe::from_run(&run,"recipe-overlay","A new coat switch",None).unwrap();
         recipe.outfits.truncate(1);
         recipe.materials.retain(|m| m.sha256!="c".repeat(64));
         recipe.outfits[0].toggle_name="New coat".into(); recipe.outfits[0].active=false;
@@ -291,7 +311,7 @@ mod tests {
         run.sources[2].role=SourceRole::Dependency;
         run.result["facts"]["observedSelection"]["outfits"].as_array_mut().unwrap().truncate(1);
         run.result["facts"]["usedSourceIds"]=json!(["avatar","coat"]);
-        let recipe=ProductionRecipe::from_run(&run,"recipe-current-avatar","Only this Avatar").unwrap();
+        let recipe=ProductionRecipe::from_run(&run,"recipe-current-avatar","Only this Avatar",None).unwrap();
         assert_eq!(recipe.materials.len(),2);
         assert!(!recipe.materials.iter().any(|m|m.sha256=="c".repeat(64)));
     }

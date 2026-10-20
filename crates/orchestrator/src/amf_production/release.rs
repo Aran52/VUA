@@ -110,6 +110,9 @@ pub struct UploadReceipt {
     pub errors: Vec<String>,
     /// `vua_session` or `panel`; how the SDK panel reached its sign-in.
     pub sdk_sign_in: Option<String>,
+    /// The SDK's Avatar check read again in the Editor after the upload, so an Auto Fix the
+    /// player made in the SDK panel reaches the line's facts. Only a `checked` or `partial` review.
+    pub sdk_review: Option<serde_json::Value>,
 }
 
 /// VRChat Avatar IDs: `avtr_` and a lowercase or uppercase hexadecimal UUID.
@@ -417,6 +420,11 @@ impl AmfProductionEngine {
         entry.ended_at = Some(SystemClock.now_rfc3339());
         let result = match outcome {
             Ok(receipt) => {
+                if let Some(review) = receipt.sdk_review.filter(|review| matches!(review["state"].as_str(), Some("checked" | "partial"))) {
+                    if run.result["facts"].is_object() {
+                        run.result["facts"]["sdkReview"] = review;
+                    }
+                }
                 let reason = receipt.reason.filter(|reason| UPLOAD_REASONS.contains(&reason.as_str()));
                 entry.detail = bounded_text(&receipt.detail, MAX_DETAIL_CHARS);
                 entry.errors = receipt.errors.iter().take(MAX_ERRORS).map(|error| bounded_text(error, 500)).collect();

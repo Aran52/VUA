@@ -19,7 +19,7 @@ const host = createDesktopOrchestratorProvider({ role: "host", executablePath: p
 let activated = false;
 const provider = new ModuleProvider({ host, enabled: false, persist: () => {}, createAmf: () => { activated = true; throw new Error("AMF must remain absent"); } });
 const token = randomBytes(32).toString("base64url");
-const mcp = new AiToolsServer({ version: "0.6.7-local", port: 0, load: () => ({ enabled: false, token }), save: () => {},
+const mcp = new AiToolsServer({ version: "0.6.7-local", build: {version: "0.6.7-local", commit: "synthetic", dirty: false, builtAt: "2026-10-20T00:00:00.000Z"}, port: 0, load: () => ({ enabled: false, token }), save: () => {},
   invoke: request => routeDesktopGatewayInvoke({ provider, productVersion: "0.6.7-local", platform: "win32", rendererUrl: "http://127.0.0.1/internal-test",
     resolveMaterialSource: () => undefined }, "http://127.0.0.1/internal-test", request) });
 let client, transport;

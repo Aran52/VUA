@@ -1,0 +1,7 @@
+{
+  "method": "amf.production.listFits",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1"
+  }
+}

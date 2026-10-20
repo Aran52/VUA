@@ -232,6 +232,43 @@
       ],
       "detail": ""
     },
-    "sdkFixesApplied": []
+    "sdkFixesApplied": [],
+    "fitChanges": [
+      {
+        "sourceId": "source-outfit",
+        "moved": [
+          {
+            "path": "HairClip",
+            "localPosition": {
+              "x": 0.12,
+              "y": 0.03,
+              "z": 0
+            },
+            "localRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "localScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        ],
+        "missing": [
+          "OldHook"
+        ]
+      }
+    ],
+    "fitSkipped": [
+      {
+        "sourceId": "source-accessory",
+        "paths": [
+          "Clips#2"
+        ]
+      }
+    ]
   }
 }

@@ -36,6 +36,10 @@ export interface AmfProductionRun {
   readonly snapshotId: string | null;
   /** Recorded states of the line, newest first; absent on runs made before revisions. */
   readonly revisions?: readonly AmfProductionRevisionSummaryItem[];
+  /** Pending manual fit adjustments per source, with the digest they save under; absent when the engine does not track them. */
+  readonly fitChanges?: readonly AmfProductionFitChanges[];
+  /** Saved fits that match a source of this run; absent when the engine does not report them. */
+  readonly availableFits?: readonly AmfProductionAvailableFit[];
   /** When assembly finished the Avatar. */
   readonly completedAt?: string | null;
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
@@ -74,6 +78,8 @@ export interface AmfProductionPlan {
   readonly inputs: readonly { readonly sourceId: string; readonly name: string; readonly role: "avatar" | "outfit" | "import_only" }[];
   /** Assembling rebuilds the line on another Avatar prefab, behind a restore point. */
   readonly rebuild?: boolean;
+  /** The saved fit the plan applies per source, when one is known; `null` names no fit. Absent when the engine does not report fits. */
+  readonly fits?: readonly { readonly sourceId: string; readonly fitId: string | null; readonly name: string | null }[];
 }
 export interface AmfProductionAccepted { readonly runId: string; readonly taskId: string }
 export interface AmfSavedRecipe { readonly recipe: AmfRecipeDocument; readonly revision: number; readonly updatedAt: string }
@@ -101,6 +107,28 @@ export interface AmfProductionRevisionPlan {
     readonly materials?: readonly { readonly material: string; readonly min: string; readonly max: string }[];
     readonly fixes?: readonly string[] }[];
 }
+/** One object's saved local-Transform adjustment of a garment on an Avatar. */
+export interface AmfFitObject {
+  readonly path: string;
+  readonly localPosition: { readonly x: number; readonly y: number; readonly z: number };
+  readonly localRotation: { readonly x: number; readonly y: number; readonly z: number; readonly w: number };
+  readonly localScale: { readonly x: number; readonly y: number; readonly z: number };
+}
+/** One source's pending manual fit adjustments of a run, with the digest they save under. */
+export interface AmfProductionFitChanges {
+  readonly sourceId: string; readonly moved: readonly AmfFitObject[]; readonly missing: readonly string[]; readonly changesDigest: string;
+}
+/** One saved fit that matches a source of a run. */
+export interface AmfProductionAvailableFit { readonly sourceId: string; readonly fitId: string; readonly name: string }
+/** One saved fit as the list of fits reports it, with the garment and Avatar it belongs to. */
+export interface AmfFitSummary {
+  readonly fitId: string; readonly name: string; readonly createdAt: string; readonly updatedAt: string;
+  readonly garment: { readonly sha256: string; readonly prefabPath: string; readonly name: string };
+  readonly avatar: { readonly sha256: string; readonly prefabPath: string; readonly name: string };
+  readonly objectCount: number;
+}
+/** The saved fit as its saving reports it. */
+export interface AmfFitSaved { readonly fitId: string; readonly name: string; readonly createdAt: string; readonly updatedAt: string }
 /** The reviewed lilToon brightness alignment of an assembled line. */
 export interface AmfLightingPlan {
   readonly runId: string; readonly planDigest: string;
@@ -154,6 +182,14 @@ export interface AmfProductionPort {
   revisionPlan(runId: string, revisionId: string): Promise<AmfProductionRevisionPlan>;
   /** Restores the line to the reviewed revision, behind a restore point of the current state. */
   restoreRevision(runId: string, plan: AmfProductionRevisionPlan): Promise<AmfProductionAccepted>;
+  /** Saves the line's pending manual fit adjustments of one source under a name; synchronous, no task. */
+  saveFit(runId: string, sourceId: string, name: string, changesDigest: string): Promise<AmfFitSaved>;
+  /** Lists every saved fit with the garment and Avatar it belongs to. */
+  listFits(): Promise<readonly AmfFitSummary[]>;
+  /** Renames a saved fit; synchronous, no task. */
+  renameFit(fitId: string, name: string): Promise<{ readonly fitId: string; readonly name: string }>;
+  /** Deletes a saved fit; synchronous, no task. */
+  deleteFit(fitId: string): Promise<void>;
   open(runId: string): Promise<AmfProductionAccepted>;
   /** A `data:image/png` URL for one preview the run reports. */
   previewImage(runId: string, path: string): Promise<string>;
@@ -184,6 +220,14 @@ const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "s
 const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
   && (v.avatar === null || text(v.avatar)) && texts(v.outfits) && texts(v.sources)
   && Number.isSafeInteger(v.lightingMaterials) && Number(v.lightingMaterials) >= 0 && texts(v.sdkFixes);
+const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const fitVector = (v: unknown): boolean => record(v) && finite(v.x) && finite(v.y) && finite(v.z);
+const fitObject = (v: unknown): v is AmfFitObject => record(v) && text(v.path)
+  && fitVector(v.localPosition) && fitVector(v.localScale)
+  && record(v.localRotation) && finite(v.localRotation.x) && finite(v.localRotation.y) && finite(v.localRotation.z) && finite(v.localRotation.w);
+const fitMaterial = (v: unknown): boolean => record(v) && text(v.sha256) && /^[a-f0-9]{64}$/u.test(v.sha256) && text(v.prefabPath) && text(v.name);
+const planFits = (v: unknown): boolean => v === undefined || (Array.isArray(v)
+  && v.every(f => record(f) && text(f.sourceId) && (f.fitId === null || text(f.fitId)) && (f.name === null || text(f.name))));
 export function isAmfSdkReview(v: unknown): v is AmfSdkReview {
   return record(v) && ["checked", "partial", "unavailable", "not_run"].includes(String(v.state))
     && ["pc", "android", ""].includes(String(v.platform)) && (v.overall === "" || v.overall === "None" || ratings.includes(String(v.overall)))
@@ -225,6 +269,11 @@ const runChecks: readonly (readonly [string, (v: Record<string, unknown>) => boo
   ["revisions", v => v.revisions === undefined || (Array.isArray(v.revisions)
     && v.revisions.every(r => record(r) && text(r.id) && text(r.takenAt) && revisionKinds.includes(String(r.before))
       && typeof r.editedInUnity === "boolean" && revisionSummary(r.summary)))],
+  ["fitChanges", v => v.fitChanges === undefined || (Array.isArray(v.fitChanges)
+    && v.fitChanges.every(f => record(f) && text(f.sourceId) && Array.isArray(f.moved) && f.moved.every(fitObject)
+      && texts(f.missing) && text(f.changesDigest) && /^[a-f0-9]{64}$/u.test(f.changesDigest)))],
+  ["availableFits", v => v.availableFits === undefined || (Array.isArray(v.availableFits)
+    && v.availableFits.every(f => record(f) && text(f.sourceId) && text(f.fitId) && text(f.name)))],
   ["result", v => result(v.result)],
 ];
 /** The first part of a run the renderer cannot read, or null when the run is valid. */
@@ -339,7 +388,8 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       const v = await call({ method: "amf.production.plan", params: { schemaVersion: "0.1", runId, selection } });
       if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || typeof v.planDigest !== "string" || !/^[a-f0-9]{64}$/u.test(v.planDigest) || !Array.isArray(v.inputs)
         || !isAmfAssemblySelection(v.selection) || v.preserveOriginals !== true || v.officialSdkChecks !== "not_run" || !editor(v.editor) || !text(v.projectRoot)
-        || !v.inputs.every(i => record(i) && text(i.sourceId) && text(i.name) && ["avatar", "outfit", "import_only"].includes(String(i.role)))) throw new Error("amf_production_plan_invalid");
+        || !v.inputs.every(i => record(i) && text(i.sourceId) && text(i.name) && ["avatar", "outfit", "import_only"].includes(String(i.role)))
+        || !planFits(v.fits)) throw new Error("amf_production_plan_invalid");
       return v as unknown as AmfProductionPlan;
     },
     async assemble(runId, plan) { return accepted(await call({ method: "amf.production.assemble", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, selection: plan.selection } }), strings.amfProduction.assembling); },
@@ -389,6 +439,29 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async restoreRevision(runId, plan) {
       if (plan.runId !== runId) throw new Error("amf_production_revision_plan_invalid");
       return accepted(await call({ method: "amf.production.restoreRevision", params: { schemaVersion: "0.1", runId, revisionId: plan.revisionId, planDigest: plan.planDigest } }), strings.amfProduction.restoring);
+    },
+    async saveFit(runId, sourceId, name, changesDigest) {
+      const v = await call({ method: "amf.production.saveFit", params: { schemaVersion: "0.1", runId, sourceId, name, changesDigest } });
+      if (!record(v) || v.schemaVersion !== "0.1" || !text(v.fitId) || !/^fit-[A-Za-z0-9_-]{1,72}$/u.test(v.fitId)
+        || v.name !== name || !text(v.createdAt) || !text(v.updatedAt)) throw new Error("amf_production_save_fit_invalid");
+      return { fitId: v.fitId, name: v.name as string, createdAt: v.createdAt, updatedAt: v.updatedAt };
+    },
+    async listFits() {
+      const v = await call({ method: "amf.production.listFits", params: { schemaVersion: "0.1" } });
+      if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.fits)
+        || !v.fits.every(f => record(f) && text(f.fitId) && text(f.name) && text(f.createdAt) && text(f.updatedAt)
+          && fitMaterial(f.garment) && fitMaterial(f.avatar)
+          && Number.isSafeInteger(f.objectCount) && Number(f.objectCount) >= 0)) throw new Error("amf_production_fit_list_invalid");
+      return v.fits as unknown as readonly AmfFitSummary[];
+    },
+    async renameFit(fitId, name) {
+      const v = await call({ method: "amf.production.renameFit", params: { schemaVersion: "0.1", fitId, name } });
+      if (!record(v) || v.schemaVersion !== "0.1" || v.fitId !== fitId || v.name !== name) throw new Error("amf_production_rename_fit_invalid");
+      return { fitId, name };
+    },
+    async deleteFit(fitId) {
+      const v = await call({ method: "amf.production.deleteFit", params: { schemaVersion: "0.1", fitId } });
+      if (!record(v) || v.schemaVersion !== "0.1" || v.fitId !== fitId) throw new Error("amf_production_delete_fit_invalid");
     },
     async previewImage(runId, path) {
       const v = await call({ method: "amf.production.previewImage", params: { schemaVersion: "0.1", runId, path } });

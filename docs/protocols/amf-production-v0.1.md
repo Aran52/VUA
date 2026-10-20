@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.26.0
+> Document version: 0.27.0
 > Status: Candidate
 > Updated: 2026-10-20
 > Owner: AMF
@@ -48,6 +48,10 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
 | `amf.production.planLighting` | Query | `runId` | Digest-bound lilToon brightness alignment: the Avatar's reference limits, the outfit entries that differ and the shared materials left alone |
 | `amf.production.applyLighting` | Command | `runId`, `planDigest`, `materials` | Durable task acceptance; aligns the chosen reviewed materials behind a restore point and rechecks the project in Unity |
+| `amf.production.listFits` | Query | none | Retained saved fits: name, times, object count and the garment/Avatar content identities each belongs to |
+| `amf.production.saveFit` | Command | `runId`, `sourceId`, `name`, `changesDigest` | The stored fit; binds the reviewed `fitChanges` entry, a stale review is refused as `plan_drift` |
+| `amf.production.renameFit` | Command | `fitId`, `name` | The renamed fit |
+| `amf.production.deleteFit` | Command | `fitId` | The deleted `fitId` |
 
 Roles: `auto`, `avatar`, `outfit`, `dependency`. The player path starts with `auto` sources.
 Unity discovers actual prefabs. `recommendAssembly` in the contracts package starts the plan with a
@@ -213,6 +217,42 @@ version taken before a line's first assembly has no selection. A final Unity ins
 restored project. Any failed step names itself and restores the full copy taken before the replay.
 A run whose change VUA interrupted mid-step must be reinspected or restored through `rollback`
 first; replay review answers `inspect_required` there.
+
+### Saved fits
+
+After every successful assembly the Bridge records a **fit baseline** in the work project
+(`.vua/amf-fit-baseline.json`): every object of each assembled garment instance with its local
+position, rotation and scale, addressed by a path relative to the garment instance root
+(`/` separated child names, `name#n` for the n-th same-name sibling, empty for the root itself).
+The prefab's own offsets are part of the baseline. Inspections and every save of the work scene
+in the Editor compare the current local Transforms against the baseline; an object counts as
+moved past 0.0001 units of position or scale, or 0.01° of rotation. Moved objects are reported as
+`fitChanges` per garment with their new local Transforms; paths whose object the player deleted
+are listed separately as `missing` and are not errors. `amf.production.get` carries the current
+`fitChanges` — the newer of the last inspection's facts and the Editor's scene-save report, each
+entry with its `changesDigest` — and the `availableFits` each selected outfit can use.
+
+`saveFit` stores the garment's overall state — the baseline with the reviewed moves folded in and
+the missing paths dropped — as a named **fit** under `fits/` in AMF's production data root,
+independent of any line. The `changesDigest` binds the exact reported changes; a stale review is
+refused as `plan_drift`. A fit's identity is the garment source's content SHA-256 and prefab path
+together with the Avatar source's content SHA-256 and prefab path, so another line with the same
+Avatar and the same garment content recognises it, while changed content or another Avatar never
+matches. Saving again for the same identity updates the fit in place, keeping its `fitId`. Names
+are a single line of 1–80 characters; the default is the garment's item name plus `For` plus the
+Avatar's name, without whitespace (`HairClipForMeiyun`). At most 500 fits are retained, each with
+at most 2048 objects. Saving updates the baseline to the saved state and clears the garment's
+reported changes. `renameFit` and `deleteFit` manage retained fits. None of the four methods
+starts Unity or enters the line's Unity queue.
+
+Every assembly plan — a fresh plan, a Recipe application and a version-record replay — lists the
+fits that apply per outfit (`fits: [{sourceId, fitId, name}]`), and the plan digest binds their
+content. Assembly sends each fit's objects to the Bridge, which writes them into the new instance
+by path; paths the prefab no longer has are skipped and reported, never a failure. The baseline
+is recorded after application, so an applied fit is not itself reported as a move. A version
+record carries the fits its state was assembled with, and a restore replays that recorded content
+even after the fit itself changed or was deleted. Recipes carry fits in `adjustments.fits`; a
+Recipe's fits take precedence over stored fits for the garments they name.
 
 ## Progress, stop and continue
 
@@ -463,6 +503,7 @@ N3's complex real-material gate or player visual acceptance. N3/N4 acceptance re
 
 ## Document changelog
 
+- 0.27.0 (2026-10-20): saved fits keep the player's per-object local-Transform adjustments of a garment on an Avatar and re-apply them whenever the same garment content meets the same Avatar content; adds `amf.production.listFits`, `saveFit`, `renameFit` and `deleteFit`, run-view `fitChanges` and `availableFits`, and plan `fits`.
 - 0.26.0 (2026-10-20): a managed upload replaces the run's `sdkReview` with the SDK check the Editor reads once the upload ends.
 - 0.25.0 (2026-10-19): protected changes record replayable version records (`revisions`, at most 50 per line), `amf.production.revisionPlan` and `amf.production.restoreRevision` restore a recorded version by replaying its materials, assembly, lighting values and SDK fixes, and each line retains exactly one full-copy snapshot for failure and interruption recovery.
 

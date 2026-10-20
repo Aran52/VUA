@@ -48,7 +48,7 @@ impl AmfProductionPlatform for ReleasePlatform {
     fn create_project(&self, _: &ProductionRun, _: &TaskContext) -> Result<(), AppErrorV1> { unused() }
     fn import_sources(&self, _: &ProductionRun, _: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> { unused() }
     fn inspect(&self, _: &ProductionRun, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> { unused() }
-    fn assemble(&self, _: &ProductionRun, _: &AssemblySelection, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> { unused() }
+    fn assemble(&self, _: &ProductionRun, _: &AssemblySelection, _: &[OutfitFit], _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> { unused() }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         fs::read_to_string(project.join("Assets/state")).map_err(|e| production_error("test_io", e.to_string()))
     }

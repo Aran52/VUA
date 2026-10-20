@@ -86,6 +86,24 @@ pub struct WebsiteObservation {
     pub status: NetworkStatus,
     pub elapsed_ms: u64,
     pub http_status: Option<u16>,
+    /// Present only on a successful measurement of a fixed regional reference.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regional: Option<RegionalMeasurement>,
+}
+
+/// Multi-connection statistics for one fixed regional reference. `elapsed_ms`
+/// carries the minimum sample; these fields carry the spread and the proxy flag.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RegionalMeasurement {
+    pub median_ms: u64,
+    /// Nearest-rank 90th percentile of the kept samples.
+    pub p90_ms: u64,
+    pub samples: u32,
+    pub connections: u32,
+    /// The origin resolved into a proxy fake-IP range or an environment proxy
+    /// applies to the URL, so the route is this computer's proxy.
+    pub via_proxy: bool,
 }
 
 /// Adapter owns bounded HTTPS IO. Website URLs are explicit user choices; the

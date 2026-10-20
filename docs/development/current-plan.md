@@ -105,7 +105,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 45 | Source hints from owned file names | — | planned |
 | 46 | Library migration grouping | — | planned; executes the migration design |
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
-| 48 | Identical content: the player's choice | — | planned; the default setting is the author's call |
+| 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
 
 Suggested next order: 43 Fixes from the MCP round, 42 Line revisions and saved fits, 1 Integrate, the
 rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
@@ -837,9 +837,10 @@ VUA knows which copies are identical.
 
 1. A new decision records the choice and replaces ruling 2; the ruling itself stays as recorded.
 2. A library setting, "Identical files": keep a separate copy for each item, or store the content
-   once. Storing once keeps every library item and its relative paths; identical files share their
-   bytes through NTFS hard links inside the warehouse. Where a hard link is unavailable (another
-   volume after a relocation, a file system without hard links), VUA copies and says so.
+   once; the default keeps a separate copy, as today (author, 2026-10-21). Storing once keeps every
+   library item and its relative paths; identical files share their bytes through NTFS hard links
+   inside the warehouse. Where a hard link is unavailable (another volume after a relocation, a
+   file system without hard links), VUA copies and says so.
 3. For a warehouse that already holds identical copies, the setting offers to share them, after a
    preview of the items and the space they take; no item is removed.
 4. Removing an item's files removes only its own links; the content stays while another item uses

@@ -152,7 +152,10 @@ namespace Vua.Editor.Bridge
                 if (garment == null || garment.objects == null) continue;
                 var owner = owners.objects.SingleOrDefault(o => o.key == garment.ownerKey);
                 var instance = owner == null ? null : FindOwned(owner.globalObjectId);
-                var entry = CompareFitObjects(garment.sourceId, garment.objects, instance == null ? null : instance.transform);
+                // A garment no longer in the scene (a fresh work scene after a material change,
+                // a rebuild or a restore) left with its baseline; it is not a fit change.
+                if (instance == null) continue;
+                var entry = CompareFitObjects(garment.sourceId, garment.objects, instance.transform);
                 if (entry != null) changes.Add(entry);
             }
             return changes;

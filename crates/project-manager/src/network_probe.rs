@@ -23,6 +23,8 @@ const REGIONAL_SAMPLE_SPACING: Duration = Duration::from_millis(150);
 /// this many connections; fewer samples report the failure instead.
 const MIN_REGIONAL_SAMPLES: usize = 5;
 const MIN_REGIONAL_CONNECTIONS: usize = 2;
+/// The proxy hints' DNS lookups run before warm-up; they never hold the batch longer.
+const PROXY_HINT_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Regional references in one batch measure in this order, matching the tile's
 /// Tokyo, US West, US East, Europe reading order.
@@ -522,15 +524,25 @@ async fn measure_regional_references(
     spacing: Duration,
 ) -> Vec<WebsiteObservation> {
     let phase = Instant::now();
+    // Hints finish in any order; each keeps its URL's position. The OS resolver
+    // can hang while this batch holds the regional lock, so the hints get a
+    // bounded share of the deadline, and an unanswered lookup reads as no proxy.
     let mut hints = tokio::task::JoinSet::new();
-    for url in urls {
+    for (index, url) in urls.iter().enumerate() {
         let url = url.clone();
-        hints.spawn(async move { regional_proxy_hint(&url).await });
+        hints.spawn(async move { (index, regional_proxy_hint(&url).await) });
     }
-    let mut via_proxies = Vec::with_capacity(urls.len());
-    while let Some(joined) = hints.join_next().await {
-        via_proxies.push(joined.unwrap_or(false));
-    }
+    let mut via_proxies = vec![false; urls.len()];
+    let hint_deadline = deadline.min(Instant::now() + PROXY_HINT_TIMEOUT);
+    let _ = tokio::time::timeout(hint_deadline.saturating_duration_since(Instant::now()), async {
+        while let Some(joined) = hints.join_next().await {
+            if let Ok((index, via_proxy)) = joined {
+                via_proxies[index] = via_proxy;
+            }
+        }
+    })
+    .await;
+    hints.abort_all();
     let mut regions = Vec::with_capacity(urls.len());
     for (url, via_proxy) in urls.iter().zip(via_proxies) {
         let connections = (0..REGIONAL_CONNECTIONS)

@@ -54,6 +54,8 @@ namespace Vua.Editor.Bridge
             public string blueprintId = ""; public string reason = ""; public string detail = "";
             public List<string> errors = new List<string>(); public bool firstUpload; public bool sceneSaved;
             public string sdkSignIn = "panel";
+            // The SDK's Avatar check read again after the upload, so an Auto Fix made in the panel reaches VUA.
+            public SdkReview sdkReview = new SdkReview();
         }
         [Serializable] private sealed class UploadCancel { public string schemaVersion; public string runId; public string uploadId; }
         // The VRChat session VUA holds for the player, handed over once for an upload.
@@ -87,9 +89,10 @@ namespace Vua.Editor.Bridge
             var folder = Path.GetDirectoryName(file);
             var started = Path.Combine(folder, "amf-upload.started");
             var receipt = new UploadReceipt();
+            UploadRequest request = null;
             try
             {
-                var request = JsonUtility.FromJson<UploadRequest>(File.ReadAllText(file));
+                request = JsonUtility.FromJson<UploadRequest>(File.ReadAllText(file));
                 var marker = Path.Combine(folder, "..", "amf-run.txt");
                 if (request == null || request.schemaVersion != "0.1" || string.IsNullOrEmpty(request.uploadId)
                     || !File.Exists(marker) || File.ReadAllText(marker).Trim() != request.runId)
@@ -121,6 +124,12 @@ namespace Vua.Editor.Bridge
             {
                 if (!string.IsNullOrEmpty(receipt.uploadId))
                 {
+                    try
+                    {
+                        var avatar = FindOwned(request.avatarGlobalObjectId);
+                        if (avatar != null) receipt.sdkReview = ReviewWithSdk(avatar);
+                    }
+                    catch (Exception error) { Debug.LogWarning("VUA upload SDK check: " + Unwrap(error).Message); }
                     try { AtomicWrite(Path.Combine(folder, "amf-upload.result.json"), JsonUtility.ToJson(receipt, true)); }
                     catch (Exception error) { Debug.LogWarning("VUA upload receipt: " + error.Message); }
                     TryDelete(file); TryDelete(started); TryDelete(Path.Combine(folder, "amf-upload.cancel"));

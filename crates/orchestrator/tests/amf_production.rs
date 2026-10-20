@@ -29,14 +29,20 @@ struct TestPlatform {
     editor_open: AtomicBool,
     /// The Avatar package carries a second Avatar prefab.
     alt_avatar: AtomicBool,
+    /// The Avatar source reports a different content hash.
+    alt_avatar_hash: AtomicBool,
     /// How often the work scene was cleared for a rebuild.
     cleared: AtomicUsize,
     /// Every selection Unity assembled, in order.
     assembled_with: Mutex<Vec<AssemblySelection>>,
+    /// The fits each assembly received, in order.
+    assembled_fits: Mutex<Vec<Vec<OutfitFit>>>,
     snapshots: AtomicUsize,
     root: PathBuf,
     /// The material use facts the next Unity check reports, when set.
     material_use: std::sync::Mutex<serde_json::Value>,
+    /// The fitChanges facts every Unity check reports, when set.
+    fit_changes: std::sync::Mutex<Option<serde_json::Value>>,
     /// Original file contents a restore writes back, as a real snapshot would.
     restore_files: std::sync::Mutex<Vec<(PathBuf, Vec<u8>)>>,
 }
@@ -139,7 +145,7 @@ impl AmfProductionPlatform for TestPlatform {
                 role: s.role,
                 name: format!("{}.unitypackage", s.source_id),
                 item_name: s.source_id.clone(),
-                sha256: format!("sha256:{}", if s.source_id == "avatar" { "a".repeat(64) } else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) }),
+                sha256: format!("sha256:{}", if s.source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } } else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) }),
                 asset_paths: vec![format!("Assets/{}.prefab", s.source_id)],
             })
             .collect())
@@ -184,6 +190,9 @@ impl AmfProductionPlatform for TestPlatform {
         if !material_use.is_null() {
             result["facts"]["materialUse"] = material_use;
         }
+        if let Some(fit_changes) = self.fit_changes.lock().unwrap().clone() {
+            result["facts"]["fitChanges"] = fit_changes;
+        }
         Ok(ObservedProject {
             prefabs,
             unity_fingerprint: "scene-before".into(),
@@ -195,6 +204,7 @@ impl AmfProductionPlatform for TestPlatform {
         &self,
         run: &ProductionRun,
         selection: &AssemblySelection,
+        fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         fs::write(Path::new(&run.project_root).join("Assets/state"), "after").unwrap();
@@ -205,6 +215,7 @@ impl AmfProductionPlatform for TestPlatform {
             ));
         }
         self.assembled_with.lock().unwrap().push(selection.clone());
+        self.assembled_fits.lock().unwrap().push(fits.to_vec());
         self.inspect(run, watch)
     }
     fn clear_work_scene(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
@@ -221,8 +232,8 @@ impl AmfProductionPlatform for TestPlatform {
     fn fingerprint_legacy(&self, project: &Path) -> Result<String, AppErrorV1> {
         Ok(format!("sha256:{}", self.fingerprint(project)?))
     }
-    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        let mut observed = self.assemble(run, selection, watch)?;
+    fn apply_recipe(&self, run: &ProductionRun, selection: &AssemblySelection, target: &vua_orchestrator::amf_recipe_apply::RecipeApplyTarget, fits: &[OutfitFit], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        let mut observed = self.assemble(run, selection, fits, watch)?;
         observed.result["facts"]["observedSelection"] = serde_json::to_value(selection).unwrap();
         observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
         Ok(observed)
@@ -244,7 +255,7 @@ impl AmfProductionPlatform for TestPlatform {
         if !["avatar", "outfit", "outfit2"].contains(&source_id) {
             return Ok(None);
         }
-        Ok(Some(format!("sha256:{}", if source_id == "avatar" { "a".repeat(64) }
+        Ok(Some(format!("sha256:{}", if source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } }
             else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) })))
     }
     fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
@@ -312,11 +323,14 @@ impl Harness {
             fail_replace: AtomicBool::new(false),
             editor_open: AtomicBool::new(false),
             alt_avatar: AtomicBool::new(false),
+            alt_avatar_hash: AtomicBool::new(false),
             cleared: AtomicUsize::new(0),
             assembled_with: Mutex::new(Vec::new()),
+            assembled_fits: Mutex::new(Vec::new()),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
             material_use: std::sync::Mutex::new(serde_json::Value::Null),
+            fit_changes: std::sync::Mutex::new(None),
             restore_files: std::sync::Mutex::new(Vec::new()),
         });
         let engine = Arc::new(AmfProductionEngine::new(
@@ -1725,4 +1739,294 @@ fn a_restore_to_the_version_before_the_first_assembly_leaves_a_fresh_scene() {
     assert!(restore_reviewed_revision(&h, &restored.revisions[0].id.clone()));
     let back = h.engine.get("n3-test").unwrap();
     assert_eq!((back.phase.as_str(), back.selection), ("succeeded", Some(selection())));
+}
+
+// --- Saved fits: named local-Transform adjustments of a garment on one Avatar ---
+
+fn fit_object(path: &str, x: f64) -> FitObject {
+    FitObject {
+        path: path.into(),
+        local_position: FitVec3 { x, y: 0.0, z: 0.0 },
+        local_rotation: FitQuat { x: 0.0, y: 0.0, z: 0.0, w: 1.0 },
+        local_scale: FitVec3 { x: 1.0, y: 1.0, z: 1.0 },
+    }
+}
+
+fn write_baseline(h: &Harness, run_id: &str, objects: Vec<FitObject>) {
+    let baseline = FitBaseline {
+        schema_version: "0.1".into(),
+        run_id: run_id.into(),
+        garments: vec![BaselineGarment {
+            source_id: "outfit".into(),
+            owner_key: "outfit-0".into(),
+            objects,
+        }],
+    };
+    let dir = h.root.join("production/projects").join(run_id).join(".vua");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("amf-fit-baseline.json"), serde_json::to_vec(&baseline).unwrap()).unwrap();
+}
+
+fn report_changes(h: &Harness, moved: Vec<FitObject>, missing: Vec<String>) {
+    *h.platform.fit_changes.lock().unwrap() =
+        Some(serde_json::json!([{"sourceId":"outfit","moved":moved,"missing":missing}]));
+}
+
+fn write_changes_overlay(h: &Harness, run_id: &str, written_at: &str, moved: Vec<FitObject>, missing: Vec<String>) {
+    let file = FitChangesFile {
+        schema_version: "0.1".into(),
+        run_id: run_id.into(),
+        written_at: written_at.into(),
+        fit_changes: vec![GarmentFitChanges { source_id: "outfit".into(), moved, missing }],
+    };
+    let dir = h.root.join("production/projects").join(run_id).join(".vua/bridge");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("amf-fit-changes.json"), serde_json::to_vec(&file).unwrap()).unwrap();
+}
+
+fn changes_digest_of(h: &Harness, run_id: &str) -> String {
+    let run = h.engine.get(run_id).unwrap();
+    let (changes, _) = h.engine.fit_view(&run);
+    changes_digest(run_id, "outfit", changes.iter().find(|entry| entry.source_id == "outfit").expect("reported changes"))
+}
+
+/// The baseline, a changes report and a saved fit on an assembled line.
+fn fitted(h: &Harness) -> StoredFit {
+    assembled(h);
+    write_baseline(h, "n3-test", vec![fit_object("Clip", 0.0)]);
+    report_changes(h, vec![fit_object("Clip", 0.5)], vec![]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let digest = changes_digest_of(h, "n3-test");
+    h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap()
+}
+
+#[test]
+fn fit_changes_overlay_and_save_fit_update_the_baseline_and_clear_the_report() {
+    let h = Harness::new();
+    assembled(&h);
+    write_baseline(&h, "n3-test", vec![fit_object("Clip", 0.0), fit_object("Hook", 0.0)]);
+    report_changes(&h, vec![fit_object("Clip", 0.5)], vec!["Hook".into()]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.fit_changes.len(), 1);
+    assert_eq!(run.fit_changes[0].missing, vec!["Hook"]);
+    assert!(run.observed_at.is_some());
+    let (changes, available) = h.engine.fit_view(&run);
+    assert_eq!(changes[0].moved[0].local_position.x, 0.5);
+    assert!(available.is_empty(), "no fit is stored yet");
+    // The save hook's file overlays the recorded facts only when it is newer than the
+    // last observation of the same line.
+    write_changes_overlay(&h, "n3-test", "2000-01-01T00:00:00.0000000Z", vec![fit_object("Clip", 9.0)], vec![]);
+    let (changes, _) = h.engine.fit_view(&run);
+    assert_eq!(changes[0].moved[0].local_position.x, 0.5, "an older overlay loses to the observation");
+    write_changes_overlay(&h, "n3-test", "2999-01-01T00:00:00.0000000Z", vec![fit_object("Clip", 0.25)], vec!["Hook".into()]);
+    let (changes, _) = h.engine.fit_view(&run);
+    assert_eq!(changes[0].moved[0].local_position.x, 0.25, "a newer overlay wins");
+    let digest = changes_digest("n3-test", "outfit", &changes[0]);
+    let fit = h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap();
+    assert_eq!(fit.objects, vec![fit_object("Clip", 0.25)], "moved transforms folded into the baseline, missing dropped");
+    assert_eq!(fit.garment.sha256, "b".repeat(64));
+    assert_eq!(fit.garment.prefab_path, "Assets/Outfit.prefab");
+    assert_eq!(fit.avatar.sha256, "a".repeat(64));
+    assert_eq!(fit.avatar.prefab_path, "Assets/Avatar.prefab");
+    // The baseline now carries the overall state, the report is cleared for the garment and
+    // the save hook's file left empty is deleted.
+    let baseline: FitBaseline = serde_json::from_slice(
+        &fs::read(Path::new(&run.project_root).join(".vua/amf-fit-baseline.json")).unwrap(),
+    ).unwrap();
+    assert_eq!(baseline.garments[0].objects, vec![fit_object("Clip", 0.25)]);
+    assert!(!Path::new(&run.project_root).join(".vua/bridge/amf-fit-changes.json").exists());
+    let run = h.engine.get("n3-test").unwrap();
+    assert!(run.fit_changes.is_empty());
+    let (changes, available) = h.engine.fit_view(&run);
+    assert!(changes.is_empty());
+    assert_eq!(available, vec![FitRef { source_id: "outfit".into(), fit_id: Some(fit.fit_id.clone()), name: Some("Clip fit".into()) }]);
+    // The garment reports no further changes, so it cannot be saved twice.
+    let error = h.engine.save_fit("n3-test", "outfit", "Again", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.fit_changes_missing");
+    // Names: whitespace removed, empty falls back, capped at 80.
+    assert_eq!(default_fit_name("Hair Clip", "Meiyun"), "HairClipForMeiyun");
+    assert_eq!(default_fit_name("  ", ""), "For", "only a wholly empty result falls back");
+    assert_eq!(default_fit_name("", ""), "For");
+    assert_eq!(default_fit_name(&"ab ".repeat(40), "").chars().count(), 80);
+    assert!(valid_fit_name("Clip fit") && !valid_fit_name("") && !valid_fit_name(" \t") && !valid_fit_name("a\nb") && !valid_fit_name(&"a".repeat(81)));
+}
+
+#[test]
+fn a_saved_fit_applies_to_the_same_avatar_and_garment_only() {
+    let h = Harness::new();
+    let fit = fitted(&h);
+    // A second line with the same Avatar and garment content lists and applies the fit.
+    h.engine.begin("n3-second", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-second", ctx)));
+    let plan = h.engine.plan("n3-second", &selection()).unwrap();
+    assert_eq!(plan["fits"], serde_json::json!([{"sourceId":"outfit","fitId":fit.fit_id,"name":"Clip fit"}]));
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-second", selection(), &digest, ctx)));
+    let applied = h.platform.assembled_fits.lock().unwrap().last().cloned().unwrap();
+    assert_eq!(applied, vec![OutfitFit { source_id: "outfit".into(), objects: vec![fit_object("Clip", 0.5)] }]);
+    let run = h.engine.get("n3-second").unwrap();
+    assert_eq!(run.applied_fits.len(), 1);
+    assert_eq!(run.applied_fits[0].fit_id.as_deref(), Some(fit.fit_id.as_str()));
+    // A different Avatar content hash does not match.
+    h.platform.alt_avatar_hash.store(true, Ordering::SeqCst);
+    h.engine.begin("n3-other", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-other", ctx)));
+    assert_eq!(h.engine.plan("n3-other", &selection()).unwrap()["fits"], serde_json::json!([]));
+    // Neither does a different garment content hash.
+    h.platform.alt_avatar_hash.store(false, Ordering::SeqCst);
+    h.platform.change_recipe_input.store(true, Ordering::SeqCst);
+    h.engine.begin("n3-changed", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-changed", ctx)));
+    assert_eq!(h.engine.plan("n3-changed", &selection()).unwrap()["fits"], serde_json::json!([]));
+}
+
+#[test]
+fn save_fit_refuses_stale_digests_bad_names_and_missing_pieces() {
+    let h = Harness::new();
+    assembled(&h);
+    write_baseline(&h, "n3-test", vec![fit_object("Clip", 0.0)]);
+    report_changes(&h, vec![fit_object("Clip", 0.5)], vec![]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let digest = changes_digest_of(&h, "n3-test");
+    let error = h.engine.save_fit("n3-test", "outfit", "two\nlines", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.fit_invalid");
+    let error = h.engine.save_fit("n3-test", "outfit", "Fit", &"a".repeat(64)).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.plan_drift");
+    let error = h.engine.save_fit("n3-test", "outfit2", "Fit", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.fit_changes_missing");
+    let error = h.engine.save_fit("n3-none", "outfit", "Fit", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.run_not_found");
+    fs::remove_file(h.root.join("production/projects/n3-test/.vua/amf-fit-baseline.json")).unwrap();
+    let error = h.engine.save_fit("n3-test", "outfit", "Fit", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.fit_baseline_missing");
+}
+
+#[test]
+fn fits_rename_delete_and_refuse_beyond_their_limits() {
+    let h = Harness::new();
+    let fit = fitted(&h);
+    let renamed = h.engine.rename_fit(&fit.fit_id, "Renamed clip").unwrap();
+    assert_eq!(renamed.name, "Renamed clip");
+    assert!(renamed.updated_at >= renamed.created_at);
+    assert_eq!(h.engine.list_fits().unwrap()[0].name, "Renamed clip");
+    for error in [
+        h.engine.rename_fit("fit-none", "Fit").unwrap_err(),
+        h.engine.delete_fit("fit-none").unwrap_err(),
+    ] {
+        assert_eq!(error.code, "vua.amf_production.fit_not_found");
+    }
+    assert_eq!(h.engine.rename_fit(&fit.fit_id, "  ").unwrap_err().code, "vua.amf_production.fit_invalid");
+    h.engine.delete_fit(&fit.fit_id).unwrap();
+    assert!(h.engine.list_fits().unwrap().is_empty());
+    // The store keeps at most 500 fits; a new identity beyond that is refused.
+    let store = h.engine.fit_store();
+    for index in 0..500 {
+        store
+            .save(&StoredFit {
+                schema_version: "0.1".into(),
+                fit_id: format!("fit-d{index}"),
+                name: format!("Fit {index}"),
+                created_at: "2026-01-01T00:00:00.000Z".into(),
+                updated_at: "2026-01-01T00:00:00.000Z".into(),
+                garment: FitIdentity { sha256: "0".repeat(64), prefab_path: "Assets/X.prefab".into(), name: "X".into() },
+                avatar: FitIdentity { sha256: "0".repeat(64), prefab_path: "Assets/Y.prefab".into(), name: "Y".into() },
+                objects: vec![],
+            })
+            .unwrap();
+    }
+    report_changes(&h, vec![fit_object("Clip", 0.5)], vec![]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let digest = changes_digest_of(&h, "n3-test");
+    let error = h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.fit_limit");
+    h.engine.delete_fit("fit-d0").unwrap();
+    h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap();
+    // A fit carries at most 2048 objects.
+    h.engine.delete_fit("fit-d1").unwrap();
+    write_baseline(&h, "n3-test", (0..2049).map(|index| fit_object(&format!("Part{index}"), 0.0)).collect());
+    report_changes(&h, vec![fit_object("Part0", 0.5)], vec![]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    let digest = changes_digest_of(&h, "n3-test");
+    let error = h.engine.save_fit("n3-test", "outfit", "Clip fit", &digest).unwrap_err();
+    assert_eq!(error.code, "vua.amf_production.fit_too_large");
+}
+
+#[test]
+fn a_version_replay_applies_the_recorded_fit_not_the_store() {
+    let h = Harness::new();
+    let fit = fitted(&h);
+    // A second line assembles with the fit applied, then changes its materials; the version
+    // recorded before that change carries the applied fit.
+    h.engine.begin("n3-second", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-second", ctx)));
+    let plan = h.engine.plan("n3-second", &selection()).unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-second", selection(), &digest, ctx)));
+    assert!(h.job(|engine, ctx| engine.change_sources("n3-second", choices(&["avatar", "outfit2"]), ctx)));
+    let changed = h.engine.get("n3-second").unwrap();
+    let recorded = changed.revisions.iter().find(|revision| revision.before == RevisionKind::Materials).unwrap().clone();
+    assert_eq!(recorded.state.fits.len(), 1);
+    assert_eq!(recorded.state.fits[0].objects, vec![fit_object("Clip", 0.5)]);
+    // The store losing the fit does not lose the replay.
+    h.engine.delete_fit(&fit.fit_id).unwrap();
+    let plan = h.engine.revision_plan("n3-second", &recorded.id).unwrap();
+    assert_eq!(plan["fits"], serde_json::json!([{"sourceId":"outfit","fitId":fit.fit_id,"name":"Clip fit"}]));
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let revision_id = recorded.id.clone();
+    assert!(h.job(move |engine, ctx| engine.restore_revision("n3-second", &revision_id, &digest, ctx)));
+    let applied = h.platform.assembled_fits.lock().unwrap().last().cloned().unwrap();
+    assert_eq!(applied, vec![OutfitFit { source_id: "outfit".into(), objects: vec![fit_object("Clip", 0.5)] }]);
+    let restored = h.engine.get("n3-second").unwrap();
+    assert_eq!(restored.applied_fits.len(), 1);
+    assert_eq!(restored.applied_fits[0].fit_id.as_deref(), Some(fit.fit_id.as_str()));
+}
+
+#[test]
+fn recipes_carry_and_replay_the_applied_fits() {
+    let h = Harness::new();
+    let fit = fitted(&h);
+    h.engine.begin("n3-second", choices(&["avatar", "outfit"]), "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-second", ctx)));
+    let plan = h.engine.plan("n3-second", &selection()).unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-second", selection(), &digest, ctx)));
+    // A Recipe saved from the fitted line records the fit under the material identity.
+    h.engine.save_recipe("n3-second", "recipe-fits", "Fitted").unwrap();
+    let stored = h.engine.get_recipe("recipe-fits").unwrap();
+    let fits = &stored.recipe["adjustments"]["fits"];
+    assert_eq!(fits[0]["materialId"], format!("m-{}", "b".repeat(64)));
+    assert_eq!(fits[0]["objects"][0]["path"], "Clip");
+    // Saving again for the same garment and Avatar updates the stored fit in place, leaving
+    // the Recipe's recorded objects behind.
+    write_baseline(&h, "n3-second", vec![fit_object("Clip", 0.5)]);
+    report_changes(&h, vec![fit_object("Clip", 0.75)], vec![]);
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-second", ctx)));
+    let digest = changes_digest_of(&h, "n3-second");
+    let updated = h.engine.save_fit("n3-second", "outfit", "Clip fit", &digest).unwrap();
+    assert_eq!(updated.fit_id, fit.fit_id, "the same identity updates in place");
+    assert_eq!(updated.created_at, fit.created_at);
+    assert_eq!(updated.objects, vec![fit_object("Clip", 0.75)]);
+    // A line prepared from the Recipe applies the Recipe's fit, not the store's newer one.
+    h.engine.begin_recipe("n3-third", "recipe-fits", "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-third", ctx)));
+    let third = h.engine.get("n3-third").unwrap();
+    let selection = third.selection.clone().unwrap();
+    let plan = h.engine.plan("n3-third", &selection).unwrap();
+    assert_eq!(plan["fits"], serde_json::json!([{"sourceId":"outfit","fitId":null,"name":null}]));
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-third", selection, &digest, ctx)));
+    let applied = h.platform.assembled_fits.lock().unwrap().last().cloned().unwrap();
+    assert_eq!(applied[0].objects, vec![fit_object("Clip", 0.5)], "the Recipe's recorded fit wins over the store");
+    assert_eq!(h.engine.get("n3-third").unwrap().applied_fits[0].fit_id, None);
+}
+
+#[test]
+fn runs_recorded_before_fits_read_with_empty_defaults() {
+    let record = serde_json::json!({"schemaVersion":"0.1","runId":"n3-old","phase":"ready","taskId":"task",
+        "editor":{"path":"synthetic","version":"2022.3.22f1c1"},"projectRoot":"synthetic",
+        "choices":[],"sources":[],"prefabs":[],"projectFingerprint":"","unityFingerprint":"",
+        "steps":[],"selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null});
+    let run: ProductionRun = serde_json::from_value(record).unwrap();
+    assert!(run.fit_changes.is_empty() && run.applied_fits.is_empty() && run.observed_at.is_none());
 }

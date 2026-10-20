@@ -1,6 +1,6 @@
 //! Candidate Recipe v0.4: portable declarations for the actual MA production path.
 //! Paid files and machine-local identities are never part of this document.
-use crate::amf_production::{production_error, valid_lighting_value, AssemblySelection, BindingMode, MaterialLighting, OutfitSelection, ProductionRun};
+use crate::amf_production::{production_error, valid_lighting_value, AssemblySelection, BindingMode, FitObject, MaterialLighting, OutfitSelection, ProductionRun};
 use crate::AppErrorV1;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -31,17 +31,28 @@ pub struct RecipeOutfit {
     pub active: bool,
 }
 
+/// The saved fit of one material's garment: every adjusted object with its local Transform.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecipeFit {
+    pub material_id: String,
+    pub objects: Vec<FitObject>,
+}
+
 /// VUA's own adjustments to the assembled line, replayed after the Recipe's first assembly:
-/// the brightness limits written into each material and the SDK fixes run, named by the SDK's
-/// exact words. Older Recipes carry no `adjustments`; the section is optional.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// the brightness limits written into each material, the SDK fixes run, named by the SDK's
+/// exact words, and the fits each garment received. Older Recipes carry no `adjustments`;
+/// the section is optional, as is `fits` inside it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RecipeAdjustments {
     pub lighting: Vec<MaterialLighting>,
     pub sdk_fixes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fits: Vec<RecipeFit>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProductionRecipe {
     pub format_version: String,
@@ -66,6 +77,12 @@ fn asset_path(path: &str) -> bool {
 fn material_path(path: &str) -> bool {
     path.len() <= 2048 && path.starts_with("Assets/") && path.ends_with(".mat")
         && !path.contains(['\\', ':', '\0']) && path.split('/').all(|p| !p.is_empty() && p != "." && p != "..")
+}
+
+/// A fit object's path: empty names the garment instance root, otherwise a `/`-joined
+/// child-name path with no empty segments.
+fn fit_object_path(path: &str) -> bool {
+    path.chars().count() <= 512 && (path.is_empty() || path.split('/').all(|segment| !segment.is_empty()))
 }
 
 impl ProductionRecipe {
@@ -110,6 +127,13 @@ impl ProductionRecipe {
             }
             if adjustments.sdk_fixes.iter().any(|fix| fix.is_empty() || fix.chars().count() > 600 || fix.contains('\0')) {
                 return Err(invalid("Recipe SDK fixes name the SDK's exact words."));
+            }
+            if adjustments.fits.len() > 64
+                || adjustments.fits.iter().any(|fit| fit.objects.len() > 2048
+                    || fit.material_id.len() != 66 || !fit.material_id.starts_with("m-")
+                    || !fit.material_id[2..].bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    || fit.objects.iter().any(|object| !fit_object_path(&object.path))) {
+                return Err(invalid("Recipe fits name materials by content hash with bounded object paths."));
             }
         }
         Ok(())

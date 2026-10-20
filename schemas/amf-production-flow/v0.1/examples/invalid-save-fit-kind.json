@@ -1,0 +1,11 @@
+{
+  "method": "amf.production.saveFit",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-test",
+    "sourceId": "copy-outfit",
+    "name": "HairClipForMeiyun",
+    "changesDigest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}

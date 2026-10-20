@@ -72,6 +72,7 @@ export function errorFields(error: unknown, secrets: readonly string[] = []) {
 const pick = (value: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(keys.filter(key => key in value).map(key => [key, value[key]]));
 const rows = (value: unknown): Record<string, unknown>[] => Array.isArray(value) ? value.filter(isRecord) : [];
 const count = (value: unknown): number | null => Array.isArray(value) ? value.length : null;
+const RUN_SUMMARY_REVISIONS = 5;
 const prefabs = (value: unknown) => rows(value).map(prefab => ({ ...pick(prefab, ["path", "name", "isAvatar"]), humanoidBoneCount: count(prefab.humanoidBones) }));
 
 export function runSummary(value: unknown): unknown {
@@ -80,8 +81,9 @@ export function runSummary(value: unknown): unknown {
   const facts = result && isRecord(result.facts) ? result.facts : null;
   const sdk = facts && isRecord(facts.sdkReview) ? facts.sdkReview : null;
   const issues = sdk ? rows(sdk.issues) : [];
-  return { ...pick(value, ["schemaVersion", "runId", "revision", "revisions", "phase", "taskId", "createdAt", "completedAt", "selection", "error", "recovery", "progress", "usualDurations"]),
-    ...(Array.isArray(value.revisions) ? { revisionCount: value.revisions.length } : {}),
+  // A line keeps up to 50 revisions; the summary names the newest and the Resource holds them all.
+  return { ...pick(value, ["schemaVersion", "runId", "revision", "phase", "taskId", "createdAt", "completedAt", "selection", "error", "recovery", "progress", "usualDurations"]),
+    ...(Array.isArray(value.revisions) ? { revisionCount: value.revisions.length, revisions: value.revisions.slice(0, RUN_SUMMARY_REVISIONS) } : {}),
     sources: rows(value.sources).map(source => pick(source, ["sourceId", "role", "itemName"])),
     stepCount: count(value.steps), steps: rows(value.steps).slice(-20).map(step => pick(step, ["key", "name", "state", "startedAt", "endedAt"])),
     prefabs: prefabs(value.prefabs),

@@ -102,8 +102,8 @@ use MCP protocol errors whose `data` carries the error fields below.
 revision, progress, selection, source names, the latest 20 steps with their total count, recovery
 and result-fact counts. Each prefab has only `path`, `name`, `isAvatar` and `humanoidBoneCount`.
 SDK review retains its state, platform, overall rating, issue counts by level and category
-ratings. The optional `revisions` field passes through unchanged, with `revisionCount` for an
-array of records. Rendered previews follow the
+ratings. A run with version records gives the five newest in `revisions` and their number in
+`revisionCount`; the run Resource holds them all. Rendered previews follow the
 link as before. `vua_amf_release` returns turntable/editor state and the latest three upload
 summaries, their total count within the Gateway view, and a link to the release URI. Read the
 Resource for full checks, bindings, diagnostics and upload explanations.

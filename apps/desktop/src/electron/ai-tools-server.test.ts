@@ -5,7 +5,7 @@ import { AiToolsServer } from "./ai-tools-server.js";
 import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
-import { reportLibrary, reportRun, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
+import { reportLibrary, reportRun, reportRunWithRevisions, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
 
 const token = "a".repeat(43), digest = "b".repeat(64);
 const build = { version: "test", commit: "abc1234", dirty: false, builtAt: "2026-10-20T00:00:00.000Z" };
@@ -420,9 +420,9 @@ describe("MCP result envelope", () => {
   it("keeps report-shaped default text reads under 10,000 UTF-8 bytes", async () => {
     const { client } = await setup(async request => envelope(request, request.method === "amf.production.previewImage" ? { mediaType: "image/png", data: "iVBORw0KGgoSYNTHETIC" }
       : request.method === "app.snapshot" ? reportStatus : request.method === "task.list" ? reportTasks
-      : request.method === "library.list" ? reportLibrary : request.method === "amf.production.list" ? { runs: [{ runId: reportRun.runId }] } : reportRun));
+      : request.method === "library.list" ? reportLibrary : request.method === "amf.production.list" ? { runs: [{ runId: reportRun.runId }] } : reportRunWithRevisions));
     const sizes: Record<string, { before: number; after: number }> = {};
-    for (const [name, args, raw] of [["vua_status", {}, reportStatus], ["vua_tasks", {}, reportTasks], ["vua_amf_run", { runId: reportRun.runId }, reportRun], ["vua_library", {}, reportLibrary]] as const) {
+    for (const [name, args, raw] of [["vua_status", {}, reportStatus], ["vua_tasks", {}, reportTasks], ["vua_amf_run", { runId: reportRun.runId }, reportRunWithRevisions], ["vua_library", {}, reportLibrary]] as const) {
       const response = await client.callTool({ name, arguments: args });
       expect(response.isError).toBeFalsy();
       const after = (response.content ?? []).reduce((sum, part) => sum + (part.type === "text" ? Buffer.byteLength(part.text) : 0), 0);
@@ -441,12 +441,12 @@ describe("MCP result envelope", () => {
 });
 
 describe("run summary", () => {
-  it("passes complete revision records through unchanged and counts them", () => {
+  it("names the newest revisions and counts the rest, which stay in the run Resource", () => {
     const revisions = Array.from({ length: 50 }, (_, index) => ({ id: `rev-${50 - index}`, before: "assembly", takenAt: "2026-10-20T00:00:00Z", editedInUnity: false,
       summary: { avatar: "Meiyun", outfits: ["T-shirt", "Shorts"], sources: ["Meiyun_v2.1.0", "Amenbo T-shirt & Shorts"], lightingMaterials: 12, sdkFixes: [] } }));
     const summary = runSummary({ runId: "n3-a", phase: "succeeded", revisions }) as Record<string, unknown>;
     expect(summary.revisionCount).toBe(50);
-    expect(summary.revisions).toEqual(revisions);
+    expect(summary.revisions).toEqual(revisions.slice(0, 5));
     expect("revisions" in (runSummary({ runId: "n3-a", phase: "ready" }) as Record<string, unknown>)).toBe(false);
   });
 });

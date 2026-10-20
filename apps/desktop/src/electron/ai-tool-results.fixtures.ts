@@ -35,3 +35,10 @@ export const reportLibrary = { schemaVersion: "0.1", total: 12, offset: 0, limit
 export const reportStatus = { schemaVersion: 1, productVersion: "0.6.7", runtime: "electron", platform: "win32", capabilities: {
   gateway: true, tasks: true, operations: Array.from({ length: 35 }, (_, i) => ({ operationId: `synthetic.operation.${i}`, availability: "available" })), remoteBrowser: true,
 }, vrchat: { experimentalEnabled: false, signedIn: false } };
+/** A long-worked line: 50 version records, newest first, with nanosecond IDs and Japanese names. */
+export const reportRunWithRevisions = { ...reportRun, revisions: Array.from({ length: 50 }, (_, i) => ({
+  id: `rev-${1792461600000000000 - i * 1000000000}`, before: i % 2 === 0 ? "assembly" : "materials", takenAt: new Date(Date.UTC(2026, 9, 20, 1, 50 - i)).toISOString(),
+  summary: { avatar: "合成アバター・メイユン風", outfits: ["合成Tシャツ＆ショートパンツ", "合成ヘアクリップ"],
+    sources: ["合成アバター_v2.1.0", "合成Tシャツ＆ショートパンツ for 合成アバター v1.00", "合成ヘアクリップ"], lightingMaterials: 12, sdkFixes: [] },
+  editedInUnity: false,
+})) };

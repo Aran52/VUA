@@ -105,6 +105,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 45 | Source hints from owned file names | — | planned |
 | 46 | Library migration grouping | — | planned; executes the migration design |
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
+| 48 | Identical content: the player's choice | — | planned; the default setting is the author's call |
 
 Suggested next order: 43 Fixes from the MCP round, 42 Line revisions and saved fits, 1 Integrate, the
 rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
@@ -826,6 +827,26 @@ the format and keeps the validation and the copy.
 
 **Done when** an agent turns a real messy collection into a manifest that VUA accepts, and the
 player imports it after reviewing the proposed groups.
+
+## 48 — Identical content: the player's choice
+
+The [warehouse layout ruling](../decisions/warehouse-layout.md) (2026-09-06, ruling 2) keeps every
+copy: importing the same content twice stores it twice. The author decided on 2026-10-21 that the
+player chooses instead. Inspection facts are already keyed by content (`local_artifacts`), so
+VUA knows which copies are identical.
+
+1. A new decision records the choice and replaces ruling 2; the ruling itself stays as recorded.
+2. A library setting, "Identical files": keep a separate copy for each item, or store the content
+   once. Storing once keeps every library item and its relative paths; identical files share their
+   bytes through NTFS hard links inside the warehouse. Where a hard link is unavailable (another
+   volume after a relocation, a file system without hard links), VUA copies and says so.
+3. For a warehouse that already holds identical copies, the setting offers to share them, after a
+   preview of the items and the space they take; no item is removed.
+4. Removing an item's files removes only its own links; the content stays while another item uses
+   it. Space shown in the library counts shared content once.
+
+**Done when** the author imports the same package twice with each setting, and with "store once"
+the warehouse holds its bytes once while both items open, produce and delete independently.
 
 ## Open decisions
 

@@ -52,6 +52,9 @@ pub struct RevisionState {
     /// The VPM dependency versions observed at record time.
     #[serde(default)]
     pub package_versions: BTreeMap<String, String>,
+    /// The fits that had produced the assembled state at record time.
+    #[serde(default)]
+    pub fits: Vec<AppliedFit>,
 }
 
 /// What a version list shows and a later A/B comparison reads.
@@ -310,6 +313,7 @@ impl AmfProductionEngine {
             sdk_fixes: run.sdk_fixes_applied.clone(),
             package_versions: serde_json::from_value(run.result["packageVersions"].clone())
                 .unwrap_or_default(),
+            fits: run.applied_fits.clone(),
         };
         let revision = ProductionRevision {
             id: fresh_revision_id(run),
@@ -395,6 +399,9 @@ impl AmfProductionEngine {
             "takenAt": revision.taken_at,
             "summary": revision.summary,
             "editedInUnity": edited,
+            "fits": revision.state.fits.iter().map(|fit| serde_json::json!({
+                "sourceId": fit.source_id, "fitId": fit.fit_id, "name": fit.name,
+            })).collect::<Vec<_>>(),
             "warning": edited.then_some(
                 "The project changed in Unity since the last check. Restoring this version replaces those edits."
             ),
@@ -438,6 +445,7 @@ impl AmfProductionEngine {
         let entry_phase = run.phase.clone();
         let current_selection = run.selection.clone();
         let current_fixes = run.sdk_fixes_applied.clone();
+        let current_fits = run.applied_fits.clone();
         let current_sources = SourceSnapshot {
             choices: run.choices.clone(),
             sources: run.sources.clone(),
@@ -534,14 +542,23 @@ impl AmfProductionEngine {
                 };
                 self.step(&mut run, ctx, "assembly", "Assemble the recorded selection")
                     .map_err(|error| at_step("assembly", error))?;
+                // The replay applies the fits the version recorded, never the fit store:
+                // a fit deleted or changed since still restores as reviewed.
+                let recorded_fits: Vec<OutfitFit> = revision
+                    .state
+                    .fits
+                    .iter()
+                    .filter(|fit| selection.outfits.iter().any(|outfit| outfit.source_id == fit.source_id))
+                    .map(|fit| OutfitFit { source_id: fit.source_id.clone(), objects: fit.objects.clone() })
+                    .collect();
                 let observed = match &target {
                     Some(target) => self
                         .platform
-                        .apply_recipe(&run, &selection, target, &self.watch(&run, ctx))
+                        .apply_recipe(&run, &selection, target, &recorded_fits, &self.watch(&run, ctx))
                         .map_err(|error| at_step("assembly", error))?,
                     None => self
                         .platform
-                        .assemble(&run, &selection, &self.watch(&run, ctx))
+                        .assemble(&run, &selection, &recorded_fits, &self.watch(&run, ctx))
                         .map_err(|error| at_step("assembly", error))?,
                 };
                 if let Some(error) = ctx.cancellation_error("amf-production") {
@@ -587,6 +604,7 @@ impl AmfProductionEngine {
             // Materials the replay changed are already on the run; a version that never
             // recorded materials (a legacy one) leaves the line's materials as they are.
             run.selection = revision.state.selection.clone();
+            run.applied_fits = revision.state.fits.clone();
             // SDK fixes physically applied to a project cannot be unrun; a replay can only
             // add the recorded ones. The applied set after a restore is the union of both.
             let mut applied = revision.state.sdk_fixes.clone();
@@ -623,6 +641,7 @@ impl AmfProductionEngine {
                 run.choices = current_sources.choices.clone();
                 run.sources = current_sources.sources.clone();
                 run.selection = current_selection;
+                run.applied_fits = current_fits;
                 // Neither the old result nor a partial replay proves the current state.
                 // Explicit reinspection must establish it again.
                 run.result = serde_json::Value::Null;

@@ -1,6 +1,6 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.12.0
+> Document version: 0.13.0
 > Status: Candidate
 > Updated: 2026-10-20
 
@@ -15,7 +15,9 @@ Operations are `amf_prepare`, `amf_inspect`, `amf_assemble` and `amf_turntable`.
 Other legacy envelope payload fields have no v5 semantics. This request is separate from frozen
 Recipe/production-plan files. `dryRun` is true only for inspection.
 The file's closed format is `schemaVersion: "0.1"`, `runId`, `sources` (sourceId/role/assetPaths)
-and `selection`, with optional `applyTarget` for Recipe application. Mutating assembly requires an exact current fingerprint and a saved
+and `selection`, with optional `applyTarget` for Recipe application. An outfit may carry `fit`,
+saved per-object local Transforms the Bridge writes into the new instance after binding. Mutating
+assembly requires an exact current fingerprint and a saved
 managed scene. It validates all prefab/target/menu inputs before changes.
 
 Preparation creates a new empty managed work scene and refuses an existing scene. Inspection
@@ -172,8 +174,37 @@ The caller additionally validates schema version, operation, command identity an
 The v5 source files are installed only into a real-SDK/MA production project, and are excluded
 from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
+## Saved fits
+
+After a successful `amf_assemble` the Bridge records a fit baseline in
+`.vua/amf-fit-baseline.json`: for each owned garment (`sourceId`, ownership `ownerKey`) every
+object of the instance with its local position, rotation (quaternion) and scale, addressed by a
+path relative to the instance root — `/` separated child names, `name#n` (1-based) for the n-th
+same-name sibling, the empty path for the instance root itself. The baseline covers the prefab's
+own offsets. A partial (Recipe `applyTarget`) assembly updates the baseline only for the garments
+it wrote and keeps the rest. The baseline lives in the managed project, not in Unity assets.
+
+Observation — inspection, and the observation after assembly and SDK fixes — compares each
+baseline object against the scene: position or scale differences past 0.0001 units, or a rotation
+past 0.01°, are reported in `data.fitChanges` as `{sourceId, moved, missing}` per garment.
+`moved` carries each changed path with its new local Transform; `missing` names baseline paths
+whose object is gone, which is not an error. Garments without changes are omitted. The same
+comparison runs when the player saves the work scene in the Editor (interface mode only): the
+observer atomically writes `.vua/bridge/amf-fit-changes.json` —
+`{schemaVersion: "0.1", runId, writtenAt, fitChanges}` — only for the run the marker names and
+only for the work scene; a failure there logs a warning and never interrupts the save. A fresh
+assembly deletes a pending report.
+
+An outfit's `fit` in the request is a list of saved local Transforms in the same shape. The
+Bridge applies them to the new instance right after binding, by the same path rule; paths the
+instance does not have are skipped and reported in `data.fitSkipped` as `{sourceId, paths}`,
+never a failure. The baseline is recorded after application, so an applied fit is not itself
+reported as a move. Results written before these facts existed carry no `fitChanges` or
+`fitSkipped`.
+
 ## Document changelog
 
+- 0.13.0 (2026-10-20): record a per-garment local-Transform fit baseline after assembly, report moved and missing objects as `fitChanges` (also from scene saves in the open Editor), and apply request `fit` transforms with per-path skips reported as `fitSkipped`.
 - 0.12.0 (2026-10-20): the upload receipt carries `sdkReview`, the SDK's Avatar check read again after the upload.
 - 0.11.0 (2026-10-19): report the active Avatar's renderer material use (`materialUse`) after inspection and assembly, bounded and attributed to the Avatar or the owning outfit.
 - 0.10.1 (2026-10-19): the result schema covers every field Unity writes, verified against real preparation, inspection, assembly and turntable results; SDK fix results are covered by a synthetic vector.

@@ -154,7 +154,12 @@ fn wire_run(run: ProductionRun) -> Value {
         }
     }
     // The materials kept with a restore point stay inside the record.
-    value.as_object_mut().expect("run object").remove("snapshotSources");
+    let object = value.as_object_mut().expect("run object");
+    object.remove("snapshotSources");
+    // Fit provenance and observation bookkeeping stay in the record; the view carries the
+    // digest-bound `fitChanges` and `availableFits` instead.
+    object.remove("appliedFits");
+    object.remove("observedAt");
     // A version list shows each record's summary; the full replay state stays in the record.
     if let Some(revisions) = value["revisions"].as_array_mut() {
         for revision in revisions {
@@ -184,7 +189,7 @@ fn route(
     }
     let query = matches!(
         method,
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -198,7 +203,10 @@ fn route(
         .and_then(Value::as_object)
         .ok_or_else(|| production_error("params_invalid", "Missing params."))?;
     let keys: &[&str] = match method {
-        "amf.production.list" | "amf.production.listRecipes" => &["schemaVersion"],
+        "amf.production.list" | "amf.production.listRecipes" | "amf.production.listFits" => &["schemaVersion"],
+        "amf.production.saveFit" => &["schemaVersion", "runId", "sourceId", "name", "changesDigest"],
+        "amf.production.renameFit" => &["schemaVersion", "fitId", "name"],
+        "amf.production.deleteFit" => &["schemaVersion", "fitId"],
         "amf.production.setCapacity" => &["schemaVersion", "capacity"],
         "amf.production.getRecipe" | "amf.production.recipeSharePlan" => &["schemaVersion", "recipeId"],
         "amf.production.previewRecipeShare" | "amf.production.importRecipe" => &["schemaVersion", "text"],
@@ -265,6 +273,50 @@ fn route(
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
         }
     }
+    if method == "amf.production.saveFit" {
+        let digest = string("changesDigest")?;
+        if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
+            return Err(production_error("params_invalid", "A reviewed fit changes digest is required."));
+        }
+    }
+    if matches!(method, "amf.production.renameFit" | "amf.production.deleteFit") {
+        let id = string("fitId")?;
+        if id.strip_prefix("fit-").is_none_or(|rest| rest.is_empty() || rest.len() > 72)
+            || !id.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        {
+            return Err(production_error("params_invalid", "Invalid fit identity."));
+        }
+    }
+    if matches!(method, "amf.production.saveFit" | "amf.production.renameFit") {
+        let name = string("name")?;
+        if name.chars().count() > 80 || !name.chars().any(|c| !c.is_whitespace()) {
+            return Err(production_error("params_invalid", "A fit name is a single line of 1-80 characters."));
+        }
+    }
+    if method == "amf.production.listFits" {
+        let fits = service.engine.list_fits()?.iter().map(|fit| {
+            json!({"fitId":fit.fit_id,"name":fit.name,"createdAt":fit.created_at,"updatedAt":fit.updated_at,
+                "garment":fit.garment,"avatar":fit.avatar,"objectCount":fit.objects.len()})
+        }).collect::<Vec<_>>();
+        return Ok(json!({"schemaVersion":"0.1","fits":fits}));
+    }
+    if method == "amf.production.renameFit" {
+        let fit = service.engine.rename_fit(&string("fitId")?, &string("name")?)?;
+        return Ok(json!({"schemaVersion":"0.1","fitId":fit.fit_id,"name":fit.name}));
+    }
+    if method == "amf.production.deleteFit" {
+        let fit_id = string("fitId")?;
+        service.engine.delete_fit(&fit_id)?;
+        return Ok(json!({"schemaVersion":"0.1","fitId":fit_id}));
+    }
+    if method == "amf.production.saveFit" {
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) {
+            return Err(production_error("busy", "This line has work running or waiting."));
+        }
+        let fit = service.engine.save_fit(&run_id, &string("sourceId")?, &string("name")?, &string("changesDigest")?)?;
+        return Ok(json!({"schemaVersion":"0.1","fitId":fit.fit_id,"name":fit.name,"createdAt":fit.created_at,"updatedAt":fit.updated_at}));
+    }
     if method == "amf.production.list" {
         let view = service.lane_view();
         let runs = service.engine.list()?.into_iter().map(|run| {
@@ -296,7 +348,23 @@ fn route(
             .contains(&run.phase.as_str())
             .then(|| service.engine.progress(&run))
             .flatten();
+        // The run view's fit facts: the save hook's overlay counts when it is newer than the
+        // last observation; an unreadable overlay simply counts as absent.
+        let (fit_changes, available_fits) = service.engine.fit_view(&run);
+        let run_id = run.run_id.clone();
         let mut value = wire_run(run);
+        if let Some(object) = value.as_object_mut() {
+            object.remove("fitChanges");
+        }
+        if !fit_changes.is_empty() {
+            value["fitChanges"] = json!(fit_changes.iter().map(|entry| {
+                json!({"sourceId":entry.source_id,"moved":entry.moved,"missing":entry.missing,
+                    "changesDigest":changes_digest(&run_id, &entry.source_id, entry)})
+            }).collect::<Vec<_>>());
+        }
+        if !available_fits.is_empty() {
+            value["availableFits"] = json!(available_fits);
+        }
         value["usualDurations"] = json!(service.engine.usual_durations());
         value["progress"] = progress.unwrap_or(Value::Null);
         return Ok(value);
@@ -692,6 +760,33 @@ mod tests {
         // Well-formed requests reach the engine.
         assert_eq!(err("amf.production.revisionPlan", "query", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1"})), "vua.amf_production.run_not_found");
         assert_eq!(err("amf.production.restoreRevision", "command", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1","planDigest":"a".repeat(64)})), "vua.amf_production.run_not_found");
+        drop(service);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fit_methods_validate_their_params_before_touching_state() {
+        let root = std::env::temp_dir().join(format!("vua-amf-fits-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let err = |method: &str, kind: &str, params: Value| {
+            route(service.clone(), method, &json!({"kind":kind,"params":params})).unwrap_err().code
+        };
+        // The kind must match the operation.
+        assert_eq!(err("amf.production.saveFit", "query", json!({"schemaVersion":"0.1","runId":"n3-x","sourceId":"outfit","name":"Fit","changesDigest":"a".repeat(64)})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.listFits", "command", json!({"schemaVersion":"0.1"})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.renameFit", "query", json!({"schemaVersion":"0.1","fitId":"fit-1","name":"Fit"})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.deleteFit", "query", json!({"schemaVersion":"0.1","fitId":"fit-1"})), "vua.amf_production.params_invalid");
+        // A save binds a reviewed changes digest.
+        assert_eq!(err("amf.production.saveFit", "command", json!({"schemaVersion":"0.1","runId":"n3-x","sourceId":"outfit","name":"Fit","changesDigest":"xyz"})), "vua.amf_production.params_invalid");
+        // The fit identity is a bounded plain identifier and the name a bounded single line.
+        assert_eq!(err("amf.production.renameFit", "command", json!({"schemaVersion":"0.1","fitId":"fit/1","name":"Fit"})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.deleteFit", "command", json!({"schemaVersion":"0.1","fitId":"fit-1","extra":true})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.renameFit", "command", json!({"schemaVersion":"0.1","fitId":"fit-1","name":"   "})), "vua.amf_production.params_invalid");
+        // Well-formed requests reach the engine.
+        assert_eq!(err("amf.production.saveFit", "command", json!({"schemaVersion":"0.1","runId":"n3-x","sourceId":"outfit","name":"Fit","changesDigest":"a".repeat(64)})), "vua.amf_production.run_not_found");
+        assert_eq!(err("amf.production.renameFit", "command", json!({"schemaVersion":"0.1","fitId":"fit-1","name":"Fit"})), "vua.amf_production.fit_not_found");
+        assert_eq!(err("amf.production.deleteFit", "command", json!({"schemaVersion":"0.1","fitId":"fit-1"})), "vua.amf_production.fit_not_found");
+        assert_eq!(route(service.clone(), "amf.production.listFits", &json!({"kind":"query","params":{"schemaVersion":"0.1"}})).unwrap(), json!({"schemaVersion":"0.1","fits":[]}));
         drop(service);
         std::fs::remove_dir_all(root).unwrap();
     }

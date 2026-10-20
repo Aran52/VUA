@@ -33,6 +33,31 @@ describe("AMF material-first Candidate boundary", () => {
       expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"lighting",method:"amf.production.applyLighting",params})).toBe(false);
     }
   });
+  it("registers saved fits as one query and three synchronous commands", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.listFits"]).toBe("query");
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.saveFit"]).toBe("command");
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.renameFit"]).toBe("command");
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.deleteFit"]).toBe("command");
+    const digest = "b".repeat(64);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.listFits",params:{schemaVersion:"0.1"}})).toBe(true);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.saveFit",params:{schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:digest}})).toBe(true);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.renameFit",params:{schemaVersion:"0.1",fitId:"fit-1",name:"Coat fit"}})).toBe(true);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.deleteFit",params:{schemaVersion:"0.1",fitId:"fit-1"}})).toBe(true);
+    for (const params of [
+      {schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:digest,extra:true},
+      {schemaVersion:"0.1",runId:"../other",sourceId:"outfit",name:"Coat fit",changesDigest:digest},
+      {schemaVersion:"0.1",runId:"n3-test",sourceId:"",name:"Coat fit",changesDigest:digest},
+      {schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"",changesDigest:digest},
+      {schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"   ",changesDigest:digest},
+      {schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat\nfit",changesDigest:digest},
+      {schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:"bad"},
+    ]) {
+      expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.saveFit",params})).toBe(false);
+    }
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.renameFit",params:{schemaVersion:"0.1",fitId:"rev-1",name:"Coat fit"}})).toBe(false);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.renameFit",params:{schemaVersion:"0.1",fitId:"fit-1",name:" "}})).toBe(false);
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"fit",method:"amf.production.deleteFit",params:{schemaVersion:"0.1",fitId:"fit-"}})).toBe(false);
+  });
   it("consumes the shared positive and negative native request vectors", () => {
     const root = new URL("../../../schemas/amf-production-flow/v0.1/examples/", import.meta.url);
     for (const name of readdirSync(root)) {

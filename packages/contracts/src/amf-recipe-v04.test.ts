@@ -12,6 +12,21 @@ describe("actual-production Recipe v0.4", () => {
     expect(isAmfRecipeDocument({...valid,materials:[valid.materials[0]]})).toBe(false);
     expect(isAmfRecipeDocument({...valid,materials:[...valid.materials,valid.materials[0]]})).toBe(false);
   });
+  it("accepts optional fit adjustments with closed object transforms", () => {
+    const valid = JSON.parse(readFileSync(new URL("../../../schemas/amf-recipe/v0.4/examples/recipe.valid.json",import.meta.url),"utf8"));
+    const object = {path:"Armature/Hips/Coat",localPosition:{x:0,y:0.1,z:0},localRotation:{x:0,y:0,z:0,w:1},localScale:{x:1,y:1,z:1}};
+    const fit = {materialId:valid.materials[0].id,objects:[object]};
+    const withFits = (fits: unknown) => ({...valid,adjustments:{lighting:[],sdkFixes:[],fits}});
+    expect(isAmfRecipeDocument({...valid,adjustments:{lighting:[],sdkFixes:[]}})).toBe(true);
+    expect(isAmfRecipeDocument(withFits([fit]))).toBe(true);
+    expect(isAmfRecipeDocument(withFits([{...fit,materialId:"other"}]))).toBe(false);
+    expect(isAmfRecipeDocument(withFits([{...fit,objects:[{...object,path:""}]}]))).toBe(true);
+    expect(isAmfRecipeDocument(withFits([{...fit,objects:[{...object,path:"Armature/Hips\nCoat"}]}]))).toBe(false);
+    expect(isAmfRecipeDocument(withFits([{...fit,objects:[{...object,localRotation:{x:0,y:0,z:0}}]}]))).toBe(false);
+    expect(isAmfRecipeDocument(withFits([{...fit,objects:[{...object,localScale:{x:1,y:1,z:Number.NaN}}]}]))).toBe(false);
+    expect(isAmfRecipeDocument(withFits([{...fit,objects:[{...object,extra:true}]}]))).toBe(false);
+    expect(isAmfRecipeDocument({...valid,adjustments:{lighting:[],sdkFixes:[],fits:[fit],extra:true}})).toBe(false);
+  });
 });
 
 it("shares only closed BOOTH declarations in either representation", () => {

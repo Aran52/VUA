@@ -105,6 +105,36 @@ fn full_inspection_result_carries_the_sdk_review_and_every_observed_field() {
     assert_eq!(material_use[2]["owner"], "source-outfit");
 }
 
+/// Results carry optional fit facts; results written before fits existed stay valid, and
+/// the Unity side may always emit both lists (empty when nothing moved).
+#[test]
+fn fit_facts_are_optional_and_bounded() {
+    let validator = jsonschema::validator_for(&read("result.schema.json")).unwrap();
+    let full = read("examples/inspection-full.valid.result.json");
+    let result: UnityResult = serde_json::from_value(full.clone()).unwrap();
+    let changes = result.data["fitChanges"].as_array().unwrap();
+    assert_eq!(changes[0]["sourceId"], "source-outfit");
+    assert_eq!(changes[0]["moved"][0]["path"], "HairClip");
+    assert_eq!(changes[0]["moved"][0]["localScale"]["x"], 1.0);
+    assert_eq!(changes[0]["missing"][0], "OldHook");
+    assert_eq!(result.data["fitSkipped"][0]["sourceId"], "source-accessory");
+    assert_eq!(result.data["fitSkipped"][0]["paths"][0], "Clips#2");
+    let mut without = full.clone();
+    without["data"].as_object_mut().unwrap().remove("fitChanges");
+    without["data"].as_object_mut().unwrap().remove("fitSkipped");
+    assert!(validator.is_valid(&without));
+    let mut empty = full.clone();
+    empty["data"]["fitChanges"] = Value::Array(vec![]);
+    empty["data"]["fitSkipped"] = Value::Array(vec![]);
+    assert!(validator.is_valid(&empty), "JsonUtility always emits both lists");
+    let mut broken = full;
+    broken["data"]["fitChanges"][0]["moved"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("localScale");
+    assert!(!validator.is_valid(&broken));
+}
+
 /// Results written before material use existed stay valid; the list is capped at 512 entries.
 #[test]
 fn material_use_is_optional_and_bounded() {

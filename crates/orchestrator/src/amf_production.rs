@@ -16,6 +16,8 @@ mod lighting;
 pub use lighting::*;
 mod revisions;
 pub use revisions::*;
+mod fits;
+pub use fits::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -371,6 +373,16 @@ pub struct ProductionRun {
     /// Adjustments a Recipe declares, written into the project after its first assembly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recipe_adjustments: Option<crate::amf_recipe::RecipeAdjustments>,
+    /// The garment adjustments the last observation reported against the assembly baseline.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fit_changes: Vec<GarmentFitChanges>,
+    /// The fits that produced the current assembled state, per garment source.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applied_fits: Vec<AppliedFit>,
+    /// When the last observation was taken, with seven fractional digits so the editor save
+    /// hook's round-trip stamps string-compare against it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_at: Option<String>,
     #[serde(default)]
     pub recipe_id: Option<String>,
     #[serde(default)]
@@ -424,10 +436,12 @@ pub trait AmfProductionPlatform: Send + Sync {
     }
     /// Unity steps report their progress through `watch` and end Unity when it asks to stop.
     fn inspect(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1>;
+    /// Assembles the selection, applying each outfit's resolved fit objects when it has any.
     fn assemble(
         &self,
         run: &ProductionRun,
         selection: &AssemblySelection,
+        fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1>;
     fn apply_recipe(
@@ -435,6 +449,7 @@ pub trait AmfProductionPlatform: Send + Sync {
         _: &ProductionRun,
         _: &AssemblySelection,
         _: &crate::amf_recipe_apply::RecipeApplyTarget,
+        _: &[OutfitFit],
         _: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("recipe_apply_unavailable", "Recipe application is unavailable on this platform."))
@@ -546,13 +561,15 @@ pub fn validate_choices(choices: &[SourceChoice]) -> Result<(), AppErrorV1> {
 }
 
 /// One reviewed assembly execution: the selection, the reviewed digest, an optional Recipe
-/// overlay target, whether the base is rebuilt and the Recipe adjustments to write afterwards.
+/// overlay target, whether the base is rebuilt, the Recipe adjustments to write afterwards
+/// and the fits (with their provenance) the assembly applies per garment.
 pub(crate) struct AssemblyExecution<'a> {
     pub selection: AssemblySelection,
     pub digest: &'a str,
     pub target: Option<crate::amf_recipe_apply::RecipeApplyTarget>,
     pub rebuild: bool,
     pub adjustments: Option<crate::amf_recipe::RecipeAdjustments>,
+    pub fits: Vec<AppliedFit>,
 }
 
 impl AmfProductionEngine {
@@ -831,6 +848,9 @@ impl AmfProductionEngine {
             revisions: Vec::new(),
             sdk_fixes_applied: Vec::new(),
             recipe_adjustments: None,
+            fit_changes: Vec::new(),
+            applied_fits: Vec::new(),
+            observed_at: None,
             recipe_id: None,
             package_pins: BTreeMap::new(),
             recipe_source_hashes: BTreeMap::new(),
@@ -1008,6 +1028,8 @@ impl AmfProductionEngine {
         run.prefabs = observed.prefabs;
         run.unity_fingerprint = observed.unity_fingerprint;
         run.result = observed.result;
+        run.fit_changes = serde_json::from_value(run.result["facts"]["fitChanges"].clone()).unwrap_or_default();
+        run.observed_at = Some(fit_now());
         let _check = FingerprintCheck::begin(self, run, ctx);
         run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
         run.revision = run
@@ -1100,6 +1122,8 @@ impl AmfProductionEngine {
             }).filter(|selection| !selection.avatar_prefab.is_empty() || !selection.outfits.is_empty());
             run.recipe_id = None;
             run.recipe_source_hashes.clear();
+            // The fresh work scene holds no applied fits anymore.
+            run.applied_fits.clear();
             run.completed_at = None;
             run.phase = "ready".into();
             Ok(())
@@ -1286,7 +1310,9 @@ impl AmfProductionEngine {
         }
         let selection = &normalized;
         validate_selection(&run, selection)?;
-        let digest = plan_digest(&run, selection)?;
+        let recipe_fits = run.recipe_adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
+        let fits = self.planned_fits(&run, selection, recipe_fits);
+        let digest = plan_digest_with_fits(&run, selection, &fits)?;
         let inputs = run
             .sources
             .iter()
@@ -1313,7 +1339,8 @@ impl AmfProductionEngine {
             "selection":selection,"editor":run.editor,"projectRoot":run.project_root,
             "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
             "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
-                "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes}))}),
+                "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes})),
+            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>()}),
         )
     }
     pub fn assemble(
@@ -1325,7 +1352,11 @@ impl AmfProductionEngine {
     ) -> Result<(), AppErrorV1> {
         let mut run = self.get(run_id)?;
         validate_selection(&run, &selection)?;
-        if plan_digest(&run, &selection)? != digest {
+        // The reviewed digest bound the fits resolved at plan time; resolve them again and
+        // let the digest comparison prove they still match.
+        let recipe_fits = run.recipe_adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
+        let fits = self.planned_fits(&run, &selection, recipe_fits);
+        if plan_digest_with_fits(&run, &selection, &fits)? != digest {
             return Err(production_error(
                 "plan_drift",
                 "The reviewed plan changed. Review it again.",
@@ -1344,7 +1375,7 @@ impl AmfProductionEngine {
             })
         } else { None };
         let adjustments = run.recipe_adjustments.clone();
-        self.execute_assembly(run, AssemblyExecution { selection, digest, target, rebuild, adjustments }, ctx)
+        self.execute_assembly(run, AssemblyExecution { selection, digest, target, rebuild, adjustments, fits }, ctx)
     }
     pub(crate) fn execute_assembly(
         &self,
@@ -1352,7 +1383,7 @@ impl AmfProductionEngine {
         execution: AssemblyExecution<'_>,
         ctx: &TaskContext,
     ) -> Result<(), AppErrorV1> {
-        let AssemblyExecution { selection, digest, target, rebuild, adjustments } = execution;
+        let AssemblyExecution { selection, digest, target, rebuild, adjustments, fits } = execution;
         // The comparison and execution are separate reads. Check again at the
         // mutation boundary, including for Recipe application.
         let (matches_boundary, current) = self.project_state(&run)?;
@@ -1398,9 +1429,13 @@ impl AmfProductionEngine {
                 "assembly",
                 "Bind selected materials and create their switches",
             )?;
+            let outfit_fits: Vec<OutfitFit> = fits
+                .iter()
+                .map(|fit| OutfitFit { source_id: fit.source_id.clone(), objects: fit.objects.clone() })
+                .collect();
             let observed = match &target {
-                Some(target) => self.platform.apply_recipe(&run, &selection, target, &self.watch(&run, ctx))?,
-                None => self.platform.assemble(&run, &selection, &self.watch(&run, ctx))?,
+                Some(target) => self.platform.apply_recipe(&run, &selection, target, &outfit_fits, &self.watch(&run, ctx))?,
+                None => self.platform.assemble(&run, &selection, &outfit_fits, &self.watch(&run, ctx))?,
             };
             if let Some(error) = ctx.cancellation_error("amf-production") {
                 return Err(error);
@@ -1449,6 +1484,16 @@ impl AmfProductionEngine {
                 run.recipe_adjustments = None;
             }
             Self::close_step(&mut run, "succeeded");
+            // The fits that produced this state: rewritten garments take the fit they just
+            // received (or drop their record when none applied), garments a partial assembly
+            // kept are untouched, and garments no longer selected drop out.
+            let written: std::collections::BTreeSet<&str> = match &target {
+                Some(target) => target.write_source_ids.iter().map(String::as_str).collect(),
+                None => selection.outfits.iter().map(|outfit| outfit.source_id.as_str()).collect(),
+            };
+            run.applied_fits.retain(|fit| !written.contains(fit.source_id.as_str()));
+            run.applied_fits.extend(fits.iter().filter(|fit| written.contains(fit.source_id.as_str())).cloned());
+            run.applied_fits.retain(|fit| selection.outfits.iter().any(|outfit| outfit.source_id == fit.source_id));
             let record =
                 self.root
                     .join("records")
@@ -1632,16 +1677,29 @@ impl AmfProductionEngine {
 }
 
 /// A line's current VUA adjustments as a Recipe records them: the brightness limits each
-/// in-use lilToon material carries and the SDK fixes applied so far. Lines without either
-/// produce no `adjustments` section.
+/// in-use lilToon material carries, the SDK fixes applied so far and the fits each garment
+/// received. Lines without any of these produce no `adjustments` section.
 pub(crate) fn current_adjustments(run: &ProductionRun) -> Option<crate::amf_recipe::RecipeAdjustments> {
     let lighting = lighting::current_lighting(run);
-    if lighting.is_empty() && run.sdk_fixes_applied.is_empty() {
+    let fits: Vec<crate::amf_recipe::RecipeFit> = run
+        .applied_fits
+        .iter()
+        .filter(|fit| !fit.objects.is_empty())
+        .filter_map(|fit| {
+            let source = run.sources.iter().find(|source| source.source_id == fit.source_id)?;
+            Some(crate::amf_recipe::RecipeFit {
+                material_id: format!("m-{}", source.sha256.strip_prefix("sha256:").unwrap_or(&source.sha256)),
+                objects: fit.objects.clone(),
+            })
+        })
+        .collect();
+    if lighting.is_empty() && run.sdk_fixes_applied.is_empty() && fits.is_empty() {
         return None;
     }
     Some(crate::amf_recipe::RecipeAdjustments {
         lighting,
         sdk_fixes: run.sdk_fixes_applied.clone(),
+        fits,
     })
 }
 
@@ -1806,11 +1864,31 @@ pub fn plan_digest(
     run: &ProductionRun,
     selection: &AssemblySelection,
 ) -> Result<String, AppErrorV1> {
+    plan_digest_with_fits(run, selection, &[])
+}
+
+/// The plan digest with the resolved fits bound in: any fit content change between the
+/// review and the assembly refuses the execution as `plan_drift`.
+pub fn plan_digest_with_fits(
+    run: &ProductionRun,
+    selection: &AssemblySelection,
+    fits: &[AppliedFit],
+) -> Result<String, AppErrorV1> {
+    let fits: Vec<serde_json::Value> = fits
+        .iter()
+        .map(|fit| {
+            let objects_sha256 = Sha256::digest(serde_json::to_string(&fit.objects).map_err(io_error)?.as_bytes())
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>();
+            Ok(serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name,"objectsSha256":objects_sha256}))
+        })
+        .collect::<Result<_, AppErrorV1>>()?;
     let value = serde_json::json!({"runId":run.run_id,"revision":run.revision,"editor":run.editor,"projectRoot":run.project_root,
         "sources":run.sources,"prefabs":run.prefabs,"projectFingerprint":run.project_fingerprint,
         "unityFingerprint":run.unity_fingerprint,"selection":selection,"recipeId":run.recipe_id,
         "recipeSourceHashes":run.recipe_source_hashes,"packagePins":run.package_pins,
-        "recipeAdjustments":run.recipe_adjustments});
+        "recipeAdjustments":run.recipe_adjustments,"fits":fits});
     Ok(
         Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
             .iter()

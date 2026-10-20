@@ -45,6 +45,27 @@ it("keeps AMF lighting review and application unavailable in the mock provider",
   if (!apply.ok) expect(apply.error.code).toBe("vua.amf_production.unavailable");
 });
 
+it("keeps AMF saved fits unavailable in the mock provider", async () => {
+  const provider = new MockOrchestratorProviderV01();
+  await provider.start();
+  const list = await provider.invoke({contractVersion:"0.1",requestId:"fit-list",correlationId:"fit-list",kind:"query",
+    method:"amf.production.listFits",params:{schemaVersion:"0.1"}});
+  expect(list.ok).toBe(false);
+  if (!list.ok) expect(list.error.code).toBe("vua.amf_production.unavailable");
+  const save = await provider.invoke({contractVersion:"0.1",requestId:"fit-save",correlationId:"fit-save",kind:"command",commandId:"fit-save",
+    method:"amf.production.saveFit",params:{schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:"b".repeat(64)}});
+  expect(save.ok).toBe(false);
+  if (!save.ok) expect(save.error.code).toBe("vua.amf_production.unavailable");
+  const rename = await provider.invoke({contractVersion:"0.1",requestId:"fit-rename",correlationId:"fit-rename",kind:"command",commandId:"fit-rename",
+    method:"amf.production.renameFit",params:{schemaVersion:"0.1",fitId:"fit-1",name:"Coat fit"}});
+  expect(rename.ok).toBe(false);
+  if (!rename.ok) expect(rename.error.code).toBe("vua.amf_production.unavailable");
+  const remove = await provider.invoke({contractVersion:"0.1",requestId:"fit-delete",correlationId:"fit-delete",kind:"command",commandId:"fit-delete",
+    method:"amf.production.deleteFit",params:{schemaVersion:"0.1",fitId:"fit-1"}});
+  expect(remove.ok).toBe(false);
+  if (!remove.ok) expect(remove.error.code).toBe("vua.amf_production.unavailable");
+});
+
 function task(overrides: Partial<TaskSnapshotV01> = {}): TaskSnapshotV01 {
   return {
     contractVersion: APPLICATION_CONTRACT_VERSION,

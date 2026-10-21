@@ -22,6 +22,10 @@
 - **上传核对**:上传成功后,发布页在上传记录旁显示该 Avatar 在 VRChat 上的状态——名称、
   发布状态、平台、更新时间,「已在 VRChat 上找到」或「还不在你的 Avatar 列表里」,可手动
   刷新;只保存核对所需字段,不保存其他账号数据。
+- **证书信任更新**:运行时升级到 Electron 44.9.3,Provider 使用 rustls-webpki 0.103.16 与
+  webpki-root-certs 1.0.10。两者都拒绝经由 eMudhra 泄露私钥的中间 CA 签发的 HTTPS 证书
+  (CVE-2026-111943),Electron 同时带来 Chromium 与 V8 的安全回补。安装器、运行时和
+  Provider 随本版一起更新。
 
 ## 验证边界与已知事项
 

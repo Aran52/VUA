@@ -34,7 +34,7 @@ namespace Vua.Editor.Bridge
         [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; public FitObjects fit; }
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
         [Serializable] internal sealed class ApplyTarget { public string avatarGlobalObjectId; public string newAvatarKey; public string[] writeSourceIds; }
-        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; }
+        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; }
         [Serializable] internal sealed class Candidate
         {
             public string sourceId; public string path; public string name; public bool isAvatar;
@@ -69,6 +69,7 @@ namespace Vua.Editor.Bridge
             public List<string> sdkFixesApplied = new List<string>();
             public List<FitChangeEntry> fitChanges = new List<FitChangeEntry>();
             public List<FitSkipEntry> fitSkipped = new List<FitSkipEntry>();
+            public FtFacts faceTracking;
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -97,7 +98,12 @@ namespace Vua.Editor.Bridge
                 output = BridgeEntryPoint.SafeBridgePath(Argument("-vuaResult"));
                 var command = JsonUtility.FromJson<BridgeCommand>(File.ReadAllText(BridgeEntryPoint.SafeBridgePath(Argument("-vuaRequest"))));
                 result.commandId = command.commandId; result.operation = command.operation;
-                Process(command, result);
+                var request = Process(command, result);
+                if (command.operation == "amf_ft_patch")
+                {
+                    StartFtSession(request, result, output);
+                    return; // Completion belongs to the player's window, including across domain reload.
+                }
                 result.status = "succeeded";
             }
             catch (Exception error)
@@ -106,18 +112,20 @@ namespace Vua.Editor.Bridge
             }
             LogStage("finishing");
             if (output != null) AtomicWrite(output, JsonUtility.ToJson(result, true));
-            if (Application.isBatchMode) EditorApplication.Exit(result.status == "succeeded" ? 0 : 1);
+            if (Application.isBatchMode || result.operation == "amf_ft_patch") EditorApplication.Exit(result.status == "succeeded" ? 0 : 1);
         }
 
-        private static void Process(BridgeCommand command, Result result)
+        private static Request Process(BridgeCommand command, Result result)
         {
             LogStage("bridge");
             if (command.schemaVersion != 5 || string.IsNullOrEmpty(command.commandId) || string.IsNullOrEmpty(command.projectId))
                 throw new InvalidOperationException("AMF requires Bridge v5 and bound command/project identities.");
             if (Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
                 throw new InvalidOperationException("Unsupported actual Editor version: " + Application.unityVersion);
-            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix")
+            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch")
                 throw new InvalidOperationException("Unknown AMF operation.");
+            if (command.operation == "amf_ft_patch" && Application.isBatchMode)
+                throw new InvalidOperationException("Creator patch menus require a dedicated interactive Editor session.");
             if (command.dryRun != (command.operation == "amf_inspect")) throw new InvalidOperationException("Invalid operation write mode.");
             var root = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var requestPath = BridgeEntryPoint.SafeBridgePath(Path.Combine(root, command.payload.planRef ?? ""));
@@ -156,7 +164,7 @@ namespace Vua.Editor.Bridge
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             var fingerprint = ProjectFingerprint.Compute();
-            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
+            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
                 throw new InvalidOperationException("The scene changed. Reinspect and review the plan.");
             if (PlayerSettings.companyName != WorkCompany || PlayerSettings.productName != WorkProduct)
             {
@@ -169,6 +177,7 @@ namespace Vua.Editor.Bridge
             if (command.operation == "amf_assemble") Assemble(request, result);
             if (command.operation == "amf_sdk_fix") ApplySdkFixes(request, result);
             ObserveScene(request, result);
+            result.data.faceTracking = ObserveFaceTracking(request, result.data.avatarGlobalObjectId);
             result.data.missingShaderMaterials = MissingShaderMaterials(request, result.data.avatarGlobalObjectId);
             if (result.data.missingShaderMaterials.Count > 0)
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.shaders.missing", result.data.missingShaderMaterials.Count + " materials use a shader that is not in the project."));
@@ -178,7 +187,8 @@ namespace Vua.Editor.Bridge
                 result.data.sdkReview = ReviewWithSdk(string.IsNullOrEmpty(result.data.avatarGlobalObjectId) ? null : FindOwned(result.data.avatarGlobalObjectId));
             result.data.projectFingerprint = ProjectFingerprint.Compute();
             if (command.operation == "amf_turntable") BakeTurntable(command, result, root);
-            else if (command.operation != "amf_prepare") RenderPreviews(command, result, root);
+            else if (command.operation != "amf_prepare" && command.operation != "amf_ft_patch") RenderPreviews(command, result, root);
+            return request;
         }
 
         // The active Avatar from three sides, and during inspection each prefab candidate. A failed

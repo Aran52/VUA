@@ -1,0 +1,9 @@
+{
+  "method": "amf.production.faceTrackingPlan",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-test",
+    "menuId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "method": "amf.production.faceTrackingPatch",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-test",
+    "menuId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "planDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "confirmTrustedCode": true
+  }
+}

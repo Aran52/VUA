@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { amfRunProblem, isAmfProductionRun, createAmfProductionPort } from "./amf-production-port.ts";
 import type { GatewayClient } from "./gateway-client.ts";
 import type { DesktopGatewaySuccessValueV1 } from "@vua/contracts";
@@ -9,6 +10,14 @@ const run = {schemaVersion:"0.1",runId:"n3-test",phase:"succeeded",taskId:"task-
   result:{facts:{sdkDescriptorRecognized:true,missingReferences:0,avatarName:"Avatar",instances:[{sourceId:"coat",bindingVerified:true,menuVerified:true,menuModified:true}]}}};
 
 describe("AMF production response boundary", () => {
+  it("accepts absent FT facts on old runs and validates new facts without claiming runtime success", () => {
+    const faceTracking = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json", import.meta.url), "utf8")).data.faceTracking;
+    expect(isAmfProductionRun(run)).toBe(true);
+    expect(isAmfProductionRun({ ...run, result: { facts: { ...run.result.facts, faceTracking } } })).toBe(true);
+    for (const invalid of [null, {}, { ...faceTracking, runtime: "working" }, { ...faceTracking, patchMenus: "available" }]) {
+      expect(isAmfProductionRun({ ...run, result: { facts: { ...run.result.facts, faceTracking: invalid } } })).toBe(false);
+    }
+  });
   it("refuses malformed results and preserves full Editor identity", () => {
     expect(isAmfProductionRun(run)).toBe(true);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,instances:"passed"}}})).toBe(false);

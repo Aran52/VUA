@@ -260,6 +260,30 @@
           }
         }
       }
+    },
+    "faceTrackingPatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "menuId",
+        "avatarGlobalObjectId",
+        "confirmTrustedCode"
+      ],
+      "properties": {
+        "menuId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "confirmTrustedCode": {
+          "const": true
+        }
+      }
     }
   }
 }

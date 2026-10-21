@@ -1,4 +1,5 @@
 /** Candidate AMF material-first production. Frozen legacy production faces are separate. */
+import { isFaceTrackingDigest } from "./face-tracking-v01.js";
 export type AmfSourceRole = "auto" | "avatar" | "outfit" | "dependency";
 export interface AmfSourceChoice { readonly sourceId: string; readonly role: AmfSourceRole }
 export interface AmfOutfitSelection {
@@ -9,7 +10,7 @@ export interface AmfOutfitSelection {
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
 /** Which state of the line a revision recorded; `restore` is the protected current state. */
-export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "lighting" | "restore";
+export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "face_tracking" | "lighting" | "restore";
 export type AmfProductionCapacity = 1 | 2 | 3;
 /** The lilToon brightness limits of one material, as serialized in its file. */
 export interface AmfLightingLimits { readonly min: string; readonly max: string }
@@ -28,6 +29,8 @@ export interface AmfProductionLaneV01 {
   readonly queue: readonly AmfProductionWorkV01[];
 }
 export type AmfProductionBodyV01 =
+  | { readonly method: "amf.production.faceTrackingPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string } }
+  | { readonly method: "amf.production.faceTrackingPatch"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string; readonly planDigest: string; readonly confirmTrustedCode: true } }
   | { readonly method: "amf.production.setCapacity"; readonly params: { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity } }
   | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string } }
   | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string } }
@@ -72,7 +75,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "lighting"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "lighting"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
@@ -190,6 +193,9 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     // The player confirms the content rights statement in VUA for each upload.
     case "amf.production.upload": return exact(value, ["schemaVersion", "runId", "avatarName", "rightsConfirmed"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && isAmfAvatarName(value.avatarName) && value.rightsConfirmed === true;
+    case "amf.production.faceTrackingPlan": return exact(value, ["schemaVersion", "runId", "menuId"]) && runId(value.runId) && isFaceTrackingDigest(value.menuId);
+    case "amf.production.faceTrackingPatch": return exact(value, ["schemaVersion", "runId", "menuId", "planDigest", "confirmTrustedCode"])
+      && runId(value.runId) && isFaceTrackingDigest(value.menuId) && isFaceTrackingDigest(value.planDigest) && value.confirmTrustedCode === true;
     case "amf.production.sdkFix": return exact(value, ["schemaVersion", "runId", "fixes"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && Array.isArray(value.fixes) && value.fixes.length >= 1 && value.fixes.length <= AMF_SDK_FIX_LIMIT
       && value.fixes.every(fix => text(fix, 600)) && new Set(value.fixes).size === value.fixes.length;

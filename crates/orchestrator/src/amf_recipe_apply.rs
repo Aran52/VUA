@@ -97,6 +97,7 @@ impl AmfProductionEngine {
     }
     pub fn recipe_apply_plan_for(&self, run_id: &str, recipe_id: &str, avatar_id: Option<&str>) -> Result<RecipeApplyPlan, AppErrorV1> {
         let run = self.get(run_id)?;
+        crate::amf_production::require_replayable_face_tracking(&run)?;
         if !matches!(run.phase.as_str(), "ready" | "succeeded") {
             return Err(production_error("inspect_required", "Reinspect the retained Avatar before applying a Recipe."));
         }

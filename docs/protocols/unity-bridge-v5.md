@@ -1,14 +1,14 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.13.0
+> Document version: 0.14.0
 > Status: Candidate
-> Updated: 2026-10-20
+> Updated: 2026-10-21
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect`, `amf_assemble` and `amf_turntable`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix` and `amf_ft_patch`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
@@ -202,7 +202,51 @@ never a failure. The baseline is recorded after application, so an applied fit i
 reported as a move. Results written before these facts existed carry no `fitChanges` or
 `fitSkipped`.
 
+## Face tracking
+
+Optional `data.faceTracking` has `schemaVersion: "0.1"`, `evidence: "unity_source"`, a UTC
+`observedAt`, `state: no_avatar | observed | partial`, `truncated`, `manualReplayRequired`,
+`runtime: "unknown"` and `builtParameterBudget: "unknown"`. Absence is compatible with older
+results. `meshes` contains at most 128 separate SkinnedMeshRenderer observations: relative
+renderer path, shape count, missing-mesh flag and exact matched names for `arkit52-v1` (52),
+`unified-core12-v1` (12) and `sranipal-core12-v1` (12). The latter two are deliberately named
+subsets, not complete UE/SRanipal standards. Coverage is never combined across renderers.
+
+`parameters` lists up to 1024 distinct FT-like names from source Animator controllers,
+MA Merge Animator controllers and descriptor expression parameters. Names using any prefix before `/v2/`, known control names,
+`FT/`/`VRCFT/` prefixes or the detection vocabularies are hints. `components` lists up to 64
+MA/VRCFury/Pawlygon integration component type names, which do not prove FT wiring.
+`expressionParametersObserved` says whether the descriptor's expression-parameter list could
+be read. Only when true does `sourceSyncedParameterBits` describe its synced cost (Bool 1,
+Int/Float 8, unsynced 0); otherwise the field is zero and must not be displayed as a measured
+budget. NDMF/VRCFury build-time changes are outside this source observation.
+
+`patchMenus` lists at most 64 unique imported creator menus under `Tools/` or a custom top-level
+root, with `id`, `sourceId`,
+`scriptPath` and `menuPath`. IDs hash the exact source/script/menu identity. Discovery reads
+MenuItem metadata without executing methods or validators. It excludes duplicate registrations,
+context/built-in paths, shortcuts, ambiguous source ownership, unsupported signatures and
+types which MonoScript cannot resolve. This is a bounded list of possible creator entry points,
+not a claim that every menu performs FT. Missing results require creator-specific follow-up;
+there is no arbitrary-string fallback.
+
+`amf_ft_patch` requires `dryRun: false`, the current `expectedProjectFingerprint`, and plan
+`faceTrackingPatch: {menuId, avatarGlobalObjectId, confirmTrustedCode: true}`. Batch mode is
+rejected before dispatch. In the dedicated GUI process, the Bridge verifies the owned Avatar,
+its assembled selection and the freshly rediscovered menu. It persists dispatch state in
+Unity SessionState before executing the menu once. Domain reload only reopens VUA's completion
+window; process restart cannot resume it.
+
+Finish saves the single managed scene and checks the original Avatar/outfit relationships,
+writes `ProjectSettings/VUA.FaceTracking.json` with local source/menu/command identities and manual replay
+status, then emits the bound successful receipt and exits. Cancel exits without success.
+The parent engine owns the snapshot and independent batch recheck; no Bridge menu success
+alone declares FT functional. The operation's listed changed paths are the managed scene and
+marker, not an exhaustive claim about opaque creator writes.
+
 ## Document changelog
+
+- 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
 
 - 0.13.0 (2026-10-20): record a per-garment local-Transform fit baseline after assembly, report moved and missing objects as `fitChanges` (also from scene saves in the open Editor), and apply request `fit` transforms with per-path skips reported as `fitSkipped`.
 - 0.12.0 (2026-10-20): the upload receipt carries `sdkReview`, the SDK's Avatar check read again after the upload.

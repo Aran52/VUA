@@ -18,6 +18,8 @@ mod revisions;
 pub use revisions::*;
 mod fits;
 pub use fits::*;
+mod face_tracking;
+pub use face_tracking::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -300,7 +302,8 @@ impl Drop for FingerprintCheck<'_> {
 fn interrupted_change(run: &ProductionRun) -> bool {
     run.phase == "assembling"
         && run.snapshot_id.is_some()
-        && run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix") && step.state == "running")
+        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking") && step.state == "running")
+            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| step.key == "face_tracking"))
 }
 
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
@@ -469,6 +472,9 @@ pub trait AmfProductionPlatform: Send + Sync {
         Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
+    fn face_tracking_patch(&self, _: &ProductionRun, _: &FaceTrackingPatch, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("face_tracking_unavailable", "Creator patch sessions are unavailable on this platform."))
+    }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1>;
     /// The current content identity (`sha256:<hex>`) of a library source, or None when the
     /// library no longer holds it. Restoring a version refuses sources it cannot verify.
@@ -756,6 +762,7 @@ impl AmfProductionEngine {
     }
     pub fn save_recipe(&self, run_id: &str, recipe_id: &str, title: &str) -> Result<crate::StoredRecipeDocument, AppErrorV1> {
         let mut run = self.get(run_id)?;
+        face_tracking::require_replayable_face_tracking(&run)?;
         if !matches!(run.phase.as_str(), "ready" | "succeeded") {
             return Err(production_error("inspect_required", "Reinspect current project changes before saving a Recipe."));
         }
@@ -1075,6 +1082,7 @@ impl AmfProductionEngine {
     pub fn change_sources(&self, run_id: &str, choices: Vec<SourceChoice>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
         validate_choices(&choices)?;
         let mut run = self.get(run_id)?;
+        face_tracking::require_replayable_face_tracking(&run)?;
         if run.sources.is_empty() || !matches!(run.phase.as_str(), "ready" | "succeeded" | "failed" | "stopped") {
             return Err(production_error("inspect_required", "Check the work project again before changing its materials."));
         }
@@ -1304,6 +1312,7 @@ impl AmfProductionEngine {
         selection: &AssemblySelection,
     ) -> Result<serde_json::Value, AppErrorV1> {
         let run = self.get(run_id)?;
+        face_tracking::require_replayable_face_tracking(&run)?;
         let mut normalized = selection.clone();
         for outfit in &mut normalized.outfits {
             if outfit.toggle_name.trim().is_empty() { outfit.toggle_name.clear(); }
@@ -1384,6 +1393,7 @@ impl AmfProductionEngine {
         ctx: &TaskContext,
     ) -> Result<(), AppErrorV1> {
         let AssemblyExecution { selection, digest, target, rebuild, adjustments, fits } = execution;
+        face_tracking::require_replayable_face_tracking(&run)?;
         // The comparison and execution are separate reads. Check again at the
         // mutation boundary, including for Recipe application.
         let (matches_boundary, current) = self.project_state(&run)?;

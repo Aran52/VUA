@@ -15,6 +15,8 @@ const time = (iso: string | null | undefined) => (iso && !Number.isNaN(Date.pars
 /** This Avatar's work waiting behind the running job. */
 export interface QueuedWork {
   readonly operation: string;
+  /** Unity tasks ahead of this one. */
+  readonly ahead: number;
   readonly onRemove: () => void;
 }
 
@@ -37,7 +39,7 @@ export interface SheetActions {
 function QueuedNotice({ queued }: { queued: QueuedWork }) {
   const work = copy.queue.work[queued.operation.replace(/^amf\.production\./u, "") as keyof typeof copy.queue.work] ?? copy.queue.work.other;
   return <div className="vua-release-upload__queued" role="status">
-    <span><Icon name="clock" size={16} />{format(copy.queue.waiting, { work })}</span>
+    <span><Icon name="clock" size={16} />{format(copy.queue.waiting, { work, count: queued.ahead })}</span>
     <button type="button" className="vua-release-upload__link" onClick={queued.onRemove} data-nav-id="release-queue-remove">{copy.queue.remove}</button>
   </div>;
 }

@@ -9,7 +9,7 @@ import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfPro
 import type { PageId } from "../../../app/nav-model.ts";
 import { EmptyState } from "../../../components/primitives/EmptyState.tsx";
 import { format, formatDateTime, formatShortDateTime, strings, termLabel } from "../../../i18n/index.ts";
-import { runStartedAt } from "../factory-model.ts";
+import { queueAhead, runStartedAt } from "../factory-model.ts";
 import { useAiRequests } from "../../ai-requests/use-ai-requests.ts";
 import { requestRunId } from "../../ai-requests/ai-request-routing.ts";
 import { onRequestRevealed } from "../../ai-requests/ai-request-reveal.ts";
@@ -230,7 +230,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
           busy: ownWork(runId),
           uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
           otherWork,
-          queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
+          queued: (() => { const queued = queuedFor(runId); return queued ? { operation: queued.operation, ahead: list ? queueAhead(list, queued.taskId) : 1, onRemove: () => { void gateway.task.cancel(queued.taskId).then(refresh, () => {}); } } : null; })(),
           onUpload: () => { setDialogError(null); setDialog({ runId, requestId: null }); },
           onStop: () => { void gateway.task.cancel(run.taskId).then(refresh, () => {}); },
           onCheckAgain: () => checkAgain(runId),

@@ -27,7 +27,7 @@ import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentSt
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
-import { formatDuration, lineLabels } from "./factory-model.ts";
+import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
@@ -89,6 +89,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [requesting, setRequesting] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
+  const [queuedAhead, setQueuedAhead] = useState(1);
   const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
@@ -149,6 +150,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         const view = await gateway.task.snapshot(); if (!alive) return;
         const task = view.tasks.find(t => t.id === taskId);
         setTaskQueued(task?.status === "queued");
+        if (task?.status === "queued" && port) { const lane = await port.list(); if (alive) setQueuedAhead(queueAhead(lane, taskId)); }
         if (task && ["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) {
           setTaskId(null); setTaskAction(null); void refreshList();
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
@@ -259,7 +261,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
       <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
     </ConfirmDialog>
-    {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{factory.queued.hint}</Alert>}
+    {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
     {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
       action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
       : error !== null && <Alert tone="error" title={copy.error} action={<Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{error}</Alert>}

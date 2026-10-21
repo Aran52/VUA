@@ -35,6 +35,7 @@ const en = {
   steps: ["Choose a path", "Get ready", "Start"], openLibrary: "Open asset library", networkContinue: "Continue to software checks",
   manualLaunch: "Steam opens separately. If it does not open, launch Steam yourself and find VRChat in your library.",
   missing: "Not found", found: "Found", unknown: "Not confirmed", failed: "The check could not finish. Try again.",
+  developingTip: "In development: VUA can't install or start it yet.",
 };
 type Copy = { [K in keyof typeof en]: (typeof en)[K] extends string[] ? string[] : string };
 const zh: Copy = {
@@ -71,6 +72,7 @@ const zh: Copy = {
   steps: ["选条路线", "做好准备", "开始使用"], openLibrary: "进入素材库", networkContinue: "继续检查软件",
   manualLaunch: "Steam 会在独立窗口中打开。如果没有打开，请手动启动 Steam，在库中找到 VRChat。",
   missing: "未找到", found: "已找到", unknown: "未能确认", failed: "这次检测没能完成，可以再试一次。",
+  developingTip: "开发中，VUA 暂时不能安装或启动它。",
 };
 const ja: Copy = {
   home: "ホーム", finish: "ガイドを終える", environment: "環境", avatar: "Avatar", help: "ヘルプ", tasks: "タスク",
@@ -106,6 +108,7 @@ const ja: Copy = {
   steps: ["ルート選択", "準備", "始める"], openLibrary: "素材ライブラリへ", networkContinue: "ソフトの確認へ",
   manualLaunch: "Steam は別ウィンドウで開きます。開かなければ Steam を手動で起動し、ライブラリで VRChat を選んでください。",
   missing: "見つかりません", found: "見つかりました", unknown: "未確認", failed: "確認を完了できませんでした。再試行できます。",
+  developingTip: "開発中のため、VUA ではまだインストールや起動ができません。",
 };
 const ko: Copy = {
   home: "홈", finish: "안내 마치기", environment: "환경", avatar: "Avatar", help: "도움말", tasks: "작업",
@@ -141,5 +144,6 @@ const ko: Copy = {
   steps: ["경로 선택", "준비", "시작"], openLibrary: "소재 라이브러리 열기", networkContinue: "소프트웨어 확인으로",
   manualLaunch: "Steam은 별도 창으로 열립니다. 열리지 않으면 직접 Steam을 실행하고 라이브러리에서 VRChat을 찾으세요.",
   missing: "찾지 못함", found: "찾음", unknown: "확인되지 않음", failed: "확인을 완료하지 못했습니다. 다시 시도해 주세요.",
+  developingTip: "개발 중이라 VUA에서 아직 설치하거나 실행할 수 없습니다.",
 };
 export const journeyCopy = { en, "zh-CN": zh, ja, ko };

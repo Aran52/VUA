@@ -2,6 +2,7 @@
  * experimental VRChat sign-in, the account's own Avatars on VRChat. The production records live in
  * Settings → Debugging information. */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Alert } from "../../../components/primitives/Alert.tsx";
 import { Icon } from "@vua/design-system";
 import type { AiUploadConfirmationV01 } from "@vua/contracts";
 import { useGateway, type AmfProductionList, type AmfProductionPort, type AmfProductionRun, type AmfReleasePort, type AmfReleaseState, type VrchatAvatarCheck, type VrchatPort } from "../../../gateway/index.ts";
@@ -31,11 +32,11 @@ export function ActionError({ error, onCheckAgain }: { error: unknown; onCheckAg
   const code = String((error as { code?: unknown }).code ?? (error instanceof Error ? error.message : "")).replace(/^vua\.amf_production\./u, "");
   const known = (copy.errors as Record<string, string>)[code];
   const detail = error instanceof Error && error.message !== code && !error.message.startsWith("vua.") ? error.message : "";
-  return <div className="vua-release-room__error" role="alert">
+  return <Alert tone="error" className="vua-release-room__error"
+    action={code === "project_drift" && onCheckAgain ? <button type="button" className="vua-release-upload__link" onClick={onCheckAgain}>{copy.upload.checkAgain}</button> : undefined}>
     <p>{known ?? copy.errors.other}</p>
     {detail && !known && <details><summary>{copy.upload.details}</summary><p>{detail}</p></details>}
-    {code === "project_drift" && onCheckAgain && <button type="button" className="vua-release-upload__link" onClick={onCheckAgain}>{copy.upload.checkAgain}</button>}
-  </div>;
+  </Alert>;
 }
 
 function TurntableBar({ run, state, busy, error, onBake }: { run: AmfProductionRun; state: AmfReleaseState | null; busy: boolean; error: unknown; onBake: () => void }) {

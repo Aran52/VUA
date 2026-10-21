@@ -5,6 +5,7 @@ const en = {
   absent: "Not enabled", starting: "Starting…", ready: "Enabled", failed: "{amf} could not start. Play is still available.", stopping: "Stopping…",
   busy: "{amf} is busy. Finish or cancel its tasks, then try again.", changeFailed: "The change failed. Your data has been kept.",
   wait: "Please wait…", manage: "Manage modules", loading: "Opening {amf}…", developing: "In development",
+  disableConfirm: "Disable {amf}?",
 };
 type Copy = { [Key in keyof typeof en]: string };
 export const moduleCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
@@ -16,6 +17,7 @@ export const moduleCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     absent: "尚未启用", starting: "正在启动…", ready: "已启用", failed: "{amf} 启动失败，游玩仍可使用。", stopping: "正在停止…",
     busy: "{amf} 还有任务在进行。完成或取消后，再试一次。", changeFailed: "这次操作没有完成，已有数据已保留。",
     wait: "请稍候…", manage: "管理功能模块", loading: "正在打开 {amf}…", developing: "开发中",
+    disableConfirm: "停用 {amf}？",
   },
   ja: {
     title: "機能モジュール", choose: "どの方法で Avatar を編集しますか？", amf: "{amf}",
@@ -24,6 +26,7 @@ export const moduleCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     absent: "未有効", starting: "起動中…", ready: "有効", failed: "{amf} を起動できませんでした。プレイは利用できます。", stopping: "停止中…",
     busy: "{amf} のタスクが実行中です。完了またはキャンセルしてから再試行してください。", changeFailed: "変更できませんでした。データは保持されています。",
     wait: "お待ちください…", manage: "モジュールを管理", loading: "{amf} を開いています…", developing: "開発中",
+    disableConfirm: "{amf} を無効にしますか？",
   },
   ko: {
     title: "기능 모듈", choose: "어떤 방식으로 Avatar를 편집할까요?", amf: "{amf}",
@@ -32,5 +35,6 @@ export const moduleCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     absent: "꺼짐", starting: "시작 중…", ready: "켜짐", failed: "{amf}를 시작하지 못했습니다. 플레이는 계속 사용할 수 있습니다.", stopping: "중지 중…",
     busy: "{amf} 작업이 진행 중입니다. 완료하거나 취소한 뒤 다시 시도하세요.", changeFailed: "변경하지 못했습니다. 기존 데이터는 유지됩니다.",
     wait: "잠시 기다려 주세요…", manage: "모듈 관리", loading: "{amf} 여는 중…", developing: "개발 중",
+    disableConfirm: "{amf}를 끌까요?",
   },
 };

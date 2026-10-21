@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AiToolsSnapshotV01 } from "@vua/contracts";
+import { toast } from "../../components/primitives/toast-store.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { useGateway } from "../../gateway/index.ts";
 import { currentLocale, strings } from "../../i18n/index.ts";
@@ -19,7 +20,6 @@ export function AiToolsPage({ navigate }: { navigate: (page: PageId) => void }) 
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  const [copied, setCopied] = useState(false);
   const approvalSection = useRef<HTMLElement>(null);
   const shownRequests = useRef(new Set<string>());
   useEffect(() => {
@@ -42,7 +42,7 @@ export function AiToolsPage({ navigate }: { navigate: (page: PageId) => void }) 
     return () => { alive = false; unsubscribe(); };
   }, [port]);
   useEffect(() => {
-    setPrompt(""); setCopied(false);
+    setPrompt("");
     if (!port || !snapshot?.enabled || !snapshot.endpoint) return;
     let alive = true;
     void port.prompt(currentLocale).then(value => { if (alive) setPrompt(value); }, () => { if (alive) setError(true); });
@@ -64,8 +64,8 @@ export function AiToolsPage({ navigate }: { navigate: (page: PageId) => void }) 
     {snapshot?.enabled ? <Card>
       <h2>{copy.second}</h2>
       <textarea className="vua-ai-tools__prompt" rows={12} readOnly aria-label={copy.second} value={prompt} />
-      <Button disabled={busy || !prompt} onClick={() => { void act(async () => { await port.copyPrompt(currentLocale); setCopied(true); }); }}>{copy.copy}</Button>
-      {copied ? <p role="status">{copy.copied}</p> : null}<p className="vua-caption">{copy.private}</p>
+      <Button disabled={busy || !prompt} onClick={() => { void act(async () => { await port.copyPrompt(currentLocale); toast(copy.copied, "success"); }); }}>{copy.copy}</Button>
+      <p className="vua-caption">{copy.private}</p>
       <h3>{copy.third}</h3><p>{copy.thirdHint}</p>
     </Card> : null}
     <section ref={approvalSection} className="vua-ai-tools__requests" aria-label={copy.requests}>

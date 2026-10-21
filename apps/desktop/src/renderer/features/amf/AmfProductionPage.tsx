@@ -9,6 +9,9 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
+import { Alert } from "../../components/primitives/Alert.tsx";
+import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { strings, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
@@ -94,7 +97,6 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [chosenStation, setChosenStation] = useState<StationKey | null>(null);
   // Materials being chosen for this line, and the confirmation before the change.
   const [changing, setChanging] = useState<readonly string[] | null>(null);
-  const [confirmChange, setConfirmChange] = useState(false);
   const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
   // Full access changes the work project without asking, so the player reads what that means first.
   const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
@@ -257,17 +259,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
       <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
     </ConfirmDialog>
-    <ConfirmDialog open={confirmChange} title={panels.materials.confirmTitle} cancelLabel={panels.materials.cancel} confirmLabel={panels.materials.confirm}
-      onCancel={() => setConfirmChange(false)} onConfirm={() => { setConfirmChange(false); void command("changeSources"); }}>
-      <p className="vua-confirm-dialog__text">{panels.materials.confirmBody}</p>
-    </ConfirmDialog>
-    {taskQueued && taskId !== null && <Card><div className="vua-n3__queued" role="status"><p>{factory.queued.hint}</p>
-      <Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button></div></Card>}
-    {error !== null && <Card><div role="alert"><strong>{copy.error}</strong><p className="vua-caption vua-text-secondary">{error}</p><Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button></div></Card>}
-    {run === null && error !== null && /license/iu.test(error) ? <Card>
-      <h2>{strings.unityLicense.retry}</h2><p>{strings.unityLicense.retryHint}</p>
-      <Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
-    </Card> : null}
+    {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{factory.queued.hint}</Alert>}
+    {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
+      action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
+      : error !== null && <Alert tone="error" title={copy.error} action={<Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{error}</Alert>}
     {run === null ? <>
       <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></header>
       {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
@@ -304,7 +299,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {runningStep?.detail && <p className="vua-caption vua-text-secondary">{runningStep.detail}</p>}
         {run.progress && <LiveProgress progress={run.progress}/>}
         <div className="vua-n3__actions">
-          <Button variant="subtle" disabled={!taskId && !run.taskId} onClick={() => { void gateway.task.cancel(taskId ?? run.taskId); }}>{factory.stop}</Button></div>
+          <Tooltip content={factory.stopTip}><Button variant="subtle" disabled={!taskId && !run.taskId} onClick={() => { void gateway.task.cancel(taskId ?? run.taskId); }}>{factory.stop}</Button></Tooltip></div>
       </Card>}
       {!lineBusy(run) && (status === "attention" || status === "stopped") && <Card className="vua-line__attention" data-status={status}>
         <h2>{status === "stopped" ? factory.status.stopped : factory.attentionTitle}</h2>
@@ -337,7 +332,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <MaterialPicker sources={list?.sources ?? []} chosen={changing} onChange={setChanging} disabled={busy} />
           {sameMaterials && <p className="vua-caption vua-text-secondary">{panels.materials.unchanged}</p>}
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setChanging(null)}>{panels.materials.cancel}</Button>
-            <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0} onClick={() => setConfirmChange(true)} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button></div>
+            <Popconfirm title={panels.materials.confirmTitle} description={panels.materials.confirmBody} confirmLabel={panels.materials.confirm} cancelLabel={panels.materials.cancel}
+              onConfirm={() => { void command("changeSources"); }}>
+              <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button>
+            </Popconfirm></div>
         </>}
       </Card>}
       {shown === "inspect" && <Card className="vua-line__panel">

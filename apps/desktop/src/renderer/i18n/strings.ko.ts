@@ -96,6 +96,7 @@ export const strings: Strings = {
     fixtureBadge: "데모 데이터",
     /** 콘텐츠 대화상자 닫기 버튼(소재 가져오기/코디네이트 초안) */
     dialogClose: "닫기",
+    cancel: "취소",
   },
   boot: {
     loadFailedTitle: "시작 데이터를 불러오지 못했습니다",
@@ -2929,7 +2930,6 @@ rolled_back: "롤백됨",
       dialogBodyA: "「생성 후 원본 삭제」를 활성화하면 VPM 생성 완료 시 해당 .unitypackage 파일을",
       dialogBodyEmphasis: "영구 삭제",
       dialogBodyB: "합니다.",
-      dialogWarning: "이 작업은 되돌릴 수 없습니다. 활성화하기 전에 VPM 생성 결과를 검증했는지 확인하세요.",
       dialogCancel: "취소",
       dialogConfirm: "위험을 이해했으며 활성화",
     },

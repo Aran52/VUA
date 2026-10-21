@@ -1,5 +1,6 @@
 /** The player's confirmation for one upload: the Avatar's name on VRChat and the content rights statement. */
 import { useId, useState, type ReactNode } from "react";
+import { Alert } from "../../../components/primitives/Alert.tsx";
 import { isAmfAvatarName, type AiUploadConfirmationV01 } from "@vua/contracts";
 import { ContentDialog } from "../../../components/primitives/ContentDialog.tsx";
 import { Button } from "../../../components/primitives/Button.tsx";
@@ -29,8 +30,8 @@ export function ReleaseUploadDialog({ proposedName, avatarId, picture, requested
     <form className="vua-release-dialog" onSubmit={event => { event.preventDefault(); if (ready) onConfirm({ avatarName: trimmed, rightsConfirmed: true }); }}>
       <div className="vua-release-dialog__picture">{picture}</div>
       <div className="vua-release-dialog__fields">
-        {requestedByAi && <p className="vua-release-dialog__ai">{copy.dialog.requestedByAi}</p>}
-        {sdkMustFix > 0 && <p className="vua-release-dialog__sdk" role="note">{format(strings.sdkReview.uploadWarning, { count: String(sdkMustFix) })}</p>}
+        {requestedByAi && <Alert tone="info">{copy.dialog.requestedByAi}</Alert>}
+        {sdkMustFix > 0 && <Alert tone="warning">{format(strings.sdkReview.uploadWarning, { count: String(sdkMustFix) })}</Alert>}
         {avatarId === null ? <label htmlFor={nameId} className="vua-release-dialog__name">
           <span>{copy.dialog.name}</span>
           <input id={nameId} value={name} maxLength={128} onChange={event => setName(event.target.value)} aria-describedby={`${nameId}-hint`} />

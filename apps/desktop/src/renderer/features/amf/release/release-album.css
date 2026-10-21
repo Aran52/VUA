@@ -8,8 +8,7 @@
 .vua-release-room__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); }
 .vua-release-room__header h1 { margin: 0; font: var(--vua-font-title); color: var(--vua-text-strong); }
 .vua-release-room__loading { padding: var(--vua-space-6) 0; text-align: center; }
-.vua-release-room__error { margin-top: var(--vua-space-2); padding: var(--vua-space-2) var(--vua-space-3); border-inline-start: 3px solid var(--vua-warning); background: color-mix(in srgb, var(--vua-warning) 8%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
-.vua-release-room__error p { margin: 0; }
+.vua-release-room__error { margin-top: var(--vua-space-2); }
 
 /* Skin slots: empty by default unless a rule below draws the default motif. */
 [data-skin-slot] { pointer-events: none; }
@@ -188,8 +187,6 @@
 .vua-release-dialog__picture { aspect-ratio: 1; overflow: hidden; border-radius: var(--vua-radius-control); background: var(--vua-album-backdrop); }
 .vua-release-dialog__fields { display: grid; align-content: start; gap: 14px; }
 .vua-release-dialog__fields p { margin: 0; }
-.vua-release-dialog__ai { padding: 6px var(--vua-space-2); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--room) 10%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
-.vua-release-dialog__sdk { margin: 0; padding: 6px var(--vua-space-2); border-inline-start: 3px solid var(--vua-error); border-radius: var(--vua-radius-control); background: color-mix(in srgb, var(--vua-error) 8%, var(--vua-bg-panel)); font: var(--vua-font-caption); }
 .vua-release-dialog__name { display: grid; gap: 6px; }
 .vua-release-dialog__name small { font: var(--vua-font-caption); }
 .vua-release-dialog__name input { min-height: var(--vua-control-height); padding: 6px var(--vua-space-2); border: 1px solid var(--vua-border-strong); border-radius: var(--vua-radius-control); background: var(--vua-bg-canvas); color: var(--vua-text-strong); font: var(--vua-font-body); }

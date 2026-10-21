@@ -102,6 +102,7 @@ export const strings = {
     fixtureBadge: "Demo data",
     /** Content dialog chrome (material import / composing draft dialogs) */
     dialogClose: "Close",
+    cancel: "Cancel",
   },
   boot: {
     loadFailedTitle: "Startup data failed to load",
@@ -2999,7 +3000,6 @@ demoTaskTitle: "Demo task",
       dialogBodyA: "After enabling “Delete originals after generation”, VPM generation will ",
       dialogBodyEmphasis: "permanently delete",
       dialogBodyB: " the corresponding .unitypackage files.",
-      dialogWarning: "This is irreversible. Make sure you have verified the VPM generation result before enabling.",
       dialogCancel: "Cancel",
       dialogConfirm: "I understand the risk, enable",
     },

@@ -5,13 +5,13 @@ import { format, strings, TERMS } from "../../i18n/index.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { openExternalUrl } from "../../app/open-external.ts";
+import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 
 export function DistributionPanel({ host = false }: { host?: boolean }) {
   const gateway = useGateway(); const port = gateway.distribution ?? createDistributionPort();
   const copy = strings.distribution;
   const text = (key: keyof typeof copy) => format(copy[key], { amf: TERMS.amf });
   const [view, setView] = useState<DistributionSnapshotV01>({ schemaVersion: "0.1", available: false, state: "idle" });
-  const [restore, setRestore] = useState(false);
   useEffect(() => { let active = true; void port.snapshot().then(value => { if (active) setView(value); }); const unsubscribe = port.subscribe(setView); return () => { active = false; unsubscribe(); }; }, [gateway.distribution]);
   const update = async (action: () => Promise<DistributionSnapshotV01>) => { try { setView(await action()); } catch { setView(previous => ({ ...previous, state: "failed" })); } };
   const progress = view.progress; const busy = view.state === "checking" || view.state === "downloading";
@@ -30,9 +30,8 @@ export function DistributionPanel({ host = false }: { host?: boolean }) {
       {view.state === "downloading" ? <Button onClick={() => void update(() => port.cancel())}>{copy.cancel}</Button> : null}
       {view.state === "staged" ? <Button variant="primary" onClick={() => void update(() => port.apply())}>{copy.apply}</Button> : null}
       <Button variant="subtle" onClick={() => openExternalUrl(view.target?.releaseUrl ?? "https://ph-r.com/vua/downloads/")}>{copy.host}</Button>
-      {view.rollbackAvailable && !busy && !restore ? <Button variant="subtle" onClick={() => setRestore(true)}>{copy.restore}</Button> : null}
-      {restore ? <><Button onClick={() => void update(() => port.restore())}>{copy.restoreConfirm}</Button><Button variant="subtle" onClick={() => setRestore(false)}>{copy.keep}</Button></> : null}
+      {view.rollbackAvailable && !busy ? <Popconfirm title={copy.restoreTitle} description={copy.retained} confirmLabel={copy.restoreConfirm} cancelLabel={copy.keep}
+        onConfirm={() => void update(() => port.restore())}><Button variant="subtle">{copy.restore}</Button></Popconfirm> : null}
     </div>
-    {restore ? <p className="vua-caption">{copy.retained}</p> : null}
   </div></Card>;
 }

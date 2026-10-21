@@ -96,6 +96,7 @@ export const strings: Strings = {
     fixtureBadge: "デモデータ",
     /** コンテンツダイアログの閉じるボタン(マテリアル取り込み/コーディネート下書き) */
     dialogClose: "閉じる",
+    cancel: "キャンセル",
   },
   boot: {
     loadFailedTitle: "起動データの読み込みに失敗しました",
@@ -2942,7 +2943,6 @@ rolled_back: "ロールバック済み",
       dialogBodyA: "「生成後にオリジナルを削除」を有効にすると、VPM 生成の完了時に対応する .unitypackage ファイルを",
       dialogBodyEmphasis: "永久に削除",
       dialogBodyB: "します。",
-      dialogWarning: "この操作は元に戻せません。有効化する前に VPM 生成結果を検証済みであることを確認してください。",
       dialogCancel: "キャンセル",
       dialogConfirm: "リスクを理解し、有効化する",
     },

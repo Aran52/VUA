@@ -52,6 +52,8 @@ import { LoginBrowserOverlay } from "./app/LoginBrowserOverlay.tsx";
 import { closeLoginBrowser } from "./app/login-browser-store.ts";
 import { closeBrowserModal } from "./components/primitives/modal-layer.tsx";
 import { NotificationPopover } from "./features/task-center/NotificationPopover.tsx";
+import { ToastHost } from "./components/primitives/ToastHost.tsx";
+import { Tooltip } from "./components/primitives/Tooltip.tsx";
 import { AiRequestsHere } from "./features/ai-requests/AiRequestsHere.tsx";
 import { ResourceMonitor } from "./features/resource-monitor/ResourceMonitor.tsx";
 import { BootGate, BootSplash } from "./components/splash/BootSplash.tsx";
@@ -895,9 +897,9 @@ function AppShell({
       {/* 沉浸式标题栏(§氛围基线 #12):顶栏即标题栏,空白处可拖拽;
        *  拖拽属性只放在容器与品牌元素上,Tabs/按钮保持可点 */}
       <header className="vua-shell__header vua-drag-region">
-        <button type="button" className="vua-shell__logo-home" aria-label={strings.journey.home} title={strings.journey.home} data-nav-id="logo-home" onClick={() => navigate("home")}>
+        <Tooltip content={strings.journey.home} placement="bottom"><button type="button" className="vua-shell__logo-home" aria-label={strings.journey.home} data-nav-id="logo-home" onClick={() => navigate("home")}>
           <span className="vua-shell__wordmark"><BrandMark domain={activeModule} /></span>
-        </button>
+        </button></Tooltip>
         <div className="vua-shell__location vua-drag-region">
           {settingsOpen ? <Button variant="primary" className="vua-shell__back" data-nav-id="shell-back" onClick={returnFromSettings}><Icon name="arrow-left" size={20} />{strings.journey.back}</Button> : null}
         </div>
@@ -920,8 +922,10 @@ function AppShell({
         {/* 通知中心顶栏入口(对标 Comfy 铃铛,自绘):保留任务与通知投影;
          *  capability 非 ready 时组件自身不渲染 */}
         <NotificationPopover navigate={navigate} page={contentPage ?? page} />
+        <ToastHost />
         {inShell ? (
           <div className="vua-shell__window-controls">
+            <Tooltip content={strings.app.windowMinimize} placement="bottom">
             <button
               type="button"
               className="vua-shell__window-button"
@@ -930,6 +934,8 @@ function AppShell({
             >
               <Icon name="minimize" size={16} />
             </button>
+            </Tooltip>
+            <Tooltip content={strings.app.windowMaximize} placement="bottom">
             <button
               type="button"
               className="vua-shell__window-button"
@@ -938,6 +944,8 @@ function AppShell({
             >
               <Icon name="maximize" size={16} />
             </button>
+            </Tooltip>
+            <Tooltip content={strings.app.windowClose} placement="bottom">
             <button
               type="button"
               className="vua-shell__window-button vua-shell__window-button--close"
@@ -946,6 +954,7 @@ function AppShell({
             >
               <Icon name="close" size={16} />
             </button>
+            </Tooltip>
           </div>
         ) : null}
       </header>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useGateway, type CreatorEditor, type CreatorManagers } from "../../gateway/index.ts";
 import { strings } from "../../i18n/index.ts";
 import { RouteTile } from "../../components/RouteTile.tsx";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { DeploymentPanel } from "../deployer/DeploymentPanel.tsx";
 import { openExternalUrl } from "../../app/open-external.ts";
@@ -49,7 +50,7 @@ export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
           <section id="route-unity6-details" className="vua-environment-detail" hidden={detail !== "unity6"}>
             {detailHeader(strings.journey.unity6)}{unity6.map(editor => <p key={editor.path}><strong>Unity {editor.version}</strong><br /><code>{editor.path}</code></p>)}
           </section>
-        </> : <RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing disabled />}
+        </> : <Tooltip block content={strings.journey.developingTip}><RouteTile title={strings.journey.unity6} kind="unity" id="route-unity6" developing disabled /></Tooltip>}
       </div>
       {others.map(e => {
         const selected = typeof detail === "object" && detail?.path === e.path;

@@ -79,6 +79,11 @@ import { libraryCornerState, type LocalSourceSearchState } from "./library-corne
 import { boothSearchKeyword, exactBoothMatch } from "./booth-match-model.ts";
 import { BoothMatchDialog } from "./BoothMatchDialog.tsx";
 import { ProductTerms } from "./ProductTerms.tsx";
+import { Alert } from "../../components/primitives/Alert.tsx";
+import { toast } from "../../components/primitives/toast-store.ts";
+
+/** Sync notices shown as a toast; the others need the player and stay as an alert. */
+const TOAST_SYNC_NOTICES: ReadonlySet<string> = new Set(["started", "already", "done"]);
 import "./warehouse.css";
 import { clipSelectionRect, scrollSelectionRect } from "./marquee-model.ts";
 
@@ -744,6 +749,12 @@ export function WarehousePage({
   const [syncStarting, setSyncStarting] = useState(false);
   const syncRequest = useRef(false);
   const [syncNotice, setSyncNotice] = useState<CatalogSyncNotice | null>(null);
+  // Starting, joining and finishing a sync are brief feedback; the rest stay as an alert until dismissed.
+  useEffect(() => {
+    if (syncNotice === "started") toast(copy.catalogSync.startedHint);
+    else if (syncNotice === "already") toast(copy.catalogSync.alreadyRunning);
+    else if (syncNotice === "done") toast(copy.catalogSync.completedHint, "success");
+  }, [syncNotice]);
   const [syncProgress, setSyncProgress] = useState<CatalogSyncSnapshotV03 | null>(null);
   const [syncReadFailed, setSyncReadFailed] = useState(false);
   const [syncRunId, setSyncRunId] = useState<string | null>(null);
@@ -1230,7 +1241,7 @@ export function WarehousePage({
         setDownloadNotice(outcome.errorCode === "vua.library.file_busy" ? copy.cardMenu.downloadBusyHint : outcome.errorCode === "vua.library.replacement_ambiguous" ? copy.cardMenu.downloadAmbiguousHint : copy.cardMenu.downloadFailedHint);
         return;
       }
-      setDownloadNotice(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }));
+      toast(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }), "success");
       registerTaskIdentity(outcome.taskId, { title: `${copy.cardMenu.download} · ${resultsView?.items.find((item) => item.productId === productId)?.title ?? productId}`, originPage: "warehouse", notifyOnComplete: true });
       setDownloadWatchBatch(outcome.batchId);
       setTransfers(prev => [...prev.filter(t => t.batchId !== outcome.batchId), { batchId: outcome.batchId, productId, paused: false }]);
@@ -1455,37 +1466,24 @@ export function WarehousePage({
             </Button>
           ) : null}
           {folderOpenFailed && folderChoices === null ? <span className="vua-caption vua-text-secondary" role="status">{copy.openFolderFailed}</span> : null}
-          {syncNotice !== null ? (
-            <span className="vua-caption vua-text-secondary" role="status">
-              {syncNotice === "started"
-                ? copy.catalogSync.startedHint
-                : syncNotice === "already"
-                  ? copy.catalogSync.alreadyRunning
-                  : syncNotice === "blocked"
-                    ? copy.catalogSync.signInRequired
-                    : syncNotice === "done"
-                      ? copy.catalogSync.completedHint
-                      : syncNotice === "warning"
-                        ? copy.catalogSync.warningHint
-                        : syncNotice === "cancelled"
-                          ? copy.catalogSync.cancelledHint
-                          : syncNotice === "inspect"
-                            ? copy.catalogSync.inspectHint
-                            : syncNotice === "unconfirmed"
-                              ? copy.catalogSync.unconfirmedHint
-                      : copy.catalogSync.failedHint}
-            </span>
-          ) : null}
           {syncProgress !== null ? (
             <span className="vua-caption vua-text-secondary" role="status">
               {format(copy.catalogSync.progressHint, { pages: syncProgress.pages, count: syncProgress.upsertedCount, rejected: syncProgress.rejectedCount })}
             </span>
           ) : null}
-          {syncReadFailed ? <span className="vua-caption vua-text-secondary" role="status">{copy.catalogSync.readFailedHint}</span> : null}
-          {downloadNotice !== null ? (
-            <span className="vua-caption vua-text-secondary" role="status">{downloadNotice}</span>
-          ) : null}
         </div>
+        {syncNotice !== null && !TOAST_SYNC_NOTICES.has(syncNotice) ? (
+          <Alert tone={syncNotice === "failed" ? "error" : "warning"} onDismiss={() => setSyncNotice(null)} dismissLabel={strings.common.dialogClose}>
+            {syncNotice === "blocked" ? copy.catalogSync.signInRequired
+              : syncNotice === "warning" ? copy.catalogSync.warningHint
+              : syncNotice === "cancelled" ? copy.catalogSync.cancelledHint
+              : syncNotice === "inspect" ? copy.catalogSync.inspectHint
+              : syncNotice === "unconfirmed" ? copy.catalogSync.unconfirmedHint
+              : copy.catalogSync.failedHint}
+          </Alert>
+        ) : null}
+        {syncReadFailed ? <Alert tone="warning">{copy.catalogSync.readFailedHint}</Alert> : null}
+        {downloadNotice !== null ? <Alert tone="info" onDismiss={() => setDownloadNotice(null)} dismissLabel={strings.common.dialogClose}>{downloadNotice}</Alert> : null}
         {dataSource === "fixture" ? (
           <div>
             <Badge tone="warning">{strings.common.fixtureBadge}</Badge>

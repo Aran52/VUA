@@ -1,5 +1,6 @@
 /** The right album page: what the Avatar is, its checks, and its upload to VRChat. */
 import { useState, type ReactNode } from "react";
+import { toast } from "../../../components/primitives/toast-store.ts";
 import { Icon } from "@vua/design-system";
 import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
@@ -189,10 +190,9 @@ function UploadProgress({ upload, onStop }: { upload: AmfUpload; onStop?: () => 
 }
 
 function CopyId({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
   return <button type="button" className="vua-release-upload__copy" onClick={() => {
-    void navigator.clipboard?.writeText(id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }, () => {});
-  }}>{copied ? copy.upload.copied : copy.upload.copyId}</button>;
+    void navigator.clipboard?.writeText(id).then(() => toast(copy.upload.copied, "success"), () => {});
+  }}>{copy.upload.copyId}</button>;
 }
 
 function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrchat, busy }: {

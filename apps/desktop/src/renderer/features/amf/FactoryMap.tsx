@@ -1,6 +1,7 @@
 /** AMF base map: the factory as a building cross-section. A click zooms into a room and shows its
  * interior; the room's Enter button or a double click opens its page. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { Icon } from "@vua/design-system";
 import { useGateway, type AmfProductionList, type AmfProductionRun } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -153,8 +154,8 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
     <div className="vua-factory__scene">{bodies[id].interior}</div>
     <div className="vua-factory__label">
     <span className="vua-factory__plate"><span className="vua-factory__tag">{copy.rooms[id].tag}</span><Icon name={ROOM_ICONS[id]} size={20}/></span>
-    <button type="button" className="vua-factory__name" data-nav-id={`room-${id}`} aria-expanded={zoomed === id}
-      onClick={event => { event.stopPropagation(); setZoomed(zoomed === id ? null : id); }}>{copy.rooms[id].name}</button>
+    <Tooltip content={zoomed === id ? null : copy.roomTip}><button type="button" className="vua-factory__name" data-nav-id={`room-${id}`} aria-expanded={zoomed === id}
+      onClick={event => { event.stopPropagation(); setZoomed(zoomed === id ? null : id); }}>{copy.rooms[id].name}</button></Tooltip>
     <span className="vua-factory__hint">{copy.rooms[id].hint}</span>
     <span className="vua-factory__body">{bodies[id].status}</span>
     <button type="button" className="vua-factory__enter" data-nav-id={`enter-${id}`} onClick={event => { event.stopPropagation(); navigate(ROOM_PAGES[id]); }}>

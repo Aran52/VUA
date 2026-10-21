@@ -7,6 +7,7 @@ import { NetworkPanel } from "../deployer/NetworkPanel.tsx";
 import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS } from "../guide/guide-target.ts";
 import { EnvironmentCard } from "./EnvironmentCard.tsx";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { playCardDecision } from "./play-card-model.ts";
 import { usePlaySessions } from "./use-play-sessions.ts";
 import { RuntimeFactsPanel } from "./RuntimeFactsPanel.tsx";
@@ -51,7 +52,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
         {live.unavailable[route] ? <p role="status">{strings.journey.unavailable}</p> : null}
         <h3>{copy.install}</h3><DeploymentPanel zone="play" purpose={route} autoPlan={selected === route} onStateChange={route === "desktop_play" ? desktopState : picoState} />
         {route === "pico_pcvr" ? <div className="vua-environment-connection"><h3>{copy.connection}</h3><GuideEntryButton target={GUIDE_TARGETS.picoUsb} label={strings.journey.usb} /><GuideEntryButton target={GUIDE_TARGETS.picoWifi} label={strings.journey.wifi} /></div> : null}
-        <div className="vua-route-platform"><Button variant="primary" disabled={!!live.unavailable[route] || (!session?.canStop && !installed) || !!live.pending[route] || session?.state === "stopping" || !!deployment[route]?.busy} onClick={() => void live.act(route, !!session?.canStop)}>{session?.canStop ? copy.stop.replace("{name}", title(route)) : copy.launch}</Button>
+        <div className="vua-route-platform"><Tooltip content={session?.canStop ? copy.closeHint : null}><Button variant="primary" disabled={!!live.unavailable[route] || (!session?.canStop && !installed) || !!live.pending[route] || session?.state === "stopping" || !!deployment[route]?.busy} onClick={() => void live.act(route, !!session?.canStop)}>{session?.canStop ? copy.stop.replace("{name}", title(route)) : copy.launch}</Button></Tooltip>
           <Button onClick={onAccounts} data-nav-id={`play-accounts-${route}`}>{strings.journey.accounts}</Button><GuideEntryButton target={GUIDE_TARGETS.vrchatFirstLaunch} label={strings.journey.guide} /><Button onClick={() => void window.vua?.window.showGameGuide()}>{strings.journey.gameGuide}</Button></div>
         {session?.state === "running" ? <p role="status">{copy.runningHint}</p> : null}
       </section>
@@ -59,7 +60,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
       </div>;
     })}
     {developingRoutes.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>
-      <EnvironmentCard title={route.title} brand={route.brand} id={`route-${route.id}`} action="unknown" status="" developing />
+      <Tooltip block content={strings.journey.developingTip}><EnvironmentCard title={route.title} brand={route.brand} id={`route-${route.id}`} action="unknown" status="" developing /></Tooltip>
     </div>)}
     </div>
     <Button variant="subtle" className="vua-play-hardware" data-nav-id="play-hardware-help" onClick={() => openEncyclopedia(GUIDE_TARGETS.hardware)}>{strings.journey.identifyHardware}</Button>

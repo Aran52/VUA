@@ -158,10 +158,7 @@ export function ExperimentalCommands() {
           <strong>{copy.dialogBodyEmphasis}</strong>
           {copy.dialogBodyB}
         </p>
-        <div className="vua-confirm-dialog__warning">
-          <p>{copy.dialogWarning}</p>
-          {import.meta.env.DEV ? <p>{copy.devPrototypeNote}</p> : null}
-        </div>
+        {import.meta.env.DEV ? <p className="vua-text-secondary">{copy.devPrototypeNote}</p> : null}
       </ConfirmDialog>
     </div>
   );

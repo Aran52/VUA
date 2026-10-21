@@ -101,6 +101,7 @@ export const strings: Strings = {
     fixtureBadge: "演示数据",
     /** 内容弹窗关闭钮(素材导入/搭配草稿弹窗) */
     dialogClose: "关闭",
+    cancel: "取消",
   },
   /** 启动闸口(GatewayProvider):五领域首帧快照拉齐失败的全局诚实失败态 */
   boot: {
@@ -2949,7 +2950,6 @@ rolled_back: "已回滚",
       dialogBodyA: "启用「生成后删除原始素材文件」后,VPM 生成完成时将",
       dialogBodyEmphasis: "永久删除",
       dialogBodyB: "对应的 .unitypackage 文件。",
-      dialogWarning: "此操作不可逆。确保你已验证 VPM 生成结果后再启用。",
       dialogCancel: "取消",
       dialogConfirm: "我已了解风险,启用",
     },

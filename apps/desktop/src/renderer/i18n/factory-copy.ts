@@ -89,6 +89,8 @@ export const factoryCopy = {
       loadFailed: "The production materials could not be read.",
       startFailed: "Starting the line failed.",
     },
+    roomTip: "Click to look inside; double-click to enter.",
+    stopTip: "Stopping ends Unity; the work project and assets stay.",
   },
   "zh-CN": {
     mapTitle: "Avatar 工厂",
@@ -179,6 +181,8 @@ export const factoryCopy = {
       loadFailed: "生产素材读取失败。",
       startFailed: "开工失败了。",
     },
+    roomTip: "单击查看内部，双击进入。",
+    stopTip: "停止会结束 Unity，保留工作工程和素材。",
   },
   ja: {
     mapTitle: "アバター工場",
@@ -269,6 +273,8 @@ export const factoryCopy = {
       loadFailed: "生産素材を読み込めませんでした。",
       startFailed: "ラインの開始に失敗しました。",
     },
+    roomTip: "クリックで中を見る、ダブルクリックで入る。",
+    stopTip: "停止すると Unity を終了します。作業プロジェクトと素材は残ります。",
   },
   ko: {
     mapTitle: "아바타 공장",
@@ -359,5 +365,7 @@ export const factoryCopy = {
       loadFailed: "생산 소재를 읽지 못했어요.",
       startFailed: "라인을 시작하지 못했어요.",
     },
+    roomTip: "클릭하면 내부를 보고, 더블클릭하면 들어갑니다.",
+    stopTip: "중지하면 Unity를 종료합니다. 작업 프로젝트와 에셋은 그대로 남습니다.",
   },
 };

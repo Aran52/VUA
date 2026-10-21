@@ -189,6 +189,7 @@ fn route(
     }
     let query = matches!(
         method,
+        "amf.production.faceTrackingPlan" |
         "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
@@ -203,6 +204,8 @@ fn route(
         .and_then(Value::as_object)
         .ok_or_else(|| production_error("params_invalid", "Missing params."))?;
     let keys: &[&str] = match method {
+        "amf.production.faceTrackingPlan" => &["schemaVersion", "runId", "menuId"],
+        "amf.production.faceTrackingPatch" => &["schemaVersion", "runId", "menuId", "planDigest", "confirmTrustedCode"],
         "amf.production.list" | "amf.production.listRecipes" | "amf.production.listFits" => &["schemaVersion"],
         "amf.production.saveFit" => &["schemaVersion", "runId", "sourceId", "name", "changesDigest"],
         "amf.production.renameFit" => &["schemaVersion", "fitId", "name"],
@@ -267,7 +270,7 @@ fn route(
         }
         Some(id)
     } else { None };
-    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision") {
+    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
         let digest = string("planDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
@@ -419,6 +422,11 @@ fn route(
         }
         return service.engine.plan_lighting(&run_id);
     }
+    if method == "amf.production.faceTrackingPlan" {
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) { return Err(production_error("busy", "This line has work running or waiting.")); }
+        return service.engine.face_tracking_plan(&run_id, &string("menuId")?);
+    }
     if method == "amf.production.recipeApplyPlan" {
         let run_id = string("runId")?;
         if service.run_busy(&run_id) {
@@ -461,7 +469,7 @@ fn route(
     }
     if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
         | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete"
-        | "amf.production.restoreRevision") {
+        | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
         service.engine.precheck_closed(&run_id)?;
     }
     if method == "amf.production.delete" && service.run_busy(&run_id) {
@@ -498,6 +506,14 @@ fn route(
         }
         fixes
     } else { Vec::new() };
+    let ft_menu = if method == "amf.production.faceTrackingPatch" {
+        let menu = string("menuId")?;
+        if menu.len() != 64 || !menu.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            || params["confirmTrustedCode"] != true {
+            return Err(production_error("confirmation_required", "Confirm the reviewed imported menu and its code/replay limits."));
+        }
+        Some(menu)
+    } else { None };
     let lighting_materials: Vec<String> = if method == "amf.production.applyLighting" {
         let materials: Vec<String> = serde_json::from_value(params["materials"].clone())
             .map_err(|_| production_error("params_invalid", "Name the reviewed materials to change."))?;
@@ -527,6 +543,8 @@ fn route(
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
+                "amf.production.faceTrackingPatch" => worker.engine.face_tracking_patch(&operation_run,
+                    ft_menu.as_deref().expect("confirmed menu"), &digest, true, ctx)?,
                 "amf.production.applyLighting" => worker.engine.apply_lighting(&operation_run, &digest, &lighting_materials, ctx)?,
                 "amf.production.changeSources" => worker.engine.change_sources(&operation_run, changed_sources, ctx)?,
                 "amf.production.delete" => worker.engine.delete_run(&operation_run)?,

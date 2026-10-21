@@ -1,7 +1,7 @@
-import type { AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
+import type { FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
   AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01,
   AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind } from "@vua/contracts";
-import { isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
+import { isFaceTrackingFacts, isFaceTrackingPlan, isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
   AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
@@ -46,6 +46,7 @@ export interface AmfProductionRun {
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
     readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
+    readonly faceTracking?: FaceTrackingFactsV01;
     readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview;
     /** The SDK items the last fix ran the SDK's Auto Fix for. */
     readonly sdkFixesApplied?: readonly string[] };
@@ -167,6 +168,8 @@ export interface AmfProductionPort {
   assemble(runId: string, plan: AmfProductionPlan): Promise<AmfProductionAccepted>;
   reinspect(runId: string): Promise<AmfProductionAccepted>;
   /** Runs the VRChat SDK's own Auto Fix for items its last check offers one for, by the SDK's exact words. */
+  faceTrackingPlan(runId: string, menuId: string): Promise<FaceTrackingPlanV01>;
+  faceTrackingPatch(runId: string, menuId: string, planDigest: string, confirmTrustedCode: true, title: string): Promise<AmfProductionAccepted>;
   sdkFix(runId: string, fixes: readonly string[]): Promise<AmfProductionAccepted>;
   /** Changes the line's own materials behind a restore point; the line plans again. */
   changeSources(runId: string, sources: readonly AmfSourceChoice[]): Promise<AmfProductionAccepted>;
@@ -216,7 +219,7 @@ const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path,
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview));
 const ratings: readonly string[] = AMF_SDK_RATINGS;
-const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "lighting", "restore"];
+const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "lighting", "restore"];
 const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
   && (v.avatar === null || text(v.avatar)) && texts(v.outfits) && texts(v.sources)
   && Number.isSafeInteger(v.lightingMaterials) && Number(v.lightingMaterials) >= 0 && texts(v.sdkFixes);
@@ -247,6 +250,7 @@ function result(v: unknown): boolean {
     && (facts.hasMissingScripts === undefined || typeof facts.hasMissingScripts === "boolean")
     && (facts.missingShaderMaterials === undefined || texts(facts.missingShaderMaterials))
     && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
+    && (facts.faceTracking === undefined || isFaceTrackingFacts(facts.faceTracking))
     && (facts.sdkReview === undefined || isAmfSdkReview(facts.sdkReview))
     && (facts.sdkFixesApplied === undefined || (texts(facts.sdkFixesApplied) && facts.sdkFixesApplied.length <= 16))
     && (facts.previews === undefined || (Array.isArray(facts.previews) && facts.previews.length <= 3 && facts.previews.every(p => record(p) && ["front","side","back"].includes(String(p.view)) && isAmfPreviewPath(p.path))))
@@ -394,6 +398,14 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     },
     async assemble(runId, plan) { return accepted(await call({ method: "amf.production.assemble", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, selection: plan.selection } }), strings.amfProduction.assembling); },
     async reinspect(runId) { return accepted(await call({ method: "amf.production.reinspect", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.reinspect); },
+    async faceTrackingPlan(runId, menuId) {
+      const value = await call({ method: "amf.production.faceTrackingPlan", params: { schemaVersion: "0.1", runId, menuId } });
+      if (!isFaceTrackingPlan(value) || value.runId !== runId || value.menu.id !== menuId) throw new Error("amf_face_tracking_plan_invalid");
+      return value;
+    },
+    async faceTrackingPatch(runId, menuId, planDigest, confirmTrustedCode, title) {
+      return accepted(await call({ method: "amf.production.faceTrackingPatch", params: { schemaVersion: "0.1", runId, menuId, planDigest, confirmTrustedCode } }), title);
+    },
     async sdkFix(runId, fixes) { return accepted(await call({ method: "amf.production.sdkFix", params: { schemaVersion: "0.1", runId, fixes: [...fixes] } }), strings.sdkReview.fixTitle); },
     async changeSources(runId, sources) { return accepted(await call({ method: "amf.production.changeSources", params: { schemaVersion: "0.1", runId, sources: [...sources] } }), strings.factory.panels.materials.change); },
     async planLighting(runId) {

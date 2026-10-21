@@ -17,6 +17,9 @@ use vua_orchestrator::{
 const PIPELINE_FIX: &str = "This avatar has no pipeline manager component.";
 
 struct TestPlatform {
+    ft_facts: Mutex<Option<serde_json::Value>>,
+    ft_outcome: AtomicUsize,
+    ft_snapshots: Mutex<std::collections::BTreeMap<String, (String, bool)>>,
     fail: AtomicBool,
     fail_restore: AtomicBool,
     fail_inspect: AtomicBool,
@@ -187,6 +190,14 @@ impl AmfProductionPlatform for TestPlatform {
                     {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
         let material_use = self.material_use.lock().unwrap().clone();
+        if let Some(mut facts) = self.ft_facts.lock().unwrap().clone() {
+            let patched = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists();
+            facts["manualReplayRequired"] = serde_json::json!(patched);
+            result["facts"]["faceTracking"] = facts;
+            if patched && self.ft_outcome.load(Ordering::SeqCst) == 5 {
+                result["facts"]["avatarGlobalObjectId"] = serde_json::json!("wrong-avatar");
+            }
+        }
         if !material_use.is_null() {
             result["facts"]["materialUse"] = material_use;
         }
@@ -248,8 +259,35 @@ impl AmfProductionPlatform for TestPlatform {
         Ok(observed)
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
-        self.snapshots.fetch_add(1, Ordering::SeqCst);
-        self.fingerprint(Path::new(&run.project_root))
+        let index = self.snapshots.fetch_add(1, Ordering::SeqCst);
+        let state = self.fingerprint(Path::new(&run.project_root))?;
+        if self.ft_facts.lock().unwrap().is_some() {
+            let id = format!("ft-snapshot-{index}");
+            self.ft_snapshots.lock().unwrap().insert(id.clone(), (state,
+                Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists()));
+            Ok(id)
+        } else { Ok(state) }
+    }
+    fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(patch.confirm_trusted_code);
+        assert_eq!(patch.avatar_global_object_id, "synthetic-avatar");
+        assert!(run.snapshot_id.is_some());
+        let marker = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json");
+        fs::create_dir_all(marker.parent().unwrap()).unwrap();
+        fs::write(marker, "{}").unwrap();
+        match self.ft_outcome.load(Ordering::SeqCst) {
+            2 => return Err(production_error("test_patch_failed", "Synthetic patch changed a mesh then failed.")),
+            6 => return Err(watch.stopped()),
+            7 => return Err(production_error("process_cleanup_unverified", "Synthetic helper is still running.")),
+            _ => (),
+        }
+        let mut observed = self.inspect(run, watch)?;
+        match self.ft_outcome.load(Ordering::SeqCst) {
+            3 => observed.result["facts"]["faceTracking"]["manualReplayRequired"] = serde_json::json!(false),
+            4 => self.fail_inspect.store(true, Ordering::SeqCst),
+            _ => (),
+        }
+        Ok(observed)
     }
     fn source_content_hash(&self, source_id: &str) -> Result<Option<String>, AppErrorV1> {
         if !["avatar", "outfit", "outfit2"].contains(&source_id) {
@@ -274,7 +312,14 @@ impl AmfProductionPlatform for TestPlatform {
         for (path, bytes) in self.restore_files.lock().unwrap().drain(..) {
             fs::write(path, bytes).unwrap();
         }
-        fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
+        if let Some((state, marker_exists)) = self.ft_snapshots.lock().unwrap().get(snapshot) {
+            let marker = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json");
+            if *marker_exists { fs::write(marker, "{}").unwrap(); }
+            else if marker.exists() { fs::remove_file(marker).unwrap(); }
+            fs::write(Path::new(&run.project_root).join("Assets/state"), state).unwrap();
+        } else {
+            fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
+        }
         Ok(())
     }
     fn open(&self, _: &ProductionRun, _: &TaskContext) -> Result<serde_json::Value, AppErrorV1> {
@@ -315,6 +360,9 @@ impl Harness {
         ));
         fs::create_dir_all(&root).unwrap();
         let platform = Arc::new(TestPlatform {
+            ft_facts: Mutex::new(None),
+            ft_outcome: AtomicUsize::new(1),
+            ft_snapshots: Mutex::new(std::collections::BTreeMap::new()),
             fail: AtomicBool::new(false),
             fail_restore: AtomicBool::new(false),
             fail_inspect: AtomicBool::new(false),
@@ -532,6 +580,104 @@ fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
     assert_eq!(restored.phase, "ready");
     let interrupted = restored.steps.iter().rev().find(|step| step.key == "assembly").unwrap();
     assert_eq!(interrupted.state, "interrupted", "the stopped assembly is not recorded as succeeded");
+}
+
+fn face_tracking_ready(h: &Harness) -> String {
+    let mut run = assembled(h);
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json")).unwrap();
+    let mut facts = fixture["data"]["faceTracking"].clone();
+    facts["patchMenus"][0]["sourceId"] = serde_json::json!("avatar");
+    facts["patchMenus"][0]["scriptPath"] = serde_json::json!("Assets/FtSyntheticMenu.cs");
+    run.sources[0].asset_paths.push("Assets/FtSyntheticMenu.cs".into());
+    run.result["facts"]["faceTracking"] = facts.clone();
+    *h.platform.ft_facts.lock().unwrap() = Some(facts);
+    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&run).unwrap()).unwrap();
+    h.engine.face_tracking_plan("n3-test", &"a".repeat(64)).unwrap()["planDigest"].as_str().unwrap().into()
+}
+
+#[test]
+fn creator_patch_requires_exact_confirmation_and_observed_source_before_snapshot() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    let review = digest.clone();
+    assert_eq!(h.run_job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &review, false, ctx)).unwrap_err(),
+        "vua.amf_production.confirmation_required");
+    assert_eq!(h.run_job(|e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &"b".repeat(64), true, ctx)).unwrap_err(),
+        "vua.amf_production.plan_drift");
+    assert!(h.engine.face_tracking_plan("n3-test", "Tools/Unobserved").is_err());
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    assert!(h.run_job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)).is_err());
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots);
+}
+
+#[test]
+fn completed_creator_patch_rechecks_and_blocks_incomplete_replay_but_full_rollback_works() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let patched = h.engine.get("n3-test").unwrap();
+    assert_eq!(patched.phase, "succeeded");
+    assert_eq!(patched.result["facts"]["faceTracking"]["manualReplayRequired"], true);
+    assert_eq!(patched.revisions[0].before, RevisionKind::FaceTracking);
+    assert_eq!(h.engine.save_recipe("n3-test", "recipe-ft", "Incomplete").unwrap_err().code, "vua.amf_production.face_tracking_manual_replay");
+    assert_eq!(h.engine.revision_plan("n3-test", &patched.revisions[0].id).unwrap_err().code, "vua.amf_production.face_tracking_manual_replay");
+    assert!(h.engine.plan("n3-test", &selection()).is_err());
+    assert!(h.engine.recipe_apply_plan("n3-test", "missing-recipe").is_err());
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
+}
+
+#[test]
+fn patch_failure_missing_receipt_recheck_failure_target_drift_and_cancel_restore_marker_and_facts() {
+    for outcome in [2, 3, 4, 5, 6] {
+        let h = Harness::new();
+        let digest = face_tracking_ready(&h);
+        let before = h.engine.get("n3-test").unwrap();
+        h.platform.ft_outcome.store(outcome, Ordering::SeqCst);
+        assert!(!h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)), "outcome {outcome}");
+        let failed = h.engine.get("n3-test").unwrap();
+        assert_eq!(failed.recovery.as_deref(), Some("restored"), "outcome {outcome}");
+        assert_eq!(failed.result, before.result);
+        assert_eq!(failed.revisions, before.revisions);
+        assert!(!Path::new(&failed.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists());
+    }
+}
+#[test]
+fn creator_helper_cleanup_must_be_verified_before_automatic_restore() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    h.platform.ft_outcome.store(7, Ordering::SeqCst);
+    assert!(!h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restore_failed: vua.amf_production.process_cleanup_unverified"));
+    assert!(failed.snapshot_id.is_some());
+    assert!(Path::new(&failed.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
+        "automatic restore must not race a creator helper");
+}
+#[test]
+fn interruption_during_the_post_patch_check_retains_the_explicit_restore_path() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let mut interrupted = h.engine.get("n3-test").unwrap();
+    interrupted.phase = "assembling".into();
+    let step = interrupted.steps.last_mut().unwrap();
+    assert_eq!(step.key, "inspect");
+    step.state = "running".into();
+    step.ended_at = None;
+    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&interrupted).unwrap()).unwrap();
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "assembling",
+        "the stored state is preserved; the provider projects it as interrupted");
+    assert!(Path::new(&interrupted.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
+        "reading an interrupted run must neither rerun the menu nor restore files");
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
 }
 #[test]
 fn a_run_that_never_changed_in_unity_keeps_asking_for_a_new_check() {

@@ -18,6 +18,7 @@ pub enum RevisionKind {
     Assembly,
     Rebuild,
     SdkFix,
+    FaceTracking,
     Lighting,
     Restore,
 }
@@ -37,6 +38,8 @@ pub struct RevisionSource {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RevisionState {
+    #[serde(default)]
+    pub face_tracking_manual: bool,
     #[serde(default)]
     pub choices: Vec<SourceChoice>,
     #[serde(default)]
@@ -297,6 +300,7 @@ impl AmfProductionEngine {
         edited_in_unity: bool,
     ) -> String {
         let state = RevisionState {
+            face_tracking_manual: face_tracking::manual_face_tracking(run),
             choices: run.choices.clone(),
             sources: run
                 .sources
@@ -386,6 +390,10 @@ impl AmfProductionEngine {
                 )
             })?;
         self.verify_revision_sources(revision)?;
+        face_tracking::require_replayable_face_tracking(&run)?;
+        if revision.state.face_tracking_manual {
+            return Err(production_error("face_tracking_manual_replay", "This version contains an opaque creator patch and requires manual replay."));
+        }
         let edited = self.edited_in_unity(&run);
         let (_, current) = self.project_state(&run)?;
         let steps = replay_steps(&run, revision);

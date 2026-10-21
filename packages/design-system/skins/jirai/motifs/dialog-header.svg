@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai dialog header: bow</title>
+  <path d="M16 14C10 5 2 7 3 13C4 20 11 19 16 16Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M16 14C22 5 30 7 29 13C28 20 21 19 16 16Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M14.5 17L10 29L13 27.5L14.5 30L16 18" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <path d="M17.5 17L22 29L19 27.5L17.5 30L16 18" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <rect x="13.4" y="12.6" width="5.2" height="6.2" rx="2" fill="currentColor" stroke="none"/>
+</svg>

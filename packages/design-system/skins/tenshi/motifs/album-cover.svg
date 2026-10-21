@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Tenshi album cover: frame with wings and halo</title>
+  <rect x="104" y="70" width="112" height="132" rx="18" stroke-width="2.4"/>
+  <rect x="114" y="80" width="92" height="112" rx="12" fill="currentColor" fill-opacity="0.08" stroke-width="1.4" stroke-opacity="0.6"/>
+  <ellipse cx="160" cy="44" rx="34" ry="9" stroke-width="3"/>
+  <path d="M103.2 128.48C80.57 109.01 38.12 110.1 10.99 125.55C6.18 128.53 8.49 135.58 14.03 136.74C23.88 138.2 29.42 139.36 35.13 141.55C31.06 148.66 36.47 155.17 45.78 153.53C50.15 160.22 58.97 161.87 66.7 157.31C70.04 164.18 81.11 166.49 88.47 159.86C96.87 153.05 102.28 141.44 103.2 128.48Z" fill="currentColor" fill-opacity="0.16" stroke-width="2"/>
+  <path d="M81.6 126.96C62.08 125.07 43.1 126.28 24.85 131.63" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M85.5 136.93C70.47 136.38 56 138.94 42.07 144.59" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M89.39 146.91C80.93 147.33 72.66 148.79 64.57 151.28" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M216.8 128.48C239.43 109.01 281.88 110.1 309.01 125.55C313.82 128.53 311.51 135.58 305.97 136.74C296.12 138.2 290.58 139.36 284.87 141.55C288.94 148.66 283.53 155.17 274.22 153.53C269.85 160.22 261.03 161.87 253.3 157.31C249.96 164.18 238.89 166.49 231.53 159.86C223.13 153.05 217.72 141.44 216.8 128.48Z" fill="currentColor" fill-opacity="0.16" stroke-width="2"/>
+  <path d="M238.4 126.96C257.92 125.07 276.9 126.28 295.15 131.63" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M234.5 136.93C249.53 136.38 264 138.94 277.93 144.59" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M230.61 146.91C239.07 147.33 247.34 148.79 255.43 151.28" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M58 45C58.84 50.25 59.75 51.16 65 52C59.75 52.84 58.84 53.75 58 59C57.16 53.75 56.25 52.84 51 52C56.25 51.16 57.16 50.25 58 45Z" fill="currentColor" stroke="none"/>
+  <path d="M266 180C266.72 184.5 267.5 185.28 272 186C267.5 186.72 266.72 187.5 266 192C265.28 187.5 264.5 186.72 260 186C264.5 185.28 265.28 184.5 266 180Z" fill="currentColor" stroke="none"/>
+  <path d="M246 36C246.48 39 247 39.52 250 40C247 40.48 246.48 41 246 44C245.52 41 245 40.48 242 40C245 39.52 245.52 39 246 36Z" fill="currentColor" stroke="none"/>
+</svg>

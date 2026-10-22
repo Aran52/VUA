@@ -1,5 +1,6 @@
 /** The right album page: what the Avatar is, its checks, and its upload to VRChat. */
 import { useState, type ReactNode } from "react";
+import { toast } from "../../../components/primitives/toast-store.ts";
 import { Icon } from "@vua/design-system";
 import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
@@ -14,6 +15,8 @@ const time = (iso: string | null | undefined) => (iso && !Number.isNaN(Date.pars
 /** This Avatar's work waiting behind the running job. */
 export interface QueuedWork {
   readonly operation: string;
+  /** Unity tasks ahead of this one. */
+  readonly ahead: number;
   readonly onRemove: () => void;
 }
 
@@ -36,7 +39,7 @@ export interface SheetActions {
 function QueuedNotice({ queued }: { queued: QueuedWork }) {
   const work = copy.queue.work[queued.operation.replace(/^amf\.production\./u, "") as keyof typeof copy.queue.work] ?? copy.queue.work.other;
   return <div className="vua-release-upload__queued" role="status">
-    <span><Icon name="clock" size={16} />{format(copy.queue.waiting, { work })}</span>
+    <span><Icon name="clock" size={16} />{format(copy.queue.waiting, { work, count: queued.ahead })}</span>
     <button type="button" className="vua-release-upload__link" onClick={queued.onRemove} data-nav-id="release-queue-remove">{copy.queue.remove}</button>
   </div>;
 }
@@ -117,7 +120,7 @@ function SdkReviewBlock({ run, busy, onFix, onCheckAgain }: { run: AmfProduction
       </div>}
       {view.state === "unavailable" ? <p className="vua-caption vua-text-secondary">{sdkCopy.unavailable}</p> : <>
         {view.mustFix.length > 0 && <div className="vua-sdk-review__group" data-group="must-fix">
-          <h4>{sdkCopy.mustFix}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.mustFixHint}</p>
+          <h4>{sdkCopy.mustFix}</h4>
           <SdkIssues issues={view.mustFix} icon="error-circle" /></div>}
         {view.reminders.length > 0 && <div className="vua-sdk-review__group" data-group="reminders">
           <h4>{sdkCopy.reminders}</h4><p className="vua-caption vua-text-secondary">{sdkCopy.remindersHint}</p>
@@ -189,10 +192,9 @@ function UploadProgress({ upload, onStop }: { upload: AmfUpload; onStop?: () => 
 }
 
 function CopyId({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
   return <button type="button" className="vua-release-upload__copy" onClick={() => {
-    void navigator.clipboard?.writeText(id).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }, () => {});
-  }}>{copied ? copy.upload.copied : copy.upload.copyId}</button>;
+    void navigator.clipboard?.writeText(id).then(() => toast(copy.upload.copied, "success"), () => {});
+  }}>{copy.upload.copyId}</button>;
 }
 
 function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrchat, busy }: {
@@ -265,8 +267,8 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, terms,
         {!(live && uploadQueued) && <>
           <button type="button" className="vua-release-upload__button" disabled={live && (!actions || (actions.uploadBlocked ?? actions.busy))} tabIndex={live ? 0 : -1}
             onClick={actions?.onUpload} data-nav-id="release-upload"><Icon name="arrow-up" size={20} />{uploaded ? copy.upload.again : copy.upload.button}</button>
-          {!(live && actions?.queued) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy : actions?.otherWork ? copy.upload.busy
-            : state?.editorOpen ? copy.upload.unityOpen : uploaded ? copy.upload.updateNote : copy.upload.privateNote}</small>}
+          {!(live && actions?.queued) && (actions?.busy || actions?.otherWork || state?.editorOpen) && <small className="vua-text-secondary">{actions?.busy ? copy.upload.lineBusy
+            : actions?.otherWork ? copy.upload.busy : copy.upload.unityOpen}</small>}
         </>}
         {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null}
           {...(live && onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})}

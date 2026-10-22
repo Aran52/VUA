@@ -145,7 +145,6 @@ export function VrchatSignInSection() {
             <input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />
             <span>{copy.form.remember}</span>
           </label>
-          <p className="vua-caption vua-text-secondary">{copy.form.rememberHint}</p>
           <div className="vua-vrchat__actions">
             <Button type="submit" disabled={busy || username.trim().length === 0 || password.length === 0} data-nav-id="vrchat-sign-in">
               {busy ? copy.form.working : copy.form.submit}

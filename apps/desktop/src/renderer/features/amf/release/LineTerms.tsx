@@ -67,7 +67,6 @@ export function LineTerms({ run, sources, onOpenMaterials }: { run: AmfProductio
       {check.combination.hasSpecialNote && <p className="vua-caption">{line.special}</p>}
     </>}
     {unlinked > 0 && <p className="vua-caption vua-text-secondary">{format(line.unlinked, { count: String(unlinked) })}</p>}
-    <p className="vua-caption vua-text-secondary">{line.intro} {copy.final}</p>
     {openMaterials}
   </section>;
 }

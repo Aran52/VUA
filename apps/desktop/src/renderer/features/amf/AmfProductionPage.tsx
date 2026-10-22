@@ -9,6 +9,9 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
+import { Alert } from "../../components/primitives/Alert.tsx";
+import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { strings, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
@@ -24,7 +27,7 @@ import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentSt
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
-import { formatDuration, lineLabels } from "./factory-model.ts";
+import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
@@ -86,6 +89,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [requesting, setRequesting] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
+  const [queuedAhead, setQueuedAhead] = useState(1);
   const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
@@ -94,7 +98,6 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [chosenStation, setChosenStation] = useState<StationKey | null>(null);
   // Materials being chosen for this line, and the confirmation before the change.
   const [changing, setChanging] = useState<readonly string[] | null>(null);
-  const [confirmChange, setConfirmChange] = useState(false);
   const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
   // Full access changes the work project without asking, so the player reads what that means first.
   const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
@@ -147,6 +150,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         const view = await gateway.task.snapshot(); if (!alive) return;
         const task = view.tasks.find(t => t.id === taskId);
         setTaskQueued(task?.status === "queued");
+        if (task?.status === "queued" && port) { const lane = await port.list(); if (alive) setQueuedAhead(queueAhead(lane, taskId)); }
         if (task && ["completed", "completedWithWarnings", "failed", "cancelled"].includes(task.status)) {
           setTaskId(null); setTaskAction(null); void refreshList();
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
@@ -257,32 +261,24 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
       <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
     </ConfirmDialog>
-    <ConfirmDialog open={confirmChange} title={panels.materials.confirmTitle} cancelLabel={panels.materials.cancel} confirmLabel={panels.materials.confirm}
-      onCancel={() => setConfirmChange(false)} onConfirm={() => { setConfirmChange(false); void command("changeSources"); }}>
-      <p className="vua-confirm-dialog__text">{panels.materials.confirmBody}</p>
-    </ConfirmDialog>
-    {taskQueued && taskId !== null && <Card><div className="vua-n3__queued" role="status"><p>{factory.queued.hint}</p>
-      <Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button></div></Card>}
-    {error !== null && <Card><div role="alert"><strong>{copy.error}</strong><p className="vua-caption vua-text-secondary">{error}</p><Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button></div></Card>}
-    {run === null && error !== null && /license/iu.test(error) ? <Card>
-      <h2>{strings.unityLicense.retry}</h2><p>{strings.unityLicense.retryHint}</p>
-      <Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
-    </Card> : null}
+    {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
+    {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
+      action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
+      : error !== null && <Alert tone="error" title={copy.error} action={<Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{error}</Alert>}
     {run === null ? <>
-      <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1><p className="vua-text-secondary">{copy.intro}</p></header>
+      <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></header>
       {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
         if (!port) return; setRequesting(true); setError(null);
         void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
       }}/>}
       {recipePreview && <Card><Button disabled={busy} onClick={() => setSharingRecipe(recipePreview.recipe.recipeId)}>{copy.shareRecipe}</Button><h2>{recipePreview.recipe.title}</h2><p>{format(copy.recipeSummary,{materials:recipePreview.recipe.materials.length,outfits:recipePreview.recipe.outfits.length})}</p>
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
-        <p className="vua-caption vua-text-secondary">{copy.recipeReproduceHint}</p>
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRecipePreview(null)}>{copy.back}</Button><Button variant="primary" disabled={busy} onClick={() => { void prepareRecipe(); }}>{copy.recipeReproduce}</Button></div>
       </Card>}
       {!recipePreview && (list === null ? <Card><EmptyState title={requesting ? copy.loading : unavailable} description={copy.loading} /></Card> : <Card>
         <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { void command("prepare"); }}>{copy.prepare}</Button></div>
-        {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label><p className="vua-caption vua-text-secondary">{copy.originalSafe}</p></details>}
+        {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label></details>}
         <Button variant="subtle" onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
       </Card>)}
     </> : <>
@@ -304,8 +300,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <strong>{runningStep ? copy.step[runningStep.key as keyof typeof copy.step] ?? runningStep.name : run.phase === "assembling" ? copy.assembling : run.phase === "restoring" ? copy.restoring : copy.preparing}</strong></div>
         {runningStep?.detail && <p className="vua-caption vua-text-secondary">{runningStep.detail}</p>}
         {run.progress && <LiveProgress progress={run.progress}/>}
-        <div className="vua-n3__actions"><p className="vua-caption vua-text-secondary">{factory.stopHint}</p>
-          <Button variant="subtle" disabled={!taskId && !run.taskId} onClick={() => { void gateway.task.cancel(taskId ?? run.taskId); }}>{factory.stop}</Button></div>
+        <div className="vua-n3__actions">
+          <Tooltip content={factory.stopTip}><Button variant="subtle" disabled={!taskId && !run.taskId} onClick={() => { void gateway.task.cancel(taskId ?? run.taskId); }}>{factory.stop}</Button></Tooltip></div>
       </Card>}
       {!lineBusy(run) && (status === "attention" || status === "stopped") && <Card className="vua-line__attention" data-status={status}>
         <h2>{status === "stopped" ? factory.status.stopped : factory.attentionTitle}</h2>
@@ -325,10 +321,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <span>{copy.step[item.key as keyof typeof copy.step] ?? item.name}{item.detail && <small>{item.detail}</small>}</span></li>)}</ul>
           {run.error && <code>{run.error}</code>}</details>
       </Card>}
-      {restored && !busy && <Card><p role="status">{copy.restored}</p><p className="vua-caption vua-text-secondary">{copy.restoreReversible}</p></Card>}
+      {restored && !busy && <Card><p role="status">{copy.restored}</p></Card>}
       {restorePlan && !busy && <Card><h2>{copy.restoreTitle}</h2><p>{copy.restoreHint}</p>
         {restorePlan.currentChanged && <p className="vua-n3__notice">{copy.restoreChanged}</p>}
-        <p className="vua-caption vua-text-secondary">{copy.restoreReversible}</p>
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
       </Card>}
       {shown === "prepare" && <Card className="vua-line__panel">
@@ -339,7 +334,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <MaterialPicker sources={list?.sources ?? []} chosen={changing} onChange={setChanging} disabled={busy} />
           {sameMaterials && <p className="vua-caption vua-text-secondary">{panels.materials.unchanged}</p>}
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setChanging(null)}>{panels.materials.cancel}</Button>
-            <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0} onClick={() => setConfirmChange(true)} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button></div>
+            <Popconfirm title={panels.materials.confirmTitle} description={panels.materials.confirmBody} confirmLabel={panels.materials.confirm} cancelLabel={panels.materials.cancel}
+              onConfirm={() => { void command("changeSources"); }}>
+              <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button>
+            </Popconfirm></div>
         </>}
       </Card>}
       {shown === "inspect" && <Card className="vua-line__panel">
@@ -361,7 +359,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
-        {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>}
+        {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         {unchangedPlan && <p className="vua-caption vua-text-secondary">{panels.plan.current}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)} data-nav-id="workshop-plan-adjust">{factory.adjust}</Button>
           <Button variant="primary" disabled={requesting || unchangedPlan || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
@@ -399,7 +397,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
         <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
-        {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : <p className="vua-caption vua-text-secondary">{copy.originalSafe}</p>}
+        {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
       {shown === "assemble" && <Card className="vua-line__panel">
@@ -407,7 +405,6 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {lastAssembly ? <p>{format(panels.assemble.last, { time: formatDateMinute(lastAssembly.endedAt ?? lastAssembly.startedAt ?? "") })} · {factory.stationState[stepState(lastAssembly.state)]}</p>
           : <p className="vua-text-secondary">{panels.assemble.waiting}</p>}
         {run.snapshotId && !busy && !restorePlan && !plan && run.phase !== "inspect_required" && <>
-          <p className="vua-caption vua-text-secondary">{panels.assemble.restoreHint}</p>
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => {
             if (!port) return; setRequesting(true); setError(null);
             void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
@@ -425,7 +422,6 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           {run.result?.facts?.sdkSignedIn === "yes" && <li><Icon name="check" size={16}/> {copy.sdkSignedIn}</li>}</ul>
         {!!run.result?.facts?.missingShaderMaterials?.length && <p className="vua-n3__notice">{format(copy.shadersMissing,{count:String(run.result.facts.missingShaderMaterials.length)})}</p>}
         {run.result?.facts?.sdkSignedIn === "no" && <p className="vua-text-secondary">{copy.sdkSignIn}</p>}
-        <p className="vua-text-secondary">{copy.sdkNotRun}</p>
         {!!run.result?.facts?.missingReferences && <p className="vua-n3__notice">{copy.warning}</p>}
         {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{panels.check.toRelease}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button></div>
@@ -435,7 +431,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
-        <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div><p className="vua-caption vua-text-secondary">{copy.saveRecipeHint}</p>
+        <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
         {savedRecipe ? <><Button disabled={busy} onClick={() => setSharingRecipe(savedRecipe.recipe.recipeId)}>{copy.shareRecipe}</Button><p role="status">{format(copy.recipeSaved,{title:savedRecipe.recipe.title})}</p><Button onClick={() => { setSavedRecipe(null); newPreparation(); }}>{copy.recipes}</Button></> :
           <form onSubmit={event => {
             event.preventDefault(); if (!port) return; setRequesting(true); setError(null);

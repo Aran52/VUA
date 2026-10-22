@@ -40,8 +40,7 @@ const copy = strings.release;
  * - 预览图:项目带 bakePreview 定位(DEV fixture 接线)时,卡片显示烘焙
  *   封面、详情内嵌 T2 转盘(TurntablePlayer);读取失败/无定位时渲染
  *   诚实的占位说明,不显示破图或伪造缩略图;
- * - 操作纪律:恢复快照/重新派生/上传交接未接入,本切片不渲染死按钮,
- *   以 futureNote 明示;点击卡片只看详情。
+ * - 操作纪律:恢复快照/重新派生/上传交接未接入,不渲染死按钮;点击卡片只看详情。
  *
  * 取数:gateway.modelProduction.releaseWall();加载/失败/未接入/空墙四态诚实。
  */
@@ -190,7 +189,6 @@ function ProjectDetail({ project }: { project: ReleaseProject }) {
           </div>
         ))}
       </dl>
-      <p className="vua-caption vua-text-secondary">{copy.futureNote}</p>
     </div>
   );
 }
@@ -284,7 +282,6 @@ export function ReleasePage({
         <Card>
           <EmptyState
             title={copy.loadFailed}
-            description={copy.loadFailedDescription}
             action={
               <Button variant="primary" onClick={() => setReloadNonce((nonce) => nonce + 1)}>
                 {copy.retry}
@@ -302,7 +299,7 @@ export function ReleasePage({
         </Card>
       ) : wall.kind === "not-connected" ? hasN3Runs ? null : (
         <Card>
-          <EmptyState title={copy.notConnectedTitle} description={copy.notConnectedDescription} />
+          <EmptyState title={copy.notConnectedTitle} />
         </Card>
       ) : projects !== null && projects.length === 0 ? hasN3Runs ? null : (
         <Card>

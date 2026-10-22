@@ -680,7 +680,6 @@ function RecipeLibrarySection({
       ) : null}
       {selectedId !== null ? (
         <div role="note">
-          <p className="vua-caption vua-text-secondary">{copy.libraryMappingNote}</p>
           {structure !== null && structure.assets.length > 0 ? (
             <ul className="vua-project-compat__specs">
               {structure.assets.map((asset) => (
@@ -727,7 +726,6 @@ export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void
     <div className="vua-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">{termLabel("recipe")}</h1>
-        <p className="vua-text-secondary">{productionCopy.recipePageIntro}</p>
         <div className="vua-page__actions">
           <Button variant="primary" disabled={!onNavigate} onClick={() => onNavigate?.("workshop")}>
             {productionCopy.recipeMakeAvatar}
@@ -742,7 +740,6 @@ export function RecipePage({ onNavigate }: { onNavigate?: (page: PageId) => void
         <Button variant="subtle" aria-expanded={workspaceOpen} aria-controls="recipe-workspace" onClick={() => setWorkspaceOpen(value => !value)}>
           {productionCopy.recipeWorkspace}
         </Button>
-        <p className="vua-caption vua-text-secondary">{productionCopy.recipeWorkspaceHint}</p>
         {workspaceOpen && <div id="recipe-workspace"><RecipeWorkspace /></div>}
       </section>
     </div>
@@ -1245,7 +1242,6 @@ export function RecipeWorkspace() {
                     ))}
                   </ul>
                 )}
-                <p className="vua-caption vua-text-secondary">{copy.versions.scopeNote}</p>
               </div>
             </Card>
           ) : null}

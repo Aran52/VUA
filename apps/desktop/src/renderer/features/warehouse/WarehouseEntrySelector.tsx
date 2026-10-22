@@ -36,10 +36,7 @@ export function WarehouseEntrySelector({
 
   if (view.kind === "not-connected") {
     return (
-      <EmptyState
-        title={acquireCopy.states.notConnectedTitle}
-        description={acquireCopy.states.notConnectedDescription}
-      />
+      <EmptyState title={acquireCopy.states.notConnectedTitle} />
     );
   }
 
@@ -66,10 +63,7 @@ export function WarehouseEntrySelector({
       {view.entries.length === 0 ? (
         <EmptyState title={acquireCopy.entriesTitle} description={acquireCopy.entriesEmpty} />
       ) : rows.length === 0 ? (
-        <EmptyState
-          title={strings.warehouse.states.emptyResultTitle}
-          description={strings.warehouse.states.emptyResultDescription}
-        />
+        <EmptyState title={strings.warehouse.states.emptyResultTitle} />
       ) : (
         <ul className="vua-project-compat__specs" role="listbox" aria-label={copy.listAria}>
           {rows.map((entry) => {

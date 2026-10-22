@@ -26,7 +26,7 @@ export function ToolsHub({ onPrepareSteam }: { onPrepareSteam(): void }) {
         <EnvironmentCard title={tool.title} icon={group.icon} id={`tool-${tool.id}`} action="unknown" status="" developing selected={selected === tool.id} onDetails={() => setSelected(current => current === tool.id ? null : tool.id)} />
         <section id={`tool-${tool.id}-details`} className="vua-environment-detail" hidden={selected !== tool.id} aria-label={tool.title}>
       <header className="vua-environment-heading"><h2>{tool.title}</h2><Button variant="subtle" data-back onClick={() => setSelected(null)}>{strings.environmentCards.closeDetails}</Button></header>
-      <p>{strings.helpUi[tool.id]}</p><p className="vua-text-secondary">{strings.helpUi.developmentHint}</p>
+      <p>{strings.helpUi[tool.id]}</p>
       </section></>
         : <SteamToolCard toolId={tool.id} title={tool.title} icon={group.icon} selected={selected === tool.id} onDetails={() => setSelected(current => current === tool.id ? null : tool.id)} onReveal={() => setSelected(tool.id)} onPrepareSteam={onPrepareSteam} />}</div>)}</div>
     </section>)}

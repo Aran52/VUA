@@ -142,6 +142,5 @@ export function ReleaseStage({ production, release, run, turntable, title, live 
         : current ? <TurntableStage production={production} release={release} run={run} turntable={current} title={title} />
         : <StillsStage production={production} run={run} title={title} />}
     </div>
-    <figcaption>{current ? copy.stage.dragTurntable : copy.stage.dragViews}</figcaption>
   </figure>;
 }

@@ -1,13 +1,14 @@
 /** The materials room's "Start production" panel: one Avatar, the outfits that
  * fit it first, and one button that opens a prepared line in the workshop. */
 import { useEffect, useMemo, useState } from "react";
+import { Alert } from "../../components/primitives/Alert.tsx";
 import type { PageId } from "../../app/nav-model.ts";
 import { libraryBrowser } from "../../app/library-browser-instance.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { Skeleton } from "../../components/primitives/Skeleton.tsx";
 import { useGateway, type AmfProductionList, type AmfProductionSource, type LibraryBrowserPort, type LibraryCardFacts } from "../../gateway/index.ts";
-import { format, strings } from "../../i18n/index.ts";
+import { strings } from "../../i18n/index.ts";
 import { buildStartChoices, groupOutfitsByFit } from "./materials-fit-model.ts";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import "./factory.css";
@@ -141,24 +142,20 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
         </div>
       </div>
       {load.kind === "loading" ? <div className="vua-start__loading" role="status"><Skeleton width="40%" height={16} /><Skeleton width="100%" height={48} /><Skeleton width="100%" height={48} /></div> :
-        load.kind === "failed" ? <div role="alert" className="vua-start__notice">
-          <p>{copy.loadFailed}</p>
-          <Button onClick={() => setRetry(value => value + 1)}>{production.retry}</Button>
-        </div> : ready !== null && <>
+        load.kind === "failed" ? <Alert tone="error" action={<Button onClick={() => setRetry(value => value + 1)}>{production.retry}</Button>}>{copy.loadFailed}</Alert> : ready !== null && <>
           {avatarSources.length === 0 ? <div className="vua-start__notice" role="status">
             <strong>{copy.notSourceTitle}</strong>
             <p>{copy.notSourceHint}</p>
             <Button onClick={() => { onNavigate("asset-browser"); onClose(); }}>{copy.goToBrowse}</Button>
           </div> : <>
-            <p className="vua-start__hint">{format(copy.panelHint, { avatar: avatar.title ?? avatar.productId })}</p>
             {ready.items.length === 0 ? <p className="vua-caption vua-text-secondary">{copy.outfitEmpty}</p> : <>
               <h3 className="vua-start__group">{copy.outfits}</h3>
               {pick(fitted, true)}
               {others.length > 0 && <details className="vua-start__others"><summary>{copy.otherOutfits}</summary>{pick(others, false)}</details>}
             </>}
-            {ready.list.editors.length === 0 && <div className="vua-start__notice" role="status"><p>{production.editorMissing}</p></div>}
+            {ready.list.editors.length === 0 && <Alert tone="warning">{production.editorMissing}</Alert>}
           </>}
-          {startError !== null && <p className="vua-start__notice" role="alert">{copy.startFailed} {startError}</p>}
+          {startError !== null && <Alert tone="error">{copy.startFailed} {startError}</Alert>}
           <div className="vua-start__actions">
             <Button variant="subtle" disabled={starting} onClick={onClose}>{production.back}</Button>
             <Button variant="primary" disabled={!canStart} onClick={() => { void start(); }}>{starting ? copy.starting : copy.start}</Button>

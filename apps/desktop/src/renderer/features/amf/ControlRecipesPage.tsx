@@ -76,7 +76,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   if (!port) return null;
   return <div className="vua-page vua-control" data-focus-scope>
     <header className="vua-control__head">
-      <div><h1 className="vua-title">{copy.title}</h1><p className="vua-text-secondary">{copy.intro}</p></div>
+      <h1 className="vua-title">{copy.title}</h1>
       <div className="vua-control__actions">
         {graph.nodes.length > 0 && <span className="vua-control__switch" role="group" aria-label={copy.viewLabel}>
           {(["graph", "list"] as const).map(option => <button type="button" key={option} aria-pressed={view === option} onClick={() => chooseView(option)}>
@@ -90,7 +90,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
       <Button onClick={() => setReload(value => value + 1)}>{production.retry}</Button></div>
     : saved === null ? <p role="status" className="vua-caption vua-text-secondary">{production.loading}</p>
     : saved.length === 0 ? <div className="vua-control__panel vua-control__empty"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
-        <Icon name="file" size={24}/><h2>{copy.emptyTitle}</h2><p className="vua-text-secondary">{copy.emptyHint}</p>
+        <Icon name="file" size={24}/><h2>{copy.emptyTitle}</h2>
         <div className="vua-n3__actions"><Button onClick={() => onNavigate("workshop")}>{copy.openWorkshop}</Button><Button variant="primary" onClick={() => setImporting(true)}>{production.importRecipe}</Button></div>
       </div>
     : <div className="vua-control__body">
@@ -117,7 +117,6 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
 
     <section className="vua-control__drafts">
       <Button variant="subtle" aria-expanded={draftsOpen} aria-controls="control-recipe-drafts" onClick={() => setDraftsOpen(value => !value)}>{production.recipeWorkspace}</Button>
-      <p className="vua-caption vua-text-secondary">{production.recipeWorkspaceHint}</p>
       {draftsOpen && <div id="control-recipe-drafts"><RecipeWorkspace/></div>}
     </section>
     {sharing !== null && <AmfRecipeShareDialog recipeId={sharing} onClose={() => setSharing(null)}/>}
@@ -148,7 +147,6 @@ function Overview({ graph, shared, onSelect }: { graph: RecipeGraph; shared: rea
   const counts = NODE_KINDS.map(kind => [kind, graph.nodes.filter(node => node.kind === kind).length] as const).filter(([, count]) => count > 0);
   return <div className="vua-control__panel"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
     <h2>{copy.overview}</h2>
-    <p className="vua-caption vua-text-secondary">{copy.overviewHint}</p>
     <dl className="vua-control__counts">{counts.map(([kind, count]) => <div key={kind}><dt><KindMark kind={kind}/>{copy.kinds[kind]}</dt><dd>{count}</dd></div>)}</dl>
     <h3>{copy.mostShared}</h3>
     {shared.length === 0 ? <p className="vua-caption vua-text-secondary">{copy.sharedEmpty}</p>
@@ -181,7 +179,6 @@ function RecipeDetails({ graph, saved, onSelect, onClose, onReproduce, onShare }
       <Button variant="primary" onClick={() => onReproduce(recipe.recipeId)}>{copy.reproduce}</Button>
       <Button onClick={() => onShare(recipe.recipeId)}>{production.shareRecipe}</Button>
     </div>
-    <p className="vua-caption vua-text-secondary">{production.recipeReproduceHint}</p>
     <h3>{copy.avatar}</h3>
     <div className="vua-control__parts">{parts.avatar.map(node => <PartButton key={node.id} node={node} onSelect={onSelect} detail={[prefabLabel(recipe.avatar.prefabPath), others(node)].filter(Boolean).join(" · ")}/>)}</div>
     <h3>{format(copy.outfits, { count: worn.length })}</h3>

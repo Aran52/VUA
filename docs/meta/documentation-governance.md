@@ -1,6 +1,6 @@
 # Documentation governance
 
-> Updated: 2026-10-16
+> Updated: 2026-10-22
 
 ## 1. Document types
 
@@ -76,6 +76,12 @@ The local `docs-zh/` mirror is retired.
 - Link to the document that owns a rule instead of restating it.
 - Player-facing text uses the player's vocabulary. Section numbers, proposal numbers, ruling dates
   and internal component names belong in developer documents and code.
+- Player-facing text leads with the result ("The current work is saved as a restore point"), then
+  any step the player takes. It does not restate what the player just chose to do (copying says
+  "Copied"), and it explains only actions that can lose work or are hard to undo.
+- Player-facing text is plain and short: no filler conjunctions, pronouns or conversational
+  softeners ("Line materials", not "This line's materials"; "Avatar", not "your Avatar"). A status
+  is a short phrase: "Unity license not activated", "Queued · 2 ahead".
 - Developer documents cite contract and schema versions, product versions and decision documents.
   Identifiers from the retired collaboration process stay in the archive.
 - Code comments explain intent and constraints; history belongs in Git.

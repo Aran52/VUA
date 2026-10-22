@@ -190,7 +190,7 @@ fn route(
     let query = matches!(
         method,
         "amf.production.faceTrackingPlan" |
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting" | "amf.production.listFits"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -230,6 +230,8 @@ fn route(
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
         "amf.production.revisionPlan" => &["schemaVersion", "runId", "revisionId"],
         "amf.production.restoreRevision" => &["schemaVersion", "runId", "revisionId", "planDigest"],
+        "amf.production.planTextureMemory" => &["schemaVersion", "runId", "platform", "targetRank"],
+        "amf.production.applyTextureMemory" => &["schemaVersion", "runId", "platform", "targetRank", "planDigest", "textures"],
         "amf.production.applyLighting" => &["schemaVersion", "runId", "planDigest", "materials"],
         "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
         "amf.production.changeSources" => &["schemaVersion", "runId", "sources"],
@@ -270,7 +272,7 @@ fn route(
         }
         Some(id)
     } else { None };
-    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
+    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
         let digest = string("planDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
@@ -415,6 +417,18 @@ fn route(
         }
         return service.engine.plan(&run_id, &selection);
     }
+    let texture_options = if matches!(method, "amf.production.planTextureMemory" | "amf.production.applyTextureMemory") {
+        let platform: TexturePlatform = serde_json::from_value(params["platform"].clone()).map_err(|_| production_error("params_invalid", "Choose PC or Android."))?;
+        let target: TextureRank = serde_json::from_value(params["targetRank"].clone()).map_err(|_| production_error("params_invalid", "Choose a target texture rank."))?;
+        if target.budget(platform).is_none() { return Err(production_error("params_invalid", "Choose Excellent, Good, Medium or Poor.")); }
+        Some((platform, target))
+    } else { None };
+    if method == "amf.production.planTextureMemory" {
+        let id = string("runId")?;
+        if service.run_busy(&id) { return Err(production_error("busy", "This line has work running or waiting.")); }
+        let (platform, target) = texture_options.expect("validated texture options");
+        return service.engine.plan_texture_memory(&id, platform, target);
+    }
     if method == "amf.production.planLighting" {
         let run_id = string("runId")?;
         if service.run_busy(&run_id) {
@@ -468,7 +482,7 @@ fn route(
         service.engine.precheck_open(&run_id)?;
     }
     if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
-        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete"
+        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.delete"
         | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
         service.engine.precheck_closed(&run_id)?;
     }
@@ -524,6 +538,14 @@ fn route(
         }
         materials
     } else { Vec::new() };
+    let textures: Vec<String> = if method == "amf.production.applyTextureMemory" {
+        let paths: Vec<String> = serde_json::from_value(params["textures"].clone()).map_err(|_| production_error("params_invalid", "Name reviewed textures."))?;
+        if paths.is_empty() || paths.len() > 2048 || paths.iter().any(|p| !safe_texture_path(p))
+            || paths.iter().collect::<std::collections::BTreeSet<_>>().len() != paths.len() {
+            return Err(production_error("params_invalid", "Choose distinct reviewed texture paths."));
+        }
+        paths
+    } else { Vec::new() };
     let operation_run = run_id.clone();
     let worker = service.clone();
     let accepted = service.submit(SubmitRequest {
@@ -545,6 +567,10 @@ fn route(
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
                 "amf.production.faceTrackingPatch" => worker.engine.face_tracking_patch(&operation_run,
                     ft_menu.as_deref().expect("confirmed menu"), &digest, true, ctx)?,
+                "amf.production.applyTextureMemory" => {
+                    let (platform, target) = texture_options.expect("validated texture options");
+                    worker.engine.apply_texture_memory(&operation_run, platform, target, &digest, &textures, ctx)?;
+                }
                 "amf.production.applyLighting" => worker.engine.apply_lighting(&operation_run, &digest, &lighting_materials, ctx)?,
                 "amf.production.changeSources" => worker.engine.change_sources(&operation_run, changed_sources, ctx)?,
                 "amf.production.delete" => worker.engine.delete_run(&operation_run)?,
@@ -668,6 +694,23 @@ mod tests {
             TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
                 Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap(),
         ))
+    }
+
+    #[test]
+    fn texture_routes_require_exact_platform_target_digest_and_explicit_paths() {
+        let root = std::env::temp_dir().join(format!("vua-texture-routes-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let params = json!({"schemaVersion":"0.1","runId":"n3-missing","platform":"pc","targetRank":"good"});
+        let error = route(service.clone(), "amf.production.planTextureMemory", &json!({"kind":"query","params":params})).unwrap_err();
+        assert_eq!(error.code, "vua.amf_production.run_not_found", "valid input reaches the owning engine");
+        for (key, invalid) in [("platform", json!("ios")), ("targetRank", json!("unknown")), ("extra", json!(true))] {
+            let mut bad = params.clone(); bad[key] = invalid;
+            let error = route(service.clone(), "amf.production.planTextureMemory", &json!({"kind":"query","params":bad})).unwrap_err();
+            assert_eq!(error.code, "vua.amf_production.params_invalid");
+        }
+        let error = route(service.clone(), "amf.production.applyTextureMemory", &json!({"kind":"command","params":params})).unwrap_err();
+        assert_eq!(error.code, "vua.amf_production.params_invalid", "a mutation cannot omit the reviewed digest and path list");
+        drop(service); std::fs::remove_dir_all(root).unwrap();
     }
 
     fn list(service: &Arc<AmfProductionServices>) -> Value {

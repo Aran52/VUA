@@ -202,3 +202,21 @@ fn creator_menu_schema_accepts_custom_roots_without_native_commands_or_shortcuts
         assert!(!validator.is_valid(&result), "{path}");
     }
 }
+
+
+#[test]
+fn texture_inventory_is_optional_but_new_facts_and_writes_are_checked() {
+    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    assert!(old.data.get("textureMemory").is_none());
+    let value = read("examples/texture-memory.valid.result.json");
+    let reports = vua_orchestrator::amf_production::validate_texture_memory(&value["data"]["textureMemory"]).unwrap();
+    assert_eq!(reports[0].total_bytes, 89_478_484);
+    assert_eq!(reports[0].rank, vua_orchestrator::amf_production::TextureRank::Medium);
+    for file in ["invalid-texture-bytes.result.json", "invalid-texture-format.result.json"] {
+        assert!(vua_orchestrator::amf_production::validate_texture_memory(&read(&format!("examples/{file}"))["data"]["textureMemory"]).is_err());
+    }
+    let command: UnityCommand = serde_json::from_value(read("examples/texture-import.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfTextureImport);
+    assert!(command.operation.is_mutating() && !command.dry_run);
+    assert!(command.expected_project_fingerprint.is_some());
+}

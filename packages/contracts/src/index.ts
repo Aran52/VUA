@@ -34,3 +34,4 @@ export * from "./unity-license-v01.js";
 export * from "./desktop-ai-tools.js";
 export * from "./terms-v01.js";
 export * from "./face-tracking-v01.js";
+export * from "./texture-memory-v01.js";

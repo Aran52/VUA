@@ -17,6 +17,9 @@ use vua_orchestrator::{
 const PIPELINE_FIX: &str = "This avatar has no pipeline manager component.";
 
 struct TestPlatform {
+    texture_facts: Mutex<Option<serde_json::Value>>,
+    texture_before: Mutex<Option<serde_json::Value>>,
+    texture_outcome: AtomicUsize,
     ft_facts: Mutex<Option<serde_json::Value>>,
     ft_outcome: AtomicUsize,
     ft_snapshots: Mutex<std::collections::BTreeMap<String, (String, bool)>>,
@@ -189,6 +192,7 @@ impl AmfProductionPlatform for TestPlatform {
                 "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
                     {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
+        if let Some(textures) = self.texture_facts.lock().unwrap().clone() { result["facts"]["textureMemory"] = textures; }
         let material_use = self.material_use.lock().unwrap().clone();
         if let Some(mut facts) = self.ft_facts.lock().unwrap().clone() {
             let patched = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists();
@@ -249,6 +253,38 @@ impl AmfProductionPlatform for TestPlatform {
         observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
         Ok(observed)
     }
+    fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(run.snapshot_id.is_some());
+        let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        assert_eq!(saved.revisions[0].before, RevisionKind::TextureMemory, "history is durable before writes");
+        let mut reports = validate_texture_memory(self.texture_facts.lock().unwrap().as_ref().unwrap()).unwrap();
+        for change in changes {
+            let report = reports.iter_mut().find(|r| r.platform == change.platform).unwrap();
+            let texture = report.textures.iter_mut().find(|t| t.path == change.path).unwrap();
+            let scale = (texture.width.max(texture.height) / change.max_size).max(1);
+            texture.width = (texture.width / scale).max(1); texture.height = (texture.height / scale).max(1);
+            texture.max_size = change.max_size; texture.format = change.format.clone();
+            texture.estimated_bytes = estimate_texture_bytes(texture.width, texture.height, texture.mipmap, &texture.format, 1).unwrap();
+            report.total_bytes = report.textures.iter().map(|t| t.estimated_bytes).sum(); report.rank = texture_rank(report.total_bytes, report.platform);
+        }
+        if self.texture_outcome.load(Ordering::SeqCst) == 5 {
+            let report = reports.iter_mut().find(|r| r.platform == changes[0].platform).unwrap();
+            let mut unknown = report.textures[0].clone();
+            unknown.id = "generated-unknown".into(); unknown.path.clear(); unknown.known = false;
+            unknown.editable = false; unknown.format = "Unknown".into(); unknown.estimated_bytes = 0;
+            report.textures.push(unknown); report.complete = false; report.rank = TextureRank::Unknown;
+        }
+        *self.texture_facts.lock().unwrap() = Some(serde_json::json!(reports));
+        match self.texture_outcome.load(Ordering::SeqCst) {
+            1 => return Err(production_error("texture_test_failed", "Importer failed after a partial write.")),
+            2 => { *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone(); },
+            3 => return Err(watch.stopped()),
+            _ => (),
+        }
+        let observed = self.inspect(run, watch)?;
+        if self.texture_outcome.load(Ordering::SeqCst) == 4 { self.fail_inspect.store(true, Ordering::SeqCst); }
+        Ok(observed)
+    }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         if self.fail.load(Ordering::SeqCst) {
             fs::write(Path::new(&run.project_root).join("Assets/state"), "half-fixed").unwrap();
@@ -259,6 +295,7 @@ impl AmfProductionPlatform for TestPlatform {
         Ok(observed)
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
+        *self.texture_before.lock().unwrap() = self.texture_facts.lock().unwrap().clone();
         let index = self.snapshots.fetch_add(1, Ordering::SeqCst);
         let state = self.fingerprint(Path::new(&run.project_root))?;
         if self.ft_facts.lock().unwrap().is_some() {
@@ -309,6 +346,7 @@ impl AmfProductionPlatform for TestPlatform {
             fs::write(Path::new(&run.project_root).join("Assets/state"), "partial restore").unwrap();
             return Err(production_error("test_restore", "Synthetic partial restore."));
         }
+        *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone();
         for (path, bytes) in self.restore_files.lock().unwrap().drain(..) {
             fs::write(path, bytes).unwrap();
         }
@@ -360,6 +398,7 @@ impl Harness {
         ));
         fs::create_dir_all(&root).unwrap();
         let platform = Arc::new(TestPlatform {
+            texture_facts: Mutex::new(None), texture_before: Mutex::new(None), texture_outcome: AtomicUsize::new(0),
             ft_facts: Mutex::new(None),
             ft_outcome: AtomicUsize::new(1),
             ft_snapshots: Mutex::new(std::collections::BTreeMap::new()),
@@ -2175,4 +2214,63 @@ fn runs_recorded_before_fits_read_with_empty_defaults() {
         "steps":[],"selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null});
     let run: ProductionRun = serde_json::from_value(record).unwrap();
     assert!(run.fit_changes.is_empty() && run.applied_fits.is_empty() && run.observed_at.is_none());
+}
+
+
+fn assembled_with_textures(h: &Harness) -> ProductionRun {
+    let raw: serde_json::Value = serde_json::from_slice(include_bytes!("../../../schemas/unity-bridge/v5/examples/texture-memory.valid.result.json")).unwrap();
+    assembled(h);
+    *h.platform.texture_facts.lock().unwrap() = Some(raw["data"]["textureMemory"].clone());
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    h.engine.get("n3-test").unwrap()
+}
+fn texture_digest(h: &Harness) -> String {
+    h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap()["planDigest"].as_str().unwrap().into()
+}
+#[test]
+fn texture_apply_requires_a_current_review_and_explicit_subset_before_snapshot() {
+    let h = Harness::new(); assembled_with_textures(&h);
+    let digest = texture_digest(&h);
+    let count = h.platform.snapshots.load(Ordering::SeqCst);
+    for (review, paths) in [("f".repeat(64), vec!["Assets/Color.png".into()]),
+        (digest.clone(), vec![]), (digest.clone(), vec!["Assets/Unknown.png".into()]),
+        (digest.clone(), vec!["Assets/Color.png".into(), "Assets/Color.png".into()])] {
+        assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &review, &paths, c)));
+    }
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
+    assert!(h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.result["facts"]["textureMemory"][0]["rank"], "excellent");
+    assert_eq!(run.result["facts"]["textureMemory"][1]["rank"], "very_poor", "PC changes leave the Android override alone");
+    assert_eq!(run.revisions[0].before, RevisionKind::TextureMemory);
+    assert_eq!(run.phase, "succeeded");
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count + 1);
+    assert_eq!(h.engine.revision_plan("n3-test", &run.revisions[0].id).unwrap_err().code, "vua.amf_production.texture_manual_replay");
+}
+#[test]
+fn texture_partial_writes_verification_failure_cancel_and_inspection_failure_restore_observations() {
+    for outcome in [1,2,3,4,5] {
+        let h = Harness::new(); let before = assembled_with_textures(&h);
+        let digest = texture_digest(&h);
+        h.platform.texture_outcome.store(outcome, Ordering::SeqCst);
+        assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+        let after = h.engine.get("n3-test").unwrap();
+        assert_eq!(after.recovery.as_deref(), Some("restored"));
+        assert_eq!(after.result, before.result);
+        assert_eq!(after.revisions, before.revisions, "automatically restored changes leave no fictitious history");
+    }
+    let h = Harness::new(); assembled_with_textures(&h); let digest = texture_digest(&h);
+    h.platform.texture_outcome.store(1, Ordering::SeqCst); h.platform.fail_restore.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert!(run.recovery.unwrap().starts_with("restore_failed"));
+    assert_eq!(run.revisions[0].before, RevisionKind::TextureMemory);
+}
+#[test]
+fn texture_planning_requires_facts_and_refuses_project_drift() {
+    let h = Harness::new(); assembled(&h);
+    assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.inspect_required");
+    let h = Harness::new(); let run = assembled_with_textures(&h);
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "external edit").unwrap();
+    assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.project_drift");
 }

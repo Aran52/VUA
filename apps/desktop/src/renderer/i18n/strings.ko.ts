@@ -1,3 +1,4 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -28,6 +29,7 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} 이름은 소스 테이블과 정확히 일치해야 함.
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["ko"],
   faceTracking: faceTrackingCopy["ko"],
   toolConnection: toolConnectionCopy["ko"],
   browser: browserCopy["ko"],

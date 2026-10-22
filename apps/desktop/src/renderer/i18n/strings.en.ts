@@ -1,3 +1,4 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -34,6 +35,7 @@ import { journeyCopy } from "./journey-copy.ts";
  *   (DEV-only, reachable only from gateway fixtures, tree-shaken in release).
  */
 export const strings = {
+  textureMemory: textureMemoryCopy["en"],
   faceTracking: faceTrackingCopy["en"],
   toolConnection: toolConnectionCopy["en"],
   browser: browserCopy["en"],

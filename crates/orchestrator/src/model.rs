@@ -83,6 +83,7 @@ pub enum UnityOperation {
     AmfTurntable,
     /// Runs the VRChat SDK's own Auto Fix for the items the player chose from its Avatar check (v5).
     AmfSdkFix,
+    AmfTextureImport,
     AmfFtPatch,
 }
 
@@ -102,6 +103,7 @@ impl UnityOperation {
                 | Self::AmfAssemble
                 | Self::AmfTurntable
                 | Self::AmfSdkFix
+                | Self::AmfTextureImport
                 | Self::AmfFtPatch
         )
     }

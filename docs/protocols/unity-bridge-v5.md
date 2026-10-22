@@ -1,14 +1,14 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.14.0
+> Document version: 0.15.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix` and `amf_ft_patch`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix`, `amf_ft_patch` and `amf_texture_import`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
@@ -244,7 +244,34 @@ The parent engine owns the snapshot and independent batch recheck; no Bridge men
 alone declares FT functional. The operation's listed changed paths are the managed scene and
 marker, not an exhaustive claim about opaque creator writes.
 
+## Texture memory observations and importer changes
+
+`data.textureMemory` is an optional additive observation field. When an active owned Avatar is
+present it contains PC and Android reports; without one it is empty. Older receipts omit it.
+The closed report/texture fields and estimate/threshold rules are owned by
+[AMF texture tuning](amf-production-v0.1.md#texture-memory-and-importer-tuning) and represented
+in `schemas/unity-bridge/v5/result.schema.json`. Native and renderer consumers validate present
+fields; absence remains readable and requires fresh inspection before tuning.
+
+`amf_texture_import` is a mutating operation with `dryRun: false` and an exact current
+`expectedProjectFingerprint`. Its separate request adds a nonempty `textureChanges` array of
+`{path, platform, maxSize, format}`. The managed run marker, active saved Avatar ownership and
+payload digest are checked before changes. Each path must be an editable texture dependency of
+the active Avatar. The entire batch is checked before its first write, including duplicate
+paths, allowed platform/format, no size increase, a power-of-two Max Size (no reduction below 512, with existing smaller sizes retained), local
+asset and `.meta` ownership, and absence of reparse points on their paths. Files in the original
+library, package assets and other Avatar dependencies cannot be changed.
+
+For PC the platform override name is `Standalone`; for Android it is `Android`. The Bridge uses
+`TextureImporter.SetPlatformTextureSettings` and `SaveAndReimport`. It changes the selected
+platform's Max Size and format, disabling incompatible Crunch for BC7/ASTC, and preserves the
+remaining properties and the other platform override. `changedPaths` lists the written `.meta`
+files. It re-observes textures, SDK checks and project fingerprints; the engine performs a second
+independent inspection and owns restoration if any part fails. No image source is rewritten.
+
 ## Document changelog
+
+- 0.15.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
 
 - 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
 

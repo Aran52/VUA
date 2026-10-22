@@ -14,7 +14,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-20 |
 | docs/protocols/ai-tools-v0.1.md | 0.8.0 | Candidate | Integration | 2026-10-20 |
-| docs/protocols/amf-production-v0.1.md | 0.28.0 | Candidate | AMF | 2026-10-21 |
+| docs/protocols/amf-production-v0.1.md | 0.29.0 | Candidate | AMF | 2026-10-23 |
 | docs/protocols/amf-recipe-v0.4.md | 0.5.0 | Candidate | AMF | 2026-10-20 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
@@ -89,7 +89,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.14.0 | Candidate | Production | 2026-10-21 |
+| docs/protocols/unity-bridge-v5.md | 0.15.0 | Candidate | Production | 2026-10-23 |
 | docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |

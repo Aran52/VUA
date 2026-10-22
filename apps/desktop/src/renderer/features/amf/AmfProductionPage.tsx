@@ -16,6 +16,7 @@ import { strings, format, formatDateMinute, formatShortDateTime, termLabel } fro
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
+import { TextureMemoryCard } from "./TextureMemoryCard.tsx";
 import { LightingCard } from "./LightingCard.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
@@ -90,7 +91,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "texture_memory" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
@@ -428,6 +429,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
         {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}
       </Card>}
+      {shown === "check" && !restorePlan && (run.phase === "succeeded" || (busy && !!run.result?.facts?.textureMemory?.length)) && port && <TextureMemoryCard port={port} run={run} level={level} disabled={busy}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={setError}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>

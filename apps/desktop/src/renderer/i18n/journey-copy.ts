@@ -74,6 +74,42 @@ const zh: Copy = {
   missing: "未找到", found: "已找到", unknown: "未能确认", failed: "检测未完成，可重试。",
   developingTip: "开发中，VUA 暂时不能安装或启动它。",
 };
+const zhTW: Copy = {
+  home: "首頁", finish: "完成引導", environment: "環境", avatar: "Avatar", help: "幫助", tasks: "任務",
+  play: "遊玩", create: "改模", library: "素材庫", recipes: "配方", production: "製作 Avatar",
+  developing: "開發中", desktop: "電腦螢幕", vr: "VR 頭戴裝置", unity2022: "Unity 2022", unity6: "Unity 6",
+  back: "返回", exit: "前往主頁面",
+  tools: "工具", identifyHardware: "識別我的裝置是什麼？", backToHelp: "返回幫助",
+  toolTracking: "追蹤", toolTranslation: "翻譯", toolUtilities: "VR 輔助", toolCapture: "錄製與直播",
+  wizard: "入門引導", restart: "重新開始", resume: "繼續引導", goal: "目標",
+  playGoal: "玩 VRChat",
+  createGoal: "準備製作 Avatar",
+  playMode: "遊玩方式", desktopHint: "用電腦螢幕、鍵盤和滑鼠，無需頭戴裝置。", headset: "頭戴裝置型號",
+  creatorStart: "起點", assetsGoal: "整理已有素材", assetsHint: "進入素材庫，匯入本地檔案或下載已購買的 BOOTH 素材，暫不需要 Unity。",
+  environmentGoal: "準備 Unity",
+  target: "Avatar 要用在哪個平臺？", pcAvatar: "PC Avatar", questAvatar: "Android／Quest Avatar",
+  questHint: "準備 Unity 和 Android 構建支援（非連線 Quest 頭戴裝置）。",
+  editor: "準備哪個 Unity 版本？", editorHint: "目前準備路線使用 Unity 2022.3.22f1。",
+  check: "檢查本機",
+  checkNow: "檢查本機", checking: "正在檢查…", unavailable: "檢測未完成，可重試或檢視知識百科。",
+  network: "檢查網路",
+  next: "下一步", prepare: "準備軟體",
+  connection: "PICO 連線方式", usb: "USB 線", wifi: "Wi-Fi", usbHint: "用線連線頭戴裝置，按 PICO Connect 提示操作。",
+  wifiHint: "頭戴裝置和電腦需在同一區域網路，連線前檢視 Wi-Fi 說明。", connectionConfirm: "我已在 PICO Connect 中連線好",
+  launch: "接下來，開啟 VRChat", launchHint: "開啟 Steam 並登入，在庫中找到 VRChat：螢幕玩法選桌面模式，頭戴裝置玩法選 SteamVR 模式。",
+  openSteam: "在 Steam 中開啟 VRChat", gameGuide: "遊戲內助手", accounts: "註冊帳號或關聯 VRChat 帳號",
+  accountReturn: "回到剛才的步驟",
+  preparedNext: "軟體已就緒，下一步", creatorReady: "Unity 已準備好",
+  registration: "註冊指導", linking: "Steam → VRChat 帳號關聯指導", official: "在瀏覽器開啟官方頁面", guide: "知識百科",
+  registrationHint: "在官方頁面註冊後到官方應用登入",
+  linkFailed: "網頁未能開啟，請重試。",
+  registrationSteps: ["開啟下方官方頁面，找到註冊或建立帳號的入口。", "跟著官方提示完成郵件驗證和帳號設定。", "完成後回到這裡繼續，再到官方應用中登入。"],
+  linkingHint: "用 Steam 登入 VRChat，開啟主選單，在 Settings（設定）中選擇 Link Account（關聯帳號），跟著官方提示升級或關聯帳號。",
+  steps: ["選條路線", "做好準備", "開始使用"], openLibrary: "進入素材庫", networkContinue: "繼續檢查軟體",
+  manualLaunch: "Steam 將在獨立視窗開啟；未開啟時手動啟動 Steam，在庫中找到 VRChat。",
+  missing: "未找到", found: "已找到", unknown: "未能確認", failed: "檢測未完成，可重試。",
+  developingTip: "開發中，VUA 暫時不能安裝或啟動它。",
+};
 const ja: Copy = {
   home: "ホーム", finish: "ガイドを終える", environment: "環境", avatar: "Avatar", help: "ヘルプ", tasks: "タスク",
   play: "プレイ", create: "アバター編集", library: "素材ライブラリ", recipes: "レシピ", production: "Avatar を制作",
@@ -146,4 +182,4 @@ const ko: Copy = {
   missing: "찾지 못함", found: "찾음", unknown: "확인되지 않음", failed: "확인이 끝나지 않았어요. 다시 시도하세요.",
   developingTip: "개발 중이라 VUA에서 아직 설치하거나 실행할 수 없습니다.",
 };
-export const journeyCopy = { en, "zh-CN": zh, ja, ko };
+export const journeyCopy = { en, "zh-CN": zh, "zh-TW": zhTW, ja, ko };

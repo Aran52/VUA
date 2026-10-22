@@ -21,6 +21,17 @@ const zh: Copy = {
   otherEditor: "已找到此版本。当前 Avatar 准备路线使用 Unity 2022.3.22f1 或 2022.3.22f1c1。", paths: "检测到的位置", inventoryUnknown: "暂时无法检测编辑器。", official: "打开官方页面", choose2022: "准备 Unity 2022", connection: "连接 PICO", closeDetails: "收起详情",
   issues: { close_pending: "后续启动请求已停止，Steam 中可能仍有等待的启动，需在 Steam 中取消。", not_installed: "缺少必要软件或安装不完整，见准备计划。", other_route_active: "另一张游玩卡片正在使用这套软件，需先关闭其本次启动。", start_failed: "启动未完成。查看对应软件，或关闭本次启动后重试。", start_timeout: "等待软件启动中。查看 Steam 登录、下载和弹窗；在此停止时也需在 Steam 中取消等待的启动。", close_failed: "部分软件未关闭，仍在运行，可从软件菜单退出。", close_timeout: "部分软件在关闭请求后仍在运行，可从软件菜单退出。" },
 };
+const zhTW: Copy = {
+  close: "關閉",
+  network: "網路測試", details: "檢視{name}包含的內容", prepare: "準備{name}", start: "啟動{name}", stop: "關閉{name}的本次啟動",
+  inspect: "重新檢測", checking: "正在檢測…", installing: "正在準備…", ready: "已準備好", missing: "還缺軟體", starting: "正在啟動…", running: "執行中", stopping: "正在關閉…", attention: "需要處理", unknown: "尚未確認",
+  included: "包含", install: "安裝或修復", launch: "啟動環境", closeHint: "僅關閉本卡啟動的軟體",
+  runningHint: "軟體已執行，登入和頭戴裝置連線在對應軟體中完成。", borrowed: "已在執行，將保留", owned: "由本卡啟動", stopped: "未執行",
+  runtime: "其他 VR 軟體",
+  editors: "Unity 編輯器", managers: "Hub 與包管理器", installed: "已檢測到", notFound: "未在常用位置找到", configFound: "配置已找到", configMissing: "未找到配置", configFailed: "配置讀取失敗",
+  otherEditor: "已找到此版本。目前 Avatar 準備路線使用 Unity 2022.3.22f1 或 2022.3.22f1c1。", paths: "檢測到的位置", inventoryUnknown: "暫時無法檢測編輯器。", official: "開啟官方頁面", choose2022: "準備 Unity 2022", connection: "連線 PICO", closeDetails: "收起詳情",
+  issues: { close_pending: "後續啟動請求已停止，Steam 中可能仍有等待的啟動，需在 Steam 中取消。", not_installed: "缺少必要軟體或安裝不完整，見準備計畫。", other_route_active: "另一張遊玩卡片正在使用這套軟體，需先關閉其本次啟動。", start_failed: "啟動未完成。檢視對應軟體，或關閉本次啟動後重試。", start_timeout: "等待軟體啟動中。檢視 Steam 登入、下載和彈窗；在此停止時也需在 Steam 中取消等待的啟動。", close_failed: "部分軟體未關閉，仍在執行，可從軟體選單退出。", close_timeout: "部分軟體在關閉請求後仍在執行，可從軟體選單退出。" },
+};
 const ja: Copy = {
   close: "閉じる",
   network: "ネットワーク", details: "{name}の内容を見る", prepare: "{name}を準備", start: "{name}を起動", stop: "{name}の今回の起動を閉じる",
@@ -43,4 +54,4 @@ const ko: Copy = {
   otherEditor: "이 버전을 찾았어요. 아바타 준비에는 Unity 2022.3.22f1 또는 2022.3.22f1c1을 써요.", paths: "감지된 위치", inventoryUnknown: "지금은 에디터를 확인할 수 없습니다.", official: "공식 페이지 열기", choose2022: "Unity 2022 준비", connection: "PICO 연결", closeDetails: "상세 닫기",
   issues: { close_pending: "추가 실행 요청은 멈췄어요. Steam에 대기 중인 실행이 남아 있을 수 있으니 Steam에서 취소하세요.", not_installed: "필요한 소프트웨어가 없거나 설치가 불완전해요. 준비 계획을 보세요.", other_route_active: "다른 플레이 카드가 이 소프트웨어를 쓰고 있어요. 먼저 그 카드의 실행을 닫으세요.", start_failed: "실행이 끝나지 않았어요. 해당 소프트웨어를 확인하거나 이번 실행을 닫고 다시 시도하세요.", start_timeout: "소프트웨어 실행을 기다리는 중이에요. Steam 로그인, 다운로드, 팝업을 확인하세요. 여기서 멈추면 Steam에서도 대기 중인 실행을 취소하세요.", close_failed: "일부 소프트웨어가 닫히지 않고 실행 중이에요. 해당 메뉴에서 종료하세요.", close_timeout: "종료 요청 후에도 일부 소프트웨어가 실행 중이에요. 해당 메뉴에서 종료하세요." },
 };
-export const environmentCopy = { en, "zh-CN": zh, ja, ko };
+export const environmentCopy = { en, "zh-CN": zh, "zh-TW": zhTW, ja, ko };

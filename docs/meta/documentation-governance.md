@@ -59,9 +59,10 @@ Release notes name the released commit and the contract versions the release ser
   `vX.Y.Z.md`, `vX.Y.Z_ZH.md`, `vX.Y.Z_JA.md`, `vX.Y.Z_KO.md`. Each edition is written for its own
   readers. An edition drafted with machine assistance carries the note "awaiting native review"
   until a native speaker reviews it. Release notes up to v0.6.7 stay in Chinese as published.
-- **Desktop UI** text uses the i18n system in English, Simplified Chinese, Japanese and Korean,
-  with one shared terminology table. Each language is written natively for its players. More
-  languages can be added.
+- **Desktop UI** text uses the i18n system in English, Simplified Chinese, Traditional Chinese
+  (Taiwan wording), Japanese and Korean, with one shared terminology table. Each language is
+  written natively for its players; the Traditional Chinese table starts from the Simplified one
+  and awaits native review. More languages can be added.
 - **SOP** player-facing text follows the UI languages; its structured fields are English.
 
 The local `docs-zh/` mirror is retired.

@@ -13,7 +13,7 @@ const en = {
   openFailed: "The assistant did not open. Retry.",
 };
 type Copy = { [Key in keyof typeof en]: string };
-export const helpCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
+export const helpCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
   en,
   "zh-CN": {
     vrcft: "读取头显或摄像头追踪，经 OSC 驱动 Avatar 的表情和眼睛。",
@@ -28,6 +28,20 @@ export const helpCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     gameHint: "操作、麦克风、舒适性设置和教程世界，逐步查看。",
     openGame: "打开游戏内助手",
     openFailed: "助手未能打开，请重试。",
+  },
+  "zh-TW": {
+    vrcft: "讀取頭戴裝置或攝像頭追蹤，經 OSC 驅動 Avatar 的表情和眼睛。",
+    space: "對齊不同裝置的 VR 追蹤空間，例如頭戴裝置和外接追蹤器。",
+    vrcs: "語音轉文字與翻譯",
+    translator: "在 SteamVR 的懸浮層中顯示翻譯，方便邊玩邊看。",
+    advanced: "提供遊玩空間調整等 SteamVR 輔助設定。",
+    toolkit: "將電腦視窗作為懸浮面板帶進 VR",
+    oyasumi: "VR 中休息和睡眠的自動化與舒適設定",
+    liv: "為受支援的 VR 體驗提供錄製和直播工具。",
+    startTour: "開始應用導覽",
+    gameHint: "操作、麥克風、舒適性設定和教程世界，逐步檢視。",
+    openGame: "開啟遊戲內助手",
+    openFailed: "助手未能開啟，請重試。",
   },
   ja: {
     vrcft: "ヘッドセットやカメラのトラッキングを読み取り、OSC でアバターの表情と目を動かします。",

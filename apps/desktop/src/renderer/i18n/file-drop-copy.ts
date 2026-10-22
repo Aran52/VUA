@@ -7,7 +7,7 @@ const en = {
   limit: "Up to 200 files or folders at once", busy: "Drop files after the current action",
 };
 type Copy = { [K in keyof typeof en]: string };
-export const fileDropCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
+export const fileDropCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
   en,
   "zh-CN": {
     drop: "松开鼠标，导入本地素材", title: "导入本地素材", cancel: "取消",
@@ -16,6 +16,14 @@ export const fileDropCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     failed: "导入未能开始",
     unavailable: "当前无法导入，重启 VUA 后重试。",
     limit: "单次最多 200 个文件或文件夹", busy: "当前操作完成后可拖入",
+  },
+  "zh-TW": {
+    drop: "鬆開滑鼠，匯入本地素材", title: "匯入本地素材", cancel: "取消",
+    needsAmf: "匯入需啟用 {amf}",
+    enable: "啟用 {amf} 並匯入", importing: "正在開始匯入…", retry: "重試", continue: "匯入",
+    failed: "匯入未能開始",
+    unavailable: "目前無法匯入，重啟 VUA 後重試。",
+    limit: "單次最多 200 個檔案或資料夾", busy: "目前操作完成後可拖入",
   },
   ja: {
     drop: "ドロップしてローカル素材を取り込む", title: "ローカル素材の取り込み", cancel: "キャンセル",

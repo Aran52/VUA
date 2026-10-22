@@ -10,7 +10,7 @@ const en = {
   cancelWait: "Stop waiting", existing: "{tool} was already running outside VUA. Close it from its window or tray.",
 };
 type Copy<T> = { [K in keyof T]: T[K] extends string ? string : Copy<T[K]> };
-export const toolConnectionCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy<typeof en>> = {
+export const toolConnectionCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy<typeof en>> = {
   en,
   "zh-CN": {
     install: "在 Steam 安装", openApp: "打开 {tool}", running: "运行中", closeApp: "关闭",
@@ -21,6 +21,16 @@ export const toolConnectionCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy<typeo
     presence: { installed: "已找到 Steam 中的安装", missing: "Steam 中未安装 {tool}", incomplete: "Steam 中 {tool} 安装未完成", unknown: "暂时无法读取 Steam 中的安装" },
     issues: { steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 {tool} 安装后重新检查。", handoff_failed: "Steam 未打开，手动打开后重试。", start_timeout: "{tool} 未启动，查看 Steam 后重试。", close_failed: "无法正常关闭，需从 {tool} 窗口或托盘退出。", close_timeout: "{tool} 仍在运行，需从其窗口或托盘退出。" },
     cancelWait: "停止等待", existing: "{tool} 已在 VUA 外运行，需从其窗口或托盘关闭。",
+  },
+  "zh-TW": {
+    install: "在 Steam 安裝", openApp: "開啟 {tool}", running: "執行中", closeApp: "關閉",
+    unknown: "暫時無法檢查", checking: "正在檢查…",
+    waitInstall: "等待 Steam 安裝", waitClose: "正在關閉…", waitOpen: "正在開啟…",
+    recheck: "重新檢查",
+    steamMissing: "此版本的 {tool} 需透過 Steam 安裝和開啟。", prepareSteam: "準備 Steam",
+    presence: { installed: "已找到 Steam 中的安裝", missing: "Steam 中未安裝 {tool}", incomplete: "Steam 中 {tool} 安裝未完成", unknown: "暫時無法讀取 Steam 中的安裝" },
+    issues: { steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 {tool} 安裝後重新檢查。", handoff_failed: "Steam 未開啟，手動開啟後重試。", start_timeout: "{tool} 未啟動，檢視 Steam 後重試。", close_failed: "無法正常關閉，需從 {tool} 視窗或系統匣退出。", close_timeout: "{tool} 仍在執行，需從其視窗或系統匣退出。" },
+    cancelWait: "停止等待", existing: "{tool} 已在 VUA 外執行，需從其視窗或系統匣關閉。",
   },
   ja: {
     install: "Steam でインストール", openApp: "{tool} を開く", running: "実行中", closeApp: "閉じる",

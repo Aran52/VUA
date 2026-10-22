@@ -5,6 +5,7 @@ import { trayIcons } from "./tray-icons.js";
 const copy = {
   en: { updates: "Check for updates", exit: "Exit" },
   "zh-CN": { updates: "检查更新", exit: "退出" },
+  "zh-TW": { updates: "檢查更新", exit: "退出" },
   ja: { updates: "更新を確認", exit: "終了" },
   ko: { updates: "업데이트 확인", exit: "종료" },
 } as const;
@@ -34,7 +35,7 @@ export function createVuaTray(actions: {
   nativeTheme.on("updated", updateTheme);
   const setLocale = (locale: unknown) => {
     const language = typeof locale === "string" ? locale.toLowerCase() : "";
-    const text = language.startsWith("zh") ? copy["zh-CN"] : language.startsWith("ja") ? copy.ja : language.startsWith("ko") ? copy.ko : copy.en;
+    const text = /^zh-(hant|tw|hk|mo)(-|$)/.test(language) ? copy["zh-TW"] : language.startsWith("zh") ? copy["zh-CN"] : language.startsWith("ja") ? copy.ja : language.startsWith("ko") ? copy.ko : copy.en;
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: text.updates, click: () => actions.command("check-updates") },
       { label: text.exit, click: actions.quit },

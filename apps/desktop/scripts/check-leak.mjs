@@ -41,7 +41,7 @@ execFileSync(
 
 const { fixtureStrings } = await import("../src/renderer/i18n/strings.fixtures.zh-CN.ts");
 const mainTables = [];
-for (const id of ["zh-CN", "en", "ja", "ko"]) {
+for (const id of ["zh-CN", "zh-TW", "en", "ja", "ko"]) {
   const { strings } = await import(`../src/renderer/i18n/strings.${id}.ts`);
   mainTables.push(strings);
 }

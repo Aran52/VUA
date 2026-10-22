@@ -1,5 +1,6 @@
 import { defaultLocale, resolveInitialLocale, type LocaleId } from "./locales.ts";
 import { strings as zhCN } from "./strings.zh-CN.ts";
+import { strings as zhTW } from "./strings.zh-TW.ts";
 import { strings as en, type Strings } from "./strings.en.ts";
 import { strings as ja } from "./strings.ja.ts";
 import { strings as ko } from "./strings.ko.ts";
@@ -15,7 +16,7 @@ import { systemLanguages } from "./system-languages.ts";
  * 未登记的 locale 解析结果回落源语言 en,绝不返回残缺表。
  */
 
-const tables: Partial<Record<LocaleId, Strings>> = { "zh-CN": zhCN, en, ja, ko };
+const tables: Partial<Record<LocaleId, Strings>> = { "zh-CN": zhCN, "zh-TW": zhTW, en, ja, ko };
 
 function readStoredLocale(): string | null {
   try {

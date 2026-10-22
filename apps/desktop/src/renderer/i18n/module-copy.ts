@@ -8,7 +8,7 @@ const en = {
   disableConfirm: "Disable {amf}?",
 };
 type Copy = { [Key in keyof typeof en]: string };
-export const moduleCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
+export const moduleCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
   en,
   "zh-CN": {
     title: "功能模块", choose: "想用哪种方式改模？", amf: "{amf}",
@@ -17,6 +17,15 @@ export const moduleCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     absent: "尚未启用", starting: "正在启动…", ready: "已启用", failed: "{amf} 启动失败，游玩仍可使用。", stopping: "正在停止…",
     busy: "{amf} 有任务进行中，完成或取消后重试。", changeFailed: "操作未完成，数据已保留。",
     wait: "稍候…", manage: "管理功能模块", loading: "正在打开 {amf}…", developing: "开发中",
+    disableConfirm: "停用 {amf}？",
+  },
+  "zh-TW": {
+    title: "功能模組", choose: "想用哪種方式改模？", amf: "{amf}",
+    enable: "啟用 {amf}", disable: "停用 {amf}", retry: "重試啟動", open: "開啟素材庫",
+    retained: "素材、配方和專案將保留，進行中的任務需先完成或取消。",
+    absent: "尚未啟用", starting: "正在啟動…", ready: "已啟用", failed: "{amf} 啟動失敗，遊玩仍可使用。", stopping: "正在停止…",
+    busy: "{amf} 有任務進行中，完成或取消後重試。", changeFailed: "操作未完成，資料已保留。",
+    wait: "稍候…", manage: "管理功能模組", loading: "正在開啟 {amf}…", developing: "開發中",
     disableConfirm: "停用 {amf}？",
   },
   ja: {

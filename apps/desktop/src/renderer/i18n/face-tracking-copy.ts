@@ -23,7 +23,7 @@ const en = {
   unsupported: "Headsets such as Quest 2/3 and standard PICO 4 have no tracking sensors and need an external tracker; VRCFT alone adds no eye or face tracking.", otherDevices: "See upstream device support", webcam: "Webcam / camera · Project Babble",
 };
 type Copy<T> = { [K in keyof T]: T[K] extends string ? string : Copy<T[K]> };
-export const faceTrackingCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy<typeof en>> = {
+export const faceTrackingCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy<typeof en>> = {
   en,
   "zh-CN": {
     chooseDevice: "选择设备", changeDevice: "更换设备", openApp: "打开 VRCFT", running: "运行中", install: "在 Steam 安装", closeApp: "关闭",
@@ -48,6 +48,30 @@ export const faceTrackingCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy<typeof 
     devicesTitle: "可用的设备",
     groups: { headsets: "VR 头显", addons: "外接追踪器", desktop: "手机或摄像头" }, tracking: { eyes: "眼动追踪", face: "面部追踪", both: "眼动／面部追踪" },
     unsupported: "Quest 2／3、普通 PICO 4 等头显无追踪传感器，需另接追踪器；仅安装 VRCFT 无法获得眼动或面捕。", otherDevices: "查看上游设备支持", webcam: "摄像头 · Project Babble",
+  },
+  "zh-TW": {
+    chooseDevice: "選擇裝置", changeDevice: "更換裝置", openApp: "開啟 VRCFT", running: "執行中", install: "在 Steam 安裝", closeApp: "關閉",
+    unknown: "暫時無法檢查", checking: "正在檢查…", waitInstall: "等待 Steam 安裝", waitClose: "正在關閉…", waitOpen: "正在開啟…",
+    intro: "Avatar 同步眼神和表情",
+    recheck: "重新檢查", saveFailed: "裝置選擇未儲存，本次仍可使用。", linkFailed: "說明未能開啟，請重試。",
+    steamMissing: "此版本的 VRCFT 需透過 Steam 安裝和開啟。", prepareSteam: "準備 Steam",
+    presence: { installed: "已找到 Steam 中的安裝", missing: "Steam 中未安裝 VRCFT", incomplete: "Steam 中 VRCFT 安裝未完成", unknown: "暫時無法讀取 Steam 中的安裝" },
+    issues: { steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 VRCFT 安裝後重新檢查。", handoff_failed: "Steam 未開啟，手動開啟後重試。", start_timeout: "VRCFT 未啟動，檢視 Steam 後重試。", close_failed: "無法正常關閉，需從 VRCFT 視窗或系統匣退出。", close_timeout: "VRCFT 仍在執行，需從其視窗或系統匣退出。" },
+    cancelWait: "停止等待", existing: "VRCFT 已在 VUA 外執行，需從其視窗或系統匣關閉。",
+    notes: { accessory: "眼動和面捕依賴頭戴裝置內建感測器或外接追蹤器，所需配件見型號說明。", pico: "普通 PICO 4 無眼動和面捕感測器。Pro / Enterprise：啟動 VRCFT 前啟用並校準追蹤，連線 PICO Connect 和 SteamVR。", pimax: "僅限帶眼動的型號，需 PimaxPlay 和 BrokenEye。Crystal Light 無內建眼動。", galaxy: "在 Galaxy XR 中啟用並校準追蹤，連線方式同上遊說明。", iphone: "需要支援 TrueDepth 的 iPhone 或 iPad，並安裝所選應用（可能收費）。" },
+    steps: {
+      hardware: { title: "連線裝置", body: "按硬體說明啟用追蹤，準備對應應用或串流軟體，連線裝置後開啟 VRCFT。", done: "裝置已連線，追蹤已啟用" },
+      module: { title: "在 VRCFT 安裝對應 module", body: "", done: "已在 VRCFT 安裝 module" },
+      osc: { title: "讓 VRChat 接收表情", body: "在 VRChat 的動作選單中開啟 OSC 並啟用它，再換上支援面捕／眼動的 Avatar，例如支援 Unified Expressions 的模型。", done: "OSC 已開啟，Avatar 支援追蹤" },
+      test: { title: "進遊戲試一試", body: "確認 VRCFT 收到追蹤資料，再在 VRChat 鏡子前活動眼睛和面部，檢查 Avatar 是否同步。", done: "我已在遊戲裡確認追蹤生效" },
+    },
+    moduleStep: "在 VRCFT 的 Module Registry 搜尋 {module}，點選 Install，安裝完成後按提示重啟。",
+    packageStep: "按上游說明下載 {module}，在 VRCFT 的 Modules → Install from package 中選擇該包。",
+    officialGuide: "開啟官方說明", hardwareGuide: "開啟硬體說明", finished: "全部步驟已確認",
+    connectionTitle: "連線方式", connectionHint: "{device} 配合哪個應用使用？", back: "返回裝置列表",
+    devicesTitle: "可用的裝置",
+    groups: { headsets: "VR 頭戴裝置", addons: "外接追蹤器", desktop: "手機或攝像頭" }, tracking: { eyes: "眼動追蹤", face: "面部追蹤", both: "眼動／面部追蹤" },
+    unsupported: "Quest 2／3、普通 PICO 4 等頭戴裝置無追蹤感測器，需另接追蹤器；僅安裝 VRCFT 無法獲得眼動或面捕。", otherDevices: "檢視上游裝置支援", webcam: "攝像頭 · Project Babble",
   },
   ja: {
     chooseDevice: "デバイスを選ぶ", changeDevice: "デバイスを変更", openApp: "VRCFT を開く", running: "実行中", install: "Steam でインストール", closeApp: "閉じる",

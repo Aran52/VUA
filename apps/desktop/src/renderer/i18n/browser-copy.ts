@@ -6,7 +6,7 @@ const en = {
   tabs: "Browser tabs", newTab: "New tab", closeTab: "Close {title}", tabLimit: "Up to 8 tabs",
 };
 type Copy = { [K in keyof typeof en]: string };
-export const browserCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
+export const browserCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
   en,
   "zh-CN": {
     assets: "素材浏览", wiki: "VRChat 官方 Wiki", shortcuts: "网站快捷方式",
@@ -14,6 +14,13 @@ export const browserCopy: Record<"en" | "zh-CN" | "ja" | "ko", Copy> = {
     unavailable: "内嵌浏览器不可用，重启 VUA 后重试。",
     retry: "重试", reopen: "打开 BOOTH",
     tabs: "浏览器标签页", newTab: "新建标签页", closeTab: "关闭 {title}", tabLimit: "最多 8 个标签页",
+  },
+  "zh-TW": {
+    assets: "素材瀏覽", wiki: "VRChat 官方 Wiki", shortcuts: "網站快捷方式",
+    loading: "正在載入網頁…", failed: "網站未能開啟",
+    unavailable: "內嵌瀏覽器不可用，重啟 VUA 後重試。",
+    retry: "重試", reopen: "開啟 BOOTH",
+    tabs: "瀏覽器標籤頁", newTab: "新建標籤頁", closeTab: "關閉 {title}", tabLimit: "最多 8 個標籤頁",
   },
   ja: {
     assets: "素材を探す", wiki: "VRChat 公式 Wiki", shortcuts: "サイトのショートカット",

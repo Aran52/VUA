@@ -180,6 +180,11 @@ impl AmfProductionEngine {
                 return Err(production_error("face_tracking_target_changed", "The patch did not retain the owned Avatar and its outfits."));
             }
             run.phase = "succeeded".into(); run.confirmed_digest = None;
+            // The first patch's pre-patch copy stays reachable while the marker exists; a later
+            // patch on the same marked line keeps the earliest one.
+            if run.ft_pre_patch_snapshot.is_none() {
+                run.ft_pre_patch_snapshot = snapshot.clone();
+            }
             Ok(())
         })();
         if result.is_err() {

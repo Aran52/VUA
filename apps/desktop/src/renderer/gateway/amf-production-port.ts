@@ -34,6 +34,8 @@ export interface AmfProductionRun {
   readonly progress?: AmfRunProgressV01 | null;
   readonly selection: AmfAssemblySelection | null; readonly error: string | null; readonly recovery: string | null;
   readonly snapshotId: string | null;
+  /** The copy kept from before the creator patch, while the line carries its marker; absent when the engine keeps none. */
+  readonly ftPrePatchSnapshot?: string | null;
   /** Recorded states of the line, newest first; absent on runs made before revisions. */
   readonly revisions?: readonly AmfProductionRevisionSummaryItem[];
   /** Pending manual fit adjustments per source, with the digest they save under; absent when the engine does not track them. */
@@ -88,6 +90,8 @@ export interface AmfRecipeSummary { readonly recipeId: string; readonly title: s
 export interface AmfProductionRestorePlan {
   readonly runId: string; readonly planDigest: string; readonly snapshotId: string;
   readonly projectRoot: string; readonly currentChanged: boolean; readonly preserveCurrent: true;
+  /** The state from before the creator patch, offered while the line carries its marker; absent when the engine keeps none. */
+  readonly prePatch?: { readonly snapshotId: string; readonly planDigest: string };
 }
 /** What one recorded revision captured of the line. */
 export interface AmfProductionRevisionSummary {
@@ -180,7 +184,8 @@ export interface AmfProductionPort {
   /** Deletes a line with its work project and release record. */
   delete(runId: string): Promise<AmfProductionAccepted>;
   rollbackPlan(runId: string): Promise<AmfProductionRestorePlan>;
-  rollback(runId: string, plan: AmfProductionRestorePlan): Promise<AmfProductionAccepted>;
+  /** Which retained copy a reviewed restore returns to; the restore point when omitted. */
+  rollback(runId: string, plan: AmfProductionRestorePlan, target?: "restorePoint" | "prePatch"): Promise<AmfProductionAccepted>;
   /** Reviews the restore of a line to one recorded revision before any mutation. */
   revisionPlan(runId: string, revisionId: string): Promise<AmfProductionRevisionPlan>;
   /** Restores the line to the reviewed revision, behind a restore point of the current state. */
@@ -268,7 +273,8 @@ const runChecks: readonly (readonly [string, (v: Record<string, unknown>) => boo
   ["usualDurations", v => v.usualDurations === undefined || isAmfUsualDurations(v.usualDurations)],
   ["progress", v => v.progress === undefined || v.progress === null || isAmfRunProgress(v.progress)],
   ["error", v => (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))],
-  ["snapshotId", v => v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0)],
+  ["snapshotId", v => (v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0))
+    && (v.ftPrePatchSnapshot === undefined || v.ftPrePatchSnapshot === null || (text(v.ftPrePatchSnapshot) && v.ftPrePatchSnapshot.length > 0))],
   ["selection", v => v.selection === null || isAmfAssemblySelection(v.selection)],
   ["revisions", v => v.revisions === undefined || (Array.isArray(v.revisions)
     && v.revisions.every(r => record(r) && text(r.id) && text(r.takenAt) && revisionKinds.includes(String(r.before))
@@ -429,12 +435,16 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async rollbackPlan(runId) {
       const v = await call({ method: "amf.production.rollbackPlan", params: { schemaVersion: "0.1", runId } });
       if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || !text(v.planDigest) || !/^[a-f0-9]{64}$/u.test(v.planDigest)
-        || !text(v.snapshotId) || !v.snapshotId || !text(v.projectRoot) || typeof v.currentChanged !== "boolean" || v.preserveCurrent !== true) throw new Error("amf_production_restore_plan_invalid");
+        || !text(v.snapshotId) || !v.snapshotId || !text(v.projectRoot) || typeof v.currentChanged !== "boolean" || v.preserveCurrent !== true
+        || (v.prePatch !== undefined && !(record(v.prePatch) && text(v.prePatch.snapshotId) && v.prePatch.snapshotId
+          && text(v.prePatch.planDigest) && /^[a-f0-9]{64}$/u.test(v.prePatch.planDigest)))) throw new Error("amf_production_restore_plan_invalid");
       return v as unknown as AmfProductionRestorePlan;
     },
-    async rollback(runId, plan) {
+    async rollback(runId, plan, target) {
       if (plan.runId !== runId) throw new Error("amf_production_restore_plan_invalid");
-      return accepted(await call({ method: "amf.production.rollback", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest } }), strings.amfProduction.restoring);
+      const digest = target === "prePatch" ? plan.prePatch?.planDigest : plan.planDigest;
+      if (!text(digest)) throw new Error("amf_production_restore_plan_invalid");
+      return accepted(await call({ method: "amf.production.rollback", params: { schemaVersion: "0.1", runId, planDigest: digest, ...(target !== undefined ? { target } : {}) } }), strings.amfProduction.restoring);
     },
     async revisionPlan(runId, revisionId) {
       const v = await call({ method: "amf.production.revisionPlan", params: { schemaVersion: "0.1", runId, revisionId } });

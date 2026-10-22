@@ -860,7 +860,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
             .map(Some)
             .map_err(|e| err("source_unreadable", e))
     }
-    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &[&str]) -> Vec<String> {
         FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn open(

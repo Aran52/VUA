@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.28.0
+> Document version: 0.29.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-22
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -28,8 +28,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
 | `amf.production.changeSources` | Command | `runId`, `sources: [{sourceId, role}]` | Durable task changing the line's own materials behind a restore point; the line plans again |
 | `amf.production.delete` | Command | `runId` | Durable task deleting the line's work project, release record and run record |
-| `amf.production.rollbackPlan` | Query | `runId` | Digest-bound restore point, current drift notice and current-state preservation promise |
-| `amf.production.rollback` | Command | `runId`, `planDigest` | Durable task acceptance; protect current state, restore, then inspect in Unity |
+| `amf.production.rollbackPlan` | Query | `runId` | Digest-bound restore point, the optional `prePatch` target of a marked line, current drift notice and current-state preservation promise |
+| `amf.production.rollback` | Command | `runId`, `planDigest`, optional `target: "restorePoint" \| "prePatch"` | Durable task acceptance; protect current state, restore the reviewed target, then inspect in Unity |
 | `amf.production.revisionPlan` | Query | `runId`, `revisionId` | Digest-bound replay review: the steps a restore to that version takes and skips, and the foreign-edit warning |
 | `amf.production.restoreRevision` | Command | `runId`, `revisionId`, `planDigest` | Durable task acceptance; records the current state as a version, then replays the reviewed one |
 | `amf.production.open` | Command | `runId` | Durable task acceptance; open project, select result and request official SDK panel |
@@ -166,14 +166,18 @@ identity, actual instance targets and per-step state. SDK descriptor recognition
 official SDK build/upload checks remain `not_run` until actually performed. No upload is automated.
 
 A retained `snapshotId` also enables user-requested restoration. The review digest binds the
-run, observation revision, Editor, managed project, restore point and the **current** project
-fingerprint. If external edits exist, the review reports `currentChanged`; no current edit is
-discarded silently. Execution refuses a stale review. It snapshots the current project and
-persists that recovery identity before restoring the reviewed state. Actual Unity inspection
-must succeed before the run becomes `ready`; partial restore, cancellation or failed inspection
-attempts recovery to the protected current state and reports its outcome separately. The
-protected state remains the next restore point, making restoration itself reversible. Interrupted
-restoration requires explicit reinspection. Original library inputs are never restoration targets.
+run, observation revision, Editor, managed project, the **chosen restore target** and the
+**current** project fingerprint. A line carrying the creator-patch marker keeps a second full
+copy from before the patch (see [Face tracking](#face-tracking-source-evidence-and-creator-sessions));
+its review lists that copy as `prePatch` with its own digest, and `rollback` restores it when
+`target` names `prePatch`. If external edits exist, the review reports `currentChanged`; no
+current edit is discarded silently. Execution refuses a stale review. It snapshots the current
+project and persists that recovery identity before restoring the reviewed state. Actual Unity
+inspection must succeed before the run becomes `ready`; partial restore, cancellation or failed
+inspection attempts recovery to the protected current state and reports its outcome separately.
+The protected state remains the next restore point, making restoration itself reversible.
+Interrupted restoration requires explicit reinspection. Original library inputs are never
+restoration targets.
 
 ### Version records
 
@@ -192,11 +196,14 @@ version built from their retained restore point; what the restore point never re
 
 A change that fails and whose automatic restore brings the project back discards the version it
 recorded: the state never changed. The full-copy snapshot under `.vua/snapshots/` remains the
-hard guarantee for failed or interrupted changes, and exactly one is retained per line: once the
-run record naming the current restore point is persisted, every unreferenced snapshot directory
-is deleted. Pruning validates each entry as a plain directory inside the project's own snapshot
-folder, never follows links, and only records diagnostics (`snapshot-prune.json` in AMF's
-production data root) when an entry cannot be removed — the change itself never fails over it.
+hard guarantee for failed or interrupted changes, and exactly one is retained per line — with one
+exception: while the line carries the creator-patch marker, the copy taken before the patch is
+retained next to the current restore point, so later protected edits cannot make the pre-patch
+state unreachable. Once the run record naming the retained copies is persisted, every
+unreferenced snapshot directory is deleted. Pruning validates each entry as a plain directory
+inside the project's own snapshot folder, never follows links, and only records diagnostics
+(`snapshot-prune.json` in AMF's production data root) when an entry cannot be removed — the
+change itself never fails over it.
 
 `revisionPlan` reviews a restore to a recorded version: the steps the replay takes (`materials`,
 `assembly` — with `rebuild` — `lighting`, `sdk_fix`) and which it skips, the record's summary, and
@@ -524,14 +531,18 @@ serializes work through the existing production lane, rejects an open project an
 digest again when the task runs.
 
 The engine records the pre-change `face_tracking` version and full snapshot, then launches a
-dedicated supervised interactive Editor with a 20-minute budget. Only the `amf_ft_patch`
-operation omits batch/quit flags. The player completes creator dialogs and prefab steps on
+dedicated supervised interactive Editor. Only the `amf_ft_patch`
+operation omits batch/quit flags. The session has no fixed completion budget: a creator patch
+with manual steps waits however long the player needs, and Stop still ends Unity's process tree
+and restores the snapshot. An 8-hour safety cap is the only time limit, so a runaway Editor
+process cannot outlive its supervision; reaching it restores the snapshot like any failure.
+The player completes creator dialogs and prefab steps on
 the existing Avatar, then chooses Finish and check or Cancel and restore. Dispatch is not a
 completion receipt. After a successful session exits, a separate batch inspection must retain
 the same owned Avatar and outfit selection and observe the manual-replay marker. The phase
 returns to `succeeded`; actual FT movement still requires a VRChat check. Missing completion,
-cancellation, timeout, target drift or inspection failure restores the snapshot after process
-exit. Successful automatic restoration also restores the prior run facts and removes the
+cancellation, the safety cap, target drift or inspection failure restores the snapshot after
+process exit. Successful automatic restoration also restores the prior run facts and removes the
 failed change's version record. Failed restoration remains explicit.
 If child-process cleanup cannot be verified, `vua.amf_production.process_cleanup_unverified`
 retains the snapshot and defers automatic restoration. The player must close the creator helper
@@ -542,9 +553,16 @@ the snapshotted `ProjectSettings/VUA.FaceTracking.json` file, outside the AssetD
 pipeline. Version state adds optional/default-false
 `faceTrackingManual`. Saving a new Recipe, assembling/rebuilding, replacing sources or applying
 a Recipe to a marked line is refused as `vua.amf_production.face_tracking_manual_replay`.
-Version replay also refuses a marked current or target state. The existing full-copy rollback
-remains available and restores the marker with the files. Further protected edits can replace
-that single retained snapshot as usual; this does not create a permanent FT uninstall point.
+Version replay also refuses a marked current or target state.
+While the marker exists, the line keeps the full copy taken before its first patch
+(`ftPrePatchSnapshot` on the run view) next to its current restore point: `sdkFix`,
+`applyLighting` and every other protected change take their own restore point, and pruning
+never replaces the pre-patch copy. `rollbackPlan` offers that copy as `prePatch` with its own
+digest, and `rollback` with `target: "prePatch"` returns the line to it; while the copy equals
+the current restore point — directly after a patch — the default restore already reaches it and
+no second target is offered. A successful return to the pre-patch state removes the marker with
+the files and ends the retention: the patched state the return left behind becomes the restore
+point, so the return is reversible, and a later patch records a new pre-patch copy.
 The Recipe format and external-tool lifecycle are unchanged.
 
 The recovery boundary covers VUA's work-project writes. Imported scripts execute with ordinary
@@ -552,6 +570,8 @@ Editor privileges; this is not an OS sandbox and cannot undo external writes. Se
 [design and SOP drafts](../development/face-tracking.md) for adapter limits and real-device review.
 
 ## Document changelog
+
+- 0.29.0 (2026-10-22): the creator-patch session waits for the player's Finish or Cancel instead of the 20-minute Bridge budget (Stop unchanged; an 8-hour cap only ends a runaway process), and a marked line keeps its pre-patch full copy next to the current restore point, offered by `rollbackPlan` and `rollback` as the digest-bound `prePatch` target.
 
 - 0.28.0 (2026-10-21): add optional FT source facts, a digest-bound confirmed creator-menu session with snapshot/version/recheck recovery, and explicit opaque-patch replay restrictions.
 

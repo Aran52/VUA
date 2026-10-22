@@ -42,6 +42,8 @@ struct TestPlatform {
     assembled_fits: Mutex<Vec<Vec<OutfitFit>>>,
     snapshots: AtomicUsize,
     root: PathBuf,
+    /// Every keep list the engine asked to prune to, newest last.
+    prune_keeps: Mutex<Vec<Vec<String>>>,
     /// The material use facts the next Unity check reports, when set.
     material_use: std::sync::Mutex<serde_json::Value>,
     /// The fitChanges facts every Unity check reports, when set.
@@ -296,7 +298,8 @@ impl AmfProductionPlatform for TestPlatform {
         Ok(Some(format!("sha256:{}", if source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } }
             else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) })))
     }
-    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &[&str]) -> Vec<String> {
+        self.prune_keeps.lock().unwrap().push(keep.iter().map(|id| id.to_string()).collect());
         vua_orchestrator::FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1> {
@@ -377,6 +380,7 @@ impl Harness {
             assembled_fits: Mutex::new(Vec::new()),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
+            prune_keeps: Mutex::new(Vec::new()),
             material_use: std::sync::Mutex::new(serde_json::Value::Null),
             fit_changes: std::sync::Mutex::new(None),
             restore_files: std::sync::Mutex::new(Vec::new()),
@@ -574,7 +578,7 @@ fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     assert_eq!(plan["currentChanged"], true);
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the restore point taken before the assembly");
     assert_eq!(restored.phase, "ready");
@@ -627,8 +631,53 @@ fn completed_creator_patch_rechecks_and_blocks_incomplete_replay_but_full_rollba
     assert!(h.engine.recipe_apply_plan("n3-test", "missing-recipe").is_err());
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, ctx)));
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
+}
+
+#[test]
+fn pre_patch_copy_survives_later_fixes_and_a_reviewed_restore_returns_to_it() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let patched = h.engine.get("n3-test").unwrap();
+    let pre_patch = patched.ft_pre_patch_snapshot.clone().expect("the patch records its pre-patch copy");
+    assert_eq!(patched.snapshot_id.as_deref(), Some(pre_patch.as_str()),
+        "a fresh patch keeps the pre-patch copy as the restore point");
+    assert!(h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null(),
+        "no second target while the restore point already reaches the pre-patch state");
+
+    // A later protected fix takes its own restore point; the pre-patch copy stays reachable.
+    assert!(h.job(|e, ctx| e.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let fixed = h.engine.get("n3-test").unwrap();
+    let fix_point = fixed.snapshot_id.clone().expect("the fix took its own restore point");
+    assert_ne!(fix_point, pre_patch);
+    assert_eq!(fixed.ft_pre_patch_snapshot.as_deref(), Some(pre_patch.as_str()));
+    let keeps = h.platform.prune_keeps.lock().unwrap().last().cloned().unwrap();
+    assert!(keeps.contains(&fix_point) && keeps.contains(&pre_patch),
+        "pruning keeps both the fix point and the pre-patch copy: {keeps:?}");
+
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    assert_eq!(plan["prePatch"]["snapshotId"].as_str(), Some(pre_patch.as_str()));
+    let pre_digest = plan["prePatch"]["planDigest"].as_str().unwrap().to_owned();
+    let default_digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(!h.job(move |e, ctx| e.rollback("n3-test", &default_digest, Some(RollbackTarget::PreCreatorPatch), ctx)),
+        "the default review's digest must not authorize the pre-patch target");
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &pre_digest, Some(RollbackTarget::PreCreatorPatch), ctx)));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.phase, "ready");
+    assert!(restored.ft_pre_patch_snapshot.is_none(), "returning to the pre-patch state ends the retention");
+    assert!(!Path::new(&restored.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists());
+    assert_eq!(restored.result["facts"]["faceTracking"]["manualReplayRequired"], false);
+
+    // The patched state the return left behind stays the restore point, so the return is reversible.
+    let again = h.engine.rollback_plan("n3-test").unwrap();
+    assert!(again["prePatch"].is_null());
+    let digest = again["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
+    let forward = h.engine.get("n3-test").unwrap();
+    assert!(Path::new(&forward.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
+        "the protected patched state returns with its marker");
 }
 
 #[test]
@@ -676,7 +725,7 @@ fn interruption_during_the_post_patch_check_retains_the_explicit_restore_path() 
         "reading an interrupted run must neither rerun the menu nor restore files");
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, ctx)));
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
 }
 #[test]
@@ -767,7 +816,7 @@ fn assembled(h: &Harness) -> ProductionRun {
 fn restore_reviewed(h: &Harness) -> bool {
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx))
+    h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx))
 }
 
 #[test]
@@ -802,12 +851,12 @@ fn restore_rejects_drift_and_old_confirmations_before_snapshot_or_mutation() {
     let count = h.platform.snapshots.load(Ordering::SeqCst);
     let state = Path::new(&run.project_root).join("Assets/state");
     fs::write(&state, "newer-unreviewed-change").unwrap();
-    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
     assert_eq!(fs::read_to_string(&state).unwrap(), "newer-unreviewed-change");
     let digest = h.engine.rollback_plan("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
-    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
 }
 

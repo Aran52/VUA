@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.14.0
+> Document version: 0.15.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-22
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -235,7 +235,10 @@ there is no arbitrary-string fallback.
 rejected before dispatch. In the dedicated GUI process, the Bridge verifies the owned Avatar,
 its assembled selection and the freshly rediscovered menu. It persists dispatch state in
 Unity SessionState before executing the menu once. Domain reload only reopens VUA's completion
-window; process restart cannot resume it.
+window; process restart cannot resume it. The parent engine does not apply the Bridge's usual
+20-minute command budget to this process: supervision waits for the completion window's exit
+(Finish or Cancel) however long the player's manual steps take, while the engine's Stop ends
+Unity's process tree within half a second and an 8-hour safety cap ends a runaway process.
 
 Finish saves the single managed scene and checks the original Avatar/outfit relationships,
 writes `ProjectSettings/VUA.FaceTracking.json` with local source/menu/command identities and manual replay
@@ -245,6 +248,8 @@ alone declares FT functional. The operation's listed changed paths are the manag
 marker, not an exhaustive claim about opaque creator writes.
 
 ## Document changelog
+
+- 0.15.0 (2026-10-22): `amf_ft_patch` supervision waits for the completion window's exit instead of the Bridge's 20-minute command budget; Stop still ends the process tree and an 8-hour safety cap ends a runaway process.
 
 - 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
 

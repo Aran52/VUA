@@ -554,32 +554,6 @@
   user-select: text;
 }
 
-/* ---- 结果 toast:右下角短暂停留(role=status 供读屏) ---- */
-
-.vua-packages-toast {
-  position: fixed;
-  right: var(--vua-space-4);
-  bottom: var(--vua-space-4);
-  z-index: 240;
-  padding: var(--vua-space-2) var(--vua-space-3);
-  border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-control);
-  background: var(--vua-bg-elevated);
-  box-shadow: var(--vua-shadow-elevated);
-  animation: vua-packages-toast-in 160ms ease-out;
-}
-
-@keyframes vua-packages-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* ---- 025 P2 读面(消费批):仓库订阅清单 + 单包目录面板 ---- */
 
 .vua-packages__section-title {

@@ -57,7 +57,6 @@ export function ComposePage() {
     <div className="vua-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">{strings.nav.pages.composePage}</h1>
-        <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
       </section>
 
       <Card>
@@ -80,9 +79,6 @@ export function ComposePage() {
                     {copy.advancedMountToggle}
                   </Button>
                 </div>
-                {advancedOpen ? (
-                  <p className="vua-caption vua-text-secondary">{copy.autoNameNote}</p>
-                ) : null}
                 <ul className="vua-project-compat__specs">
                   {draft.items.map((item) => (
                     <li key={item.warehouseItemId}>
@@ -153,7 +149,6 @@ export function ComposePage() {
         <div className="vua-page__stack">
           <section>
             <h3 className="vua-warehouse-detail__section-title">{copy.sourceTitle}</h3>
-            <p className="vua-caption vua-text-secondary">{copy.sourceDesc}</p>
             {entries.length === 0 ? (
               <EmptyState title={copy.sourceEmptyTitle} description={copy.sourceEmptyDesc} />
             ) : null}

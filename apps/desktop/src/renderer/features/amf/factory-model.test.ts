@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assemblesWithoutAsking, currentStation, interruptedChange, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
+import { assemblesWithoutAsking, currentStation, interruptedChange, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, queueAhead, runStartedAt, stopsAt } from "./factory-model.ts";
 
 const steps = (...pairs: [string, string][]) => pairs.map(([key, state]) => ({ key, state }));
 
@@ -106,5 +106,15 @@ describe("a change VUA stopped midway", () => {
     expect(interruptedChange({ phase: "inspect_required", steps: steps("reinspect", "interrupted") })).toBe(false);
     expect(interruptedChange({ phase: "failed", steps: steps("assembly", "failed") })).toBe(false);
     expect(interruptedChange({ phase: "inspect_required", steps: [] })).toBe(false);
+  });
+});
+
+describe("queueAhead", () => {
+  const work = (taskId: string) => ({ taskId, runId: "r", operation: "amf.production.upload" });
+  it("counts running work and the queue before the task", () => {
+    expect(queueAhead({ running: [work("a")], queue: [work("b"), work("c")] }, "c")).toBe(2);
+  });
+  it("shows at least one while the lane has not caught up", () => {
+    expect(queueAhead({ running: [], queue: [] }, "x")).toBe(1);
   });
 });

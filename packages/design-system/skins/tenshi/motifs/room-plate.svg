@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Tenshi room plate with wings</title>
+  <rect x="34" y="12" width="152" height="32" rx="16" fill="currentColor" fill-opacity="0.1" stroke-width="2"/>
+  <path d="M36.65 27.1C29.13 20.15 14.57 20.02 5.09 24.99C3.41 25.95 4.12 28.4 6 28.86C9.36 29.48 11.24 29.94 13.17 30.76C11.69 33.15 13.47 35.44 16.68 34.99C18.1 37.34 21.1 38.01 23.8 36.54C24.86 38.93 28.63 39.86 31.23 37.67C34.19 35.44 36.18 31.52 36.65 27.1Z" fill="currentColor" fill-opacity="0.16" stroke-width="2"/>
+  <path d="M29.27 26.32C22.6 25.43 16.09 25.62 9.77 27.24" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M30.48 29.78C25.34 29.41 20.35 30.11 15.51 31.88" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M31.7 33.24C28.8 33.29 25.94 33.69 23.14 34.45" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M183.35 27.1C190.87 20.15 205.43 20.02 214.91 24.99C216.59 25.95 215.88 28.4 214 28.86C210.64 29.48 208.76 29.94 206.83 30.76C208.31 33.15 206.53 35.44 203.32 34.99C201.9 37.34 198.9 38.01 196.2 36.54C195.14 38.93 191.37 39.86 188.77 37.67C185.81 35.44 183.82 31.52 183.35 27.1Z" fill="currentColor" fill-opacity="0.16" stroke-width="2"/>
+  <path d="M190.73 26.32C197.4 25.43 203.91 25.62 210.23 27.24" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M189.52 29.78C194.66 29.41 199.65 30.11 204.49 31.88" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M188.3 33.24C191.2 33.29 194.06 33.69 196.86 34.45" stroke-width="1.6" stroke-opacity="0.7"/>
+</svg>

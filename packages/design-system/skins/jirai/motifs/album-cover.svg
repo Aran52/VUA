@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai album cover: lace frame and bow</title>
+  <rect x="70" y="40" width="180" height="170" rx="10" stroke-width="2"/>
+  <rect x="88" y="58" width="144" height="134" rx="6" fill="currentColor" fill-opacity="0.08" stroke-width="1.2" stroke-opacity="0.6"/>
+  <path d="M70 40Q77.5 32.8 85 40Q92.5 32.8 100 40Q107.5 32.8 115 40Q122.5 32.8 130 40Q137.5 32.8 145 40Q152.5 32.8 160 40Q167.5 32.8 175 40Q182.5 32.8 190 40Q197.5 32.8 205 40Q212.5 32.8 220 40Q227.5 32.8 235 40Q242.5 32.8 250 40" stroke-width="1.6"/>
+  <path d="M250 40Q257.2 47.73 250 55.45Q257.2 63.18 250 70.91Q257.2 78.64 250 86.36Q257.2 94.09 250 101.82Q257.2 109.55 250 117.27Q257.2 125 250 132.73Q257.2 140.45 250 148.18Q257.2 155.91 250 163.64Q257.2 171.36 250 179.09Q257.2 186.82 250 194.55Q257.2 202.27 250 210" stroke-width="1.6"/>
+  <path d="M250 210Q242.5 217.2 235 210Q227.5 217.2 220 210Q212.5 217.2 205 210Q197.5 217.2 190 210Q182.5 217.2 175 210Q167.5 217.2 160 210Q152.5 217.2 145 210Q137.5 217.2 130 210Q122.5 217.2 115 210Q107.5 217.2 100 210Q92.5 217.2 85 210Q77.5 217.2 70 210" stroke-width="1.6"/>
+  <path d="M70 210Q62.8 202.27 70 194.55Q62.8 186.82 70 179.09Q62.8 171.36 70 163.64Q62.8 155.91 70 148.18Q62.8 140.45 70 132.73Q62.8 125 70 117.27Q62.8 109.55 70 101.82Q62.8 94.09 70 86.36Q62.8 78.64 70 70.91Q62.8 63.18 70 55.45Q62.8 47.73 70 40" stroke-width="1.6"/>
+  <path d="M160 36.2C148.6 19.1 133.4 22.9 135.3 34.3C137.2 47.6 150.5 45.7 160 40Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M160 36.2C171.4 19.1 186.6 22.9 184.7 34.3C182.8 47.6 169.5 45.7 160 40Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M157.15 41.9L148.6 64.7L154.3 61.85L157.15 66.6L160 43.8" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <path d="M162.85 41.9L171.4 64.7L165.7 61.85L162.85 66.6L160 43.8" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <rect x="155.06" y="33.54" width="9.88" height="11.78" rx="3.8" fill="currentColor" stroke="none"/>
+</svg>

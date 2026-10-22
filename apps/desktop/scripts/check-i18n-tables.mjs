@@ -11,6 +11,7 @@ import { localeRegistry } from "../src/renderer/i18n/locales.ts";
 
 const localeModules = {
   "zh-CN": () => import("../src/renderer/i18n/strings.zh-CN.ts"),
+  "zh-TW": () => import("../src/renderer/i18n/strings.zh-TW.ts"),
   ja: () => import("../src/renderer/i18n/strings.ja.ts"),
   ko: () => import("../src/renderer/i18n/strings.ko.ts"),
 };

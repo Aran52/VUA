@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" width="120" height="96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Tenshi empty state: cloud and halo</title>
+  <path d="M28 74C16 74 10 66 10 58C10 49 18 43 27 44C29 33 38 26 50 26C60 26 68 32 71 41C74 39 78 38 82 38C93 38 102 46 102 57C102 67 94 74 84 74Z" fill="currentColor" fill-opacity="0.12" stroke-width="2.4"/>
+  <ellipse cx="56" cy="16" rx="16" ry="5" stroke-width="2.4"/>
+  <path d="M100 16C100.72 20.5 101.5 21.28 106 22C101.5 22.72 100.72 23.5 100 28C99.28 23.5 98.5 22.72 94 22C98.5 21.28 99.28 20.5 100 16Z" fill="currentColor" stroke="none"/>
+  <path d="M18 26C18.48 29 19 29.52 22 30C19 30.48 18.48 31 18 34C17.52 31 17 30.48 14 30C17 29.52 17.52 29 18 26Z" fill="currentColor" stroke="none"/>
+  <path d="M108 78.5C108.42 81.13 108.88 81.58 111.5 82C108.88 82.42 108.42 82.88 108 85.5C107.58 82.88 107.13 82.42 104.5 82C107.13 81.58 107.58 81.13 108 78.5Z" fill="currentColor" stroke="none"/>
+</svg>

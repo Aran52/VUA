@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 16" width="64" height="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai stage edge tile: lace border</title>
+  <path d="M0 3H64" stroke-width="1.4"/>
+  <path d="M0 3Q8 9 16 3Q24 9 32 3Q40 9 48 3Q56 9 64 3" stroke-width="1.6"/>
+  <circle cx="8" cy="6.4" r="1.2" fill="currentColor" stroke="none"/>
+  <circle cx="24" cy="6.4" r="1.2" fill="currentColor" stroke="none"/>
+  <circle cx="40" cy="6.4" r="1.2" fill="currentColor" stroke="none"/>
+  <circle cx="56" cy="6.4" r="1.2" fill="currentColor" stroke="none"/>
+</svg>

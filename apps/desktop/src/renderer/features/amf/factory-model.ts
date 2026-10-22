@@ -90,6 +90,12 @@ export function formatDuration(ms: number): string {
   return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+/** Unity tasks ahead of a queued one: everything running plus the queue before it; at least one. */
+export function queueAhead(lane: { readonly running: readonly unknown[]; readonly queue: readonly { readonly taskId: string }[] }, taskId: string): number {
+  const index = lane.queue.findIndex(item => item.taskId === taskId);
+  return Math.max(1, lane.running.length + Math.max(0, index));
+}
+
 // A new key: every player starts asking before changes, whatever the earlier familiarity choice was.
 const levelKey = "vua-amf-permission-mode-v01";
 export function storedAutomationLevel(): AutomationLevel {

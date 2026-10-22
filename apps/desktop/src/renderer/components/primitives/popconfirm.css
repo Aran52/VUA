@@ -1,0 +1,52 @@
+/* Tier 4, popconfirm: a bubble anchored to its button, above dialogs so it also works inside one. */
+.vua-popconfirm-anchor {
+  display: inline-flex;
+}
+
+.vua-popconfirm {
+  position: fixed;
+  z-index: var(--vua-z-popover);
+  display: grid;
+  gap: var(--vua-space-2);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: var(--vua-space-3);
+  border: 1px solid var(--vua-border-strong);
+  border-radius: var(--vua-radius-card);
+  background: var(--vua-bg-elevated);
+  box-shadow: var(--vua-shadow-elevated);
+  color: var(--vua-text-strong);
+}
+
+.vua-popconfirm[data-side="bottom"] { transform-origin: top center; }
+.vua-popconfirm[data-side="top"] { transform-origin: bottom center; }
+.vua-popconfirm[data-closing] { pointer-events: none; }
+
+.vua-popconfirm__title {
+  font-weight: 600;
+}
+
+.vua-popconfirm__title[data-danger] {
+  color: var(--vua-error);
+}
+
+.vua-popconfirm__body {
+  color: var(--vua-text-secondary);
+  font: var(--vua-font-caption);
+  line-height: 1.5;
+}
+
+.vua-popconfirm__body p {
+  margin: 0;
+}
+
+.vua-popconfirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--vua-space-2);
+}
+
+.vua-popconfirm__actions .vua-button {
+  min-height: 30px;
+  padding-inline: var(--vua-space-3);
+}

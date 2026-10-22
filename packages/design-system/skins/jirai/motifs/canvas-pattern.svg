@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai canvas pattern tile: hearts and lace dots</title>
+  <g opacity="0.08">
+  <path d="M24 28.75C20.5 25.75 19 23.75 19 22C19 20.5 20.25 19.25 21.75 19.25C22.75 19.25 23.5 19.75 24 20.5C24.5 19.75 25.25 19.25 26.25 19.25C27.75 19.25 29 20.5 29 22C29 23.75 27.5 25.75 24 28.75Z" fill="currentColor" stroke="none"/>
+  <path d="M72 75.8C69.2 73.4 68 71.8 68 70.4C68 69.2 69 68.2 70.2 68.2C71 68.2 71.6 68.6 72 69.2C72.4 68.6 73 68.2 73.8 68.2C75 68.2 76 69.2 76 70.4C76 71.8 74.8 73.4 72 75.8Z" fill="currentColor" stroke="none"/>
+  <circle cx="72" cy="22" r="1.6" fill="currentColor" stroke="none"/><circle cx="66" cy="28" r="1.2" fill="currentColor" stroke="none"/><circle cx="78" cy="28" r="1.2" fill="currentColor" stroke="none"/>
+  <circle cx="22" cy="72" r="1.6" fill="currentColor" stroke="none"/><circle cx="16" cy="78" r="1.2" fill="currentColor" stroke="none"/><circle cx="28" cy="78" r="1.2" fill="currentColor" stroke="none"/>
+  </g>
+</svg>

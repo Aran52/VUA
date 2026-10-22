@@ -8,7 +8,7 @@
  *   任何语言界面下都以该语言自身书写(如 English / 日本語);
  * - 本模块不含界面文案,故豁免字符串表纪律(数据而非文案)。
  */
-export type LocaleId = "zh-CN" | "en" | "ja" | "ko";
+export type LocaleId = "zh-CN" | "zh-TW" | "en" | "ja" | "ko";
 
 export interface LocaleMeta {
   readonly id: LocaleId;
@@ -17,7 +17,8 @@ export interface LocaleMeta {
 }
 
 export const localeRegistry: readonly LocaleMeta[] = [
-  { id: "zh-CN", endonym: "中文(简体)", available: true },
+  { id: "zh-CN", endonym: "中文（简体）", available: true },
+  { id: "zh-TW", endonym: "中文（繁體）", available: true },
   { id: "en", endonym: "English", available: true },
   { id: "ja", endonym: "日本語", available: true },
   { id: "ko", endonym: "한국어", available: true },
@@ -28,6 +29,8 @@ export const defaultLocale: LocaleId = "en";
 /** BCP 47 语言标签 → 注册 locale 前缀映射;不认识的标签返回 null */
 export function matchLocale(tag: string): LocaleId | null {
   const lower = tag.trim().toLowerCase();
+  // Traditional script: an explicit Hant tag, or Taiwan, Hong Kong and Macau without a script.
+  if (/^zh-(hant|tw|hk|mo)(-|$)/.test(lower)) return "zh-TW";
   if (lower.startsWith("zh")) return "zh-CN";
   if (lower.startsWith("en")) return "en";
   if (lower.startsWith("ja")) return "ja";

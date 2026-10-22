@@ -20,6 +20,10 @@ import {
   type ControlPackageRow, type ControlProject, type ControlRepo, type WorkProjectFacts,
 } from "./control-packages-model.ts";
 import { SkinSlot } from "./control-slots.tsx";
+import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
+import { Alert } from "../../components/primitives/Alert.tsx";
+import { toast } from "../../components/primitives/toast-store.ts";
 import "./control-center.css";
 
 const copy = strings.controlCenter.packages;
@@ -83,13 +87,13 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
   const current = screen.kind === "project" ? projects.find(project => project.key === screen.key) ?? null : null;
   return <div className="vua-page vua-control vua-control--packages" data-focus-scope>
     <header className="vua-control__head">
-      <div><h1 className="vua-title">{copy.title}</h1><p className="vua-text-secondary">{copy.intro}</p></div>
+      <h1 className="vua-title">{copy.title}</h1>
       <span className="vua-control__switch" role="group" aria-label={copy.viewLabel}>
         {(["projects", "repos"] as const).map(option => <button type="button" key={option} aria-pressed={option === "repos" ? screen.kind === "repos" : screen.kind !== "repos"}
           onClick={() => setScreen({ kind: option })}><Icon name={option === "projects" ? "folder" : "cloud"} size={16}/>{copy.views[option]}</button>)}
       </span>
     </header>
-    {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2><p className="vua-text-secondary">{copy.notConnectedHint}</p></div>
+    {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2></div>
       : screen.kind === "repos" ? <ReposScreen view={live} blocks={blocks!} repos={repos} catalog={catalog} onChanged={() => setCatalogReload(value => value + 1)}/>
       : current !== null ? <ProjectScreen key={current.key} project={current} blocks={blocks!} repos={repos} catalog={catalog} onBack={() => setScreen({ kind: "projects" })} onNavigate={onNavigate}/>
       : <ProjectsScreen projects={projects} loading={work === null || registered === null} registeredFailed={registeredFailed}
@@ -216,7 +220,7 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     const port = gateway.amfProduction;
     if (!port || project.runId === null || busy) return;
     setBusy(true); setNotice(null);
-    try { await port.open(project.runId); setNotice({ tone: "ok", text: copy.opening }); }
+    try { await port.open(project.runId); toast(copy.opening); }
     catch (reason) { setNotice({ tone: "error", text: reason instanceof Error ? reason.message : strings.amfProduction.taskFailed }); }
     finally { setBusy(false); }
   };
@@ -236,8 +240,7 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
         <Button variant="primary" disabled={busy || lineBusy} onClick={() => { void openInUnity(); }}>{copy.openUnity}</Button>
       </div>}
     </div>
-    {notice !== null && <p className="vua-control__notice" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}>
-      <Icon name={notice.tone === "error" ? "warning" : "check"} size={16}/>{notice.text}</p>}
+    {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}
 
     {!project.listed ? <div className="vua-control__panel vua-control__unlisted"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
         <h3>{copy.unlistedTitle}</h3><p className="vua-text-secondary">{copy.unlistedHint}</p>
@@ -265,7 +268,7 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
       </div>}
       {installed.kind === "loading" ? <p role="status" className="vua-caption vua-text-secondary">{copy.loadingPackages}</p>
         : installed.kind === "failed" ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{format(copy.failed, { code: installed.code })}</p><Button onClick={() => setReload(value => value + 1)}>{strings.amfProduction.retry}</Button></div>
-        : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedHint}</p></div>
+        : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedTitle}</p></div>
         : <div className="vua-control__table" role="table" aria-label={format(copy.installedHeading, { count: rows.installed.length })}>
           <div className="vua-control__tr vua-control__th" role="row">
             <span role="columnheader">{pkg.columns.name}</span><span role="columnheader">{pkg.columns.installed}</span><span role="columnheader">{pkg.columns.latest}</span><span role="columnheader"><span className="vua-control__sr">{copy.actions}</span></span>
@@ -338,7 +341,6 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
   const [name, setName] = useState("");
   const [localPath, setLocalPath] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const reposError = view.kind === "ready-p2" ? view.reposError : undefined;
   const run = async (key: string, action: () => Promise<{ kind: string; code?: string; rejection?: { code: string } }>, done: string) => {
@@ -346,7 +348,7 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
     setBusy(key); setNotice(null);
     const outcome = await action();
     setBusy(null);
-    if (outcome.kind === "ok") { setNotice({ tone: "ok", text: done }); onChanged(); }
+    if (outcome.kind === "ok") { toast(done, "success"); onChanged(); }
     else setNotice({ tone: "error", text: format(copy.repos.failed, { code: outcome.kind === "rejected" ? outcome.rejection?.code ?? "rejected" : outcome.code ?? outcome.kind }) });
     return outcome.kind === "ok";
   };
@@ -356,10 +358,10 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
   };
   return <section className="vua-control__screen" aria-label={copy.repos.title}>
     <div className="vua-control__stage-bar">
-      <div><h2>{copy.repos.title}</h2><p className="vua-caption vua-text-secondary">{copy.repos.hint}</p></div>
+      <h2>{copy.repos.title}</h2>
       {blocks.repoWrites && adding === "closed" && <Button onClick={() => setAdding("form")}><Icon name="add" size={16}/>{copy.repos.add}</Button>}
     </div>
-    {notice !== null && <p className="vua-control__notice" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}><Icon name={notice.tone === "error" ? "warning" : "check"} size={16}/>{notice.text}</p>}
+    {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}
     {adding !== "closed" && <form className="vua-control__panel vua-control__add" onSubmit={event => { event.preventDefault(); if (adding === "form") setAdding("review"); else void addRepo(); }}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
       <label>{copy.repos.url}<input type="url" required value={url} placeholder={copy.repos.urlPlaceholder} disabled={adding === "review"} onChange={event => setUrl(event.target.value)}/></label>
       <label>{copy.repos.name}<input type="text" required value={name} placeholder={copy.repos.namePlaceholder} disabled={adding === "review"} onChange={event => setName(event.target.value)}/></label>
@@ -375,17 +377,18 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
         const listing = catalog?.find(item => (item.repoId ?? item.name) === (repo.repoId ?? repo.name));
         return <li key={repo.key} data-kind={repo.kind} data-enabled={repo.enabled !== false || undefined}>
           <div className="vua-control__repo">
-            <input type="checkbox" checked={repo.enabled !== false} aria-label={format(copy.repos.useAria, { name: repo.name })} disabled={!repo.toggleable || !blocks.repoLifecycle || busy !== null}
-              onChange={event => { void run(repo.key, () => (event.target.checked ? gateway.packages.enableRepo(repo.repoId!) : gateway.packages.disableRepo(repo.repoId!)), format(event.target.checked ? copy.repos.enabled : copy.repos.disabled, { name: repo.name })); }}/>
+            <Tooltip content={copy.repos.useTip}><input type="checkbox" checked={repo.enabled !== false} aria-label={format(copy.repos.useAria, { name: repo.name })} disabled={!repo.toggleable || !blocks.repoLifecycle || busy !== null}
+              onChange={event => { void run(repo.key, () => (event.target.checked ? gateway.packages.enableRepo(repo.repoId!) : gateway.packages.disableRepo(repo.repoId!)), format(event.target.checked ? copy.repos.enabled : copy.repos.disabled, { name: repo.name })); }}/></Tooltip>
             <span className="vua-control__repo-main"><strong>{repo.name}</strong><small className="vua-control__mono">{repo.url ?? repo.localPath ?? repo.repoId}</small></span>
             <span className="vua-control__badge" data-kind={repo.kind}>{pkg.sources[repo.kind]}</span>
             <span className="vua-caption vua-text-secondary">{repo.packageCount !== null ? format(copy.repos.packages, { count: repo.packageCount }) : repo.cached ? "" : copy.repos.notCached}</span>
             <span className="vua-control__repo-actions">
               {blocks.repoLifecycle && repo.repoId !== null && <Button variant="subtle" disabled={busy !== null} onClick={() => { void run(repo.key, () => gateway.packages.refreshRepo(repo.repoId!), copy.repos.refreshed); }}>
                 <Icon name="refresh" size={16}/>{busy === repo.key ? copy.repos.working : copy.repos.refresh}</Button>}
-              {blocks.repoWrites && repo.removable && (confirmRemove === repo.key
-                ? <Button variant="danger" disabled={busy !== null} onClick={() => { setConfirmRemove(null); void run(repo.key, () => gateway.packages.removeRepo(repo.repoId!), copy.repos.removed); }}>{copy.repos.removeConfirm}</Button>
-                : <Button variant="subtle" disabled={busy !== null} onClick={() => setConfirmRemove(repo.key)}>{copy.repos.remove}</Button>)}
+              {blocks.repoWrites && repo.removable && <Popconfirm danger title={copy.repos.removeTitle} confirmLabel={copy.repos.removeConfirm} cancelLabel={strings.common.cancel}
+                onConfirm={() => { void run(repo.key, () => gateway.packages.removeRepo(repo.repoId!), copy.repos.removed); }}>
+                <Button variant="subtle" disabled={busy !== null}>{copy.repos.remove}</Button>
+              </Popconfirm>}
             </span>
           </div>
           {listing && listing.packages.length > 0 && <details className="vua-control__repo-packages"><summary>{copy.repos.showPackages}</summary>
@@ -397,7 +400,7 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
       event.preventDefault();
       void run("local", () => gateway.packages.registerLocalPackage(localPath.trim()), copy.repos.localAdded).then(ok => { if (ok) setLocalPath(""); });
     }}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
-      <div><h3>{copy.repos.localTitle}</h3><p className="vua-caption vua-text-secondary">{copy.repos.localHint}</p></div>
+      <h3>{copy.repos.localTitle}</h3>
       <label>{copy.repos.localPath}<input type="text" value={localPath} placeholder="C:\Packages\com.example.tool" onChange={event => setLocalPath(event.target.value)}/></label>
       <Button type="submit" disabled={busy !== null || localPath.trim() === ""}>{copy.repos.localAdd}</Button>
     </form>}

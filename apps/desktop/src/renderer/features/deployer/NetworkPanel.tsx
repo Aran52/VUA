@@ -148,7 +148,6 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
     {!sites.length ? <p className="vua-network__note">{copy.empty}</p> : null}
     {ready === false ? <p className="vua-network__note" role="status">{copy.unavailable}</p> : null}
     {storageFailed ? <p className="vua-network__note" role="status">{copy.storageFailed}</p> : null}
-    <p className="vua-network__note">{copy.scope}</p>
   </Card><ContentDialog open={editor !== null} title={editor?.original ? copy.edit : copy.add} closeLabel={copy.cancel} onClose={() => setEditor(null)}>
       {editor ? <form className="vua-network__form" onSubmit={saveEditor}>
         <label>{copy.name}<input autoFocus required maxLength={40} value={editor.name} onChange={e => setEditor({ ...editor, name: e.target.value })} /></label>

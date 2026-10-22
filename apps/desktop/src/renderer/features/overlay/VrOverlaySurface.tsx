@@ -242,9 +242,7 @@ export function VrOverlaySurface() {
                 ))}
                 {cancelTarget !== null ? (
                   <p className="vua-overlay__hint">{copy.cancelArmedHint}</p>
-                ) : (
-                  <p className="vua-overlay__hint">{copy.cancelHint}</p>
-                )}
+                ) : null}
               </section>
             ) : null}
 

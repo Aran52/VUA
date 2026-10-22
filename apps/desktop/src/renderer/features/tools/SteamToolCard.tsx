@@ -42,7 +42,7 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
         {s.issue ? <p role="alert">{text(copy.issues[s.issue])}</p> : null}
         {s.steamReady && (s.presence === "missing" || s.presence === "incomplete") && !waiting ? <Button disabled={live.pending} onClick={() => { void live.act("install"); }}>{copy.install}</Button> : null}
         {s.presence === "installed" && s.steamReady ? <Button disabled={live.pending || waiting} onClick={() => { void live.act("start"); }}>{text(copy.openApp)}</Button> : null}
-        {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button><p className="vua-text-secondary">{copy.cancelHint}</p></div> : null}
+        {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
         {s.running && !s.canStop ? <p className="vua-text-secondary">{text(copy.existing)}</p> : null}
       </> : <p role="status">{status("checking")}</p>}
     </section>

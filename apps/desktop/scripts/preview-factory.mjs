@@ -10,7 +10,7 @@ import os from "node:os";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [output = path.join(os.tmpdir(), "vua-preview-factory"), locale = "zh-CN", theme = "dark"] = process.argv.slice(2).filter(arg => !arg.startsWith("--"));
-const views = ["map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu", "workshop-full-access", "workshop-attention", "workshop-interrupted", "workshop-finished", "workshop-materials", "workshop-inspect", "workshop-line-menu", "workshop-delete", "workshop-capacity", "workshop-rebuild", "workshop-opening", "workshop-opened",
+const views = ["map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu", "workshop-full-access", "workshop-attention", "workshop-interrupted", "workshop-finished", "workshop-materials", "workshop-inspect", "workshop-line-menu", "workshop-delete", "workshop-capacity", "workshop-rebuild", "workshop-opening", "workshop-opened", "workshop-versions", "workshop-versions-plan", "workshop-versions-confirm", "workshop-versions-error",
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part", "control-recipes-list", "control-recipes-many", "control-recipes-empty",
   "control-packages", "control-packages-project", "control-packages-unlisted", "control-packages-repos",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms",
@@ -32,7 +32,7 @@ try {
   await mkdir(output, { recursive: true });
   const port = server.httpServer.address().port;
   for (const view of views.filter(name => name.startsWith(only))) {
-    const window = new BrowserWindow({ show: false, width: 1280, height: view.startsWith("release-") ? 1000 : view === "workshop-capacity" ? 1180 : 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
+    const window = new BrowserWindow({ show: false, width: 1280, height: view.startsWith("release-") ? 1000 : view === "workshop-capacity" ? 1180 : view.startsWith("workshop-versions") ? 1240 : 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
     window.webContents.on("console-message", event => { if (event.level === "error") console.error(view, event.message); });
     await window.loadURL(`http://127.0.0.1:${port}/__factory${view.startsWith("feedback-") ? "?feedback=1" : ""}#${view}`);
     await new Promise(resolve => setTimeout(resolve, view.startsWith("control-recipes") || view === "workshop-delete" ? 4500 : 2500));

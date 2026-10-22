@@ -17,6 +17,7 @@ import { initialProductionSelection, sameSelection, updateOutfitSelection } from
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { RevisionsCard } from "./RevisionsCard.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
@@ -90,7 +91,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
@@ -411,6 +412,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           }} data-nav-id="workshop-restore">{copy.restore}</Button></div>
         </>}
       </Card>}
+      {shown === "assemble" && port && <RevisionsCard port={port} run={run} disabled={busy}
+        onStarted={accepted => { setTaskId(accepted); setTaskAction("restoreRevision"); }} />}
       {shown === "check" && !(run.phase === "succeeded" && !restorePlan) && <Card className="vua-line__panel"><h2>{factory.stations.check}</h2><p className="vua-text-secondary">{panels.check.waiting}</p></Card>}
       {shown === "check" && run.phase === "succeeded" && !restorePlan && <Card><h2>{copy.completed}</h2><p>{copy.next}</p>
         {port && <AmfResultViews port={port} run={run}/>}

@@ -54,6 +54,15 @@ runs.rebuild = { ...runs.finished!, runId: "rebuild",
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
   result: { facts: { ...runs.finished!.result!.facts!, observedSelection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] } } } } as AmfProductionRun;
+// A finished line with version records: the newest kept the state before a restore, one carries Unity edits.
+const versionSummary = { avatar: "Meiyu_改変", outfits: ["TshirtShorts_Meiyun"], sources: ["Meiyun_v2.1.0.zip", "TshirtShorts_Meiyun_v1.00.zip"], lightingMaterials: 4, sdkFixes: ["Avatar Descriptor"] };
+runs.versions = { ...runs.finished!, runId: "versions", revisions: [
+  { id: "rev-5", before: "restore", takenAt: "2026-10-22T05:12:00Z", editedInUnity: false, summary: versionSummary },
+  { id: "rev-4", before: "lighting", takenAt: "2026-10-22T04:58:00Z", editedInUnity: true, summary: versionSummary },
+  { id: "rev-3", before: "sdk_fix", takenAt: "2026-10-21T16:40:00Z", editedInUnity: false, summary: versionSummary },
+  { id: "rev-2", before: "rebuild", takenAt: "2026-10-21T15:02:00Z", editedInUnity: false, summary: { ...versionSummary, avatar: "Meiyun" } },
+  { id: "rev-1", before: "materials", takenAt: "2026-10-21T13:30:00Z", editedInUnity: false, summary: { avatar: null, outfits: [], sources: ["Meiyun_v2.1.0.zip"], lightingMaterials: 0, sdkFixes: [] } },
+] } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
@@ -68,6 +77,17 @@ const api = {
   async planLighting(runId: string) { return { runId, planDigest: "a".repeat(64), reference: { min: "0.1", max: "1" }, referenceReason: null,
     entries: ["ts_Black", "ts_Blue", "ts_Pink", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, sourceId: "outfit", current: { min: "0.05", max: "1" }, proposed: { min: "0.1", max: "1" } })),
     skipped: [{ material: "Assets/Nigerunaya/Meiyun/Material/Hair.mat", reason: "shared_with_avatar" }] }; },
+  // The versions views: rev-1's original is gone from the library, rev-4 reviews with a Unity-edit warning, rev-2 rebuilds on the recorded base.
+  async revisionPlan(runId: string, revisionId: string) {
+    const revision = runs.versions!.revisions!.find(item => item.id === revisionId)!;
+    if (revisionId === "rev-1") throw new Error("This version's original packages are unavailable: OldSchool_Meiyun.zip is no longer in the library. Supply these exact original packages in the library, then retry.");
+    return { schemaVersion: "0.1", runId, revisionId, planDigest: "b".repeat(64), before: revision.before, takenAt: revision.takenAt, summary: revision.summary,
+      editedInUnity: revision.editedInUnity, warning: revision.editedInUnity ? "The project changed in Unity since the last check. Restoring this version replaces those edits." : null,
+      steps: revisionId === "rev-2"
+        ? [{ key: "materials", skipped: true }, { key: "assembly", skipped: false, rebuild: true }, { key: "lighting", skipped: true, materials: [] }, { key: "sdk_fix", skipped: false, fixes: ["Avatar Descriptor"] }]
+        : [{ key: "materials", skipped: true }, { key: "assembly", skipped: false }, { key: "lighting", skipped: false, materials: ["ts_Black", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, min: "0.1", max: "1" })) }, { key: "sdk_fix", skipped: true, fixes: [] }] };
+  },
+  async restoreRevision(runId: string) { return { runId, taskId: "task-restore" }; },
 } as unknown as AmfProductionPort;
 // The materials-start views: the library's products mapped to the AMF sources above,
 // plus one unrelated dress so the "other outfits" fold has a row.
@@ -120,6 +140,10 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   opening: { run: "finished", clicks: ["workshop-open"] },
   opened: { run: "finished", clicks: ["workshop-open"] },
+  versions: { run: "versions", clicks: ["workshop-station-assemble"] },
+  "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
+  "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },
+  "versions-error": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-1"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
 function ClickThrough({ clicks }: { clicks: readonly string[] }) {

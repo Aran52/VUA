@@ -45,7 +45,7 @@ export function HelpPage({ page, navigate, onAccounts, startTour, guideRequest, 
   if (page === "help-tour" || page === "help-game-assistant") return <div className="vua-page vua-help-child" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{page === "help-tour" ? strings.tour.paletteEntry : copy.gameGuide}</h1>{back}</header>
     <section className="vua-environment-detail">
-      <p>{page === "help-tour" ? strings.helpUi.tourHint : strings.helpUi.gameHint}</p>
+      {page === "help-game-assistant" ? <p>{strings.helpUi.gameHint}</p> : null}
       <div><Button variant="primary" data-nav-id={page === "help-tour" ? "help-start-tour" : "help-open-game"} onClick={() => {
         if (page === "help-tour") startTour();
         else {

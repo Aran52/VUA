@@ -243,9 +243,6 @@ export function RecipeProjectDraftExport() {
           aria-label={copy.exportTitleAria}
           onChange={(event) => setConfirm(recipeExportTitleEdited(confirm, event.target.value))}
         />
-        {draft.origin.projectName !== null ? (
-          <p className="vua-caption vua-text-secondary">{copy.exportTitlePrefillNote}</p>
-        ) : null}
       </section>
       <section>
         <h3 className="vua-warehouse-detail__section-title">{copy.addMaterialCta}</h3>

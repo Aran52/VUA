@@ -1,0 +1,30 @@
+/* Tier 1, tooltip: a small bubble beside a control, above every other layer. */
+.vua-tooltip-anchor {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.vua-tooltip-anchor[data-block] {
+  display: block;
+  width: 100%;
+}
+
+/* A disabled control does not receive pointer events; the anchor takes them so the tooltip still shows. */
+.vua-tooltip-anchor :disabled {
+  pointer-events: none;
+}
+
+.vua-tooltip {
+  position: fixed;
+  z-index: var(--vua-z-tooltip);
+  max-width: min(280px, calc(100vw - 16px));
+  padding: var(--vua-space-1) var(--vua-space-2);
+  border: 1px solid var(--vua-border-strong);
+  border-radius: var(--vua-radius-control);
+  background: var(--vua-bg-elevated);
+  box-shadow: var(--vua-shadow-elevated);
+  color: var(--vua-text-strong);
+  font: var(--vua-font-caption);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}

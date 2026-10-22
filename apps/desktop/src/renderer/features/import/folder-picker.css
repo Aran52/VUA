@@ -6,7 +6,7 @@
 .vua-folder-picker__overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--vua-z-dialog, 100);
+  z-index: var(--vua-z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,7 +45,7 @@
 }
 
 .vua-folder-picker__close:hover {
-  color: var(--vua-text);
+  color: var(--vua-text-strong);
 }
 
 /* 路径行:只读位(ellipsis,LTR——Windows 路径恒左起)+ 铅笔编辑钮;
@@ -163,7 +163,7 @@
   gap: var(--vua-space-2);
   padding: var(--vua-space-1) var(--vua-space-2);
   border-radius: var(--vua-radius-control);
-  color: var(--vua-text);
+  color: var(--vua-text-strong);
   cursor: pointer;
   user-select: none;
 }
@@ -233,7 +233,7 @@
 }
 
 .vua-folder-picker__toggle:hover {
-  color: var(--vua-text);
+  color: var(--vua-text-strong);
 }
 
 .vua-folder-picker__toggle[aria-pressed="true"] {

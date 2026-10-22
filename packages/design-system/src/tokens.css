@@ -134,6 +134,13 @@
   --vua-motion-camera: 650ms;
   --vua-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --vua-scene-fps: 30;
+
+  /* ---- Layers: the feedback tiers stack in this order; anything that opens from inside a dialog sits above it ---- */
+  --vua-z-drawer: 600;
+  --vua-z-dialog: 800;
+  --vua-z-popover: 900;
+  --vua-z-toast: 1000;
+  --vua-z-tooltip: 1100;
   /* Factory scene figures */
   --vua-scene-skin: #f4cdb0;
 

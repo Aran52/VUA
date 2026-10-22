@@ -217,7 +217,6 @@ export function ReleaseAlbum({ spreads, index, onIndex }: { spreads: readonly Al
       <button type="button" onClick={() => go(index - 1)} disabled={index === 0 || turn !== null} aria-label={copy.previous}><Icon name="arrow-left" size={16} /></button>
       <span aria-live="polite">{format(copy.pageOf, { page: index + 1, total: spreads.length })}</span>
       <button type="button" onClick={() => go(index + 1)} disabled={index >= spreads.length - 1 || turn !== null} aria-label={copy.next}><Icon name="arrow-right" size={16} /></button>
-      {spreads.length > 1 && <small className="vua-text-secondary">{copy.turnHint}</small>}
     </nav>
   </section>;
 }

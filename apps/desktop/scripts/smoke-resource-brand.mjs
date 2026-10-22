@@ -79,14 +79,14 @@ async function run() {
     await waitFor(() => js('document.querySelector(".vua-shell__usage-value")?.textContent.includes("50%")'), "four-resource headroom");
     await click("system-resources");
     assert(await js('document.querySelectorAll(".vua-usage-panel [role=meter]").length===4'), "Details show four named resource meters");
-    assert(await js('document.querySelector(".vua-usage-panel").textContent.includes("Synthetic review GPU") && document.querySelector(".vua-usage-panel").textContent.includes("4/4")'), "Details identify the selected card and measured count");
+    assert(await js('document.querySelector(".vua-usage-panel").textContent.includes("Synthetic review GPU")'), "Details identify the selected card");
     assert(await js('!document.querySelector(".vua-usage-panel").textContent.includes("采样于")'), "Sampling-time display remains absent");
     await capture("resource-dark-synthetic.png");
     synthetic = { ...synthetic, gpuUsagePercent: 99 };
     await waitFor(() => js('document.querySelector(".vua-shell__usage-constrained")?.textContent.includes("GPU 99%")'), "saturation indicator");
     assert(await js('document.querySelector(".vua-shell__usage-value").textContent.includes("35%")'), "Healthy mean does not hide a saturated GPU");
     synthetic = { ...synthetic, cpuUsagePercent: null, gpuUsagePercent: null, vramUsedBytes: null, vramTotalBytes: null, gpuName: null, gpuKind: null };
-    await waitFor(() => js('document.querySelector(".vua-usage-panel").textContent.includes("1/4")'), "unknown readings");
+    await waitFor(() => js('document.querySelectorAll(".vua-usage-panel__unavailable").length===3'), "unknown readings");
     assert(await js('document.querySelectorAll(".vua-usage-panel__unavailable").length===3 && document.querySelector(".vua-shell__usage-value").textContent.includes("40%")'), "Unknown dimensions are shown and excluded from the mean");
     synthetic = { ...synthetic, cpuUsagePercent: 20, gpuUsagePercent: 40, gpuName: "Synthetic integrated GPU", gpuKind: "integrated" };
     await waitFor(() => js('document.querySelector(".vua-usage-panel").textContent.includes("共享内存")'), "UMA explanation");

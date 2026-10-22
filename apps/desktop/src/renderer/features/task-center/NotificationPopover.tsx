@@ -1,5 +1,6 @@
 import { useAmfModule } from "../../gateway/index.ts";
 import { useEffect, useRef, useState } from "react";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { createPortal } from "react-dom";
 import type { AiActionRequestV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
@@ -133,6 +134,7 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
 
   return (
     <>
+      <Tooltip content={expanded ? null : copy.title} placement="bottom">
       <button
         ref={toggleRef}
         type="button"
@@ -150,6 +152,7 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
           </span>
         ) : null}
       </button>
+      </Tooltip>
       {peek && !expanded
         ? createPortal(
             <div className="vua-notify-peek" role="alertdialog" aria-label={aiCopy.peekTitle}>

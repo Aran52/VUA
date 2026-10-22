@@ -27,7 +27,7 @@ export function AmfRecipeLibrary({ onOpen, disabled = false, refreshKey = 0 }: {
     return () => { alive = false; };
   }, [port, refreshKey, retry]);
   if (!port) return null;
-  return <><Card><div className="vua-n3__toolbar"><h2>{strings.amfProduction.recipes}</h2><Button disabled={disabled} onClick={() => setImportOpen(true)}>{strings.amfProduction.importRecipe}</Button></div><p className="vua-caption vua-text-secondary">{strings.amfProduction.recipesHint}</p>
+  return <><Card><div className="vua-n3__toolbar"><h2>{strings.amfProduction.recipes}</h2><Button disabled={disabled} onClick={() => setImportOpen(true)}>{strings.amfProduction.importRecipe}</Button></div>
     {error !== null ? <div role="alert"><p>{error}</p><Button onClick={() => setRetry(value => value + 1)}>{strings.amfProduction.retry}</Button></div> : loading ? <p role="status" className="vua-caption vua-text-secondary">{strings.amfProduction.loading}</p> : recipes.length === 0 ? <p className="vua-caption vua-text-secondary">{strings.amfProduction.recipesEmpty}</p> :
       <div className="vua-n3__recipes">{recipes.map(recipe => <button type="button" className="vua-n3__recipe" disabled={disabled} key={recipe.recipeId} onClick={() => onOpen(recipe.recipeId)}>
         <Icon name="file" size={20}/><span><strong>{recipe.title}</strong><small>{strings.amfProduction.recipeOpen}</small></span><Icon name="arrow-right" size={16}/>

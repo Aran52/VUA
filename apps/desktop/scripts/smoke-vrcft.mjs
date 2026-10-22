@@ -78,14 +78,14 @@ async function run() {
     synthetic = { ...synthetic, running: true, canStop: true, activity: 'idle' }; await refresh();
     assert(await js('document.querySelector("[data-card=tool-vrcft]").dataset.action==="stop"'), "Only this run's owned instance offers Close");
     for (const step of ['hardware', 'module', 'osc', 'test']) await click(`[data-tracking-step=${step}] input`);
-    assert(await js('JSON.parse(localStorage.getItem("vua-vrcft-setup")).completed.length===4 && document.querySelector("#tool-vrcft-details").textContent.includes("都已由你确认")'), "SOP completion records user confirmation rather than measured tracking");
+    assert(await js('JSON.parse(localStorage.getItem("vua-vrcft-setup")).completed.length===4 && document.querySelector("#tool-vrcft-details").textContent.includes("全部步骤已确认")'), "SOP completion records user confirmation rather than measured tracking");
     await capture('pico-sop-dark');
     await click('[data-nav-id=tool-vrcft-action]'); await refresh();
     assert(actions.at(-1).action === 'stop' && await js('document.querySelector("[data-nav-id=tool-vrcft-action]").disabled'), "Close requests only VRCFT and waits for actual exit");
     synthetic = { ...synthetic, running: false, canStop: false, activity: 'idle' }; await refresh();
     assert(await js('document.querySelector("[data-card=tool-vrcft]").dataset.action==="start" && !document.querySelector(".vua-environment-card__warning")'), "Manual normal exit restores Open without a warning");
     await click('[data-nav-id=tool-vrcft-action]'); await refresh(); synthetic = { ...synthetic, running: true, canStop: false, activity: 'idle' }; await refresh();
-    assert(await js('document.querySelector("[data-card=tool-vrcft]").dataset.action==="start" && document.querySelector("#tool-vrcft-details").textContent.includes("原本就在运行")'), "An existing instance stays outside VUA's close authority");
+    assert(await js('document.querySelector("[data-card=tool-vrcft]").dataset.action==="start" && document.querySelector("#tool-vrcft-details").textContent.includes("已在 VUA 外运行")'), "An existing instance stays outside VUA's close authority");
     await js('[...document.querySelectorAll("#tool-vrcft-details button")].find(b=>b.textContent==="更换设备").click()');
     await click('[data-tracking-device-choice=quest-pro]');
     assert(await js('!!document.querySelector("[role=dialog]") && !!document.querySelector("[data-tracking-choice=steamlink]") && !!document.querySelector("[data-tracking-choice=vd]")'), "Quest Pro asks for its actual connection before choosing a module");

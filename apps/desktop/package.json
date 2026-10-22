@@ -1,6 +1,6 @@
 {
   "name": "@vua/desktop",
-  "version": "0.6.7",
+  "version": "0.7.0",
   "private": true,
   "description": "A local-first desktop assistant for VRChat play and avatar workflows.",
   "author": "VUA Project contributors",
@@ -72,7 +72,7 @@
     "@types/react-dom": "19.2.3",
     "@types/three": "0.185.4",
     "@vitejs/plugin-react": "6.1.1",
-    "electron": "44.1.1",
+    "electron": "44.9.3",
     "electron-builder": "26.15.3",
     "typescript": "7.0.2",
     "vite": "8.2.2",

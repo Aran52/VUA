@@ -67,7 +67,6 @@ function DraftEditor({ draftId, onClose }: { draftId: string; onClose: () => voi
   };
   return <ContentDialog open title={copy.libraryTitle} closeLabel={strings.common.dialogClose} onClose={() => { if (!busy) onClose(); }}>
     <div className="vua-page__stack">
-      <p className="vua-caption vua-text-secondary">{copy.draftNote}</p>
       {busy && current === null ? <Skeleton width="100%" height={72} /> : null}
       {current !== null ? <>
         <label>{copy.nameLabel}<input type="text" className="vua-warehouse__search" maxLength={120} disabled={busy} value={title} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} /></label>
@@ -101,7 +100,6 @@ export function RecipeDraftLibrary() {
   }, [revision, refresh]);
   return <Card><div className="vua-page__stack">
     <h2 className="vua-subtitle">{copy.libraryTitle}</h2>
-    <p className="vua-caption vua-text-secondary">{copy.draftNote}</p>
     {failed ? <div role="alert"><p>{copy.loadFailed}</p><Button variant="default" onClick={() => setRefresh((value) => value + 1)}>{strings.warehouse.detail.retry}</Button></div>
       : drafts === null ? <Skeleton width="100%" height={40} />
       : drafts.length === 0 ? <p className="vua-caption vua-text-secondary">{copy.noRecipes}</p>

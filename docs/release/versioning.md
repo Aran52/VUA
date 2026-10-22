@@ -1,7 +1,7 @@
 # Versioning policy
 
 > Scope: VUA product releases, tags, packages, and public contracts
-> Updated: 2026-10-13
+> Updated: 2026-10-22
 
 ## Product version
 
@@ -50,6 +50,12 @@ The author then explicitly selected **v0.6.7 Ibis** for NSIS/update delivery and
 library fixes. That selection is a release-specific exception to the automatic minor/patch
 convention, not a change to it. AMF starts its separate payload version at **0.1.0**; neither
 number declares N-stage or clean-machine/human acceptance complete.
+
+On 2026-10-22 the author selected **v0.7.0 Stone Age**, which follows the convention below: the
+release adds the material-first Avatar production path and other user-facing capabilities, so the
+minor version increments. AMF moves to payload **0.2.0** and declares host `>=0.7.0, <0.8.0`,
+because it calls Gateway methods the 0.6.7 host lacks. Codenames are game references written as
+ordinary words; Ibis is EVE Online's Caldari rookie ship, and Stone Age is a Minecraft advancement.
 
 Compare the release candidate with the last published release, not with an N-stage number.
 Identify the public application behavior/contracts and any stored-format compatibility changes;

@@ -143,7 +143,3 @@
   color: var(--vua-text-secondary);
 }
 
-.vua-usage-panel__footer {
-  border-top: 1px solid var(--vua-border);
-  padding-top: var(--vua-space-2);
-}

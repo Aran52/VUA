@@ -177,7 +177,6 @@ export function ReleaseRecordsSection({
       <div className="vua-page__stack">
         <section>
           <h3 className="vua-warehouse-detail__section-title">{copy.title}</h3>
-          <p className="vua-caption vua-text-secondary">{copy.subtitle}</p>
         </section>
 
         {list.kind === "loading" ? (

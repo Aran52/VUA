@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai page corner: lace and bow</title>
+  <path d="M42 0A118 118 0 0 0 160 118" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M42 0Q33.93 11.03 43.79 20.49Q37.76 32.75 49.12 40.36Q45.31 53.48 57.81 59Q56.34 72.59 69.61 75.85Q70.51 89.49 84.15 90.39Q87.41 103.66 101 102.19Q106.52 114.69 119.64 110.88Q127.25 122.24 139.51 116.21Q148.97 126.07 160 118" stroke-width="1.8"/>
+  <circle cx="62.37" cy="8.54" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="65.34" cy="25.36" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="71.18" cy="41.42" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="79.72" cy="56.21" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="90.7" cy="69.3" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="103.79" cy="80.28" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="118.58" cy="88.82" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="134.64" cy="94.66" r="1.6" fill="currentColor" stroke="none"/>
+  <circle cx="151.46" cy="97.63" r="1.6" fill="currentColor" stroke="none"/>
+  <path d="M62 0A98 98 0 0 0 160 98" stroke-width="1" stroke-dasharray="2 3" stroke-opacity="0.6"/>
+  <path d="M120 31.7C113.1 21.35 103.9 23.65 105.05 30.55C106.2 38.6 114.25 37.45 120 34Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M120 31.7C126.9 21.35 136.1 23.65 134.95 30.55C133.8 38.6 125.75 37.45 120 34Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M118.28 35.15L113.1 48.95L116.55 47.23L118.28 50.1L120 36.3" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <path d="M121.73 35.15L126.9 48.95L123.45 47.23L121.73 50.1L120 36.3" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <rect x="117.01" y="30.09" width="5.98" height="7.13" rx="2.3" fill="currentColor" stroke="none"/>
+</svg>

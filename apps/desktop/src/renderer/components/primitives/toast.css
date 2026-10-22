@@ -1,0 +1,46 @@
+/* Tier 2, toast: a short-lived stack at the bottom center of the window. */
+.vua-toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: var(--vua-space-5);
+  z-index: var(--vua-z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vua-space-2);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.vua-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vua-space-2);
+  max-width: min(480px, calc(100vw - 32px));
+  padding: var(--vua-space-2) var(--vua-space-4);
+  border: 1px solid var(--vua-border-strong);
+  border-radius: var(--vua-radius-pill);
+  background: var(--vua-bg-elevated);
+  box-shadow: var(--vua-shadow-elevated);
+  color: var(--vua-text-strong);
+  font: var(--vua-font-body);
+  pointer-events: auto;
+}
+
+.vua-toast > svg {
+  flex-shrink: 0;
+}
+
+.vua-toast[data-tone="success"] > svg {
+  color: var(--vua-success);
+}
+
+.vua-toast[data-tone="warning"] > svg {
+  color: var(--vua-warning);
+}
+
+.vua-toast[data-tone="error"] > svg {
+  color: var(--vua-error);
+}

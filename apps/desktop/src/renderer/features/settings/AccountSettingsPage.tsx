@@ -84,7 +84,6 @@ export function AccountSettingsPage() {
                 <Badge tone="neutral">{copy.statusSignedOut}</Badge>
               )}
             </div>
-            <p className="vua-text-secondary">{copy.boothDescription}</p>
             <div className="vua-settings-account__actions">
               {/* 已登录不渲染登录钮(用户裁决 2026-10-05):残留可点的
                   登录入口只会把已登录会话带进库页 */}
@@ -106,9 +105,9 @@ export function AccountSettingsPage() {
           </div>
         </Card> : null}
         {([
-          { id: "steam", title: copy.steamTitle, description: copy.steamDescription },
-          { id: "vrchat", title: copy.vrchatTitle, description: copy.vrchatDescription },
-          { id: "unity", title: copy.unityTitle, description: copy.unityDescription },
+          { id: "steam", title: copy.steamTitle },
+          { id: "vrchat", title: copy.vrchatTitle },
+          { id: "unity", title: copy.unityTitle },
         ] as const).map((placeholder) => (
           <Card key={placeholder.title}>
             <div className="vua-settings-account">
@@ -116,7 +115,6 @@ export function AccountSettingsPage() {
                 <h2 className="vua-title">{placeholder.title}</h2>
                 <Badge tone="neutral">{copy.notWired}</Badge>
               </div>
-              <p className="vua-text-secondary">{placeholder.description}</p>
               <div className="vua-settings-account__actions">
                 <Button variant="default" disabled>
                   {copy.signIn}

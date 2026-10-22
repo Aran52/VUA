@@ -3,6 +3,8 @@ import type { AiConnectionLocale } from "@vua/contracts";
 const introductions: Record<AiConnectionLocale, string> = {
   "zh-CN": `请协助我使用这台电脑上的 VUA。VUA 是 Windows 上的 VRChat 情景安装、管理和启动器，提供电脑屏幕游玩、PICO 串流、外部工具连接，以及可单独停用的 AMF 素材与改模模块。
 先假定我不懂 Unity、运行时或 MCP。每一步都用简单的话说明：刚才发生了什么，下一步做什么，完成后会看到什么。一次只让我处理当前需要的一步。`,
+  "zh-TW": `請協助我使用這臺電腦上的 VUA。VUA 是 Windows 上的 VRChat 情景安裝、管理和啟動器，提供電腦螢幕遊玩、PICO 串流、外部工具連線，以及可單獨停用的 AMF 素材與改模模組。
+先假定我不懂 Unity、執行時或 MCP。每一步都用簡單的話說明：剛才發生了什麼，下一步做什麼，完成後會看到什麼。一次只讓我處理目前需要的一步。`,
   en: `Help me use VUA on this computer. VUA is a Windows VRChat scenario installer, manager and launcher. It supports desktop play, PICO streaming, external-tool connections, and a separately enabled AMF material/Avatar production module.
 Assume I do not understand Unity, runtimes or MCP. Explain what just happened, what to do next, and what I should see afterwards. Guide me through one necessary step at a time.`,
   ja: `この PC の VUA を使う手伝いをしてください。VUA は Windows 向けの VRChat シナリオのインストール・管理・起動ツールです。デスクトップでのプレイ、PICO ストリーミング、外部ツールとの接続、個別に有効化できる AMF 素材・アバター制作モジュールを提供します。

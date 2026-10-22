@@ -7,7 +7,7 @@
 .vua-content-dialog__overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--vua-z-dialog, 100);
+  z-index: var(--vua-z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,7 +38,7 @@
 .vua-content-dialog__title {
   font: var(--vua-font-title);
   font-weight: 700;
-  color: var(--vua-text);
+  color: var(--vua-text-strong);
 }
 
 .vua-content-dialog__close {
@@ -51,7 +51,7 @@
 }
 
 .vua-content-dialog__close:hover {
-  color: var(--vua-text);
+  color: var(--vua-text-strong);
 }
 
 /* 内部滚动容器:宿主页面(.vua-page)整体挂载于此,滚动发生在本层 */

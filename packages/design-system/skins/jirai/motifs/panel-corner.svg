@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai panel corner: lace</title>
+  <path d="M8 0Q3.84 6.99 9.96 12.36Q8.17 20.3 15.64 23.51Q16.39 31.61 24.49 32.36Q27.7 39.83 35.64 38.04Q41.01 44.16 48 40" stroke-width="1.6"/>
+  <circle cx="15.41" cy="5.16" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="18.6" cy="14.98" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="24.67" cy="23.33" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="33.02" cy="29.4" r="1.1" fill="currentColor" stroke="none"/>
+  <circle cx="42.84" cy="32.59" r="1.1" fill="currentColor" stroke="none"/>
+</svg>

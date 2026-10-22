@@ -52,6 +52,8 @@ import { LoginBrowserOverlay } from "./app/LoginBrowserOverlay.tsx";
 import { closeLoginBrowser } from "./app/login-browser-store.ts";
 import { closeBrowserModal } from "./components/primitives/modal-layer.tsx";
 import { NotificationPopover } from "./features/task-center/NotificationPopover.tsx";
+import { ToastHost } from "./components/primitives/ToastHost.tsx";
+import { Tooltip } from "./components/primitives/Tooltip.tsx";
 import { AiRequestsHere } from "./features/ai-requests/AiRequestsHere.tsx";
 import { ResourceMonitor } from "./features/resource-monitor/ResourceMonitor.tsx";
 import { BootGate, BootSplash } from "./components/splash/BootSplash.tsx";
@@ -196,16 +198,20 @@ function AmfExperimentalCommands() {
 
 function ExperimentalSettingsPage() {
   const copy = strings.settings.experimental;
+  const vrchat = useGateway().vrchat;
   return <div className="vua-page">
     <section className="vua-page__hero"><h1 className="vua-title">{strings.nav.pages.settingsExperimental}</h1></section>
     <AmfExperimentalCommands />
-    <Card><VrchatSignInSection /></Card>
+    {vrchat !== undefined ? <Card><VrchatSignInSection /></Card> : null}
     <Card><div className="vua-page__stack">
-      <h3>{copy.taskDiagnosticsTitle}</h3><p className="vua-text-secondary">{copy.taskDiagnosticsDesc}</p>
+      <h3>{copy.taskDiagnosticsTitle}</h3>
       <Button disabled={window.vua?.window === undefined} onClick={() => void window.vua?.window.showOverlay("status")} data-nav-id="experimental-task-diagnostics">{copy.taskDiagnosticsOpen}</Button>
     </div></Card>
   </div>;
 }
+
+/** VUA cannot tell yet whether SteamVR is running (issue #27), so the automatic saver option stays hidden. */
+const steamVRDetection = false;
 
 function ThemeSettingsPage({
   theme,
@@ -261,7 +267,6 @@ function ThemeSettingsPage({
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.hcHeading}</h2>
-          <p className="vua-text-secondary">{copy.hcDescription}</p>
           <div>
             <select
               className="vua-settings-select"
@@ -286,25 +291,20 @@ function ThemeSettingsPage({
             >
               {saverOn ? copy.saverTurnOff : copy.saverTurnOn}
             </Button>
-            <span className="vua-text-secondary">
-              {saverSource === "off"
-                ? copy.saverStateOff
-                : saverSource === "manual"
-                  ? copy.saverStateManual
-                  : copy.saverStateAuto}
-            </span>
+            {saverSource === "auto" ? <span className="vua-text-secondary">{copy.saverStateAuto}</span> : null}
           </div>
-          <label className="vua-settings-check">
-            <input
-              type="checkbox"
-              checked={saverAuto}
-              aria-label={copy.saverAutoAria}
-              onChange={(event) => onSaverAutoChange(event.target.checked)}
-            />
-            <span>{copy.saverAutoLabel}</span>
-          </label>
-          {/* 诚实标注:SteamVR 运行检测未接入(issue #27),接入前自动路径不生效 */}
-          <p className="vua-caption vua-text-secondary">{copy.saverAutoNote}</p>
+          {/* The SteamVR option shows once VUA can tell that SteamVR is running (issue #27). */}
+          {steamVRDetection ? (
+            <label className="vua-settings-check">
+              <input
+                type="checkbox"
+                checked={saverAuto}
+                aria-label={copy.saverAutoAria}
+                onChange={(event) => onSaverAutoChange(event.target.checked)}
+              />
+              <span>{copy.saverAutoLabel}</span>
+            </label>
+          ) : null}
         </div>
       </Card>
     </div>
@@ -376,13 +376,11 @@ function VersionDetails() {
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.heading}</h2>
           <p className="vua-page__version">{format(copy.versionLine, { version: __VUA_BUILD_INFO__.version })}</p>
-          <p className="vua-text-secondary">{copy.description}</p>
         </div>
       </Card>
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.updateHeading}</h2>
-          <p className="vua-text-secondary">{copy.updateDescription}</p>
           <label className="vua-settings-toggle">
             <input
               type="checkbox"
@@ -422,7 +420,6 @@ function VersionDetails() {
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.debugHeading}</h2>
-          <p className="vua-text-secondary">{copy.debugDescription}</p>
           <label className="vua-settings-toggle">
             <input
               type="checkbox"
@@ -436,7 +433,6 @@ function VersionDetails() {
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.diagnosticsHeading}</h2>
-          <p className="vua-text-secondary">{copy.diagnosticsDescription}</p>
           {exportFailed ? (
             <p className="vua-caption vua-text-secondary">{copy.diagnosticsFailed}</p>
           ) : null}
@@ -463,15 +459,7 @@ function AboutPage() {
       <VersionDetails />
       <Card>
         <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.heading}</h2>
-          <p className="vua-text-secondary">{format(copy.description, { amf: TERMS.amf })}</p>
-        </div>
-      </Card>
-      <Card>
-        <div className="vua-page__stack">
           <h2 className="vua-title">{copy.contributorsHeading}</h2>
-          <p className="vua-text-secondary">{copy.contributorsDescription}</p>
-          <p className="vua-caption vua-text-secondary">{copy.repoImpact}</p>
           {repoFailed ? (
             <p className="vua-caption vua-text-secondary">{copy.repoFailed}</p>
           ) : null}
@@ -909,9 +897,9 @@ function AppShell({
       {/* 沉浸式标题栏(§氛围基线 #12):顶栏即标题栏,空白处可拖拽;
        *  拖拽属性只放在容器与品牌元素上,Tabs/按钮保持可点 */}
       <header className="vua-shell__header vua-drag-region">
-        <button type="button" className="vua-shell__logo-home" aria-label={strings.journey.home} title={strings.journey.home} data-nav-id="logo-home" onClick={() => navigate("home")}>
+        <Tooltip content={strings.journey.home} placement="bottom"><button type="button" className="vua-shell__logo-home" aria-label={strings.journey.home} data-nav-id="logo-home" onClick={() => navigate("home")}>
           <span className="vua-shell__wordmark"><BrandMark domain={activeModule} /></span>
-        </button>
+        </button></Tooltip>
         <div className="vua-shell__location vua-drag-region">
           {settingsOpen ? <Button variant="primary" className="vua-shell__back" data-nav-id="shell-back" onClick={returnFromSettings}><Icon name="arrow-left" size={20} />{strings.journey.back}</Button> : null}
         </div>
@@ -934,8 +922,10 @@ function AppShell({
         {/* 通知中心顶栏入口(对标 Comfy 铃铛,自绘):保留任务与通知投影;
          *  capability 非 ready 时组件自身不渲染 */}
         <NotificationPopover navigate={navigate} page={contentPage ?? page} />
+        <ToastHost />
         {inShell ? (
           <div className="vua-shell__window-controls">
+            <Tooltip content={strings.app.windowMinimize} placement="bottom">
             <button
               type="button"
               className="vua-shell__window-button"
@@ -944,6 +934,8 @@ function AppShell({
             >
               <Icon name="minimize" size={16} />
             </button>
+            </Tooltip>
+            <Tooltip content={strings.app.windowMaximize} placement="bottom">
             <button
               type="button"
               className="vua-shell__window-button"
@@ -952,6 +944,8 @@ function AppShell({
             >
               <Icon name="maximize" size={16} />
             </button>
+            </Tooltip>
+            <Tooltip content={strings.app.windowClose} placement="bottom">
             <button
               type="button"
               className="vua-shell__window-button vua-shell__window-button--close"
@@ -960,6 +954,7 @@ function AppShell({
             >
               <Icon name="close" size={16} />
             </button>
+            </Tooltip>
           </div>
         ) : null}
       </header>

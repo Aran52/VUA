@@ -85,6 +85,9 @@ async function run() {
     await js('document.querySelector("[data-nav-id=nav-settings-modules]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=disable-amf]")'), "module disable control");
     await js('document.querySelector("[data-nav-id=disable-amf]").click()');
+    // Disabling asks in a popconfirm beside the button; its last action confirms.
+    await waitFor(() => js('!!document.querySelector(".vua-popconfirm .vua-popconfirm__actions button:last-child")'), "disable confirmation");
+    await js('document.querySelector(".vua-popconfirm .vua-popconfirm__actions button:last-child").click()');
     await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="absent")'), "module stop");
     assert(fs.existsSync(path.join(profile, "modules/amf/data/bdl/bdl.db")), "disable keeps BDL");
     assert(JSON.parse(fs.readFileSync(path.join(profile, "modules/amf.json"), "utf8")).enabled === false, "disable selection is persisted");

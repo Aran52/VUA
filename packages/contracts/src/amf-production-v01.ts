@@ -56,7 +56,7 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.planLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   /** Aligns the chosen reviewed materials' lilToon brightness limits with the Avatar's, behind a restore point. */
   | { readonly method: "amf.production.applyLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly materials: readonly string[] } }
-  | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
+  | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly target?: "restorePoint" | "prePatch" } }
   | { readonly method: "amf.production.revisionPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string } }
   | { readonly method: "amf.production.restoreRevision"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string; readonly planDigest: string } }
   | { readonly method: "amf.production.listFits"; readonly params: { readonly schemaVersion: "0.1" } }
@@ -213,8 +213,10 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && Array.isArray(value.materials) && value.materials.length >= 1 && value.materials.length <= 512
         && value.materials.every(isAmfMaterialPath) && new Set(value.materials).size === value.materials.length;
     case "amf.production.rollback":
-      return exact(value, ["schemaVersion", "runId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
-        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
+      return exact(value, ["schemaVersion", "runId", "planDigest", ...("target" in value ? ["target"] : [])])
+        && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)
+        && (!("target" in value) || ["restorePoint", "prePatch"].includes(String(value.target)));
     case "amf.production.revisionPlan":
       return exact(value, ["schemaVersion", "runId", "revisionId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId);

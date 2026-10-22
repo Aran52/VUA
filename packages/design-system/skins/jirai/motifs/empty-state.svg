@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" width="120" height="96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai empty state: stitched heart and bow</title>
+  <path d="M60 83.45C38.3 64.85 29 52.45 29 41.6C29 32.3 36.75 24.55 46.05 24.55C52.25 24.55 56.9 27.65 60 32.3C63.1 27.65 67.75 24.55 73.95 24.55C83.25 24.55 91 32.3 91 41.6C91 52.45 81.7 64.85 60 83.45Z" fill="currentColor" fill-opacity="0.14" stroke-width="2.4"/>
+  <path d="M48 40L56 48M56 40L48 48M64 58L72 66M72 58L64 66" stroke-width="1.8"/>
+  <path d="M60 18.2C54.6 10.1 47.4 11.9 48.3 17.3C49.2 23.6 55.5 22.7 60 20Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M60 18.2C65.4 10.1 72.6 11.9 71.7 17.3C70.8 23.6 64.5 22.7 60 20Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M58.65 20.9L54.6 31.7L57.3 30.35L58.65 32.6L60 21.8" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <path d="M61.35 20.9L65.4 31.7L62.7 30.35L61.35 32.6L60 21.8" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <rect x="57.66" y="16.94" width="4.68" height="5.58" rx="1.8" fill="currentColor" stroke="none"/>
+</svg>

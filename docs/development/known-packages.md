@@ -1,6 +1,6 @@
 # Known packages
 
-> Updated: 2026-10-20
+> Updated: 2026-10-23
 
 AMF production resolves the shaders its selected materials need through one known-package
 table. The table lives in `crates/provider-host/src/known_packages.rs`; this document records
@@ -12,7 +12,7 @@ owned by the [AMF production protocol](../protocols/amf-production-v0.1.md).
 | Package | ID | Official VPM feed | License (source) | Checked | Delivery | Detection signals |
 | --- | --- | --- | --- | --- | --- | --- |
 | lilToon | `jp.lilxyzw.liltoon` | https://lilxyzw.github.io/vpm-repos/vpm.json | [MIT](https://github.com/lilxyzw/lilToon/blob/master/LICENSE) | 2026-10-18 | `auto` | `_lilToonVersion` material property |
-| Poiyomi Toon Shader | `com.poiyomi.toon` | https://poiyomi.github.io/vpm/index.json | [MIT](https://github.com/poiyomi/PoiyomiToonShader/blob/master/LICENSE.txt) | 2026-10-18 | `auto` | 35 shader GUIDs grouped by version line; see the table below |
+| Poiyomi Toon Shader | `com.poiyomi.toon` | https://poiyomi.github.io/vpm/index.json | [MIT](https://github.com/poiyomi/PoiyomiToonShader/blob/master/LICENSE.txt) | 2026-10-18 | `auto` | 35 shader GUIDs grouped by version line (table below), plus the complete `.shader` sets of the two recorded releases 9.3.64 and 10.0.27 (42 and 20 GUIDs; read 2026-10-23) |
 | Poiyomi Pro | `com.poiyomi.pro` | https://poiyomi.github.io/vpm/index.json | Proprietary/EULA ([official site](https://www.poiyomi.com/)) | 2026-10-18 | `guide` | No material signal yet; reading the Pro shader GUIDs needs a licensed copy |
 | UnlitWF Shader | `jp.whiteflare.unlitwf` | https://whiteflare.github.io/vpm-repos/vpm.json | [Zlib](https://github.com/whiteflare/Unlit_WF_ShaderSuite/blob/master/LICENSE) | 2026-10-18 | `auto` | 84 shader GUIDs read from `Runtime/Shaders/**.shader.meta` in 2.9.0; the newest 2.14.0 release carries exactly the same 84 GUIDs (checked 2026-10-19) |
 | VRChat Toon Standard | `com.vrchat.base` | https://vrchat.github.io/packages/index.json | [VRChat SDK license](https://hello.vrchat.com/legal/sdk) | 2026-10-18 | `bundled` | `ToonStandard.shader` and `ToonStandardOutline.shader` GUIDs read from the official `com.vrchat.base` 3.10.5 package; the shader ships with SDK 3.8.1 and later |
@@ -48,14 +48,44 @@ lines. A GUID shared by lines in a future table belongs to the newest line that 
 | 9.1 | 9.1.30 | 5 |
 | 9.2 | 9.2.79 | 5 |
 | 9.3 | 9.3.64 | 7 |
-| 10.0 | 10.0.25 | 7 |
+| 10.0 | 10.0.27 | 7 |
+
+The line directories' GUID sets are stable: across every release on the feed that carries a
+line, the line's own GUIDs are identical (all 55 releases read 2026-10-23).
+
+## Recorded release sets
+
+A Poiyomi release does not ship one line: every release up to 9.3.64 still carries all older
+lines back to 7.3, and the 10.0 releases carry only the 9.3 and 10.0 lines. Each release also
+ships shaders outside the line folders (`Shaders/Extras/…` and `Scripts/poi-tools/Resources/…`),
+whose set differs between releases. A bundled copy inside a material package therefore holds
+several version lines plus those utility shaders, and the line table alone cannot prove an
+official release covers it.
+
+The table records the complete `.shader` set of each release that preparation may pin when it
+replaces a copy. Two releases cover every release the official feed has offered (all 55
+packages downloaded from `https://poiyomi.github.io/vpm/index.json`, each `zipSHA256` verified,
+every `.shader.meta` read; checked 2026-10-23):
+
+| Recorded release | Complete shader set | Covers the sets of |
+| --- | --- | --- |
+| 9.3.64 | 42 GUIDs (7.3, 8.0, 8.1, 9.0, 9.1, 9.2, 9.3 lines, Extras, poi-tools) | every release 8.1.166 – 9.3.64 (47 packages) |
+| 10.0.27 | 20 GUIDs (9.3, 10.0 lines, Extras, poi-tools) | every release 10.0.20 – 10.0.27 (8 packages) |
+
+To refresh the data: download the newest release of every version line from the official VPM
+feed into a separate temporary directory, verify each `zipSHA256` against the feed, read every
+`_PoiyomiShaders/**.shader.meta`, and record each line's newest release's set. Keep a recorded
+release while any newer release's set does not cover it; drop it once one does. Update the line
+table, this section's evidence date and the counts in the same change. Keep package bodies out
+of the repository.
 
 When every material that needs Poiyomi points at one line and neither the selected sources
 nor the project provides it, preparation reads the feed cache and installs that line's newest
-stable release with an exact `PackageRequestV1.version` pin. Materials spanning several
-lines, or a project already carrying the package, get no install; the `amf.package.guide`
-warning names the required lines. lilToon and UnlitWF need no lines: lilToon's GUIDs are
-version-stable, and UnlitWF 2.14.0 covers every GUID registered from 2.9.0.
+stable release with an exact `PackageRequestV1.version` pin. A recorded set is only consulted
+for bundled copies. Materials spanning several lines, or a project already carrying the
+package, get no install; the `amf.package.guide` warning names the required lines. lilToon and
+UnlitWF need no lines: lilToon's GUIDs are version-stable, and UnlitWF 2.14.0 covers every GUID
+registered from 2.9.0.
 
 ## Delivery policies
 
@@ -63,7 +93,8 @@ version-stable, and UnlitWF 2.14.0 covers every GUID registered from 2.9.0.
   install from the official feed when a selected material needs the package, none of the
   selected sources provides that shader, the project's recorded `packageVersions` does not
   carry the package and no Recipe pin fixes it. Version-lined packages install their line's
-  pinned release; the others install the newest resolving release. Installation uses the
+  pinned release — or, when a recorded set replaces a bundled copy, that release's exact
+  version; the others install the newest resolving release. Installation uses the
   existing digest-bound preview/apply path and reports progress under the package's display
   name; conflicts still need explicit handling, and a failed installation fails the step as
   before. Recipe-pinned known packages have their feeds registered during project creation.
@@ -83,11 +114,15 @@ applies (`Assets\lilToon`, `Assets\_PoiyomiShaders`, `Assets\Unlit_WF_ShaderSuit
 
 lilToon keeps its historical rule: a bundled copy always leaves for the official package. For
 the other `auto` packages, preparation reads every `.shader` GUID in the copy from the staged
-`asset.meta` files and replaces the copy only when the exact official release it is about to
-install covers all of them, with materials and selected sources on the same version line. The
-copy then leaves for that release. In every other case — an unknown or cross-line GUID, a
-Poiyomi Pro copy, an unreadable shader, or a project that already carries the package — the
-copy imports unchanged and nothing is installed, exactly as before this table existed.
+`asset.meta` files and replaces the copy only when one recorded release set covers them all —
+together with the shaders the selected materials reference and the package's shaders other
+selected sources provide, so one verified official release serves the whole project. The
+install pins that exact release version; the newest covering release wins. In every other
+case — an unknown GUID, a copy mixing lines no single release carries, a Poiyomi Pro copy, an
+unreadable shader, or a project that already carries the package — the copy imports unchanged
+and nothing is installed, exactly as before this table existed. Poiyomi's recorded sets let a
+copy spanning several version lines leave too, because the release it came from shipped those
+lines together.
 
 ## Adding an entry
 
@@ -96,10 +131,12 @@ copy imports unchanged and nothing is installed, exactly as before this table ex
    official feed; otherwise choose `guide`, or `bundled` for content the VRChat SDK provides.
 2. Add detection signals from official files: a material property only this package writes, or
    the lower-case GUIDs of its shader `.meta` files. For a package whose shaders differ by
-   release line, read each line's newest release package and record the line with its GUIDs.
-   Download free official packages only into a separate temporary directory to read
-   `package.json` and `.meta` files, and keep package bodies out of the repository. Note the
-   package versions and paths the signals came from.
+   release line, read each line's newest release package and record the line with its GUIDs;
+   then record each covering release's complete `.shader` set as described in
+   [Recorded release sets](#recorded-release-sets), because bundled copies hold several lines
+   and the utility shaders. Download free official packages only into a separate temporary
+   directory to read `package.json` and `.meta` files, and keep package bodies out of the
+   repository. Note the package versions and paths the signals came from.
 3. Copy the feed's `legacyFolders`/`legacyFiles` paths into the fallback fields so the skip
    rule also works before the first feed refresh.
 4. Extend the table in `known_packages.rs` and cover the entry with synthetic fixture

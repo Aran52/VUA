@@ -34,6 +34,18 @@ pub(crate) struct VersionLine {
     pub shader_guids: &'static [&'static str],
 }
 
+/// One release whose complete `.shader` set the table records. A bundled copy
+/// leaves for exactly this release — pinned through `PackageRequestV1.version`
+/// — when the set covers every shader in it, so a copy never meets an official
+/// release whose contents were not verified.
+pub(crate) struct ReleaseSet {
+    pub version: &'static str,
+    /// Every `.shader` GUID the release carries: its own version lines, the
+    /// older lines it still ships, and the utility shaders outside the line
+    /// folders.
+    pub shader_guids: &'static [&'static str],
+}
+
 pub(crate) struct KnownPackage {
     pub id: &'static str,
     pub display_name: &'static str,
@@ -55,6 +67,10 @@ pub(crate) struct KnownPackage {
     pub shader_guids: &'static [&'static str],
     /// Release lines, oldest first; a GUID belongs to the newest line that carries it.
     pub version_lines: &'static [VersionLine],
+    /// Recorded releases, oldest first; the newest one covering a bundled copy
+    /// replaces it. Empty for packages without version lines or without a
+    /// recorded set, whose copies then always import unchanged.
+    pub releases: &'static [ReleaseSet],
     pub legacy_policy: LegacyPolicy,
     /// Legacy install locations used when the cached feed declares none.
     pub legacy_folders: &'static [&'static str],
@@ -106,7 +122,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         license_url: "https://github.com/Adjerry91/VRCFaceTracking-Templates/blob/main/LICENSE.md",
         license_checked: "2026-10-20",
         delivery: Delivery::Guide,
-        material_markers: &[], shader_guids: &[], version_lines: &[],
+        material_markers: &[], shader_guids: &[], version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
     },
     KnownPackage {
@@ -118,7 +134,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         license_url: "https://github.com/PawlygonStudio/VRC-Facetracking/blob/main/LICENSE.md",
         license_checked: "2026-10-20",
         delivery: Delivery::Guide,
-        material_markers: &[], shader_guids: &[], version_lines: &[],
+        material_markers: &[], shader_guids: &[], version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
     },
     KnownPackage {
@@ -130,7 +146,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         license_url: "https://github.com/VRCFury/VRCFury/blob/main/LICENSE.md",
         license_checked: "2026-10-20",
         delivery: Delivery::Guide,
-        material_markers: &[], shader_guids: &[], version_lines: &[],
+        material_markers: &[], shader_guids: &[], version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
     },
     KnownPackage {
@@ -144,7 +160,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &["_lilToonVersion"],
         shader_guids: &[],
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceAlways,
         legacy_folders: &["Assets\\lilToon"],
         legacy_files: &[],
@@ -161,6 +177,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         material_markers: &[],
         shader_guids: &[],
         version_lines: POIYOMI_TOON_LINES,
+        releases: POIYOMI_TOON_RELEASES,
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &["Assets\\_PoiyomiShaders"],
         legacy_files: &[],
@@ -176,7 +193,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Guide,
         material_markers: &[],
         shader_guids: &[],
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
@@ -192,7 +209,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: UNLITWF_GUIDS,
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &["Assets\\Unlit_WF_ShaderSuite"],
         legacy_files: &[],
@@ -208,7 +225,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Bundled,
         material_markers: &[],
         shader_guids: TOON_STANDARD_GUIDS,
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
@@ -224,7 +241,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: &[],
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
@@ -240,7 +257,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: &[],
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
@@ -256,7 +273,7 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         delivery: Delivery::Auto,
         material_markers: &[],
         shader_guids: &[],
-        version_lines: &[],
+        version_lines: &[], releases: &[],
         legacy_policy: LegacyPolicy::ReplaceWhenCovered,
         legacy_folders: &[],
         legacy_files: &[],
@@ -316,8 +333,12 @@ pub(crate) type LegacyCopies = BTreeMap<usize, LegacyCopy>;
 pub(crate) enum Install {
     /// The newest resolving release (lilToon and UnlitWF, whose GUIDs are version-stable).
     Latest,
-    /// The newest release of one version line, pinned through `PackageRequestV1.version`.
+    /// The newest cached stable release of one version line, pinned through
+    /// `PackageRequestV1.version`.
     Line(&'static str),
+    /// One exact recorded release whose complete shader set covers the bundled
+    /// copy it replaces.
+    Release(&'static str),
 }
 
 #[derive(Debug)]
@@ -373,19 +394,30 @@ pub(crate) fn package_action(
         return PackageAction { install: (!needed.is_empty()).then_some(Install::Latest), replace_legacy: false };
     }
     let line_of = |guid: &String| package.line_for_guid(guid).map(|line| line.line);
-    let material_lines: BTreeSet<&str> = need.shaders.iter().filter_map(&line_of).collect();
     let provided_lines: BTreeSet<&str> = provided_guids.keys().filter_map(&line_of).collect();
     if legacy.present {
-        let copy_lines: BTreeSet<&str> = legacy.shaders.iter().filter_map(&line_of).collect();
-        let covered = !legacy.unreadable_shader && !legacy.shaders.is_empty()
-            && legacy.shaders.iter().all(|guid| line_of(guid).is_some())
-            && copy_lines.len() == 1
-            && material_lines.iter().all(|line| copy_lines.contains(line))
-            && provided_lines.iter().all(|line| copy_lines.contains(line));
-        return if covered {
-            PackageAction { install: Some(Install::Line(copy_lines.iter().next().expect("one line"))), replace_legacy: true }
-        } else {
-            keep
+        // The whole copy — several version lines and the utility shaders shipped
+        // with them — leaves for the newest recorded release whose complete set
+        // also covers the shaders the materials reference and the ones selected
+        // sources provide, so one verified official release serves the project.
+        if legacy.unreadable_shader || legacy.shaders.is_empty() || package.releases.is_empty() {
+            return keep;
+        }
+        let known: BTreeSet<&str> =
+            package.releases.iter().flat_map(|release| release.shader_guids.iter().copied()).collect();
+        let covers = |set: &[&str]| {
+            legacy.shaders.iter().chain(need.shaders.iter()).all(|guid| set.contains(&guid.as_str()))
+                && provided_guids
+                    .keys()
+                    .filter(|guid| known.contains(guid.as_str()))
+                    .all(|guid| set.contains(&guid.as_str()))
+        };
+        return match package.releases.iter().rev().find(|release| covers(release.shader_guids)) {
+            Some(release) => PackageAction {
+                install: Some(Install::Release(release.version)),
+                replace_legacy: true,
+            },
+            None => keep,
         };
     }
     let needed_lines: BTreeSet<&str> = needed.iter().filter_map(|guid| line_of(guid)).collect();
@@ -500,13 +532,15 @@ fn collect_legacy_paths(value: Option<&serde_json::Value>, into: &mut BTreeSet<S
 }
 
 /// Reads a subscribed feed's local cache without network access. The cache file name
-/// matches `VrcGetLibBackend::add_remote_repo`; a missing or unreadable cache simply
-/// leaves the table's fallback declarations in charge.
+/// matches `VrcGetLibBackend::add_remote_repo`; vrc-get's cache documents nest the
+/// repository under `repo`, so that inner object is the feed here. A missing or
+/// unreadable cache simply leaves the table's fallback declarations in charge.
 fn cached_feed(environment_root: &Path, feed_url: &str) -> Option<serde_json::Value> {
     let path = environment_root
         .join("Repos")
         .join(format!("{}.json", vua_orchestrator::fnv1a_hex(feed_url.as_bytes())));
-    serde_json::from_slice(&fs::read(path).ok()?).ok()
+    let feed = serde_json::from_slice::<serde_json::Value>(&fs::read(path).ok()?).ok()?;
+    Some(feed.get("repo").cloned().unwrap_or(feed))
 }
 
 fn cached_legacy_declaration(environment_root: &Path, feed_url: &str, package_id: &str) -> Option<(Vec<String>, Vec<String>)> {
@@ -604,7 +638,8 @@ fn version_line_suffix(lines: &BTreeSet<&str>) -> String {
 
 // Each line was read from that line's newest release package, only from its own
 // `_PoiyomiShaders/Shaders/<line>/**.shader.meta`: 8.1.167, 9.0.61, 9.1.30, 9.2.79,
-// 9.3.64 and 10.0.25. No GUID is shared between two lines.
+// 9.3.64 and 10.0.27 (identical per line across every release on the feed; see
+// POIYOMI_TOON_RELEASES for the evidence date). No GUID is shared between two lines.
 static POIYOMI_TOON_LINES: &[VersionLine] = &[
     VersionLine {
         line: "8.1",
@@ -668,6 +703,88 @@ static POIYOMI_TOON_LINES: &[VersionLine] = &[
             "aaeaef15081a5154eac3e71b584c5472",
             "b357c1b1407f3ad4eba47df501cc613c",
             "e9f30272e2d12c945851329f504df73d",
+            "fa7f9dc5d41366249bd0098f22c3c1cd",
+        ],
+    },
+];
+
+// The complete `.shader` sets of the two releases that still cover every release
+// the official VPM feed offers (all 55 packages read and hash-verified against
+// the feed on 2026-10-23): 9.3.64 is the last release carrying the 7.3 through
+// 9.3 lines, and every later release dropped them; 10.0.27 (the feed's newest)
+// carries only the 9.3 and 10.0 lines plus the utility shaders. Each set also
+// includes the shaders outside the line folders (`Shaders/Extras` and
+// `Scripts/poi-tools`), which no single line's table covers.
+static POIYOMI_TOON_RELEASES: &[ReleaseSet] = &[
+    ReleaseSet {
+        version: "9.3.64",
+        shader_guids: &[
+            "00a679886ff24e74585a2a9d37b3c8d7",
+            "034460dc851505a42baca2ba6514f9f0",
+            "0b436e0db169bde429124bf491f28cef",
+            "104003ab15a9f7a47b6ef0597225e771",
+            "1513582543e8f6c44b1981e8689f7a52",
+            "18de0e547c911de4e804ceaaa97a0b26",
+            "1b58d372fe360874a8fb767d53f955b0",
+            "2038a9b2a9e7ca94298fee3c196b252b",
+            "21e56665a7e45184b9013fb9e4f7bc96",
+            "231d95ff7213dd74f82af136b256fb32",
+            "23f6705aff8bf964c87bfb3dd66ab345",
+            "245e67c21ccaa9a43ad7e84d1c7bb5fc",
+            "24edb77705ad65a49afb831f72747592",
+            "3210d19aa4851e148b6848177a017f02",
+            "3eefd743f727e99419fa501e889c4998",
+            "47c3851517c96c84aae06d328a2581f6",
+            "5ab467a3a3d657b40836c4493ff3e51d",
+            "5ca92f1e9fc35504aba297fd1acd62df",
+            "68d4032c05798c44eafe02f272e6895c",
+            "71129bd3774e04d48827a25fc98d45a7",
+            "73da03e2cd0afa940968d9c487e2474d",
+            "7845a1ca48a75804c8925b2bd5680f7f",
+            "784867d15973a4847b1a6048d42c1565",
+            "7bca35b6e5a09ee4cbdff5cc54a9bd49",
+            "8a38f752c293b5548b674637c2a6f99a",
+            "917b37092bae034459c28c00a3a19b54",
+            "9444ce77bf4418748b1e8591b9d97f85",
+            "94a63a84353e517488db284dc8fab0ca",
+            "9cdbe9241ea4aaa48944028272700834",
+            "a49dd2fba12886c499261512c6eaaa80",
+            "a6839ad792f95aa41a941c7317aa1fe1",
+            "aa7e588ee69e46f429e3daa4b3068311",
+            "add1d40d10695a24b9e91e172ccb9525",
+            "bdbac715113578048ab7114aa3379a1d",
+            "c0aca4001823bf74e8a9538b3075bf56",
+            "c933bce24d9d90747a5def016febd042",
+            "cef5dc16b30fdbb46b08ab424d41d1c0",
+            "d0091594032d90d46b8d5eaeaf065a17",
+            "d141019541e4e44479fbd71ad42a2cf6",
+            "e99d2df55dac44a4c921122fe7cf6ba7",
+            "eda2412ac7ab2db45a47a521f6d7d8a6",
+            "fc2c2d7b9ec11d34785997ccbb86f496",
+        ],
+    },
+    ReleaseSet {
+        version: "10.0.27",
+        shader_guids: &[
+            "21e56665a7e45184b9013fb9e4f7bc96",
+            "245e67c21ccaa9a43ad7e84d1c7bb5fc",
+            "47c3851517c96c84aae06d328a2581f6",
+            "5ab467a3a3d657b40836c4493ff3e51d",
+            "71129bd3774e04d48827a25fc98d45a7",
+            "7345a7d6c2580fc45b5bef355eeea70a",
+            "9444ce77bf4418748b1e8591b9d97f85",
+            "997f84ffc30f9ca439a796739ced421c",
+            "9ea5d2df175e6f84785d5fffd69809a5",
+            "a19e06d869c537d4391955e43f631173",
+            "a49dd2fba12886c499261512c6eaaa80",
+            "a6839ad792f95aa41a941c7317aa1fe1",
+            "aaeaef15081a5154eac3e71b584c5472",
+            "add1d40d10695a24b9e91e172ccb9525",
+            "b357c1b1407f3ad4eba47df501cc613c",
+            "d141019541e4e44479fbd71ad42a2cf6",
+            "e99d2df55dac44a4c921122fe7cf6ba7",
+            "e9f30272e2d12c945851329f504df73d",
+            "eda2412ac7ab2db45a47a521f6d7d8a6",
             "fa7f9dc5d41366249bd0098f22c3c1cd",
         ],
     },
@@ -860,19 +977,35 @@ mod tests {
     }
 
     #[test]
-    fn a_poiyomi_copy_is_replaced_only_when_one_line_covers_every_shader() {
-        let covered = action(poiyomi(), PackageNeed::default(), copy(&[POIYOMI_93, "21e56665a7e45184b9013fb9e4f7bc96"]), None);
-        assert_eq!(covered.install, Some(Install::Line("9.3")));
-        assert!(covered.replace_legacy);
+    fn a_poiyomi_copy_leaves_for_the_newest_release_covering_it() {
+        // A real bundled copy spans several version lines and the utility shaders;
+        // 9.3.64 is the newest recorded release that still carries the 9.2 line.
+        let multi_line = action(poiyomi(), PackageNeed::default(),
+            copy(&[POIYOMI_92, POIYOMI_93, "245e67c21ccaa9a43ad7e84d1c7bb5fc"]), None);
+        assert_eq!(multi_line.install, Some(Install::Release("9.3.64")));
+        assert!(multi_line.replace_legacy);
 
-        // A 9.3 copy also serves 9.3 materials; the pinned line comes from the copy.
-        let with_material = action(poiyomi(), need(&[POIYOMI_93]), copy(&[POIYOMI_93]), None);
-        assert_eq!(with_material.install, Some(Install::Line("9.3")));
+        // The 10.0 releases dropped every older line, so a 10.0-era copy only
+        // leaves for 10.0.27; its new utility shader proves the set, not the
+        // line table, decides.
+        let ten = action(poiyomi(), PackageNeed::default(),
+            copy(&[POIYOMI_100, "7345a7d6c2580fc45b5bef355eeea70a"]), None);
+        assert_eq!(ten.install, Some(Install::Release("10.0.27")));
+        assert!(ten.replace_legacy);
+
+        // A copy holding only 9.3 shaders is also covered by 10.0.27, which
+        // still ships the 9.3 line, so the newest covering release wins.
+        let single_line = action(poiyomi(), PackageNeed::default(), copy(&[POIYOMI_93]), None);
+        assert_eq!(single_line.install, Some(Install::Release("10.0.27")));
+
+        // Materials may ask for another line as long as the same release covers it.
+        let with_material = action(poiyomi(), need(&[POIYOMI_93]), copy(&[POIYOMI_92]), None);
+        assert_eq!(with_material.install, Some(Install::Release("9.3.64")));
         assert!(with_material.replace_legacy);
 
         for legacy in [
             copy(&[POIYOMI_93, UNKNOWN_GUID]),
-            copy(&[POIYOMI_92, POIYOMI_93]),
+            copy(&[POIYOMI_92, POIYOMI_100]),
             copy(&[]),
         ] {
             let action = action(poiyomi(), PackageNeed::default(), legacy, None);
@@ -880,8 +1013,19 @@ mod tests {
             assert!(!action.replace_legacy);
         }
 
-        // Copy and material lines disagree, or the project already carries the package.
-        assert_eq!(action(poiyomi(), need(&[POIYOMI_93]), copy(&[POIYOMI_92]), None).install, None);
+        // A material asking for a line the covering releases dropped keeps the copy.
+        assert_eq!(action(poiyomi(), need(&[POIYOMI_100]), copy(&[POIYOMI_92]), None).install, None);
+        // A selected source providing a dropped line keeps the copy too.
+        let provided = HashMap::from([(POIYOMI_92.to_owned(), "Assets/x.shader".to_owned())]);
+        let decided = package_action(KNOWN_PACKAGES, poiyomi(), &need(&[POIYOMI_100]), &copy(&[POIYOMI_93]), &provided, None, false);
+        assert_eq!(decided.install, None);
+        assert!(!decided.replace_legacy);
+        // A source providing a covered shader still lets the copy leave.
+        let provided = HashMap::from([(POIYOMI_93.to_owned(), "Assets/x.shader".to_owned())]);
+        let decided = package_action(KNOWN_PACKAGES, poiyomi(), &need(&[POIYOMI_93]), &copy(&[POIYOMI_92]), &provided, None, false);
+        assert_eq!(decided.install, Some(Install::Release("9.3.64")));
+
+        // The project already carries the package.
         let installed = action(poiyomi(), PackageNeed::default(), copy(&[POIYOMI_93]), Some("9.3.64"));
         assert_eq!(installed.install, None);
         assert!(!installed.replace_legacy);
@@ -985,15 +1129,20 @@ mod tests {
 
         let poiyomi_feed = KNOWN_PACKAGES[poiyomi()].feed_url;
         let poiyomi_cache = root.join("Repos").join(format!("{}.json", vua_orchestrator::fnv1a_hex(poiyomi_feed.as_bytes())));
+        // vrc-get nests the repository under "repo" in its cache documents.
         std::fs::write(&poiyomi_cache, serde_json::to_vec(&serde_json::json!({
-            "packages": {"com.poiyomi.toon": {"versions": {
+            "repo": {"packages": {"com.poiyomi.toon": {"versions": {
                 "9.2.79": {}, "9.3.63": {}, "9.3.64": {}, "10.0.25": {}, "10.0.26-beta.1": {}
-            }}}
+            }}}},
+            "vrc-get": {"etag": "\"x\""}
         })).unwrap()).unwrap();
         assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "9.3").as_deref(), Some("9.3.64"));
         assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "9.2").as_deref(), Some("9.2.79"));
         assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "10.0").as_deref(), Some("10.0.25"));
         assert_eq!(latest_cached_line_version(&root, poiyomi_feed, "com.poiyomi.toon", "8.1"), None);
+        let entries = legacy_entries(KNOWN_PACKAGES, Some(&root));
+        assert_eq!(legacy_owner(&entries, "assets/_poiyomishaders/one.shader"), Some(poiyomi()),
+            "the nested cache declares no legacy paths, so the table fallback applies");
         std::fs::remove_dir_all(&root).unwrap();
     }
 
@@ -1009,12 +1158,36 @@ mod tests {
             let valid = |guid: &&str| guid.len() == 32 && guid.bytes().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase());
             assert!(package.shader_guids.iter().all(valid), "{}", package.id);
             assert!(package.version_lines.iter().flat_map(|line| line.shader_guids).all(valid), "{}", package.id);
+            assert!(package.releases.iter().flat_map(|release| release.shader_guids).all(valid), "{}", package.id);
         }
         // No Poiyomi GUID is shared between two version lines.
         let poiyomi_lines = KNOWN_PACKAGES[poiyomi()].version_lines;
         let all: BTreeSet<_> = poiyomi_lines.iter().flat_map(|line| line.shader_guids).collect();
         assert_eq!(all.len(), poiyomi_lines.iter().map(|line| line.shader_guids.len()).sum::<usize>());
         assert_eq!(poiyomi_lines.iter().map(|line| line.line).collect::<Vec<_>>(), ["8.1", "9.0", "9.1", "9.2", "9.3", "10.0"]);
+
+        // Recorded releases are unique, ordered oldest first, each carries its
+        // line's own shaders, and every version line is inside at least one
+        // recorded set, so every detected material shader can be replaced.
+        let package = &KNOWN_PACKAGES[poiyomi()];
+        let versions: Vec<_> = package.releases.iter().map(|release| release.version).collect();
+        let unique: BTreeSet<_> = versions.iter().copied().collect();
+        assert_eq!(unique.len(), versions.len());
+        let sorted = versions.iter().map(|v| version_key(v)).collect::<Vec<_>>();
+        assert!(sorted.windows(2).all(|pair| pair[0] < pair[1]), "releases are ordered oldest first");
+        for release in package.releases {
+            let line = package.line_for_version(release.version)
+                .unwrap_or_else(|| panic!("{} belongs to no recorded line", release.version));
+            let own = package.version_lines.iter().find(|l| l.line == line).unwrap();
+            assert!(own.shader_guids.iter().all(|guid| release.shader_guids.contains(guid)),
+                "{} must carry its own line's shaders", release.version);
+        }
+        for line in package.version_lines {
+            assert!(
+                package.releases.iter().any(|release| line.shader_guids.iter().all(|guid| release.shader_guids.contains(guid))),
+                "no recorded release covers line {}", line.line
+            );
+        }
 
         // SDK and Modular Avatar pins keep their existing registration path during
         // project creation; only material-driven auto packages register their feed.
@@ -1063,7 +1236,7 @@ mod tests {
         const BUNDLED_GUID: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         let entry = |id: &'static str, display_name: &'static str, delivery: Delivery, markers: &'static [&'static str], guids: &'static [&'static str]| KnownPackage {
             id, display_name, feed_url: "", official_url: "https://example.com/get", license: "MIT", license_url: "",
-            license_checked: "", delivery, material_markers: markers, shader_guids: guids, version_lines: &[],
+            license_checked: "", delivery, material_markers: markers, shader_guids: guids, version_lines: &[], releases: &[],
             legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
         };
         let table = [

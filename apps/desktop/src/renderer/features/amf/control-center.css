@@ -176,6 +176,14 @@
 .vua-control__toolbar > .vua-button:last-child { margin-inline-start: auto; }
 .vua-control__confirm { --kind: var(--vua-warning); }
 
+/* 包页面按权限模式分档:结论卡片、自行决定模式的「详情」折叠、guide 提示行。 */
+.vua-control__conclusion { display: grid; gap: 8px; }
+.vua-control__next-step { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.vua-control__moded > summary { padding: 4px 0; color: var(--vua-text-secondary); font: var(--vua-font-caption); cursor: pointer; }
+.vua-control__moded[open] > summary { margin-bottom: 8px; }
+.vua-control__moded > summary:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-control__guide-need { margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
 .vua-control__table { display: flex; flex-direction: column; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); }
 .vua-control__tr { display: grid; grid-template-columns: minmax(0, 1fr) 170px 150px 56px; align-items: center; gap: 12px; padding: 10px 14px 10px 11px; border-top: 1px solid var(--vua-border); border-inline-start: 3px solid transparent; }
 .vua-control__tr:first-child { border-top: 0; }

@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [output = path.join(os.tmpdir(), "vua-preview-factory"), locale = "zh-CN", theme = "dark"] = process.argv.slice(2).filter(arg => !arg.startsWith("--"));
 const views = ["map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop", "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu", "workshop-full-access", "workshop-attention", "workshop-interrupted", "workshop-finished", "workshop-materials", "workshop-inspect", "workshop-line-menu", "workshop-delete", "workshop-capacity", "workshop-rebuild", "workshop-opening", "workshop-opened",
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part", "control-recipes-list", "control-recipes-many", "control-recipes-empty",
-  "control-packages", "control-packages-project", "control-packages-unlisted", "control-packages-repos",
+  "control-packages", "control-packages-project", "control-packages-project-smart", "control-packages-project-full", "control-packages-unlisted", "control-packages-repos",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms",
   "settings-vrchat", "settings-vrchat-account", "license-hub", "license-check", "license-active", "terms-parsed", "terms-items", "terms-unread", "terms-link", "materials-start", "materials-start-missing",
   "feedback-tiers", "feedback-dialog"];

@@ -240,3 +240,12 @@ html[data-effects="off"] .vua-graph__edges line, html[data-effects="off"] .vua-g
   .vua-control__corner, .vua-control__edge { background: CanvasText; }
   .vua-control__backdrop { display: none; }
 }
+.vua-fits { padding-top: 8px; border-top: 1px solid var(--vua-border); }
+.vua-fits__list { padding: 0; margin: 0; list-style: none; }
+.vua-fits__list > li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-block: 12px; border-bottom: 1px solid var(--vua-border); }
+.vua-fits__list > li > input { flex: 1; min-width: 180px; }
+.vua-fits__facts { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.vua-fits__facts small { color: var(--vua-text-secondary); overflow-wrap: anywhere; }
+.vua-fits__actions { display: flex; gap: 8px; margin-inline-start: auto; }
+.vua-fits__error { flex-basis: 100%; }
+.vua-fits__error p { margin: 4px 0 0; }

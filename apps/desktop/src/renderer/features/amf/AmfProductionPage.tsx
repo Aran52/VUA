@@ -17,6 +17,7 @@ import { initialProductionSelection, sameSelection, updateOutfitSelection } from
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { FitSaveCard } from "./FitSaveCard.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
@@ -232,6 +233,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
+  // Fits the working selection would apply, by name; a Recipe's own fits carry no name.
+  const fitNames = [...new Set((run?.availableFits ?? [])
+    .filter(fit => fit.name !== null && selection.outfits.some(outfit => outfit.sourceId === fit.sourceId))
+    .map(fit => fit.name as string))];
+  const planFitNames = [...new Set((plan?.fits ?? [])
+    .filter(fit => fit.name !== null).map(fit => fit.name as string))];
 
   const panels = factory.panels;
   const lines: RailLine[] = (list?.runs ?? []).map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
@@ -357,6 +364,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && planOpen && plan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        {fitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: fitNames.join(" · ") })}</p>}
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
@@ -389,7 +397,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             </div>}</div></Card>;
         })}
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} data-nav-id="workshop-plan-review" onClick={() => {
           if (!port) return; setRequesting(true); setError(null);
           void port.plan(runId,selection).then(setPlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
         }}>{copy.reviewCta}</Button></div>
@@ -397,6 +405,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
         <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
+        {planFitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: planFitNames.join(" · ") })}</p>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
@@ -430,6 +439,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
+      {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
         <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
         {savedRecipe ? <><Button disabled={busy} onClick={() => setSharingRecipe(savedRecipe.recipe.recipeId)}>{copy.shareRecipe}</Button><p role="status">{format(copy.recipeSaved,{title:savedRecipe.recipe.title})}</p><Button onClick={() => { setSavedRecipe(null); newPreparation(); }}>{copy.recipes}</Button></> :

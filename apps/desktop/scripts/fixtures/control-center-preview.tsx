@@ -104,11 +104,23 @@ const projectOps = (base: ProjectOpsPort): ProjectOpsPort => ({ ...base, listPro
 /** Gateway parts and the page for a `control-…` view. */
 export function controlPreview(view: string, base: VuaGateway, production: AmfProductionPort): { gateway: VuaGateway; page: React.ReactElement } {
   const saved = view === "control-recipes-many" ? manyRecipes() : view === "control-recipes-empty" ? [] : recipes;
+  // The fits view: two stored adjustments listed for rename and delete; every other view has none.
+  const fits = view === "control-fits" ? [
+    { fitId: "fit-2", name: "SailorCapForShinano", createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-22T02:41:00Z",
+      garment: { sha256: hex(16), prefabPath: "Assets/Outfits/Universal_Cap_v3.0.2.prefab", name: "Universal_Cap_v3.0.2.unitypackage" },
+      avatar: { sha256: hex(2), prefabPath: "Assets/Shinano/Shinano.prefab", name: "Shinano_v1.3.1.unitypackage" }, objectCount: 3 },
+    { fitId: "fit-1", name: "TshirtShortsForMeiyun", createdAt: "2026-10-19T12:00:00Z", updatedAt: "2026-10-21T15:02:00Z",
+      garment: { sha256: hex(11), prefabPath: "Assets/Outfits/TshirtShorts_Meiyun_v1.00.prefab", name: "TshirtShorts_Meiyun_v1.00.unitypackage" },
+      avatar: { sha256: hex(1), prefabPath: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun_v2.1.0.unitypackage" }, objectCount: 12 },
+  ] : [];
   const amfProduction = {
     ...production,
     async listRecipes() { return saved.map(item => ({ recipeId: item.recipeId, title: item.title, revision: 3, updatedAt: "2026-10-16T09:30:00Z" })); },
     async getRecipe(recipeId: string) { return { recipe: saved.find(item => item.recipeId === recipeId)!, revision: 3, updatedAt: "2026-10-16T09:30:00Z" }; },
     async get(runId: string) { return { ...(await production.get(runId)), projectRoot: projectRoot(runId) }; },
+    async listFits() { return fits; },
+    async renameFit(fitId: string, name: string) { return { fitId, name }; },
+    async deleteFit() { /* preview only */ },
   } as AmfProductionPort;
   // The package view loads once the AMF module reports ready.
   const amfModule = { ...base.amfModule, snapshot: async () => ({ schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const }) };

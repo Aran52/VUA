@@ -86,3 +86,8 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 .vua-recipe-apply__choices label[data-selected] { border-color: var(--vua-accent); background: color-mix(in srgb, var(--vua-accent) 7%, transparent); }
 .vua-recipe-apply__choices input { flex-shrink: 0; accent-color: var(--vua-accent); }
 .vua-recipe-apply__choices label:has(input:disabled) { opacity: .55; cursor: default; }
+.vua-fitsave__entry { display: grid; gap: 10px; padding-block: 12px; }
+.vua-fitsave__entry + .vua-fitsave__entry { border-top: 1px solid var(--vua-border); }
+.vua-fitsave__entry p { margin: 0; }
+.vua-fitsave__row { display: flex; gap: 12px; align-items: center; }
+.vua-fitsave__row input { flex: 1; min-width: 180px; }

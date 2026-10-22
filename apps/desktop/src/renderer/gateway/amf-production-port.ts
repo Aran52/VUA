@@ -1,7 +1,7 @@
-import type { FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
+import type { AmfEditorCloseResult, FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
   AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01,
   AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind } from "@vua/contracts";
-import { isFaceTrackingFacts, isFaceTrackingPlan, isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
+import { isAmfEditorCloseResult, isFaceTrackingFacts, isFaceTrackingPlan, isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
   AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
@@ -32,6 +32,7 @@ export interface AmfProductionRun {
   readonly usualDurations?: AmfUsualDurations;
   /** The running step while a task works on the run, otherwise `null`. `amf.production.get` always reports it. */
   readonly progress?: AmfRunProgressV01 | null;
+  readonly editorClose?: AmfEditorCloseResult;
   readonly selection: AmfAssemblySelection | null; readonly error: string | null; readonly recovery: string | null;
   readonly snapshotId: string | null;
   /** Recorded states of the line, newest first; absent on runs made before revisions. */
@@ -193,6 +194,7 @@ export interface AmfProductionPort {
   renameFit(fitId: string, name: string): Promise<{ readonly fitId: string; readonly name: string }>;
   /** Deletes a saved fit; synchronous, no task. */
   deleteFit(fitId: string): Promise<void>;
+  closeEditor(runId: string, confirmed: true, title: string): Promise<AmfProductionAccepted>;
   open(runId: string): Promise<AmfProductionAccepted>;
   /** A `data:image/png` URL for one preview the run reports. */
   previewImage(runId: string, path: string): Promise<string>;
@@ -219,7 +221,7 @@ const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path,
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview));
 const ratings: readonly string[] = AMF_SDK_RATINGS;
-const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "lighting", "restore"];
+const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "editor_save", "lighting", "restore"];
 const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
   && (v.avatar === null || text(v.avatar)) && texts(v.outfits) && texts(v.sources)
   && Number.isSafeInteger(v.lightingMaterials) && Number(v.lightingMaterials) >= 0 && texts(v.sdkFixes);
@@ -267,6 +269,7 @@ const runChecks: readonly (readonly [string, (v: Record<string, unknown>) => boo
   ["steps", v => Array.isArray(v.steps) && v.steps.every(isAmfStep)],
   ["usualDurations", v => v.usualDurations === undefined || isAmfUsualDurations(v.usualDurations)],
   ["progress", v => v.progress === undefined || v.progress === null || isAmfRunProgress(v.progress)],
+  ["editorClose", v => v.editorClose === undefined || (isAmfEditorCloseResult(v.editorClose) && v.editorClose.runId === v.runId)],
   ["error", v => (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))],
   ["snapshotId", v => v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0)],
   ["selection", v => v.selection === null || isAmfAssemblySelection(v.selection)],
@@ -288,12 +291,19 @@ export function amfRunProblem(v: unknown): string | null {
 export function isAmfProductionRun(v: unknown): v is AmfProductionRun {
   return amfRunProblem(v) === null;
 }
+export class AmfProductionError extends Error {
+  constructor(readonly code: string, detail: string, readonly suggestedAction?: "amf.production.closeEditor") { super(detail); }
+}
 export function createAmfProductionPort(client: GatewayClient): AmfProductionPort {
   const call = async (body: AmfProductionBodyV01): Promise<unknown> => {
     const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), ...body });
     if (!response.ok) {
       const error = response.error;
-      if (error.kind === "application") throw new Error(typeof error.error.params?.detail === "string" ? error.error.params.detail : error.error.code);
+      if (error.kind === "application") {
+        const action = error.error.params?.suggestedAction;
+        if (action !== undefined && (action !== "amf.production.closeEditor" || error.error.code !== "vua.amf_production.project_open")) throw new Error("amf_production_error_invalid");
+        throw new AmfProductionError(error.error.code, typeof error.error.params?.detail === "string" ? error.error.params.detail : error.error.code, action);
+      }
       throw new Error(error.kind);
     }
     return response.value;
@@ -481,6 +491,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
         || !text(v.data) || v.data.length > 900_000 || !/^iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/u.test(v.data)) throw new Error("amf_production_preview_invalid");
       return `data:image/png;base64,${v.data}`;
     },
+    async closeEditor(runId, confirmed, title) { return accepted(await call({ method: "amf.production.closeEditor", params: { schemaVersion: "0.1", runId, confirmed } }), title); },
     async open(runId) { return accepted(await call({ method: "amf.production.open", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.opening); },
     async stop(run) {
       if (!text(run.taskId) || run.taskId.length === 0) throw new Error("amf_production_not_running");

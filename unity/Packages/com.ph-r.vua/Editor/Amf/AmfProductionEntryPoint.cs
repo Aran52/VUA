@@ -660,6 +660,7 @@ namespace Vua.Editor.Bridge
                 if (EditorApplication.timeSinceStartup < next || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
                 next = EditorApplication.timeSinceStartup + 0.5;
                 var file = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".vua", "bridge", "amf-open.json"));
+                if (HandleCloseRequest(Path.GetDirectoryName(file))) return;
                 if (!File.Exists(file)) return;
                 try
                 {

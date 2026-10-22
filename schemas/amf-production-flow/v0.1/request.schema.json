@@ -1678,6 +1678,44 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.closeEditor"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "confirmed"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,100}$"
+            },
+            "confirmed": {
+              "const": true
+            }
+          }
+        }
+      }
     }
   ]
 }

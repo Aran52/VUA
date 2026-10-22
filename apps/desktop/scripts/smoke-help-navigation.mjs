@@ -130,7 +130,9 @@ async function run() {
     const cardLayout = await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card button")].map(b=>({label:b.getAttribute("data-nav-id"),overflow:b.scrollHeight-b.clientHeight}))');
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");
-    for (const button of ['route-desktop','route-pico','route-quest','route-vive','route-index']) {
+    // In-development headsets explain themselves in a tooltip and open no details.
+    assert(await js(`['route-quest','route-vive','route-index'].every(id=>document.querySelector('[data-nav-id="'+id+'"]').disabled && !document.getElementById(id+'-details'))`), "In-development headsets have no details panel");
+    for (const button of ['route-desktop','route-pico']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`!document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
       assert(await inlineDetailFits(button), `${button} details are directly below their own card and fit its width`);
@@ -140,7 +142,7 @@ async function run() {
     }
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-creator-page [data-nav-id=toggle-amf]")'), "AMF setup in Avatar editing");
-    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("导入和整理素材") && !document.querySelector(".vua-shell__sidebar [data-module=production]")'), "AMF is explained in Avatar editing and waits for explicit enablement");
+    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-module=production]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
     await capture("amf-off");
     if (process.env.VUA_TEST_EXPECT_EDITOR_VERSION) {
       const expected = process.env.VUA_TEST_EXPECT_EDITOR_VERSION;

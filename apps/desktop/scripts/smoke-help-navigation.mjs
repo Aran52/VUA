@@ -149,7 +149,10 @@ async function run() {
       await waitFor(() => js(`document.querySelector('[data-editor-status]')?.textContent.includes(${JSON.stringify(expected)})`), "Host Editor inventory before AMF activation");
       assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked'), "The existing C1 Editor is detected before AMF activation or CLI installation");
     }
-    for (const button of ['route-unity2022','route-unity6','manager-unity_hub','manager-vcc','manager-alcom']) {
+    // Unity 6 opens details only when a 6000 editor is installed; otherwise it is a tooltip-only card.
+    const unity6Installed = await js('!!document.getElementById("route-unity6-details")');
+    if (!unity6Installed) assert(await js('document.querySelector("[data-nav-id=route-unity6]").disabled'), "Unity 6 without an installed editor opens no details");
+    for (const button of ['route-unity2022', ...(unity6Installed ? ['route-unity6'] : []), 'manager-unity_hub','manager-vcc','manager-alcom']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true'`), `${button} expands inline`);
       assert(await inlineDetailFits(button), `${button} details stay below their own editor or manager card`);

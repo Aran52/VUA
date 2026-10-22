@@ -45,13 +45,13 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 
 ## 개발 진행 상황
 
-[v0.6.7 Ibis(Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7)는 AMF를 포함한 Windows x64 온라인·오프라인 NSIS 설치 파일을 제공합니다. 연결 가능한 미러에서 검증된 런타임을 가져오고 호환 런타임을 재사용하며 AMF를 파일 단위로 독립 업데이트할 수 있습니다. [N1–N7 개발 순서](docs/development-outline.md)는 계속됩니다.
+[v0.7.0 Stone Age(Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)는 처음으로 아바타 제작 흐름을 제공합니다. 라이브러리에서 아바타와 의상을 고르면 VUA가 전용 Unity 프로젝트에서 조립하고 VRChat SDK로 확인한 뒤, 확인을 거쳐 업로드합니다. Windows x64 온라인·오프라인 NSIS 설치 파일에 AMF가 포함됩니다. [N1–N7 개발 순서](docs/development-outline.md)에 따라 개발을 이어 갑니다.
 
-Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·소재·사람의 검토가 통과했음을 뜻하지 않습니다. [v0.6.7 범위, 검사 및 제한 사항(중국어)](docs/release/v0.6.7.md)을 확인해 주세요.
+Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·소재·사람의 검토가 통과했음을 뜻하지 않습니다. [v0.7.0 범위, 검사 및 제한 사항](docs/release/v0.7.0_KO.md)을 확인해 주세요.
 
 ### 현재 제공 상태와 시작 방법
 
-- [공식 다운로드 페이지](https://ph-r.com/projects/vua/#download) 또는 [GitHub 릴리스](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7)에서 **VUA-0.6.7-windows-x64-setup.exe**를 내려받습니다. 다운로드가 불안정하면 **VUA-0.6.7-windows-x64-offline.exe**를 선택해 주세요. 두 곳 모두 같은 파일을 제공합니다. 설치 후 시작 메뉴에서 VUA를 엽니다. Node, pnpm, Rust나 소스는 필요하지 않습니다. 서명되지 않은 빌드이므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
+- [공식 다운로드 페이지](https://ph-r.com/projects/vua/#download) 또는 [GitHub 릴리스](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)에서 **VUA-0.7.0-windows-x64-setup.exe**를 내려받습니다. 다운로드가 불안정하면 **VUA-0.7.0-windows-x64-offline.exe**를 선택해 주세요. 두 곳 모두 같은 파일을 제공합니다. 설치 후 시작 메뉴에서 VUA를 엽니다. Node, pnpm, Rust나 소스는 필요하지 않습니다. 서명되지 않은 빌드이므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
 - 첫 실행 기능 안내와 가이드로 시작하거나 플레이, 도구, Avatar 편집을 바로 엽니다. 새 사용자는 AMF가 활성화되며 설정 → 모듈에서 끌 수 있습니다. Steam/PICO/Unity 및 계정 작업은 공식 앱에서 완료합니다.
 - VUA 업데이트 전 작업을 마치고 앱을 종료한 다음 새 설치 파일을 실행합니다. AMF는 설정 → 모듈 또는 정보에서 따로 업데이트한 뒤 명시적으로 다시 시작할 수 있습니다. 데이터는 %APPDATA%\VUA에 유지되며 ZIP 버전에서 설치 버전으로 옮겨도 같은 프로필을 사용합니다. 미검증 과정과 수동 인계는 릴리스 노트에 기록하며 문제는 [Issues](https://github.com/VUA-Project/VUA/issues/new/choose)에 남길 수 있습니다.
 - 개발자는 [의존성 설치, 앱 실행 및 검사](apps/desktop/README.md#development-commands)와 [기여 가이드](CONTRIBUTING.md)를 따릅니다.
@@ -61,7 +61,7 @@ Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·�
 - [문서 가이드](docs/README.md)——작업별 최소 경로
 - [제품 경계](docs/product-boundary.md)
 - [아키텍처](docs/architecture/system.md)
-- [v0.6.7 릴리스 노트(중국어)](docs/release/v0.6.7.md)
+- [v0.7.0 릴리스 노트](docs/release/v0.7.0_KO.md)
 - [기여 가이드](CONTRIBUTING.md) · [보안 정책](SECURITY.md)
 
 ## 라이선스

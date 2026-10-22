@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "vua-amf-provider"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "vua-bdl-store",
  "vua-orchestrator",

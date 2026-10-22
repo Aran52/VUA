@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { amfRunProblem, isAmfProductionRun, createAmfProductionPort } from "./amf-production-port.ts";
 import type { GatewayClient } from "./gateway-client.ts";
 import type { DesktopGatewaySuccessValueV1 } from "@vua/contracts";
@@ -9,6 +10,14 @@ const run = {schemaVersion:"0.1",runId:"n3-test",phase:"succeeded",taskId:"task-
   result:{facts:{sdkDescriptorRecognized:true,missingReferences:0,avatarName:"Avatar",instances:[{sourceId:"coat",bindingVerified:true,menuVerified:true,menuModified:true}]}}};
 
 describe("AMF production response boundary", () => {
+  it("accepts absent FT facts on old runs and validates new facts without claiming runtime success", () => {
+    const faceTracking = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json", import.meta.url), "utf8")).data.faceTracking;
+    expect(isAmfProductionRun(run)).toBe(true);
+    expect(isAmfProductionRun({ ...run, result: { facts: { ...run.result.facts, faceTracking } } })).toBe(true);
+    for (const invalid of [null, {}, { ...faceTracking, runtime: "working" }, { ...faceTracking, patchMenus: "available" }]) {
+      expect(isAmfProductionRun({ ...run, result: { facts: { ...run.result.facts, faceTracking: invalid } } })).toBe(false);
+    }
+  });
   it("refuses malformed results and preserves full Editor identity", () => {
     expect(isAmfProductionRun(run)).toBe(true);
     expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,instances:"passed"}}})).toBe(false);
@@ -171,6 +180,93 @@ describe("AMF production response boundary", () => {
     response = {...plan,runId:"n3-other"}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     response = {...plan,snapshotId:""}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     await expect(port.rollback("n3-other",{...plan,preserveCurrent:true})).rejects.toThrow("restore_plan_invalid");
+  });
+  it("accepts a run without revisions and rejects malformed revision items", () => {
+    expect(isAmfProductionRun(run)).toBe(true);
+    const revision = {id:"rev-1",before:"assembly",takenAt:"2026-10-18T00:00:00Z",editedInUnity:false,
+      summary:{avatar:null,outfits:[],sources:["coat"],lightingMaterials:0,sdkFixes:[]}};
+    expect(isAmfProductionRun({...run,revisions:[revision]})).toBe(true);
+    expect(amfRunProblem({...run,revisions:[revision]})).toBeNull();
+    expect(amfRunProblem({...run,revisions:"none"})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,before:"everything"}]})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,editedInUnity:"no"}]})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,summary:{...revision.summary,lightingMaterials:-1}}]})).toBe("revisions");
+    expect(amfRunProblem({...run,revisions:[{...revision,summary:{...revision.summary,avatar:7}}]})).toBe("revisions");
+  });
+  it("reads a revision plan and binds its restore to this run and revision", async () => {
+    const plan = {schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:"c".repeat(64),before:"assembly" as const,takenAt:"2026-10-18T00:00:00Z",
+      summary:{avatar:"Avatar",outfits:["Coat"],sources:["avatar","coat"],lightingMaterials:1,sdkFixes:[]},editedInUnity:true,warning:null,
+      steps:[{key:"materials",skipped:false},{key:"assembly",skipped:false,rebuild:false},
+        {key:"lighting",skipped:false,materials:[{material:"Assets/Coat.mat",min:"0.1",max:"1"}]},{key:"sdk_fix",skipped:true,fixes:[]}]};
+    let response: unknown = plan;
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.revisionPlan("n3-test","rev-1")).editedInUnity).toBe(true);
+    expect(requests[0]).toMatchObject({method:"amf.production.revisionPlan",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1"}});
+    response = {...plan,planDigest:"z".repeat(64)}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    response = {...plan,before:"everything"}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    response = {...plan,revisionId:"rev-2"}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    const {steps: _missing, ...withoutSteps} = plan; response = withoutSteps;
+    await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    response = {...plan,steps:[{key:"upload",skipped:false}]}; await expect(port.revisionPlan("n3-test","rev-1")).rejects.toThrow("revision_plan_invalid");
+    await expect(port.restoreRevision("n3-other",plan)).rejects.toThrow("revision_plan_invalid");
+    response = {schemaVersion:"0.1",operation:"amf.production.restoreRevision",runId:"n3-test",taskId:"task-restore"};
+    await port.restoreRevision("n3-test",plan);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.restoreRevision",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:plan.planDigest}});
+  });
+  it("accepts a run without fit data and rejects malformed fit entries", () => {
+    expect(isAmfProductionRun(run)).toBe(true);
+    const moved = {path:"Armature/Hips/Coat",localPosition:{x:0,y:0.1,z:0},localRotation:{x:0,y:0,z:0,w:1},localScale:{x:1,y:1,z:1}};
+    const fitChanges = [{sourceId:"coat",moved:[moved],missing:["Armature/Hips/Old"],changesDigest:"b".repeat(64)}];
+    const availableFits = [{sourceId:"coat",fitId:"fit-1",name:"Coat fit"}];
+    expect(isAmfProductionRun({...run,fitChanges,availableFits})).toBe(true);
+    expect(amfRunProblem({...run,fitChanges,availableFits})).toBeNull();
+    expect(amfRunProblem({...run,fitChanges:"none"})).toBe("fitChanges");
+    expect(amfRunProblem({...run,fitChanges:[{...fitChanges[0],changesDigest:"bad"}]})).toBe("fitChanges");
+    expect(amfRunProblem({...run,fitChanges:[{...fitChanges[0],moved:[{...moved,localRotation:{x:0,y:0,z:0}}]}]})).toBe("fitChanges");
+    expect(amfRunProblem({...run,fitChanges:[{...fitChanges[0],missing:"none"}]})).toBe("fitChanges");
+    expect(amfRunProblem({...run,availableFits:"none"})).toBe("availableFits");
+    expect(amfRunProblem({...run,availableFits:[{...availableFits[0],fitId:7}]})).toBe("availableFits");
+  });
+  it("saves, lists, renames and deletes fits as synchronous commands", async () => {
+    const fit = {fitId:"fit-1",name:"Coat fit",createdAt:"2026-10-20T00:00:00Z",updatedAt:"2026-10-20T00:00:00Z"};
+    const summary = {...fit,garment:{sha256:"a".repeat(64),prefabPath:"Assets/Coat.prefab",name:"Synthetic Coat"},
+      avatar:{sha256:"b".repeat(64),prefabPath:"Assets/Avatar.prefab",name:"Synthetic Avatar"},objectCount:2};
+    let response: unknown = {schemaVersion:"0.1",...fit};
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.saveFit("n3-test","coat","Coat fit","b".repeat(64))).fitId).toBe("fit-1");
+    expect(requests[0]).toMatchObject({method:"amf.production.saveFit",params:{schemaVersion:"0.1",runId:"n3-test",sourceId:"coat",name:"Coat fit",changesDigest:"b".repeat(64)}});
+    response = {schemaVersion:"0.1",...fit,name:"Other"}; await expect(port.saveFit("n3-test","coat","Coat fit","b".repeat(64))).rejects.toThrow("save_fit_invalid");
+    response = {schemaVersion:"0.1",...fit,createdAt:7}; await expect(port.saveFit("n3-test","coat","Coat fit","b".repeat(64))).rejects.toThrow("save_fit_invalid");
+    response = {schemaVersion:"0.1",fits:[summary]};
+    expect((await port.listFits())[0]?.objectCount).toBe(2);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.listFits",params:{schemaVersion:"0.1"}});
+    response = {schemaVersion:"0.1",fits:[{...summary,objectCount:-1}]}; await expect(port.listFits()).rejects.toThrow("fit_list_invalid");
+    response = {schemaVersion:"0.1",fits:[{...summary,garment:{...summary.garment,sha256:"bad"}}]}; await expect(port.listFits()).rejects.toThrow("fit_list_invalid");
+    response = {schemaVersion:"0.1",fits:"none"}; await expect(port.listFits()).rejects.toThrow("fit_list_invalid");
+    response = {schemaVersion:"0.1",fitId:"fit-1",name:"Renamed fit"};
+    expect(await port.renameFit("fit-1","Renamed fit")).toEqual({fitId:"fit-1",name:"Renamed fit"});
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.renameFit",params:{schemaVersion:"0.1",fitId:"fit-1",name:"Renamed fit"}});
+    response = {schemaVersion:"0.1",fitId:"fit-2",name:"Renamed fit"}; await expect(port.renameFit("fit-1","Renamed fit")).rejects.toThrow("rename_fit_invalid");
+    response = {schemaVersion:"0.1",fitId:"fit-1"};
+    await port.deleteFit("fit-1");
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.deleteFit",params:{schemaVersion:"0.1",fitId:"fit-1"}});
+    response = {schemaVersion:"0.1",fitId:"fit-2"}; await expect(port.deleteFit("fit-1")).rejects.toThrow("delete_fit_invalid");
+  });
+  it("tolerates an optional fit list on assembly plans", async () => {
+    const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"a".repeat(64),selection,inputs:[],editor:run.editor,projectRoot:run.projectRoot,preserveOriginals:true,officialSdkChecks:"not_run",
+      fits:[{sourceId:"coat",fitId:"fit-1",name:"Coat fit"},{sourceId:"other",fitId:null,name:null}]};
+    let response: unknown = plan;
+    const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.plan("n3-test",selection)).fits?.[0]?.fitId).toBe("fit-1");
+    const {fits: _missing, ...withoutFits} = plan; response = withoutFits;
+    expect((await port.plan("n3-test",selection)).fits).toBeUndefined();
+    response = {...plan,fits:[{sourceId:"coat",fitId:7,name:"Coat fit"}]}; await expect(port.plan("n3-test",selection)).rejects.toThrow("plan_invalid");
+    response = {...plan,fits:"none"}; await expect(port.plan("n3-test",selection)).rejects.toThrow("plan_invalid");
   });
   it("binds comparison and execution to the chosen observed Avatar", async () => {
     const plan = {runId:"n3-test",recipeId:"recipe-test",title:"Recipe",avatarName:"Same name",avatarGlobalObjectId:"other-avatar",planDigest:"d".repeat(64),retainedOutfits:0,overlayBlocker:null,

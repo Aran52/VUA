@@ -48,7 +48,7 @@ impl AmfProductionPlatform for ReleasePlatform {
     fn create_project(&self, _: &ProductionRun, _: &TaskContext) -> Result<(), AppErrorV1> { unused() }
     fn import_sources(&self, _: &ProductionRun, _: &TaskContext) -> Result<Vec<PreparedSource>, AppErrorV1> { unused() }
     fn inspect(&self, _: &ProductionRun, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> { unused() }
-    fn assemble(&self, _: &ProductionRun, _: &AssemblySelection, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> { unused() }
+    fn assemble(&self, _: &ProductionRun, _: &AssemblySelection, _: &[OutfitFit], _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> { unused() }
     fn fingerprint(&self, project: &Path) -> Result<String, AppErrorV1> {
         fs::read_to_string(project.join("Assets/state")).map_err(|e| production_error("test_io", e.to_string()))
     }
@@ -134,7 +134,7 @@ impl Harness {
     fn receipt(&self, outcome: &str, blueprint: Option<&str>, reason: Option<&str>) {
         *self.platform.receipt.lock().unwrap() = Some(UploadReceipt { outcome: outcome.into(), blueprint_id: blueprint.map(str::to_owned),
             first_upload: true, reason: reason.map(str::to_owned), detail: "SDK said\u{0000} so".into(), errors: vec!["Too many materials".into()],
-            sdk_sign_in: Some("panel".into()) });
+            sdk_sign_in: Some("panel".into()), sdk_review: None });
     }
 }
 impl Drop for Harness {
@@ -290,4 +290,23 @@ fn avatar_ids_and_names_have_a_fixed_shape() {
         assert!(!is_blueprint_id(id), "{id}");
     }
     assert_eq!(bounded_text("a\u{0001}b\nc", 3), "ab\n");
+}
+
+#[test]
+fn the_sdk_check_read_after_an_upload_replaces_the_line_facts() {
+    let h = Harness::new();
+    let fixed = json!({"state":"checked","platform":"pc","overall":"Good","detail":"","stats":[],
+        "issues":[{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]});
+    h.receipt("failed", None, Some("validation"));
+    h.platform.receipt.lock().unwrap().as_mut().unwrap().sdk_review = Some(fixed.clone());
+    assert!(h.upload("Meiyun T-shirt").is_err());
+    assert_eq!(h.engine.get(RUN).unwrap().result["facts"]["sdkReview"], fixed, "the player's Auto Fix shows even when the upload failed");
+
+    // A review the Editor could not read leaves the facts as they were.
+    h.receipt("succeeded", Some(AVATAR_ID), None);
+    h.platform.receipt.lock().unwrap().as_mut().unwrap().sdk_review = Some(json!({"state":"unavailable"}));
+    assert_eq!(h.upload("Meiyun T-shirt"), Ok(()));
+    let run = h.engine.get(RUN).unwrap();
+    assert_eq!(run.result["facts"]["sdkReview"], fixed);
+    assert_eq!(run.result["facts"]["avatarGlobalObjectId"], "GlobalObjectId_V1-avatar");
 }

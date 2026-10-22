@@ -3,7 +3,9 @@ import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
+import type { AiBuildIdentity } from "./ai-tool-results.js";
 import { aiConnectionStore, aiRequestStore } from "./ai-connection-store.js";
+declare const __VUA_BUILD_INFO__: AiBuildIdentity;
 import fs from "node:fs";
 import path from "node:path";
 import type {
@@ -455,7 +457,7 @@ function registerIpc(provider: ModuleProvider): void {
     assertAiSender(event); if (typeof enabled !== "boolean") throw new Error("invalid_ai_control"); return aiTools!.setEnabled(enabled);
   });
   for (const action of ["prompt", "copy-prompt"] as const) ipcMain.handle(`vua:ai-tools:${action}`, (event, locale: unknown) => {
-    assertAiSender(event); if (locale !== "en" && locale !== "zh-CN" && locale !== "ja" && locale !== "ko") throw new Error("invalid_ai_locale");
+    assertAiSender(event); if (locale !== "en" && locale !== "zh-CN" && locale !== "zh-TW" && locale !== "ja" && locale !== "ko") throw new Error("invalid_ai_locale");
     const prompt = aiTools!.prompt(locale as AiConnectionLocale);
     if (action === "copy-prompt") { clipboard.writeText(prompt); return; } return prompt;
   });
@@ -1890,6 +1892,7 @@ app.whenReady().then(async () => {
   });
   aiTools = new AiToolsServer({
     version: app.getVersion(), ...aiConnectionStore(app.getPath("userData"), safeStorage), ...aiRequestStore(app.getPath("userData")),
+    build: typeof __VUA_BUILD_INFO__ === "undefined" ? (await import("../../scripts/build-info.mjs")).buildInfo : __VUA_BUILD_INFO__,
     invoke: request => routeDesktopGatewayInvoke({ provider: provider!, productVersion: app.getVersion(),
       platform: process.platform as "win32" | "darwin" | "linux", rendererUrl,
       resolveMaterialSource: resolveProductionContext, launchAmfEditor: runId => launchAmfEditor(provider!, runId),

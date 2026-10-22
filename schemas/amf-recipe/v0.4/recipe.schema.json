@@ -147,6 +147,158 @@
         "type": "string",
         "pattern": "^[a-zA-Z0-9.+-]{1,80}$"
       }
+    },
+    "adjustments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lighting",
+        "sdkFixes"
+      ],
+      "properties": {
+        "lighting": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "material",
+              "min",
+              "max"
+            ],
+            "properties": {
+              "material": {
+                "type": "string",
+                "maxLength": 2048,
+                "pattern": "^Assets/(?![.]{1,2}(?:/|$))(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*[\\\\:\\u0000])(?!.*//).+\\.mat$"
+              },
+              "min": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$"
+              },
+              "max": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$"
+              }
+            }
+          }
+        },
+        "sdkFixes": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600,
+            "pattern": "^[^\\u0000]+$"
+          }
+        },
+        "fits": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "materialId",
+              "objects"
+            ],
+            "properties": {
+              "materialId": {
+                "type": "string",
+                "pattern": "^m-[a-f0-9]{64}$"
+              },
+              "objects": {
+                "type": "array",
+                "maxItems": 2048,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "localPosition",
+                    "localRotation",
+                    "localScale"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    "localPosition": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "x",
+                        "y",
+                        "z"
+                      ],
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "localRotation": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "x",
+                        "y",
+                        "z",
+                        "w"
+                      ],
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        },
+                        "w": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "localScale": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "x",
+                        "y",
+                        "z"
+                      ],
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

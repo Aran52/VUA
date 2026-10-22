@@ -291,8 +291,8 @@ so the panel starts signed in, and each upload record names where its sign-in ca
 1. Design session with the author: which screens, and whether a style may recolor the module
    colors. The first two styles come from the author's briefs; the current purple style stays
    as the default:
-   - **Y2K**: aqua and white, bandages, pills, angel wings, flat;
-   - **Jirai-kei**: pink and black, lace, energy drinks, leather, dimensional.
+   - **天使界隈 (Tenshi)**: sky blue and white, wings and halos, bandages, pills, flat;
+   - **地雷系 (Jirai)**: pink and black, lace, bows, energy drinks, leather, dimensional.
 2. Move remaining literal values into tokens (colors, radii, shadows, font sizes, timings).
 3. A style is token data plus its motifs (patterns, icons, textures), checked against a schema
    and switched with one click in Appearance and the command palette; contrast is checked per

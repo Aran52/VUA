@@ -86,7 +86,6 @@ export function ResourceMonitor() {
       <MeterRow label={copy.vram} percent={view.vramPct}
         detail={snapshot.vramUsedBytes !== null && snapshot.vramTotalBytes !== null ? formatGigabytes(snapshot.vramUsedBytes) + " / " + formatGigabytes(snapshot.vramTotalBytes) + " GB" : undefined} />
       {snapshot.gpuKind === "integrated" ? <p className="vua-usage-panel__note">{copy.sharedMemory}</p> : null}
-      <div className="vua-usage-panel__footer"><p className="vua-usage-panel__note">{format(copy.summaryNote, { count: view.measuredCount })}</p></div>
     </div>, document.body) : null}
   </>;
 }

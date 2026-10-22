@@ -30,9 +30,6 @@ export const DESTRUCTIVE_CONFIRM_DELAY_MS = 1000;
 /** 切换项目时表格区骨架行数(与最终行高一致,防跳动) */
 export const SKELETON_ROW_COUNT = 8;
 
-/** 应用结果 toast 的停留毫秒数 */
-export const TOAST_DURATION_MS = 4000;
-
 /* ---- 查询与筛选 ---- */
 
 export interface PackageQuery {

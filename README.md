@@ -47,13 +47,13 @@ Project and package management prepares the required Unity environment and depen
 
 ## Development progress
 
-[v0.6.7 Ibis (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7) provides online and offline Windows x64 NSIS installers, with AMF bundled. Installation selects a reachable verified runtime mirror, reuses compatible runtime files and supports independent AMF file updates. Development follows the [N1–N7 sequence](docs/development-outline.md).
+[v0.7.0 Stone Age (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) brings the first Avatar production path: choose an Avatar and outfits from your library, and VUA assembles them in its own Unity project, checks them with the VRChat SDK and uploads after you confirm. Online and offline Windows x64 NSIS installers include AMF. Development follows the [N1–N7 sequence](docs/development-outline.md).
 
-The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.6.7 scope, checks and limitations (Chinese)](docs/release/v0.6.7.md).
+The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.7.0 scope, checks and limitations](docs/release/v0.7.0.md).
 
 ### Current delivery and starting points
 
-- Download **VUA-0.6.7-windows-x64-setup.exe** from the [official download page](https://ph-r.com/projects/vua/#download) or [GitHub release](https://github.com/VUA-Project/VUA/releases/tag/v0.6.7), or choose **VUA-0.6.7-windows-x64-offline.exe** when downloads are unreliable. Both sources serve the same files. Run the installer, then open VUA from the Start menu. Node, pnpm, Rust and a source checkout are not needed. This build is unsigned; Windows may display an unfamiliar-publisher warning.
+- Download **VUA-0.7.0-windows-x64-setup.exe** from the [official download page](https://ph-r.com/projects/vua/#download) or [GitHub release](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0), or choose **VUA-0.7.0-windows-x64-offline.exe** when downloads are unreliable. Both sources serve the same files. Run the installer, then open VUA from the Start menu. Node, pnpm, Rust and a source checkout are not needed. This build is unsigned; Windows may display an unfamiliar-publisher warning.
 - Start with the first-use tour and guide, or open Play, Tools or Avatar editing directly. AMF is enabled for new users and can be disabled in Settings → Modules. Steam/PICO/Unity/account actions remain with their official applications.
 - To update VUA, finish your work, exit VUA and run the new installer. AMF also supports separate updates through Settings → Modules or About, followed by an explicit restart. Application data remains in `%APPDATA%\VUA`. Existing ZIP users can switch to the installer while retaining that profile. The release notes name remaining tests and manual handoffs. Use [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) for problems.
 - For developers: [install dependencies, launch the desktop app and select checks](apps/desktop/README.md#development-commands), then follow [Contributing](CONTRIBUTING.md).
@@ -63,7 +63,7 @@ The project remains in Beta. Publication does not declare N1/N5 or other pending
 - [Documentation guide](docs/README.md) — the smallest route for every task
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
-- [v0.6.7 release notes (Chinese)](docs/release/v0.6.7.md)
+- [v0.7.0 release notes](docs/release/v0.7.0.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ## License

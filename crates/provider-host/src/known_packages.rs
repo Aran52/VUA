@@ -95,6 +95,44 @@ const VRCHAT_SDK_LICENSE: &str = "https://hello.vrchat.com/legal/sdk";
 const CHECKED: &str = "2026-10-18";
 
 pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
+    // FT assets are not shaders. Preserve imported creator copies and guide installation
+    // until an adapter pins a compatible template/SDK/renderer mapping.
+    KnownPackage {
+        id: "adjerry91.vrcft.templates",
+        display_name: "Jerry's VRCFT Templates",
+        feed_url: "https://adjerry91.github.io/VRCFaceTracking-Templates/index.json",
+        official_url: "https://github.com/Adjerry91/VRCFaceTracking-Templates",
+        license: "MIT",
+        license_url: "https://github.com/Adjerry91/VRCFaceTracking-Templates/blob/main/LICENSE.md",
+        license_checked: "2026-10-20",
+        delivery: Delivery::Guide,
+        material_markers: &[], shader_guids: &[], version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
+    },
+    KnownPackage {
+        id: "net.pawlygon.vrc-facetracking",
+        display_name: "Pawlygon Face Tracking",
+        feed_url: "https://vcc.pawlygon.net/index.json",
+        official_url: "https://github.com/PawlygonStudio/VRC-Facetracking",
+        license: "MIT",
+        license_url: "https://github.com/PawlygonStudio/VRC-Facetracking/blob/main/LICENSE.md",
+        license_checked: "2026-10-20",
+        delivery: Delivery::Guide,
+        material_markers: &[], shader_guids: &[], version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
+    },
+    KnownPackage {
+        id: "com.vrcfury.vrcfury",
+        display_name: "VRCFury",
+        feed_url: "https://vcc.vrcfury.com",
+        official_url: "https://vrcfury.com/download/",
+        license: "Source-available; direct end-user download required for commercial use",
+        license_url: "https://github.com/VRCFury/VRCFury/blob/main/LICENSE.md",
+        license_checked: "2026-10-20",
+        delivery: Delivery::Guide,
+        material_markers: &[], shader_guids: &[], version_lines: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered, legacy_folders: &[], legacy_files: &[],
+    },
     KnownPackage {
         id: "jp.lilxyzw.liltoon",
         display_name: "lilToon",
@@ -733,6 +771,19 @@ const TOON_STANDARD_GUIDS: &[&str] = &[
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn face_tracking_packages_do_not_install_or_strip_creator_content() {
+        for id in ["adjerry91.vrcft.templates", "net.pawlygon.vrc-facetracking", "com.vrcfury.vrcfury"] {
+            let index = super::KNOWN_PACKAGES.iter().position(|p| p.id == id).unwrap();
+            let package = &super::KNOWN_PACKAGES[index];
+            assert_eq!(package.delivery, super::Delivery::Guide);
+            let action = super::package_action(super::KNOWN_PACKAGES, index, &super::PackageNeed::default(),
+                &super::LegacyCopy { present: true, ..Default::default() },
+                &std::collections::HashMap::new(), None, false);
+            assert!(action.install.is_none() && !action.replace_legacy);
+        }
+        assert!(super::detect_material(super::KNOWN_PACKAGES, b"JawOpen FT/VRCFT/v2/EyeClosedLeft").is_none());
+    }
     use super::*;
 
     const POIYOMI_92: &str = "104003ab15a9f7a47b6ef0597225e771";

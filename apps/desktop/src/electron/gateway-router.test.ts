@@ -1249,6 +1249,50 @@ describe("amf-production v0.2 routing", () => {
       {schemaVersion:1,requestId:"lighting-bad",method:"amf.production.applyLighting",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:"bad",materials:["Assets/Outfit/Coat.mat"]}});
     expect(invoke).not.toHaveBeenCalled();
   });
+  it("forwards the revision plan as a query and its restore as a digest-bound command", async () => {
+    const provider = new MockOrchestratorProviderV01();
+    await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"revision-1",method:"amf.production.revisionPlan",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1"}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"query",method:"amf.production.revisionPlan",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1"}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"revision-2",method:"amf.production.restoreRevision",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:"b".repeat(64)}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-revision-2",method:"amf.production.restoreRevision",
+      params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:"b".repeat(64)}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"revision-bad",method:"amf.production.restoreRevision",params:{schemaVersion:"0.1",runId:"n3-test",revisionId:"rev-1",planDigest:"bad"}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
+  it("forwards saved fits as a query and three synchronous commands", async () => {
+    const provider = new MockOrchestratorProviderV01();
+    await provider.start();
+    const invoke = vi.spyOn(provider, "invoke");
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"fit-1",method:"amf.production.listFits",params:{schemaVersion:"0.1"}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"query",method:"amf.production.listFits",params:{schemaVersion:"0.1"}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"fit-2",method:"amf.production.saveFit",params:{schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:"b".repeat(64)}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-fit-2",method:"amf.production.saveFit",
+      params:{schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:"b".repeat(64)}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"fit-3",method:"amf.production.renameFit",params:{schemaVersion:"0.1",fitId:"fit-1",name:"Renamed fit"}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-fit-3",method:"amf.production.renameFit",
+      params:{schemaVersion:"0.1",fitId:"fit-1",name:"Renamed fit"}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"fit-4",method:"amf.production.deleteFit",params:{schemaVersion:"0.1",fitId:"fit-1"}});
+    expect(invoke).toHaveBeenCalledWith(expect.objectContaining({kind:"command",commandId:"amf-fit-4",method:"amf.production.deleteFit",
+      params:{schemaVersion:"0.1",fitId:"fit-1"}}));
+    invoke.mockClear();
+    await routeDesktopGatewayInvoke({provider,productVersion:"0.6.7",platform:"win32",rendererUrl}, `${rendererUrl}/`,
+      {schemaVersion:1,requestId:"fit-bad",method:"amf.production.saveFit",params:{schemaVersion:"0.1",runId:"n3-test",sourceId:"outfit",name:"Coat fit",changesDigest:"bad"}});
+    expect(invoke).not.toHaveBeenCalled();
+  });
   const quad = {
     sourceFolder: "C:/materials/source",
     projectRoot: "C:/projects/target",

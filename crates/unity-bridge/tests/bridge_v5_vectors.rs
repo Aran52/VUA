@@ -11,6 +11,25 @@ fn read(file: &str) -> Value {
 }
 
 #[test]
+fn face_tracking_is_optional_source_evidence_and_patch_requires_a_bound_write() {
+    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    assert!(old.data.get("faceTracking").is_none());
+    let value = read("examples/face-tracking.valid.result.json");
+    vua_orchestrator::amf_production::validate_face_tracking(&value["data"]["faceTracking"]).unwrap();
+    for file in ["invalid-face-tracking-runtime.result.json", "invalid-face-tracking-cost.result.json"] {
+        assert!(vua_orchestrator::amf_production::validate_face_tracking(&read(&format!("examples/{file}"))["data"]["faceTracking"]).is_err());
+    }
+    let command = read("examples/face-tracking.valid.command.json");
+    let operation: UnityOperation = serde_json::from_value(command["operation"].clone()).unwrap();
+    assert_eq!(operation, UnityOperation::AmfFtPatch);
+    assert!(operation.is_mutating() && command["dryRun"] == false);
+    assert!(command["expectedProjectFingerprint"].is_string());
+    let patch: vua_orchestrator::amf_production::FaceTrackingPatch =
+        serde_json::from_value(read("examples/face-tracking.valid.plan.json")["faceTrackingPatch"].clone()).unwrap();
+    assert!(patch.confirm_trusted_code);
+}
+
+#[test]
 fn candidate_bridge_schemas_refuse_legacy_ops_drift_and_false_sdk_claims() {
     for entry in fs::read_dir(root().join("examples")).unwrap() {
         let path = entry.unwrap().path();
@@ -105,6 +124,36 @@ fn full_inspection_result_carries_the_sdk_review_and_every_observed_field() {
     assert_eq!(material_use[2]["owner"], "source-outfit");
 }
 
+/// Results carry optional fit facts; results written before fits existed stay valid, and
+/// the Unity side may always emit both lists (empty when nothing moved).
+#[test]
+fn fit_facts_are_optional_and_bounded() {
+    let validator = jsonschema::validator_for(&read("result.schema.json")).unwrap();
+    let full = read("examples/inspection-full.valid.result.json");
+    let result: UnityResult = serde_json::from_value(full.clone()).unwrap();
+    let changes = result.data["fitChanges"].as_array().unwrap();
+    assert_eq!(changes[0]["sourceId"], "source-outfit");
+    assert_eq!(changes[0]["moved"][0]["path"], "HairClip");
+    assert_eq!(changes[0]["moved"][0]["localScale"]["x"], 1.0);
+    assert_eq!(changes[0]["missing"][0], "OldHook");
+    assert_eq!(result.data["fitSkipped"][0]["sourceId"], "source-accessory");
+    assert_eq!(result.data["fitSkipped"][0]["paths"][0], "Clips#2");
+    let mut without = full.clone();
+    without["data"].as_object_mut().unwrap().remove("fitChanges");
+    without["data"].as_object_mut().unwrap().remove("fitSkipped");
+    assert!(validator.is_valid(&without));
+    let mut empty = full.clone();
+    empty["data"]["fitChanges"] = Value::Array(vec![]);
+    empty["data"]["fitSkipped"] = Value::Array(vec![]);
+    assert!(validator.is_valid(&empty), "JsonUtility always emits both lists");
+    let mut broken = full;
+    broken["data"]["fitChanges"][0]["moved"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("localScale");
+    assert!(!validator.is_valid(&broken));
+}
+
 /// Results written before material use existed stay valid; the list is capped at 512 entries.
 #[test]
 fn material_use_is_optional_and_bounded() {
@@ -138,4 +187,18 @@ fn sdk_fix_result_names_the_items_the_sdk_actually_fixed() {
         .iter()
         .any(|issue| issue["text"] == applied[0] && issue["canFix"] == true));
     assert_eq!(data["officialSdkChecks"], "not_run");
+}
+
+#[test]
+fn creator_menu_schema_accepts_custom_roots_without_native_commands_or_shortcuts() {
+    let validator = jsonschema::validator_for(&read("result.schema.json")).unwrap();
+    let mut result = read("examples/face-tracking.valid.result.json");
+    for path in ["Tools/Creator/Apply", "Creator FT/Apply"] {
+        result["data"]["faceTracking"]["patchMenus"][0]["menuPath"] = path.into();
+        assert!(validator.is_valid(&result), "{path}");
+    }
+    for path in ["Assets/Apply", "Window/Apply", "Tools//Apply", "Tools/Apply %g", "Tools/Apply _g", "Tools/"] {
+        result["data"]["faceTracking"]["patchMenus"][0]["menuPath"] = path.into();
+        assert!(!validator.is_valid(&result), "{path}");
+    }
 }

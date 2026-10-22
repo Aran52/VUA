@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Tenshi pill</title>
+  <g transform="rotate(-40 12 12)">
+  <rect x="3" y="8" width="18" height="8" rx="4" stroke-width="1.8"/>
+  <path d="M12 8V16" stroke-width="1.8"/>
+  <path d="M12 8H17A4 4 0 0 1 17 16H12Z" fill="currentColor" fill-opacity="0.3" stroke="none"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai room plate with ribbon tails</title>
+  <rect x="30" y="10" width="160" height="30" rx="8" fill="currentColor" fill-opacity="0.1" stroke-width="2"/>
+  <path d="M44 40L36 54L46 49L52 54L54 40M176 40L184 54L174 49L168 54L166 40" fill="currentColor" fill-opacity="0.2" stroke-width="1.6"/>
+  <path d="M30 40Q35 44 40 40Q45 44 50 40Q55 44 60 40Q65 44 70 40Q75 44 80 40Q85 44 90 40Q95 44 100 40Q105 44 110 40Q115 44 120 40Q125 44 130 40Q135 44 140 40Q145 44 150 40Q155 44 160 40Q165 44 170 40Q175 44 180 40Q185 44 190 40" stroke-width="1.2" stroke-opacity="0.7"/>
+  <path d="M30 23.4C25.2 16.2 18.8 17.8 19.6 22.6C20.4 28.2 26 27.4 30 25Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M30 23.4C34.8 16.2 41.2 17.8 40.4 22.6C39.6 28.2 34 27.4 30 25Z" fill="currentColor" fill-opacity="0.22" stroke-width="1.8"/>
+  <path d="M28.8 25.8L25.2 35.4L27.6 34.2L28.8 36.2L30 26.6" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <path d="M31.2 25.8L34.8 35.4L32.4 34.2L31.2 36.2L30 26.6" fill="currentColor" fill-opacity="0.22" stroke-width="1.6"/>
+  <rect x="27.92" y="22.28" width="4.16" height="4.96" rx="1.6" fill="currentColor" stroke="none"/>
+</svg>

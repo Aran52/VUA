@@ -1,21 +1,23 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.11.0
+> Document version: 0.14.0
 > Status: Candidate
-> Updated: 2026-10-19
+> Updated: 2026-10-21
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect`, `amf_assemble` and `amf_turntable`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix` and `amf_ft_patch`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
 Other legacy envelope payload fields have no v5 semantics. This request is separate from frozen
 Recipe/production-plan files. `dryRun` is true only for inspection.
 The file's closed format is `schemaVersion: "0.1"`, `runId`, `sources` (sourceId/role/assetPaths)
-and `selection`, with optional `applyTarget` for Recipe application. Mutating assembly requires an exact current fingerprint and a saved
+and `selection`, with optional `applyTarget` for Recipe application. An outfit may carry `fit`,
+saved per-object local Transforms the Bridge writes into the new instance after binding. Mutating
+assembly requires an exact current fingerprint and a saved
 managed scene. It validates all prefab/target/menu inputs before changes.
 
 Preparation creates a new empty managed work scene and refuses an existing scene. Inspection
@@ -148,13 +150,16 @@ project it is installed into.
    are `sdk_panel`, `sign_in`, `checking`, `building`, `uploading` and `finishing`; VUA adds
    `starting` before the Editor answers. `progress` is the upload share from 0 to 1, or -1.
 5. It ends with one `.vua/bridge/amf-upload.result.json`: `{runId, uploadId, outcome, blueprintId,
-   reason, detail, errors, firstUpload, sceneSaved}`. `outcome` is `succeeded`, `failed` or
+   reason, detail, errors, firstUpload, sceneSaved, sdkReview}`. `outcome` is `succeeded`, `failed` or
    `cancelled`. `reason` names why an upload did not succeed: `sign_in_required`,
    `no_publish_permission`, `validation` (with the SDK's `errors`), `ownership`,
    `agreement_declined`, `build`, `build_blocked`, `upload`, `thumbnail_missing`, `avatar_missing`,
    `scene_not_saved`, `interrupted`, `editor_unavailable`, `timeout`, `cancelled` or `unknown`;
    `detail` carries the SDK's own message. After a first upload the SDK writes the new blueprint ID
    into the scene, and the observer saves the work scene so later uploads update the same Avatar.
+   `sdkReview` is the SDK's Avatar check read again once the upload ends, in the shape inspection
+   reports it, so an Auto Fix the player made in the SDK panel during the upload reaches VUA; it
+   stays `not_run` when the work scene or the Avatar is not open.
 
 Stop writes `.vua/bridge/amf-upload.cancel` with the upload ID; the observer cancels the SDK's
 token and answers `cancelled`. A domain reload ends a running upload: the observer remembers the
@@ -169,8 +174,82 @@ The caller additionally validates schema version, operation, command identity an
 The v5 source files are installed only into a real-SDK/MA production project, and are excluded
 from legacy conversion scaffolds that intentionally use minimal compile stubs.
 
+## Saved fits
+
+After a successful `amf_assemble` the Bridge records a fit baseline in
+`.vua/amf-fit-baseline.json`: for each owned garment (`sourceId`, ownership `ownerKey`) every
+object of the instance with its local position, rotation (quaternion) and scale, addressed by a
+path relative to the instance root — `/` separated child names, `name#n` (1-based) for the n-th
+same-name sibling, the empty path for the instance root itself. The baseline covers the prefab's
+own offsets. A partial (Recipe `applyTarget`) assembly updates the baseline only for the garments
+it wrote and keeps the rest. The baseline lives in the managed project, not in Unity assets.
+
+Observation — inspection, and the observation after assembly and SDK fixes — compares each
+baseline object against the scene: position or scale differences past 0.0001 units, or a rotation
+past 0.01°, are reported in `data.fitChanges` as `{sourceId, moved, missing}` per garment.
+`moved` carries each changed path with its new local Transform; `missing` names baseline paths
+whose object is gone, which is not an error. Garments without changes are omitted. The same
+comparison runs when the player saves the work scene in the Editor (interface mode only): the
+observer atomically writes `.vua/bridge/amf-fit-changes.json` —
+`{schemaVersion: "0.1", runId, writtenAt, fitChanges}` — only for the run the marker names and
+only for the work scene; a failure there logs a warning and never interrupts the save. A fresh
+assembly deletes a pending report.
+
+An outfit's `fit` in the request is a list of saved local Transforms in the same shape. The
+Bridge applies them to the new instance right after binding, by the same path rule; paths the
+instance does not have are skipped and reported in `data.fitSkipped` as `{sourceId, paths}`,
+never a failure. The baseline is recorded after application, so an applied fit is not itself
+reported as a move. Results written before these facts existed carry no `fitChanges` or
+`fitSkipped`.
+
+## Face tracking
+
+Optional `data.faceTracking` has `schemaVersion: "0.1"`, `evidence: "unity_source"`, a UTC
+`observedAt`, `state: no_avatar | observed | partial`, `truncated`, `manualReplayRequired`,
+`runtime: "unknown"` and `builtParameterBudget: "unknown"`. Absence is compatible with older
+results. `meshes` contains at most 128 separate SkinnedMeshRenderer observations: relative
+renderer path, shape count, missing-mesh flag and exact matched names for `arkit52-v1` (52),
+`unified-core12-v1` (12) and `sranipal-core12-v1` (12). The latter two are deliberately named
+subsets, not complete UE/SRanipal standards. Coverage is never combined across renderers.
+
+`parameters` lists up to 1024 distinct FT-like names from source Animator controllers,
+MA Merge Animator controllers and descriptor expression parameters. Names using any prefix before `/v2/`, known control names,
+`FT/`/`VRCFT/` prefixes or the detection vocabularies are hints. `components` lists up to 64
+MA/VRCFury/Pawlygon integration component type names, which do not prove FT wiring.
+`expressionParametersObserved` says whether the descriptor's expression-parameter list could
+be read. Only when true does `sourceSyncedParameterBits` describe its synced cost (Bool 1,
+Int/Float 8, unsynced 0); otherwise the field is zero and must not be displayed as a measured
+budget. NDMF/VRCFury build-time changes are outside this source observation.
+
+`patchMenus` lists at most 64 unique imported creator menus under `Tools/` or a custom top-level
+root, with `id`, `sourceId`,
+`scriptPath` and `menuPath`. IDs hash the exact source/script/menu identity. Discovery reads
+MenuItem metadata without executing methods or validators. It excludes duplicate registrations,
+context/built-in paths, shortcuts, ambiguous source ownership, unsupported signatures and
+types which MonoScript cannot resolve. This is a bounded list of possible creator entry points,
+not a claim that every menu performs FT. Missing results require creator-specific follow-up;
+there is no arbitrary-string fallback.
+
+`amf_ft_patch` requires `dryRun: false`, the current `expectedProjectFingerprint`, and plan
+`faceTrackingPatch: {menuId, avatarGlobalObjectId, confirmTrustedCode: true}`. Batch mode is
+rejected before dispatch. In the dedicated GUI process, the Bridge verifies the owned Avatar,
+its assembled selection and the freshly rediscovered menu. It persists dispatch state in
+Unity SessionState before executing the menu once. Domain reload only reopens VUA's completion
+window; process restart cannot resume it.
+
+Finish saves the single managed scene and checks the original Avatar/outfit relationships,
+writes `ProjectSettings/VUA.FaceTracking.json` with local source/menu/command identities and manual replay
+status, then emits the bound successful receipt and exits. Cancel exits without success.
+The parent engine owns the snapshot and independent batch recheck; no Bridge menu success
+alone declares FT functional. The operation's listed changed paths are the managed scene and
+marker, not an exhaustive claim about opaque creator writes.
+
 ## Document changelog
 
+- 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
+
+- 0.13.0 (2026-10-20): record a per-garment local-Transform fit baseline after assembly, report moved and missing objects as `fitChanges` (also from scene saves in the open Editor), and apply request `fit` transforms with per-path skips reported as `fitSkipped`.
+- 0.12.0 (2026-10-20): the upload receipt carries `sdkReview`, the SDK's Avatar check read again after the upload.
 - 0.11.0 (2026-10-19): report the active Avatar's renderer material use (`materialUse`) after inspection and assembly, bounded and attributed to the Avatar or the owning outfit.
 - 0.10.1 (2026-10-19): the result schema covers every field Unity writes, verified against real preparation, inspection, assembly and turntable results; SDK fix results are covered by a synthetic vector.
 - 0.10.0 (2026-10-18): `amf_sdk_fix` runs the SDK's own Auto Fix for chosen items of its Avatar check.

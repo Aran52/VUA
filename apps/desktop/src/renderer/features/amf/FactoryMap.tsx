@@ -1,6 +1,7 @@
 /** AMF base map: the factory as a building cross-section. A click zooms into a room and shows its
  * interior; the room's Enter button or a double click opens its page. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { Icon } from "@vua/design-system";
 import { useGateway, type AmfProductionList, type AmfProductionRun } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -153,8 +154,8 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
     <div className="vua-factory__scene">{bodies[id].interior}</div>
     <div className="vua-factory__label">
     <span className="vua-factory__plate"><span className="vua-factory__tag">{copy.rooms[id].tag}</span><Icon name={ROOM_ICONS[id]} size={20}/></span>
-    <button type="button" className="vua-factory__name" data-nav-id={`room-${id}`} aria-expanded={zoomed === id}
-      onClick={event => { event.stopPropagation(); setZoomed(zoomed === id ? null : id); }}>{copy.rooms[id].name}</button>
+    <Tooltip content={zoomed === id ? null : copy.roomTip}><button type="button" className="vua-factory__name" data-nav-id={`room-${id}`} aria-expanded={zoomed === id}
+      onClick={event => { event.stopPropagation(); setZoomed(zoomed === id ? null : id); }}>{copy.rooms[id].name}</button></Tooltip>
     <span className="vua-factory__hint">{copy.rooms[id].hint}</span>
     <span className="vua-factory__body">{bodies[id].status}</span>
     <button type="button" className="vua-factory__enter" data-nav-id={`enter-${id}`} onClick={event => { event.stopPropagation(); navigate(ROOM_PAGES[id]); }}>
@@ -164,7 +165,7 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
 
   return <div className="vua-page vua-factory" data-focus-scope>
     <header className="vua-factory__command">
-      <div><h1 className="vua-title">{copy.mapTitle}</h1><p className="vua-text-secondary">{zoomed ? copy.rooms[zoomed].hint : copy.mapIntro}</p></div>
+      <h1 className="vua-title">{copy.mapTitle}</h1>
       <div className="vua-factory__alerts" role="status">
         {zoomed && <button type="button" className="vua-factory__alert" data-nav-id="map-overview" onClick={() => setZoomed(null)}><Icon name="arrow-left" size={16}/>{copy.overview}</button>}
         {waiting > 0 && <button type="button" className="vua-factory__alert" data-tone="waiting" onClick={() => navigate("workshop")}><Icon name="bell" size={16}/>{format(copy.waitingBanner, { count: waiting })}</button>}
@@ -190,6 +191,5 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
         <button type="button" className="vua-factory__enter" data-nav-id="enter-zoomed" onClick={() => navigate(ROOM_PAGES[zoomed])}>{copy.enter}<Icon name="arrow-right" size={16}/></button>
       </div>}
     </div>
-    <p className="vua-caption vua-text-secondary vua-factory__tip">{copy.mapTip}</p>
   </div>;
 }

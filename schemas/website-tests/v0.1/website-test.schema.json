@@ -19,7 +19,8 @@
         "url": { "$ref": "#/$defs/url" },
         "status": { "enum": ["reachable", "redirected", "http_error", "timeout", "connection_failed", "probe_error"] },
         "elapsedMs": { "type": "integer", "minimum": 0 },
-        "httpStatus": { "type": ["integer", "null"] }
+        "httpStatus": { "type": ["integer", "null"] },
+        "regional": { "$ref": "#/$defs/regional" }
       },
       "oneOf": [
         { "properties": { "status": { "const": "reachable" }, "httpStatus": { "type": "integer", "minimum": 200, "maximum": 299 } } },
@@ -27,6 +28,18 @@
         { "properties": { "status": { "const": "http_error" }, "httpStatus": { "type": "integer", "minimum": 400, "maximum": 599 } } },
         { "properties": { "status": { "enum": ["timeout", "connection_failed", "probe_error"] }, "httpStatus": { "type": "null" } } }
       ]
+    },
+    "regional": {
+      "type": "object", "additionalProperties": false,
+      "description": "Present only on a successful measurement of one of the four fixed regional reference origins; elapsedMs on that row holds the minimum sample.",
+      "required": ["medianMs", "p90Ms", "samples", "connections", "viaProxy"],
+      "properties": {
+        "medianMs": { "type": "integer", "minimum": 0 },
+        "p90Ms": { "type": "integer", "minimum": 0 },
+        "samples": { "type": "integer", "minimum": 1 },
+        "connections": { "type": "integer", "minimum": 1 },
+        "viaProxy": { "type": "boolean" }
+      }
     },
     "result": {
       "type": "object", "additionalProperties": false, "required": ["websiteTests"],

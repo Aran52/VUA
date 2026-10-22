@@ -50,14 +50,14 @@ export function OnboardingPage({ onComplete, onAccounts, embedded = false }: {
     setState(initialJourney);
     onComplete({ status: "completed", goals: ["env", "production"], environments: ["play", "create"], ...(page ? { page } : {}) });
   };
-  const choose = (title: string, description: string, step: JourneyStep, purpose?: DeploymentPurpose, kind?: "screen" | "headset" | "unity") =>
+  const choose = (title: string, description: string | undefined, step: JourneyStep, purpose?: DeploymentPurpose, kind?: "screen" | "headset" | "unity") =>
     <RouteTile title={title} description={description} {...(kind ? { kind } : {})} onClick={() => move(step, purpose ?? null)} id={`wizard-${step}-${purpose ?? title}`} />;
   const steps = copy.steps;
   const phase = ["network", "prepare"].includes(state.step) ? 1 : ["connection", "launch", "creator-done", "library"].includes(state.step) ? 2 : 0;
   const title = ({ goal: copy.goal, "play-mode": copy.playMode, headset: copy.headset, "creator-start": amf.state === "ready" ? copy.creatorStart : strings.amfModule.choose,
     target: copy.target, editor: copy.editor, network: copy.network, prepare: copy.prepare, connection: copy.connection,
     launch: copy.launch, library: copy.assetsGoal, "creator-done": copy.creatorReady })[state.step];
-  const hints: Partial<Record<JourneyStep, string>> = { goal: copy.goalHint, editor: copy.editorHint, network: copy.networkHint, prepare: copy.prepareHint, library: copy.assetsHint };
+  const hints: Partial<Record<JourneyStep, string>> = { editor: copy.editorHint, library: copy.assetsHint };
   const QuestionHeading = embedded ? "h2" : "h1";
   return <div className="vua-onboarding" data-wizard-step={state.step}>
     <div className="vua-onboarding__panel">
@@ -66,20 +66,20 @@ export function OnboardingPage({ onComplete, onAccounts, embedded = false }: {
       <header className="vua-onboarding__header"><QuestionHeading className="vua-display">{title}</QuestionHeading>{hints[state.step] ? <p className="vua-text-secondary">{hints[state.step]}</p> : null}</header>
       <div key={state.step} className="vua-journey-content vua-page-enter" data-focus-scope>
         {state.step === "goal" ? <div className="vua-route-grid">
-          {choose(copy.playGoal, copy.playHint, "play-mode", undefined, "screen")}
-          {choose(copy.createGoal, copy.createHint, "creator-start", undefined, "unity")}
+          {choose(copy.playGoal, undefined, "play-mode", undefined, "screen")}
+          {choose(copy.createGoal, undefined, "creator-start", undefined, "unity")}
         </div> : null}
         {state.step === "play-mode" ? <div className="vua-route-grid">
           {choose(copy.desktop, copy.desktopHint, "network", "desktop_play", "screen")}
-          {choose(copy.vr, copy.vrHint, "headset", undefined, "headset")}
+          {choose(copy.vr, undefined, "headset", undefined, "headset")}
         </div> : null}
         {state.step === "headset" ? <HeadsetChoices onPico={() => move("network", "pico_pcvr")} /> : null}
         {state.step === "creator-start" && amf.state !== "ready" ? <ModulesPage embedded onOpen={() => move("library")} /> : null}
         {state.step === "creator-start" && amf.state === "ready" ? <div className="vua-route-grid">
-          {choose(copy.assetsGoal, copy.assetsHint, "library")}{choose(copy.environmentGoal, copy.environmentHint, "target", undefined, "unity")}
+          {choose(copy.assetsGoal, copy.assetsHint, "library")}{choose(copy.environmentGoal, undefined, "target", undefined, "unity")}
         </div> : null}
         {state.step === "target" ? <div className="vua-route-grid">
-          {choose(copy.pcAvatar, copy.pcHint, "editor", "pc_avatar", "screen")}{choose(copy.questAvatar, copy.questHint, "editor", "quest_avatar", "headset")}
+          {choose(copy.pcAvatar, undefined, "editor", "pc_avatar", "screen")}{choose(copy.questAvatar, copy.questHint, "editor", "quest_avatar", "headset")}
         </div> : null}
         {state.step === "editor" ? <div className="vua-route-grid">
           <RouteTile title={copy.unity2022} kind="unity" onClick={() => move("prepare")} id="wizard-unity2022" />
@@ -95,7 +95,7 @@ export function OnboardingPage({ onComplete, onAccounts, embedded = false }: {
           <RouteTile title={copy.wifi} description={copy.wifiHint} icon="cloud" selected={state.connection === "wifi"} id="wizard-wifi" onClick={() => updateState({ ...state, connection: "wifi" })} />
         </div>{state.connection ? <div className="vua-journey-actions">
           <GuideEntryButton target={state.connection === "usb" ? GUIDE_TARGETS.picoUsb : GUIDE_TARGETS.picoWifi} label={copy.guide} />
-          <p>{copy.declared}</p><Button variant="primary" onClick={() => move("launch")}>{copy.connectionConfirm}</Button>
+          <Button variant="primary" onClick={() => move("launch")}>{copy.connectionConfirm}</Button>
         </div> : null}</> : null}
         {state.step === "launch" ? <><PlayLaunch onAccounts={onAccounts} /><Button variant="subtle" onClick={() => done("home")}>{copy.finish}</Button></> : null}
         {state.step === "library" && amf.state !== "ready" ? <ModulesPage embedded onOpen={() => done("warehouse")} /> : null}

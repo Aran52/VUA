@@ -17,6 +17,11 @@ export const quitCopy = {
     detail: "退出会停止它。Avatar 的工作工程和素材会保留，重新检查后即可继续。",
     stop: "停止并退出", tray: "在托盘中继续", cancel: "取消",
   },
+  "zh-TW": {
+    message: "VUA 還有任務在執行。",
+    detail: "退出會停止它。Avatar 的工作專案和素材會保留，重新檢查後即可繼續。",
+    stop: "停止並退出", tray: "在系統匣中繼續", cancel: "取消",
+  },
   ja: {
     message: "VUA でタスクを実行中です。",
     detail: "終了するとタスクは止まります。アバターの作業プロジェクトと素材は残り、再チェックから続けられます。",
@@ -32,7 +37,7 @@ export const quitCopy = {
 export function quitStrings(locale: string | null | undefined): typeof quitCopy[keyof typeof quitCopy] {
   if (locale && Object.hasOwn(quitCopy, locale)) return quitCopy[locale as keyof typeof quitCopy];
   const language = (locale ?? "").toLowerCase();
-  return language.startsWith("zh") ? quitCopy["zh-CN"] : language.startsWith("ja") ? quitCopy.ja : language.startsWith("ko") ? quitCopy.ko : quitCopy.en;
+  return /^zh-(hant|tw|hk|mo)(-|$)/.test(language) ? quitCopy["zh-TW"] : language.startsWith("zh") ? quitCopy["zh-CN"] : language.startsWith("ja") ? quitCopy.ja : language.startsWith("ko") ? quitCopy.ko : quitCopy.en;
 }
 
 /** Tasks that have not reached a final state; a provider that does not answer in time counts none. */

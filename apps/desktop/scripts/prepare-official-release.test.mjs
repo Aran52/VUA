@@ -41,7 +41,7 @@ test("official mirror exports verified immutable bytes, metadata and clear plann
     assert.equal(latest.html_url, "https://ph-r.com/vua/releases/v0.6.7/");
     assert.equal(latest.manifest_sha256, digest(Buffer.from(envelope)));
     const page = fs.readFileSync(path.join(output, "project-vua.html"), "utf8");
-    assert.match(page, /AMF 正在开发的方向/); assert.match(page, /自动改模/); assert.match(page, /Recipe 配方/);
+    assert.match(page, /AMF Avatar 工厂/); assert.match(page, /自动改模/); assert.match(page, /Recipe 配方/);
     assert.match(page, /v0.6.7 内置更新检查仍使用 GitHub/);
     assert.doesNotMatch(page, /<style>|style=/);
     assert.match(page, /href="\/vua\/downloads\/style.css"/);

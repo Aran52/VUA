@@ -30,11 +30,14 @@ no body. That expected response is usable for timing without an account, cloud p
 file download; it does not establish successful API access. Other HTTP errors, rate limits,
 redirects and transport failures remain errors rather than latency numbers.
 
-The four references first perform one HEAD to establish a connection and discard its timing,
-then report the median of three subsequent HEAD response-header timings on the pooled connection.
+Each of the four references opens three independent connections and discards one warm-up HEAD
+per connection, concurrently; nine sampling rounds then take one HEAD per region in Tokyo,
+US West, US East, Europe order, at least 150 ms apart per region. `elapsedMs` reports the
+minimum kept sample, with the median, nearest-rank p90, sample and connection counts alongside.
 This excludes the initial DNS/TCP/TLS setup; service handling and the selected network route still
-contribute. An incomplete sample set, explicit connection closure, redirect or unexpected HTTP response
-produces a failure rather than a cold-request fallback or a partial median.
+contribute. A failing connection drops only its own samples, and a value needs at least five kept
+samples across two connections; an incomplete set, explicit connection closure, redirect or
+unexpected HTTP response produces a failure rather than a cold-request fallback or a partial value.
 Geographic proximity permits only a rough comparison of the user's routes. It is not ICMP/UDP
 round-trip time, VRChat room Ping, PICO streaming delay, packet loss or bandwidth. Provider/OS
 network routing, including a configured proxy, can differ from the game's route. The tile title
@@ -85,9 +88,10 @@ source or assets are bundled.
 
 Website tests run concurrently with a six-second per-site/eight-second batch budget. The four
 fixed reference origins never follow redirects, so timing cannot silently move to a different
-destination. Each uses a fresh client and one idle pooled connection for the warm-up plus three
-samples within the batch budget. A server's explicit `Connection: close` is not accepted as warm
-timing. Ordinary website tests retain their single-request timing, including connection setup,
+destination. Each uses three fresh clients with one idle pooled connection each for the warm-up
+plus samples, coordinated in rounds within a twenty-second regional bound that waits out running
+ordinary batches on a process-wide lock. A server's explicit `Connection: close` retires that
+connection. Ordinary website tests retain their single-request timing, including connection setup,
 and redirects limited to three credential-free HTTPS destinations.
 Ordinary HEAD 405/501 retries GET to response
 headers and immediately drops the response. Other HTTP errors remain visible; no browser
@@ -112,8 +116,9 @@ VRChat instance-region latency.
 ## Verification
 
 Shared schema vectors and Gateway tests validate requested destinations and result shapes.
-Adapter tests cover HTTP classifications and redirect boundaries, one connection for the
-discarded warm-up and all three samples, and timeout/partial/error/closed-connection rejection.
+Adapter tests cover HTTP classifications and redirect boundaries, three connections for the
+discarded warm-ups and nine interleaved samples, per-connection failure handling and the
+minimum/median/p90 aggregation, and timeout/partial/error/closed-connection rejection.
 Controlled Chromium checks
 exercise four-language independent results, editing/removal, no request on page opening,
 no region detection/help/recommendation entry, and the split between expanded website results

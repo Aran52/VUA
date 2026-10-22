@@ -62,6 +62,14 @@ const api:AmfProductionPort={
   },async open(){return{runId:run.runId,taskId:"n3-task"};},
   async rollbackPlan(runId){return{runId,planDigest:"b".repeat(64),snapshotId:"n3-snapshot",projectRoot:run.projectRoot,currentChanged:true,preserveCurrent:true};},
   async rollback(runId,plan){if(plan.planDigest!=="b".repeat(64))throw new Error("restore was not reviewed");restored=true;run={...run,phase:"ready",selection:null,result:null,snapshotId:"n3-current-protected"};return{runId,taskId:"n3-task"};},
+  async revisionPlan(runId,revisionId){return{runId,revisionId,planDigest:"e".repeat(64),before:"assembly",takenAt:"2026-10-18T00:00:00Z",
+    summary:{avatar:"Synthetic Avatar",outfits:["Synthetic Coat"],sources:["avatar","outfit"],lightingMaterials:0,sdkFixes:[]},editedInUnity:false,warning:null,
+    steps:[{key:"materials",skipped:false},{key:"assembly",skipped:false,rebuild:false}]};},
+  async restoreRevision(runId,plan){if(plan.planDigest!=="e".repeat(64))throw new Error("restore was not reviewed");restored=true;run={...run,phase:"ready",selection:null,result:null,snapshotId:"n3-current-protected"};return{runId,taskId:"n3-task"};},
+  async saveFit(_runId,_sourceId,name,_changesDigest){return{fitId:"fit-1",name,createdAt:"2026-10-20T00:00:00Z",updatedAt:"2026-10-20T00:00:00Z"};},
+  async listFits(){return[];},
+  async renameFit(fitId,name){return{fitId,name};},
+  async deleteFit(){},
 };
 const gateway=emptyGateway(null);
 function ReviewApp(){

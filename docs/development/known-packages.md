@@ -1,6 +1,6 @@
 # Known packages
 
-> Updated: 2026-10-19
+> Updated: 2026-10-20
 
 AMF production resolves the shaders its selected materials need through one known-package
 table. The table lives in `crates/provider-host/src/known_packages.rs`; this document records
@@ -19,6 +19,17 @@ owned by the [AMF production protocol](../protocols/amf-production-v0.1.md).
 | VRChat SDK - Avatars | `com.vrchat.avatars` | https://vrchat.github.io/packages/index.json | [VRChat SDK license](https://hello.vrchat.com/legal/sdk) | 2026-10-18 | `auto` | Installed during project creation, before any material signal is needed |
 | Modular Avatar | `nadena.dev.modular-avatar` | https://vpm.nadena.dev/vpm.json | [MIT](https://github.com/bdunderscore/modular-avatar/blob/main/COPYING.md) | 2026-10-18 | `auto` | Installed during project creation, before any material signal is needed |
 | Non-Destructive Modular Framework | `nadena.dev.ndmf` | https://vpm.nadena.dev/vpm.json | [MIT](https://github.com/bdunderscore/ndmf/blob/main/COPYING.md) | 2026-10-18 | `auto` | Arrives as Modular Avatar's dependency, before any material signal is needed |
+| Jerry's VRCFT Templates | `adjerry91.vrcft.templates` | https://adjerry91.github.io/VRCFaceTracking-Templates/index.json | [MIT](https://github.com/Adjerry91/VRCFaceTracking-Templates/blob/main/LICENSE.md) | 2026-10-20 | `guide` | Exact VPM package ID; creator-bundled copies are preserved, with no shader or name heuristic installing anything |
+| Pawlygon Face Tracking | `net.pawlygon.vrc-facetracking` | https://vcc.pawlygon.net/index.json | [MIT](https://github.com/PawlygonStudio/VRC-Facetracking/blob/main/LICENSE.md) | 2026-10-20 | `guide` | Exact VPM package ID; select a release compatible with the intended OSC/native-SDK route |
+| VRCFury | `com.vrcfury.vrcfury` | https://vcc.vrcfury.com | [Source-available terms](https://github.com/VRCFury/VRCFury/blob/main/LICENSE.md), including direct end-user download restrictions | 2026-10-20 | `guide` | Exact VPM package ID; observed `VF.*`/VRCFury component names are integration hints, not proof of FT |
+
+The existing `auto` spelling means installation from the official source. The first FT slice
+keeps even MIT templates on `guide`: licensing permits a future pinned adapter, but template
+version, renderer mapping and SDK compatibility still need review. These entries are identity
+and delivery metadata, not shader detection rules; no template is installed or removed because
+an Avatar happens to have a matching shape name. Follow the official pages above to obtain them.
+MA and NDMF retain their existing installation path. VRCFT itself retains its separate
+Steam/tool-page lifecycle; it is not an Avatar-side Unity dependency.
 
 Marker properties win over the GUID table when a material is classified, so lilToon keeps its
 historical rule. GUIDs are compared in lower case.

@@ -18,7 +18,7 @@ export function EnvironmentCard({ title, titleContent, kind, brand, icon, id, ac
   const label = action === "prepare" ? copy.prepare : action === "start" ? copy.start : action === "stop" ? copy.stop : copy.details;
   return <article className="vua-environment-card" data-card={id} data-action={action} data-selected={selected}>
     {developing ? <span className="vua-route-tile__tag">{strings.journey.developing}</span> : null}
-    <button type="button" className="vua-environment-card__details" data-nav-id={id} disabled={!onDetails} aria-label={format(copy.details, { name: title })} aria-expanded={!!selected} aria-controls={`${id}-details`} onClick={onDetails}>
+    <button type="button" className="vua-environment-card__details" data-nav-id={id} disabled={!onDetails} aria-label={format(copy.details, { name: title })} aria-expanded={onDetails ? !!selected : undefined} aria-controls={onDetails ? `${id}-details` : undefined} onClick={onDetails}>
       <RouteGlyph kind={kind} brand={brand} icon={icon} /><strong>{titleContent ?? title}</strong>{children}
     </button>
     <button type="button" className="vua-environment-card__action" data-nav-id={`${id}-action`} disabled={disabled || developing} aria-label={format(label, { name: title })} aria-busy={spinning} onClick={onAction}>

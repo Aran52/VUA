@@ -104,7 +104,30 @@ fn read_receipt(path: &Path, run: &ProductionRun, request: &UploadRequest) -> Re
         detail: text("detail").unwrap_or_default(),
         errors: value["errors"].as_array().into_iter().flatten().filter_map(|error| error.as_str().map(str::to_owned)).take(32).collect(),
         sdk_sign_in: text("sdkSignIn").filter(|source| source == "vua_session" || source == "panel"),
+        sdk_review: Some(value["sdkReview"].clone()).filter(read_review),
     }))
+}
+
+/// A checked SDK review in the shape the v5 result schema gives `sdkReview`; anything else is
+/// left out, so the line keeps its earlier facts.
+fn read_review(review: &serde_json::Value) -> bool {
+    const RATINGS: [&str; 5] = ["Excellent", "Good", "Medium", "Poor", "VeryPoor"];
+    let text = |value: &serde_json::Value, min: usize| value.as_str().is_some_and(|text| {
+        let chars = text.chars().count();
+        chars >= min && chars <= 600 && !text.contains('\0')
+    });
+    let items = |key: &str| review[key].as_array().filter(|items| items.len() <= 64);
+    review.as_object().is_some_and(|object| object.len() == 6)
+        && matches!(review["state"].as_str(), Some("checked" | "partial"))
+        && matches!(review["platform"].as_str(), Some("" | "pc" | "android"))
+        && review["overall"].as_str().is_some_and(|overall| matches!(overall, "" | "None") || RATINGS.contains(&overall))
+        && text(&review["detail"], 0)
+        && items("issues").is_some_and(|issues| issues.iter().all(|issue| issue.as_object().is_some_and(|o| o.len() == 3)
+            && matches!(issue["level"].as_str(), Some("error" | "warning" | "info"))
+            && text(&issue["text"], 1) && issue["canFix"].is_boolean()))
+        && items("stats").is_some_and(|stats| stats.iter().all(|stat| stat.as_object().is_some_and(|o| o.len() == 3)
+            && text(&stat["category"], 1) && stat["rating"].as_str().is_some_and(|rating| RATINGS.contains(&rating))
+            && text(&stat["text"], 0)))
 }
 
 fn wait(
@@ -207,6 +230,22 @@ mod tests {
             "sdkSignIn":"somewhere_else"}"#).unwrap();
         let read = read_receipt(&receipt, &run, &request).unwrap().unwrap();
         assert_eq!(read.sdk_sign_in, None, "an unknown sign-in source stays unsaid");
+        assert_eq!(read.sdk_review, None, "a receipt without the SDK check");
+        let review = serde_json::json!({"state":"checked","platform":"pc","overall":"Good","detail":"",
+            "stats":[{"category":"Triangles","rating":"Excellent","text":"6,000"}],
+            "issues":[{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]});
+        let with = |review: &serde_json::Value| {
+            fs::write(&receipt, serde_json::to_vec(&serde_json::json!({"schemaVersion":"0.1","runId":"n3-upload","uploadId":"upload-1",
+                "outcome":"succeeded","sdkReview":review})).unwrap()).unwrap();
+            read_receipt(&receipt, &run, &request).unwrap().unwrap().sdk_review
+        };
+        assert_eq!(with(&review), Some(review.clone()));
+        for broken in [serde_json::json!({"state":"not_run","platform":"","overall":"","detail":"","stats":[],"issues":[]}),
+            { let mut v = review.clone(); v["stats"][0]["rating"] = "None".into(); v },
+            { let mut v = review.clone(); v["issues"][0]["text"] = "".into(); v },
+            { let mut v = review.clone(); v["extra"] = true.into(); v }] {
+            assert_eq!(with(&broken), None, "{broken}");
+        }
         fs::write(&receipt, vec![b' '; MAX_FILE as usize + 1]).unwrap();
         assert_eq!(read_receipt(&receipt, &run, &request).unwrap(), None, "an oversized file is no answer");
 

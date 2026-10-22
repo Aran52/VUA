@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-inspect-full",
+  "operation": "amf_inspect",
+  "status": "succeeded",
+  "changedPaths": [],
+  "diagnostics": [
+    {
+      "code": "amf.shaders.missing",
+      "severity": "warning",
+      "message": "1 materials use a shader that is not in the project."
+    }
+  ],
+  "data": {
+    "editorVersion": "2022.3.22f1",
+    "projectFingerprint": "v1:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+    "prefabs": [
+      {
+        "sourceId": "source-avatar",
+        "path": "Assets/Synthetic/Avatar.prefab",
+        "name": "Synthetic Avatar",
+        "isAvatar": true,
+        "hasSkinnedMesh": true,
+        "hasMergeArmature": false,
+        "hasMissingScripts": false,
+        "humanoidBones": [
+          "Hips",
+          "Spine",
+          "Head",
+          "LeftHand",
+          "RightHand"
+        ],
+        "preview": ""
+      },
+      {
+        "sourceId": "source-outfit",
+        "path": "Assets/Synthetic/Outfit.prefab",
+        "name": "Synthetic Outfit",
+        "isAvatar": false,
+        "hasSkinnedMesh": true,
+        "hasMergeArmature": true,
+        "hasMissingScripts": false,
+        "humanoidBones": [],
+        "preview": ".vua/previews/n3-vector-inspect-full/candidate-001.png"
+      }
+    ],
+    "instances": [
+      {
+        "sourceId": "source-outfit",
+        "prefabPath": "Assets/Synthetic/Outfit.prefab",
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-23456",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true,
+        "exists": true,
+        "prefabMatches": true,
+        "bone": "",
+        "toggleName": "Synthetic Outfit",
+        "active": true
+      },
+      {
+        "sourceId": "source-accessory",
+        "prefabPath": "Assets/Synthetic/Accessory.prefab",
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-34567",
+        "binding": "attach_to_bone",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": false,
+        "exists": true,
+        "prefabMatches": true,
+        "bone": "LeftHand",
+        "toggleName": "",
+        "active": true
+      }
+    ],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 2,
+    "hasMissingScripts": false,
+    "observedSelection": {
+      "avatarPrefab": "Assets/Synthetic/Avatar.prefab",
+      "outfits": [
+        {
+          "sourceId": "source-outfit",
+          "prefabPath": "Assets/Synthetic/Outfit.prefab",
+          "mode": "merge_armature",
+          "bone": "",
+          "toggleName": "Synthetic Outfit",
+          "active": true
+        },
+        {
+          "sourceId": "source-accessory",
+          "prefabPath": "Assets/Synthetic/Accessory.prefab",
+          "mode": "attach_to_bone",
+          "bone": "LeftHand",
+          "toggleName": "",
+          "active": true
+        }
+      ]
+    },
+    "usedSourceIds": [
+      "source-avatar",
+      "source-outfit"
+    ],
+    "avatars": [
+      {
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+        "name": "Synthetic Avatar",
+        "activeTarget": true,
+        "observedSelection": {
+          "avatarPrefab": "Assets/Synthetic/Avatar.prefab",
+          "outfits": [
+            {
+              "sourceId": "source-outfit",
+              "prefabPath": "Assets/Synthetic/Outfit.prefab",
+              "mode": "merge_armature",
+              "bone": "",
+              "toggleName": "Synthetic Outfit",
+              "active": true
+            },
+            {
+              "sourceId": "source-accessory",
+              "prefabPath": "Assets/Synthetic/Accessory.prefab",
+              "mode": "attach_to_bone",
+              "bone": "LeftHand",
+              "toggleName": "",
+              "active": true
+            }
+          ]
+        },
+        "instances": [
+          {
+            "sourceId": "source-outfit",
+            "prefabPath": "Assets/Synthetic/Outfit.prefab",
+            "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-23456",
+            "binding": "merge_armature",
+            "bindingVerified": true,
+            "menuVerified": true,
+            "menuModified": true,
+            "exists": true,
+            "prefabMatches": true,
+            "bone": "",
+            "toggleName": "Synthetic Outfit",
+            "active": true
+          }
+        ],
+        "sdkDescriptorRecognized": true,
+        "missingReferences": 2
+      }
+    ],
+    "missingShaderMaterials": [
+      "Assets/Synthetic/Broken.mat"
+    ],
+    "materialUse": [
+      {
+        "owner": "avatar",
+        "renderer": "Body",
+        "material": "Assets/Synthetic/Body.mat"
+      },
+      {
+        "owner": "avatar",
+        "renderer": "Face",
+        "material": "Assets/Synthetic/Face.mat"
+      },
+      {
+        "owner": "source-outfit",
+        "renderer": "Synthetic Outfit/Top",
+        "material": "Assets/Synthetic/Outfit.mat"
+      },
+      {
+        "owner": "source-accessory",
+        "renderer": "Armature/Hips/Spine/LeftHand/Synthetic Accessory",
+        "material": "Assets/Synthetic/Accessory.mat"
+      }
+    ],
+    "sdkSignedIn": "yes",
+    "previews": [
+      {
+        "view": "front",
+        "path": ".vua/previews/n3-vector-inspect-full/front.png"
+      },
+      {
+        "view": "side",
+        "path": ".vua/previews/n3-vector-inspect-full/side.png"
+      },
+      {
+        "view": "back",
+        "path": ".vua/previews/n3-vector-inspect-full/back.png"
+      }
+    ],
+    "turntable": {
+      "folder": "",
+      "frames": 0,
+      "size": 0
+    },
+    "sdkReview": {
+      "state": "checked",
+      "platform": "pc",
+      "overall": "Good",
+      "issues": [
+        {
+          "level": "error",
+          "text": "Avatar exceeds the polygon count limit for VRChat.",
+          "canFix": false
+        },
+        {
+          "level": "warning",
+          "text": "This avatar has unused components.",
+          "canFix": true
+        },
+        {
+          "level": "info",
+          "text": "This avatar contains one or more unsupported shaders.",
+          "canFix": false
+        }
+      ],
+      "stats": [
+        {
+          "category": "DownloadSize",
+          "rating": "Excellent",
+          "text": ""
+        },
+        {
+          "category": "PolyCount",
+          "rating": "Good",
+          "text": "This avatar is within the recommended polygon range."
+        }
+      ],
+      "detail": ""
+    },
+    "sdkFixesApplied": [],
+    "fitChanges": [
+      {
+        "sourceId": "source-outfit",
+        "moved": [
+          {
+            "path": "HairClip",
+            "localPosition": {
+              "x": 0.12,
+              "y": 0.03,
+              "z": 0
+            },
+            "localRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "localScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        ],
+        "missing": [
+          "OldHook"
+        ]
+      }
+    ],
+    "fitSkipped": [
+      {
+        "sourceId": "source-accessory",
+        "paths": [
+          "Clips#2"
+        ]
+      }
+    ],
+    "faceTracking": {
+      "schemaVersion": "0.1",
+      "evidence": "unity_source",
+      "observedAt": "2026-10-20T08:00:00.000Z",
+      "state": "observed",
+      "runtime": "working",
+      "builtParameterBudget": "unknown",
+      "truncated": false,
+      "manualReplayRequired": false,
+      "expressionParametersObserved": true,
+      "sourceSyncedParameterBits": 17,
+      "meshes": [
+        {
+          "renderer": "Body",
+          "blendShapeCount": 3,
+          "missingMesh": false,
+          "profiles": [
+            {
+              "id": "arkit52-v1",
+              "referenceCount": 52,
+              "matched": [
+                "jawOpen"
+              ]
+            },
+            {
+              "id": "unified-core12-v1",
+              "referenceCount": 12,
+              "matched": [
+                "EyeClosedLeft"
+              ]
+            },
+            {
+              "id": "sranipal-core12-v1",
+              "referenceCount": 12,
+              "matched": []
+            }
+          ]
+        }
+      ],
+      "parameters": [
+        "Face/v2/JawOpen"
+      ],
+      "components": [
+        "nadena.dev.modular_avatar.core.ModularAvatarMergeAnimator"
+      ],
+      "patchMenus": [
+        {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceId": "source-avatar",
+          "scriptPath": "Assets/Synthetic/Editor/FtMenu.cs",
+          "menuPath": "Tools/Synthetic/Face tracking"
+        }
+      ]
+    }
+  }
+}

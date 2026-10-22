@@ -200,7 +200,7 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
       }}>
       <option value="">{copy.choosePicoRegion}</option>
       <option value="china_mainland">{copy.downloadRegions.china_mainland}</option><option value="other">{copy.downloadRegions.other}</option>
-    </select></label><p className="vua-caption">{copy.picoRegionHint}</p></> : null}
+    </select></label></> : null}
     {hasCreatorPurpose ? <>
       <label>{copy.location}<input className="vua-deployment__location" value={editorRoot} disabled={disabled}
         onChange={e => { setEditorRoot(e.target.value); setPlan(null); command.current = null; }} /></label>

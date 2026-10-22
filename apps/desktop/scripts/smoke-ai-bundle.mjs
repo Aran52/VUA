@@ -29,7 +29,7 @@ const checks=[];
 try {
   const {AiToolsServer}=createRequire(import.meta.url)(bundle);
   const token=randomBytes(32).toString("base64url");
-  service=new AiToolsServer({version:"bundle-test",port:0,load:()=>({enabled:false,token}),save:()=>{},invoke:async request=>({schemaVersion:1,requestId:request.requestId,ok:true,value:{marker:"actual packaged tool dispatch",method:request.method}})});
+  service=new AiToolsServer({version:"bundle-test", build: {version: "bundle-test", commit: "synthetic", dirty: false, builtAt: "2026-10-20T00:00:00.000Z"},port:0,load:()=>({enabled:false,token}),save:()=>{},invoke:async request=>({schemaVersion:1,requestId:request.requestId,ok:true,value:{marker:"actual packaged tool dispatch",method:request.method}})});
   await service.setEnabled(true);if(!service.snapshot().enabled)throw Error("Bundled server did not start");
   // The session-based HTTP adapter uses the compatible initialize handshake.
   // SDK v2's new per-request 2026 interface is a separate transport surface.

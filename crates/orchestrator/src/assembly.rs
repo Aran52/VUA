@@ -93,6 +93,8 @@ pub enum BridgeError {
     TimedOut,
     /// The caller asked to stop, and the Unity process tree was ended.
     Cancelled,
+    /// The owned interactive process exited, but its child processes could not be verified closed.
+    ProcessTreeUnclean,
     MissingResult,
     InvalidResult(serde_json::Error),
 }
@@ -104,6 +106,7 @@ impl Display for BridgeError {
             Self::UnityFailed(code) => write!(formatter, "Unity exited unsuccessfully ({code:?})"),
             Self::TimedOut => write!(formatter, "Unity did not finish within the budget"),
             Self::Cancelled => write!(formatter, "Unity was stopped on request"),
+            Self::ProcessTreeUnclean => write!(formatter, "Unity child-process cleanup could not be verified"),
             Self::MissingResult => write!(formatter, "Unity did not write a bridge result"),
             Self::InvalidResult(_) => write!(formatter, "Unity wrote an invalid bridge result"),
         }

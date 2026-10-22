@@ -1,22 +1,12 @@
 import { useEffect, useLayoutEffect, useState, type RefObject } from "react";
+import { canAnimate, milliseconds, motionOff, token } from "./motion.ts";
 
 /**
  * Dialogs open and close with scripted motion, so Windows' animation setting, which flattens CSS
  * motion, leaves them moving; VUA's resource-saving mode (`data-effects="off"`) turns it off.
  * Durations and easing are design tokens, so a skin sets them.
- */
-const motionOff = () => document.documentElement.dataset.effects === "off";
-const token = (name: string, fallback: string) =>
-  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-const milliseconds = (value: string, fallback: number) => {
-  const number = Number.parseFloat(value);
-  if (!Number.isFinite(number) || number < 0) return fallback;
-  return value.endsWith("ms") ? number : value.endsWith("s") ? number * 1000 : number;
-};
-const canAnimate = (element: HTMLElement | null): element is HTMLElement =>
-  element !== null && typeof element.animate === "function";
-
-/** Whether to render the dialog: it stays on screen while it moves out after `open` turns false.
+ *
+ * Whether to render the dialog: it stays on screen while it moves out after `open` turns false.
  * `rise` is how far the panel travels in pixels: positive rises from below, negative drops from above. */
 export function useDialogMotion(open: boolean, overlay: RefObject<HTMLElement | null>, panel: RefObject<HTMLElement | null>, rise = 14): boolean {
   const [shown, setShown] = useState(open);

@@ -118,6 +118,99 @@
                   },
                   "active": {
                     "type": "boolean"
+                  },
+                  "fit": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "objects"
+                    ],
+                    "properties": {
+                      "objects": {
+                        "type": "array",
+                        "maxItems": 2048,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "path",
+                            "localPosition",
+                            "localRotation",
+                            "localScale"
+                          ],
+                          "properties": {
+                            "path": {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            "localPosition": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "x",
+                                "y",
+                                "z"
+                              ],
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "localRotation": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "x",
+                                "y",
+                                "z",
+                                "w"
+                              ],
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                },
+                                "w": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "localScale": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "x",
+                                "y",
+                                "z"
+                              ],
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "z": {
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -165,6 +258,30 @@
             "maxLength": 256,
             "pattern": "^[^\\u0000]+$"
           }
+        }
+      }
+    },
+    "faceTrackingPatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "menuId",
+        "avatarGlobalObjectId",
+        "confirmTrustedCode"
+      ],
+      "properties": {
+        "menuId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "confirmTrustedCode": {
+          "const": true
         }
       }
     }

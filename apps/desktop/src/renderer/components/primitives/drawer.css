@@ -1,0 +1,58 @@
+/* Tier 5, drawer: fixed to the right edge below the title bar, without a backdrop. */
+.vua-drawer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  z-index: var(--vua-z-drawer);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--vua-border);
+  background: var(--vua-bg-elevated);
+  box-shadow: var(--vua-shadow-elevated);
+}
+
+.vua-drawer[data-closing] {
+  pointer-events: none;
+}
+
+.vua-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: var(--vua-space-2);
+  padding: var(--vua-space-3) var(--vua-space-4);
+  border-bottom: 1px solid var(--vua-border);
+}
+
+.vua-drawer__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--vua-font-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vua-drawer__close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--vua-radius-control);
+  background: transparent;
+  color: var(--vua-text-secondary);
+  cursor: pointer;
+}
+
+.vua-drawer__close:hover {
+  background: var(--vua-accent-tint);
+  color: var(--vua-text-strong);
+}
+
+.vua-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--vua-space-4);
+}

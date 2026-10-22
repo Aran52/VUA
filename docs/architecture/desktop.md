@@ -450,8 +450,8 @@ Commands and artifact paths are in the [desktop development entry](../../apps/de
 
 React implements workbenches, guidance, cards, Recipe editing, feedback, and accessibility while
 domain models remain in the application core. Typed error codes map to localized messages. The UI
-ships four initial locales — English, Simplified Chinese, Japanese, and Korean
-(`apps/desktop/src/renderer/i18n/strings.{en,zh-CN,ja,ko}.ts`); the language policy is owned by
+ships five locales — English, Simplified Chinese, Traditional Chinese, Japanese, and Korean
+(`apps/desktop/src/renderer/i18n/strings.{en,zh-CN,zh-TW,ja,ko}.ts`); the language policy is owned by
 [documentation governance](../meta/documentation-governance.md#5-language).
 Accepted tasks survive page unload. Drag-and-drop always has keyboard and button alternatives. Tokens and components are
 promoted only after real-page validation.

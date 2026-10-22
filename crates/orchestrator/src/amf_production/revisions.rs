@@ -19,6 +19,7 @@ pub enum RevisionKind {
     Rebuild,
     SdkFix,
     FaceTracking,
+    OutfitRemoval,
     Lighting,
     Restore,
 }

@@ -31,7 +31,8 @@
         "amf_assemble",
         "amf_turntable",
         "amf_sdk_fix",
-        "amf_ft_patch"
+        "amf_ft_patch",
+        "amf_outfit_remove"
       ]
     },
     "dryRun": {
@@ -106,7 +107,8 @@
             "enum": [
               "amf_assemble",
               "amf_sdk_fix",
-              "amf_ft_patch"
+              "amf_ft_patch",
+              "amf_outfit_remove"
             ]
           }
         }

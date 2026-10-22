@@ -18,6 +18,8 @@ mod revisions;
 pub use revisions::*;
 mod fits;
 pub use fits::*;
+mod outfit_removal;
+pub use outfit_removal::*;
 mod face_tracking;
 pub use face_tracking::*;
 
@@ -303,7 +305,7 @@ fn interrupted_change(run: &ProductionRun) -> bool {
     run.phase == "assembling"
         && run.snapshot_id.is_some()
         && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking") && step.state == "running")
-            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| step.key == "face_tracking"))
+            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| matches!(step.key.as_str(), "face_tracking" | "outfit_removal")))
 }
 
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
@@ -470,6 +472,9 @@ pub trait AmfProductionPlatform: Send + Sync {
         _watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
+    }
+    fn remove_outfit(&self, _: &ProductionRun, _: &OutfitRemoval, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("outfit_removal_unavailable", "Owned outfit removal is unavailable on this platform."))
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
     fn face_tracking_patch(&self, _: &ProductionRun, _: &FaceTrackingPatch, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {

@@ -1,7 +1,7 @@
-import type { FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
+import type { OutfitRemoval, OutfitRemovalApplied, OutfitRemovalPlan, FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
   AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01,
   AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind } from "@vua/contracts";
-import { isFaceTrackingFacts, isFaceTrackingPlan, isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
+import { isOutfitRemovalFacts, isOutfitRemovalApplied, isOutfitRemovalPlan, isFaceTrackingFacts, isFaceTrackingPlan, isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
   AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
@@ -47,6 +47,7 @@ export interface AmfProductionRun {
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
     readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
     readonly faceTracking?: FaceTrackingFactsV01;
+    readonly outfitRemoval?: readonly OutfitRemoval[]; readonly outfitRemovalApplied?: readonly OutfitRemovalApplied[];
     readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview;
     /** The SDK items the last fix ran the SDK's Auto Fix for. */
     readonly sdkFixesApplied?: readonly string[] };
@@ -174,6 +175,8 @@ export interface AmfProductionPort {
   /** Changes the line's own materials behind a restore point; the line plans again. */
   changeSources(runId: string, sources: readonly AmfSourceChoice[]): Promise<AmfProductionAccepted>;
   /** Reviews the lilToon brightness alignment of an assembled line: the Avatar's reference limits and the outfit entries that differ. */
+  planOutfitRemoval(runId: string, sourceId: string): Promise<OutfitRemovalPlan>;
+  removeOutfit(runId: string, plan: OutfitRemovalPlan, confirmed: true): Promise<AmfProductionAccepted>;
   planLighting(runId: string): Promise<AmfLightingPlan>;
   /** Aligns the chosen reviewed materials with the Avatar's reference behind a restore point, then rechecks the project in Unity. */
   applyLighting(runId: string, plan: AmfLightingPlan, materials: readonly string[]): Promise<AmfProductionAccepted>;
@@ -219,7 +222,7 @@ const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path,
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview));
 const ratings: readonly string[] = AMF_SDK_RATINGS;
-const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "lighting", "restore"];
+const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "outfit_removal", "lighting", "restore"];
 const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
   && (v.avatar === null || text(v.avatar)) && texts(v.outfits) && texts(v.sources)
   && Number.isSafeInteger(v.lightingMaterials) && Number(v.lightingMaterials) >= 0 && texts(v.sdkFixes);
@@ -250,6 +253,8 @@ function result(v: unknown): boolean {
     && (facts.hasMissingScripts === undefined || typeof facts.hasMissingScripts === "boolean")
     && (facts.missingShaderMaterials === undefined || texts(facts.missingShaderMaterials))
     && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
+    && (facts.outfitRemoval === undefined || isOutfitRemovalFacts(facts.outfitRemoval))
+    && (facts.outfitRemovalApplied === undefined || (Array.isArray(facts.outfitRemovalApplied) && facts.outfitRemovalApplied.length <= 1 && facts.outfitRemovalApplied.every(isOutfitRemovalApplied)))
     && (facts.faceTracking === undefined || isFaceTrackingFacts(facts.faceTracking))
     && (facts.sdkReview === undefined || isAmfSdkReview(facts.sdkReview))
     && (facts.sdkFixesApplied === undefined || (texts(facts.sdkFixesApplied) && facts.sdkFixesApplied.length <= 16))
@@ -408,6 +413,15 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     },
     async sdkFix(runId, fixes) { return accepted(await call({ method: "amf.production.sdkFix", params: { schemaVersion: "0.1", runId, fixes: [...fixes] } }), strings.sdkReview.fixTitle); },
     async changeSources(runId, sources) { return accepted(await call({ method: "amf.production.changeSources", params: { schemaVersion: "0.1", runId, sources: [...sources] } }), strings.factory.panels.materials.change); },
+    async planOutfitRemoval(runId, sourceId) {
+      const value = await call({method:"amf.production.planOutfitRemoval", params:{schemaVersion:"0.1",runId,sourceId}});
+      if (!isOutfitRemovalPlan(value) || value.runId !== runId || value.removal.sourceId !== sourceId) throw new Error("amf_outfit_removal_plan_invalid");
+      return value;
+    },
+    async removeOutfit(runId, plan, confirmed) {
+      if (!isOutfitRemovalPlan(plan) || plan.runId !== runId || confirmed !== true) throw new Error("amf_outfit_removal_confirmation_required");
+      return accepted(await call({method:"amf.production.removeOutfit",params:{schemaVersion:"0.1",runId,sourceId:plan.removal.sourceId,planDigest:plan.planDigest,confirmed}}), strings.outfitRemoval.title);
+    },
     async planLighting(runId) {
       const v = await call({ method: "amf.production.planLighting", params: { schemaVersion: "0.1", runId } });
       const limits = (l: unknown): l is AmfLightingLimits => record(l) && text(l.min) && text(l.max);

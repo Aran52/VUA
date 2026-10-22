@@ -263,6 +263,7 @@ fn label(operation: UnityOperation) -> &'static str {
         UnityOperation::AmfAssemble => "Assemble AMF Avatar",
         UnityOperation::AmfTurntable => "Bake the AMF Avatar turntable",
         UnityOperation::AmfSdkFix => "Fix the AMF Avatar with the VRChat SDK",
+        UnityOperation::AmfOutfitRemove => "Remove one confirmed owned outfit",
         UnityOperation::AmfFtPatch => "Apply a confirmed creator face tracking patch",
     }
 }

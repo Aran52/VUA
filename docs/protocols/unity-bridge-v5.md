@@ -1,14 +1,14 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.14.0
+> Document version: 0.15.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix` and `amf_ft_patch`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix`, `amf_ft_patch` and `amf_outfit_remove`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
@@ -244,7 +244,33 @@ The parent engine owns the snapshot and independent batch recheck; no Bridge men
 alone declares FT functional. The operation's listed changed paths are the managed scene and
 marker, not an exhaustive claim about opaque creator writes.
 
+## Explicit outfit removal
+
+`amf_outfit_remove` is mutating and requires the current `expectedProjectFingerprint`.
+The request adds `outfitRemoval`, using the [AMF removal inventory](amf-production-v0.1.md#removing-one-owned-outfit).
+Inspection and successful mutations report optional `data.outfitRemoval` inventories. A successful
+removal additionally reports exactly one `data.outfitRemovalApplied` entry with `sourceId`,
+`avatarGlobalObjectId` and the complete `deletedObjectIds`; other operations return an empty
+array. Old receipts may omit both fields. New consumers validate present fields.
+
+The existing `Assets/VUA/Ownership.json` records, scoped by the active Avatar key, are the only
+authority for resolving the garment and menu roots. Every child/component is inventoried by
+GlobalObjectId; display paths never locate deletions. Another ownership record within either
+root, duplicate/unresolved identities or an over-limit inventory prevents application. The
+Bridge observes the saved scene, recomputes and compares the full inventory before the first
+deletion, rejects face-tracking markers, destroys only the two recorded roots and verifies the
+listed IDs no longer resolve. It saves the scene and ownership, prunes only the target's fit
+baseline/report entries and reinspects the active Avatar through the usual observer. The AMF
+engine then performs a separate Bridge inspection and verifies retained outfits/Avatars.
+
+Scene additions use Unity's [added-object override API](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/PrefabUtility.IsAddedGameObjectOverride.html)
+and prefab correspondence, conservatively warning about added components of unknown provenance.
+Identity resolution uses [GlobalObjectId](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/GlobalObjectId.GlobalObjectIdentifierToObjectSlow.html),
+never object names. API references checked 2026-10-23.
+
 ## Document changelog
+
+- 0.15.0 (2026-10-23): add ownership-ID-bound outfit-removal inventories and a protected mutating operation; retain other garments, Avatars and fit baselines.
 
 - 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
 
@@ -256,10 +282,3 @@ marker, not an exhaustive claim about opaque creator writes.
 - 0.9.0 (2026-10-18): read the VRChat SDK's own Avatar checks and performance ratings into `sdkReview` after inspection and assembly.
 - 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA.
 - 0.7.0 (2026-10-17): write bridge, previews and finishing stage lines to the run log.
-- 0.6.0 (2026-10-16): render the active Avatar from three sides after inspection and assembly, and each prefab candidate during inspection.
-- 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.
-- 0.4.0 (2026-10-15): bind Recipe application to observed Avatar identities, support independent same-scene Avatar scopes, and observe retained Avatars separately.
-
-- 0.3.0 (2026-10-15): report source dependencies actually used by the saved scene for Recipe capture.
-- 0.2.0 (2026-10-14): observe retained scene objects and current supported settings during reinspection and restoration.
-- 0.1.0 (2026-10-13): define a separate Candidate N3 entry point, exact f1/c1 identity, hash-bound requests and observed result relationships.

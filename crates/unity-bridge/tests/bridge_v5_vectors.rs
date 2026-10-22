@@ -6,6 +6,20 @@ use vua_orchestrator::{UnityCommand, UnityOperation, UnityResult};
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/unity-bridge/v5")
 }
+
+#[test]
+fn removal_is_a_bound_mutation_with_optional_bounded_inventory_and_exact_proof() {
+    use vua_orchestrator::amf_production::validate_outfit_removal_facts;
+    validate_outfit_removal_facts(&read("examples/assembly.valid.result.json")["data"]).unwrap();
+    validate_outfit_removal_facts(&read("examples/outfit-removal.valid.result.json")["data"]).unwrap();
+    validate_outfit_removal_facts(&read("examples/outfit-removed.valid.result.json")["data"]).unwrap();
+    for file in ["invalid-outfit-removal-manual.result.json", "invalid-outfit-removal-duplicate.result.json", "invalid-outfit-removal-no-proof.result.json"] {
+        assert!(validate_outfit_removal_facts(&read(&format!("examples/{file}"))["data"]).is_err());
+    }
+    let command: UnityCommand = serde_json::from_value(read("examples/outfit-removal.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfOutfitRemove);
+    assert!(command.operation.is_mutating() && !command.dry_run && command.expected_project_fingerprint.is_some());
+}
 fn read(file: &str) -> Value {
     serde_json::from_slice(&fs::read(root().join(file)).unwrap()).unwrap()
 }

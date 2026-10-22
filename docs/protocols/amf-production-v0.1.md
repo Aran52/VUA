@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.28.0
+> Document version: 0.29.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -25,6 +25,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
 | `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild` and pending Recipe `adjustments` |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
+| `amf.production.planOutfitRemoval` | Query | `runId`, `sourceId` | Complete owned deletion inventory and digest |
+| `amf.production.removeOutfit` | Command | `runId`, `sourceId`, `planDigest`, `confirmed: true` | Protected removal task; independent reinspection and automatic recovery |
 | `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
 | `amf.production.changeSources` | Command | `runId`, `sources: [{sourceId, role}]` | Durable task changing the line's own materials behind a restore point; the line plans again |
 | `amf.production.delete` | Command | `runId` | Durable task deleting the line's work project, release record and run record |
@@ -349,6 +351,41 @@ snapshots and release records belong to individual managed projects or runs and 
 exclusion. SQLite task and BDL writes retain their existing transactional locks. Interactive
 Editor and SDK upload work use the exclusive lane rule.
 
+Explicit outfit removal adds query `amf.production.planOutfitRemoval` (`runId`, `sourceId`)
+and command `amf.production.removeOutfit` (`runId`, `sourceId`, `planDigest`, `confirmed: true`).
+The query returns `{schemaVersion, runId, planDigest, removal}`. The command returns the usual
+accepted task. Omitting an existing outfit from an assembly selection remains an error.
+
+### Removing one owned outfit
+
+Only a completed, reinspected line without an opaque face-tracking patch can remove an outfit.
+This slice retains the existing nonempty outfit-selection contract: at least one outfit must
+remain. Imported source assets and library choices stay available for a later explicit assembly.
+
+Optional Bridge facts `outfitRemoval` contain at most 64 removal inventories. Each has `sourceId`,
+`avatarGlobalObjectId`, `roots` (one owned `outfit` root and optionally its owned `menu` root,
+each with `globalObjectId`), `objects` and `blockedReason`. Each object has `globalObjectId`,
+`path` (display only), `typeName` and `manual`. The inventory enumerates the roots' GameObjects
+and components, including MA bindings, menu items and object toggles. It is bounded at 8192
+entries per outfit. Scene additions are marked `manual`; additions whose provenance cannot be
+distinguished from VUA-created bindings are conservatively included in that warning. An
+unresolvable identity, incomplete inventory, or another ownership record inside the deletion
+roots blocks removal. Missing facts in older data remain readable and require reinspection.
+
+The digest binds the run/revision, both project fingerprints, current selection and complete
+inventory, including warnings about manually added children/components. The player reviews that
+inventory and explicitly confirms deletion. A full restore point and `outfit_removal` version
+record are saved before the mutating Bridge operation. The Bridge independently recomputes the
+inventory from ownership IDs, compares it with the reviewed request and deletes only those owned
+roots. It never selects by display name or path. Ownership and only the removed outfit's fit
+baseline/report entries are pruned; saved fits and other outfits' manual adjustments remain.
+
+A separate inspection must observe the same Avatar, exactly the remaining outfit settings and
+instance IDs, and unchanged other owned Avatars. Cancellation or any import/verification failure
+restores project files and pre-change run observations. A failed restore is explicit and retains
+the version record. Interrupted removal requires inspection and offers the retained restore point.
+The ordinary assembly path can add the imported outfit back, including its saved fit.
+
 ### Changing a line's materials
 
 `amf.production.changeSources` gives a prepared line (`ready`, `succeeded`, `failed` or `stopped`) a
@@ -553,6 +590,8 @@ Editor privileges; this is not an OS sandbox and cannot undo external writes. Se
 
 ## Document changelog
 
+- 0.29.0 (2026-10-23): add explicit reviewed outfit removal with ownership inventory, confirmation, protected history, fit preservation and independent verification.
+
 - 0.28.0 (2026-10-21): add optional FT source facts, a digest-bound confirmed creator-menu session with snapshot/version/recheck recovery, and explicit opaque-patch replay restrictions.
 
 - 0.27.0 (2026-10-20): saved fits keep the player's per-object local-Transform adjustments of a garment on an Avatar and re-apply them whenever the same garment content meets the same Avatar content; adds `amf.production.listFits`, `saveFit`, `renameFit` and `deleteFit`, run-view `fitChanges` and `availableFits`, and plan `fits`.
@@ -564,24 +603,3 @@ Editor privileges; this is not an OS sandbox and cannot undo external writes. Se
 - 0.22.0 (2026-10-19): a missing run answers `run_not_found`; work that changes a project Unity holds answers `project_open` when it is requested; deleting a line also removes its assembly records.
 - 0.21.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
 - 0.20.0 (2026-10-19): another Avatar prefab on an assembled line rebuilds the line on that base behind a restore point; `plan` reports it as `rebuild`.
-- 0.19.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
-- 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, per-line pinned installs, legacy-copy replacement only when the exact release covers the copy, and the `amf.package.guide` diagnostic naming needed version lines.
-- 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.
-- 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
-- 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.
-- 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.
-- 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
-- 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.
-- 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
-- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.
-- 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
-- 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
-- 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.
-- 0.6.0 (2026-10-15): add observed Recipe differences, reviewed priority choices, same-project new Avatars and preserved unmentioned outfits.
-
-- 0.5.0 (2026-10-15): connect source-reviewed export and idempotent received Recipes through the closed production Gateway.
-
-- 0.4.0 (2026-10-15): connect verified scene settings to local Recipe saving, reopening and pinned new-project preparation.
-- 0.3.0 (2026-10-14): expose actual saved-scene observations and prefer verified current settings when editing again.
-- 0.2.0 (2026-10-14): extend the Candidate with reviewed, reversible user restoration and continued editing after assembly.
-- 0.1.0 (2026-10-13): add the Candidate material-first N3 face, isolated managed-project path, exact confirmation and explicit evidence/recovery limits.

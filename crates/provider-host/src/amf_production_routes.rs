@@ -190,7 +190,7 @@ fn route(
     let query = matches!(
         method,
         "amf.production.faceTrackingPlan" |
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting" | "amf.production.listFits"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -204,6 +204,8 @@ fn route(
         .and_then(Value::as_object)
         .ok_or_else(|| production_error("params_invalid", "Missing params."))?;
     let keys: &[&str] = match method {
+        "amf.production.planOutfitRemoval" => &["schemaVersion", "runId", "sourceId"],
+        "amf.production.removeOutfit" => &["schemaVersion", "runId", "sourceId", "planDigest", "confirmed"],
         "amf.production.faceTrackingPlan" => &["schemaVersion", "runId", "menuId"],
         "amf.production.faceTrackingPatch" => &["schemaVersion", "runId", "menuId", "planDigest", "confirmTrustedCode"],
         "amf.production.list" | "amf.production.listRecipes" | "amf.production.listFits" => &["schemaVersion"],
@@ -270,7 +272,7 @@ fn route(
         }
         Some(id)
     } else { None };
-    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
+    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch" | "amf.production.removeOutfit") {
         let digest = string("planDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
@@ -415,6 +417,19 @@ fn route(
         }
         return service.engine.plan(&run_id, &selection);
     }
+    let removal_source = if matches!(method, "amf.production.planOutfitRemoval" | "amf.production.removeOutfit") {
+        let id = string("sourceId")?;
+        if id.chars().count() > 256 || id.contains('\0') { return Err(production_error("params_invalid", "Invalid outfit source identity.")); }
+        if method == "amf.production.removeOutfit" && params["confirmed"] != true {
+            return Err(production_error("confirmation_required", "Confirm the reviewed outfit removal."));
+        }
+        Some(id)
+    } else { None };
+    if method == "amf.production.planOutfitRemoval" {
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) { return Err(production_error("busy", "This line has work running or waiting.")); }
+        return service.engine.plan_outfit_removal(&run_id, removal_source.as_deref().expect("validated outfit"));
+    }
     if method == "amf.production.planLighting" {
         let run_id = string("runId")?;
         if service.run_busy(&run_id) {
@@ -469,7 +484,7 @@ fn route(
     }
     if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
         | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete"
-        | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
+        | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch" | "amf.production.removeOutfit") {
         service.engine.precheck_closed(&run_id)?;
     }
     if method == "amf.production.delete" && service.run_busy(&run_id) {
@@ -545,6 +560,7 @@ fn route(
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
                 "amf.production.faceTrackingPatch" => worker.engine.face_tracking_patch(&operation_run,
                     ft_menu.as_deref().expect("confirmed menu"), &digest, true, ctx)?,
+                "amf.production.removeOutfit" => worker.engine.remove_outfit(&operation_run, removal_source.as_deref().expect("confirmed outfit"), &digest, true, ctx)?,
                 "amf.production.applyLighting" => worker.engine.apply_lighting(&operation_run, &digest, &lighting_materials, ctx)?,
                 "amf.production.changeSources" => worker.engine.change_sources(&operation_run, changed_sources, ctx)?,
                 "amf.production.delete" => worker.engine.delete_run(&operation_run)?,

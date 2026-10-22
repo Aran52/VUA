@@ -1,0 +1,37 @@
+const en = {
+  title: "Remove one outfit", outfit: "Outfit to remove", choose: "Choose an outfit", review: "Review removal",
+  confirm: "I reviewed every listed object, component and scene addition to be deleted.", apply: "Confirm outfit removal",
+  working: "Removing outfit…", objects: "Objects and components to delete", manual: "Scene additions will also be deleted",
+  warning: "Everything under the owned outfit and its switch will be removed, including listed additions. A restore point is saved first. Imported materials remain available to add the outfit back.",
+  unknown: "Check this line again to obtain its owned-object inventory.", last: "At least one outfit must remain on this production line.",
+  face: "This line has a creator face-tracking patch. Removal cannot safely replay that patch; use the retained restore point or a separate line.",
+};
+type Copy = { readonly [K in keyof typeof en]: string };
+/** New translations await native-speaker review. */
+export const outfitRemovalCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
+  en,
+  "zh-CN": { title: "移除一件衣服", outfit: "要移除的衣服", choose: "选择一件衣服", review: "查看移除方案",
+    confirm: "我已审阅列出的待删除对象、组件和场景新增内容。", apply: "确认移除衣服", working: "正在移除衣服…",
+    objects: "将删除的对象和组件", manual: "场景新增内容也会被删除",
+    warning: "这件受管衣服及其开关下面的内容都会被移除，包括列出的新增内容。修改前会保留恢复点，导入的素材仍可用于重新装回衣服。",
+    unknown: "请重新检查这条产线，获取受管对象清单。", last: "这条产线需要至少保留一件衣服。",
+    face: "这条产线带有作者面捕补丁，移除衣服后无法安全重放。请使用保留的恢复点，或另建一条产线。" },
+  "zh-TW": { title: "移除一件衣服", outfit: "要移除的衣服", choose: "選擇一件衣服", review: "查看移除方案",
+    confirm: "我已檢閱列出的待刪除物件、元件和場景新增內容。", apply: "確認移除衣服", working: "正在移除衣服…",
+    objects: "將刪除的物件和元件", manual: "場景新增內容也會被刪除",
+    warning: "這件受管衣服及其開關下面的內容都會被移除，包括列出的新增內容。修改前會保留還原點，匯入的素材仍可用於重新裝回衣服。",
+    unknown: "請重新檢查這條產線，取得受管物件清單。", last: "這條產線需要至少保留一件衣服。",
+    face: "這條產線含有作者臉部追蹤補丁，移除衣服後無法安全重播。請使用保留的還原點，或另建一條產線。" },
+  ja: { title: "衣装を1着取り外す", outfit: "取り外す衣装", choose: "衣装を選択", review: "取り外す内容を確認",
+    confirm: "削除されるすべてのオブジェクト、コンポーネント、シーンへの追加内容を確認しました。", apply: "衣装の取り外しを確定", working: "衣装を取り外しています…",
+    objects: "削除するオブジェクトとコンポーネント", manual: "シーンへの追加内容も削除されます",
+    warning: "管理対象の衣装とスイッチの配下を、追加内容も含めて取り外します。先に復元ポイントを保存します。インポート済み素材から衣装を再び装着できます。",
+    unknown: "ラインを再検査して管理対象の一覧を取得してください。", last: "このラインには衣装を少なくとも1着残す必要があります。",
+    face: "このラインには作者のフェイストラッキングパッチがあり、安全に再適用できません。復元ポイントか別のラインを使用してください。" },
+  ko: { title: "의상 한 벌 제거", outfit: "제거할 의상", choose: "의상 선택", review: "제거 계획 검토",
+    confirm: "삭제될 오브젝트, 컴포넌트와 씬 추가 항목을 모두 검토했습니다.", apply: "의상 제거 확인", working: "의상 제거 중…",
+    objects: "삭제할 오브젝트와 컴포넌트", manual: "씬 추가 항목도 삭제됩니다",
+    warning: "관리 중인 의상과 스위치 아래의 추가 항목도 함께 제거합니다. 먼저 복원 지점을 저장합니다. 가져온 소재로 의상을 다시 추가할 수 있습니다.",
+    unknown: "라인을 다시 검사하여 관리 중인 오브젝트 목록을 가져오세요.", last: "이 라인에는 의상을 한 벌 이상 남겨야 합니다.",
+    face: "이 라인에는 제작자의 얼굴 추적 패치가 있어 안전하게 재적용할 수 없습니다. 복원 지점이나 별도 라인을 사용하세요." },
+};

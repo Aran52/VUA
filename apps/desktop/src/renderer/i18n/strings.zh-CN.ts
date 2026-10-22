@@ -1,3 +1,4 @@
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -32,6 +33,7 @@ import type { Strings } from "./strings.en.ts";
  *   仅 gateway fixture 可达,生产构建被 Tree-shaking 剔除)。
  */
 export const strings: Strings = {
+  outfitRemoval: outfitRemovalCopy["zh-CN"],
   faceTracking: faceTrackingCopy["zh-CN"],
   toolConnection: toolConnectionCopy["zh-CN"],
   browser: browserCopy["zh-CN"],

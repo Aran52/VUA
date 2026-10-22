@@ -168,7 +168,8 @@
         "upload",
         "sdk_fix",
         "face_tracking",
-        "lighting"
+        "lighting",
+        "outfit_removal"
       ]
     },
     "timestamp": {

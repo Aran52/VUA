@@ -13,7 +13,9 @@ import { PackagesPage } from "../packages/PackagesPage.tsx";
 import { InstallConfirmDialog } from "../packages/InstallConfirmDialog.tsx";
 import { RemoveConfirmDialog } from "../packages/RemoveConfirmDialog.tsx";
 import "../packages/packages.css";
-import { phaseStatus } from "./factory-model.ts";
+import { phaseStatus, storedAutomationLevel, type AutomationLevel } from "./factory-model.ts";
+import { guideNeeds, packagePageDetail, packagePinLines, recipePinsByPackage, type GuideNeed, type PackagePin } from "./package-mode-model.ts";
+import { PackageGuideAlert, ProjectPackageConclusion, WorkProjectPackageNote } from "./PackageModeView.tsx";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import {
   controlProjects, defaultSelectedRepos, filterProjects, installRequest, packageRows, repoRows, updateAllRequest, versionChoices,
@@ -84,6 +86,7 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
 
   // The development data source keeps the full package tools with their sample data.
   if (view.kind === "ready") return <PackagesPage/>;
+  const level = storedAutomationLevel();
   const current = screen.kind === "project" ? projects.find(project => project.key === screen.key) ?? null : null;
   return <div className="vua-page vua-control vua-control--packages" data-focus-scope>
     <header className="vua-control__head">
@@ -95,7 +98,7 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
     </header>
     {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2></div>
       : screen.kind === "repos" ? <ReposScreen view={live} blocks={blocks!} repos={repos} catalog={catalog} onChanged={() => setCatalogReload(value => value + 1)}/>
-      : current !== null ? <ProjectScreen key={current.key} project={current} blocks={blocks!} repos={repos} catalog={catalog} onBack={() => setScreen({ kind: "projects" })} onNavigate={onNavigate}/>
+      : current !== null ? <ProjectScreen key={current.key} project={current} level={level} blocks={blocks!} repos={repos} catalog={catalog} onBack={() => setScreen({ kind: "projects" })} onNavigate={onNavigate}/>
       : <ProjectsScreen projects={projects} loading={work === null || registered === null} registeredFailed={registeredFailed}
           onOpen={project => setScreen({ kind: "project", key: project.key })} onNavigate={onNavigate} onReload={() => setProjectsReload(value => value + 1)}/>}
   </div>;
@@ -122,7 +125,8 @@ function ProjectsScreen({ projects, loading, registeredFailed, onOpen, onNavigat
         <ul className="vua-control__projects">{group.rows.map(project => <li key={project.key}>
           <button type="button" className="vua-control__project" data-kind={project.kind} disabled={!project.present} onClick={() => onOpen(project)} aria-label={format(copy.manageAria, { name: project.name })}>
             <span className="vua-control__project-icon"><Icon name={project.kind === "work" ? "avatar" : "folder"} size={20}/></span>
-            <span className="vua-control__project-main"><strong>{project.name}</strong><small className="vua-control__mono" title={project.path}>{project.path}</small></span>
+            <span className="vua-control__project-main"><strong>{project.name}</strong><small className="vua-control__mono" title={project.path}>{project.path}</small>
+              {project.kind === "work" && project.listed ? <WorkProjectPackageNote project={project}/> : null}</span>
             <span className="vua-caption vua-text-secondary">{project.unityVersion ? format(copy.unity, { version: project.unityVersion }) : copy.unityUnknown}</span>
             <span>{project.phase !== null ? <span className="vua-line__status" data-status={phaseStatus(project.phase)}>{factory.status[phaseStatus(project.phase)]}</span>
               : !project.present ? <span className="vua-caption vua-control__warn">{copy.missing}</span> : null}</span>
@@ -137,8 +141,8 @@ type InstalledAnswer = { readonly kind: "loading" } | { readonly kind: "ok"; rea
 interface InstallFlow { phase: "confirm" | "applying" | "receipt" | "rejected"; plan: PackagesInstallPlanV02; requested: readonly PackagesPackageRequestV02[]; receipt: PackagesInstallReceiptV02 | null; rejection: PackagesOpsRejectedV02 | null }
 interface RemoveFlow { phase: "confirm" | "applying" | "receipt" | "rejected"; plan: PackagesRemovePlanV01; requested: readonly string[]; receipt: PackagesRemoveReceiptV01 | null; rejection: PackagesRemoveRejectedV01 | null }
 
-function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: {
-  project: ControlProject; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null;
+function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavigate }: {
+  project: ControlProject; level: AutomationLevel; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null;
   onBack: () => void; onNavigate: (page: PageId) => void;
 }) {
   const gateway = useGateway();
@@ -153,6 +157,8 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
   const [notice, setNotice] = useState<Notice | null>(null);
   const [installFlow, setInstallFlow] = useState<InstallFlow | null>(null);
   const [removeFlow, setRemoveFlow] = useState<RemoveFlow | null>(null);
+  const [pins, setPins] = useState<ReadonlyMap<string, readonly PackagePin[]>>(() => new Map());
+  const [guide, setGuide] = useState<readonly GuideNeed[]>([]);
 
   useEffect(() => {
     if (!project.listed) return;
@@ -166,6 +172,7 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     return () => { alive = false; };
   }, [gateway, project.path, project.listed, reload]);
   const installedRows = installed.kind === "ok" ? installed.rows : null;
+  const installedCached = installed.kind === "ok" && installed.cached;
   useEffect(() => {
     if (!blocks.catalog || installedRows === null) return;
     let alive = true;
@@ -176,6 +183,24 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     }
     return () => { alive = false; };
   }, [gateway, project.path, blocks.catalog, installedRows]);
+  useEffect(() => {
+    const port = gateway.amfProduction;
+    if (!port) return;
+    let alive = true;
+    void port.listRecipes().then(async summaries => {
+      const read = await Promise.allSettled(summaries.map(summary => port.getRecipe(summary.recipeId)));
+      if (alive) setPins(recipePinsByPackage(read.flatMap(item => item.status === "fulfilled" ? [item.value.recipe] : [])));
+    }).catch(() => { /* Pins stay empty without the Recipe store. */ });
+    return () => { alive = false; };
+  }, [gateway]);
+  useEffect(() => {
+    const port = gateway.amfProduction;
+    if (!port || project.runId === null) { setGuide([]); return; }
+    let alive = true;
+    void port.get(project.runId).then(run => { if (alive) setGuide(guideNeeds(run.result?.diagnostics)); })
+      .catch(() => { /* No diagnostics, no guide rows. */ });
+    return () => { alive = false; };
+  }, [gateway, project.runId]);
 
   const rows = useMemo(() => packageRows({ installed: installedRows ?? [], catalog, selectedRepos, query }), [installedRows, catalog, selectedRepos, query]);
   const updates = updateAllRequest(rows.installed);
@@ -216,6 +241,19 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     else if (outcome.kind === "rejected") setRemoveFlow({ ...flow, phase: "rejected", rejection: outcome.rejection });
     else { setRemoveFlow(null); fail(outcome.kind === "failed" ? outcome.code : "unavailable"); }
   };
+  /** Limited auto's "handle dependencies for me": preview, then apply straight
+   * away — the player already delegated; the digest guard still binds the two. */
+  const handleDependencies = async () => {
+    const requests = updateAllRequest(rows.installed);
+    if (busy || requests.length === 0) return;
+    setBusy(true); setNotice(null);
+    const preview = await gateway.packages.previewInstall(project.path, requests);
+    if (preview.kind !== "ok") { setBusy(false); fail(preview.kind === "failed" ? preview.code : "unavailable"); return; }
+    const outcome = await gateway.packages.applyInstall(preview.plan.projectPath, requests, preview.plan.digest);
+    setBusy(false);
+    if (outcome.kind === "ok") { toast(copy.updatesInstalled, "success"); setReload(value => value + 1); }
+    else fail(outcome.kind === "rejected" ? outcome.rejection.code : outcome.kind === "failed" ? outcome.code : "unavailable");
+  };
   const openInUnity = async () => {
     const port = gateway.amfProduction;
     if (!port || project.runId === null || busy) return;
@@ -225,6 +263,50 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     finally { setBusy(false); }
   };
   const lineBusy = project.phase !== null && BUSY_PHASES.has(project.phase);
+  const detail = packagePageDetail(level);
+
+  const packageStates = installed.kind === "loading" ? <p role="status" className="vua-caption vua-text-secondary">{copy.loadingPackages}</p>
+    : installed.kind === "failed" ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{format(copy.failed, { code: installed.code })}</p><Button onClick={() => setReload(value => value + 1)}>{strings.amfProduction.retry}</Button></div>
+    : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedTitle}</p></div>
+    : null;
+  const packageTools = <>
+      <div className="vua-control__stage-bar vua-control__toolbar">
+        {repos.length > 0 && <details className="vua-control__menu">
+          <summary>{format(copy.selectedRepos, { count: repos.filter(repo => selectedRepos.has(repo.key)).length })}<Icon name="chevron-down" size={16}/></summary>
+          <fieldset><legend className="vua-caption vua-text-secondary">{copy.selectedReposLabel}</legend>
+            {repos.map(repo => <label key={repo.key} data-disabled={repo.enabled === false || undefined}>
+              <input type="checkbox" checked={selectedRepos.has(repo.key)} onChange={event => setSelectedRepos(current => {
+                const next = new Set(current); if (event.target.checked) next.add(repo.key); else next.delete(repo.key); return next; })}/>
+              <span>{repo.name}</span><small>{pkg.sources[repo.kind]}</small></label>)}
+          </fieldset>
+        </details>}
+        <input type="search" className="vua-control__search" value={query} placeholder={copy.searchPackages} aria-label={copy.searchPackages} onChange={event => setQuery(event.target.value)}/>
+        <label className="vua-control__check"><input type="checkbox" checked={prerelease} onChange={event => { if (event.target.checked) setAskPrerelease(true); else setPrerelease(false); }}/>{copy.showPrerelease}</label>
+        {canInstall && updates.length > 0 && <Button disabled={busy} onClick={() => { void previewInstall(updates); }}><Icon name="arrow-up" size={16}/>{format(copy.updateAll, { count: updates.length })}</Button>}
+      </div>
+      {askPrerelease && <div className="vua-control__panel vua-control__confirm" role="alertdialog" aria-label={pkg.toolbar.prereleaseTitle}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
+        <strong>{pkg.toolbar.prereleaseTitle}</strong><p className="vua-caption vua-text-secondary">{pkg.toolbar.prereleaseBody}</p>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAskPrerelease(false)}>{pkg.toolbar.prereleaseCancel}</Button>
+          <Button onClick={() => { setPrerelease(true); setAskPrerelease(false); }}>{pkg.toolbar.prereleaseConfirm}</Button></div>
+      </div>}
+      {packageStates ?? <div className="vua-control__table" role="table" aria-label={format(copy.installedHeading, { count: rows.installed.length })}>
+          <div className="vua-control__tr vua-control__th" role="row">
+            <span role="columnheader">{pkg.columns.name}</span><span role="columnheader">{pkg.columns.installed}</span><span role="columnheader">{pkg.columns.latest}</span><span role="columnheader"><span className="vua-control__sr">{copy.actions}</span></span>
+          </div>
+          <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.installedHeading, { count: rows.installed.length })}{installedCached && <small> · {copy.cached}</small>}</span></div>
+          {rows.installed.length === 0 && <div className="vua-control__tr" role="row"><span role="cell" className="vua-caption vua-text-secondary">{copy.installedEmpty}</span></div>}
+          {rows.installed.map(row => <PackageLine key={row.packageId} row={row} versions={versions[row.packageId]} prerelease={prerelease} busy={busy}
+            canInstall={canInstall} canRemove={canRemove} pin={pins.get(row.packageId)}
+            onVersion={version => { void previewInstall(installRequest(row.packageId, version)); }}
+            onUpdate={() => { void previewInstall(installRequest(row.packageId, null)); }} onRemove={() => { void previewRemove(row.packageId); }}/>)}
+          {catalog !== null && <>
+            <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.availableHeading, { count: rows.available.length })}</span></div>
+            {rows.available.length === 0 && <div className="vua-control__tr" role="row"><span role="cell" className="vua-caption vua-text-secondary">{copy.availableEmpty}</span></div>}
+            {rows.available.map(row => <PackageLine key={row.packageId} row={row} versions={undefined} prerelease={prerelease} busy={busy}
+              canInstall={canInstall} canRemove={false} onVersion={() => {}} onUpdate={() => {}} onAdd={() => { void previewInstall(installRequest(row.packageId, null)); }} onRemove={() => {}}/>)}
+          </>}
+        </div>}
+    </>;
 
   return <section className="vua-control__screen" aria-label={project.name}>
     <div className="vua-control__project-head">
@@ -247,44 +329,13 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
         <p className="vua-control__mono vua-control__path">{project.path}</p>
       </div>
     : <>
-      <div className="vua-control__stage-bar vua-control__toolbar">
-        {repos.length > 0 && <details className="vua-control__menu">
-          <summary>{format(copy.selectedRepos, { count: repos.filter(repo => selectedRepos.has(repo.key)).length })}<Icon name="chevron-down" size={16}/></summary>
-          <fieldset><legend className="vua-caption vua-text-secondary">{copy.selectedReposLabel}</legend>
-            {repos.map(repo => <label key={repo.key} data-disabled={repo.enabled === false || undefined}>
-              <input type="checkbox" checked={selectedRepos.has(repo.key)} onChange={event => setSelectedRepos(current => {
-                const next = new Set(current); if (event.target.checked) next.add(repo.key); else next.delete(repo.key); return next; })}/>
-              <span>{repo.name}</span><small>{pkg.sources[repo.kind]}</small></label>)}
-          </fieldset>
-        </details>}
-        <input type="search" className="vua-control__search" value={query} placeholder={copy.searchPackages} aria-label={copy.searchPackages} onChange={event => setQuery(event.target.value)}/>
-        <label className="vua-control__check"><input type="checkbox" checked={prerelease} onChange={event => { if (event.target.checked) setAskPrerelease(true); else setPrerelease(false); }}/>{copy.showPrerelease}</label>
-        {canInstall && updates.length > 0 && <Button disabled={busy} onClick={() => { void previewInstall(updates); }}><Icon name="arrow-up" size={16}/>{format(copy.updateAll, { count: updates.length })}</Button>}
-      </div>
-      {askPrerelease && <div className="vua-control__panel vua-control__confirm" role="alertdialog" aria-label={pkg.toolbar.prereleaseTitle}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
-        <strong>{pkg.toolbar.prereleaseTitle}</strong><p className="vua-caption vua-text-secondary">{pkg.toolbar.prereleaseBody}</p>
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAskPrerelease(false)}>{pkg.toolbar.prereleaseCancel}</Button>
-          <Button onClick={() => { setPrerelease(true); setAskPrerelease(false); }}>{pkg.toolbar.prereleaseConfirm}</Button></div>
-      </div>}
-      {installed.kind === "loading" ? <p role="status" className="vua-caption vua-text-secondary">{copy.loadingPackages}</p>
-        : installed.kind === "failed" ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{format(copy.failed, { code: installed.code })}</p><Button onClick={() => setReload(value => value + 1)}>{strings.amfProduction.retry}</Button></div>
-        : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedTitle}</p></div>
-        : <div className="vua-control__table" role="table" aria-label={format(copy.installedHeading, { count: rows.installed.length })}>
-          <div className="vua-control__tr vua-control__th" role="row">
-            <span role="columnheader">{pkg.columns.name}</span><span role="columnheader">{pkg.columns.installed}</span><span role="columnheader">{pkg.columns.latest}</span><span role="columnheader"><span className="vua-control__sr">{copy.actions}</span></span>
-          </div>
-          <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.installedHeading, { count: rows.installed.length })}{installed.cached && <small> · {copy.cached}</small>}</span></div>
-          {rows.installed.length === 0 && <div className="vua-control__tr" role="row"><span role="cell" className="vua-caption vua-text-secondary">{copy.installedEmpty}</span></div>}
-          {rows.installed.map(row => <PackageLine key={row.packageId} row={row} versions={versions[row.packageId]} prerelease={prerelease} busy={busy}
-            canInstall={canInstall} canRemove={canRemove} onVersion={version => { void previewInstall(installRequest(row.packageId, version)); }}
-            onUpdate={() => { void previewInstall(installRequest(row.packageId, null)); }} onRemove={() => { void previewRemove(row.packageId); }}/>)}
-          {catalog !== null && <>
-            <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.availableHeading, { count: rows.available.length })}</span></div>
-            {rows.available.length === 0 && <div className="vua-control__tr" role="row"><span role="cell" className="vua-caption vua-text-secondary">{copy.availableEmpty}</span></div>}
-            {rows.available.map(row => <PackageLine key={row.packageId} row={row} versions={undefined} prerelease={prerelease} busy={busy}
-              canInstall={canInstall} canRemove={false} onVersion={() => {}} onUpdate={() => {}} onAdd={() => { void previewInstall(installRequest(row.packageId, null)); }} onRemove={() => {}}/>)}
-          </>}
-        </div>}
+      <PackageGuideAlert needs={guide}/>
+      {detail !== "table" && installed.kind === "ok" ? <ProjectPackageConclusion level={level} rows={rows.installed} cached={installedCached} pins={pins} guideCount={guide.length} busy={busy}
+        onHandleDependencies={detail === "next_step" ? () => { void handleDependencies(); } : undefined}/> : null}
+      {detail === "conclusion" ? (installed.kind === "ok" ? null : packageStates)
+        : detail === "next_step" && installed.kind === "ok"
+          ? <details className="vua-control__moded"><summary>{factory.details}</summary>{packageTools}</details>
+          : packageTools}
     </>}
     {installFlow !== null && <InstallConfirmDialog plan={installFlow.plan} requestedPackages={installFlow.requested} phase={installFlow.phase} receipt={installFlow.receipt}
       rejection={installFlow.rejection} onCancel={() => setInstallFlow(null)} onConfirm={() => { void applyInstall(); }}/>}
@@ -297,18 +348,20 @@ function versionText(version: string, prerelease: boolean, yanked: boolean): str
   return yanked ? format(pkg.states.versionSuffix, { version, suffix: pkg.states.yanked }) : prerelease ? format(pkg.states.versionSuffix, { version, suffix: pkg.states.prerelease }) : version;
 }
 
-function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, onVersion, onUpdate, onAdd, onRemove }: {
+function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, pin, onVersion, onUpdate, onAdd, onRemove }: {
   row: ControlPackageRow; versions: readonly CatalogVersionRowV01[] | "failed" | undefined; prerelease: boolean; busy: boolean;
-  canInstall: boolean; canRemove: boolean; onVersion: (version: string) => void; onUpdate: () => void; onAdd?: () => void; onRemove: () => void;
+  canInstall: boolean; canRemove: boolean; pin?: readonly PackagePin[] | undefined; onVersion: (version: string) => void; onUpdate: () => void; onAdd?: () => void; onRemove: () => void;
 }) {
   const choices = Array.isArray(versions) ? versionChoices(versions, row.installedVersion, prerelease) : null;
+  const pinSegments = packagePinLines(pin ? new Map([[row.packageId, pin]]) : new Map(), new Set([row.packageId]))
+    .map(line => format(copy.pinnedBy, { names: line.recipes.join(", "), version: line.version }));
+  const caption = [row.description, row.requiredBy.length > 0 ? format(copy.requiredBy, { names: row.requiredBy.join(", ") }) : null,
+    row.installedVersion === null && row.repoName ? format(copy.fromRepo, { repo: row.repoName }) : null, ...pinSegments].filter(Boolean).join(" · ");
   return <div className="vua-control__tr" role="row" data-installed={row.installedVersion !== null || undefined}>
     <span role="cell" className="vua-control__pkg">
       <strong>{row.displayName}</strong>
       <small className="vua-control__mono">{row.packageId}</small>
-      {(row.description || row.requiredBy.length > 0 || (row.installedVersion === null && row.repoName)) && <small>
-        {[row.description, row.requiredBy.length > 0 ? format(copy.requiredBy, { names: row.requiredBy.join(", ") }) : null,
-          row.installedVersion === null && row.repoName ? format(copy.fromRepo, { repo: row.repoName }) : null].filter(Boolean).join(" · ")}</small>}
+      {caption !== "" && <small>{caption}</small>}
     </span>
     <span role="cell">{row.installedVersion === null ? <span className="vua-text-secondary">—</span>
       : choices !== null && canInstall ? <select className="vua-control__version" value={row.installedVersion} disabled={busy}

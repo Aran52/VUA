@@ -108,17 +108,26 @@ export function controlPreview(view: string, base: VuaGateway, production: AmfPr
     ...production,
     async listRecipes() { return saved.map(item => ({ recipeId: item.recipeId, title: item.title, revision: 3, updatedAt: "2026-10-16T09:30:00Z" })); },
     async getRecipe(recipeId: string) { return { recipe: saved.find(item => item.recipeId === recipeId)!, revision: 3, updatedAt: "2026-10-16T09:30:00Z" }; },
-    async get(runId: string) { return { ...(await production.get(runId)), projectRoot: projectRoot(runId) }; },
+    async get(runId: string) {
+      const run = { ...(await production.get(runId)), projectRoot: projectRoot(runId) };
+      // The finished line's materials need a guide package: the run carries the fixed diagnostic shape.
+      if (runId === "finished" && run.result) return { ...run, result: { ...run.result, diagnostics: [
+        { code: "amf.package.guide", severity: "warning", message: "2 materials need Poiyomi Pro; get it from https://www.poiyomi.com/." },
+      ] } };
+      return run;
+    },
   } as AmfProductionPort;
   // The package view loads once the AMF module reports ready.
   const amfModule = { ...base.amfModule, snapshot: async () => ({ schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const }) };
   const gateway = { ...base, amfModule, amfProduction, packages: packagesPort, projectOps: projectOps(base.projectOps) };
   try { localStorage.setItem("vua-amf-control-recipes-view-v01", view === "control-recipes-list" ? "list" : "graph"); } catch { /* preview only */ }
+  // Package page modes: the view suffix picks the workshop's permission mode.
+  try { localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("-full") ? "full" : view.endsWith("-smart") ? "smart" : "ask"); } catch { /* preview only */ }
   // Resource-saving mode: the graph draws its settled layout without a frame loop.
   if (view === "control-recipes-still") document.documentElement.dataset.effects = "off";
   const selected = view === "control-recipes-selected" ? recipeNodeId("stage-meiyun") : view === "control-recipes-part" ? packageNodeId("nadena.dev.modular-avatar")
     : view === "control-recipes-list" ? materialNodeId(outfits.cap.id) : null;
-  const screen: Screen = view === "control-packages-project" ? { kind: "project", key: "work:finished" } : view === "control-packages-unlisted" ? { kind: "project", key: "work:waiting" }
+  const screen: Screen = view.startsWith("control-packages-project") ? { kind: "project", key: "work:finished" } : view === "control-packages-unlisted" ? { kind: "project", key: "work:waiting" }
     : view === "control-packages-repos" ? { kind: "repos" } : { kind: "projects" };
   const page = view.startsWith("control-packages")
     ? <AmfRoom page="packages" navigate={() => {}}><ControlPackagesPage onNavigate={() => {}} initialScreen={screen}/></AmfRoom>

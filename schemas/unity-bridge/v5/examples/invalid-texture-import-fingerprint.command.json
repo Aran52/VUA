@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-sdk-fix",
+  "projectId": "n3-vector",
+  "operation": "amf_texture_import",
+  "dryRun": false,
+  "payload": {
+    "planRef": ".vua/bridge/n3-vector-sdk-fix.amf-plan.json",
+    "planHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "avatarGlobalObjectId": "",
+    "avatarArmatureGlobalObjectId": "",
+    "outfitGlobalObjectId": "",
+    "outfitArmatureGlobalObjectId": "",
+    "toggleName": ""
+  }
+}

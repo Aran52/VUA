@@ -328,3 +328,17 @@ describe("AMF production response boundary", () => {
     }
   });
 });
+
+
+describe("texture memory response boundary", () => {
+  const textureMemory = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/texture-memory.valid.result.json", import.meta.url), "utf8")).data.textureMemory;
+  it("keeps old runs readable and validates all new platform facts", () => {
+    expect(isAmfProductionRun(run)).toBe(true);
+    const withFacts = (facts: unknown) => ({ ...run, result: { facts: { ...run.result.facts, textureMemory: facts } } });
+    expect(isAmfProductionRun(withFacts(textureMemory))).toBe(true);
+    for (const invalid of [null, {}, [textureMemory[0]], [{...textureMemory[0], totalBytes: -1}, textureMemory[1]],
+      [{...textureMemory[0], textures: [{ ...textureMemory[0].textures[0], format: undefined }]}, textureMemory[1]]]) {
+      expect(isAmfProductionRun(withFacts(invalid))).toBe(false);
+    }
+  });
+});

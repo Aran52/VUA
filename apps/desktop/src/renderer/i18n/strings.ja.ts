@@ -1,3 +1,4 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -28,6 +29,7 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} の名前はソース表と完全一致させること。
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["ja"],
   faceTracking: faceTrackingCopy["ja"],
   toolConnection: toolConnectionCopy["ja"],
   browser: browserCopy["ja"],

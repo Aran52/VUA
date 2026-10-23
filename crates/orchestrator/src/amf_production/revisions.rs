@@ -21,6 +21,7 @@ pub enum RevisionKind {
     FaceTracking,
     EditorSave,
     Lighting,
+    TextureMemory,
     Restore,
 }
 
@@ -39,6 +40,10 @@ pub struct RevisionSource {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RevisionState {
+    /// Importer tuning remains work-project local; replay refuses to cross different texture
+    /// facts until Recipe capture includes importer settings. The full restore point is usable.
+    #[serde(default)]
+    pub texture_memory: serde_json::Value,
     #[serde(default)]
     pub face_tracking_manual: bool,
     #[serde(default)]
@@ -301,6 +306,7 @@ impl AmfProductionEngine {
         edited_in_unity: bool,
     ) -> String {
         let state = RevisionState {
+            texture_memory: texture_memory::texture_revision_state(run),
             face_tracking_manual: face_tracking::manual_face_tracking(run),
             choices: run.choices.clone(),
             sources: run
@@ -394,6 +400,9 @@ impl AmfProductionEngine {
         face_tracking::require_replayable_face_tracking(&run)?;
         if revision.state.face_tracking_manual {
             return Err(production_error("face_tracking_manual_replay", "This version contains an opaque creator patch and requires manual replay."));
+        }
+        if revision.state.texture_memory != texture_memory::texture_revision_state(&run) {
+            return Err(production_error("texture_manual_replay", "Texture import settings differ from this version. Use the retained full restore point; version replay does not yet reproduce texture tuning."));
         }
         let edited = self.edited_in_unity(&run);
         let (_, current) = self.project_state(&run)?;

@@ -1,4 +1,6 @@
 /** Candidate AMF material-first production. Frozen legacy production faces are separate. */
+import { isTexturePlatform, isTextureTargetRank, isTexturePath } from "./texture-memory-v01.js";
+import type { TexturePlatform, TextureTargetRank } from "./texture-memory-v01.js";
 import { isFaceTrackingDigest } from "./face-tracking-v01.js";
 export type AmfSourceRole = "auto" | "avatar" | "outfit" | "dependency";
 export interface AmfSourceChoice { readonly sourceId: string; readonly role: AmfSourceRole }
@@ -10,7 +12,7 @@ export interface AmfOutfitSelection {
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
 /** Which state of the line a revision recorded; `restore` is the protected current state. */
-export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "face_tracking" | "editor_save" | "lighting" | "restore";
+export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "face_tracking" | "editor_save" | "lighting" | "texture_memory" | "restore";
 export type AmfProductionCapacity = 1 | 2 | 3;
 /** The lilToon brightness limits of one material, as serialized in its file. */
 export interface AmfLightingLimits { readonly min: string; readonly max: string }
@@ -29,6 +31,8 @@ export interface AmfProductionLaneV01 {
   readonly queue: readonly AmfProductionWorkV01[];
 }
 export type AmfProductionBodyV01 =
+  | { readonly method: "amf.production.planTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank } }
+  | { readonly method: "amf.production.applyTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank; readonly planDigest: string; readonly textures: readonly string[] } }
   | { readonly method: "amf.production.faceTrackingPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string } }
   | { readonly method: "amf.production.faceTrackingPatch"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string; readonly planDigest: string; readonly confirmTrustedCode: true } }
   | { readonly method: "amf.production.setCapacity"; readonly params: { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity } }
@@ -81,7 +85,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "editor_close", "lighting"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "editor_close", "lighting", "texture_memory"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
@@ -224,6 +228,13 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan": case "amf.production.planLighting":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.planTextureMemory":
+      return exact(value, ["schemaVersion", "runId", "platform", "targetRank"]) && runId(value.runId) && isTexturePlatform(value.platform) && isTextureTargetRank(value.targetRank);
+    case "amf.production.applyTextureMemory":
+      return exact(value, ["schemaVersion", "runId", "platform", "targetRank", "planDigest", "textures"]) && runId(value.runId)
+        && isTexturePlatform(value.platform) && isTextureTargetRank(value.targetRank) && isFaceTrackingDigest(value.planDigest)
+        && Array.isArray(value.textures) && value.textures.length > 0 && value.textures.length <= 2048
+        && value.textures.every(isTexturePath) && new Set(value.textures).size === value.textures.length;
     case "amf.production.applyLighting":
       return exact(value, ["schemaVersion", "runId", "planDigest", "materials"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)

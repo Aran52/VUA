@@ -16,6 +16,8 @@ mod release;
 pub use release::*;
 mod lighting;
 pub use lighting::*;
+mod texture_memory;
+pub use texture_memory::*;
 mod revisions;
 pub use revisions::*;
 mod fits;
@@ -309,8 +311,8 @@ impl Drop for FingerprintCheck<'_> {
 fn interrupted_change(run: &ProductionRun) -> bool {
     run.phase == "assembling"
         && run.snapshot_id.is_some()
-        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking") && step.state == "running")
-            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| step.key == "face_tracking"))
+        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking" | "texture_memory") && step.state == "running")
+            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| matches!(step.key.as_str(), "face_tracking" | "texture_memory")))
 }
 
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
@@ -485,6 +487,9 @@ pub trait AmfProductionPlatform: Send + Sync {
         Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
+    fn texture_import(&self, _: &ProductionRun, _: &[TextureImportChange], _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("texture_import_unavailable", "Texture import changes are unavailable on this platform."))
+    }
     fn face_tracking_patch(&self, _: &ProductionRun, _: &FaceTrackingPatch, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("face_tracking_unavailable", "Creator patch sessions are unavailable on this platform."))
     }

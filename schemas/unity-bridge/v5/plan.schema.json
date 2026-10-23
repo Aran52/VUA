@@ -284,6 +284,53 @@
           "const": true
         }
       }
+    },
+    "textureChanges": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2048,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 4096,
+            "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
+          },
+          "platform": {
+            "enum": [
+              "pc",
+              "android"
+            ]
+          },
+          "maxSize": {
+            "enum": [
+              32,
+              64,
+              128,
+              256,
+              512,
+              1024,
+              2048,
+              4096,
+              8192,
+              16384
+            ]
+          },
+          "format": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "path",
+          "platform",
+          "maxSize",
+          "format"
+        ]
+      }
     }
   }
 }

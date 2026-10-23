@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.32.0
+> Document version: 0.33.0
 > Status: Candidate
 > Updated: 2026-10-23
 > Owner: AMF
@@ -49,6 +49,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
 | `amf.production.bakeTurntable` | Command | `runId` | Durable task baking the 60-frame turntable of the finished Avatar |
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
+| `amf.production.planTextureMemory` | Query | `runId`, `platform: pc / android`, `targetRank: excellent / good / medium / poor` | Digest-bound current inventory, suggested importer changes, predicted bytes/rank and `reachesTarget` |
+| `amf.production.applyTextureMemory` | Command | `runId`, `platform`, `targetRank`, `planDigest`, `textures` | Durable confirmed subset task; snapshot, version record, importer changes, independent reinspection and automatic restore on failure |
 | `amf.production.planLighting` | Query | `runId` | Digest-bound lilToon brightness alignment: the Avatar's reference limits, the outfit entries that differ and the shared materials left alone |
 | `amf.production.applyLighting` | Command | `runId`, `planDigest`, `materials` | Durable task acceptance; aligns the chosen reviewed materials behind a restore point and rechecks the project in Unity |
 | `amf.production.listFits` | Query | none | Retained saved fits: name, times, object count and the garment/Avatar content identities each belongs to |
@@ -183,10 +185,10 @@ restoration targets.
 ### Version records
 
 Every protected change — a material change, an assembly, a rebuild on another base, an SDK fix,
-a lighting alignment and every restore — first records the line's state as a **version record**
+a lighting alignment, texture tuning and every restore — first records the line's state as a **version record**
 and keeps it on the run (`revisions`, newest first, at most 50; the oldest are discarded beyond
 that). A record carries its identity, the change it precedes (`materials`, `assembly`, `rebuild`,
-`sdk_fix`, `face_tracking`, `lighting` or `restore`), when it was taken, and the state a replay needs: the source
+`sdk_fix`, `face_tracking`, `lighting`, `texture_memory` or `restore`), when it was taken, and the state a replay needs: the source
 choices and each source's content identity (original package filename and SHA-256), the assembly
 selection, the brightness limits written into each in-use lilToon material, the SDK fixes applied
 so far and the observed VPM dependency versions. A display `summary` names the Avatar, outfits and
@@ -267,7 +269,7 @@ Recipe's fits take precedence over stored fits for the garments they name.
 ## Progress, stop and continue
 
 Step keys are `project`, `materials`, `inspect`, `reinspect`, `snapshot`, `assembly`,
-`protect_current`, `restore`, `turntable`, `upload`, `sdk_fix`, `face_tracking` and `lighting`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
+`protect_current`, `restore`, `turntable`, `upload`, `sdk_fix`, `face_tracking`, `lighting` and `texture_memory`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
 times; records written before step times carry `null`. Step states are `running`, `succeeded`,
 `failed` and `stopped`. `amf.production.get` shows the unfinished step of work whose task no
 longer runs as `interrupted`, next to the run phase `inspect_required`.
@@ -327,7 +329,7 @@ in request order, when admitted by these rules:
 Checks of the request itself (keys, plan digest
 shape, Avatar name, rights confirmation, SDK items) answer at once, and so does `project_open`
 for work that changes the project (reinspection, assembly, a material change, an SDK fix, a
-restore, a version restore, a Recipe application, lighting and deletion) while Unity holds it; other checks against
+restore, a version restore, a Recipe application, lighting, texture tuning and deletion) while Unity holds it; other checks against
 the work project and the run (Editor identity, `project_open` again, `project_drift`,
 `result_not_ready`) run when the job starts, and a job that cannot start then ends `failed` with
 that reason. A `runId` without a run answers `run_not_found`.
@@ -625,6 +627,67 @@ The Recipe format and external-tool lifecycle are unchanged.
 The recovery boundary covers VUA's work-project writes. Imported scripts execute with ordinary
 Editor privileges; this is not an OS sandbox and cannot undo external writes. See the
 [design and SOP drafts](../development/face-tracking.md) for adapter limits and real-device review.
+
+## Texture memory and importer tuning
+
+`facts.textureMemory` is optional on retained runs. A new Bridge reports either an empty list
+(no active Avatar) or PC and Android reports in that order. Each report contains `platform`,
+`textures`, `totalBytes`, `complete` and the texture-category `rank`. Each texture has a distinct
+`id`, project-relative `path` (empty for generated textures), imported `width`/`height`, `format`,
+`mipmap`, `faces`, `maxSize`, `estimatedBytes`, `known`, `editable` and a `reason` for exclusions.
+The dependency graph includes inactive renderers and animation-referenced materials, and counts
+one texture object once even when several materials share it. This is a scene/importer estimate
+before build processors; the SDK's built Avatar statistics remain authoritative.
+
+Known estimates sum the decoded GPU storage of every mip, rounding each compressed mip to whole
+blocks and multiplying cube faces. The CPU-readable copy, allocator overhead, file/download size
+and transient Editor allocations are excluded. Crunch is estimated as its decoded DXT/ETC format.
+Unknown formats, non-POT importer scaling and unsupported platform formats have `known: false`
+and zero known bytes. Any unknown entry makes `complete: false` and `rank: unknown`; the displayed
+sum is then a lower bound, never a successful rank claim.
+
+Thresholds consulted on **2026-10-23**: VRChat's [official performance ranks](https://creators.vrchat.com/avatars/avatar-performance-ranking-system/)
+publish PC Excellent/Good/Medium/Poor limits of 40/75/110/150 MB and mobile limits of 10/18/25/40 MB.
+This estimate uses inclusive limits in MiB (1,048,576 bytes), displays MiB explicitly, and assigns
+`very_poor` above Poor. It describes only texture memory, independently of the overall SDK rank.
+Unity's [2022.3 texture format documentation](https://docs.unity3d.com/2022.3/Documentation/Manual/class-TextureImporterOverride.html)
+was consulted on the same date for platform compression and Crunch's unchanged decoded footprint.
+
+Planning requires a succeeded line, new measured facts and an unchanged project fingerprint.
+The digest binds the run identity/revision, project fingerprint, platform, target and the full
+plan. Suggestions first use BC7 on PC or ASTC 4x4 on Android when this saves memory without
+changing resolution. Already smaller compressed formats are retained. If needed, the greatest
+remaining saving is selected one halving at a time, down to a conservative maximum-dimension
+floor of 512. Mipmaps, alpha, sRGB, read/write and other importer properties are preserved.
+Only ordinary sRGB Texture2D color assets with POT sources and writable local files qualify;
+normal/data/HDR textures, special shapes, package/generated/sub-assets and textures shared with
+another Avatar in the saved scene remain unchanged. An unreachable target is explicit.
+
+The player confirms every mutation: ask mode submits one reviewed path at a time; smart mode
+reviews a selectable list; full mode confirms the target's entire suggested set with one action.
+Full mode's target does not grant unattended mutation authority. Every command names a nonempty,
+distinct subset of the digest-bound plan; other paths and stale digests fail before the snapshot.
+The queued task validates the project again on admission, saves a restore point and a
+`texture_memory` version record before writes, changes only platform importer settings in the
+managed work project, then independently inspects Unity and verifies the selected settings.
+A complete suggested set that was predicted to reach the target must reach it in the recheck.
+Cancellation, failed import, missing facts or verification failure restore both project files
+and the prior observations. A failed restoration stays explicit with its recovery point.
+An interrupted texture step also offers the retained full-copy restore point.
+
+Importer tuning is not captured in Recipes in this slice. Version records retain stable texture
+facts; replay across different recorded texture settings fails with `texture_manual_replay`,
+rather than claiming to reconstruct them. The retained full-copy restore point can undo the last
+protected change. Full historical importer/Recipe replay remains follow-up work.
+
+lilAvatarUtils was evaluated on **2026-10-23**. Its [MIT-licensed texture panel](https://lilxyzw.github.io/lilAvatarUtils/ja_JP/docs/TexturesGUI.html)
+provides inventory, VRAM sorting and batch importer edits. It does not provide VUA's reviewed
+digests, permission receipts, durable tasks, restore points or failure recovery. This slice uses
+Unity's public importer API directly and neither copies nor distributes lilAvatarUtils code.
+
+## Document changelog
+
+- 0.33.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
 
 ## Synced parameter budget estimate
 

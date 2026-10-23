@@ -76,6 +76,19 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec!["Head".into()],
             preview: Some(".vua/previews/cmd/candidate-000.png".into()),
+            parameter_budget: Some(ParameterBudget {
+                expression_parameters_observed: true,
+                expression_parameters: vec![
+                    ParameterEntry { name: "VRCEmote".into(), bits: 8, unique: false },
+                    ParameterEntry { name: "VRMode".into(), bits: 1, unique: false },
+                ],
+                ma_components: vec![ParameterComponent {
+                    path: "Default Clothing".into(),
+                    parameters: vec![ParameterEntry { name: "DefaultDress".into(), bits: 1, unique: false }],
+                }],
+                unresolved_prefix_configs: 0,
+                truncated: false,
+            }),
         },
         PrefabCandidate {
             source_id: "outfit".into(),
@@ -87,6 +100,16 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
+            parameter_budget: Some(ParameterBudget {
+                expression_parameters_observed: true,
+                expression_parameters: vec![],
+                ma_components: vec![ParameterComponent {
+                    path: String::new(),
+                    parameters: vec![ParameterEntry { name: "CoatOn".into(), bits: 1, unique: false }],
+                }],
+                unresolved_prefix_configs: 0,
+                truncated: false,
+            }),
         },
         PrefabCandidate {
             source_id: "outfit2".into(),
@@ -98,6 +121,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
+            parameter_budget: None,
         },
     ]
 }
@@ -913,6 +937,10 @@ fn recipes_require_current_observations_and_reopen_with_pinned_inputs() {
     let h = Harness::new(); h.prepared();
     assert!(h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").is_err());
     let plan = h.engine.plan("n3-test", &selection()).unwrap(); let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    // The fixture Avatar carries 8+1 asset bits plus one embedded MA bit; the Coat adds one more.
+    assert_eq!(plan["parameterBudget"]["state"], "fits");
+    assert_eq!(plan["parameterBudget"]["estimateBits"], 11);
+    assert_eq!(plan["parameterBudget"]["limitBits"], 256);
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
     let saved = h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").unwrap();
     assert_eq!(h.engine.get_recipe("recipe-test").unwrap(), saved);

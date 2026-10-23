@@ -41,6 +41,7 @@ namespace Vua.Editor.Bridge
             public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts;
             public List<string> humanoidBones = new List<string>();
             public string preview = "";
+            public ParameterBudget parameterBudget = new ParameterBudget();
         }
         [Serializable] internal sealed class PreviewImage { public string view; public string path; }
         [Serializable] internal sealed class MaterialUse { public string owner; public string renderer; public string material; }
@@ -321,7 +322,8 @@ namespace Vua.Editor.Bridge
                 candidates.Add(new Candidate { sourceId = source.sourceId, path = path, name = prefab.name,
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
-                    hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>() });
+                    hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),
+                    parameterBudget = ObserveParameterBudget(prefab, IsAvatar(prefab)) });
             }
             return candidates;
         }

@@ -388,8 +388,9 @@ impl NativeAmfProduction {
             diagnostics.push(vua_orchestrator::Diagnostic { code: "amf.preview.failed".into(), severity: vua_orchestrator::DiagnosticSeverity::Warning,
                 message: format!("{} preview images were left out because their files are missing or too large.", omitted.len()) });
         }
-        let prefabs = serde_json::from_value(facts["prefabs"].clone())
+        let prefabs: Vec<PrefabCandidate> = serde_json::from_value(facts["prefabs"].clone())
             .map_err(|e| err("receipt_invalid", e))?;
+        vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&prefabs)?;
         let unity_fingerprint = facts["projectFingerprint"]
             .as_str()
             .filter(|s| !s.is_empty())

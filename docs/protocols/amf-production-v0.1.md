@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.30.0
+> Document version: 0.31.0
 > Status: Candidate
 > Updated: 2026-10-23
 > Owner: AMF
@@ -23,7 +23,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.faceTrackingPlan` | Query | `runId`, `menuId` | Exact imported menu, active owned Avatar, project/revision digest, interactive execution and manual replay/trust warning |
 | `amf.production.faceTrackingPatch` | Command | `runId`, `menuId`, `planDigest`, `confirmTrustedCode: true` | Durable task: snapshot, creator session, independent reinspection, automatic restoration on failure |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
-| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild` and pending Recipe `adjustments` |
+| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild`, pending Recipe `adjustments` and the estimated synced `parameterBudget` |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
 | `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
 | `amf.production.changeSources` | Command | `runId`, `sources: [{sourceId, role}]` | Durable task changing the line's own materials behind a restore point; the line plans again |
@@ -572,7 +572,27 @@ The recovery boundary covers VUA's work-project writes. Imported scripts execute
 Editor privileges; this is not an OS sandbox and cannot undo external writes. See the
 [design and SOP drafts](../development/face-tracking.md) for adapter limits and real-device review.
 
+## Synced parameter budget estimate
+
+`amf.production.plan` carries `parameterBudget`, the plan's estimate of the synced
+expression-parameter bits the assembled Avatar would use against VRChat's 256-bit limit. It
+merges, by merged name and in MA's build order, the selected Avatar's own Expression Parameters
+asset, the MA Parameters its prefab already carries (the outfits it wears), and each selected
+outfit's MA Parameters. `state` is `fits`, `near_limit` (above 90 % of the limit), `over_limit`
+(the SDK refuses the upload; the plan says so) or `unknown`. `unknown` covers runs whose last
+inspection predates the evidence, an Avatar whose Expression Parameters asset could not be
+read, and any truncated observation; it carries no number. `sources` attributes every counted
+bit to one row — the Avatar's own asset, its embedded components, or one selected outfit — so
+the rows sum to `estimateBits`. `unresolvedPrefixConfigs` counts MA prefix configs whose
+parameters exist only after build-time resolution; they are not in the estimate, which is
+therefore a floor where they appear. The evidence and its bounds are the Bridge's
+[candidate `parameterBudget`](unity-bridge-v5.md#synced-parameter-budget-evidence). The number
+is a source estimate (`evidence: "unity_source_estimate"`), never the SDK's built cost, which
+the SDK's own check reports after assembly.
+
 ## Document changelog
+
+- 0.31.0 (2026-10-23): `amf.production.plan` estimates the assembled Avatar's synced parameter bits against the 256-bit limit from per-candidate Bridge evidence, with per-source attribution and an explicit `unknown` instead of a number when the evidence is missing or truncated.
 
 - 0.30.0 (2026-10-23): the creator-patch session waits for the player's Finish or Cancel instead of the 20-minute Bridge budget (Stop unchanged; an 8-hour cap only ends a runaway process), and a marked line keeps its pre-patch full copy next to the current restore point, offered by `rollbackPlan` and `rollback` as the digest-bound `prePatch` target.
 

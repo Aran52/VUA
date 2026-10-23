@@ -1,8 +1,8 @@
 import type { FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
   AmfRunPhaseV01, AmfStepV01, AmfUsualDurations, AmfRunProgressV01, AmfProductionProgressV01, AmfProductionCapacity, AmfProductionWorkV01, AmfProductionLaneV01,
-  AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind } from "@vua/contracts";
+  AmfLightingEntry, AmfLightingLimits, AmfLightingReferenceReason, AmfLightingSkip, AmfProductionRevisionKind, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { isFaceTrackingFacts, isFaceTrackingPlan, isAmfAssemblySelection, isAmfPreviewPath, isAmfRecipeDocument, isAmfSharedRecipe, decodeAmfRecipeShare, sameAmfRecipeShare,
-  AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity } from "@vua/contracts";
+  AMF_RUN_PHASES, isAmfStep, isAmfUsualDurations, isAmfRunProgress, readAmfProductionProgress, isAmfProductionCapacity, isAmfParameterBudgetPlan } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
 import type { Unsubscribe } from "./types.ts";
@@ -81,6 +81,9 @@ export interface AmfProductionPlan {
   readonly inputs: readonly { readonly sourceId: string; readonly name: string; readonly role: "avatar" | "outfit" | "import_only" }[];
   /** Assembling rebuilds the line on another Avatar prefab, behind a restore point. */
   readonly rebuild?: boolean;
+  /** Estimated synced parameter bits of the assembled Avatar against the 256-bit limit; absent when
+   *  the engine predates the estimate. */
+  readonly parameterBudget?: AmfParameterBudgetPlanV01;
   /** The saved fit the plan applies per source, when one is known; `null` names no fit. Absent when the engine does not report fits. */
   readonly fits?: readonly { readonly sourceId: string; readonly fitId: string | null; readonly name: string | null }[];
 }
@@ -399,6 +402,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       if (!record(v) || v.schemaVersion !== "0.1" || v.runId !== runId || typeof v.planDigest !== "string" || !/^[a-f0-9]{64}$/u.test(v.planDigest) || !Array.isArray(v.inputs)
         || !isAmfAssemblySelection(v.selection) || v.preserveOriginals !== true || v.officialSdkChecks !== "not_run" || !editor(v.editor) || !text(v.projectRoot)
         || !v.inputs.every(i => record(i) && text(i.sourceId) && text(i.name) && ["avatar", "outfit", "import_only"].includes(String(i.role)))
+        || (v.parameterBudget !== undefined && !isAmfParameterBudgetPlan(v.parameterBudget))
         || !planFits(v.fits)) throw new Error("amf_production_plan_invalid");
       return v as unknown as AmfProductionPlan;
     },

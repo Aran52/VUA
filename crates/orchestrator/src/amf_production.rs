@@ -20,6 +20,8 @@ mod fits;
 pub use fits::*;
 mod face_tracking;
 pub use face_tracking::*;
+mod parameter_budget;
+pub use parameter_budget::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -99,6 +101,9 @@ pub struct PrefabCandidate {
     /// Work-project-relative PNG the Bridge rendered for this candidate during inspection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<String>,
+    /// Source evidence for the synced parameter budget; an older Bridge omits it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parameter_budget: Option<ParameterBudget>,
 }
 
 /// Bridge previews live in this work-project folder, one subfolder per Bridge command.
@@ -1366,7 +1371,8 @@ impl AmfProductionEngine {
             "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
             "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
                 "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes})),
-            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>()}),
+            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>(),
+            "parameterBudget":plan_parameter_budget(&run, selection)}),
         )
     }
     pub fn assemble(

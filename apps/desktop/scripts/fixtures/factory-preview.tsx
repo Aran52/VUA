@@ -54,6 +54,22 @@ runs.rebuild = { ...runs.finished!, runId: "rebuild",
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
   result: { facts: { ...runs.finished!.result!.facts!, observedSelection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] } } } } as AmfProductionRun;
+// Face-tracking lines: full coverage with a creator patch menu, a patched line's lock, and no coverage at all.
+const ftMenu = { id: "a".repeat(64), sourceId: "avatar", scriptPath: "Assets/Meiyun/Editor/FacePatch.cs", menuPath: "Meiyun/Face Tracking Setup" };
+const ftFacts = (matched: number, menus: boolean, manual = false) => ({
+  schemaVersion: "0.1" as const, evidence: "unity_source" as const, observedAt: "2026-10-22T06:00:00Z",
+  state: "observed" as const, runtime: "unknown" as const, builtParameterBudget: "unknown" as const, truncated: false,
+  manualReplayRequired: manual, expressionParametersObserved: matched > 0, sourceSyncedParameterBits: matched > 0 ? 24 : 0,
+  meshes: [{ renderer: "Body", blendShapeCount: 60, missingMesh: false, profiles: [
+    { id: "arkit52-v1" as const, referenceCount: 52, matched: Array.from({ length: matched }, (_, i) => `bs_face_${i}`) },
+    { id: "unified-core12-v1" as const, referenceCount: 12, matched: matched === 52 ? Array.from({ length: 12 }, (_, i) => `bs_ue_${i}`) : [] },
+    { id: "sranipal-core12-v1" as const, referenceCount: 12, matched: [] }] }],
+  parameters: matched > 0 ? ["FaceTrackingActive"] : [], components: matched > 0 ? ["ModularAvatarMergeArmature"] : [],
+  patchMenus: menus ? [ftMenu] : [],
+});
+runs.ftline = { ...runs.finished!, runId: "ftline", result: { facts: { ...runs.finished!.result!.facts!, faceTracking: ftFacts(52, true) } } } as AmfProductionRun;
+runs.ftlocked = { ...runs.finished!, runId: "ftlocked", snapshotId: "snapshot-ft", result: { facts: { ...runs.finished!.result!.facts!, faceTracking: ftFacts(52, false, true) } } } as AmfProductionRun;
+runs.ftnone = { ...runs.finished!, runId: "ftnone", result: { facts: { ...runs.finished!.result!.facts!, faceTracking: ftFacts(0, false) } } } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
@@ -68,6 +84,12 @@ const api = {
   async planLighting(runId: string) { return { runId, planDigest: "a".repeat(64), reference: { min: "0.1", max: "1" }, referenceReason: null,
     entries: ["ts_Black", "ts_Blue", "ts_Pink", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, sourceId: "outfit", current: { min: "0.05", max: "1" }, proposed: { min: "0.1", max: "1" } })),
     skipped: [{ material: "Assets/Nigerunaya/Meiyun/Material/Hair.mat", reason: "shared_with_avatar" }] }; },
+  // The face-tracking views: the review names the menu and carries the engine's trust warning.
+  async faceTrackingPlan(runId: string, menuId: string) { return { schemaVersion: "0.1", runId, revision: 3, planDigest: "e".repeat(64),
+    projectFingerprint: "f".repeat(64), unityFingerprint: "0".repeat(64),
+    menu: { ...ftMenu, id: menuId }, avatarGlobalObjectId: "gid-avatar", execution: "interactive_editor", replay: "manual", requiresTrustedCodeConfirmation: true,
+    warning: "Creator code runs with Editor privileges. The restore point covers only the work project. Finish on the same Avatar. Recipe and version replay will require manual reapplication." }; },
+  async faceTrackingPatch(runId: string) { return { runId, taskId: "task-ft" }; },
 } as unknown as AmfProductionPort;
 // The materials-start views: the library's products mapped to the AMF sources above,
 // plus one unrelated dress so the "other outfits" fold has a row.
@@ -120,6 +142,10 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   opening: { run: "finished", clicks: ["workshop-open"] },
   opened: { run: "finished", clicks: ["workshop-open"] },
+  ft: { run: "ftline", clicks: ["workshop-station-face"] },
+  "ft-dialog": { run: "ftline", clicks: ["workshop-station-face", "workshop-ft-menu-aaaaaaaa"] },
+  "ft-locked": { run: "ftlocked", clicks: ["workshop-station-face"] },
+  "ft-none": { run: "ftnone", clicks: ["workshop-station-face"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
 function ClickThrough({ clicks }: { clicks: readonly string[] }) {

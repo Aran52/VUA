@@ -88,7 +88,7 @@ export const amfProductionCopy = {
     warning: "There are warnings to review in Unity.", recovered: "Project restored to before assembly. Check again before retrying.", recoveryFailed: "Project recovery unfinished. Leave it as is and start a new preparation.",
     history: "Recent preparations", selected: "{count} package(s) selected", preparedAvatar: "Avatar: {name}", taskFailed: "Not completed; choices kept.",
     phase: { preparing: "Preparing", ready: "Plan ready to confirm", assembling: "Assembling", restoring: "Restoring", succeeded: "Assembled", failed: "Needs attention", cancelled: "Cancelled", inspect_required: "Reinspection required", inspecting: "Checking in Unity", stopped: "Stopped" },
-    step: { project: "Prepare work project and dependencies", materials: "Import selected materials", inspect: "Read actual prefabs", snapshot: "Protect the prepared project", assembly: "Assemble materials and switches", reinspect: "Reinspect the project", protect_current: "Protect your current work", restore: "Restore the reviewed state" },
+    step: { project: "Prepare work project and dependencies", materials: "Import selected materials", inspect: "Read actual prefabs", snapshot: "Protect the prepared project", assembly: "Assemble materials and switches", reinspect: "Reinspect the project", protect_current: "Protect your current work", restore: "Restore the reviewed state", face_tracking: "Run the face-tracking patch in Unity" },
   },
   "zh-CN": {
     applyRecipe: "应用配方",
@@ -179,7 +179,7 @@ export const amfProductionCopy = {
     warning: "还有警告需要在 Unity 中查看。", recovered: "已恢复装配前的工程，重试前需重新检查。", recoveryFailed: "工程恢复未完成。保留现场，重新开始准备。",
     history: "最近的准备记录", selected: "已选 {count} 个素材包", preparedAvatar: "素体：{name}", taskFailed: "操作未完成，选择已保留。",
     phase: { preparing: "正在准备", ready: "待确认计划", assembling: "正在装配", restoring: "正在恢复", succeeded: "已装配", failed: "需要处理", cancelled: "已取消", inspect_required: "需要重新检查", inspecting: "正在 Unity 中检查", stopped: "已停止" },
-    step: { project: "准备工作工程与依赖", materials: "导入已选素材", inspect: "读取实际 Prefab", snapshot: "保护装配前的工程", assembly: "装配素材与菜单开关", reinspect: "重新检查工程", protect_current: "保护当前编辑进度", restore: "恢复已确认的状态" },
+    step: { project: "准备工作工程与依赖", materials: "导入已选素材", inspect: "读取实际 Prefab", snapshot: "保护装配前的工程", assembly: "装配素材与菜单开关", reinspect: "重新检查工程", protect_current: "保护当前编辑进度", restore: "恢复已确认的状态", face_tracking: "在 Unity 里完成面捕补丁" },
   },
   "zh-TW": {
     applyRecipe: "應用配方",
@@ -270,7 +270,7 @@ export const amfProductionCopy = {
     warning: "還有警告需要在 Unity 中檢視。", recovered: "已恢復裝配前的專案，重試前需重新檢查。", recoveryFailed: "專案恢復未完成。保留現場，重新開始準備。",
     history: "最近的準備記錄", selected: "已選 {count} 個素材包", preparedAvatar: "素體：{name}", taskFailed: "操作未完成，選擇已保留。",
     phase: { preparing: "正在準備", ready: "待確認計畫", assembling: "正在裝配", restoring: "正在恢復", succeeded: "已裝配", failed: "需要處理", cancelled: "已取消", inspect_required: "需要重新檢查", inspecting: "正在 Unity 中檢查", stopped: "已停止" },
-    step: { project: "準備工作專案與依賴", materials: "匯入已選素材", inspect: "讀取實際 Prefab", snapshot: "保護裝配前的專案", assembly: "裝配素材與選單開關", reinspect: "重新檢查專案", protect_current: "保護目前編輯進度", restore: "恢復已確認的狀態" },
+    step: { project: "準備工作專案與依賴", materials: "匯入已選素材", inspect: "讀取實際 Prefab", snapshot: "保護裝配前的專案", assembly: "裝配素材與選單開關", reinspect: "重新檢查專案", protect_current: "保護目前編輯進度", restore: "恢復已確認的狀態", face_tracking: "在 Unity 裡完成面捕補丁" },
   },
   ja: {
     applyRecipe: "レシピを適用",
@@ -361,7 +361,7 @@ export const amfProductionCopy = {
     warning: "Unity で確認する警告があります。", recovered: "組み立て前のプロジェクトに戻しました。再試行の前に再検査してください。", recoveryFailed: "プロジェクトの復旧が完了していません。そのまま残し、準備をやり直してください。",
     history: "最近の準備", selected: "{count} 個のパッケージを選択", preparedAvatar: "Avatar：{name}", taskFailed: "完了しませんでした。選択は保持されています。",
     phase: { preparing: "準備中", ready: "計画の確認待ち", assembling: "組み立て中", restoring: "復元中", succeeded: "組み立て済み", failed: "要対応", cancelled: "キャンセル済み", inspect_required: "再確認が必要", inspecting: "Unity で確認中", stopped: "停止済み" },
-    step: { project: "作業プロジェクトと依存関係の準備", materials: "素材をインポート", inspect: "実際の Prefab を確認", snapshot: "作業状態を保護", assembly: "素材とスイッチを組み立て", reinspect: "プロジェクトを再確認", protect_current: "現在の編集内容を保護", restore: "確認した状態に復元" },
+    step: { project: "作業プロジェクトと依存関係の準備", materials: "素材をインポート", inspect: "実際の Prefab を確認", snapshot: "作業状態を保護", assembly: "素材とスイッチを組み立て", reinspect: "プロジェクトを再確認", protect_current: "現在の編集内容を保護", restore: "確認した状態に復元", face_tracking: "Unity でフェイストラッキングのパッチを実行" },
   },
   ko: {
     applyRecipe: "레시피 적용",
@@ -452,6 +452,6 @@ export const amfProductionCopy = {
     warning: "Unity에서 확인할 경고가 있어요.", recovered: "조립 전 프로젝트로 복원했어요. 다시 시도하기 전에 다시 검사하세요.", recoveryFailed: "프로젝트 복구가 끝나지 않았어요. 그대로 두고 준비를 새로 시작하세요.",
     history: "최근 준비 기록", selected: "패키지 {count}개 선택됨", preparedAvatar: "Avatar: {name}", taskFailed: "완료되지 않았어요. 선택은 유지돼요.",
     phase: { preparing: "준비 중", ready: "계획 확인 대기", assembling: "조립 중", restoring: "복원 중", succeeded: "조립됨", failed: "확인 필요", cancelled: "취소됨", inspect_required: "다시 검사 필요", inspecting: "Unity에서 확인 중", stopped: "중지됨" },
-    step: { project: "작업 프로젝트와 의존성 준비", materials: "에셋 가져오기", inspect: "실제 Prefab 확인", snapshot: "작업 상태 보호", assembly: "에셋과 스위치 조립", reinspect: "프로젝트 다시 검사", protect_current: "현재 편집 내용 보호", restore: "확인한 상태로 복원" },
+    step: { project: "작업 프로젝트와 의존성 준비", materials: "에셋 가져오기", inspect: "실제 Prefab 확인", snapshot: "작업 상태 보호", assembly: "에셋과 스위치 조립", reinspect: "프로젝트 다시 검사", protect_current: "현재 편집 내용 보호", restore: "확인한 상태로 복원", face_tracking: "Unity에서 페이스 트래킹 패치 실행" },
   },
 };

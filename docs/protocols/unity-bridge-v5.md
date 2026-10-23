@@ -311,10 +311,6 @@ and prefab correspondence, conservatively warning about added components of unkn
 Identity resolution uses [GlobalObjectId](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/GlobalObjectId.GlobalObjectIdentifierToObjectSlow.html),
 never object names. API references checked 2026-10-23.
 
-## Document changelog
-
-- 0.19.0 (2026-10-23): add ownership-ID-bound outfit-removal inventories and a protected mutating operation; retain other garments, Avatars and fit baselines.
-
 ## Texture memory observations and importer changes
 
 `data.textureMemory` is an optional additive observation field. When an active owned Avatar is
@@ -339,10 +335,6 @@ platform's Max Size and format, disabling incompatible Crunch for BC7/ASTC, and 
 remaining properties and the other platform override. `changedPaths` lists the written `.meta`
 files. It re-observes textures, SDK checks and project fingerprints; the engine performs a second
 independent inspection and owns restoration if any part fails. No image source is rewritten.
-
-## Document changelog
-
-- 0.18.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
 
 ## Synced parameter budget evidence
 
@@ -380,6 +372,10 @@ unsynced asset entry that an MA config upgrades to synced. The authoritative syn
 with the SDK's own check on the built result.
 
 ## Document changelog
+
+- 0.19.0 (2026-10-23): add ownership-ID-bound outfit-removal inventories and a protected mutating operation; retain other garments, Avatars and fit baselines.
+
+- 0.18.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
 
 - 0.17.0 (2026-10-23): add the confirmed, expiring save/close observer handoff, explicit scene/asset saving facts and cooperative cancellation before exit.
 

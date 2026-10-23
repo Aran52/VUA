@@ -66,6 +66,21 @@ The project remains in Beta. Publication does not declare N1/N5 or other pending
 - [v0.7.0 release notes](docs/release/v0.7.0.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
+## Milestones
+Dates are the times GitHub recorded for each release and pull request.
+
+| Date | Milestone |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0): the first path from the desktop app through the Rust orchestrator to a real Unity 2022.3 project, assembling an Avatar with an outfit |
+| 2026-10-01 | [Purpose-driven environment deployment](https://github.com/VUA-Project/VUA/pull/60) with regional Unity sources |
+| 2026-10-08 | [BOOTH library sync, selective downloads and local file management](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6), the first public Beta, with AMF as a bundled module |
+| 2026-10-12 | [NSIS installers and independent AMF updates](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [Material-first Avatar production, Recipes and the local MCP adapter](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [Release room with the 60-frame turntable and managed upload](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 terms parsing and checks by use](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0), the first release with the Avatar production path |
+
 ## License
 
 VUA is licensed under [Apache-2.0](LICENSE). External applications retain their own licenses, including [VRCFaceTracking (Apache-2.0)](https://github.com/benaclejames/VRCFaceTracking/blob/master/LICENSE) and [Space Calibrator (MIT core; separate third-party licenses)](https://github.com/hyblocker/OpenVR-SpaceCalibrator/blob/develop/LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for all planned connections, upstream attribution and conditions for any future redistribution.

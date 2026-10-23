@@ -1197,6 +1197,19 @@
               },
               "parameterBudget": {
                 "$ref": "#/$defs/parameterBudget"
+              },
+              "prefabGuid": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{32}$"
+              },
+              "objectPaths": {
+                "type": "array",
+                "maxItems": 2048,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "maxLength": 512
+                }
               }
             }
           }
@@ -1590,6 +1603,16 @@
           "maxItems": 1,
           "items": {
             "$ref": "#/$defs/outfitRemovalApplied"
+          }
+        },
+        "materialPaths": {
+          "type": "array",
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 2048,
+            "pattern": "^Assets/(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*[\\\\:\\u0000])(?!.*//).+\\.mat$"
           }
         }
       }

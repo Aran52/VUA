@@ -1,0 +1,8 @@
+{
+  "method": "amf.production.recipeMaterialPlan",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "recipeId": "recipe-1"
+  }
+}

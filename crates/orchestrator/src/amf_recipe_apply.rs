@@ -57,10 +57,18 @@ pub struct RecipeApplyPlan {
     /// or a stored fit matching the garment and Avatar.
     #[serde(default)]
     pub fits: Vec<FitRef>,
+    #[serde(default)]
+    pub materials: Vec<crate::amf_recipe_materials::RecipeMaterialResolution>,
+    #[serde(default)]
+    pub material_choices: crate::amf_recipe_materials::MaterialChoices,
+    #[serde(default)]
+    pub recipe_differences: Vec<crate::amf_recipe_materials::RecipeDifference>,
+    pub can_apply: bool,
 }
 
 impl RecipeApplyPlan {
     pub fn selection(&self, choice: RecipeApplyChoice) -> Result<AssemblySelection, AppErrorV1> {
+        if !self.can_apply { return Err(production_error("recipe_inputs_unresolved", "Review missing materials and prefabs, then prepare and inspect them before applying this Recipe.")); }
         if choice == RecipeApplyChoice::NewAvatar { return Ok(self.recipe_selection.clone()); }
         if let Some(reason) = &self.overlay_blocker {
             return Err(production_error("recipe_target_ambiguous", reason));
@@ -96,7 +104,10 @@ impl AmfProductionEngine {
         self.recipe_apply_plan_for(run_id, recipe_id, None)
     }
     pub fn recipe_apply_plan_for(&self, run_id: &str, recipe_id: &str, avatar_id: Option<&str>) -> Result<RecipeApplyPlan, AppErrorV1> {
-        let run = self.get(run_id)?;
+        self.recipe_apply_plan_with_choices_for(run_id,recipe_id,avatar_id,&BTreeMap::new())
+    }
+    pub fn recipe_apply_plan_with_choices_for(&self, run_id: &str, recipe_id: &str, avatar_id: Option<&str>, choices: &crate::amf_recipe_materials::MaterialChoices) -> Result<RecipeApplyPlan,AppErrorV1> {
+        let mut run = self.get(run_id)?;
         crate::amf_production::require_replayable_face_tracking(&run)?;
         if !matches!(run.phase.as_str(), "ready" | "succeeded") {
             return Err(production_error("inspect_required", "Reinspect the retained Avatar before applying a Recipe."));
@@ -105,10 +116,14 @@ impl AmfProductionEngine {
             return Err(production_error("project_drift", "The project changed. Reinspect it before comparing the Recipe."));
         }
         let stored = self.get_recipe(recipe_id)?;
-        let recipe: ProductionRecipe = serde_json::from_value(stored.recipe.clone()).map_err(|_| invalid("Invalid stored Recipe."))?;
-        let mut plan = compare_recipe(&run, &recipe, avatar_id)?;
+        let recipe = self.recipe_for_resolution(recipe_id)?;
+        let materials = self.platform.recipe_materials(&recipe,choices)?;
+        let mut plan = compare_recipe_with_materials(&run, &recipe, avatar_id,materials,choices)?;
+        run.recipe_material_sources = plan.materials.iter().filter_map(|m| m.resolved.as_ref().map(|p| (m.material_id.clone(),p.source_id.clone()))).collect();
+        let mapped = if plan.can_apply { Some(crate::amf_recipe_materials::map_recipe(&recipe,&run,&plan.materials)?) } else { None };
+        let adjustments = mapped.as_ref().and_then(|m| m.adjustments.as_ref());
         // Fits apply to whichever selection the choice assembles; cover both outfits sets.
-        let recipe_fits = recipe.adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
+        let recipe_fits = adjustments.map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
         let mut fits = self.planned_fits(&run, &plan.recipe_selection, recipe_fits);
         for outfit in &plan.current_selection.outfits {
             if !fits.iter().any(|fit| fit.source_id == outfit.source_id) {
@@ -127,25 +142,48 @@ impl AmfProductionEngine {
         self.apply_recipe_to(run_id, recipe_id, None, choice, digest, ctx)
     }
     pub fn apply_recipe_to(&self, run_id: &str, recipe_id: &str, avatar_id: Option<&str>, choice: RecipeApplyChoice, digest: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
-        let plan = self.recipe_apply_plan_for(run_id, recipe_id, avatar_id)?;
+        self.apply_recipe_with_choices_to(run_id,recipe_id,avatar_id,choice,digest,&BTreeMap::new(),ctx)
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_recipe_with_choices_to(&self,run_id:&str,recipe_id:&str,avatar_id:Option<&str>,choice:RecipeApplyChoice,digest:&str,choices:&crate::amf_recipe_materials::MaterialChoices,ctx:&TaskContext) -> Result<(),AppErrorV1> {
+        self.apply_recipe_with_review_to(run_id,recipe_id,avatar_id,choice,digest,choices,false,ctx)
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_recipe_with_review_to(&self,run_id:&str,recipe_id:&str,avatar_id:Option<&str>,choice:RecipeApplyChoice,digest:&str,choices:&crate::amf_recipe_materials::MaterialChoices,differences_confirmed:bool,ctx:&TaskContext) -> Result<(),AppErrorV1> {
+        let plan = self.recipe_apply_plan_with_choices_for(run_id, recipe_id, avatar_id,choices)?;
+        if !plan.recipe_differences.is_empty() && !differences_confirmed {
+            return Err(production_error("recipe_differences_confirmation_required", "Confirm the exact Recipe differences in the reviewed plan before application."));
+        }
         if plan.plan_digest != digest {
             return Err(production_error("plan_drift", "The Recipe or Avatar changed. Review their differences again."));
         }
         let recipe: ProductionRecipe = serde_json::from_value(self.get_recipe(recipe_id)?.recipe)
             .map_err(|_| invalid("Invalid stored Recipe."))?;
         let selection = plan.selection(choice)?;
-        let run = self.get(run_id)?;
+        let mut run = self.get(run_id)?;
+        run.recipe_material_sources = crate::amf_recipe_materials::resolved_sources(&plan.materials)?;
+        let mapped = crate::amf_recipe_materials::map_recipe(&recipe,&run,&plan.materials)?;
+        run.recipe_materials = plan.materials.clone(); run.material_choices = choices.clone(); run.recipe_differences = plan.recipe_differences.clone();
+        run.recipe_id = Some(recipe_id.into()); run.package_pins = recipe.packages.clone();
         validate_selection_subset(&run, &selection)?;
         let target = plan.target(choice, &selection);
-        let recipe_fits = recipe.adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
+        let recipe_fits = mapped.adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
         let fits = self.planned_fits(&run, &selection, recipe_fits);
         self.execute_assembly(run, crate::amf_production::AssemblyExecution {
-            selection, digest, target: Some(target), rebuild: false, adjustments: recipe.adjustments, fits,
+            selection, digest, target: Some(target), rebuild: false, adjustments: mapped.adjustments, fits,
         }, ctx)
     }
 }
 
+#[cfg(test)]
 fn compare_recipe(run: &ProductionRun, recipe: &ProductionRecipe, avatar_id: Option<&str>) -> Result<RecipeApplyPlan, AppErrorV1> {
+    let inventory = run.sources.iter().map(|source| crate::amf_recipe_materials::MaterialInventory {
+        package:crate::amf_recipe_materials::MaterialPackage {source_id:source.source_id.clone(),package_name:source.name.rsplit(['/', '\\']).next().unwrap_or(&source.name).into(),sha256:source.sha256.trim_start_matches("sha256:").into()},product_ids:vec![]
+    }).collect::<Vec<_>>();
+    let materials = crate::amf_recipe_materials::resolve_materials(recipe,&inventory,&BTreeMap::new(),&BTreeMap::new())?;
+    compare_recipe_with_materials(run,recipe,avatar_id,materials,&BTreeMap::new())
+}
+fn compare_recipe_with_materials(run: &ProductionRun,recipe: &ProductionRecipe,avatar_id:Option<&str>,materials:Vec<crate::amf_recipe_materials::RecipeMaterialResolution>,choices:&crate::amf_recipe_materials::MaterialChoices) -> Result<RecipeApplyPlan,AppErrorV1> {
     recipe.validate()?;
     if recipe.editor_version != run.editor.version {
         return Err(production_error("recipe_editor_mismatch", "The Recipe requires a different Unity Editor. Prepare an independent project with that Editor."));
@@ -185,19 +223,19 @@ fn compare_recipe(run: &ProductionRun, recipe: &ProductionRecipe, avatar_id: Opt
     let current: AssemblySelection = serde_json::from_value(selected["observedSelection"].clone())
         .map_err(|_| invalid("Current object identities and relationships are not verified. Reinspect and resolve the named scene diagnostics first."))?;
     validate_selection_subset(run, &current)?;
-    let mut resolved = BTreeMap::new();
-    for material in &recipe.materials {
-        let matches = run.sources.iter().filter(|s| s.sha256.strip_prefix("sha256:").unwrap_or(&s.sha256) == material.sha256).collect::<Vec<_>>();
-        if matches.len() != 1 {
-            return Err(production_error(if matches.is_empty() { "recipe_material_missing" } else { "recipe_material_ambiguous" },
-                format!("{} needs one matching original input in this project. Supply and inspect it before applying the Recipe.", material.package_name)));
-        }
-        resolved.insert(material.id.clone(), matches[0].source_id.clone());
-    }
-    let incoming = recipe.selection(&resolved)?;
-    validate_selection_subset(run, &incoming)?;
-    let mut blocker = (current.avatar_prefab != incoming.avatar_prefab)
-        .then(|| "The Recipe uses a different Avatar prefab. Choose a new Avatar; field priority cannot identify an equivalent target.".to_string());
+    let resolved = materials.iter().filter_map(|m| m.resolved.as_ref().map(|p| (m.material_id.clone(),p.source_id.clone()))).collect::<BTreeMap<_,_>>();
+    let ready = resolved.len() == recipe.materials.len();
+    let mut inspected = run.clone();
+    inspected.sources.retain(|s| materials.iter().any(|m| m.resolved.as_ref().is_some_and(|p| p.source_id == s.source_id && p.sha256 == s.sha256.trim_start_matches("sha256:"))));
+    inspected.prefabs.retain(|p| inspected.sources.iter().any(|s| s.source_id == p.source_id));
+    let prepared = ready && resolved.values().all(|id| inspected.sources.iter().any(|s| &s.source_id == id));
+    let mapped = if ready { Some(crate::amf_recipe_materials::map_recipe(recipe,&inspected,&materials)?) } else { None };
+    let can_apply = prepared && mapped.as_ref().is_some_and(|m| m.selection.is_some());
+    let incoming = mapped.as_ref().and_then(|m| m.selection.clone()).unwrap_or_else(|| AssemblySelection {avatar_prefab:recipe.avatar.prefab_path.clone(),outfits:vec![]});
+    if can_apply { validate_selection_subset(run, &incoming)?; }
+    let recipe_differences = mapped.map(|m| m.differences).unwrap_or_default();
+    let mut blocker = if !can_apply { Some(if prepared {"A declared Recipe prefab is missing from the inspected packages."} else {"Import the resolved packages and inspect them in Unity before applying this Recipe."}.to_owned()) } else { (current.avatar_prefab != incoming.avatar_prefab)
+        .then(|| "The Recipe uses a different Avatar prefab. Choose a new Avatar; field priority cannot identify an equivalent target.".to_string()) };
     let mut conflicts = Vec::new();
     for outfit in &incoming.outfits {
         if let Some(old) = current.outfits.iter().find(|o| o.source_id == outfit.source_id) {
@@ -221,7 +259,7 @@ fn compare_recipe(run: &ProductionRun, recipe: &ProductionRecipe, avatar_id: Opt
         avatar_name: targets.iter().find(|target|target.global_object_id == selected_id).expect("verified target").name.clone(),
         avatar_global_object_id: selected_id.into(), plan_digest: String::new(), conflicts,
         retained_outfits: current.outfits.iter().filter(|o| !incoming.outfits.iter().any(|n| n.source_id == o.source_id)).count(),
-        overlay_blocker: blocker, recipe_selection: incoming, current_selection: current, targets, fits: Vec::new(),
+        overlay_blocker: blocker, recipe_selection: incoming, current_selection: current, targets, fits: Vec::new(), materials, material_choices:choices.clone(), recipe_differences, can_apply,
     })
 }
 
@@ -242,7 +280,7 @@ mod tests {
             run.sources.push(PreparedSource { source_id:id.into(), role:SourceRole::Auto, name:format!("{id}.unitypackage"),
                 item_name:id.into(), sha256:format!("sha256:{}",hash.repeat(64)), asset_paths:vec![path.clone()] });
             run.prefabs.push(PrefabCandidate { source_id:id.into(),path,name:id.into(),is_avatar:avatar,has_skinned_mesh:true,
-                has_merge_armature:!avatar,has_missing_scripts:false,humanoid_bones:vec![],preview:None,parameter_budget:None });
+                has_merge_armature:!avatar,has_missing_scripts:false,humanoid_bones:vec![],preview:None,parameter_budget:None, prefab_guid:None, object_paths:None });
         }
         let selection = AssemblySelection { avatar_prefab:"Assets/avatar.prefab".into(),outfits:["coat","hat"].into_iter().map(|id| OutfitSelection {
             source_id:id.into(),prefab_path:format!("Assets/{id}.prefab"),mode:BindingMode::MergeArmature,bone:String::new(),toggle_name:id.into(),active:true,
@@ -301,7 +339,8 @@ mod tests {
         let mut changed=run.clone(); changed.result["packageVersions"]["nadena.dev.modular-avatar"]=json!("1.0.0");
         assert!(compare_recipe(&changed,&recipe,None).unwrap_err().code.ends_with("recipe_dependency_conflict"));
         let mut changed=run.clone(); changed.sources[1].sha256="d".repeat(64);
-        assert!(compare_recipe(&changed,&recipe,None).unwrap_err().code.ends_with("recipe_material_missing"));
+        let plan = compare_recipe(&changed,&recipe,None).unwrap();
+        assert!(!plan.can_apply); assert!(plan.materials.iter().any(|m| m.status != crate::amf_recipe_materials::MaterialStatus::Ready));
         let mut changed=run.clone(); changed.result["facts"]["observedSelection"]=Value::Null;
         assert!(compare_recipe(&changed,&recipe,None).unwrap_err().code.ends_with("recipe_scene_unverified"));
     }

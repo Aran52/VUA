@@ -25,6 +25,16 @@ fn read(file: &str) -> Value {
 }
 
 #[test]
+fn recipe_inspection_has_optional_validated_guid_object_and_material_evidence() {
+    use vua_orchestrator::amf_recipe_materials::validate_inspection;
+    validate_inspection(&read("examples/inspection-full.valid.result.json")["data"]).unwrap();
+    validate_inspection(&read("examples/recipe-inspection.valid.result.json")["data"]).unwrap();
+    for file in ["invalid-prefab-guid.result.json","invalid-prefab-object-paths.result.json"] {
+        assert!(validate_inspection(&read(&format!("examples/{file}"))["data"]).is_err());
+    }
+}
+
+#[test]
 fn face_tracking_is_optional_source_evidence_and_patch_requires_a_bound_write() {
     let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
     assert!(old.data.get("faceTracking").is_none());

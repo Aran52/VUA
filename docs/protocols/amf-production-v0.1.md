@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.34.0
+> Document version: 0.35.0
 > Status: Candidate
-> Updated: 2026-10-23
+> Updated: 2026-10-24
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -39,13 +39,14 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.listRecipes` | Query | none | Retained local Recipe names and revisions |
 | `amf.production.getRecipe` | Query | `recipeId` | Validated saved Recipe document |
 | `amf.production.saveRecipe` | Command | `runId`, `title` | Save a new Recipe from current verified scene facts |
-| `amf.production.prepareRecipe` | Command | `recipeId`, `editorPath` | Durable preparation task using resolved original inputs and pinned dependencies |
+| `amf.production.prepareRecipe` | Command | `recipeId`, `editorPath`, optional `materialChoices` | Durable preparation task using resolved original inputs and pinned dependencies |
+| `amf.production.recipeMaterialPlan` | Query | `recipeId`, optional `materialChoices` | Complete local material checklist, source choices, readiness and digest |
 | `amf.production.recipeSharePlan` | Query | `recipeId` | Digest-bound referenced-material source choices and unresolved candidates |
 | `amf.production.exportRecipe` | Command | `recipeId`, `planDigest`, `sources` | Closed share declaration, paste text and JSON; remember explicit source choices |
 | `amf.production.previewRecipeShare` | Query | `text` | Validated received declaration, without saving or execution |
 | `amf.production.importRecipe` | Command | `text` | Idempotently saved local received Recipe |
-| `amf.production.recipeApplyPlan` | Query | `runId`, `recipeId`, optional `avatarGlobalObjectId` | Observed differences, retained outfits, selectable owned Avatars, target identity and digest |
-| `amf.production.applyRecipe` | Command | `runId`, `recipeId`, `planDigest`, `choice`, optional `avatarGlobalObjectId` | Durable overlay or same-project new-Avatar task |
+| `amf.production.recipeApplyPlan` | Query | `runId`, `recipeId`, optional `avatarGlobalObjectId`, `materialChoices` | Observed differences, retained outfits, selectable owned Avatars, target identity and digest |
+| `amf.production.applyRecipe` | Command | `runId`, `recipeId`, `planDigest`, `choice`, optional `avatarGlobalObjectId`, `materialChoices`, `recipeDifferencesConfirmed` | Durable overlay or same-project new-Avatar task |
 | `amf.production.previewImage` | Query | `runId`, `path` | One preview PNG that the run reports, as `mediaType: "image/png"` and base64 `data` |
 | `amf.production.releaseState` | Query | `runId` | The run's turntable (`frames`, `size`, `bakedAt`, `current`), its last 10 uploads newest first and `editorOpen` |
 | `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
@@ -565,7 +566,7 @@ approval queue.
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
 v1-v4 serialization, version gates and vectors remain unchanged. Scene IDs stay local; observed
-scene facts feed the separate Candidate [Recipe v0.4](amf-recipe-v0.4.md). Local save/reopen, reviewed sharing/import and
+scene facts feed the Candidate [Recipe v0.5](amf-recipe-v0.5.md), with retained [v0.4](amf-recipe-v0.4.md) reads and preparation. Local save/reopen, reviewed sharing/import and
 new-project preparation and bounded managed-Avatar application do not establish the full N4 gate or player visual acceptance.
 
 Desktop launches the GUI Editor outside the strict AMF worker job after AMF admits the handoff.
@@ -724,7 +725,25 @@ provides inventory, VRAM sorting and batch importer edits. It does not provide V
 digests, permission receipts, durable tasks, restore points or failure recovery. This slice uses
 Unity's public importer API directly and neither copies nor distributes lilAvatarUtils code.
 
+## Recipe material resolution and differences
+
+The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns product-based package resolution, optional
+prefab GUIDs, portable material references and share-source `shopName`. `saveRecipe` writes v0.5.
+`recipeMaterialPlan` returns all local material statuses before any project is created;
+`prepareRecipe`, `recipeApplyPlan` and `applyRecipe` accept optional `materialChoices` maps.
+Preparing retains actual selected hashes and inspects Unity before mapping prefab targets.
+Assembly and application plans include `materials`, `materialChoices`, and `recipeDifferences`;
+the digest binds all three. A missing prefab blocks execution. Missing fit paths and lighting
+materials are listed and skipped only after review. A nonempty difference list requires
+`recipeDifferencesConfirmed: true` on `assemble`/`applyRecipe`, in addition to the exact reviewed
+digest and existing player approval. Old data may omit the added fields. Existing-run application
+still requires the selected packages already imported and inspected; it does not implicitly
+install packages into an Avatar. Unresolved preparation returns the full JSON checklist in
+`params.materials` with `suggestedAction: "amf.production.recipeMaterialPlan"`.
+
 ## Document changelog
+
+- 0.35.0 (2026-10-24): add Recipe v0.5 material checklists, explicit package choices and digest-bound difference confirmation; retain v0.4 preparation.
 
 - 0.34.0 (2026-10-23): add explicit reviewed outfit removal with ownership inventory, confirmation, protected history, fit preservation and independent verification.
 

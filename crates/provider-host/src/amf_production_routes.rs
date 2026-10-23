@@ -190,7 +190,7 @@ fn route(
     let query = matches!(
         method,
         "amf.production.faceTrackingPlan" |
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -220,6 +220,7 @@ fn route(
         "amf.production.saveRecipe" => &["schemaVersion", "runId", "title"],
         "amf.production.previewImage" => &["schemaVersion", "runId", "path"],
         "amf.production.prepareRecipe" => &["schemaVersion", "recipeId", "editorPath"],
+        "amf.production.recipeMaterialPlan" => &["schemaVersion", "recipeId"],
         "amf.production.recipeApplyPlan" if params.contains_key("avatarGlobalObjectId") => &["schemaVersion", "runId", "recipeId", "avatarGlobalObjectId"],
         "amf.production.recipeApplyPlan" => &["schemaVersion", "runId", "recipeId"],
         "amf.production.applyRecipe" if params.contains_key("avatarGlobalObjectId") => &["schemaVersion", "runId", "recipeId", "planDigest", "choice", "avatarGlobalObjectId"],
@@ -247,7 +248,13 @@ fn route(
             ))
         }
     };
-    if params.len() != keys.len()
+    let optional_keys: &[&str] = match method {
+        "amf.production.recipeMaterialPlan" | "amf.production.prepareRecipe" | "amf.production.recipeApplyPlan" => &["materialChoices"],
+        "amf.production.applyRecipe" => &["materialChoices","recipeDifferencesConfirmed"],
+        "amf.production.assemble" => &["recipeDifferencesConfirmed"],
+        _ => &[],
+    };
+    if params.keys().any(|key| !keys.contains(&key.as_str()) && !optional_keys.contains(&key.as_str()))
         || keys.iter().any(|key| !params.contains_key(*key))
         || params["schemaVersion"] != "0.1"
     {
@@ -256,6 +263,18 @@ fn route(
             "Unknown keys or unsupported production version.",
         ));
     }
+    let material_choices: vua_orchestrator::amf_recipe_materials::MaterialChoices = match params.get("materialChoices") {
+        Some(value) => serde_json::from_value(value.clone()).map_err(|_| production_error("params_invalid", "Material choices map material IDs to source IDs."))?,
+        None => Default::default(),
+    };
+    if material_choices.len() > 64 || material_choices.iter().any(|(id,source)| !vua_orchestrator::amf_recipe::valid_material_id(id) || source.is_empty() || source.len() > 256 || source.contains('\0')) {
+        return Err(production_error("params_invalid", "Invalid Recipe material choices."));
+    }
+    let differences_confirmed = match params.get("recipeDifferencesConfirmed") {
+        None => false,
+        Some(Value::Bool(true)) => true,
+        _ => return Err(production_error("params_invalid", "Confirm the reviewed Recipe differences explicitly.")),
+    };
     let string = |key: &str| -> Result<String, vua_orchestrator::AppErrorV1> {
         params
             .get(key)
@@ -391,6 +410,9 @@ fn route(
     if method == "amf.production.getRecipe" {
         return Ok(json!({"schemaVersion":"0.1", "document":service.engine.get_recipe(&string("recipeId")?)?}));
     }
+    if method == "amf.production.recipeMaterialPlan" {
+        return Ok(json!({"schemaVersion":"0.1","plan":service.engine.recipe_material_plan(&string("recipeId")?, &material_choices)?}));
+    }
     if method == "amf.production.recipeSharePlan" {
         return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_share_plan(&string("recipeId")?)?}));
     }
@@ -470,7 +492,7 @@ fn route(
         if service.run_busy(&run_id) {
             return Err(production_error("busy", "This line has work running or waiting."));
         }
-        return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_for(&run_id, &string("recipeId")?, avatar_id.as_deref())?}));
+        return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_with_choices_for(&run_id, &string("recipeId")?, avatar_id.as_deref(), &material_choices)?}));
     }
     let recipe_file = matches!(method, "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.saveRecipe");
     if recipe_file && service.busy() {
@@ -491,7 +513,7 @@ fn route(
     }
     let run_id = if method == "amf.production.prepareRecipe" {
         let id = format!("n3-{}", uuid_v7_identity());
-        service.engine.begin_recipe(&id, &string("recipeId")?, &string("editorPath")?)?;
+        service.engine.begin_recipe_with_choices(&id, &string("recipeId")?, &string("editorPath")?, &material_choices)?;
         id
     } else if method == "amf.production.prepare" {
         let choices: Vec<SourceChoice> = serde_json::from_value(params["sources"].clone())
@@ -581,10 +603,11 @@ fn route(
         job: Box::new(move |ctx| {
             match action.as_str() {
                 "amf.production.prepare" | "amf.production.prepareRecipe" => worker.engine.prepare(&operation_run, ctx)?,
-                "amf.production.assemble" => worker.engine.assemble(
+                "amf.production.assemble" => worker.engine.assemble_with_review(
                     &operation_run,
                     selection.expect("assemble selection validated"),
                     &digest,
+                    differences_confirmed,
                     ctx,
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
@@ -601,7 +624,7 @@ fn route(
                 "amf.production.delete" => worker.engine.delete_run(&operation_run)?,
                 "amf.production.applyRecipe" => {
                     let (recipe, choice) = recipe_application.expect("Recipe application validated");
-                    worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;
+                    worker.engine.apply_recipe_with_review_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, &material_choices, differences_confirmed, ctx)?;
                 }
                 "amf.production.rollback" => worker.engine.rollback(&operation_run, &digest, rollback_target, ctx)?,
                 "amf.production.restoreRevision" => worker.engine.restore_revision(

@@ -332,7 +332,9 @@ namespace Vua.Editor.Bridge
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path); if (prefab == null) continue;
                 candidates.Add(new Candidate { sourceId = source.sourceId, path = path, name = prefab.name,
                     prefabGuid = AssetDatabase.AssetPathToGUID(path),
-                    objectPaths = CollectObjects(prefab.transform).Select(item => item.path).Where(item => item.Length <= 512).Take(2048).ToList(),
+                    objectPaths = CollectObjects(prefab.transform).Select(item => item.path)
+                        .Where(item => item.Length <= 512 && !item.Any(char.IsControl) && FindByPath(prefab.transform, item) != null)
+                        .Distinct(StringComparer.Ordinal).Take(2048).ToList(),
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
                     hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),

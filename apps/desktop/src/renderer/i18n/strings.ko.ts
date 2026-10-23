@@ -1,4 +1,5 @@
 import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -30,6 +31,7 @@ import type { Strings } from "./strings.en.ts";
  */
 export const strings: Strings = {
   textureMemory: textureMemoryCopy["ko"],
+  outfitRemoval: outfitRemovalCopy["ko"],
   faceTracking: faceTrackingCopy["ko"],
   toolConnection: toolConnectionCopy["ko"],
   browser: browserCopy["ko"],

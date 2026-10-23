@@ -1839,6 +1839,97 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.planOutfitRemoval"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "sourceId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "sourceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\u0000]*$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.removeOutfit"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "sourceId",
+            "planDigest",
+            "confirmed"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "sourceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\u0000]*$"
+            },
+            "planDigest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "confirmed": {
+              "const": true
+            }
+          }
+        }
+      }
     }
   ]
 }

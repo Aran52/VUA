@@ -76,6 +76,7 @@ fn ensure_repo(
 /// Optional payloads one Bridge v5 request may carry beyond the selection.
 struct BridgeExtras<'a> {
     texture_changes: Option<&'a [TextureImportChange]>,
+    outfit_removal: Option<&'a OutfitRemoval>,
     face_tracking: Option<&'a FaceTrackingPatch>,
     apply_target: Option<&'a vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
     sdk_fixes: Option<&'a [String]>,
@@ -248,7 +249,7 @@ impl NativeAmfProduction {
         fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, operation, selection, BridgeExtras { texture_changes: None, apply_target, sdk_fixes: None, fits, face_tracking: None }, watch)
+        self.bridge_request(run, operation, selection, BridgeExtras { texture_changes: None, apply_target, sdk_fixes: None, fits, face_tracking: None, outfit_removal: None }, watch)
     }
     /// One Bridge v5 run: the request file, the command and the observed result.
     fn bridge_request(
@@ -259,7 +260,7 @@ impl NativeAmfProduction {
         extras: BridgeExtras<'_>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        let BridgeExtras { texture_changes, apply_target, sdk_fixes, fits, face_tracking } = extras;
+        let BridgeExtras { texture_changes, apply_target, sdk_fixes, fits, face_tracking, outfit_removal } = extras;
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         clear_stale_lock(Path::new(&run.project_root));
@@ -295,6 +296,9 @@ impl NativeAmfProduction {
         if let Some(fixes) = sdk_fixes {
             request["sdkFixes"] = serde_json::json!(fixes);
         }
+        if let Some(removal) = outfit_removal {
+            request["outfitRemoval"] = serde_json::to_value(removal).map_err(|e| err("request_invalid", e))?;
+        }
         if let Some(patch) = face_tracking {
             request["faceTrackingPatch"] = serde_json::to_value(patch).map_err(|e| err("request_invalid", e))?;
         }
@@ -318,7 +322,7 @@ impl NativeAmfProduction {
             operation,
             project_id: run.run_id.clone(),
             dry_run: operation == UnityOperation::AmfInspect,
-            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch | UnityOperation::AmfTextureImport)
+            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch | UnityOperation::AmfTextureImport | UnityOperation::AmfOutfitRemove)
                 .then(|| run.unity_fingerprint.clone()),
             payload: UnityPayload {
                 plan_ref: Some(plan_ref),
@@ -386,6 +390,7 @@ impl NativeAmfProduction {
         if let Some(ft) = facts.get("faceTracking") {
             validate_face_tracking(ft)?;
         }
+        validate_outfit_removal_facts(&facts)?;
         let omitted = normalize_previews(&mut facts, Path::new(&run.project_root), &id)?;
         let mut diagnostics = result.diagnostics;
         if !omitted.is_empty() {
@@ -931,14 +936,18 @@ impl AmfProductionPlatform for NativeAmfProduction {
         ))
     }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: Some(fixes), fits: &[], face_tracking: None }, watch)
+        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: Some(fixes), fits: &[], face_tracking: None, outfit_removal: None }, watch)
     }
     fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfTextureImport, None, BridgeExtras { texture_changes: Some(changes), apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None }, watch)
+        self.bridge_request(run, UnityOperation::AmfTextureImport, None, BridgeExtras { texture_changes: Some(changes), apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: None }, watch)
+    }
+    fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(run, UnityOperation::AmfOutfitRemove, None,
+            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: Some(removal) }, watch)
     }
     fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge_request(run, UnityOperation::AmfFtPatch, None,
-            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: Some(patch) }, watch)
+            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: Some(patch), outfit_removal: None }, watch)
     }
     fn turntable(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge(run, UnityOperation::AmfTurntable, None, watch)

@@ -85,6 +85,7 @@ pub enum UnityOperation {
     AmfSdkFix,
     AmfTextureImport,
     AmfFtPatch,
+    AmfOutfitRemove,
 }
 
 impl UnityOperation {
@@ -105,6 +106,7 @@ impl UnityOperation {
                 | Self::AmfSdkFix
                 | Self::AmfTextureImport
                 | Self::AmfFtPatch
+                | Self::AmfOutfitRemove
         )
     }
 }

@@ -261,7 +261,8 @@
         "face_tracking",
         "lighting",
         "editor_close",
-        "texture_memory"
+        "texture_memory",
+        "outfit_removal"
       ]
     },
     "timestamp": {

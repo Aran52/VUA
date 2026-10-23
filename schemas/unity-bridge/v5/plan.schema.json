@@ -331,6 +331,141 @@
           "format"
         ]
       }
+    },
+    "outfitRemoval": {
+      "$ref": "#/$defs/outfitRemoval"
+    }
+  },
+  "$defs": {
+    "outfitRemoval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "avatarGlobalObjectId",
+        "roots",
+        "objects",
+        "blockedReason"
+      ],
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "roots": {
+          "type": "array",
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "globalObjectId"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "outfit",
+                  "menu"
+                ]
+              },
+              "globalObjectId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]*$"
+              }
+            }
+          }
+        },
+        "objects": {
+          "type": "array",
+          "maxItems": 8192,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "globalObjectId",
+              "path",
+              "typeName",
+              "manual"
+            ],
+            "properties": {
+              "globalObjectId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "typeName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "manual": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "blockedReason": {
+          "enum": [
+            "",
+            "ownership_invalid",
+            "target_unverified",
+            "contains_owned_object",
+            "inventory_limit",
+            "identity_invalid"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "blockedReason": {
+                "const": ""
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "roots": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "kind": {
+                      "const": "outfit"
+                    }
+                  }
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              "objects": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

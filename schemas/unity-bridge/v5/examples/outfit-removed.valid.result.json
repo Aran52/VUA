@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-command",
+  "operation": "amf_outfit_remove",
+  "status": "succeeded",
+  "changedPaths": [
+    "Assets/VUA/Production.unity",
+    "Assets/VUA/Ownership.json"
+  ],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1c1",
+    "projectFingerprint": "scene-after",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "synthetic-avatar",
+    "prefabs": [],
+    "instances": [
+      {
+        "sourceId": "outfit2",
+        "prefabPath": "Assets/Outfit2.prefab",
+        "globalObjectId": "synthetic-outfit2",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true
+      }
+    ],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "outfitRemoval": [],
+    "outfitRemovalApplied": [
+      {
+        "sourceId": "outfit",
+        "avatarGlobalObjectId": "synthetic-avatar",
+        "deletedObjectIds": [
+          "synthetic-outfit",
+          "synthetic-menu",
+          "synthetic-ma",
+          "synthetic-added"
+        ]
+      }
+    ]
+  }
+}

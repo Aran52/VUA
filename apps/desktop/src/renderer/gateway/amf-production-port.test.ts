@@ -36,6 +36,27 @@ describe("AMF production response boundary", () => {
     await expect(createAmfProductionPort(client).closeEditor("n3-test",true,"Save and close Unity")).resolves.toEqual({runId:"n3-test",taskId:"task-close"});
     expect(requests[0]).toMatchObject({method:"amf.production.closeEditor",params:{schemaVersion:"0.1",runId:"n3-test",confirmed:true}});
   });
+  it("tolerates old absent removal facts and validates every new inventory and proof", async () => {
+    const removal = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/outfit-removal.valid.result.json", import.meta.url), "utf8")).data.outfitRemoval[0];
+    expect(isAmfProductionRun(run)).toBe(true);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,outfitRemoval:[removal],outfitRemovalApplied:[]}}})).toBe(true);
+    for (const invalid of [null,{},[removal,removal],[{...removal,objects:[{...removal.objects[0],manual:"yes"}]}]]) {
+      expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,outfitRemoval:invalid}}})).toBe(false);
+    }
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,outfitRemovalApplied:[{}]}}})).toBe(false);
+    const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"a".repeat(64),removal};
+    let response: unknown = plan; const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){ requests.push(request); return {ok:true,value:response as DesktopGatewaySuccessValueV1}; },subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    const reviewed = await port.planOutfitRemoval("n3-test", "outfit");
+    expect(requests[0]).toMatchObject({method:"amf.production.planOutfitRemoval",params:{sourceId:"outfit"}});
+    response = {...plan,removal:{...removal,sourceId:"other"}};
+    await expect(port.planOutfitRemoval("n3-test","outfit")).rejects.toThrow("removal_plan_invalid");
+    response = {schemaVersion:"0.1",runId:"n3-test",taskId:"task-remove"};
+    await port.removeOutfit("n3-test",reviewed,true);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.removeOutfit",params:{sourceId:"outfit",planDigest:plan.planDigest,confirmed:true}});
+    await expect(port.removeOutfit("n3-other",reviewed,true)).rejects.toThrow("confirmation_required");
+  });
   it("accepts absent FT facts on old runs and validates new facts without claiming runtime success", () => {
     const faceTracking = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json", import.meta.url), "utf8")).data.faceTracking;
     expect(isAmfProductionRun(run)).toBe(true);

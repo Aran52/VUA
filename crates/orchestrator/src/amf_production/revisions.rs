@@ -20,6 +20,7 @@ pub enum RevisionKind {
     SdkFix,
     FaceTracking,
     EditorSave,
+    OutfitRemoval,
     Lighting,
     TextureMemory,
     Restore,

@@ -52,7 +52,8 @@
         "face_tracking",
         "lighting",
         "open",
-        "editor_close"
+        "editor_close",
+        "outfit_removal"
       ]
     },
     "timestamp": {

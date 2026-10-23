@@ -20,6 +20,7 @@ struct TestPlatform {
     texture_facts: Mutex<Option<serde_json::Value>>,
     texture_before: Mutex<Option<serde_json::Value>>,
     texture_outcome: AtomicUsize,
+    removal_mode: AtomicUsize,
     ft_facts: Mutex<Option<serde_json::Value>>,
     ft_outcome: AtomicUsize,
     ft_snapshots: Mutex<std::collections::BTreeMap<String, (String, bool)>>,
@@ -212,14 +213,26 @@ impl AmfProductionPlatform for TestPlatform {
         if self.alt_avatar.load(Ordering::SeqCst) {
             prefabs.push(PrefabCandidate { path: "Assets/AvatarAlt.prefab".into(), name: "Avatar Alt".into(), preview: None, ..candidates().remove(0) });
         }
-        let assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
+        let mut assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
+        let state = fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap();
+        if let Some(removed) = state.strip_prefix("removed:") { assembled.outfits.retain(|o| o.source_id != removed); }
+        if state.starts_with("removed:") && self.removal_mode.load(Ordering::SeqCst) == 3 { assembled.outfits[0].active = !assembled.outfits[0].active; }
         let mut result = serde_json::json!({"synthetic":true,
             "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then_some(assembled),
+                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(state == "after" || state.starts_with("removed:")).then_some(assembled.clone()),
                 "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
                     {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
         if let Some(textures) = self.texture_facts.lock().unwrap().clone() { result["facts"]["textureMemory"] = textures; }
+        if self.removal_mode.load(Ordering::SeqCst) > 0 {
+            let outfits = if result["facts"]["observedSelection"].is_null() { &[][..] } else { assembled.outfits.as_slice() };
+            result["facts"]["instances"] = serde_json::json!(outfits.iter().map(|o| serde_json::json!({
+                "sourceId":o.source_id,"globalObjectId":format!("id-{}",o.source_id),"bindingVerified":true,"menuVerified":true,"active":o.active})).collect::<Vec<_>>());
+            result["facts"]["outfitRemoval"] = serde_json::json!(outfits.iter().map(|o| synthetic_removal(&o.source_id)).collect::<Vec<_>>());
+            result["facts"]["avatars"] = serde_json::json!([
+                {"globalObjectId":"synthetic-avatar","activeTarget":true,"observedSelection":result["facts"]["observedSelection"]},
+                {"globalObjectId":"other-avatar","activeTarget":false,"observedSelection":selection2()}]);
+        }
         let material_use = self.material_use.lock().unwrap().clone();
         if let Some(mut facts) = self.ft_facts.lock().unwrap().clone() {
             let patched = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists();
@@ -311,6 +324,23 @@ impl AmfProductionPlatform for TestPlatform {
         let observed = self.inspect(run, watch)?;
         if self.texture_outcome.load(Ordering::SeqCst) == 4 { self.fail_inspect.store(true, Ordering::SeqCst); }
         Ok(observed)
+    }
+    fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(run.snapshot_id.is_some());
+        let durable: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        assert_eq!(durable.revisions[0].before, RevisionKind::OutfitRemoval);
+        fs::write(Path::new(&run.project_root).join("Assets/state"), format!("removed:{}", removal.source_id)).unwrap();
+        match self.removal_mode.load(Ordering::SeqCst) {
+            2 => return Err(production_error("test_removal_failed", "Synthetic deletion failed after writing.")),
+            4 => return Err(watch.stopped()),
+            _ => {}
+        }
+        let mut receipt = self.inspect(run, watch)?;
+        receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([{
+            "sourceId":removal.source_id,"avatarGlobalObjectId":removal.avatar_global_object_id,
+            "deletedObjectIds":removal.objects.iter().map(|o| &o.global_object_id).collect::<Vec<_>>() }]);
+        if self.removal_mode.load(Ordering::SeqCst) == 5 { receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([]); }
+        Ok(receipt)
     }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         if self.fail.load(Ordering::SeqCst) {
@@ -441,6 +471,7 @@ impl Harness {
         fs::create_dir_all(&root).unwrap();
         let platform = Arc::new(TestPlatform {
             texture_facts: Mutex::new(None), texture_before: Mutex::new(None), texture_outcome: AtomicUsize::new(0),
+            removal_mode: AtomicUsize::new(0),
             ft_facts: Mutex::new(None),
             ft_outcome: AtomicUsize::new(1),
             ft_snapshots: Mutex::new(std::collections::BTreeMap::new()),
@@ -2458,3 +2489,14 @@ fn texture_planning_requires_facts_and_refuses_project_drift() {
     fs::write(Path::new(&run.project_root).join("Assets/state"), "external edit").unwrap();
     assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.project_drift");
 }
+
+fn synthetic_removal(source: &str) -> OutfitRemoval {
+    let outfit = format!("id-{source}"); let menu = format!("menu-{source}");
+    OutfitRemoval { source_id: source.into(), avatar_global_object_id: "synthetic-avatar".into(), blocked_reason: String::new(),
+        roots: vec![OutfitRemovalRoot { kind:"outfit".into(), global_object_id:outfit.clone() }, OutfitRemovalRoot { kind:"menu".into(), global_object_id:menu.clone() }],
+        objects: vec![OutfitRemovalObject { global_object_id:outfit,path:"Coat".into(),type_name:"UnityEngine.GameObject".into(),manual:false },
+            OutfitRemovalObject { global_object_id:menu,path:"Switch".into(),type_name:"UnityEngine.GameObject".into(),manual:false },
+            OutfitRemovalObject { global_object_id:format!("added-{source}"),path:"Coat/Added child".into(),type_name:"UnityEngine.GameObject".into(),manual:true }] }
+}
+#[path = "support/outfit_removal.rs"]
+mod outfit_removal_tests;

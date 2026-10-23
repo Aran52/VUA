@@ -51,7 +51,7 @@ export const factoryCopy = {
         noReference: { tie: "Body materials disagree on brightness limits, so none is picked; align them in Unity if needed.", no_avatar_liltoon: "The body does not use lilToon, so there is nothing to align." } },
       versions: {
         title: "Versions",
-        before: { materials: "Before a material change", assembly: "Before an assembly", rebuild: "Before a base change", sdk_fix: "Before an SDK fix", face_tracking: "Before a face-tracking change", lighting: "Before a brightness alignment", restore: "Before a restore" },
+        before: { materials: "Before a material change", assembly: "Before an assembly", rebuild: "Before a base change", sdk_fix: "Before an SDK fix", face_tracking: "Before a face-tracking change", lighting: "Before a brightness alignment", editor_save: "Before saving in Unity", texture_memory: "Before a texture change", outfit_removal: "Before an outfit removal", restore: "Before a restore" },
         editedInUnity: "Edited in Unity",
         undoHint: "Restoring this entry undoes the latest restore.",
         reviewing: "Reviewing the restore…",
@@ -182,7 +182,7 @@ export const factoryCopy = {
         noReference: { tie: "身体材质的亮度上下限不一致，无法自动选择，可在 Unity 中手动对齐。", no_avatar_liltoon: "身体没有用 lilToon，不需要对齐。" } },
       versions: {
         title: "版本",
-        before: { materials: "换素材前", assembly: "装配前", rebuild: "换底座前", sdk_fix: "SDK 修复前", face_tracking: "面捕设置前", lighting: "亮度调整前", restore: "恢复前" },
+        before: { materials: "换素材前", assembly: "装配前", rebuild: "换底座前", sdk_fix: "SDK 修复前", face_tracking: "面捕设置前", lighting: "亮度调整前", editor_save: "Unity 保存前", texture_memory: "贴图调整前", outfit_removal: "移除衣服前", restore: "恢复前" },
         editedInUnity: "在 Unity 里改过",
         undoHint: "恢复这条，可撤销最近那次恢复。",
         reviewing: "正在查看恢复计划…",
@@ -313,7 +313,7 @@ export const factoryCopy = {
         noReference: { tie: "身體材質的亮度上下限不一致，無法自動選擇，可在 Unity 中手動對齊。", no_avatar_liltoon: "身體沒有用 lilToon，不需要對齊。" } },
       versions: {
         title: "版本",
-        before: { materials: "換素材前", assembly: "裝配前", rebuild: "換底座前", sdk_fix: "SDK 修復前", face_tracking: "面捕設定前", lighting: "亮度調整前", restore: "恢復前" },
+        before: { materials: "換素材前", assembly: "裝配前", rebuild: "換底座前", sdk_fix: "SDK 修復前", face_tracking: "面捕設定前", lighting: "亮度調整前", editor_save: "Unity 儲存前", texture_memory: "貼圖調整前", outfit_removal: "移除衣服前", restore: "恢復前" },
         editedInUnity: "在 Unity 裡改過",
         undoHint: "恢復這條，可撤銷最近那次恢復。",
         reviewing: "正在檢視恢復計畫…",
@@ -444,7 +444,7 @@ export const factoryCopy = {
         noReference: { tie: "体のマテリアルの明るさの値が一致しないため自動では選びません。必要なら Unity で手動でそろえてください。", no_avatar_liltoon: "体は lilToon を使っていないので、そろえる必要はありません。" } },
       versions: {
         title: "バージョン",
-        before: { materials: "素材変更前", assembly: "組み立て前", rebuild: "ベース変更前", sdk_fix: "SDK 修正前", face_tracking: "フェイストラッキング変更前", lighting: "明るさ調整前", restore: "復元前" },
+        before: { materials: "素材変更前", assembly: "組み立て前", rebuild: "ベース変更前", sdk_fix: "SDK 修正前", face_tracking: "フェイストラッキング変更前", lighting: "明るさ調整前", editor_save: "Unity で保存する前", texture_memory: "テクスチャ調整前", outfit_removal: "衣装を取り外す前", restore: "復元前" },
         editedInUnity: "Unity で編集されています",
         undoHint: "これを復元すると、直前の復元を取り消せます。",
         reviewing: "復元内容を確認しています…",
@@ -575,7 +575,7 @@ export const factoryCopy = {
         noReference: { tie: "몸 머티리얼의 밝기 값이 서로 달라 자동으로 고르지 않아요. 필요하면 Unity에서 직접 맞추세요.", no_avatar_liltoon: "몸이 lilToon을 쓰지 않아서 맞출 필요가 없어요." } },
       versions: {
         title: "버전",
-        before: { materials: "에셋 변경 전", assembly: "조립 전", rebuild: "베이스 변경 전", sdk_fix: "SDK 수정 전", face_tracking: "페이스 트래킹 변경 전", lighting: "밝기 조정 전", restore: "복원 전" },
+        before: { materials: "에셋 변경 전", assembly: "조립 전", rebuild: "베이스 변경 전", sdk_fix: "SDK 수정 전", face_tracking: "페이스 트래킹 변경 전", lighting: "밝기 조정 전", editor_save: "Unity 저장 전", texture_memory: "텍스처 조정 전", outfit_removal: "의상 제거 전", restore: "복원 전" },
         editedInUnity: "Unity에서 편집됨",
         undoHint: "이 항목을 복원하면 최근 복원을 되돌릴 수 있어요.",
         reviewing: "복원 내용을 확인하는 중…",

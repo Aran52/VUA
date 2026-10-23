@@ -44,14 +44,18 @@ export function TextureMemoryCard({ port, run, level, disabled, onStarted, onErr
   const plan = review?.plan;
   const selected = plan?.entries.filter(e => level === "full" || chosen.has(e.proposed.path)) ?? [];
   const estimated = plan ? plan.current.totalBytes - selected.reduce((sum, e) => sum + e.current.estimatedBytes - e.estimatedBytes, 0) : 0;
+  // Before a measurement there is nothing to choose: one line says how to get one.
+  if (!reports?.length) return <Card><h2>{copy.title}</h2><p className="vua-text-secondary">{copy.inspect}</p></Card>;
   return <Card>
     <h2>{copy.title}</h2>
-    <label className="vua-n3__field">{copy.platform}<select value={platform} disabled={starting} onChange={e => setPlatform(e.target.value as TexturePlatform)}>
-      <option value="pc">PC</option><option value="android">Android / Quest</option></select></label>
     {current ? <p>{format(copy.total, { size: (current.complete ? "" : "≥ ") + mib(current.totalBytes), rank: copy.ranks[current.rank] })}</p> : <p>{copy.inspect}</p>}
+    <div className="vua-texture__controls">
+      <label>{copy.platform}<select value={platform} disabled={starting} onChange={e => setPlatform(e.target.value as TexturePlatform)}>
+        <option value="pc">PC</option><option value="android">Android / Quest</option></select></label>
+      <label>{copy.target}<select value={target} disabled={starting} onChange={e => setTarget(e.target.value as TextureTargetRank)}>
+        {(["excellent", "good", "medium", "poor"] as const).map(r => <option key={r} value={r}>{copy.ranks[r]}</option>)}</select></label>
+    </div>
     <p className="vua-caption vua-text-secondary">{copy.note}</p>
-    <label className="vua-n3__field">{copy.target}<select value={target} disabled={starting} onChange={e => setTarget(e.target.value as TextureTargetRank)}>
-      {(["excellent", "good", "medium", "poor"] as const).map(r => <option key={r} value={r}>{copy.ranks[r]}</option>)}</select></label>
     {failed && <p role="status">{copy.unavailable}</p>}
     {plan && <>
       <p>{format(copy.estimate, { size: (plan.current.complete ? "" : "≥ ") + mib(estimated), rank: copy.ranks[plan.current.complete ? textureRank(estimated, platform) : "unknown"] })}</p>

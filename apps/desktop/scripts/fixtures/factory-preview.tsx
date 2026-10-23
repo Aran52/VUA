@@ -88,7 +88,17 @@ const fitObject = (path: string) => ({ path, localPosition: { x: 0.01, y: 0, z: 
 runs.fitline = { ...runs.finished!, runId: "fitline",
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
   fitChanges: [{ sourceId: "outfit", moved: [fitObject("ChestRibbon"), fitObject("Skirt/Bow#1")], missing: ["Clips#2"], changesDigest: "d".repeat(64) }],
-  availableFits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] } as AmfProductionRun;
+  availableFits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }],
+  result: { facts: { ...runs.finished!.result!.facts!, fitSkipped: [{ sourceId: "outfit", paths: ["Clips#3", "Skirt/Bow#2"] }] } } } as AmfProductionRun;
+// A finished line measured at 85 MiB on PC: two outfit textures can drop to BC7, the body stays.
+const texture = (id: string, path: string, size: number, format: string, bytes: number, editable = true) => ({ id, path, width: size, height: size, format, mipmap: true, faces: 1,
+  estimatedBytes: bytes, known: true, maxSize: size, editable, reason: editable ? "" : "shared_with_avatar" });
+const pcTextures = [texture("body", "Assets/Meiyun/Texture/Body.png", 4096, "DXT5", 22369621, false),
+  texture("shirt", "Assets/Amenbo/TshirtShorts/Texture/Shirt.png", 4096, "RGBA32", 89478484), texture("shorts", "Assets/Amenbo/TshirtShorts/Texture/Shorts.png", 2048, "RGBA32", 22369620)];
+const pcTotal = pcTextures.reduce((sum, item) => sum + item.estimatedBytes, 0);
+runs.texline = { ...runs.finished!, runId: "texline", result: { facts: { ...runs.finished!.result!.facts!, textureMemory: [
+  { platform: "pc", textures: pcTextures, totalBytes: pcTotal, complete: true, rank: "poor" },
+  { platform: "android", textures: pcTextures, totalBytes: pcTotal, complete: true, rank: "very_poor" }] } } } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
@@ -113,6 +123,14 @@ const api = {
     menu: { ...ftMenu, id: menuId }, avatarGlobalObjectId: "gid-avatar", execution: "interactive_editor", replay: "manual", requiresTrustedCodeConfirmation: true,
     warning: "Creator code runs with Editor privileges. The restore point covers only the work project. Finish on the same Avatar. Recipe and version replay will require manual reapplication." }; },
   async faceTrackingPatch(runId: string) { return { runId, taskId: "task-ft" }; },
+  async planTextureMemory(runId: string, platform: "pc" | "android", targetRank: "excellent" | "good" | "medium" | "poor") {
+    const current = runs.texline!.result!.facts!.textureMemory!.find(report => report.platform === platform)!;
+    const entries = current.textures.filter(item => item.editable).map(item => ({ current: item, estimatedBytes: Math.round(item.estimatedBytes / 4),
+      proposed: { path: item.path, platform, maxSize: item.maxSize, format: platform === "pc" ? "BC7" : "ASTC_4x4" } }));
+    const total = current.totalBytes - entries.reduce((sum, entry) => sum + entry.current.estimatedBytes - entry.estimatedBytes, 0);
+    return { schemaVersion: "0.1", runId, planDigest: "9".repeat(64), plan: { platform, targetRank, current, entries, estimatedTotalBytes: total,
+      estimatedRank: platform === "pc" ? "good" : "poor", reachesTarget: platform === "pc" } };
+  },
   // The versions views: rev-1's original is gone from the library, rev-4 reviews with a Unity-edit warning, rev-2 rebuilds on the recorded base.
   async revisionPlan(runId: string, revisionId: string) {
     const revision = runs.versions!.revisions!.find(item => item.id === revisionId)!;
@@ -186,6 +204,7 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   "ft-locked": { run: "ftlocked", clicks: ["workshop-station-face"] },
   "ft-none": { run: "ftnone", clicks: ["workshop-station-face"] },
   "close-offer": { run: "finished", clicks: ["workshop-open"] },
+  texture: { run: "texline", clicks: [] },
   versions: { run: "versions", clicks: ["workshop-station-assemble"] },
   "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
   "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },

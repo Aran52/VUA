@@ -55,7 +55,9 @@ export interface AmfProductionRun {
     readonly outfitRemoval?: readonly OutfitRemoval[]; readonly outfitRemovalApplied?: readonly OutfitRemovalApplied[];
     readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview;
     /** The SDK items the last fix ran the SDK's Auto Fix for. */
-    readonly textureMemory?: readonly TextureMemoryReport[]; readonly sdkFixesApplied?: readonly string[] };
+    readonly textureMemory?: readonly TextureMemoryReport[]; readonly sdkFixesApplied?: readonly string[];
+    /** Saved-fit objects the last assembly could not find in each garment; they kept the garment's own placement. */
+    readonly fitSkipped?: readonly { readonly sourceId: string; readonly paths: readonly string[] }[] };
     readonly diagnostics?: readonly { readonly code: string; readonly severity: string; readonly message: string }[] } | null;
 }
 /** VRChat SDK performance ratings, best first. */
@@ -273,6 +275,7 @@ function result(v: unknown): boolean {
     && (facts.textureMemory === undefined || isTextureMemoryFacts(facts.textureMemory))
     && (facts.sdkReview === undefined || isAmfSdkReview(facts.sdkReview))
     && (facts.sdkFixesApplied === undefined || (texts(facts.sdkFixesApplied) && facts.sdkFixesApplied.length <= 16))
+    && (facts.fitSkipped === undefined || (Array.isArray(facts.fitSkipped) && facts.fitSkipped.every(entry => record(entry) && text(entry.sourceId) && texts(entry.paths))))
     && (facts.previews === undefined || (Array.isArray(facts.previews) && facts.previews.length <= 3 && facts.previews.every(p => record(p) && ["front","side","back"].includes(String(p.view)) && isAmfPreviewPath(p.path))))
     && facts.instances.every(i => record(i) && text(i.sourceId) && typeof i.bindingVerified === "boolean" && typeof i.menuVerified === "boolean"
       && (i.menuModified === undefined || typeof i.menuModified === "boolean"))))

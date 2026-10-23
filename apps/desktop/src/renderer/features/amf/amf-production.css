@@ -117,3 +117,7 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 .vua-fitsave__entry p { margin: 0; }
 .vua-fitsave__row { display: flex; gap: 12px; align-items: center; }
 .vua-fitsave__row input { flex: 1; min-width: 180px; }
+/* Texture memory: platform and target sit side by side, sized to their choices. */
+.vua-texture__controls { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-block: 8px; }
+.vua-texture__controls label { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-texture__controls select { min-width: 150px; padding: 6px 10px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-primary); font: var(--vua-font-body); }

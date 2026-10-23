@@ -13,7 +13,8 @@ export function initialProductionSelection(run: AmfProductionRun): AmfAssemblySe
 /** Two selections assemble the same Avatar: the same Avatar and the same outfits, in any order. */
 export function sameSelection(a: AmfAssemblySelection, b: AmfAssemblySelection): boolean {
   const key = (selection: AmfAssemblySelection) => JSON.stringify([selection.avatarPrefab,
-    selection.outfits.map(o => [o.sourceId, o.prefabPath, o.mode, o.bone, o.toggleName, o.active]).sort()]);
+    // Switch options compare by meaning: Unity reports the defaults that the editor leaves out.
+    selection.outfits.map(o => [o.sourceId, o.prefabPath, o.mode, o.bone, o.toggleName, o.active, o.saved !== false, o.group ?? ""]).sort()]);
   return key(a) === key(b);
 }
 

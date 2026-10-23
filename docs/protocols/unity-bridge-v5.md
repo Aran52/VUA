@@ -1,6 +1,6 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.16.0
+> Document version: 0.17.0
 > Status: Candidate
 > Updated: 2026-10-23
 
@@ -121,6 +121,46 @@ Avatar, invokes the Auto Fix of each named item the SDK still offers one for, sa
 scene and assets, and then observes the scene and reads `sdkReview` again. `sdkFixesApplied`
 lists the items it fixed; `amf.sdk.fix_unavailable` names how many chosen items no longer offer a
 fix, and `amf.sdk.fix_failed` carries each fix the SDK could not complete.
+
+## Save and close handoff
+
+The interface-mode `InstallHandoffObserver` accepts `.vua/bridge/amf-close.json` before the SDK
+open request, using the same exact Editor pair. This is an Editor lifecycle handoff, not another
+batch command or permission to change the Avatar. The file is written atomically after the
+player confirms in VUA and the engine persists its disk restore point and version record:
+
+`{schemaVersion: "0.1", runId, closeId, confirmed: true, expiresAt}`.
+
+`runId` must match `.vua/amf-run.txt`; IDs are plain ASCII alphanumeric/hyphen strings of at most
+100 characters. The request is at most 8 KiB, consumed once before saving and valid for two
+minutes. The observer refuses expired/invalid times and expiry more than three minutes away.
+It waits through compiling and importing. Play mode, an open prefab stage or an active/pending
+SDK upload/open handoff answers `editor_busy`, without exit.
+
+Before saving any scene, the observer rejects a loaded dirty scene with no saved path as
+`untitled_scene`, so the player chooses its path in Unity. It saves each loaded dirty scene with
+[EditorSceneManager.SaveScene](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/SceneManagement.EditorSceneManager.SaveScene.html),
+checks its return and dirty state, then calls
+[AssetDatabase.SaveAssets](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/AssetDatabase.SaveAssets.html).
+Exceptions, save error/exception/assert logs, remaining persistent dirty serialized assets/importers on disk in the project (`Assets/` or embedded `Packages/`), and scenes dirtied
+again by save hooks prevent exit. Unity's internal MonoScript reflection objects and registry-package
+cache resources are excluded from the dirty-object check; script import settings in the project
+still count through their MonoImporter. It never treats dismissing a save dialog as saving.
+
+It atomically writes `.vua/bridge/amf-close.result.json` before attempting exit:
+
+`{schemaVersion: "0.1", runId, closeId, outcome: "saved" | "failed", scenesSaved, assetsSaved,
+editorClosed: false, reason, detail}`.
+
+`scenesSaved` and `assetsSaved` record the steps verified so far; `saved` requires both and an
+empty reason. Failure reasons are `scene_save_failed`, `asset_save_failed`, `untitled_scene`,
+`editor_busy`, `expired`, `cancelled` or `save_failed`; `detail` is at most 1000 characters. A receipt-write
+failure keeps Unity open. Only a successful saving receipt, an unexpired request and no matching
+`.vua/bridge/amf-close.cancel` (plain close ID) permit `EditorApplication.Exit(0)` in that Editor
+update. Cancellation after that check cannot interrupt synchronous exit. The native caller bounds
+receipts to regular files of at most 16 KiB, validates their closed shape and nonce/run binding,
+ignores stale identities, and separately waits for the project lock to release. The Editor
+never claims its own process has already ended. Timeouts neither kill Unity nor claim saving.
 
 ## Managed upload in the open Editor
 
@@ -283,6 +323,8 @@ unsynced asset entry that an MA config upgrades to synced. The authoritative syn
 with the SDK's own check on the built result.
 
 ## Document changelog
+
+- 0.17.0 (2026-10-23): add the confirmed, expiring save/close observer handoff, explicit scene/asset saving facts and cooperative cancellation before exit.
 
 - 0.16.0 (2026-10-23): each inspection candidate may carry `parameterBudget`, the source-side synced expression-parameter evidence (asset entries, MA Parameters per component, unresolved prefix configs) behind the assembly-plan estimate against the 256-bit limit.
 

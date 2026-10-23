@@ -51,7 +51,8 @@
         "sdk_fix",
         "face_tracking",
         "lighting",
-        "open"
+        "open",
+        "editor_close"
       ]
     },
     "timestamp": {

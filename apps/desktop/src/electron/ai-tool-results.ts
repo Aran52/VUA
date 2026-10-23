@@ -1,4 +1,5 @@
 /** MCP projections over existing Gateway facts. Full AMF records remain Resources. */
+import { isAmfEditorCloseResult } from "@vua/contracts";
 export const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
 export const MCP_TASK_STATES = ["queued", "preparing", "running", "waiting_for_input", "paused", "succeeded", "succeeded_with_warnings", "failed", "cancelled"] as const;
 export const isRunId = (value: unknown): value is string => typeof value === "string" && /^[A-Za-z0-9-]{1,100}$/u.test(value);
@@ -63,7 +64,9 @@ export function errorFields(error: unknown, secrets: readonly string[] = []) {
   const detail = error instanceof AiToolFailure ? error.publicMessage : undefined;
   const fallback = typeof MESSAGES[code] === "string" ? MESSAGES[code] : "VUA could not complete this request. Read its current facts and recovery action.";
   return { error: code, message: safeErrorMessage(detail ?? fallback, secrets),
-    nextAction: code.includes("license") ? "Open VUA Settings → Accounts → Unity, activate a valid license in Hub, then reinspect retained AMF work."
+    ...(code === "vua.amf_production.project_open" ? {suggestedAction:"amf.production.closeEditor"} : {}),
+    nextAction: code === "vua.amf_production.project_open" ? "Request vua_request_amf_close_editor and wait for player approval, then inspect its task before retrying production."
+      : code.includes("license") ? "Open VUA Settings → Accounts → Unity, activate a valid license in Hub, then reinspect retained AMF work."
       : code === "review_pending_requests_first" ? "Ask the player to decide waiting requests in VUA, or withdraw one with vua_withdraw_request."
       : MCP_RETRYABLE_CODES[code] === true ? "Wait for the current work or connection to settle, then retry the same read or approval request."
       : "Read current capabilities and facts, then correct the request or follow the recovery shown in VUA.",
@@ -83,6 +86,7 @@ export function runSummary(value: unknown): unknown {
   const issues = sdk ? rows(sdk.issues) : [];
   // A line keeps up to 50 revisions; the summary names the newest and the Resource holds them all.
   return { ...pick(value, ["schemaVersion", "runId", "revision", "phase", "taskId", "createdAt", "completedAt", "selection", "error", "recovery", "progress", "usualDurations"]),
+    ...(isAmfEditorCloseResult(value.editorClose) ? {editorClose:{...value.editorClose,detail:safeErrorMessage(value.editorClose.detail)}} : {}),
     ...(Array.isArray(value.revisions) ? { revisionCount: value.revisions.length, revisions: value.revisions.slice(0, RUN_SUMMARY_REVISIONS) } : {}),
     sources: rows(value.sources).map(source => pick(source, ["sourceId", "role", "itemName"])),
     stepCount: count(value.steps), steps: rows(value.steps).slice(-20).map(step => pick(step, ["key", "name", "state", "startedAt", "endedAt"])),
@@ -115,9 +119,13 @@ export function taskPage(value: unknown, limit = 20, states?: readonly unknown[]
   return { ...pick(snapshot, ["contractVersion", "revision"]), tasks: tasks.slice(0, limit), total: tasks.length, hasMore: tasks.length > limit };
 }
 export function taskSummary(task: Record<string, unknown>) {
+  const close = isAmfEditorCloseResult(task.result) || (isRecord(task.result) && task.result.schemaVersion === "0.1"
+    && isRunId(task.result.runId) && task.result.outcome === "already_closed" && task.result.editorClosed === true);
   return { ...pick(task, ["contractVersion", "taskId", "revision", "state", "cancellationRequested", "recoveryDisposition", "updatedAt"]),
     ...(isRecord(task.error) ? { error: { code: task.error.code } } : {}),
-    ...(isRecord(task.result) ? { result: pick(task.result, ["schemaVersion", "operation", "runId"]) } : {}) };
+    ...(isRecord(task.result) ? { result: pick(task.result, close
+      ? ["schemaVersion", "runId", "outcome", "scenesSaved", "assetsSaved", "editorClosed", "reason"]
+      : ["schemaVersion", "operation", "runId"]) } : {}) };
 }
 export interface TaskChange {
   started: boolean | null;

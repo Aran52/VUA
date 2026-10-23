@@ -10,6 +10,32 @@ const run = {schemaVersion:"0.1",runId:"n3-test",phase:"succeeded",taskId:"task-
   result:{facts:{sdkDescriptorRecognized:true,missingReferences:0,avatarName:"Avatar",instances:[{sourceId:"coat",bindingVerified:true,menuVerified:true,menuModified:true}]}}};
 
 describe("AMF production response boundary", () => {
+  it("validates optional close facts while keeping old runs readable", () => {
+    const editorClose = {schemaVersion:"0.1",runId:"n3-test",closeId:"close-1",outcome:"saved",
+      scenesSaved:true,assetsSaved:true,editorClosed:true,reason:"",detail:""};
+    expect(isAmfProductionRun(run)).toBe(true);
+    expect(isAmfProductionRun({...run,editorClose})).toBe(true);
+    for (const invalid of [null, {}, {...editorClose,runId:"n3-other"}, {...editorClose,assetsSaved:"yes"},
+      {...editorClose,scenesSaved:false}, {...editorClose,outcome:"closed"}, {...editorClose,detail:"x".repeat(1001)}]) {
+      expect(isAmfProductionRun({...run,editorClose:invalid})).toBe(false);
+    }
+  });
+  it("preserves the optional project-open action and validates it", async () => {
+    let params: Record<string, unknown> = {detail:"Save and close Unity first.",suggestedAction:"amf.production.closeEditor"};
+    const client = {invoke:async()=>({ok:false,error:{kind:"application",error:{code:"vua.amf_production.project_open",params}}}),subscribe:()=>()=>{}} as unknown as GatewayClient;
+    const port=createAmfProductionPort(client);
+    await expect(port.reinspect("n3-test")).rejects.toMatchObject({code:"vua.amf_production.project_open",suggestedAction:"amf.production.closeEditor"});
+    params={detail:"Close Unity first."};
+    await expect(port.reinspect("n3-test")).rejects.toThrow("Close Unity first.");
+    params={suggestedAction:"kill"};
+    await expect(port.reinspect("n3-test")).rejects.toThrow("amf_production_error_invalid");
+  });
+  it("submits a confirmed close as a task with the caller's localized title", async () => {
+    const requests: unknown[]=[];
+    const client={invoke:async(request:unknown)=>{requests.push(request);return {ok:true,value:{schemaVersion:"0.1",runId:"n3-test",taskId:"task-close"}};},subscribe:()=>()=>{}} as unknown as GatewayClient;
+    await expect(createAmfProductionPort(client).closeEditor("n3-test",true,"Save and close Unity")).resolves.toEqual({runId:"n3-test",taskId:"task-close"});
+    expect(requests[0]).toMatchObject({method:"amf.production.closeEditor",params:{schemaVersion:"0.1",runId:"n3-test",confirmed:true}});
+  });
   it("accepts absent FT facts on old runs and validates new facts without claiming runtime success", () => {
     const faceTracking = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json", import.meta.url), "utf8")).data.faceTracking;
     expect(isAmfProductionRun(run)).toBe(true);

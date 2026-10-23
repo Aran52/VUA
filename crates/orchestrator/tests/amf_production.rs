@@ -30,6 +30,7 @@ struct TestPlatform {
     fail_replace: AtomicBool,
     /// Unity holds the work project.
     editor_open: AtomicBool,
+    close_outcome: AtomicUsize,
     /// The Avatar package carries a second Avatar prefab.
     alt_avatar: AtomicBool,
     /// The Avatar source reports a different content hash.
@@ -327,6 +328,7 @@ impl AmfProductionPlatform for TestPlatform {
         vua_orchestrator::FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1> {
+        if self.editor_open.load(Ordering::SeqCst) { return Err(production_error("project_open", "Synthetic live Editor lock.")); }
         if run.phase == "restoring" {
             let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
             assert_eq!(saved.phase, "restoring");
@@ -348,6 +350,19 @@ impl AmfProductionPlatform for TestPlatform {
             fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
         }
         Ok(())
+    }
+    fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> { self.snapshot(run) }
+    fn close_editor(&self, run: &ProductionRun, _: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+        let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        assert!(saved.snapshot_id.is_some());
+        assert_eq!(saved.revisions[0].before, RevisionKind::EditorSave);
+        assert_eq!(saved.steps.last().unwrap().key, "editor_close");
+        let mode = self.close_outcome.load(Ordering::SeqCst);
+        if mode != 5 { fs::write(Path::new(&run.project_root).join("Assets/state"), "saved-player-edits").unwrap(); }
+        if mode != 2 && mode != 5 { self.editor_open.store(false, Ordering::SeqCst); }
+        Ok(EditorCloseResult { schema_version:"0.1".into(), run_id:run.run_id.clone(), close_id:"close-1".into(),
+            outcome:if mode == 1 { "saved" } else { "failed" }.into(), scenes_saved:mode == 1, assets_saved:mode == 1,
+            editor_closed:mode != 2 && mode != 5, reason:if mode == 1 { "" } else if mode == 5 { "editor_busy" } else { "scene_save_failed" }.into(), detail:"Synthetic save receipt.".into() })
     }
     fn open(&self, _: &ProductionRun, _: &TaskContext) -> Result<serde_json::Value, AppErrorV1> {
         Ok(serde_json::json!({"synthetic":true}))
@@ -397,6 +412,7 @@ impl Harness {
             wait_for_stop: AtomicBool::new(false),
             fail_replace: AtomicBool::new(false),
             editor_open: AtomicBool::new(false),
+            close_outcome: AtomicUsize::new(1),
             alt_avatar: AtomicBool::new(false),
             alt_avatar_hash: AtomicBool::new(false),
             cleared: AtomicUsize::new(0),
@@ -2273,4 +2289,75 @@ fn runs_recorded_before_fits_read_with_empty_defaults() {
         "steps":[],"selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null});
     let run: ProductionRun = serde_json::from_value(record).unwrap();
     assert!(run.fit_changes.is_empty() && run.applied_fits.is_empty() && run.observed_at.is_none());
+}
+
+#[test]
+fn close_editor_requires_confirmation_and_protects_player_saves_before_dispatch() {
+    let h = Harness::new(); h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    let count = h.platform.snapshots.load(Ordering::SeqCst);
+    h.run_job(|engine,ctx| {
+        assert_eq!(engine.close_editor("n3-test",false,ctx).unwrap_err().code,"vua.amf_production.confirmation_required");
+        Ok(())
+    }).unwrap();
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),count);
+    h.run_job(|engine,ctx| { let value=engine.close_editor("n3-test",true,ctx)?; assert_eq!(value["editorClosed"],true); Ok(()) }).unwrap();
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.phase,"inspect_required");
+    assert_eq!(run.revisions[0].before,RevisionKind::EditorSave);
+    assert!(run.editor_close.unwrap().succeeded());
+    assert!(run.confirmed_digest.is_none());
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),"saved-player-edits");
+}
+
+#[test]
+fn a_failed_save_preserves_the_live_editor_and_reports_blocked_automatic_recovery() {
+    let h = Harness::new(); h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    h.platform.close_outcome.store(2, Ordering::SeqCst);
+    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(),"vua.amf_production.editor_save_failed");
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery.as_deref(),Some("restore_failed: vua.amf_production.project_open"));
+    assert!(run.snapshot_id.is_some()); assert_eq!(run.revisions[0].before,RevisionKind::EditorSave);
+    assert!(h.platform.editor_open.load(Ordering::SeqCst));
+    assert!(!run.editor_close.unwrap().scenes_saved);
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(), "vua.amf_production.inspect_required");
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a retry cannot replace unfinished recovery");
+}
+
+#[test]
+fn a_failed_save_restores_automatically_once_unity_released_the_project() {
+    let h = Harness::new(); h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    h.platform.close_outcome.store(3, Ordering::SeqCst);
+    assert!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).is_err());
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery.as_deref(),Some("restored"));
+    assert!(!run.revisions.iter().any(|r|r.before==RevisionKind::EditorSave));
+    assert_ne!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),"saved-player-edits");
+}
+
+#[test]
+fn closing_an_already_closed_project_is_a_noop_and_open_errors_offer_a_cooperative_action() {
+    let h = Harness::new(); h.prepared();
+    let count=h.platform.snapshots.load(Ordering::SeqCst);
+    h.run_job(|e,c| { assert_eq!(e.close_editor("n3-test",true,c)?["outcome"],"already_closed");Ok(()) }).unwrap();
+    assert_eq!(count,h.platform.snapshots.load(Ordering::SeqCst));
+    h.platform.editor_open.store(true,Ordering::SeqCst);
+    let value=serde_json::to_value(h.engine.precheck_closed("n3-test").unwrap_err()).unwrap();
+    assert_eq!(value["params"]["suggestedAction"],"amf.production.closeEditor");
+}
+
+#[test]
+fn a_receipt_that_refused_before_saving_allows_retry_without_live_restore() {
+    let h=Harness::new();h.prepared();
+    h.platform.editor_open.store(true,Ordering::SeqCst);
+    h.platform.close_outcome.store(5,Ordering::SeqCst);
+    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(),"vua.amf_production.editor_save_failed");
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery,None);
+    assert!(!run.revisions.iter().any(|r|r.before==RevisionKind::EditorSave));
+    h.platform.close_outcome.store(1,Ordering::SeqCst);
+    assert!(h.job(|e,c|e.close_editor("n3-test",true,c).map(|_|())));
 }

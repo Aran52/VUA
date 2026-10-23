@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
-import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange } from "./ai-tool-results.js";
+import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange, taskSummary } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
 import { reportLibrary, reportRun, reportRunWithRevisions, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
@@ -42,6 +42,21 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>): Record<string, u
   return JSON.parse(text?.type === "text" ? text.text : "{}") as Record<string, unknown>;
 }
 describe("built-in MCP, using the official HTTP client", () => {
+  it("requires local player approval before saving and closing Unity", async () => {
+    const {client,calls,service}=await setup();
+    await client.callTool({name:"vua_request_amf_close_editor",arguments:{runId:"n3-test"}});
+    expect(calls.map(call=>call.method)).toEqual(["amf.production.get"]);
+    const request=service.snapshot().requests[0]!;
+    expect(request.state).toBe("pending");
+    expect(request.details.parameters).toEqual({schemaVersion:"0.1",runId:"n3-test",confirmed:true});
+    await service.resolve(request.id,"approve");
+    expect(calls.at(-1)).toMatchObject({method:"amf.production.closeEditor",params:{schemaVersion:"0.1",runId:"n3-test",confirmed:true}});
+    expect(errorFields(new Error("vua.amf_production.project_open"))).toMatchObject({suggestedAction:"amf.production.closeEditor",retryable:false});
+    const editorClose={schemaVersion:"0.1",runId:"n3-test",closeId:"close-1",outcome:"saved",scenesSaved:true,assetsSaved:true,editorClosed:true,reason:"",detail:""};
+    expect(runSummary({runId:"n3-test",editorClose})).toMatchObject({editorClose});
+    expect(taskSummary({result:editorClose})).toMatchObject({result:{outcome:"saved",scenesSaved:true,assetsSaved:true,editorClosed:true}});
+    expect(taskSummary({result:{schemaVersion:"0.1",runId:"n3-test",outcome:"already_closed",editorClosed:true}})).toMatchObject({result:{outcome:"already_closed",editorClosed:true}});
+  });
   it("initializes, lists a closed tool catalog and calls independent reads", async () => {
     const { client, calls, service } = await setup();
     const tools = await client.listTools();

@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
+mod editor_close;
+pub use editor_close::*;
 mod release;
 pub use release::*;
 mod lighting;
@@ -404,6 +406,8 @@ pub struct ProductionRun {
     pub result: serde_json::Value,
     pub error: Option<String>,
     pub recovery: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor_close: Option<EditorCloseResult>,
 }
 
 #[derive(Debug, Clone)]
@@ -506,6 +510,13 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn upload(&self, _: &ProductionRun, _: &UploadRequest, _: &TaskContext, _: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
         Err(production_error("upload_unavailable", "Managed upload is unavailable on this platform."))
     }
+    /// Captures the on-disk state before a confirmed Editor save, without writing project files.
+    fn snapshot_open_editor(&self, _: &ProductionRun) -> Result<String, AppErrorV1> {
+        Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))
+    }
+    fn close_editor(&self, _: &ProductionRun, _: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+        Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))
+    }
     /// Whether a Unity Editor holds the work project now.
     fn editor_open(&self, _: &Path) -> bool { false }
 }
@@ -528,14 +539,21 @@ pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "
 use crate::filesystem::remove_tree;
 
 pub fn production_error(code: &str, detail: impl Into<String>) -> AppErrorV1 {
-    AppErrorV1::new(
+    let detail = detail.into();
+    let mut error = AppErrorV1::new(
         format!("vua.amf_production.{code}"),
         ErrorCategory::Validation,
         "errors.amfProduction.failed",
         "amf-production",
     )
     .with_recoverable(true)
-    .with_param("detail", ParamValue::Text(detail.into()))
+    .with_param("detail", ParamValue::Text(if code == "project_open" {
+        format!("{detail} You can save and close Unity first.")
+    } else { detail }));
+    if code == "project_open" {
+        error = error.with_param("suggestedAction", ParamValue::Text("amf.production.closeEditor".into()));
+    }
+    error
 }
 
 fn io_error(error: impl std::fmt::Display) -> AppErrorV1 {
@@ -875,6 +893,7 @@ impl AmfProductionEngine {
             result: serde_json::Value::Null,
             error: None,
             recovery: None,
+            editor_close: None,
         })
     }
     fn step(

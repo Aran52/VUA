@@ -1,6 +1,6 @@
 # AMF material-first production v0.1
 
-> Document version: 0.31.0
+> Document version: 0.32.0
 > Status: Candidate
 > Updated: 2026-10-23
 > Owner: AMF
@@ -19,6 +19,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | --- | --- | --- | --- |
 | `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, retained run summaries, `capacity`, `running`, `busy` and the waiting `queue` |
 | `amf.production.setCapacity` | Command | `capacity: 1 \| 2 \| 3` | Saved `capacity` with `schemaVersion: "0.1"` |
+| `amf.production.closeEditor` | Command | `runId`, `confirmed: true` | Durable task: protect the on-disk project, save open scenes/assets, and wait for Unity to release it |
 | `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, version record summaries, usual step durations and the running step's progress |
 | `amf.production.faceTrackingPlan` | Query | `runId`, `menuId` | Exact imported menu, active owned Avatar, project/revision digest, interactive execution and manual replay/trust warning |
 | `amf.production.faceTrackingPatch` | Command | `runId`, `menuId`, `planDigest`, `confirmTrustedCode: true` | Durable task: snapshot, creator session, independent reinspection, automatic restoration on failure |
@@ -313,7 +314,7 @@ closed.
 
 Unity work has a capacity of 1, 2 or 3, defaulting to 1. The commands that start it — `prepare`, `prepareRecipe`,
 `assemble`, `reinspect`, `sdkFix`, `faceTrackingPatch`, `changeSources`, `applyRecipe`, `rollback`, `restoreRevision`, `open`, `delete`,
-`bakeTurntable`, `upload` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
+`bakeTurntable`, `upload`, `closeEditor` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
 in request order, when admitted by these rules:
 
 - At most `capacity` jobs run at once. Capacity 1 runs one job at a time in submission order.
@@ -468,6 +469,59 @@ fix for are refused with `vua.amf_production.sdk_fix_unavailable` before any res
 failure restores the project. The release page offers it as "Fix with the SDK" after the player
 reads what happens.
 
+## Save and close the open Editor
+
+`amf.production.closeEditor` is an explicit, confirmed lifecycle command for one managed line.
+It occupies the exclusive Unity lane like `open` and `upload`, so it cannot close an Editor while
+another AMF job uses it. A closed project returns `{schemaVersion: "0.1", runId,
+outcome: "already_closed", editorClosed: true}` without saving or creating a restore point.
+
+For an open project the engine captures its current **on-disk** `Assets`, `Packages` and
+`ProjectSettings` in a verified full-copy restore point before dispatch. It compares fingerprints
+around the copy and rejects concurrent disk changes. Unsaved Editor memory is not part of a disk
+snapshot. The line first persists the restore point and an `editor_save` version record (marked
+`editedInUnity: true` because replay cannot reproduce arbitrary manual edits), then starts step
+`editor_close` and writes the [Bridge save/close request](unity-bridge-v5.md#save-and-close-handoff).
+It does not run Avatar edits, SDK fixes, uploads or the previously refused production operation.
+
+The task succeeds only with a matching successful save receipt **and** the existing project-lock
+probe observing that Unity released the project. It waits at most two minutes, never terminates
+Unity, removes an unconsumed request on every return, and expires late requests. Cancellation
+removes an unconsumed request and marks a picked-up request cancelled; the Editor checks again
+before exit. A synchronous save/exit already past that check may still finish. Missing or old
+Bridge support times out and asks the player to reopen the project to load the current Bridge.
+An absent receipt remains unknown even when the project lock has disappeared.
+
+The optional run field `editorClose` retains `{schemaVersion: "0.1", runId, closeId,
+outcome: "saved" | "failed", scenesSaved, assetsSaved, editorClosed, reason, detail}`. The Editor
+writes saving facts before exit; only AMF's lock observation sets `editorClosed`. `reason` is
+empty for a completed save/close, or `scene_save_failed`, `asset_save_failed`, `untitled_scene`,
+`editor_busy`, `expired`, `cancelled`, `save_failed` or `timeout`; `detail` is at most 1000 characters. A saved
+receipt with `reason: "timeout"` and `editorClosed: false` means saving succeeded but exit did not.
+Failures return `editor_save_failed`, or `editor_close_timeout` for a timeout. Receipt shape and
+identity failures return `receipt_invalid`; other handoff I/O failures return `editor_close_failed`.
+
+A line with unfinished snapshot recovery refuses another save/close so that its earlier recovery
+point cannot be replaced; the player saves/closes Unity manually and resolves that recovery first.
+
+A bound `editor_busy`, `untitled_scene` or early `expired` receipt with both saved flags false
+proves no save was attempted: discard that change's version and allow a retry after the player
+resolves the blocker. Other failures attempt the existing automatic snapshot restore. Its project-lock guard remains in
+force: when Unity still holds the project, the restore point and version remain and `recovery`
+reports `restore_failed: vua.amf_production.project_open`; VUA never overwrites a live Editor's
+files. After the player resolves saving and closes Unity, the existing reviewed full-copy
+rollback recovers that point. Successful automatic restoration discards the failed change's
+version. Every successful close invalidates the confirmed plan; changed project files put the
+line in `inspect_required` before the player checks and assembles again.
+
+All `project_open` errors retain their code and add the text that saving and closing Unity is
+available and optional `params.suggestedAction: "amf.production.closeEditor"`. Renderer and MCP
+consumers can offer the action without automatically invoking it. Renderer boundaries validate
+both new fields when present and accept old runs/errors without them. The renderer port exposes
+the confirmed task and preserves the typed error hint; request-card buttons and automatic retry
+are separate frontend work. MCP's `vua_request_amf_close_editor` uses the existing local player
+approval queue.
+
 ## Unity producing face
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
@@ -594,6 +648,8 @@ is a source estimate (`evidence: "unity_source_estimate"`), never the SDK's buil
 the SDK's own check reports after assembly.
 
 ## Document changelog
+
+- 0.32.0 (2026-10-23): add confirmed, protected save/close tasks, bound Editor saving receipts plus project-release observation, optional close facts and project-open action hints.
 
 - 0.31.0 (2026-10-23): `amf.production.plan` estimates the assembled Avatar's synced parameter bits against the 256-bit limit from per-candidate Bridge evidence, counting one bit for each switch VUA adds, with per-source attribution that sums to the estimate and an explicit `unknown` instead of a number when the evidence is missing or truncated.
 

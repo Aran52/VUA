@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { isAmfProductionParams, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
+import { isAmfProductionParams, isAmfEditorCloseResult, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
 import { DESKTOP_GATEWAY_METHOD_KINDS, isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 
 const selection = { avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"outfit",prefabPath:"Assets/Outfit.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}] };
 describe("AMF material-first Candidate boundary", () => {
+  it("registers saving and closing as an explicitly confirmed command", () => {
+    const params={schemaVersion:"0.1",runId:"n3-test",confirmed:true};
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"close",method:"amf.production.closeEditor",params})).toBe(true);
+    expect(isApplicationRequestV01({contractVersion:"0.1",requestId:"close",correlationId:"close",commandId:"cmd-close",kind:"command",method:"amf.production.closeEditor",params})).toBe(true);
+    for (const bad of [{...params,confirmed:false},{...params,confirmed:"true"},{schemaVersion:"0.1",runId:"n3-test"},{...params,force:true}]) {
+      expect(isAmfProductionParams("amf.production.closeEditor",bad)).toBe(false);
+    }
+    expect(isApplicationRequestV01({contractVersion:"0.1",requestId:"close",correlationId:"close",kind:"query",method:"amf.production.closeEditor",params})).toBe(false);
+  });
   it("registers capacity as a command with exactly three admitted values", () => {
     expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.setCapacity"]).toBe("command");
     for (const capacity of [1, 2, 3]) {
@@ -93,7 +102,8 @@ describe("AMF material-first Candidate boundary", () => {
       expect(readAmfProductionProgress(value) !== null, name).toBe(name.includes(".valid."));
     }
     const status = (v: Record<string, unknown>) => (AMF_RUN_PHASES as readonly unknown[]).includes(v.phase)
-      && Array.isArray(v.steps) && v.steps.every(isAmfStep) && isAmfUsualDurations(v.usualDurations) && (v.progress === null || isAmfRunProgress(v.progress));
+      && Array.isArray(v.steps) && v.steps.every(isAmfStep) && isAmfUsualDurations(v.usualDurations) && (v.progress === null || isAmfRunProgress(v.progress))
+      && (v.editorClose === undefined || isAmfEditorCloseResult(v.editorClose));
     for (const name of readdirSync(folder("status-examples"))) {
       const value = JSON.parse(readFileSync(new URL(name, folder("status-examples")), "utf8")) as Record<string, unknown>;
       expect(status(value), name).toBe(name.includes(".valid."));

@@ -75,7 +75,7 @@ impl AmfProductionServices {
     pub(crate) fn submit(&self, request: SubmitRequest, run_id: &str, operation: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
         let mut entries = self.entries.lock().expect("lane entries poisoned");
         let policy = TaskLanePolicy { key: Some(run_id.to_owned()),
-            exclusive: matches!(operation, "amf.production.upload" | "amf.production.open" | "amf.production.delete") };
+            exclusive: matches!(operation, "amf.production.upload" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.delete") };
         let accepted = self.runtime.submit_in_lane_with_policy(request, &self.lane, policy)?;
         let snapshot = self.lane.snapshot();
         let live: Vec<String> = snapshot.running.into_iter().chain(snapshot.waiting).collect();
@@ -210,6 +210,7 @@ fn route(
         "amf.production.saveFit" => &["schemaVersion", "runId", "sourceId", "name", "changesDigest"],
         "amf.production.renameFit" => &["schemaVersion", "fitId", "name"],
         "amf.production.deleteFit" => &["schemaVersion", "fitId"],
+        "amf.production.closeEditor" => &["schemaVersion", "runId", "confirmed"],
         "amf.production.setCapacity" => &["schemaVersion", "capacity"],
         "amf.production.getRecipe" | "amf.production.recipeSharePlan" => &["schemaVersion", "recipeId"],
         "amf.production.previewRecipeShare" | "amf.production.importRecipe" => &["schemaVersion", "text"],
@@ -259,6 +260,9 @@ fn route(
             .map(str::to_owned)
             .ok_or_else(|| production_error("params_invalid", format!("Missing {key}.")))
     };
+    if method == "amf.production.closeEditor" && params.get("confirmed") != Some(&Value::Bool(true)) {
+        return Err(production_error("confirmation_required", "Confirm saving the open scenes and assets and closing Unity."));
+    }
     let avatar_id = if params.contains_key("avatarGlobalObjectId") {
         let id = string("avatarGlobalObjectId")?;
         if id.len() > 256 || id.contains('\0') { return Err(production_error("params_invalid", "Invalid Avatar identity.")); }
@@ -564,6 +568,9 @@ fn route(
                     &digest,
                     ctx,
                 )?,
+                "amf.production.closeEditor" => {
+                    return worker.engine.close_editor(&operation_run, true, ctx).map(TaskExit::Done)
+                }
                 "amf.production.open" => {
                     return worker.engine.open(&operation_run, ctx).map(TaskExit::Done)
                 }
@@ -773,6 +780,9 @@ mod tests {
         let err = |method: &str, kind: &str, params: Value| {
             route(service.clone(), method, &json!({"kind":kind,"params":params})).unwrap_err().code
         };
+        assert_eq!(err("amf.production.closeEditor", "query", json!({"schemaVersion":"0.1","runId":"n3-x","confirmed":true})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.closeEditor", "command", json!({"schemaVersion":"0.1","runId":"n3-x","confirmed":false})), "vua.amf_production.confirmation_required");
+        assert_eq!(err("amf.production.closeEditor", "command", json!({"schemaVersion":"0.1","runId":"n3-x"})), "vua.amf_production.params_invalid");
         // The kind must match the operation.
         assert_eq!(err("amf.production.revisionPlan", "command", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1"})), "vua.amf_production.params_invalid");
         assert_eq!(err("amf.production.restoreRevision", "query", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1","planDigest":"a".repeat(64)})), "vua.amf_production.params_invalid");
@@ -816,7 +826,7 @@ mod tests {
 
     #[test]
     fn upload_open_and_delete_are_exclusive_and_preserve_queue_order() {
-        for operation in ["amf.production.upload", "amf.production.open", "amf.production.delete"] {
+        for operation in ["amf.production.upload", "amf.production.open", "amf.production.closeEditor", "amf.production.delete"] {
             let root = std::env::temp_dir().join(format!("vua-amf-exclusive-{}", uuid_v7_identity()));
             let service = services_at(&root);
             capacity(&service, json!(2)).unwrap();

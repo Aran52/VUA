@@ -1,4 +1,4 @@
-built (Aran52/VUA#32, #63): items 1, 3, 4 and 5, the banner names the failing field, the workshop follows tasks started elsewhere, and one card per run; a real reproduction of the transient failure remains |
+# Current development plan
 
 > Updated: 2026-10-24
 
@@ -68,12 +68,12 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done (Aran52/VUA#1) |
-| 5 | Unity editor handoff | P-02 | in progress: item 3 (Aran52/VUA#36), and item 1's save and close with its MCP request (Aran52/VUA#53); item 2's buttons remain |
+| 5 | Unity editor handoff | P-02 | built: item 3 (Aran52/VUA#36), item 1's save and close with its MCP request (Aran52/VUA#53), and item 2's workshop buttons (Aran52/VUA#63); the author's check of a held project remains |
 | 6 | SDK step for newcomers | P-02 | built: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12), the check read again after an upload (Aran52/VUA#44) and the build and upload guide (Aran52/VUA#59); the guide's four screenshots come from the author |
-| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
+| 7 | Permission modes and simpler choices | P-02, P-03 | built: permission modes (Aran52/VUA#11), stated recommendations (Aran52/VUA#16) and the plan confirmation with the materials' BOOTH images (Aran52/VUA#63); the author's P-02 runs in each mode remain |
 | 8 | Known packages | P-01, P-03 | built: the known-packages table (Aran52/VUA#21), multi-line Poiyomi copies with the preparation test (Aran52/VUA#55) and the package page by permission mode (Aran52/VUA#56); P-01 with a Poiyomi outfit awaits the author |
 | 9 | Material tuning | P-02, P-03 | in progress: item 2 with its entry (Aran52/VUA#29, #34) and item 1, texture memory on the quality-check station (Aran52/VUA#57); the author's checks in a dark world and on a P-02 rank remain |
-| 10 | Face tracking add-on | P-03 | in progress: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52); the workshop station and the Meiyun run in VRChat remain |
+| 10 | Face tracking add-on | P-03 | built: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52), and the workshop station (Aran52/VUA#62); the Meiyun run in VRChat remains |
 | 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
 | 13 | Appearance and one-click styles | — | after the AMF operations settle (author, 2026-10-23); needs a design session |
@@ -96,7 +96,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20) with removing an outfit through a reviewed plan (Aran52/VUA#58); the material change and deletion were verified in the 2026-10-19 MCP round; the author's two-outfit removal check remains |
 | 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
 | 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md); item 2 and the Resources of item 3 move to 44 |
-| 33 | Switch options and built-result evidence | P-02, P-03 | item 4, the synced parameter estimate in the plan, is in (Aran52/VUA#60); the rest is planned |
+| 33 | Switch options and built-result evidence | P-02, P-03 | items 1 and 4 are in: switch options with saved state and main outfits worn one at a time (Aran52/VUA#64), and the synced parameter estimate (Aran52/VUA#60); the slider, built-result evidence and VRCFury remain |
 | 34 | Evidence layers and toolchain profile | P-03, B-02 | planned from the reference study |
 | 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
 | 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
@@ -106,7 +106,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 | 41 | VN3 terms and filtering by use | P-02 | built: the backend (Aran52/VUA#31), the library drawer and MCP reads (Aran52/VUA#37), and the release room's check (Aran52/VUA#38); the author's check with real products remains |
 | 42 | Line revisions and saved fits | P-02 | built: revisions (Aran52/VUA#40), saved fits (Aran52/VUA#45), the version list on the assembly station (Aran52/VUA#50) and the fit prompt and management (Aran52/VUA#51); the author's restore and fit checks remain |
-| 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
+| 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32, #63): items 1, 3, 4 and 5, the banner names the failing field, the workshop follows tasks started elsewhere, and one card per run; a real reproduction of the transient failure remains |
 | 44 | MCP result envelope | P-02 | done (Aran52/VUA#43): compact reads with Resources, the build in `vua_status`, and errors that say whether a retry is safe |
 
 Suggested next order: with the workshop's operations in place (2026-10-24), the author's

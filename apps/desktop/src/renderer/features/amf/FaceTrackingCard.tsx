@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import type { FaceTrackingMenuV01, FaceTrackingPlanV01 } from "@vua/contracts";
-import type { AmfProductionPort, AmfProductionRun } from "../../gateway/index.ts";
+import { AmfProductionError, type AmfProductionPort, type AmfProductionRun } from "../../gateway/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
@@ -28,9 +28,11 @@ export function FtLockNote({ onRestore, onNewLine, disabled }: {
   </div>;
 }
 
-export function FaceTrackingCard({ port, run, disabled, onStarted, onRestore, onNewLine }: {
+export function FaceTrackingCard({ port, run, disabled, onStarted, onRestore, onNewLine, onUnityHolds }: {
   port: AmfProductionPort; run: AmfProductionRun; disabled: boolean;
   onStarted: (taskId: string) => void; onRestore: (() => void) | null; onNewLine: () => void;
+  /** Unity holds the project: the page offers saving and closing it. */
+  onUnityHolds: (error: AmfProductionError) => void;
 }) {
   const facts = run.result?.facts?.faceTracking;
   const locked = facts?.manualReplayRequired === true;
@@ -55,7 +57,10 @@ export function FaceTrackingCard({ port, run, disabled, onStarted, onRestore, on
     try {
       const accepted = await port.faceTrackingPatch(run.runId, menu.id, plan.planDigest, true, copy.task);
       close(); onStarted(accepted.taskId);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    } catch (reason) {
+      if (reason instanceof AmfProductionError && reason.suggestedAction === "amf.production.closeEditor") { close(); onUnityHolds(reason); return; }
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
     finally { setStarting(false); }
   };
   const hint = error === null ? null : ftFailure(error);

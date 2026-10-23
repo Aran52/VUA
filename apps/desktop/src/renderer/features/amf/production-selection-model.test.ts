@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AmfProductionRun, AmfPrefab } from "../../gateway/index.ts";
-import { initialProductionSelection, updateOutfitSelection } from "./production-selection-model.ts";
+import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 
 const prefab = (sourceId:string,path:string,isAvatar=false):AmfPrefab => ({sourceId,path,name:path,isAvatar,hasSkinnedMesh:true,hasMergeArmature:false,hasMissingScripts:false,humanoidBones:[]});
 const run = (prefabs:readonly AmfPrefab[]):AmfProductionRun => ({schemaVersion:"0.1",runId:"n3-test",phase:"ready",taskId:"task",editor:{path:"Unity.exe",version:"2022.3.22f1"},projectRoot:"C:/Work",
@@ -33,5 +33,34 @@ describe("Unity-observed material preselection", () => {
   it("removes only the explicitly deselected outfit", () => {
     const initial = initialProductionSelection(run([prefab("avatar","Assets/A.prefab",true),prefab("outfit","Assets/Coat.prefab")]));
     expect(updateOutfitSelection(initial,"outfit",null)).toEqual({avatarPrefab:initial.avatarPrefab,outfits:[]});
+  });
+});
+
+describe("switch options", () => {
+  const two = { avatarPrefab: "Assets/Avatar.prefab", outfits: [
+    { sourceId: "coat", prefabPath: "Assets/Coat.prefab", mode: "merge_armature" as const, bone: "", toggleName: "Coat", active: true },
+    { sourceId: "dress", prefabPath: "Assets/Dress.prefab", mode: "merge_armature" as const, bone: "", toggleName: "Dress", active: false },
+  ] };
+  it("leaves the options out of the selection at their defaults", () => {
+    const saved = updateOutfitSelection(two, "coat", { saved: true, group: "" });
+    expect(Object.keys(saved.outfits[0]!)).toEqual(["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"]);
+    expect(updateOutfitSelection(two, "coat", { saved: false }).outfits[0]).toMatchObject({ saved: false });
+  });
+  it("wears main outfits one at a time: turning one on turns the others off", () => {
+    let selection = updateOutfitSelection(two, "coat", { group: "main" });
+    selection = updateOutfitSelection(selection, "dress", { group: "main" });
+    expect(selection.outfits.map(o => o.active)).toEqual([true, false]);
+    selection = updateOutfitSelection(selection, "dress", { active: true });
+    expect(selection.outfits.map(o => [o.sourceId, o.active])).toEqual([["coat", false], ["dress", true]]);
+  });
+  it("compares options by meaning, so a changed option is a changed plan", () => {
+    const reported = { ...two, outfits: two.outfits.map(o => ({ ...o, saved: true, group: "" })) };
+    expect(sameSelection(two, reported)).toBe(true);
+    expect(sameSelection(two, updateOutfitSelection(two, "coat", { group: "main" }))).toBe(false);
+    expect(sameSelection(two, updateOutfitSelection(two, "coat", { saved: false }))).toBe(false);
+  });
+  it("keeps an outfit without a switch out of every group", () => {
+    const selection = updateOutfitSelection(two, "coat", { group: "main", toggleName: " " });
+    expect(selection.outfits[0]).not.toHaveProperty("group");
   });
 });

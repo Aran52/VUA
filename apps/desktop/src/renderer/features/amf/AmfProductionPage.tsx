@@ -39,6 +39,8 @@ import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
 const copy = strings.amfProduction;
 const factory = strings.factory;
 const editorClose = strings.amfProduction.editorClose;
+/** The one switch group the workshop offers: main outfits, worn one at a time. */
+const MAIN_GROUP = "main";
 /** The running step's live state: Unity's stage and count, a running clock, the usual time on this computer, and Unity's silence. */
 function LiveProgress({ progress }: { progress: AmfRunProgress }) {
   const [now, setNow] = useState(() => Date.now());
@@ -277,6 +279,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const fitNames = [...new Set((run?.availableFits ?? [])
     .filter(fit => fit.name !== null && selection.outfits.some(outfit => outfit.sourceId === fit.sourceId))
     .map(fit => fit.name as string))];
+  // Main outfits share one switch group and are worn one at a time.
+  const mainOutfits = selection.outfits.filter(item => item.group === MAIN_GROUP).map(item => item.toggleName);
   const planFitNames = [...new Set((plan?.fits ?? [])
     .filter(fit => fit.name !== null).map(fit => fit.name as string))];
 
@@ -415,6 +419,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
         <PlanImages run={run} selection={selection} librarySources={list?.sources ?? []} />
+        {mainOutfits.length > 1 && <p className="vua-caption vua-text-secondary">{format(copy.switchMainNote, { names: mainOutfits.join(" · ") })}</p>}
         {fitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: fitNames.join(" · ") })}</p>}
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
@@ -446,6 +451,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
                 <option value="merge_armature" disabled={!candidate?.hasSkinnedMesh && !candidate?.hasMergeArmature}>{copy.merge}</option><option value="attach_to_bone" disabled={candidate?.hasSkinnedMesh}>{copy.attach}</option></select></label></details>
               {chosen.mode === "attach_to_bone" && <label>{copy.bone}<select value={chosen.bone} onChange={e => outfit(source.sourceId,{bone:e.target.value})}><option value="">{copy.chooseBone}</option>{avatar?.humanoidBones.map(bone => <option key={bone} value={bone}>{bone}</option>)}</select></label>}
               <label className="vua-n3__check"><input type="checkbox" checked={chosen.active} onChange={e => outfit(source.sourceId,{active:e.target.checked})}/>{copy.active}</label>
+              <label className="vua-n3__check"><input type="checkbox" checked={chosen.group === MAIN_GROUP} disabled={!chosen.toggleName.trim()}
+                onChange={e => outfit(source.sourceId,{group:e.target.checked ? MAIN_GROUP : ""})} data-nav-id={`workshop-switch-main-${source.sourceId}`}/>{copy.switchMain}</label>
+              <label className="vua-n3__check"><input type="checkbox" checked={chosen.saved !== false} disabled={!chosen.toggleName.trim()}
+                onChange={e => outfit(source.sourceId,{saved:e.target.checked})}/>{copy.switchSaved}</label>
             </div>}</div></Card>;
         })}
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
@@ -458,7 +467,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         onStarted={task => { initialized.current = ""; setTaskId(task); setTaskAction("assemble"); setPlan(null); setAdjusting(false); setChosenStation(null); }} onError={e => fail(e)}/>}
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
-        <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
+        <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}
+          {item.group ? <small className="vua-n3__tag">{copy.switchMainTag}</small> : null}{item.saved === false ? <small className="vua-n3__tag">{copy.switchUnsavedTag}</small> : null}</span>
+          <span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
         {planFitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: planFitNames.join(" · ") })}</p>}
         {plan.parameterBudget && <ParameterBudgetNote budget={plan.parameterBudget}/>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
@@ -518,7 +529,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}
       <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
-      {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy}
+      {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy} onUnityHolds={e => fail(e)}
         onStarted={id => { setTaskId(id); setTaskAction("faceTracking"); }} onRestore={ftRestore} onNewLine={newPreparation} />}
     </>}
     </div>

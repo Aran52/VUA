@@ -120,3 +120,19 @@ describe("AMF material-first Candidate boundary", () => {
       expect(isAmfStep({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-17T15:00:00.000Z", endedAt: "2026-10-17T15:01:00.000Z" }), key).toBe(true);
   });
 });
+
+describe("switch options in a selection", () => {
+  const outfit = { sourceId: "coat", prefabPath: "Assets/Coat.prefab", mode: "merge_armature", bone: "", toggleName: "Coat", active: true };
+  const selection = (extra: Record<string, unknown>) => ({ avatarPrefab: "Assets/Avatar.prefab", outfits: [{ ...outfit, ...extra }] });
+  it("accepts the options when present and keeps older selections valid", () => {
+    expect(isAmfAssemblySelection(selection({}))).toBe(true);
+    expect(isAmfAssemblySelection(selection({ saved: false, group: "main" }))).toBe(true);
+    // Unity reports an independent switch with an empty group.
+    expect(isAmfAssemblySelection(selection({ saved: true, group: "" }))).toBe(true);
+  });
+  it("rejects malformed options and unknown keys", () => {
+    for (const extra of [{ saved: "no" }, { group: "主服装" }, { group: "g".repeat(33) }, { group: "VUA/Group/main" }, { exclusive: true }]) {
+      expect(isAmfAssemblySelection(selection(extra))).toBe(false);
+    }
+  });
+});

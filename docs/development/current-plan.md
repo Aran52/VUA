@@ -114,6 +114,8 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
 | 49 | Shareable turntable with an embedded Recipe | P-02, P-04 | planned |
 | 50 | AI connection as a first-run choice | — | planned |
+| 51 | Recipes creators trust | P-04 | planned: four workstreams of about 24 agent hours each |
+| 52 | Signed Windows releases | — | SignPath application filled in on 2026-10-24; awaits the author's submission and approval |
 
 Suggested next order: the AMF operations first — 10's workshop station, 5's save-and-close buttons,
 43's reproductions, the rest of 7 (image confirmation) and 33's switch options — with functional
@@ -867,9 +869,10 @@ still picture looks like any Unity screenshot; the turning Avatar is what player
 
 1. The release room exports the turntable as an animated image: GIF for chats and Discord, and an
    MP4 for X, which turns GIFs into video. Size and frame rate fit each platform's upload limit.
-2. Each image carries a small VUA mark and, when the player includes a Recipe, a "Recipe inside"
-   mark. Including the Recipe is the player's choice per export and runs the existing reviewed
-   share export first.
+2. Each image carries a small VUA logo mark. With a Recipe included, the mark becomes a
+   "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24), so a
+   viewer knows the image can be dropped into VUA. Including the Recipe is the player's choice per
+   export and runs the existing reviewed share export first.
 3. The Recipe travels as the share declaration inside the file's own metadata (a GIF comment or
    application extension, and the MP4's metadata). Dropping such a file on VUA reads it and opens
    the existing Recipe share preview; a file without a valid declaration is refused there.
@@ -895,6 +898,64 @@ is already off until the player enables it in Help. The choice becomes visible a
 
 **Done when** a first run with "No" shows no AI wording anywhere the author looks, and switching to
 "Yes" in Settings brings back the Help entry without a restart.
+
+## 51 — Recipes creators trust
+
+Author request, 2026-10-24: Avatar creators who see VUA's promotion should find Recipes
+impressive, useful and safe. Budget: 24 hours of work for each of four agents. Today a Recipe
+([v0.4](../protocols/amf-recipe-v0.4.md)) saves, shares and reproduces a line, but reproduction
+resolves materials by exact SHA-256, so a creator's routine package update breaks every shared
+Recipe; the receiver learns what is missing only when preparation fails; and P-04 has not passed.
+
+The promise to a creator: a Recipe is a list, never a copy. It carries BOOTH product references
+and settings, no files; each receiver must own and hold the materials; the creators are named;
+their terms are checked.
+
+**A — Reproduction across package versions** (backend agent). When a referenced file's bytes
+differ, VUA resolves the same BOOTH product's current file, inspects it in Unity, and maps the
+saved prefabs and bindings by asset GUID and path. The plan lists each changed or missing target
+as a difference to review; nothing maps silently. Reapplied fits and adjustments report what they
+could not place. Synthetic packages with renamed, moved and removed prefabs test it.
+
+**B — "Wear this" for the receiver** (Claude). Opening a Recipe by paste text, file or a "VUA
+inside" image shows one page: the result previews when the image carried them, each material as
+owned and present, owned and not downloaded (download it), or not owned (its BOOTH page), and the
+terms check. One action prepares and assembles under the player's permission mode, and the result
+shows beside the sender's previews.
+
+**C — Trust signals** (backend agent). Before import, the VN3 check of slice 41 runs across all
+of the Recipe's materials for the receiver's chosen use, and the share preview lists exactly what
+the Recipe contains: references, settings and adjustments, no file. Exported Recipes carry the
+material creators' names for slice 37's credits.
+
+**D — The shareable turntable** (backend agent). Slice 49's export and drop import: GIF and MP4
+encoding, the "VUA inside" badge and the declaration in the file's metadata.
+
+**Proof.** After A–D, the author and Claude run P-04 with real materials: three base Avatars, each
+reproduced on a second computer, one of them after a package update. The runs, with their
+turntables, become the material for the first creator contacts.
+
+**Done when** a Recipe shared as a "VUA inside" GIF reproduces the same Avatar on another computer
+after one of its packages updated, the receiver sees what they own, miss and may use before
+anything runs, and P-04 passes.
+
+## 52 — Signed Windows releases
+
+Author decision, 2026-10-24: VUA applies to the SignPath Foundation's free code signing for open
+source, and signing moves from the publishing computer into GitHub Actions. The
+[official hosting](../release/official-hosting.md) rule that signing stays on the publishing
+computer changes with this slice.
+
+1. After SignPath approves the project, the release workflow sends VUA's own executables (the
+   NSIS installer, its uninstaller, the helper and the bootstrap) for Authenticode signing with a
+   timestamp, before the signed release inventory and its Ed25519 envelope are computed, so the
+   inventory names the signed bytes.
+2. The stock `electron.exe` keeps its upstream bytes; the installer's check of those bytes stays.
+3. The download page states that releases are signed through the SignPath Foundation, as the
+   program requires.
+
+**Done when** a published installer shows VUA's signer in Windows' file properties and installs
+from a fresh download.
 
 ## Open decisions
 

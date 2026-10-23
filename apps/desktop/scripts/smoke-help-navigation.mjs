@@ -130,7 +130,9 @@ async function run() {
     const cardLayout = await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card button")].map(b=>({label:b.getAttribute("data-nav-id"),overflow:b.scrollHeight-b.clientHeight}))');
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");
-    for (const button of ['route-desktop','route-pico','route-quest','route-vive','route-index']) {
+    // In-development headsets explain themselves in a tooltip and open no details.
+    assert(await js(`['route-quest','route-vive','route-index'].every(id=>document.querySelector('[data-nav-id="'+id+'"]').disabled && !document.getElementById(id+'-details'))`), "In-development headsets have no details panel");
+    for (const button of ['route-desktop','route-pico']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`!document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
       assert(await inlineDetailFits(button), `${button} details are directly below their own card and fit its width`);
@@ -140,14 +142,17 @@ async function run() {
     }
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-creator-page [data-nav-id=toggle-amf]")'), "AMF setup in Avatar editing");
-    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("导入和整理素材") && !document.querySelector(".vua-shell__sidebar [data-module=production]")'), "AMF is explained in Avatar editing and waits for explicit enablement");
+    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-module=production]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
     await capture("amf-off");
     if (process.env.VUA_TEST_EXPECT_EDITOR_VERSION) {
       const expected = process.env.VUA_TEST_EXPECT_EDITOR_VERSION;
       await waitFor(() => js(`document.querySelector('[data-editor-status]')?.textContent.includes(${JSON.stringify(expected)})`), "Host Editor inventory before AMF activation");
       assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked'), "The existing C1 Editor is detected before AMF activation or CLI installation");
     }
-    for (const button of ['route-unity2022','route-unity6','manager-unity_hub','manager-vcc','manager-alcom']) {
+    // Unity 6 opens details only when a 6000 editor is installed; otherwise it is a tooltip-only card.
+    const unity6Installed = await js('!!document.getElementById("route-unity6-details")');
+    if (!unity6Installed) assert(await js('document.querySelector("[data-nav-id=route-unity6]").disabled'), "Unity 6 without an installed editor opens no details");
+    for (const button of ['route-unity2022', ...(unity6Installed ? ['route-unity6'] : []), 'manager-unity_hub','manager-vcc','manager-alcom']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true'`), `${button} expands inline`);
       assert(await inlineDetailFits(button), `${button} details stay below their own editor or manager card`);

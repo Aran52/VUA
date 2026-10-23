@@ -1,7 +1,7 @@
 /** Production lines in the AMF workshop: stations, line status and the automation level. */
 import type { AmfRunPhase } from "../../gateway/index.ts";
 
-export const STATIONS = ["prepare", "inspect", "plan", "assemble", "check"] as const;
+export const STATIONS = ["prepare", "inspect", "plan", "assemble", "check", "face"] as const;
 export type StationKey = typeof STATIONS[number];
 export type StationState = "todo" | "running" | "waiting" | "done" | "failed" | "stopped";
 export type LineStatus = "running" | "waiting" | "attention" | "finished" | "stopped" | "idle";
@@ -21,6 +21,7 @@ const stationOf: Record<string, StationKey> = {
   project: "prepare", materials: "prepare",
   inspect: "inspect", reinspect: "inspect",
   snapshot: "assemble", assembly: "assemble", protect_current: "assemble", restore: "assemble",
+  face_tracking: "face",
 };
 
 /** A line is working while its phase is busy or any step still runs; a reinspection keeps the old phase. */
@@ -50,7 +51,7 @@ export function lineStatus(line: LineFacts): LineStatus {
 
 /** Each station's state. The latest step of a station decides it; later stations follow the phase. */
 export function lineStations(line: LineFacts): Record<StationKey, StationState> {
-  const states: Record<StationKey, StationState> = { prepare: "todo", inspect: "todo", plan: "todo", assemble: "todo", check: "todo" };
+  const states: Record<StationKey, StationState> = { prepare: "todo", inspect: "todo", plan: "todo", assemble: "todo", check: "todo", face: "todo" };
   for (const step of line.steps) {
     const station = stationOf[step.key];
     if (!station) continue;
@@ -72,9 +73,9 @@ export function currentStation(states: Record<StationKey, StationState>): Statio
   return [...STATIONS].reverse().find(key => states[key] === "done") ?? "prepare";
 }
 
-/** Where the line stops for the player in each mode. */
+/** Where the line stops for the player in each mode; the face-tracking add-on is never a stop. */
 export function stopsAt(level: AutomationLevel): ReadonlySet<StationKey> {
-  return new Set<StationKey>(level === "full" ? [] : level === "smart" ? ["plan", "check"] : STATIONS);
+  return new Set<StationKey>(level === "full" ? [] : level === "smart" ? ["plan", "check"] : STATIONS.filter(key => key !== "face"));
 }
 
 /** Full access assembles a prepared line without asking, once, when it was never assembled and VUA found an
@@ -88,6 +89,12 @@ export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const minutes = Math.floor(total / 60); const seconds = total % 60;
   return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/** Unity tasks ahead of a queued one: everything running plus the queue before it; at least one. */
+export function queueAhead(lane: { readonly running: readonly unknown[]; readonly queue: readonly { readonly taskId: string }[] }, taskId: string): number {
+  const index = lane.queue.findIndex(item => item.taskId === taskId);
+  return Math.max(1, lane.running.length + Math.max(0, index));
 }
 
 // A new key: every player starts asking before changes, whatever the earlier familiarity choice was.

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "../../components/primitives/Badge.tsx";
+import { toast } from "../../components/primitives/toast-store.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
@@ -44,7 +45,6 @@ import { RemoveConfirmDialog } from "./RemoveConfirmDialog.tsx";
 import { RepoSection } from "./RepoSection.tsx";
 import {
   SEARCH_DEBOUNCE_MS,
-  TOAST_DURATION_MS,
   createEnvelopeErrorKey,
   createRefusalDetailKey,
   filterPackages,
@@ -1631,9 +1631,6 @@ export function PackagesPage() {
   const [createTemplate, setCreateTemplate] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
   const [createOutcome, setCreateOutcome] = useState<CreateOutcomeView | null>(null);
-  // 结果 toast(短暂停留,role=status)
-  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
-  const toastSeq = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -1656,11 +1653,6 @@ export function PackagesPage() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  useEffect(() => {
-    if (toast === null) return;
-    const timer = setTimeout(() => setToast(null), TOAST_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const ready = view.kind === "ready" ? view : null;
   const p1 = view.kind === "ready-p1" ? view : null;
@@ -1755,10 +1747,7 @@ export function PackagesPage() {
     return p2.installedPackages.filter((row) => row.packageId.toLowerCase().includes(text));
   }, [p2, debouncedText]);
 
-  const showToast = (text: string) => {
-    toastSeq.current += 1;
-    setToast({ id: toastSeq.current, text });
-  };
+  const showToast = (text: string) => { toast(text); };
 
   /** 变更两阶段第一步:预览;空预览/未接入均以 toast 如实反馈,不弹空对话框 */
   const startChanges = (requests: readonly ChangeRequest[]) => {
@@ -2988,11 +2977,6 @@ export function PackagesPage() {
         </div>
       ) : null}
 
-      {toast !== null ? (
-        <div className="vua-packages-toast" role="status" key={toast.id}>
-          {toast.text}
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -79,6 +79,11 @@ import { libraryCornerState, type LocalSourceSearchState } from "./library-corne
 import { boothSearchKeyword, exactBoothMatch } from "./booth-match-model.ts";
 import { BoothMatchDialog } from "./BoothMatchDialog.tsx";
 import { ProductTerms } from "./ProductTerms.tsx";
+import { Alert } from "../../components/primitives/Alert.tsx";
+import { toast } from "../../components/primitives/toast-store.ts";
+
+/** Sync notices shown as a toast; the others need the player and stay as an alert. */
+const TOAST_SYNC_NOTICES: ReadonlySet<string> = new Set(["started", "already", "done"]);
 import "./warehouse.css";
 import { clipSelectionRect, scrollSelectionRect } from "./marquee-model.ts";
 
@@ -320,14 +325,6 @@ function DetailContent({
         }
         title={product.title ?? product.productId}
       />
-      {/* 3D 预览占位(S-VFX-4):VRM 实时预览落地前的诚实槽位,
-       * 平面槽与已有 media-slot 风格一致,不做假渲染 */}
-      <section>
-        <h3 className="vua-warehouse-detail__section-title">{copy.detail.preview3dTitle}</h3>
-        <div className="vua-warehouse-detail__preview3d">
-          <span className="vua-caption vua-text-secondary">{copy.detail.preview3dNote}</span>
-        </div>
-      </section>
       <div className="vua-warehouse-detail__badges">
         {/* 未知 = 诚实缺席不渲染(人审 2026-10-07);仅明确事实出徽标 */}
         {product.availability !== "available" && product.availability !== "unknown" ? (
@@ -361,11 +358,9 @@ function DetailContent({
       ) : null}
       <p className="vua-warehouse-detail__price">{priceText({ price: product.price, priceHigh: product.price?.high })}</p>
 
+      {product.entities.length > 0 ? (
       <section>
         <h3 className="vua-warehouse-detail__section-title">{copy.detail.entitiesTitle}</h3>
-        {product.entities.length === 0 ? (
-          <p className="vua-caption vua-text-secondary">{copy.detail.entitiesEmpty}</p>
-        ) : (
           <ul className="vua-warehouse-detail__entities">
             {product.entities.map((entity) => (
               <li key={entity.entityId}>
@@ -389,8 +384,8 @@ function DetailContent({
               </li>
             ))}
           </ul>
-        )}
       </section>
+      ) : null}
 
       {product.attribution !== null ? (
         <section>
@@ -526,9 +521,6 @@ function DetailContent({
           {openSourceFailed ? (
             <p className="vua-caption vua-text-secondary">{copy.detail.openSourceFailed}</p>
           ) : null}
-          <p className="vua-caption vua-text-secondary">
-            {format(copy.detail.sourceUrlNote, { warehouse: termLabel("warehouse") })}
-          </p>
         </section>
       ) : null}
 
@@ -757,6 +749,12 @@ export function WarehousePage({
   const [syncStarting, setSyncStarting] = useState(false);
   const syncRequest = useRef(false);
   const [syncNotice, setSyncNotice] = useState<CatalogSyncNotice | null>(null);
+  // Starting, joining and finishing a sync are brief feedback; the rest stay as an alert until dismissed.
+  useEffect(() => {
+    if (syncNotice === "started") toast(copy.catalogSync.startedHint);
+    else if (syncNotice === "already") toast(copy.catalogSync.alreadyRunning);
+    else if (syncNotice === "done") toast(copy.catalogSync.completedHint, "success");
+  }, [syncNotice]);
   const [syncProgress, setSyncProgress] = useState<CatalogSyncSnapshotV03 | null>(null);
   const [syncReadFailed, setSyncReadFailed] = useState(false);
   const [syncRunId, setSyncRunId] = useState<string | null>(null);
@@ -1243,7 +1241,7 @@ export function WarehousePage({
         setDownloadNotice(outcome.errorCode === "vua.library.file_busy" ? copy.cardMenu.downloadBusyHint : outcome.errorCode === "vua.library.replacement_ambiguous" ? copy.cardMenu.downloadAmbiguousHint : copy.cardMenu.downloadFailedHint);
         return;
       }
-      setDownloadNotice(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }));
+      toast(format(copy.cardMenu.downloadQueuedHint, { count: outcome.accepted }), "success");
       registerTaskIdentity(outcome.taskId, { title: `${copy.cardMenu.download} · ${resultsView?.items.find((item) => item.productId === productId)?.title ?? productId}`, originPage: "warehouse", notifyOnComplete: true });
       setDownloadWatchBatch(outcome.batchId);
       setTransfers(prev => [...prev.filter(t => t.batchId !== outcome.batchId), { batchId: outcome.batchId, productId, paused: false }]);
@@ -1450,7 +1448,6 @@ export function WarehousePage({
         <h1 className="vua-title">{termLabel("warehouse")}</h1>
         {/* 选区动作位(Explorer 语义,2026-10-05):选区存在才出现;选区本身
             由单击/框选建立,无独立"选择模式"开关 */}
-        <p className="vua-text-secondary">{copy.subtitle}</p>
         {/* 本地导入直接打开文件夹选择器；账号库同步保留独立入口。 */}
         <div className="vua-page__actions">
           {selectedIds.size > 0 ? <Button disabled={selectedRecipeRefs.length === 0 || selectedRecipeRefs.length > 512} onClick={() => {
@@ -1469,37 +1466,24 @@ export function WarehousePage({
             </Button>
           ) : null}
           {folderOpenFailed && folderChoices === null ? <span className="vua-caption vua-text-secondary" role="status">{copy.openFolderFailed}</span> : null}
-          {syncNotice !== null ? (
-            <span className="vua-caption vua-text-secondary" role="status">
-              {syncNotice === "started"
-                ? copy.catalogSync.startedHint
-                : syncNotice === "already"
-                  ? copy.catalogSync.alreadyRunning
-                  : syncNotice === "blocked"
-                    ? copy.catalogSync.signInRequired
-                    : syncNotice === "done"
-                      ? copy.catalogSync.completedHint
-                      : syncNotice === "warning"
-                        ? copy.catalogSync.warningHint
-                        : syncNotice === "cancelled"
-                          ? copy.catalogSync.cancelledHint
-                          : syncNotice === "inspect"
-                            ? copy.catalogSync.inspectHint
-                            : syncNotice === "unconfirmed"
-                              ? copy.catalogSync.unconfirmedHint
-                      : copy.catalogSync.failedHint}
-            </span>
-          ) : null}
           {syncProgress !== null ? (
             <span className="vua-caption vua-text-secondary" role="status">
               {format(copy.catalogSync.progressHint, { pages: syncProgress.pages, count: syncProgress.upsertedCount, rejected: syncProgress.rejectedCount })}
             </span>
           ) : null}
-          {syncReadFailed ? <span className="vua-caption vua-text-secondary" role="status">{copy.catalogSync.readFailedHint}</span> : null}
-          {downloadNotice !== null ? (
-            <span className="vua-caption vua-text-secondary" role="status">{downloadNotice}</span>
-          ) : null}
         </div>
+        {syncNotice !== null && !TOAST_SYNC_NOTICES.has(syncNotice) ? (
+          <Alert tone={syncNotice === "failed" ? "error" : "warning"} onDismiss={() => setSyncNotice(null)} dismissLabel={strings.common.dialogClose}>
+            {syncNotice === "blocked" ? copy.catalogSync.signInRequired
+              : syncNotice === "warning" ? copy.catalogSync.warningHint
+              : syncNotice === "cancelled" ? copy.catalogSync.cancelledHint
+              : syncNotice === "inspect" ? copy.catalogSync.inspectHint
+              : syncNotice === "unconfirmed" ? copy.catalogSync.unconfirmedHint
+              : copy.catalogSync.failedHint}
+          </Alert>
+        ) : null}
+        {syncReadFailed ? <Alert tone="warning">{copy.catalogSync.readFailedHint}</Alert> : null}
+        {downloadNotice !== null ? <Alert tone="info" onDismiss={() => setDownloadNotice(null)} dismissLabel={strings.common.dialogClose}>{downloadNotice}</Alert> : null}
         {dataSource === "fixture" ? (
           <div>
             <Badge tone="warning">{strings.common.fixtureBadge}</Badge>
@@ -1562,10 +1546,7 @@ export function WarehousePage({
         <>
           {!connected ||
       (listState.kind === "loaded" && listState.view.kind === "not-connected") ? (
-        <EmptyState
-          title={copy.states.notConnectedTitle}
-          description={copy.states.notConnectedDescription}
-        />
+        <EmptyState title={copy.states.notConnectedTitle} />
       ) : listState.kind === "loaded" && listState.view.kind === "error" ? (
         /* W17 透传呈现:服务端 application 错误按冻结码映射文案,不与断连混淆 */
         <>{adaptation !== null ? pagination : null}<EmptyState
@@ -1580,7 +1561,6 @@ export function WarehousePage({
       ) : listState.kind === "failed" ? (
         <>{adaptation !== null ? pagination : null}<EmptyState
           title={copy.states.loadFailedTitle}
-          description={copy.states.loadFailedDescription}
           action={
             <Button variant="default" onClick={() => setReloadKey((key) => key + 1)}>
               {copy.states.retry}
@@ -1646,16 +1626,14 @@ export function WarehousePage({
                   ))}
                 </div>
               ) : resultsView !== null && resultsView.items.length === 0 && localCards.length === 0 ? (
-                adaptation !== null ? <EmptyState title={copy.adaptation.emptyTitle} description={copy.adaptation.emptyDescription} /> : emptyCard.kind === "checking" || emptyCard.kind === "unknown" ? (
+                adaptation !== null ? <EmptyState title={copy.adaptation.emptyTitle} /> : emptyCard.kind === "checking" || emptyCard.kind === "unknown" ? (
                   <EmptyState
                     title={emptyCard.kind === "checking" ? copy.catalogSync.checking : copy.catalogSync.checkFailed}
-                    description={copy.catalogSync.checkDescription}
                     {...(emptyCard.kind === "unknown" ? { action: <Button onClick={() => setAccountProbeKey(key => key + 1)}>{copy.catalogSync.retryCheck}</Button> } : {})}
                   />
                 ) : emptyCard.kind === "sign-in" ? (
                   <EmptyState
                     title={copy.catalogSync.signInTitle}
-                    description={copy.catalogSync.signInDescription}
                     action={
                       <Button
                         variant="default"
@@ -1673,7 +1651,6 @@ export function WarehousePage({
                 ) : emptyCard.kind === "sync-available" ? (
                   <EmptyState
                     title={copy.catalogSync.syncTitle}
-                    description={copy.catalogSync.syncDescription}
                     action={
                       <Button variant="primary" disabled={syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
                         {syncStarting ? copy.catalogSync.checking : copy.catalogSync.action}
@@ -1682,10 +1659,7 @@ export function WarehousePage({
                   />
                 ) : (
                   /* 搜索/筛选无结果 ≠ 目录未接入 */
-                  <EmptyState
-                    title={copy.states.emptyResultTitle}
-                    description={copy.states.emptyResultDescription}
-                  />
+                  <EmptyState title={copy.states.emptyResultTitle} />
                 )
               ) : resultsView !== null || localCards.length > 0 ? (
                 <div

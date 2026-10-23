@@ -58,7 +58,6 @@ export function CompatibleItemsDialog({
       onClose={onClose}
     >
       <div className="vua-compatible-items">
-        <p className="vua-caption vua-text-secondary" role="note">{copy.boundary}</p>
         {!enabled ? <>
           <p className="vua-caption vua-text-secondary">{copy.disabled}</p>
           {onEnable ? <Button variant="default" onClick={onEnable}>{copy.enable}</Button> : null}
@@ -70,7 +69,7 @@ export function CompatibleItemsDialog({
         ) : view.kind === "absent" ? (
           <p className="vua-caption vua-text-secondary">{copy.absent}</p>
         ) : view.kind === "error" ? (
-          <p className="vua-caption vua-text-secondary">{strings.warehouse.states.loadFailedDescription}</p>
+          <p className="vua-caption vua-text-secondary">{strings.warehouse.states.loadFailedTitle}</p>
         ) : view.kind === "not-found" ? (
           <p className="vua-caption vua-text-secondary">{copy.notFound}</p>
         ) : view.observations.length === 0 ? (

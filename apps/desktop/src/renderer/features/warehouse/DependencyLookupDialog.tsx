@@ -48,7 +48,6 @@ export function DependencyLookupDialog({
   return <ContentDialog open={enabled} title={copy.title}
     closeLabel={strings.common.dialogClose} onClose={onClose}>
     <div className="vua-compatible-items vua-dependency-lookup">
-      <p className="vua-caption vua-text-secondary" role="note">{copy.boundary}</p>
       <form className="vua-dependency-lookup__form" onSubmit={(event) => {
         event.preventDefault();
         if (!enabled || !/\S/u.test(name)) return;
@@ -64,7 +63,7 @@ export function DependencyLookupDialog({
         {view === null ? <p className="vua-caption vua-text-secondary">{copy.idle}</p>
           : view === "loading" ? <Skeleton width="100%" height={36} />
           : view.kind === "absent" ? <p className="vua-caption vua-text-secondary">{cluesCopy.absent}</p>
-          : view.kind === "error" ? <p className="vua-caption vua-text-secondary">{strings.warehouse.states.loadFailedDescription}</p>
+          : view.kind === "error" ? <p className="vua-caption vua-text-secondary">{strings.warehouse.states.loadFailedTitle}</p>
           : <>
             <p className="vua-caption vua-text-secondary">{format(copy.resultCount, { name: request?.name ?? "", count: view.total })}</p>
             {view.matches.length === 0 ? <p className="vua-caption vua-text-secondary">{copy.empty}</p>

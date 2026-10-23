@@ -87,6 +87,5 @@ export function UnityLicenseGuide() {
       <Button variant="subtle" onClick={() => void openExternalUrl("https://unity.com/pages/license-compliance")}>{copy.policy}</Button>
       <Button variant="subtle" onClick={() => void openExternalUrl("https://docs.unity3d.com/2022.3/Documentation/Manual/LicenseActivationMethods.html")}>{copy.official}</Button>
     </div>
-    <p className="vua-caption">{copy.noBypass}</p>
   </div>;
 }

@@ -4,7 +4,7 @@
 > Status: architecture approved by the author on 2026-10-17; slice 13 settles the native skins
 
 A skin changes how VUA looks and moves without changing what it does. VUA ships the current
-purple style as its default skin and the author's two briefs (Y2K, Jirai-kei) as native skins;
+purple style as its default skin and the author's two briefs (天使界隈 Tenshi, 地雷系 Jirai) as native skins;
 the same format can later admit community skins. The [current plan](current-plan.md) schedules
 the skin work as slice 13; this document fixes the architecture now so the screens built before
 then are ready for it. The [design standard](../design/design-standard.md) keeps the
@@ -37,7 +37,7 @@ A skin is a folder or a `.vuaskin` zip with a manifest:
   preview images;
 - `tokens.dark.json` and/or `tokens.light.json`: values for the documented token set only, each
   typed (color, length, duration, easing, enum) and range-checked; a skin omits what it keeps
-  from the default. A skin may provide one mode only (Y2K is light only); while it is active,
+  from the default. A skin may provide one mode only (Tenshi is light only); while it is active,
   Appearance shows the theme switch locked to that mode and Windows' theme does not change it;
 - `motifs/`, `icons/`, `fonts/`, `scenes/`: images (PNG, WebP, sanitized SVG), WOFF2 fonts,
   scene packs.
@@ -86,10 +86,10 @@ frame. A pack that fails validation falls back to the default scene for that roo
 | Skin | Color | Shape and motifs | Motion |
 | --- | --- | --- | --- |
 | **Default** | the current purple and orange | cut corners, grid canvas | current |
-| **Y2K** | aqua and white | flat, rounded pill shapes; bandages, pills, angel wings | light, bouncy |
-| **Jirai-kei** | pink and black | lace edges, leather textures, energy drinks; dimensional | slower, softer |
+| **天使界隈 (Tenshi)** | sky blue and white | flat, rounded pill shapes; wings, halos, bandages, pills | light, bouncy |
+| **地雷系 (Jirai)** | pink and black | lace edges, bows, leather textures, energy drinks; dimensional | slower, softer |
 
-Each needs the author's design session (slice 13) for the exact values, motifs and scene art.
+The [native skins art brief](../design/native-skins.md) proposes their palettes and lists every asset; the author's design session (slice 13) approves them.
 
 ## What to do before slice 13
 
@@ -119,7 +119,7 @@ Work in order:
    allowlist for the remaining legacy files that shrinks over time.
 3. The skin loader with the default skin expressed as a package, the schema, validation and the
    contrast gate; Appearance shows the default only.
-4. Slice 13: the design session, Y2K and Jirai-kei as packages, one-click switching in Appearance
+4. Slice 13: the design session, Tenshi and Jirai as packages, one-click switching in Appearance
    and the command palette, the scene engine's declarative path.
 5. Community import once the author decides the distribution model.
 

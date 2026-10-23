@@ -151,6 +151,97 @@
           }
         }
       ]
+    },
+    "editorClose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenesSaved",
+        "assetsSaved",
+        "editorClosed",
+        "schemaVersion",
+        "runId",
+        "closeId",
+        "outcome",
+        "reason",
+        "detail"
+      ],
+      "properties": {
+        "scenesSaved": {
+          "type": "boolean"
+        },
+        "assetsSaved": {
+          "type": "boolean"
+        },
+        "editorClosed": {
+          "type": "boolean"
+        },
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "closeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "outcome": {
+          "enum": [
+            "saved",
+            "failed"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "",
+            "scene_save_failed",
+            "asset_save_failed",
+            "untitled_scene",
+            "editor_busy",
+            "expired",
+            "cancelled",
+            "save_failed",
+            "timeout"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 1000,
+          "pattern": "^[^\\u0000]*$"
+        }
+      },
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "saved"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "scenesSaved": {
+            "const": true
+          },
+          "assetsSaved": {
+            "const": true
+          },
+          "reason": {
+            "enum": [
+              "",
+              "timeout"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "reason": {
+            "minLength": 1
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -167,7 +258,11 @@
         "turntable",
         "upload",
         "sdk_fix",
-        "lighting"
+        "face_tracking",
+        "lighting",
+        "editor_close",
+        "texture_memory",
+        "outfit_removal"
       ]
     },
     "timestamp": {
@@ -208,5 +303,260 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "properties": {
+        "result": {
+          "if": {
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "facts": {
+                "type": "object",
+                "properties": {
+                  "textureMemory": {
+                    "oneOf": [
+                      {
+                        "type": "array",
+                        "maxItems": 0
+                      },
+                      {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "prefixItems": [
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "platform": {
+                                "const": "pc"
+                              },
+                              "textures": {
+                                "type": "array",
+                                "maxItems": 2048,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "maxLength": 256,
+                                      "minLength": 1
+                                    },
+                                    "path": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16384
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16384
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "maxLength": 64
+                                    },
+                                    "mipmap": {
+                                      "type": "boolean"
+                                    },
+                                    "faces": {
+                                      "enum": [
+                                        1,
+                                        6
+                                      ]
+                                    },
+                                    "estimatedBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "known": {
+                                      "type": "boolean"
+                                    },
+                                    "maxSize": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16384
+                                    },
+                                    "editable": {
+                                      "type": "boolean"
+                                    },
+                                    "reason": {
+                                      "type": "string",
+                                      "maxLength": 128
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "path",
+                                    "width",
+                                    "height",
+                                    "format",
+                                    "mipmap",
+                                    "faces",
+                                    "estimatedBytes",
+                                    "known",
+                                    "maxSize",
+                                    "editable",
+                                    "reason"
+                                  ]
+                                }
+                              },
+                              "totalBytes": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "complete": {
+                                "type": "boolean"
+                              },
+                              "rank": {
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "medium",
+                                  "poor",
+                                  "very_poor",
+                                  "unknown"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "platform",
+                              "textures",
+                              "totalBytes",
+                              "complete",
+                              "rank"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "platform": {
+                                "const": "android"
+                              },
+                              "textures": {
+                                "type": "array",
+                                "maxItems": 2048,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "maxLength": 256,
+                                      "minLength": 1
+                                    },
+                                    "path": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "width": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16384
+                                    },
+                                    "height": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16384
+                                    },
+                                    "format": {
+                                      "type": "string",
+                                      "maxLength": 64
+                                    },
+                                    "mipmap": {
+                                      "type": "boolean"
+                                    },
+                                    "faces": {
+                                      "enum": [
+                                        1,
+                                        6
+                                      ]
+                                    },
+                                    "estimatedBytes": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "known": {
+                                      "type": "boolean"
+                                    },
+                                    "maxSize": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 16384
+                                    },
+                                    "editable": {
+                                      "type": "boolean"
+                                    },
+                                    "reason": {
+                                      "type": "string",
+                                      "maxLength": 128
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "path",
+                                    "width",
+                                    "height",
+                                    "format",
+                                    "mipmap",
+                                    "faces",
+                                    "estimatedBytes",
+                                    "known",
+                                    "maxSize",
+                                    "editable",
+                                    "reason"
+                                  ]
+                                }
+                              },
+                              "totalBytes": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "complete": {
+                                "type": "boolean"
+                              },
+                              "rank": {
+                                "enum": [
+                                  "excellent",
+                                  "good",
+                                  "medium",
+                                  "poor",
+                                  "very_poor",
+                                  "unknown"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "platform",
+                              "textures",
+                              "totalBytes",
+                              "complete",
+                              "rank"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

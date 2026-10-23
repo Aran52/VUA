@@ -71,7 +71,6 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__panel .vua-factory__plate { gap: 10px; justify-content: flex-start; }
 .vua-factory__panel .vua-factory__body { max-width: none; }
 @keyframes vua-factory-panel { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
-.vua-factory__tip { margin: 0; }
 
 /* Doors to the neighboring rooms while zoomed. */
 .vua-factory__door { --room: var(--vua-accent); position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--room); background: color-mix(in srgb, var(--vua-bg-panel) 90%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: 650; cursor: pointer; animation: vua-factory-panel var(--vua-motion-base) var(--vua-motion-base) both var(--vua-motion-ease); }
@@ -227,7 +226,6 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-start__thumb--empty { display: block; }
 .vua-start__avatar-kind { display: block; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-start__avatar-name { display: block; font: var(--vua-font-body); color: var(--vua-text-strong); overflow-wrap: anywhere; }
-.vua-start__hint { margin: 0; color: var(--vua-text-secondary); }
 .vua-start__group { margin: 0; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-start__picks { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .vua-start__pick { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); cursor: pointer; }

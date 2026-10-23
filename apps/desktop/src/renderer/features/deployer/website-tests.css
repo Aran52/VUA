@@ -31,6 +31,12 @@
 .vua-network__references li { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); padding: 12px; }
 .vua-network__references li > span { min-width: 0; display: grid; gap: 4px; }
 .vua-network__region-test { flex-shrink: 0; border: 0; padding: 8px; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-accent); font: inherit; cursor: pointer; }
+/* 分档:同一档读作「差不多」,再往后按档数;毫秒只留在展开后的行内。 */
+.vua-network__tier { margin-inline-start: auto; flex-shrink: 0; display: flex; align-items: center; gap: 8px; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-network__unsteady, .vua-network-tile__unsteady { border-bottom: 1px dotted currentColor; cursor: default; }
+/* 经本机代理测得时卡片长高一行放说明,不挤掉档位。 */
+.vua-network-tile[data-proxy] { height: auto; min-height: var(--vua-environment-height, 176px); }
+.vua-network-tile__proxy { grid-column: 1 / -1; margin: 0; padding: 0 28px 10px; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-network-tile .vua-environment-card__spin { display: inline-flex; }
 @media (max-width: 600px) { .vua-network__references ul { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .vua-network__header { padding: 12px; gap: 10px; } .vua-network__cards { padding: 12px; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); } }

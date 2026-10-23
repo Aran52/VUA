@@ -49,6 +49,7 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-run-id.json"),
         read("examples/invalid-rollback-kind.json"),
         read("examples/invalid-rollback-target.json"),
+        read("examples/invalid-rollback-choice.json"),
         read("examples/invalid-rollback-digest.json"),
         read("examples/invalid-recipe-kind.json"),
         read("examples/invalid-recipe-path.json"),
@@ -83,6 +84,8 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-rename-fit-id.json"),
         read("examples/invalid-delete-fit-params.json"),
         read("examples/invalid-list-fits-kind.json"),
+        read("examples/invalid-face-tracking-kind.json"),
+        read("examples/invalid-face-tracking-confirmation.json"),
     ];
     let mut lines = String::new();
     for (index, case) in cases.iter().enumerate() {

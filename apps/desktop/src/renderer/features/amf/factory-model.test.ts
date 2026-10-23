@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { assemblesWithoutAsking, currentStation, interruptedChange, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, runStartedAt, stopsAt } from "./factory-model.ts";
+import { assemblesWithoutAsking, currentStation, interruptedChange, formatDuration, lineLabels, lineStations, lineStatus, phaseStatus, queueAhead, runStartedAt, stopsAt } from "./factory-model.ts";
 
 const steps = (...pairs: [string, string][]) => pairs.map(([key, state]) => ({ key, state }));
 
 describe("AMF production line stations", () => {
   it("follows a fresh preparation through intake", () => {
     const line = { phase: "preparing" as const, steps: steps(["project", "succeeded"], ["materials", "succeeded"], ["inspect", "running"]) };
-    expect(lineStations(line)).toEqual({ prepare: "done", inspect: "running", plan: "todo", assemble: "todo", check: "todo" });
+    expect(lineStations(line)).toEqual({ prepare: "done", inspect: "running", plan: "todo", assemble: "todo", check: "todo", face: "todo" });
     expect(currentStation(lineStations(line))).toBe("inspect");
     expect(lineStatus(line)).toBe("running");
   });
@@ -20,15 +20,25 @@ describe("AMF production line stations", () => {
   it("waits for the player at the assembly plan once intake succeeded", () => {
     const line = { phase: "ready" as const, steps: steps(["project", "succeeded"], ["materials", "succeeded"], ["inspect", "failed"], ["reinspect", "succeeded"]) };
     const states = lineStations(line);
-    expect(states).toEqual({ prepare: "done", inspect: "done", plan: "waiting", assemble: "todo", check: "todo" });
+    expect(states).toEqual({ prepare: "done", inspect: "done", plan: "waiting", assemble: "todo", check: "todo", face: "todo" });
     expect(currentStation(states)).toBe("plan");
     expect(lineStatus(line)).toBe("waiting");
   });
 
   it("finishes every station after a successful assembly", () => {
     const line = { phase: "succeeded" as const, steps: steps(["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "succeeded"]) };
-    expect(Object.values(lineStations(line)).every(state => state === "done")).toBe(true);
-    expect(currentStation(lineStations(line))).toBe("check");
+    const states = lineStations(line);
+    expect((["prepare", "inspect", "plan", "assemble", "check"] as const).every(key => states[key] === "done")).toBe(true);
+    expect(states.face).toBe("todo");
+    expect(currentStation(states)).toBe("check");
+  });
+
+  it("tracks the face-tracking add-on by its own step, never as a flow stop", () => {
+    const base: [string, string][] = [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "succeeded"], ["snapshot", "succeeded"], ["assembly", "succeeded"]];
+    expect(lineStations({ phase: "succeeded", steps: steps(...base, ["face_tracking", "succeeded"]) }).face).toBe("done");
+    expect(stopsAt("ask").has("face")).toBe(false);
+    const failed = { phase: "failed" as const, steps: steps(...base, ["face_tracking", "failed"]) };
+    expect(currentStation(lineStations(failed))).toBe("face");
   });
 
   it("marks the failing station and the line as needing attention", () => {
@@ -106,5 +116,15 @@ describe("a change VUA stopped midway", () => {
     expect(interruptedChange({ phase: "inspect_required", steps: steps("reinspect", "interrupted") })).toBe(false);
     expect(interruptedChange({ phase: "failed", steps: steps("assembly", "failed") })).toBe(false);
     expect(interruptedChange({ phase: "inspect_required", steps: [] })).toBe(false);
+  });
+});
+
+describe("queueAhead", () => {
+  const work = (taskId: string) => ({ taskId, runId: "r", operation: "amf.production.upload" });
+  it("counts running work and the queue before the task", () => {
+    expect(queueAhead({ running: [work("a")], queue: [work("b"), work("c")] }, "c")).toBe(2);
+  });
+  it("shows at least one while the lane has not caught up", () => {
+    expect(queueAhead({ running: [], queue: [] }, "x")).toBe(1);
   });
 });

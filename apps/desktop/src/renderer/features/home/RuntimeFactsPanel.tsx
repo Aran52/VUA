@@ -12,7 +12,7 @@ export function RuntimeFactsPanel() {
   const items = evidence?.items.filter(item => (CHECK_GROUPS[0].memberIds as readonly string[]).includes(item.id)) ?? [];
   const copy = strings.environmentCards;
   return <details className="vua-runtime-facts"><summary>{copy.runtime}</summary>
-    <div className="vua-environment-detail"><p>{copy.runtimeHint}</p>
+    <div className="vua-environment-detail">
       <Button disabled={busy} onClick={() => { setBusy(true); setFailed(false); void gateway.environment.runCheck("play").then(setFresh, () => setFailed(true)).finally(() => setBusy(false)); }}>{busy ? copy.checking : copy.inspect}</Button>
       {failed || phase.kind !== "results" ? <p role="status">{copy.unknown}</p> : null}
       <ul className="vua-runtime-facts__list">{items.map(item => <li key={item.id}>

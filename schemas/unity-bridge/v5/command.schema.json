@@ -30,7 +30,10 @@
         "amf_inspect",
         "amf_assemble",
         "amf_turntable",
-        "amf_sdk_fix"
+        "amf_sdk_fix",
+        "amf_ft_patch",
+        "amf_texture_import",
+        "amf_outfit_remove"
       ]
     },
     "dryRun": {
@@ -104,7 +107,28 @@
           "operation": {
             "enum": [
               "amf_assemble",
-              "amf_sdk_fix"
+              "amf_sdk_fix",
+              "amf_ft_patch",
+              "amf_texture_import"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "expectedProjectFingerprint"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "amf_assemble",
+              "amf_sdk_fix",
+              "amf_ft_patch",
+              "amf_outfit_remove"
             ]
           }
         }

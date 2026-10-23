@@ -24,6 +24,107 @@
       "maxLength": 256,
       "pattern": "^[^\\u0000]+$"
     },
+    "parameterEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "bits",
+        "unique"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]+$"
+        },
+        "bits": {
+          "enum": [
+            1,
+            8
+          ]
+        },
+        "unique": {
+          "type": "boolean"
+        }
+      }
+    },
+    "parameterBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionParametersObserved",
+        "expressionParameters",
+        "maComponents",
+        "unresolvedPrefixConfigs",
+        "truncated"
+      ],
+      "properties": {
+        "expressionParametersObserved": {
+          "type": "boolean"
+        },
+        "expressionParameters": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/parameterEntry"
+          }
+        },
+        "maComponents": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "parameters"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "maxLength": 1024,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "parameters": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                  "$ref": "#/$defs/parameterEntry"
+                }
+              }
+            }
+          }
+        },
+        "unresolvedPrefixConfigs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "expressionParametersObserved": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expressionParameters": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
     "materialUseEntry": {
       "type": "object",
       "additionalProperties": false,
@@ -484,6 +585,454 @@
           "pattern": "^[^\\u0000]*$"
         }
       }
+    },
+    "faceTracking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "evidence",
+        "observedAt",
+        "state",
+        "runtime",
+        "builtParameterBudget",
+        "truncated",
+        "manualReplayRequired",
+        "expressionParametersObserved",
+        "sourceSyncedParameterBits",
+        "meshes",
+        "parameters",
+        "components",
+        "patchMenus"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "evidence": {
+          "const": "unity_source"
+        },
+        "observedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$"
+        },
+        "state": {
+          "enum": [
+            "no_avatar",
+            "observed",
+            "partial"
+          ]
+        },
+        "runtime": {
+          "const": "unknown"
+        },
+        "builtParameterBudget": {
+          "const": "unknown"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "manualReplayRequired": {
+          "type": "boolean"
+        },
+        "expressionParametersObserved": {
+          "type": "boolean"
+        },
+        "sourceSyncedParameterBits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "meshes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "renderer",
+              "blendShapeCount",
+              "missingMesh",
+              "profiles"
+            ],
+            "properties": {
+              "renderer": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 1024,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+              },
+              "blendShapeCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              },
+              "missingMesh": {
+                "type": "boolean"
+              },
+              "profiles": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "referenceCount",
+                        "matched"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "arkit52-v1"
+                        },
+                        "referenceCount": {
+                          "const": 52
+                        },
+                        "matched": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+                          },
+                          "maxItems": 52,
+                          "uniqueItems": true
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "referenceCount",
+                        "matched"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "unified-core12-v1"
+                        },
+                        "referenceCount": {
+                          "const": 12
+                        },
+                        "matched": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+                          },
+                          "maxItems": 12,
+                          "uniqueItems": true
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "referenceCount",
+                        "matched"
+                      ],
+                      "properties": {
+                        "id": {
+                          "const": "sranipal-core12-v1"
+                        },
+                        "referenceCount": {
+                          "const": 12
+                        },
+                        "matched": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+                          },
+                          "maxItems": 12,
+                          "uniqueItems": true
+                        }
+                      }
+                    }
+                  ]
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "uniqueItems": true
+              }
+            }
+          },
+          "maxItems": 128
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+          },
+          "maxItems": 1024,
+          "uniqueItems": true
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+          },
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "patchMenus": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "sourceId",
+              "scriptPath",
+              "menuPath"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "sourceId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+              },
+              "scriptPath": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)Assets/[^\\\\:\\u0000-\\u001f\\u007f-\\u009f]+\\.[cC][sS]$"
+              },
+              "menuPath": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400,
+                "pattern": "^(?!(?:File|Edit|Assets|GameObject|Component|Window|Help|CONTEXT|VRChat SDK)/)(?!.* _)[^/%#&\\u0000-\\u001f\\u007f-\\u009f]+(?:/[^/%#&\\u0000-\\u001f\\u007f-\\u009f]+)+$"
+              }
+            }
+          },
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "expressionParametersObserved": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sourceSyncedParameterBits": {
+                "const": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "truncated": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "partial",
+                  "no_avatar"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "outfitRemoval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "avatarGlobalObjectId",
+        "roots",
+        "objects",
+        "blockedReason"
+      ],
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "roots": {
+          "type": "array",
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "globalObjectId"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "outfit",
+                  "menu"
+                ]
+              },
+              "globalObjectId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]*$"
+              }
+            }
+          }
+        },
+        "objects": {
+          "type": "array",
+          "maxItems": 8192,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "globalObjectId",
+              "path",
+              "typeName",
+              "manual"
+            ],
+            "properties": {
+              "globalObjectId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 4096,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "typeName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "manual": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "blockedReason": {
+          "enum": [
+            "",
+            "ownership_invalid",
+            "target_unverified",
+            "contains_owned_object",
+            "inventory_limit",
+            "identity_invalid"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "blockedReason": {
+                "const": ""
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "roots": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "kind": {
+                      "const": "outfit"
+                    }
+                  }
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              "objects": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "outfitRemovalApplied": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "avatarGlobalObjectId",
+        "deletedObjectIds"
+      ],
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "deletedObjectIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[^\\u0000]*$"
+          }
+        }
+      }
     }
   },
   "properties": {
@@ -500,7 +1049,10 @@
         "amf_inspect",
         "amf_assemble",
         "amf_turntable",
-        "amf_sdk_fix"
+        "amf_sdk_fix",
+        "amf_ft_patch",
+        "amf_texture_import",
+        "amf_outfit_remove"
       ]
     },
     "status": {
@@ -642,6 +1194,9 @@
                     "$ref": "#/$defs/previewPath"
                   }
                 ]
+              },
+              "parameterBudget": {
+                "$ref": "#/$defs/parameterBudget"
               }
             }
           }
@@ -784,6 +1339,258 @@
             "maxLength": 600,
             "pattern": "^[^\\u0000]+$"
           }
+        },
+        "faceTracking": {
+          "$ref": "#/$defs/faceTracking"
+        },
+        "textureMemory": {
+          "oneOf": [
+            {
+              "type": "array",
+              "maxItems": 0
+            },
+            {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "prefixItems": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "platform": {
+                      "const": "pc"
+                    },
+                    "textures": {
+                      "type": "array",
+                      "maxItems": 2048,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 256,
+                            "minLength": 1
+                          },
+                          "path": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "width": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 16384
+                          },
+                          "height": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 16384
+                          },
+                          "format": {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          "mipmap": {
+                            "type": "boolean"
+                          },
+                          "faces": {
+                            "enum": [
+                              1,
+                              6
+                            ]
+                          },
+                          "estimatedBytes": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "known": {
+                            "type": "boolean"
+                          },
+                          "maxSize": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 16384
+                          },
+                          "editable": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "maxLength": 128
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "path",
+                          "width",
+                          "height",
+                          "format",
+                          "mipmap",
+                          "faces",
+                          "estimatedBytes",
+                          "known",
+                          "maxSize",
+                          "editable",
+                          "reason"
+                        ]
+                      }
+                    },
+                    "totalBytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "complete": {
+                      "type": "boolean"
+                    },
+                    "rank": {
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "medium",
+                        "poor",
+                        "very_poor",
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "platform",
+                    "textures",
+                    "totalBytes",
+                    "complete",
+                    "rank"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "platform": {
+                      "const": "android"
+                    },
+                    "textures": {
+                      "type": "array",
+                      "maxItems": 2048,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 256,
+                            "minLength": 1
+                          },
+                          "path": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "width": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 16384
+                          },
+                          "height": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 16384
+                          },
+                          "format": {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          "mipmap": {
+                            "type": "boolean"
+                          },
+                          "faces": {
+                            "enum": [
+                              1,
+                              6
+                            ]
+                          },
+                          "estimatedBytes": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "known": {
+                            "type": "boolean"
+                          },
+                          "maxSize": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 16384
+                          },
+                          "editable": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "maxLength": 128
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "path",
+                          "width",
+                          "height",
+                          "format",
+                          "mipmap",
+                          "faces",
+                          "estimatedBytes",
+                          "known",
+                          "maxSize",
+                          "editable",
+                          "reason"
+                        ]
+                      }
+                    },
+                    "totalBytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "complete": {
+                      "type": "boolean"
+                    },
+                    "rank": {
+                      "enum": [
+                        "excellent",
+                        "good",
+                        "medium",
+                        "poor",
+                        "very_poor",
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "platform",
+                    "textures",
+                    "totalBytes",
+                    "complete",
+                    "rank"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "outfitRemoval": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/outfitRemoval"
+          }
+        },
+        "outfitRemovalApplied": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/outfitRemovalApplied"
+          }
         }
       }
     }
@@ -810,6 +1617,37 @@
               "projectFingerprint": {
                 "type": "string",
                 "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "amf_outfit_remove"
+          },
+          "status": {
+            "const": "succeeded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "required": [
+              "outfitRemovalApplied"
+            ],
+            "properties": {
+              "outfitRemovalApplied": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                  "$ref": "#/$defs/outfitRemovalApplied"
+                }
               }
             }
           }

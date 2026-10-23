@@ -1,4 +1,7 @@
 /** Candidate AMF material-first production. Frozen legacy production faces are separate. */
+import { isTexturePlatform, isTextureTargetRank, isTexturePath } from "./texture-memory-v01.js";
+import type { TexturePlatform, TextureTargetRank } from "./texture-memory-v01.js";
+import { isFaceTrackingDigest } from "./face-tracking-v01.js";
 export type AmfSourceRole = "auto" | "avatar" | "outfit" | "dependency";
 export interface AmfSourceChoice { readonly sourceId: string; readonly role: AmfSourceRole }
 export interface AmfOutfitSelection {
@@ -9,7 +12,7 @@ export interface AmfOutfitSelection {
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
 /** Which state of the line a revision recorded; `restore` is the protected current state. */
-export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "lighting" | "restore";
+export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "face_tracking" | "editor_save" | "outfit_removal" | "lighting" | "texture_memory" | "restore";
 export type AmfProductionCapacity = 1 | 2 | 3;
 /** The lilToon brightness limits of one material, as serialized in its file. */
 export interface AmfLightingLimits { readonly min: string; readonly max: string }
@@ -28,6 +31,12 @@ export interface AmfProductionLaneV01 {
   readonly queue: readonly AmfProductionWorkV01[];
 }
 export type AmfProductionBodyV01 =
+  | { readonly method: "amf.production.planTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank } }
+  | { readonly method: "amf.production.applyTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank; readonly planDigest: string; readonly textures: readonly string[] } }
+  | { readonly method: "amf.production.planOutfitRemoval"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sourceId: string } }
+  | { readonly method: "amf.production.removeOutfit"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sourceId: string; readonly planDigest: string; readonly confirmed: true } }
+  | { readonly method: "amf.production.faceTrackingPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string } }
+  | { readonly method: "amf.production.faceTrackingPatch"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string; readonly planDigest: string; readonly confirmTrustedCode: true } }
   | { readonly method: "amf.production.setCapacity"; readonly params: { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity } }
   | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string } }
   | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string } }
@@ -42,6 +51,7 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.turntableFrame"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly index: number } }
   | { readonly method: "amf.production.upload"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly avatarName: string; readonly rightsConfirmed: true } }
   /** Runs the VRChat SDK's own Auto Fix for the chosen items of its Avatar check, named by the SDK's exact words. */
+  | { readonly method: "amf.production.closeEditor"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly confirmed: true } }
   | { readonly method: "amf.production.sdkFix"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly fixes: readonly string[] } }
   /** Changes the line's own materials; the line keeps its identity and plans again. */
   | { readonly method: "amf.production.changeSources"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sources: readonly AmfSourceChoice[] } }
@@ -53,7 +63,7 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.planLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   /** Aligns the chosen reviewed materials' lilToon brightness limits with the Avatar's, behind a restore point. */
   | { readonly method: "amf.production.applyLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly materials: readonly string[] } }
-  | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
+  | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly target?: "restorePoint" | "prePatch" } }
   | { readonly method: "amf.production.revisionPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string } }
   | { readonly method: "amf.production.restoreRevision"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string; readonly planDigest: string } }
   | { readonly method: "amf.production.listFits"; readonly params: { readonly schemaVersion: "0.1" } }
@@ -64,6 +74,11 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.prepare"; readonly params: { readonly schemaVersion: "0.1"; readonly sources: readonly AmfSourceChoice[]; readonly editorPath: string } }
   | { readonly method: "amf.production.plan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly selection: AmfAssemblySelection } }
   | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection } };
+export interface AmfEditorCloseResult {
+  readonly schemaVersion: "0.1"; readonly runId: string; readonly closeId: string;
+  readonly outcome: "saved" | "failed"; readonly scenesSaved: boolean; readonly assetsSaved: boolean;
+  readonly editorClosed: boolean; readonly reason: string; readonly detail: string;
+}
 export type AmfProductionRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & AmfProductionBodyV01;
 
 /** Run phases. `inspecting` covers reinspection ("continue"); `stopped` keeps the work project and its materials. */
@@ -72,7 +87,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "lighting"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "editor_close", "outfit_removal", "lighting", "texture_memory"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
@@ -129,6 +144,16 @@ export function isAmfRunProgress(value: unknown): value is AmfRunProgressV01 {
     && (AMF_STEP_KEYS as readonly unknown[]).includes(value.step) && text(value.name, 1024) && isAmfTimestamp(value.startedAt)
     && count(value.elapsedSeconds) && (value.usualSeconds === null || count(value.usualSeconds))
     && (value.unity === undefined || isAmfUnityProgress(value.unity));
+}
+/** Validates optional saving facts retained by a close task, separately from project release. */
+export function isAmfEditorCloseResult(value: unknown): value is AmfEditorCloseResult {
+  if (!record(value) || !exact(value, ["schemaVersion", "runId", "closeId", "outcome", "scenesSaved", "assetsSaved", "editorClosed", "reason", "detail"])
+    || value.schemaVersion !== "0.1" || !runId(value.runId) || !runId(value.closeId)
+    || !["saved", "failed"].includes(String(value.outcome)) || typeof value.scenesSaved !== "boolean"
+    || typeof value.assetsSaved !== "boolean" || typeof value.editorClosed !== "boolean"
+    || typeof value.reason !== "string" || !["", "scene_save_failed", "asset_save_failed", "untitled_scene", "editor_busy", "expired", "cancelled", "save_failed", "timeout"].includes(value.reason)
+    || typeof value.detail !== "string" || value.detail.length > 1000 || value.detail.includes("\0")) return false;
+  return value.outcome === "saved" ? value.scenesSaved && value.assetsSaved && ["", "timeout"].includes(value.reason) : value.reason !== "";
 }
 /** Reads the payload of an `amf.production` task progress event; anything else is `null`. */
 export function readAmfProductionProgress(payload: unknown): AmfProductionProgressV01 | null {
@@ -190,6 +215,13 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     // The player confirms the content rights statement in VUA for each upload.
     case "amf.production.upload": return exact(value, ["schemaVersion", "runId", "avatarName", "rightsConfirmed"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && isAmfAvatarName(value.avatarName) && value.rightsConfirmed === true;
+    case "amf.production.planOutfitRemoval": return exact(value, ["schemaVersion", "runId", "sourceId"]) && runId(value.runId) && text(value.sourceId,256);
+    case "amf.production.removeOutfit": return exact(value, ["schemaVersion", "runId", "sourceId", "planDigest", "confirmed"])
+      && runId(value.runId) && text(value.sourceId,256) && isFaceTrackingDigest(value.planDigest) && value.confirmed === true;
+    case "amf.production.faceTrackingPlan": return exact(value, ["schemaVersion", "runId", "menuId"]) && runId(value.runId) && isFaceTrackingDigest(value.menuId);
+    case "amf.production.faceTrackingPatch": return exact(value, ["schemaVersion", "runId", "menuId", "planDigest", "confirmTrustedCode"])
+      && runId(value.runId) && isFaceTrackingDigest(value.menuId) && isFaceTrackingDigest(value.planDigest) && value.confirmTrustedCode === true;
+    case "amf.production.closeEditor": return exact(value, ["schemaVersion", "runId", "confirmed"]) && runId(value.runId) && value.confirmed === true;
     case "amf.production.sdkFix": return exact(value, ["schemaVersion", "runId", "fixes"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && Array.isArray(value.fixes) && value.fixes.length >= 1 && value.fixes.length <= AMF_SDK_FIX_LIMIT
       && value.fixes.every(fix => text(fix, 600)) && new Set(value.fixes).size === value.fixes.length;
@@ -201,14 +233,23 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
     case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan": case "amf.production.planLighting":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.planTextureMemory":
+      return exact(value, ["schemaVersion", "runId", "platform", "targetRank"]) && runId(value.runId) && isTexturePlatform(value.platform) && isTextureTargetRank(value.targetRank);
+    case "amf.production.applyTextureMemory":
+      return exact(value, ["schemaVersion", "runId", "platform", "targetRank", "planDigest", "textures"]) && runId(value.runId)
+        && isTexturePlatform(value.platform) && isTextureTargetRank(value.targetRank) && isFaceTrackingDigest(value.planDigest)
+        && Array.isArray(value.textures) && value.textures.length > 0 && value.textures.length <= 2048
+        && value.textures.every(isTexturePath) && new Set(value.textures).size === value.textures.length;
     case "amf.production.applyLighting":
       return exact(value, ["schemaVersion", "runId", "planDigest", "materials"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)
         && Array.isArray(value.materials) && value.materials.length >= 1 && value.materials.length <= 512
         && value.materials.every(isAmfMaterialPath) && new Set(value.materials).size === value.materials.length;
     case "amf.production.rollback":
-      return exact(value, ["schemaVersion", "runId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
-        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
+      return exact(value, ["schemaVersion", "runId", "planDigest", ...("target" in value ? ["target"] : [])])
+        && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)
+        && (!("target" in value) || ["restorePoint", "prePatch"].includes(String(value.target)));
     case "amf.production.revisionPlan":
       return exact(value, ["schemaVersion", "runId", "revisionId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId);

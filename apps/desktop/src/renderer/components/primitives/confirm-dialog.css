@@ -2,7 +2,7 @@
 .vua-confirm-dialog__overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--vua-z-dialog, 100);
+  z-index: var(--vua-z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,9 +24,13 @@
   padding: var(--vua-space-3) var(--vua-space-3) var(--vua-space-2);
 }
 
-/* 标题危险红(danger 确认形态):文字级语义色,对比按 error 令牌语义色计算 */
+/* Only a dangerous confirmation colors its title; the rest read like any heading. */
 .vua-confirm-dialog__title {
   font-weight: 700;
+  color: var(--vua-text-strong);
+}
+
+.vua-confirm-dialog__title[data-danger] {
   color: var(--vua-error);
 }
 
@@ -44,7 +48,7 @@
 }
 
 .vua-confirm-dialog__close:hover {
-  color: var(--vua-text);
+  color: var(--vua-text-strong);
 }
 
 .vua-confirm-dialog__body {

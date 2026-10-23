@@ -80,15 +80,6 @@
 
 /* ---- 实验性功能卡(W15 重做形态,用户走查示意图 A/B) ---- */
 
-/* 黄色警示条:warning 语义色淡底 + 深字(警示非错误,§6.1 语义色不混用) */
-.vua-exp-card__warning {
-  padding: var(--vua-space-2) var(--vua-space-3);
-  border: 1px solid var(--vua-warning);
-  border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-warning) 14%, transparent);
-  color: var(--vua-warning);
-}
-
 .vua-exp-card__row {
   display: flex;
   align-items: flex-start;

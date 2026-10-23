@@ -1,6 +1,6 @@
 import type { VuaDesktopApiV3 } from "./desktop-distribution.js";
 import { isAmfAvatarName } from "./amf-production-v01.js";
-export type AiConnectionLocale = "en" | "zh-CN" | "ja" | "ko";
+export type AiConnectionLocale = "en" | "zh-CN" | "zh-TW" | "ja" | "ko";
 /** A request waits until the player decides or the AI withdraws it, also across VUA restarts.
  * `error` names why a request failed or was withdrawn. */
 export interface AiActionRequestV01 {

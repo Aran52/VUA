@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-19
+> Updated: 2026-10-21
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -12,9 +12,9 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/path-configuration.md | ADR | Accepted | Integration | 2026-09-12 |
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
-| docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-19 |
+| docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
 | docs/protocols/ai-tools-v0.1.md | 0.8.0 | Candidate | Integration | 2026-10-20 |
-| docs/protocols/amf-production-v0.1.md | 0.27.0 | Candidate | AMF | 2026-10-20 |
+| docs/protocols/amf-production-v0.1.md | 0.34.0 | Candidate | AMF | 2026-10-23 |
 | docs/protocols/amf-recipe-v0.4.md | 0.5.0 | Candidate | AMF | 2026-10-20 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
@@ -89,12 +89,12 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.13.0 | Candidate | Production | 2026-10-20 |
+| docs/protocols/unity-bridge-v5.md | 0.19.0 | Candidate | Production | 2026-10-23 |
 | docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
-| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-20 |
+| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-23 |
 | schemas/amf-recipe/v0.4 | 0.4 | Candidate | AMF | 2026-10-20 |
 | schemas/application-contract/v0.1 | 0.1 | Frozen | Core | 2026-09-15 |
 | schemas/bdl/v0.11 | 0.11 | Implementation baseline | Data | 2026-10-19 |
@@ -160,6 +160,6 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/unity-license/v0.1 | 0.1 | Candidate | Environment | 2026-10-19 |
 | schemas/unity-bridge/handshake/v1.0 | 1.0 | Frozen | Production | 2026-09-16 |
 | schemas/unity-bridge/v4 | v4 | Frozen | Production | 2026-09-20 |
-| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-20 |
+| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-21 |
 | schemas/website-tests/v0.1/ | 0.1 | Candidate | Environment | 2026-10-07 |
 | schemas/windows-distribution/v0.1/ | 0.1 | Candidate | Integration | 2026-10-13 |

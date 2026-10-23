@@ -63,6 +63,8 @@
 .vua-environment-card > button:hover:not(:disabled) { background: var(--vua-accent-tint); }
 .vua-environment-card > button:focus-visible { outline: 3px solid var(--vua-accent); outline-offset: -4px; }
 .vua-environment-card > button:disabled { cursor: default; color: var(--vua-text-secondary); }
+/* A card without details keeps its title at full contrast, level with its peers. */
+.vua-environment-card > .vua-environment-card__details:disabled { color: var(--vua-text-strong); }
 .vua-environment-card strong { font: var(--vua-font-title); }
 .vua-environment-card > .vua-environment-card__action { position: relative; border-left: 1px solid var(--vua-border); color: var(--vua-accent-text); }
 .vua-environment-card__action > svg { width: 36px; height: 36px; }

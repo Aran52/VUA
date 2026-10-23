@@ -41,7 +41,6 @@ export function AmfResultViews({ port, run }: { port: AmfProductionPort; run: Am
   if (views.length === 0) return null;
   return <section className="vua-n3__views" aria-label={copy.previewTitle}>
     <h3>{copy.previewTitle}</h3>
-    <p className="vua-caption vua-text-secondary">{copy.previewHint}</p>
     <div className="vua-n3__view-row">{views.map(view => <AmfPreview key={view.path} port={port} runId={run.runId} path={view.path} label={copy.previewViews[view.view]}/>)}</div>
   </section>;
 }

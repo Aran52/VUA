@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Jirai photo corner: heart pin</title>
+  <path d="M24 16L36 4" stroke-width="2"/>
+  <circle cx="36" cy="4" r="2.6" fill="currentColor" stroke="none"/>
+  <path d="M17 31.98C9.65 25.68 6.5 21.48 6.5 17.8C6.5 14.65 9.13 12.03 12.27 12.03C14.38 12.03 15.95 13.08 17 14.65C18.05 13.08 19.63 12.03 21.73 12.03C24.88 12.03 27.5 14.65 27.5 17.8C27.5 21.48 24.35 25.68 17 31.98Z" fill="currentColor" fill-opacity="0.3" stroke-width="1.8"/>
+</svg>

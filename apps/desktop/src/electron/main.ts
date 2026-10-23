@@ -457,7 +457,7 @@ function registerIpc(provider: ModuleProvider): void {
     assertAiSender(event); if (typeof enabled !== "boolean") throw new Error("invalid_ai_control"); return aiTools!.setEnabled(enabled);
   });
   for (const action of ["prompt", "copy-prompt"] as const) ipcMain.handle(`vua:ai-tools:${action}`, (event, locale: unknown) => {
-    assertAiSender(event); if (locale !== "en" && locale !== "zh-CN" && locale !== "ja" && locale !== "ko") throw new Error("invalid_ai_locale");
+    assertAiSender(event); if (locale !== "en" && locale !== "zh-CN" && locale !== "zh-TW" && locale !== "ja" && locale !== "ko") throw new Error("invalid_ai_locale");
     const prompt = aiTools!.prompt(locale as AiConnectionLocale);
     if (action === "copy-prompt") { clipboard.writeText(prompt); return; } return prompt;
   });

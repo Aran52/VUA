@@ -55,7 +55,7 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
         {s.issue ? <p role="alert">{copy.issues[s.issue]}</p> : null}
         {choice && s.steamReady && (s.presence === "missing" || s.presence === "incomplete") && !waiting ? <Button disabled={live.pending} onClick={() => { void live.act("install"); }}>{copy.install}</Button> : null}
         {choice && s.presence === "installed" && s.steamReady ? <Button disabled={live.pending || waiting} onClick={() => { void live.act("start"); }}>{copy.openApp}</Button> : null}
-        {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button><p className="vua-text-secondary">{copy.cancelHint}</p></div> : null}
+        {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
         {s.running && !s.canStop ? <p className="vua-text-secondary">{copy.existing}</p> : null}
       </> : <p role="status">{copy.checking}</p>}
       {choice && setup ? <div className="vua-vrcft-sop" data-tracking-device={choice.hardware.id} data-tracking-method={choice.path.id}>
@@ -70,13 +70,12 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
           <label className="vua-vrcft-confirm"><input type="checkbox" checked={setup.completed.includes(step)}
             disabled={(step === "module" && s?.presence !== "installed") || (step === "test" && TRACKING_STEPS.slice(0, 3).some(previous => !setup.completed.includes(previous)))} onChange={() => mark(step)} />{copy.steps[step].done}</label>
         </li>)}</ol>
-        <p className="vua-text-secondary">{setup.completed.length === 4 ? copy.finished : copy.progressHint}</p>
+        {setup.completed.length === 4 ? <p className="vua-text-secondary">{copy.finished}</p> : null}
       </div> : null}
     </section>
     <ContentDialog open={picker} title={candidate ? copy.connectionTitle : copy.devicesTitle} closeLabel={strings.environmentCards.closeDetails} onClose={() => setPicker(false)}>
       <div className="vua-vrcft-picker">
         {candidate ? <><p>{format(copy.connectionHint, { device: candidate.name })}</p><div className="vua-vrcft-choices">{candidate.methods.map(method => <Button key={method.id} data-tracking-choice={method.id} onClick={() => choose(candidate, method.id)}>{method.name}</Button>)}</div><Button variant="subtle" onClick={() => setCandidate(null)}>{copy.back}</Button></> : <>
-          <p>{copy.devicesHint}</p>
           {(["headsets", "addons", "desktop"] as const).map(group => <section key={group}><h3>{copy.groups[group]}</h3><div className="vua-vrcft-choices">{TRACKING_DEVICES.filter(device => device.group === group).map(device => <button key={device.id} type="button" className="vua-vrcft-choice" data-tracking-device-choice={device.id} onClick={() => device.methods.length === 1 ? choose(device, device.methods[0]!.id) : setCandidate(device)}><strong>{device.id === "webcam" ? copy.webcam : device.name}</strong><span>{copy.tracking[device.tracking]}</span></button>)}</div></section>)}
           <p>{copy.unsupported}</p><a className="vua-vrcft-guide" href="https://docs.vrcft.io/docs/intro/getting-started#supported-hardware-list" target="_blank" rel="noopener noreferrer">{copy.otherDevices}</a>
         </>}

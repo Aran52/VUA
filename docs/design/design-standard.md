@@ -249,7 +249,7 @@ Remote pages visibly identify origin and security boundary and never imitate a l
 
 **Guided pages** show goal/progress, one decision or conclusion, necessary explanation, then
 back and any necessary explicit confirmation. Single-choice branch cards advance directly. **Workbenches** arrange goal/commands, object/filter area, central workspace, Inspector,
-and task/diagnostic surface. Dialogs are for immediate decisions or high-impact confirmation only.
+and task/diagnostic surface. Messages, confirmations and side panels follow the [notification tiers](notification-tiers.md).
 
 ## 4. Design tokens
 
@@ -345,13 +345,12 @@ semantically distinct from the dismiss/close ✕ (e.g. a circled exclamation mar
 ### 6.2 Experimental feature presentation (v0.6.3)
 
 Experimental features live on the "Settings - Experimental" page (the walkthrough rework form
-of 2026-09-08: one card =
-title + subtitle + warning strip + toggle rows). Rules:
+of 2026-09-08, without the subtitle and warning strip since 2026-10-21: one card = title + toggle
+rows, each with a title and at most one line on what it changes). Rules:
 
 - A toggle backed by a frozen protocol (e.g. "Generate VPM replacement" writing
   warehouse.setGlobalDefaultMode) is a **server-behavior toggle**: its state follows the server
-  read-back/receipt; the presentation never fabricates state, and an unreadable initial value is
-  labeled honestly instead of guessed;
+  read-back/receipt, and the toggle shows off until a read-back arrives;
 - A toggle depending on an unfrozen protocol (e.g. "Delete originals after generation") is an
   **unwired preference**: permanently labeled unwired, toggling records intent only and triggers
   no server behavior; enabling it requires the danger confirm dialog, and DEV/fixture faces add

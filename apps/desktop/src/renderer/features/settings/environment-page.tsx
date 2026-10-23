@@ -175,7 +175,6 @@ export function EnvironmentSettingsPage() {
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.probedHeading}</h2>
-          <p className="vua-text-secondary">{copy.probedNote}</p>
           {editorsState.kind === "loading" ? (
             <p className="vua-caption vua-text-secondary">{copy.loading}</p>
           ) : null}
@@ -208,7 +207,6 @@ export function EnvironmentSettingsPage() {
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.pickHeading}</h2>
-          <p className="vua-text-secondary">{copy.pickNote}</p>
           <div className="vua-settings-row">
             <Button
               variant="default"
@@ -269,10 +267,6 @@ export function EnvironmentSettingsPage() {
                 <br />
                 <span className="vua-caption vua-text-secondary">{verifiedNow.editorRoot}</span>
               </p>
-              <p className="vua-caption vua-text-secondary">
-                {copy.guidanceLabel} {verifiedNow.guidanceCode}
-              </p>
-              <p className="vua-text-secondary">{format(copy.trustText, { exePath: verifiedNow.exePath })}</p>
               <div>
                 <Button variant="primary" onClick={() => confirmEditor(verifiedNow)}>
                   {copy.confirmCta}

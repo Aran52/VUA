@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <title>Tenshi page corner: wing and halo</title>
+  <path d="M157.75 62.55C132.63 46.43 90.74 53.41 66.02 72.48C61.68 76.1 64.95 82.77 70.59 83.14C80.55 83.22 86.19 83.59 92.16 84.97C89.12 92.58 95.38 98.27 104.37 95.35C109.64 101.37 118.6 101.77 125.61 96.18C129.88 102.52 141.17 103.27 147.53 95.68C154.9 87.77 158.64 75.51 157.75 62.55Z" fill="currentColor" fill-opacity="0.16" stroke-width="2"/>
+  <path d="M136.15 64.05C116.55 64.9 97.93 68.74 80.6 76.58" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M141.39 73.39C126.44 74.93 112.46 79.48 99.45 87.02" stroke-width="1.6" stroke-opacity="0.7"/>
+  <path d="M146.63 82.72C138.32 84.32 130.33 86.92 122.67 90.51" stroke-width="1.6" stroke-opacity="0.7"/>
+  <ellipse cx="118" cy="22" rx="24" ry="7" stroke-width="3"/>
+  <path d="M62 24C62.72 28.5 63.5 29.28 68 30C63.5 30.72 62.72 31.5 62 36C61.28 31.5 60.5 30.72 56 30C60.5 29.28 61.28 28.5 62 24Z" fill="currentColor" stroke="none"/>
+  <path d="M146 95C146.6 98.75 147.25 99.4 151 100C147.25 100.6 146.6 101.25 146 105C145.4 101.25 144.75 100.6 141 100C144.75 99.4 145.4 98.75 146 95Z" fill="currentColor" stroke="none"/>
+  <path d="M84 70.5C84.42 73.13 84.88 73.58 87.5 74C84.88 74.42 84.42 74.88 84 77.5C83.58 74.88 83.13 74.42 80.5 74C83.13 73.58 83.58 73.13 84 70.5Z" fill="currentColor" stroke="none"/>
+</svg>

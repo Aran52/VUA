@@ -10,12 +10,16 @@ import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsS
 import { controlPreview } from "./control-center-preview.tsx";
 import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
+import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
+import "../../src/renderer/features/deployer/website-tests.css";
+import "../../src/renderer/features/home/home.css";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
 import { UnityLicenseGuide } from "../../src/renderer/features/settings/UnityLicenseGuide.tsx";
 import { ProductTerms } from "../../src/renderer/features/warehouse/ProductTerms.tsx";
 import { termsPreviewPort } from "./terms-preview.tsx";
 import "../../src/renderer/features/warehouse/warehouse.css";
-import type { UnityLicenseSnapshotV01 } from "@vua/contracts";
+import type { NetworkIntent, NetworkReport, UnityLicenseSnapshotV01, WebsiteObservation } from "@vua/contracts";
+import { REGIONAL_REFERENCES } from "../../src/renderer/features/deployer/regional-reference.ts";
 import "../../src/renderer/features/deployer/deployer.css";
 import { Card } from "../../src/renderer/components/primitives/Card.tsx";
 import { Button } from "../../src/renderer/components/primitives/Button.tsx";
@@ -54,6 +58,37 @@ runs.rebuild = { ...runs.finished!, runId: "rebuild",
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
   result: { facts: { ...runs.finished!.result!.facts!, observedSelection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] } } } } as AmfProductionRun;
+// Face-tracking lines: full coverage with a creator patch menu, a patched line's lock, and no coverage at all.
+const ftMenu = { id: "a".repeat(64), sourceId: "avatar", scriptPath: "Assets/Meiyun/Editor/FacePatch.cs", menuPath: "Meiyun/Face Tracking Setup" };
+const ftFacts = (matched: number, menus: boolean, manual = false) => ({
+  schemaVersion: "0.1" as const, evidence: "unity_source" as const, observedAt: "2026-10-22T06:00:00Z",
+  state: "observed" as const, runtime: "unknown" as const, builtParameterBudget: "unknown" as const, truncated: false,
+  manualReplayRequired: manual, expressionParametersObserved: matched > 0, sourceSyncedParameterBits: matched > 0 ? 24 : 0,
+  meshes: [{ renderer: "Body", blendShapeCount: 60, missingMesh: false, profiles: [
+    { id: "arkit52-v1" as const, referenceCount: 52, matched: Array.from({ length: matched }, (_, i) => `bs_face_${i}`) },
+    { id: "unified-core12-v1" as const, referenceCount: 12, matched: matched === 52 ? Array.from({ length: 12 }, (_, i) => `bs_ue_${i}`) : [] },
+    { id: "sranipal-core12-v1" as const, referenceCount: 12, matched: [] }] }],
+  parameters: matched > 0 ? ["FaceTrackingActive"] : [], components: matched > 0 ? ["ModularAvatarMergeArmature"] : [],
+  patchMenus: menus ? [ftMenu] : [],
+});
+runs.ftline = { ...runs.finished!, runId: "ftline", result: { facts: { ...runs.finished!.result!.facts!, faceTracking: ftFacts(52, true) } } } as AmfProductionRun;
+runs.ftlocked = { ...runs.finished!, runId: "ftlocked", snapshotId: "snapshot-ft", result: { facts: { ...runs.finished!.result!.facts!, faceTracking: ftFacts(52, false, true) } } } as AmfProductionRun;
+runs.ftnone = { ...runs.finished!, runId: "ftnone", result: { facts: { ...runs.finished!.result!.facts!, faceTracking: ftFacts(0, false) } } } as AmfProductionRun;
+// A finished line with version records: the newest kept the state before a restore, one carries Unity edits.
+const versionSummary = { avatar: "Meiyu_改変", outfits: ["TshirtShorts_Meiyun"], sources: ["Meiyun_v2.1.0.zip", "TshirtShorts_Meiyun_v1.00.zip"], lightingMaterials: 4, sdkFixes: ["Avatar Descriptor"] };
+runs.versions = { ...runs.finished!, runId: "versions", revisions: [
+  { id: "rev-5", before: "restore", takenAt: "2026-10-22T05:12:00Z", editedInUnity: false, summary: versionSummary },
+  { id: "rev-4", before: "lighting", takenAt: "2026-10-22T04:58:00Z", editedInUnity: true, summary: versionSummary },
+  { id: "rev-3", before: "sdk_fix", takenAt: "2026-10-21T16:40:00Z", editedInUnity: false, summary: versionSummary },
+  { id: "rev-2", before: "rebuild", takenAt: "2026-10-21T15:02:00Z", editedInUnity: false, summary: { ...versionSummary, avatar: "Meiyun" } },
+  { id: "rev-1", before: "materials", takenAt: "2026-10-21T13:30:00Z", editedInUnity: false, summary: { avatar: null, outfits: [], sources: ["Meiyun_v2.1.0.zip"], lightingMaterials: 0, sdkFixes: [] } },
+] } as AmfProductionRun;
+// A finished line with unsaved Unity-side adjustments on its outfit, and a stored fit the next assembly applies.
+const fitObject = (path: string) => ({ path, localPosition: { x: 0.01, y: 0, z: 0 }, localRotation: { x: 0, y: 0, z: 0, w: 1 }, localScale: { x: 1, y: 1, z: 1 } });
+runs.fitline = { ...runs.finished!, runId: "fitline",
+  selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
+  fitChanges: [{ sourceId: "outfit", moved: [fitObject("ChestRibbon"), fitObject("Skirt/Bow#1")], missing: ["Clips#2"], changesDigest: "d".repeat(64) }],
+  availableFits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
@@ -68,6 +103,28 @@ const api = {
   async planLighting(runId: string) { return { runId, planDigest: "a".repeat(64), reference: { min: "0.1", max: "1" }, referenceReason: null,
     entries: ["ts_Black", "ts_Blue", "ts_Pink", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, sourceId: "outfit", current: { min: "0.05", max: "1" }, proposed: { min: "0.1", max: "1" } })),
     skipped: [{ material: "Assets/Nigerunaya/Meiyun/Material/Hair.mat", reason: "shared_with_avatar" }] }; },
+  // The face-tracking views: the review names the menu and carries the engine's trust warning.
+  async faceTrackingPlan(runId: string, menuId: string) { return { schemaVersion: "0.1", runId, revision: 3, planDigest: "e".repeat(64),
+    projectFingerprint: "f".repeat(64), unityFingerprint: "0".repeat(64),
+    menu: { ...ftMenu, id: menuId }, avatarGlobalObjectId: "gid-avatar", execution: "interactive_editor", replay: "manual", requiresTrustedCodeConfirmation: true,
+    warning: "Creator code runs with Editor privileges. The restore point covers only the work project. Finish on the same Avatar. Recipe and version replay will require manual reapplication." }; },
+  async faceTrackingPatch(runId: string) { return { runId, taskId: "task-ft" }; },
+  // The versions views: rev-1's original is gone from the library, rev-4 reviews with a Unity-edit warning, rev-2 rebuilds on the recorded base.
+  async revisionPlan(runId: string, revisionId: string) {
+    const revision = runs.versions!.revisions!.find(item => item.id === revisionId)!;
+    if (revisionId === "rev-1") throw new Error("This version's original packages are unavailable: OldSchool_Meiyun.zip is no longer in the library. Supply these exact original packages in the library, then retry.");
+    return { schemaVersion: "0.1", runId, revisionId, planDigest: "b".repeat(64), before: revision.before, takenAt: revision.takenAt, summary: revision.summary,
+      editedInUnity: revision.editedInUnity, warning: revision.editedInUnity ? "The project changed in Unity since the last check. Restoring this version replaces those edits." : null,
+      steps: revisionId === "rev-2"
+        ? [{ key: "materials", skipped: true }, { key: "assembly", skipped: false, rebuild: true }, { key: "lighting", skipped: true, materials: [] }, { key: "sdk_fix", skipped: false, fixes: ["Avatar Descriptor"] }]
+        : [{ key: "materials", skipped: true }, { key: "assembly", skipped: false }, { key: "lighting", skipped: false, materials: ["ts_Black", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, min: "0.1", max: "1" })) }, { key: "sdk_fix", skipped: true, fixes: [] }] };
+  },
+  async restoreRevision(runId: string) { return { runId, taskId: "task-restore" }; },
+  // The fits views: the plan names the stored fit the assembly applies, and saving keeps the reported adjustments.
+  async plan(runId: string, selection: unknown) { return { runId, planDigest: "c".repeat(64), selection,
+    inputs: [{ sourceId: "avatar", name: "Meiyu_改変", role: "avatar" }, { sourceId: "outfit", name: "TshirtShorts", role: "outfit" }],
+    fits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] }; },
+  async saveFit(runId: string, sourceId: string, name: string) { return { fitId: "fit-new", name, createdAt: "2026-10-23T01:00:00Z", updatedAt: "2026-10-23T01:00:00Z" }; },
 } as unknown as AmfProductionPort;
 // The materials-start views: the library's products mapped to the AMF sources above,
 // plus one unrelated dress so the "other outfits" fold has a row.
@@ -120,6 +177,17 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   opening: { run: "finished", clicks: ["workshop-open"] },
   opened: { run: "finished", clicks: ["workshop-open"] },
+  ft: { run: "ftline", clicks: ["workshop-station-face"] },
+  "ft-dialog": { run: "ftline", clicks: ["workshop-station-face", "workshop-ft-menu-aaaaaaaa"] },
+  "ft-locked": { run: "ftlocked", clicks: ["workshop-station-face"] },
+  "ft-none": { run: "ftnone", clicks: ["workshop-station-face"] },
+  versions: { run: "versions", clicks: ["workshop-station-assemble"] },
+  "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
+  "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },
+  "versions-error": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-1"] },
+  fitsave: { run: "fitline", clicks: [] },
+  fitplan: { run: "fitline", clicks: ["workshop-station-plan"] },
+  fitreview: { run: "fitline", clicks: ["workshop-station-plan", "workshop-plan-adjust", "workshop-plan-review"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
 function ClickThrough({ clicks }: { clicks: readonly string[] }) {
@@ -196,6 +264,35 @@ const licenseSnapshots: Record<string, UnityLicenseSnapshotV01> = {
     lastCheck: { state: "active", editorVersion: "2022.3.22f1", checkedAt: "2026-10-19T09:30:00.000Z" }, state: "likely_active", nextAction: "none" },
 };
 const licensePort = licenseSnapshots[view] ? { snapshot: async () => licenseSnapshots[view]!, check: async () => ({ taskId: "task-license" }) } : undefined;
+// The regional tier preview: one finished measurement with an unsteady region and
+// a proxy note, so the collapsed tile and the expanded rows are both reviewable.
+const regionObservation = (id: string, elapsedMs: number, p90Ms: number): WebsiteObservation => ({
+  url: REGIONAL_REFERENCES.find(region => region.id === id)!.url,
+  status: "http_error", elapsedMs, httpStatus: 404,
+  regional: { medianMs: elapsedMs + 2, p90Ms, samples: 9, connections: 3, viaProxy: true },
+});
+const regionRows = [regionObservation("jp", 28, 34), regionObservation("usw", 40, 95), regionObservation("use", 120, 124), regionObservation("eu", 240, 246)];
+const networkPreviewPort = {
+  websiteCapability: async () => ({ state: "ready" as const }),
+  capability: async () => ({ state: "ready" as const }),
+  testWebsites: async (urls: readonly string[]) => urls.map(url => regionRows.find(row => row.url === url) ?? { url, status: "reachable" as const, elapsedMs: 120, httpStatus: 200 as const }),
+  check: async (intent: NetworkIntent): Promise<NetworkReport> => ({ schemaVersion: "0.1", intent, detectedRegion: "unknown", effectiveRegion: "unknown", capturedAt: "2026-10-22T00:00:00Z", durationMs: 0, results: [] }),
+};
+/** Runs the regional test the way the player does, with the details expanded on
+ * the details view. */
+function NetworkPreview({ details }: { details: boolean }) {
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      const action = document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-test]");
+      if (!action || action.disabled) return;
+      clearInterval(timer);
+      if (details) document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-details]")?.click();
+      action.click();
+    }, 300);
+    return () => clearInterval(timer);
+  }, [details]);
+  return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
+}
 createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
   <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
@@ -212,6 +309,8 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
     <section className="vua-page__hero"><h1 className="vua-title">设置 · 实验性</h1></section>
     <Card><VrchatSignInSection /></Card>
   </div>
+</GatewayProvider> : view.startsWith("network-") ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, network: networkPreviewPort } }}>
+  <NetworkPreview details={view === "network-tiers-details"} />
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>

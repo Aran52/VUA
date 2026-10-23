@@ -17,6 +17,13 @@ use vua_orchestrator::{
 const PIPELINE_FIX: &str = "This avatar has no pipeline manager component.";
 
 struct TestPlatform {
+    texture_facts: Mutex<Option<serde_json::Value>>,
+    texture_before: Mutex<Option<serde_json::Value>>,
+    texture_outcome: AtomicUsize,
+    removal_mode: AtomicUsize,
+    ft_facts: Mutex<Option<serde_json::Value>>,
+    ft_outcome: AtomicUsize,
+    ft_snapshots: Mutex<std::collections::BTreeMap<String, (String, bool)>>,
     fail: AtomicBool,
     fail_restore: AtomicBool,
     fail_inspect: AtomicBool,
@@ -27,6 +34,7 @@ struct TestPlatform {
     fail_replace: AtomicBool,
     /// Unity holds the work project.
     editor_open: AtomicBool,
+    close_outcome: AtomicUsize,
     /// The Avatar package carries a second Avatar prefab.
     alt_avatar: AtomicBool,
     /// The Avatar source reports a different content hash.
@@ -39,6 +47,8 @@ struct TestPlatform {
     assembled_fits: Mutex<Vec<Vec<OutfitFit>>>,
     snapshots: AtomicUsize,
     root: PathBuf,
+    /// Every keep list the engine asked to prune to, newest last.
+    prune_keeps: Mutex<Vec<Vec<String>>>,
     /// The material use facts the next Unity check reports, when set.
     material_use: std::sync::Mutex<serde_json::Value>,
     /// The fitChanges facts every Unity check reports, when set.
@@ -71,6 +81,19 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec!["Head".into()],
             preview: Some(".vua/previews/cmd/candidate-000.png".into()),
+            parameter_budget: Some(ParameterBudget {
+                expression_parameters_observed: true,
+                expression_parameters: vec![
+                    ParameterEntry { name: "VRCEmote".into(), bits: 8, unique: false },
+                    ParameterEntry { name: "VRMode".into(), bits: 1, unique: false },
+                ],
+                ma_components: vec![ParameterComponent {
+                    path: "Default Clothing".into(),
+                    parameters: vec![ParameterEntry { name: "DefaultDress".into(), bits: 1, unique: false }],
+                }],
+                unresolved_prefix_configs: 0,
+                truncated: false,
+            }),
         },
         PrefabCandidate {
             source_id: "outfit".into(),
@@ -82,6 +105,16 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
+            parameter_budget: Some(ParameterBudget {
+                expression_parameters_observed: true,
+                expression_parameters: vec![],
+                ma_components: vec![ParameterComponent {
+                    path: String::new(),
+                    parameters: vec![ParameterEntry { name: "CoatOn".into(), bits: 1, unique: false }],
+                }],
+                unresolved_prefix_configs: 0,
+                truncated: false,
+            }),
         },
         PrefabCandidate {
             source_id: "outfit2".into(),
@@ -93,6 +126,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
+            parameter_budget: None,
         },
     ]
 }
@@ -179,14 +213,35 @@ impl AmfProductionPlatform for TestPlatform {
         if self.alt_avatar.load(Ordering::SeqCst) {
             prefabs.push(PrefabCandidate { path: "Assets/AvatarAlt.prefab".into(), name: "Avatar Alt".into(), preview: None, ..candidates().remove(0) });
         }
-        let assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
+        let mut assembled = self.assembled_with.lock().unwrap().last().cloned().unwrap_or_else(selection);
+        let state = fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap();
+        if let Some(removed) = state.strip_prefix("removed:") { assembled.outfits.retain(|o| o.source_id != removed); }
+        if state.starts_with("removed:") && self.removal_mode.load(Ordering::SeqCst) == 3 { assembled.outfits[0].active = !assembled.outfits[0].active; }
         let mut result = serde_json::json!({"synthetic":true,
             "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap() == "after").then_some(assembled),
+                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(state == "after" || state.starts_with("removed:")).then_some(assembled.clone()),
                 "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
                     {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
+        if let Some(textures) = self.texture_facts.lock().unwrap().clone() { result["facts"]["textureMemory"] = textures; }
+        if self.removal_mode.load(Ordering::SeqCst) > 0 {
+            let outfits = if result["facts"]["observedSelection"].is_null() { &[][..] } else { assembled.outfits.as_slice() };
+            result["facts"]["instances"] = serde_json::json!(outfits.iter().map(|o| serde_json::json!({
+                "sourceId":o.source_id,"globalObjectId":format!("id-{}",o.source_id),"bindingVerified":true,"menuVerified":true,"active":o.active})).collect::<Vec<_>>());
+            result["facts"]["outfitRemoval"] = serde_json::json!(outfits.iter().map(|o| synthetic_removal(&o.source_id)).collect::<Vec<_>>());
+            result["facts"]["avatars"] = serde_json::json!([
+                {"globalObjectId":"synthetic-avatar","activeTarget":true,"observedSelection":result["facts"]["observedSelection"]},
+                {"globalObjectId":"other-avatar","activeTarget":false,"observedSelection":selection2()}]);
+        }
         let material_use = self.material_use.lock().unwrap().clone();
+        if let Some(mut facts) = self.ft_facts.lock().unwrap().clone() {
+            let patched = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists();
+            facts["manualReplayRequired"] = serde_json::json!(patched);
+            result["facts"]["faceTracking"] = facts;
+            if patched && self.ft_outcome.load(Ordering::SeqCst) == 5 {
+                result["facts"]["avatarGlobalObjectId"] = serde_json::json!("wrong-avatar");
+            }
+        }
         if !material_use.is_null() {
             result["facts"]["materialUse"] = material_use;
         }
@@ -238,6 +293,55 @@ impl AmfProductionPlatform for TestPlatform {
         observed.result["facts"]["avatarGlobalObjectId"] = serde_json::json!(if target.new_avatar_key.is_some() { "synthetic-new-avatar" } else { &target.avatar_global_object_id });
         Ok(observed)
     }
+    fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(run.snapshot_id.is_some());
+        let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        assert_eq!(saved.revisions[0].before, RevisionKind::TextureMemory, "history is durable before writes");
+        let mut reports = validate_texture_memory(self.texture_facts.lock().unwrap().as_ref().unwrap()).unwrap();
+        for change in changes {
+            let report = reports.iter_mut().find(|r| r.platform == change.platform).unwrap();
+            let texture = report.textures.iter_mut().find(|t| t.path == change.path).unwrap();
+            let scale = (texture.width.max(texture.height) / change.max_size).max(1);
+            texture.width = (texture.width / scale).max(1); texture.height = (texture.height / scale).max(1);
+            texture.max_size = change.max_size; texture.format = change.format.clone();
+            texture.estimated_bytes = estimate_texture_bytes(texture.width, texture.height, texture.mipmap, &texture.format, 1).unwrap();
+            report.total_bytes = report.textures.iter().map(|t| t.estimated_bytes).sum(); report.rank = texture_rank(report.total_bytes, report.platform);
+        }
+        if self.texture_outcome.load(Ordering::SeqCst) == 5 {
+            let report = reports.iter_mut().find(|r| r.platform == changes[0].platform).unwrap();
+            let mut unknown = report.textures[0].clone();
+            unknown.id = "generated-unknown".into(); unknown.path.clear(); unknown.known = false;
+            unknown.editable = false; unknown.format = "Unknown".into(); unknown.estimated_bytes = 0;
+            report.textures.push(unknown); report.complete = false; report.rank = TextureRank::Unknown;
+        }
+        *self.texture_facts.lock().unwrap() = Some(serde_json::json!(reports));
+        match self.texture_outcome.load(Ordering::SeqCst) {
+            1 => return Err(production_error("texture_test_failed", "Importer failed after a partial write.")),
+            2 => { *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone(); },
+            3 => return Err(watch.stopped()),
+            _ => (),
+        }
+        let observed = self.inspect(run, watch)?;
+        if self.texture_outcome.load(Ordering::SeqCst) == 4 { self.fail_inspect.store(true, Ordering::SeqCst); }
+        Ok(observed)
+    }
+    fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(run.snapshot_id.is_some());
+        let durable: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        assert_eq!(durable.revisions[0].before, RevisionKind::OutfitRemoval);
+        fs::write(Path::new(&run.project_root).join("Assets/state"), format!("removed:{}", removal.source_id)).unwrap();
+        match self.removal_mode.load(Ordering::SeqCst) {
+            2 => return Err(production_error("test_removal_failed", "Synthetic deletion failed after writing.")),
+            4 => return Err(watch.stopped()),
+            _ => {}
+        }
+        let mut receipt = self.inspect(run, watch)?;
+        receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([{
+            "sourceId":removal.source_id,"avatarGlobalObjectId":removal.avatar_global_object_id,
+            "deletedObjectIds":removal.objects.iter().map(|o| &o.global_object_id).collect::<Vec<_>>() }]);
+        if self.removal_mode.load(Ordering::SeqCst) == 5 { receipt.result["facts"]["outfitRemovalApplied"] = serde_json::json!([]); }
+        Ok(receipt)
+    }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         if self.fail.load(Ordering::SeqCst) {
             fs::write(Path::new(&run.project_root).join("Assets/state"), "half-fixed").unwrap();
@@ -248,8 +352,36 @@ impl AmfProductionPlatform for TestPlatform {
         Ok(observed)
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
-        self.snapshots.fetch_add(1, Ordering::SeqCst);
-        self.fingerprint(Path::new(&run.project_root))
+        *self.texture_before.lock().unwrap() = self.texture_facts.lock().unwrap().clone();
+        let index = self.snapshots.fetch_add(1, Ordering::SeqCst);
+        let state = self.fingerprint(Path::new(&run.project_root))?;
+        if self.ft_facts.lock().unwrap().is_some() {
+            let id = format!("ft-snapshot-{index}");
+            self.ft_snapshots.lock().unwrap().insert(id.clone(), (state,
+                Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists()));
+            Ok(id)
+        } else { Ok(state) }
+    }
+    fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(patch.confirm_trusted_code);
+        assert_eq!(patch.avatar_global_object_id, "synthetic-avatar");
+        assert!(run.snapshot_id.is_some());
+        let marker = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json");
+        fs::create_dir_all(marker.parent().unwrap()).unwrap();
+        fs::write(marker, "{}").unwrap();
+        match self.ft_outcome.load(Ordering::SeqCst) {
+            2 => return Err(production_error("test_patch_failed", "Synthetic patch changed a mesh then failed.")),
+            6 => return Err(watch.stopped()),
+            7 => return Err(production_error("process_cleanup_unverified", "Synthetic helper is still running.")),
+            _ => (),
+        }
+        let mut observed = self.inspect(run, watch)?;
+        match self.ft_outcome.load(Ordering::SeqCst) {
+            3 => observed.result["facts"]["faceTracking"]["manualReplayRequired"] = serde_json::json!(false),
+            4 => self.fail_inspect.store(true, Ordering::SeqCst),
+            _ => (),
+        }
+        Ok(observed)
     }
     fn source_content_hash(&self, source_id: &str) -> Result<Option<String>, AppErrorV1> {
         if !["avatar", "outfit", "outfit2"].contains(&source_id) {
@@ -258,10 +390,12 @@ impl AmfProductionPlatform for TestPlatform {
         Ok(Some(format!("sha256:{}", if source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } }
             else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) })))
     }
-    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &[&str]) -> Vec<String> {
+        self.prune_keeps.lock().unwrap().push(keep.iter().map(|id| id.to_string()).collect());
         vua_orchestrator::FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1> {
+        if self.editor_open.load(Ordering::SeqCst) { return Err(production_error("project_open", "Synthetic live Editor lock.")); }
         if run.phase == "restoring" {
             let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
             assert_eq!(saved.phase, "restoring");
@@ -271,11 +405,32 @@ impl AmfProductionPlatform for TestPlatform {
             fs::write(Path::new(&run.project_root).join("Assets/state"), "partial restore").unwrap();
             return Err(production_error("test_restore", "Synthetic partial restore."));
         }
+        *self.texture_facts.lock().unwrap() = self.texture_before.lock().unwrap().clone();
         for (path, bytes) in self.restore_files.lock().unwrap().drain(..) {
             fs::write(path, bytes).unwrap();
         }
-        fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
+        if let Some((state, marker_exists)) = self.ft_snapshots.lock().unwrap().get(snapshot) {
+            let marker = Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json");
+            if *marker_exists { fs::write(marker, "{}").unwrap(); }
+            else if marker.exists() { fs::remove_file(marker).unwrap(); }
+            fs::write(Path::new(&run.project_root).join("Assets/state"), state).unwrap();
+        } else {
+            fs::write(Path::new(&run.project_root).join("Assets/state"), snapshot).unwrap();
+        }
         Ok(())
+    }
+    fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> { self.snapshot(run) }
+    fn close_editor(&self, run: &ProductionRun, _: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+        let saved: ProductionRun = serde_json::from_slice(&fs::read(self.root.join("production/runs/n3-test.json")).unwrap()).unwrap();
+        assert!(saved.snapshot_id.is_some());
+        assert_eq!(saved.revisions[0].before, RevisionKind::EditorSave);
+        assert_eq!(saved.steps.last().unwrap().key, "editor_close");
+        let mode = self.close_outcome.load(Ordering::SeqCst);
+        if mode != 5 { fs::write(Path::new(&run.project_root).join("Assets/state"), "saved-player-edits").unwrap(); }
+        if mode != 2 && mode != 5 { self.editor_open.store(false, Ordering::SeqCst); }
+        Ok(EditorCloseResult { schema_version:"0.1".into(), run_id:run.run_id.clone(), close_id:"close-1".into(),
+            outcome:if mode == 1 { "saved" } else { "failed" }.into(), scenes_saved:mode == 1, assets_saved:mode == 1,
+            editor_closed:mode != 2 && mode != 5, reason:if mode == 1 { "" } else if mode == 5 { "editor_busy" } else { "scene_save_failed" }.into(), detail:"Synthetic save receipt.".into() })
     }
     fn open(&self, _: &ProductionRun, _: &TaskContext) -> Result<serde_json::Value, AppErrorV1> {
         Ok(serde_json::json!({"synthetic":true}))
@@ -315,6 +470,11 @@ impl Harness {
         ));
         fs::create_dir_all(&root).unwrap();
         let platform = Arc::new(TestPlatform {
+            texture_facts: Mutex::new(None), texture_before: Mutex::new(None), texture_outcome: AtomicUsize::new(0),
+            removal_mode: AtomicUsize::new(0),
+            ft_facts: Mutex::new(None),
+            ft_outcome: AtomicUsize::new(1),
+            ft_snapshots: Mutex::new(std::collections::BTreeMap::new()),
             fail: AtomicBool::new(false),
             fail_restore: AtomicBool::new(false),
             fail_inspect: AtomicBool::new(false),
@@ -322,6 +482,7 @@ impl Harness {
             wait_for_stop: AtomicBool::new(false),
             fail_replace: AtomicBool::new(false),
             editor_open: AtomicBool::new(false),
+            close_outcome: AtomicUsize::new(1),
             alt_avatar: AtomicBool::new(false),
             alt_avatar_hash: AtomicBool::new(false),
             cleared: AtomicUsize::new(0),
@@ -329,6 +490,7 @@ impl Harness {
             assembled_fits: Mutex::new(Vec::new()),
             snapshots: AtomicUsize::new(0),
             root: root.clone(),
+            prune_keeps: Mutex::new(Vec::new()),
             material_use: std::sync::Mutex::new(serde_json::Value::Null),
             fit_changes: std::sync::Mutex::new(None),
             restore_files: std::sync::Mutex::new(Vec::new()),
@@ -526,12 +688,176 @@ fn an_assembly_a_forced_end_interrupted_restores_in_one_step() {
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     assert_eq!(plan["currentChanged"], true);
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    assert!(h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     let restored = h.engine.get("n3-test").unwrap();
     assert_eq!(fs::read_to_string(&state).unwrap(), "before", "the restore point taken before the assembly");
     assert_eq!(restored.phase, "ready");
     let interrupted = restored.steps.iter().rev().find(|step| step.key == "assembly").unwrap();
     assert_eq!(interrupted.state, "interrupted", "the stopped assembly is not recorded as succeeded");
+}
+
+fn face_tracking_ready(h: &Harness) -> String {
+    let mut run = assembled(h);
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json")).unwrap();
+    let mut facts = fixture["data"]["faceTracking"].clone();
+    facts["patchMenus"][0]["sourceId"] = serde_json::json!("avatar");
+    facts["patchMenus"][0]["scriptPath"] = serde_json::json!("Assets/FtSyntheticMenu.cs");
+    run.sources[0].asset_paths.push("Assets/FtSyntheticMenu.cs".into());
+    run.result["facts"]["faceTracking"] = facts.clone();
+    *h.platform.ft_facts.lock().unwrap() = Some(facts);
+    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&run).unwrap()).unwrap();
+    h.engine.face_tracking_plan("n3-test", &"a".repeat(64)).unwrap()["planDigest"].as_str().unwrap().into()
+}
+
+#[test]
+fn creator_patch_requires_exact_confirmation_and_observed_source_before_snapshot() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    let review = digest.clone();
+    assert_eq!(h.run_job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &review, false, ctx)).unwrap_err(),
+        "vua.amf_production.confirmation_required");
+    assert_eq!(h.run_job(|e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &"b".repeat(64), true, ctx)).unwrap_err(),
+        "vua.amf_production.plan_drift");
+    assert!(h.engine.face_tracking_plan("n3-test", "Tools/Unobserved").is_err());
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    assert!(h.run_job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)).is_err());
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots);
+}
+
+#[test]
+fn completed_creator_patch_rechecks_and_blocks_incomplete_replay_but_full_rollback_works() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let patched = h.engine.get("n3-test").unwrap();
+    assert_eq!(patched.phase, "succeeded");
+    assert_eq!(patched.result["facts"]["faceTracking"]["manualReplayRequired"], true);
+    assert_eq!(patched.revisions[0].before, RevisionKind::FaceTracking);
+    assert_eq!(h.engine.save_recipe("n3-test", "recipe-ft", "Incomplete").unwrap_err().code, "vua.amf_production.face_tracking_manual_replay");
+    assert_eq!(h.engine.revision_plan("n3-test", &patched.revisions[0].id).unwrap_err().code, "vua.amf_production.face_tracking_manual_replay");
+    assert!(h.engine.plan("n3-test", &selection()).is_err());
+    assert!(h.engine.recipe_apply_plan("n3-test", "missing-recipe").is_err());
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
+}
+
+#[test]
+fn pre_patch_copy_survives_later_fixes_and_a_reviewed_restore_returns_to_it() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let patched = h.engine.get("n3-test").unwrap();
+    let pre_patch = patched.ft_pre_patch_snapshot.clone().expect("the patch records its pre-patch copy");
+    assert_eq!(patched.snapshot_id.as_deref(), Some(pre_patch.as_str()),
+        "a fresh patch keeps the pre-patch copy as the restore point");
+    assert!(h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null(),
+        "no second target while the restore point already reaches the pre-patch state");
+
+    // A later protected fix takes its own restore point; the pre-patch copy stays reachable.
+    assert!(h.job(|e, ctx| e.sdk_fix("n3-test", vec![PIPELINE_FIX.to_owned()], ctx)));
+    let fixed = h.engine.get("n3-test").unwrap();
+    let fix_point = fixed.snapshot_id.clone().expect("the fix took its own restore point");
+    assert_ne!(fix_point, pre_patch);
+    assert_eq!(fixed.ft_pre_patch_snapshot.as_deref(), Some(pre_patch.as_str()));
+    let keeps = h.platform.prune_keeps.lock().unwrap().last().cloned().unwrap();
+    assert!(keeps.contains(&fix_point) && keeps.contains(&pre_patch),
+        "pruning keeps both the fix point and the pre-patch copy: {keeps:?}");
+
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    assert_eq!(plan["prePatch"]["snapshotId"].as_str(), Some(pre_patch.as_str()));
+    let pre_digest = plan["prePatch"]["planDigest"].as_str().unwrap().to_owned();
+    let default_digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(!h.job(move |e, ctx| e.rollback("n3-test", &default_digest, Some(RollbackTarget::PreCreatorPatch), ctx)),
+        "the default review's digest must not authorize the pre-patch target");
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &pre_digest, Some(RollbackTarget::PreCreatorPatch), ctx)));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert_eq!(restored.phase, "ready");
+    assert!(restored.ft_pre_patch_snapshot.is_none(), "returning to the pre-patch state ends the retention");
+    assert!(!Path::new(&restored.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists());
+    assert_eq!(restored.result["facts"]["faceTracking"]["manualReplayRequired"], false);
+
+    // The patched state the return left behind stays the restore point, so the return is reversible.
+    let again = h.engine.rollback_plan("n3-test").unwrap();
+    assert!(again["prePatch"].is_null());
+    let digest = again["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
+    let forward = h.engine.get("n3-test").unwrap();
+    assert!(Path::new(&forward.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
+        "the protected patched state returns with its marker");
+}
+
+#[test]
+fn a_patch_after_the_marker_left_records_its_own_pre_patch_copy() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let mut run = h.engine.get("n3-test").unwrap();
+    let stale = run.ft_pre_patch_snapshot.clone().expect("the first patch records its pre-patch copy");
+    // A restore took the line back before the patch while the record still names the old copy.
+    fs::remove_file(Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json")).unwrap();
+    run.result["facts"]["faceTracking"]["manualReplayRequired"] = serde_json::json!(false);
+    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&run).unwrap()).unwrap();
+    assert!(h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null());
+    let digest: String = h.engine.face_tracking_plan("n3-test", &"a".repeat(64)).unwrap()["planDigest"].as_str().unwrap().into();
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let patched = h.engine.get("n3-test").unwrap();
+    assert_ne!(patched.ft_pre_patch_snapshot.as_deref(), Some(stale.as_str()), "the stale copy is not reused");
+    assert_eq!(patched.ft_pre_patch_snapshot, patched.snapshot_id, "the new patch keeps the state right before it");
+    let keeps = h.platform.prune_keeps.lock().unwrap().last().cloned().unwrap();
+    assert!(!keeps.contains(&stale), "pruning drops the stale copy: {keeps:?}");
+}
+
+#[test]
+fn patch_failure_missing_receipt_recheck_failure_target_drift_and_cancel_restore_marker_and_facts() {
+    for outcome in [2, 3, 4, 5, 6] {
+        let h = Harness::new();
+        let digest = face_tracking_ready(&h);
+        let before = h.engine.get("n3-test").unwrap();
+        h.platform.ft_outcome.store(outcome, Ordering::SeqCst);
+        assert!(!h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)), "outcome {outcome}");
+        let failed = h.engine.get("n3-test").unwrap();
+        assert_eq!(failed.recovery.as_deref(), Some("restored"), "outcome {outcome}");
+        assert_eq!(failed.result, before.result);
+        assert_eq!(failed.revisions, before.revisions);
+        assert!(!Path::new(&failed.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists());
+    }
+}
+#[test]
+fn creator_helper_cleanup_must_be_verified_before_automatic_restore() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    h.platform.ft_outcome.store(7, Ordering::SeqCst);
+    assert!(!h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(failed.recovery.as_deref(), Some("restore_failed: vua.amf_production.process_cleanup_unverified"));
+    assert!(failed.snapshot_id.is_some());
+    assert!(Path::new(&failed.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
+        "automatic restore must not race a creator helper");
+}
+#[test]
+fn interruption_during_the_post_patch_check_retains_the_explicit_restore_path() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let mut interrupted = h.engine.get("n3-test").unwrap();
+    interrupted.phase = "assembling".into();
+    let step = interrupted.steps.last_mut().unwrap();
+    assert_eq!(step.key, "inspect");
+    step.state = "running".into();
+    step.ended_at = None;
+    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&interrupted).unwrap()).unwrap();
+    assert_eq!(h.engine.get("n3-test").unwrap().phase, "assembling",
+        "the stored state is preserved; the provider projects it as interrupted");
+    assert!(Path::new(&interrupted.project_root).join("ProjectSettings/VUA.FaceTracking.json").exists(),
+        "reading an interrupted run must neither rerun the menu nor restore files");
+    let plan = h.engine.rollback_plan("n3-test").unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, ctx| e.rollback("n3-test", &digest, None, ctx)));
+    assert_eq!(h.engine.get("n3-test").unwrap().result["facts"]["faceTracking"]["manualReplayRequired"], false);
 }
 #[test]
 fn a_run_that_never_changed_in_unity_keeps_asking_for_a_new_check() {
@@ -621,7 +947,7 @@ fn assembled(h: &Harness) -> ProductionRun {
 fn restore_reviewed(h: &Harness) -> bool {
     let plan = h.engine.rollback_plan("n3-test").unwrap();
     let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx))
+    h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx))
 }
 
 #[test]
@@ -656,12 +982,12 @@ fn restore_rejects_drift_and_old_confirmations_before_snapshot_or_mutation() {
     let count = h.platform.snapshots.load(Ordering::SeqCst);
     let state = Path::new(&run.project_root).join("Assets/state");
     fs::write(&state, "newer-unreviewed-change").unwrap();
-    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
     assert_eq!(fs::read_to_string(&state).unwrap(), "newer-unreviewed-change");
     let digest = h.engine.rollback_plan("n3-test").unwrap()["planDigest"].as_str().unwrap().to_owned();
     assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
-    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, ctx)));
+    assert!(!h.job(move |engine, ctx| engine.rollback("n3-test", &digest, None, ctx)));
     assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
 }
 
@@ -697,6 +1023,11 @@ fn recipes_require_current_observations_and_reopen_with_pinned_inputs() {
     let h = Harness::new(); h.prepared();
     assert!(h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").is_err());
     let plan = h.engine.plan("n3-test", &selection()).unwrap(); let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    // The fixture Avatar carries 8+1 asset bits plus one embedded MA bit; the Coat adds one more,
+    // and the switch VUA adds for it one more.
+    assert_eq!(plan["parameterBudget"]["state"], "fits");
+    assert_eq!(plan["parameterBudget"]["estimateBits"], 12);
+    assert_eq!(plan["parameterBudget"]["limitBits"], 256);
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
     let saved = h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").unwrap();
     assert_eq!(h.engine.get_recipe("recipe-test").unwrap(), saved);
@@ -2030,3 +2361,143 @@ fn runs_recorded_before_fits_read_with_empty_defaults() {
     let run: ProductionRun = serde_json::from_value(record).unwrap();
     assert!(run.fit_changes.is_empty() && run.applied_fits.is_empty() && run.observed_at.is_none());
 }
+
+#[test]
+fn close_editor_requires_confirmation_and_protects_player_saves_before_dispatch() {
+    let h = Harness::new(); h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    let count = h.platform.snapshots.load(Ordering::SeqCst);
+    h.run_job(|engine,ctx| {
+        assert_eq!(engine.close_editor("n3-test",false,ctx).unwrap_err().code,"vua.amf_production.confirmation_required");
+        Ok(())
+    }).unwrap();
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),count);
+    h.run_job(|engine,ctx| { let value=engine.close_editor("n3-test",true,ctx)?; assert_eq!(value["editorClosed"],true); Ok(()) }).unwrap();
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.phase,"inspect_required");
+    assert_eq!(run.revisions[0].before,RevisionKind::EditorSave);
+    assert!(run.editor_close.unwrap().succeeded());
+    assert!(run.confirmed_digest.is_none());
+    assert_eq!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),"saved-player-edits");
+}
+
+#[test]
+fn a_failed_save_preserves_the_live_editor_and_reports_blocked_automatic_recovery() {
+    let h = Harness::new(); h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    h.platform.close_outcome.store(2, Ordering::SeqCst);
+    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(),"vua.amf_production.editor_save_failed");
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery.as_deref(),Some("restore_failed: vua.amf_production.project_open"));
+    assert!(run.snapshot_id.is_some()); assert_eq!(run.revisions[0].before,RevisionKind::EditorSave);
+    assert!(h.platform.editor_open.load(Ordering::SeqCst));
+    assert!(!run.editor_close.unwrap().scenes_saved);
+    let snapshots = h.platform.snapshots.load(Ordering::SeqCst);
+    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(), "vua.amf_production.inspect_required");
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), snapshots, "a retry cannot replace unfinished recovery");
+}
+
+#[test]
+fn a_failed_save_restores_automatically_once_unity_released_the_project() {
+    let h = Harness::new(); h.prepared();
+    h.platform.editor_open.store(true, Ordering::SeqCst);
+    h.platform.close_outcome.store(3, Ordering::SeqCst);
+    assert!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).is_err());
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery.as_deref(),Some("restored"));
+    assert!(!run.revisions.iter().any(|r|r.before==RevisionKind::EditorSave));
+    assert_ne!(fs::read_to_string(Path::new(&run.project_root).join("Assets/state")).unwrap(),"saved-player-edits");
+}
+
+#[test]
+fn closing_an_already_closed_project_is_a_noop_and_open_errors_offer_a_cooperative_action() {
+    let h = Harness::new(); h.prepared();
+    let count=h.platform.snapshots.load(Ordering::SeqCst);
+    h.run_job(|e,c| { assert_eq!(e.close_editor("n3-test",true,c)?["outcome"],"already_closed");Ok(()) }).unwrap();
+    assert_eq!(count,h.platform.snapshots.load(Ordering::SeqCst));
+    h.platform.editor_open.store(true,Ordering::SeqCst);
+    let value=serde_json::to_value(h.engine.precheck_closed("n3-test").unwrap_err()).unwrap();
+    assert_eq!(value["params"]["suggestedAction"],"amf.production.closeEditor");
+}
+
+#[test]
+fn a_receipt_that_refused_before_saving_allows_retry_without_live_restore() {
+    let h=Harness::new();h.prepared();
+    h.platform.editor_open.store(true,Ordering::SeqCst);
+    h.platform.close_outcome.store(5,Ordering::SeqCst);
+    assert_eq!(h.run_job(|e,c|e.close_editor("n3-test",true,c).map(|_|())).unwrap_err(),"vua.amf_production.editor_save_failed");
+    let run=h.engine.get("n3-test").unwrap();
+    assert_eq!(run.recovery,None);
+    assert!(!run.revisions.iter().any(|r|r.before==RevisionKind::EditorSave));
+    h.platform.close_outcome.store(1,Ordering::SeqCst);
+    assert!(h.job(|e,c|e.close_editor("n3-test",true,c).map(|_|())));
+}
+
+fn assembled_with_textures(h: &Harness) -> ProductionRun {
+    let raw: serde_json::Value = serde_json::from_slice(include_bytes!("../../../schemas/unity-bridge/v5/examples/texture-memory.valid.result.json")).unwrap();
+    assembled(h);
+    *h.platform.texture_facts.lock().unwrap() = Some(raw["data"]["textureMemory"].clone());
+    assert!(h.job(|engine, ctx| engine.reinspect("n3-test", ctx)));
+    h.engine.get("n3-test").unwrap()
+}
+fn texture_digest(h: &Harness) -> String {
+    h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap()["planDigest"].as_str().unwrap().into()
+}
+#[test]
+fn texture_apply_requires_a_current_review_and_explicit_subset_before_snapshot() {
+    let h = Harness::new(); assembled_with_textures(&h);
+    let digest = texture_digest(&h);
+    let count = h.platform.snapshots.load(Ordering::SeqCst);
+    for (review, paths) in [("f".repeat(64), vec!["Assets/Color.png".into()]),
+        (digest.clone(), vec![]), (digest.clone(), vec!["Assets/Unknown.png".into()]),
+        (digest.clone(), vec!["Assets/Color.png".into(), "Assets/Color.png".into()])] {
+        assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &review, &paths, c)));
+    }
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count);
+    assert!(h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert_eq!(run.result["facts"]["textureMemory"][0]["rank"], "excellent");
+    assert_eq!(run.result["facts"]["textureMemory"][1]["rank"], "very_poor", "PC changes leave the Android override alone");
+    assert_eq!(run.revisions[0].before, RevisionKind::TextureMemory);
+    assert_eq!(run.phase, "succeeded");
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst), count + 1);
+    assert_eq!(h.engine.revision_plan("n3-test", &run.revisions[0].id).unwrap_err().code, "vua.amf_production.texture_manual_replay");
+}
+#[test]
+fn texture_partial_writes_verification_failure_cancel_and_inspection_failure_restore_observations() {
+    for outcome in [1,2,3,4,5] {
+        let h = Harness::new(); let before = assembled_with_textures(&h);
+        let digest = texture_digest(&h);
+        h.platform.texture_outcome.store(outcome, Ordering::SeqCst);
+        assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+        let after = h.engine.get("n3-test").unwrap();
+        assert_eq!(after.recovery.as_deref(), Some("restored"));
+        assert_eq!(after.result, before.result);
+        assert_eq!(after.revisions, before.revisions, "automatically restored changes leave no fictitious history");
+    }
+    let h = Harness::new(); assembled_with_textures(&h); let digest = texture_digest(&h);
+    h.platform.texture_outcome.store(1, Ordering::SeqCst); h.platform.fail_restore.store(true, Ordering::SeqCst);
+    assert!(!h.job(move |e,c| e.apply_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good, &digest, &["Assets/Color.png".into()], c)));
+    let run = h.engine.get("n3-test").unwrap();
+    assert!(run.recovery.unwrap().starts_with("restore_failed"));
+    assert_eq!(run.revisions[0].before, RevisionKind::TextureMemory);
+}
+#[test]
+fn texture_planning_requires_facts_and_refuses_project_drift() {
+    let h = Harness::new(); assembled(&h);
+    assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.inspect_required");
+    let h = Harness::new(); let run = assembled_with_textures(&h);
+    fs::write(Path::new(&run.project_root).join("Assets/state"), "external edit").unwrap();
+    assert_eq!(h.engine.plan_texture_memory("n3-test", TexturePlatform::Pc, TextureRank::Good).unwrap_err().code, "vua.amf_production.project_drift");
+}
+
+fn synthetic_removal(source: &str) -> OutfitRemoval {
+    let outfit = format!("id-{source}"); let menu = format!("menu-{source}");
+    OutfitRemoval { source_id: source.into(), avatar_global_object_id: "synthetic-avatar".into(), blocked_reason: String::new(),
+        roots: vec![OutfitRemovalRoot { kind:"outfit".into(), global_object_id:outfit.clone() }, OutfitRemovalRoot { kind:"menu".into(), global_object_id:menu.clone() }],
+        objects: vec![OutfitRemovalObject { global_object_id:outfit,path:"Coat".into(),type_name:"UnityEngine.GameObject".into(),manual:false },
+            OutfitRemovalObject { global_object_id:menu,path:"Switch".into(),type_name:"UnityEngine.GameObject".into(),manual:false },
+            OutfitRemovalObject { global_object_id:format!("added-{source}"),path:"Coat/Added child".into(),type_name:"UnityEngine.GameObject".into(),manual:true }] }
+}
+#[path = "support/outfit_removal.rs"]
+mod outfit_removal_tests;

@@ -169,7 +169,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const edit = (next: AmfAssemblySelection) => { setSelection(next); setPlan(null); setError(null); };
   const outfit = (id: string, patch: Partial<AmfOutfitSelection> | null) => edit(updateOutfitSelection(selection, id, patch));
   const busy = requesting || taskId !== null || (run !== null && ["preparing", "inspecting", "assembling", "restoring"].includes(run.phase));
-  const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources") => {
+  const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources", rollbackTarget?: "restorePoint" | "prePatch") => {
     if (!port || busy) return;
     if ((action === "assemble" && !plan) || (action === "rollback" && !restorePlan) || (action === "changeSources" && !changing)) return;
     setRequesting(true); setError(null); setChosenStation(null);
@@ -177,7 +177,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const response = action === "prepare" ? await port.prepare(sourceIds.map(sourceId => ({ sourceId, role: "auto" })), editorPath || list?.editors[0]?.path || "")
         : action === "changeSources" && changing !== null ? await port.changeSources(runId, changing.map(sourceId => ({ sourceId, role: "auto" })))
         : action === "assemble" && plan !== null ? await port.assemble(runId, plan)
-        : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan)
+        : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan, rollbackTarget)
         : action === "reinspect" ? await port.reinspect(runId) : await port.open(runId);
       setTaskId(response.taskId); setTaskAction(action);
       setRestored(false); setRestorePlan(null); setOpened(null);
@@ -332,7 +332,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {restored && !busy && <Card><p role="status">{copy.restored}</p></Card>}
       {restorePlan && !busy && <Card><h2>{copy.restoreTitle}</h2><p>{copy.restoreHint}</p>
         {restorePlan.currentChanged && <p className="vua-n3__notice">{copy.restoreChanged}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
+        {restorePlan.prePatch && <p className="vua-n3__notice">{copy.restorePrePatchHint}</p>}
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button>
+          {restorePlan.prePatch && <Button variant="subtle" onClick={() => { void command("rollback", "prePatch"); }}>{copy.restorePrePatch}</Button>}
+          <Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
       </Card>}
       {shown === "prepare" && <Card className="vua-line__panel">
         <h2>{panels.materials.title}</h2>

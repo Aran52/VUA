@@ -227,6 +227,7 @@ fn route(
         "amf.production.prepare" => &["schemaVersion", "sources", "editorPath"],
         "amf.production.plan" => &["schemaVersion", "runId", "selection"],
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
+        "amf.production.rollback" if params.contains_key("target") => &["schemaVersion", "runId", "planDigest", "target"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
         "amf.production.revisionPlan" => &["schemaVersion", "runId", "revisionId"],
         "amf.production.restoreRevision" => &["schemaVersion", "runId", "revisionId", "planDigest"],
@@ -276,6 +277,10 @@ fn route(
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
         }
     }
+    // The restore target names which reviewed copy the digest bound; absent keeps the default.
+    let rollback_target = if method == "amf.production.rollback" {
+        Some(RollbackTarget::parse(params.get("target").and_then(Value::as_str))?)
+    } else { None };
     if method == "amf.production.saveFit" {
         let digest = string("changesDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
@@ -552,7 +557,7 @@ fn route(
                     let (recipe, choice) = recipe_application.expect("Recipe application validated");
                     worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;
                 }
-                "amf.production.rollback" => worker.engine.rollback(&operation_run, &digest, ctx)?,
+                "amf.production.rollback" => worker.engine.rollback(&operation_run, &digest, rollback_target, ctx)?,
                 "amf.production.restoreRevision" => worker.engine.restore_revision(
                     &operation_run,
                     revision_id.as_deref().expect("version record identity validated"),

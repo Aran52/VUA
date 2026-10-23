@@ -367,6 +367,10 @@ pub struct ProductionRun {
     /// The line's materials at the restore point, when that point was taken before they changed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_sources: Option<SourceSnapshot>,
+    /// The full copy taken before the creator patch, kept while the line carries its manual-replay
+    /// marker so later restore points cannot make the pre-patch state unreachable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ft_pre_patch_snapshot: Option<String>,
     /// The line's version records, newest first, taken before each protected change.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub revisions: Vec<ProductionRevision>,
@@ -481,9 +485,10 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn source_content_hash(&self, _source_id: &str) -> Result<Option<String>, AppErrorV1> {
         Ok(None)
     }
-    /// Deletes every retained full-copy snapshot of the run's project except `keep`. Best
-    /// effort: problems come back as diagnostics and never fail the calling operation.
-    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &str) -> Vec<String> {
+    /// Deletes every retained full-copy snapshot of the run's project except those named in
+    /// `keep`. Best effort: problems come back as diagnostics and never fail the calling
+    /// operation.
+    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &[&str]) -> Vec<String> {
         Vec::new()
     }
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
@@ -852,6 +857,7 @@ impl AmfProductionEngine {
             snapshot_id: None,
             snapshot_selection: None,
             snapshot_sources: None,
+            ft_pre_patch_snapshot: None,
             revisions: Vec::new(),
             sdk_fixes_applied: Vec::new(),
             recipe_adjustments: None,
@@ -955,13 +961,23 @@ impl AmfProductionEngine {
             }
         }
     }
-    /// Keeps exactly one full-copy snapshot per line: once the run record naming the current
-    /// restore point is persisted, every unreferenced snapshot directory under
-    /// `.vua/snapshots/` is deleted. Pruning is best-effort; problems are recorded in a
-    /// bounded diagnostics file and never fail the operation they follow.
+    /// Keeps the run's named full-copy snapshots per line: the current restore point and, while
+    /// the line carries the creator-patch marker, the pre-patch copy. Once the run record naming
+    /// them is persisted, every unreferenced snapshot directory under `.vua/snapshots/` is
+    /// deleted. Pruning is best-effort; problems are recorded in a bounded diagnostics file and
+    /// never fail the operation they follow.
     fn prune_snapshots(&self, run: &ProductionRun) {
-        let Some(keep) = run.snapshot_id.as_deref() else { return };
-        let diagnostics = self.platform.prune_snapshots(run, keep);
+        let mut keep: Vec<&str> = Vec::new();
+        if let Some(id) = run.snapshot_id.as_deref() {
+            keep.push(id);
+        }
+        if let Some(id) = run.ft_pre_patch_snapshot.as_deref() {
+            keep.push(id);
+        }
+        if keep.is_empty() {
+            return;
+        }
+        let diagnostics = self.platform.prune_snapshots(run, &keep);
         if diagnostics.is_empty() {
             return;
         }
@@ -1553,17 +1569,33 @@ impl AmfProductionEngine {
             production_error("snapshot_missing", "This project has no retained restore point.")
         })?;
         let (unchanged, current) = self.project_state(&run)?;
-        let digest = rollback_digest(&run, &current)?;
-        Ok(serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
+        let digest = rollback_digest(&run, &current, RollbackTarget::RestorePoint)?;
+        let mut plan = serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
             "planDigest":digest, "snapshotId":snapshot, "projectRoot":run.project_root,
-            "currentChanged":!unchanged, "preserveCurrent":true}))
+            "currentChanged":!unchanged, "preserveCurrent":true});
+        // While the line carries the creator-patch marker, its pre-patch copy stays a second
+        // reviewed target; when it equals the restore point the default restore already reaches it.
+        if run.ft_pre_patch_snapshot.as_deref().is_some_and(|id| id != snapshot)
+            && face_tracking::manual_face_tracking(&run) {
+            plan["prePatch"] = serde_json::json!({
+                "snapshotId":run.ft_pre_patch_snapshot,
+                "planDigest":rollback_digest(&run, &current, RollbackTarget::PreCreatorPatch)?});
+        }
+        Ok(plan)
     }
     /// A restore is itself reversible. Persist the current-state snapshot before
     /// touching the project so a crash, failed inspection or cancellation cannot
     /// discard the player's latest edits.
-    pub fn rollback(&self, run_id: &str, digest: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+    pub fn rollback(&self, run_id: &str, digest: &str, target: Option<RollbackTarget>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let target = target.unwrap_or(RollbackTarget::RestorePoint);
         let plan = self.rollback_plan(run_id)?;
-        if plan["planDigest"].as_str() != Some(digest) {
+        let reviewed = match target {
+            RollbackTarget::RestorePoint => plan["planDigest"].as_str(),
+            RollbackTarget::PreCreatorPatch => Some(plan["prePatch"]["planDigest"].as_str().ok_or_else(|| {
+                production_error("snapshot_missing", "This line no longer keeps a state from before the creator patch.")
+            })?),
+        };
+        if reviewed != Some(digest) {
             return Err(production_error("plan_drift", "The project or restore point changed. Review the restore again."));
         }
         let mut run = self.get(run_id)?;
@@ -1575,10 +1607,20 @@ impl AmfProductionEngine {
                 step.ended_at = Some(SystemClock.now_rfc3339());
             }
         }
-        let target = run.snapshot_id.clone().expect("reviewed restore point");
-        let target_selection = run.snapshot_selection.clone();
+        let target_kind = target;
+        let (target, target_selection, target_sources) = match target {
+            RollbackTarget::RestorePoint => (
+                run.snapshot_id.clone().expect("reviewed restore point"),
+                run.snapshot_selection.clone(),
+                run.snapshot_sources.clone(),
+            ),
+            RollbackTarget::PreCreatorPatch => (
+                run.ft_pre_patch_snapshot.clone().expect("reviewed pre-patch copy"),
+                run.selection.clone(),
+                None,
+            ),
+        };
         let current_selection = run.selection.clone();
-        let target_sources = run.snapshot_sources.clone();
         let current_sources = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
         run.task_id = ctx.task_id().into();
         run.phase = "restoring".into();
@@ -1592,7 +1634,7 @@ impl AmfProductionEngine {
         let result = (|| {
             self.step(&mut run, ctx, "protect_current", "Protect the current project before restoring")?;
             let current = self.platform.fingerprint(Path::new(&run.project_root))?;
-            if rollback_digest(&run, &current)? != digest {
+            if rollback_digest(&run, &current, target_kind)? != digest {
                 return Err(production_error("plan_drift", "The project changed before restoration. Review it again."));
             }
             safety = Some(self.platform.snapshot(&run)?);
@@ -1616,6 +1658,11 @@ impl AmfProductionEngine {
             run.selection = target_selection;
             run.phase = "ready".into();
             run.completed_at = None;
+            // A successful return to the pre-patch state ends the marker's retention: the
+            // copy is spent and the protected current (patched) state is the restore point.
+            if target_kind == RollbackTarget::PreCreatorPatch {
+                run.ft_pre_patch_snapshot = None;
+            }
             Ok(())
         })();
         if result.is_err() && mutated {
@@ -1907,11 +1954,53 @@ pub fn plan_digest_with_fits(
     )
 }
 
-fn rollback_digest(run: &ProductionRun, current_fingerprint: &str) -> Result<String, AppErrorV1> {
-    let value = serde_json::json!({"operation":"restore", "runId":run.run_id,
+fn rollback_digest(
+    run: &ProductionRun,
+    current_fingerprint: &str,
+    target: RollbackTarget,
+) -> Result<String, AppErrorV1> {
+    // A marked line's selection and materials cannot change, so the pre-patch copy restores to
+    // the selection the line still wears; the digest names which retained copy a review bound.
+    let (target_name, snapshot_id, snapshot_selection) = match target {
+        RollbackTarget::RestorePoint => (
+            "restore_point",
+            run.snapshot_id.clone(),
+            run.snapshot_selection.clone(),
+        ),
+        RollbackTarget::PreCreatorPatch => (
+            "pre_creator_patch",
+            run.ft_pre_patch_snapshot.clone(),
+            run.selection.clone(),
+        ),
+    };
+    let value = serde_json::json!({"operation":"restore", "target":target_name, "runId":run.run_id,
         "revision":run.revision, "editor":run.editor, "projectRoot":run.project_root,
-        "snapshotId":run.snapshot_id, "snapshotSelection":run.snapshot_selection,
+        "snapshotId":snapshot_id, "snapshotSelection":snapshot_selection,
         "currentFingerprint":current_fingerprint});
     Ok(Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
         .iter().map(|byte| format!("{byte:02x}")).collect())
 }
+
+/// Which retained full copy a reviewed restore returns the line to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollbackTarget {
+    /// The line's current restore point.
+    RestorePoint,
+    /// The copy kept from before the creator patch, present while the line carries its marker.
+    PreCreatorPatch,
+}
+
+impl RollbackTarget {
+    /// The wire name of the target; `None` names the default restore point for older callers.
+    pub fn parse(value: Option<&str>) -> Result<Self, AppErrorV1> {
+        match value {
+            None | Some("restorePoint") => Ok(Self::RestorePoint),
+            Some("prePatch") => Ok(Self::PreCreatorPatch),
+            Some(_) => Err(production_error(
+                "params_invalid",
+                "Choose the restore point or the state before the creator patch.",
+            )),
+        }
+    }
+}
+

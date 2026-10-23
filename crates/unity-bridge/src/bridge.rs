@@ -8,6 +8,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 const DEFAULT_BRIDGE_TIMEOUT: Duration = Duration::from_secs(1200);
+/// The supervised interactive creator session waits for the player's Finish or Cancel, which
+/// manual prefab steps can outgrow; the cap only ends a runaway process.
+pub const FT_PATCH_SESSION_LIMIT: Duration = Duration::from_secs(8 * 60 * 60);
 const OUTPUT_LIMIT: usize = 256 * 1024;
 
 impl UnityBridge for UnityBatchBridge {
@@ -87,8 +90,10 @@ impl UnityBatchBridge {
             fs::remove_file(&result_path)?;
         }
         let mut args = Self::invocation_args(&project.root, &request, &result_path);
+        let ft_session =
+            self.amf_production && command.operation == vua_orchestrator::UnityOperation::AmfFtPatch;
         if self.amf_production {
-            if command.operation == vua_orchestrator::UnityOperation::AmfFtPatch {
+            if ft_session {
                 // Only this versioned operation owns an interactive, supervised Editor session.
                 args.retain(|arg| arg != "-batchmode" && arg != "-quit");
             }
@@ -102,7 +107,7 @@ impl UnityBatchBridge {
             executable: self.executable.clone(),
             args,
             working_dir: None,
-            timeout: self.timeout,
+            timeout: if ft_session { FT_PATCH_SESSION_LIMIT } else { self.timeout },
             output_limit: OUTPUT_LIMIT,
             // R2-2: Unity 子进程同样剥离凭据基线。
             removals: vua_orchestrator::CREDENTIAL_ENV_REMOVALS
@@ -114,8 +119,7 @@ impl UnityBatchBridge {
         let outcome = self.runner.run_cancellable(&spec, poll).map_err(|error| match error {
             vua_orchestrator::ProcessError::Io(io) => BridgeError::Io(io),
         })?;
-        if self.amf_production && command.operation == vua_orchestrator::UnityOperation::AmfFtPatch
-            && !outcome.process_tree_clean {
+        if ft_session && !outcome.process_tree_clean {
             return Err(BridgeError::ProcessTreeUnclean);
         }
         Self::collect(&outcome, &result_path)
@@ -186,9 +190,11 @@ mod face_tracking_tests {
         }
         let calls = capture.0.lock().unwrap();
         assert!(calls[0].args.contains(&"-batchmode".into()) && calls[0].args.contains(&"-quit".into()));
+        assert_eq!(calls[0].timeout, Duration::from_secs(1200));
         assert!(!calls[1].args.contains(&"-batchmode".into()) && !calls[1].args.contains(&"-quit".into()));
         assert!(calls[1].args.contains(&"Vua.Editor.Bridge.AmfProductionEntryPoint.Run".into()));
-        assert_eq!(calls[1].timeout, Duration::from_secs(1200));
+        // The session waits for the player's Finish or Cancel; only a runaway process hits the cap.
+        assert_eq!(calls[1].timeout, FT_PATCH_SESSION_LIMIT);
         assert!(calls[1].removals.contains(&"GH_TOKEN".into()));
         drop(calls);
         let mut unclean = UnityBatchBridge::with_runner("synthetic-unity", Arc::new(Capture(Mutex::new(Vec::new()), false)));

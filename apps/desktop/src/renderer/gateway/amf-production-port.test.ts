@@ -173,16 +173,32 @@ describe("AMF production response boundary", () => {
   it("requires a restore plan to preserve current work and belong to this run", async () => {
     const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"a".repeat(64),snapshotId:"n3-snapshot",projectRoot:run.projectRoot,currentChanged:true,preserveCurrent:true};
     let response: unknown = plan;
-    const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
     const port = createAmfProductionPort(client);
     expect((await port.rollbackPlan("n3-test")).currentChanged).toBe(true);
     response = {...plan,preserveCurrent:false}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     response = {...plan,runId:"n3-other"}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     response = {...plan,snapshotId:""}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     await expect(port.rollback("n3-other",{...plan,preserveCurrent:true})).rejects.toThrow("restore_plan_invalid");
+    // The pre-patch target is optional; present it must name a snapshot and its own digest.
+    const prePatch = {snapshotId:"ft-snapshot-0",planDigest:"b".repeat(64)};
+    response = {...plan,prePatch}; expect((await port.rollbackPlan("n3-test")).prePatch?.planDigest).toBe(prePatch.planDigest);
+    response = {...plan,prePatch:{...prePatch,planDigest:"short"}}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
+    response = {...plan,prePatch:{...prePatch,snapshotId:""}}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
+    // Rolling back to it sends its digest and target; without the choice the default digest goes alone.
+    response = {schemaVersion:"0.1",operation:"amf.production",runId:"n3-test",taskId:"task-restore"};
+    await port.rollback("n3-test",{...plan,preserveCurrent:true,prePatch},"prePatch");
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.rollback",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:prePatch.planDigest,target:"prePatch"}});
+    await port.rollback("n3-test",{...plan,preserveCurrent:true,prePatch});
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.rollback",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:plan.planDigest}});
+    await expect(port.rollback("n3-test",{...plan,preserveCurrent:true},"prePatch")).rejects.toThrow("restore_plan_invalid");
   });
   it("accepts a run without revisions and rejects malformed revision items", () => {
     expect(isAmfProductionRun(run)).toBe(true);
+    expect(amfRunProblem({...run,ftPrePatchSnapshot:"ft-snapshot-0"})).toBeNull();
+    expect(amfRunProblem({...run,ftPrePatchSnapshot:null})).toBeNull();
+    expect(amfRunProblem({...run,ftPrePatchSnapshot:""})).toBe("snapshotId");
     const revision = {id:"rev-1",before:"assembly",takenAt:"2026-10-18T00:00:00Z",editedInUnity:false,
       summary:{avatar:null,outfits:[],sources:["coat"],lightingMaterials:0,sdkFixes:[]}};
     expect(isAmfProductionRun({...run,revisions:[revision]})).toBe(true);

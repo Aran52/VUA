@@ -1,6 +1,6 @@
-# Current development plan
+built (Aran52/VUA#32, #63): items 1, 3, 4 and 5, the banner names the failing field, the workshop follows tasks started elsewhere, and one card per run; a real reproduction of the transient failure remains |
 
-> Updated: 2026-10-23
+> Updated: 2026-10-24
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -109,10 +109,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
 | 44 | MCP result envelope | P-02 | done (Aran52/VUA#43): compact reads with Resources, the build in `vua_status`, and errors that say whether a retry is safe |
 
-Suggested next order: the AMF operations first — 10's workshop station, 5's save-and-close buttons,
-43's reproductions, the rest of 7 (image confirmation) and 33's switch options — with functional
-fixes alongside; then 13's design session. The author's real-machine checks listed in each row
-close the built slices.
+Suggested next order: with the workshop's operations in place (2026-10-24), the author's
+real-machine checks listed in each row come first, then 13's design session. Functional fixes go
+alongside; 35's start card and 33's built-result evidence are the next AMF features.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.

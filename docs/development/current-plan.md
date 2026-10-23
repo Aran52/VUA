@@ -115,7 +115,8 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts turntable-share, share-link-service and product-pictures |
 | 50 | AI connection as a first-run choice | — | planned |
 | 51 | Recipes creators trust | P-04 | planned: prompts recipe-booth-materials (Aran52/VUA#65), terms-everywhere, turntable-share, share-link-service; B by Claude |
-| 52 | Signed Windows releases | — | SignPath application filled in on 2026-10-24; awaits the author's submission and approval |
+| 52 | Signed Windows releases | — | SignPath application submitted on 2026-10-24; awaits approval |
+| 53 | Consistent interface by audit | — | item 1 prompted (`design-audit`); items 2–3 follow its report |
 
 Suggested next order: with the workshop's operations in place (2026-10-24), the author's
 real-machine checks listed in each row come first, then 13's design session. Functional fixes go
@@ -992,6 +993,30 @@ computer changes with this slice.
 
 **Done when** a published installer shows VUA's signer in Windows' file properties and installs
 from a fresh download.
+
+## 53 — Consistent interface by audit
+
+Author request, 2026-10-24: the interface should look more refined without a page-by-page review
+by the author. The renderer has 61 stylesheets of about 9,100 lines, the shared `Card` beside 33
+hand-made card styles, and literal font sizes, radii and colours in 28, 45 and 17 places. The
+inconsistency, more than any single page, is what reads as unrefined.
+
+1. An audit tool renders every preview view and fixture in both themes, checks computed styles
+   against the [design standard](../design/design-standard.md) (type scale, colour tokens,
+   contrast, spacing grid, radii, shadows, blur, one jurisdiction colour, target size, overflow in
+   all five languages) and, as proposals, rules adapted from ZCode's design system (radii that
+   step down with nesting, fewer nested bordered surfaces, border density). Findings group by the
+   stylesheet rule that causes them, so the report ranks fixes by how much each one repairs. It
+   also writes a baseline. The audit process lives in `docs/design/design-audit.md`.
+2. Claude tightens the tokens and adds page anatomy and composed components (card variants, list
+   row, section header, key-value row, stat tile, toolbar), deciding the proposal rules with the
+   author from the first report's data.
+3. Agents migrate one functional area per pull request onto those components; each pull request
+   lowers the area's findings and shows its before-and-after contact sheet, and CI then refuses
+   findings beyond the baseline.
+
+**Done when** the audit reports no findings beyond an agreed baseline that only shrinks, and the
+author approves the before-and-after sheets of each area.
 
 ## Open decisions
 

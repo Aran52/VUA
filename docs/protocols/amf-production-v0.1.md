@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.28.0
+> Document version: 0.29.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -489,9 +489,12 @@ feed: the newest stable release of the material's single version line, pinned as
 Materials spanning several lines and projects already carrying the package get no install.
 A legacy copy bundled inside a selected package — located through the feed cache's
 `legacyFolders`/`legacyFiles`, or the table's fallback before the first feed refresh — leaves
-for the official package only when the exact release about to be installed covers every
-`.shader` GUID in the copy; lilToon keeps its historical always-replace rule. Any other copy
-imports unchanged and nothing is installed for it. Installation failures keep failing the step.
+for the official package only when one recorded release's complete `.shader` set covers every
+GUID in the copy, the shaders the selected materials reference and the package's shaders other
+selected sources provide; the install pins that exact release, so a copy never meets an
+unverified release. Multi-line Poiyomi copies and the utility shaders shipped with them leave
+too; lilToon keeps its historical always-replace rule. Any other copy imports unchanged and
+nothing is installed for it. Installation failures keep failing the step.
 After Unity reports `facts.missingShaderMaterials`, each recognized `guide` package, and each
 recognized `auto` package whose needed version lines the project does not carry, adds one
 `amf.package.guide` warning naming the package, the affected material count, the needed version
@@ -552,6 +555,8 @@ Editor privileges; this is not an OS sandbox and cannot undo external writes. Se
 [design and SOP drafts](../development/face-tracking.md) for adapter limits and real-device review.
 
 ## Document changelog
+
+- 0.29.0 (2026-10-23): bundled Poiyomi copies spanning several version lines — and the utility shaders shipped with them — leave for the official package when one recorded release's complete shader set covers them, pinned to that exact release; the feed cache reads vrc-get's nested repository documents.
 
 - 0.28.0 (2026-10-21): add optional FT source facts, a digest-bound confirmed creator-menu session with snapshot/version/recheck recovery, and explicit opaque-patch replay restrictions.
 

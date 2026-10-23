@@ -54,6 +54,13 @@ const runs: Record<string, AmfProductionRun> = {
 };
 // A finished line whose package also carries the standard Meiyun prefab; the preview picks it to show the rebuild note.
 const outfitChoice = { sourceId: "outfit", prefabPath: "Assets/Outfit/Outfit.prefab", mode: "merge_armature" as const, bone: "", toggleName: "TshirtShorts", active: true };
+// Two main outfits worn one at a time: the T-shirt on by default, the costume off and reset per world.
+const costumeChoice = { sourceId: "costume", prefabPath: "Assets/Costume4/Costume4.prefab", mode: "merge_armature" as const, bone: "", toggleName: "Costume4", active: false, saved: false, group: "main" };
+const mainSelection = { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [{ ...outfitChoice, group: "main" }, costumeChoice] };
+runs.switchline = { ...runs.finished!, runId: "switchline",
+  sources: [...runs.finished!.sources, { ...runs.finished!.sources[1]!, sourceId: "costume", itemName: "Meiyun_Costume4_v1.0.0.zip", name: "Meiyun_Costume4.unitypackage" }],
+  prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[1]!, sourceId: "costume", path: "Assets/Costume4/Costume4.prefab", name: "Costume4" }],
+  selection: mainSelection, result: { facts: { ...runs.finished!.result!.facts!, observedSelection: mainSelection } } } as AmfProductionRun;
 runs.rebuild = { ...runs.finished!, runId: "rebuild",
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
@@ -205,6 +212,8 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   "ft-none": { run: "ftnone", clicks: ["workshop-station-face"] },
   "close-offer": { run: "finished", clicks: ["workshop-open"] },
   texture: { run: "texline", clicks: [] },
+  switch: { run: "switchline", clicks: ["workshop-station-plan"] },
+  "switch-adjust": { run: "switchline", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   versions: { run: "versions", clicks: ["workshop-station-assemble"] },
   "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
   "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },

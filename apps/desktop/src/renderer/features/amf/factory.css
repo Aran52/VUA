@@ -94,7 +94,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__line-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--vua-font-caption); }
 
 /* Station strip, shared by the base map and the workshop. */
-.vua-factory__stations, .vua-line__stations { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.vua-factory__stations, .vua-line__stations { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 .vua-factory__stations > span { padding: 5px 6px; border: 1px solid var(--vua-border); font-size: 11px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vua-text-secondary); }
 .vua-factory__stations > [data-state="done"], .vua-line__station[data-state="done"] { border-color: color-mix(in srgb, var(--vua-success) 60%, transparent); color: var(--vua-success); }
 .vua-factory__stations > [data-state="running"], .vua-line__station[data-state="running"] { border-color: var(--vua-accent); color: var(--vua-accent); }
@@ -207,7 +207,7 @@ button.vua-factory__alert { cursor: pointer; }
 @media (max-width: 900px) {
   .vua-page.vua-workshop { grid-template-columns: minmax(0, 1fr); }
   .vua-workshop__rail { position: static; }
-  .vua-line__stations { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+  .vua-line__stations { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
 }
 
 /* Live progress of the running step. */

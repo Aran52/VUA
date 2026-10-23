@@ -106,6 +106,7 @@ export const factoryCopy = {
         title: "Adjustments in Unity",
         prompt: "“{garment}” was adjusted in Unity: {count} objects moved.",
         missingNote: "{count} deleted objects stay out of the fit.",
+        skipped: "The saved fit for “{garment}” names {count} objects this outfit no longer has; they kept the outfit's own placement.",
         nameLabel: "Fit name",
         save: "Save as a fit", saving: "Saving…", saved: "Fit saved",
         hint: {
@@ -267,6 +268,7 @@ export const factoryCopy = {
         title: "Unity 里的调整",
         prompt: "「{garment}」在 Unity 里调整过：{count} 个对象挪动了位置。",
         missingNote: "{count} 个已删除的对象不记入微调。",
+        skipped: "「{garment}」的已存微调里有 {count} 个对象在这件衣服里找不到，它们保持衣服原来的位置。",
         nameLabel: "微调名称",
         save: "保存为微调", saving: "正在保存…", saved: "微调已保存",
         hint: {
@@ -428,6 +430,7 @@ export const factoryCopy = {
         title: "Unity 裡的調整",
         prompt: "「{garment}」在 Unity 裡調整過：{count} 個物件挪動了位置。",
         missingNote: "{count} 個已刪除的物件不記入微調。",
+        skipped: "「{garment}」的已存微調裡有 {count} 個物件在這件衣服裡找不到，它們保持衣服原來的位置。",
         nameLabel: "微調名稱",
         save: "儲存為微調", saving: "正在儲存…", saved: "微調已儲存",
         hint: {
@@ -589,6 +592,7 @@ export const factoryCopy = {
         title: "Unity での調整",
         prompt: "「{garment}」が Unity で調整されています：{count} 個のオブジェクトが移動しました。",
         missingNote: "削除された {count} 個のオブジェクトはフィットに含めません。",
+        skipped: "「{garment}」の保存済みフィットにある {count} 個のオブジェクトがこの衣装に見つからないため、衣装の元の位置のままです。",
         nameLabel: "フィット名",
         save: "フィットとして保存", saving: "保存しています…", saved: "フィットを保存しました",
         hint: {
@@ -750,6 +754,7 @@ export const factoryCopy = {
         title: "Unity에서 조정됨",
         prompt: "「{garment}」이(가) Unity에서 조정됐어요: 오브젝트 {count}개가 움직였어요.",
         missingNote: "삭제된 오브젝트 {count}개는 핏에 넣지 않아요.",
+        skipped: "“{garment}”의 저장된 핏에 있는 오브젝트 {count}개를 이 의상에서 찾을 수 없어 의상의 원래 위치를 유지해요.",
         nameLabel: "핏 이름",
         save: "핏으로 저장", saving: "저장하는 중…", saved: "핏을 저장했어요",
         hint: {

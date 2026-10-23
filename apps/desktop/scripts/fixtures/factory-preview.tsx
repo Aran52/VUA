@@ -8,7 +8,7 @@ import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsStartDialog.tsx";
 import { controlPreview } from "./control-center-preview.tsx";
-import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
+import { AmfProductionError, type AmfProductionPort, type AmfProductionRun, type LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
 import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
 import "../../src/renderer/features/deployer/website-tests.css";
@@ -31,8 +31,8 @@ import "../../src/renderer/features/settings/settings.css";
 
 const view = location.hash.slice(1) || "map";
 const sources = [
-  { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage" },
-  { sourceId: "outfit", itemId: "b", itemName: "TshirtShorts_Meiyun_v1.00.zip", name: "TshirtShorts_Meiyun_v1.00.unitypackage" },
+  { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage", productIds: ["booth:1"] },
+  { sourceId: "outfit", itemId: "b", itemName: "TshirtShorts_Meiyun_v1.00.zip", name: "TshirtShorts_Meiyun_v1.00.unitypackage", productIds: ["booth:2"] },
   { sourceId: "costume", itemId: "c", itemName: "Meiyun_Costume4_v1.0.0.zip", name: "Meiyun_Costume4.unitypackage" },
 ];
 const base = (runId: string, phase: AmfProductionRun["phase"], steps: [string, string, string?][], outfit = "outfit"): AmfProductionRun => ({
@@ -54,6 +54,13 @@ const runs: Record<string, AmfProductionRun> = {
 };
 // A finished line whose package also carries the standard Meiyun prefab; the preview picks it to show the rebuild note.
 const outfitChoice = { sourceId: "outfit", prefabPath: "Assets/Outfit/Outfit.prefab", mode: "merge_armature" as const, bone: "", toggleName: "TshirtShorts", active: true };
+// Two main outfits worn one at a time: the T-shirt on by default, the costume off and reset per world.
+const costumeChoice = { sourceId: "costume", prefabPath: "Assets/Costume4/Costume4.prefab", mode: "merge_armature" as const, bone: "", toggleName: "Costume4", active: false, saved: false, group: "main" };
+const mainSelection = { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [{ ...outfitChoice, group: "main" }, costumeChoice] };
+runs.switchline = { ...runs.finished!, runId: "switchline",
+  sources: [...runs.finished!.sources, { ...runs.finished!.sources[1]!, sourceId: "costume", itemName: "Meiyun_Costume4_v1.0.0.zip", name: "Meiyun_Costume4.unitypackage" }],
+  prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[1]!, sourceId: "costume", path: "Assets/Costume4/Costume4.prefab", name: "Costume4" }],
+  selection: mainSelection, result: { facts: { ...runs.finished!.result!.facts!, observedSelection: mainSelection } } } as AmfProductionRun;
 runs.rebuild = { ...runs.finished!, runId: "rebuild",
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
@@ -88,7 +95,17 @@ const fitObject = (path: string) => ({ path, localPosition: { x: 0.01, y: 0, z: 
 runs.fitline = { ...runs.finished!, runId: "fitline",
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
   fitChanges: [{ sourceId: "outfit", moved: [fitObject("ChestRibbon"), fitObject("Skirt/Bow#1")], missing: ["Clips#2"], changesDigest: "d".repeat(64) }],
-  availableFits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] } as AmfProductionRun;
+  availableFits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }],
+  result: { facts: { ...runs.finished!.result!.facts!, fitSkipped: [{ sourceId: "outfit", paths: ["Clips#3", "Skirt/Bow#2"] }] } } } as AmfProductionRun;
+// A finished line measured at 85 MiB on PC: two outfit textures can drop to BC7, the body stays.
+const texture = (id: string, path: string, size: number, format: string, bytes: number, editable = true) => ({ id, path, width: size, height: size, format, mipmap: true, faces: 1,
+  estimatedBytes: bytes, known: true, maxSize: size, editable, reason: editable ? "" : "shared_with_avatar" });
+const pcTextures = [texture("body", "Assets/Meiyun/Texture/Body.png", 4096, "DXT5", 22369621, false),
+  texture("shirt", "Assets/Amenbo/TshirtShorts/Texture/Shirt.png", 4096, "RGBA32", 89478484), texture("shorts", "Assets/Amenbo/TshirtShorts/Texture/Shorts.png", 2048, "RGBA32", 22369620)];
+const pcTotal = pcTextures.reduce((sum, item) => sum + item.estimatedBytes, 0);
+runs.texline = { ...runs.finished!, runId: "texline", result: { facts: { ...runs.finished!.result!.facts!, textureMemory: [
+  { platform: "pc", textures: pcTextures, totalBytes: pcTotal, complete: true, rank: "poor" },
+  { platform: "android", textures: pcTextures, totalBytes: pcTotal, complete: true, rank: "very_poor" }] } } } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
@@ -98,7 +115,11 @@ const api = {
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
   async previewImage() { return pixel; },
-  async open(runId: string) { return { runId, taskId: "task-open" }; },
+  // The close-offer view: Unity holds the project, so opening it is refused with the save-and-close action.
+  async open(runId: string) {
+    if (view === "workshop-close-offer") throw new AmfProductionError("vua.amf_production.project_open", "Unity has this work project open. You can save and close Unity first.", "amf.production.closeEditor");
+    return { runId, taskId: "task-open" };
+  },
   // The real case: the T-shirt materials use 0.05 while the body uses 0.1.
   async planLighting(runId: string) { return { runId, planDigest: "a".repeat(64), reference: { min: "0.1", max: "1" }, referenceReason: null,
     entries: ["ts_Black", "ts_Blue", "ts_Pink", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, sourceId: "outfit", current: { min: "0.05", max: "1" }, proposed: { min: "0.1", max: "1" } })),
@@ -109,6 +130,14 @@ const api = {
     menu: { ...ftMenu, id: menuId }, avatarGlobalObjectId: "gid-avatar", execution: "interactive_editor", replay: "manual", requiresTrustedCodeConfirmation: true,
     warning: "Creator code runs with Editor privileges. The restore point covers only the work project. Finish on the same Avatar. Recipe and version replay will require manual reapplication." }; },
   async faceTrackingPatch(runId: string) { return { runId, taskId: "task-ft" }; },
+  async planTextureMemory(runId: string, platform: "pc" | "android", targetRank: "excellent" | "good" | "medium" | "poor") {
+    const current = runs.texline!.result!.facts!.textureMemory!.find(report => report.platform === platform)!;
+    const entries = current.textures.filter(item => item.editable).map(item => ({ current: item, estimatedBytes: Math.round(item.estimatedBytes / 4),
+      proposed: { path: item.path, platform, maxSize: item.maxSize, format: platform === "pc" ? "BC7" : "ASTC_4x4" } }));
+    const total = current.totalBytes - entries.reduce((sum, entry) => sum + entry.current.estimatedBytes - entry.estimatedBytes, 0);
+    return { schemaVersion: "0.1", runId, planDigest: "9".repeat(64), plan: { platform, targetRank, current, entries, estimatedTotalBytes: total,
+      estimatedRank: platform === "pc" ? "good" : "poor", reachesTarget: platform === "pc" } };
+  },
   // The versions views: rev-1's original is gone from the library, rev-4 reviews with a Unity-edit warning, rev-2 rebuilds on the recorded base.
   async revisionPlan(runId: string, revisionId: string) {
     const revision = runs.versions!.revisions!.find(item => item.id === revisionId)!;
@@ -181,6 +210,10 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   "ft-dialog": { run: "ftline", clicks: ["workshop-station-face", "workshop-ft-menu-aaaaaaaa"] },
   "ft-locked": { run: "ftlocked", clicks: ["workshop-station-face"] },
   "ft-none": { run: "ftnone", clicks: ["workshop-station-face"] },
+  "close-offer": { run: "finished", clicks: ["workshop-open"] },
+  texture: { run: "texline", clicks: [] },
+  switch: { run: "switchline", clicks: ["workshop-station-plan"] },
+  "switch-adjust": { run: "switchline", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   versions: { run: "versions", clicks: ["workshop-station-assemble"] },
   "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
   "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },
@@ -313,7 +346,7 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
   <NetworkPreview details={view === "network-tiers-details"} />
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
-</GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
+</GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api, libraryBrowser: libraryApi }}>
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
 </GatewayProvider>);
 

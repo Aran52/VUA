@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.34.0
+> Document version: 0.35.0
 > Status: Candidate
-> Updated: 2026-10-23
+> Updated: 2026-10-24
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -76,6 +76,18 @@ against executable identity: only full `2022.3.22f1` or `2022.3.22f1c1` is admit
 prefab must occur in the run's observed candidates for that source. Bone attachment uses an
 observed humanoid bone name, not an arbitrary hierarchy guess. Empty `toggleName` preserves the
 material's own menu without adding a new toggle.
+
+Each outfit may also carry switch options, both left out of the JSON at their defaults so earlier
+selections, plan digests and Recipes stay unchanged:
+
+- `saved` (default `true`) keeps the switch's state across worlds; `false` resets it in each world.
+- `group` (default empty) names an exclusive group: 1–32 letters, digits, `_` or `-`. Only an
+  outfit with a switch can join one, and at most one switch of a group is on by default. Switches of
+  a group share one parameter, so turning one on turns the others off. The workshop offers one
+  group, `main`, for main outfits worn one at a time.
+
+Violations fail with `menu_invalid`. Changing a retained outfit's options reconfigures its switch in
+place.
 
 Direct UnityPackages and safe UnityPackage members of local ZIP files are selectable without
 changing the library originals. Import preflight rejects differing content at a shared path,
@@ -724,20 +736,16 @@ provides inventory, VRAM sorting and batch importer edits. It does not provide V
 digests, permission receipts, durable tasks, restore points or failure recovery. This slice uses
 Unity's public importer API directly and neither copies nor distributes lilAvatarUtils code.
 
-## Document changelog
-
-- 0.34.0 (2026-10-23): add explicit reviewed outfit removal with ownership inventory, confirmation, protected history, fit preservation and independent verification.
-
-- 0.33.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
-
 ## Synced parameter budget estimate
 
 `amf.production.plan` carries `parameterBudget`, the plan's estimate of the synced
 expression-parameter bits the assembled Avatar would use against VRChat's 256-bit limit. It
 merges, by merged name and in MA's build order, the selected Avatar's own Expression Parameters
 asset, the MA Parameters its prefab already carries (the outfits it wears), and each selected
-outfit's MA Parameters, and adds one synced Bool for each switch VUA adds to a labelled outfit
-(an MA Menu Item whose parameter MA creates at build time under a unique name). `state` is
+outfit's MA Parameters, and adds the switches VUA creates: one synced Bool for each labelled
+outfit outside a group (an MA Menu Item whose parameter MA creates at build time under a unique
+name), and for each exclusive group one shared Int (8 bits), or a Bool for a group of one, counted
+on the group's first outfit. `state` is
 `fits`, `near_limit` (above 90 % of the limit), `over_limit` (the SDK refuses the upload; the
 plan says so) or `unknown`. `unknown` covers runs whose last inspection predates the evidence,
 an Avatar whose Expression Parameters asset could not be read, and any truncated observation;
@@ -752,6 +760,12 @@ is a source estimate (`evidence: "unity_source_estimate"`), never the SDK's buil
 the SDK's own check reports after assembly.
 
 ## Document changelog
+
+- 0.35.0 (2026-10-24): outfit selections gain the optional switch options `saved` and `group` (exclusive groups), left out at their defaults; the parameter estimate counts a group's shared Int once.
+
+- 0.34.0 (2026-10-23): add explicit reviewed outfit removal with ownership inventory, confirmation, protected history, fit preservation and independent verification.
+
+- 0.33.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
 
 - 0.32.0 (2026-10-23): add confirmed, protected save/close tasks, bound Editor saving receipts plus project-release observation, optional close facts and project-open action hints.
 

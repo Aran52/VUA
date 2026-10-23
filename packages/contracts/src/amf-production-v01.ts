@@ -8,6 +8,19 @@ export interface AmfOutfitSelection {
   readonly sourceId: string; readonly prefabPath: string;
   readonly mode: "merge_armature" | "attach_to_bone"; readonly bone: string;
   readonly toggleName: string; readonly active: boolean;
+  /** Whether the switch keeps its state across worlds; absent means saved. */
+  readonly saved?: boolean;
+  /** An exclusive group shared with other switches; absent or empty means independent. */
+  readonly group?: string;
+}
+/** A switch group name: letters, digits, `_` and `-`; empty in Unity's reports means none. */
+export const AMF_SWITCH_GROUP = /^[A-Za-z0-9_-]{0,32}$/u;
+/** The optional switch options of an outfit entry, checked alongside its required keys. */
+export function hasAmfSwitchOptions(value: Record<string, unknown>, required: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return required.every(key => key in value) && keys.every(key => required.includes(key) || key === "saved" || key === "group")
+    && (value.saved === undefined || typeof value.saved === "boolean")
+    && (value.group === undefined || (typeof value.group === "string" && AMF_SWITCH_GROUP.test(value.group)));
 }
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
@@ -184,7 +197,7 @@ export function isAmfAvatarName(value: unknown): value is string {
 }
 export function isAmfAssemblySelection(value: unknown): value is AmfAssemblySelection {
   if (!record(value) || !exact(value, ["avatarPrefab", "outfits"]) || !text(value.avatarPrefab) || !Array.isArray(value.outfits) || value.outfits.length < 1 || value.outfits.length > 64) return false;
-  return value.outfits.every(outfit => record(outfit) && exact(outfit, ["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"])
+  return value.outfits.every(outfit => record(outfit) && hasAmfSwitchOptions(outfit, ["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"])
     && text(outfit.sourceId, 256) && text(outfit.prefabPath) && (outfit.mode === "merge_armature" || outfit.mode === "attach_to_bone")
     && typeof outfit.bone === "string" && outfit.bone.length <= 80 && typeof outfit.toggleName === "string" && outfit.toggleName.length <= 80
     && !/[\u0000-\u001f]/u.test(outfit.toggleName) && typeof outfit.active === "boolean");

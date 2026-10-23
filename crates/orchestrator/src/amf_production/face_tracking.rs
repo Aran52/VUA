@@ -157,6 +157,9 @@ impl AmfProductionEngine {
             confirm_trusted_code: true };
         let mut run = self.get(run_id)?;
         let before = run.clone();
+        // A copy kept from an earlier patch belongs to that patch only while its marker remains;
+        // once a restore removed the marker, this patch records its own pre-patch state.
+        let marked_before = manual_face_tracking(&run);
         run.task_id = ctx.task_id().into();
         run.phase = "assembling".into(); run.error = None; run.recovery = None;
         let mut snapshot = None;
@@ -182,7 +185,7 @@ impl AmfProductionEngine {
             run.phase = "succeeded".into(); run.confirmed_digest = None;
             // The first patch's pre-patch copy stays reachable while the marker exists; a later
             // patch on the same marked line keeps the earliest one.
-            if run.ft_pre_patch_snapshot.is_none() {
+            if run.ft_pre_patch_snapshot.is_none() || !marked_before {
                 run.ft_pre_patch_snapshot = snapshot.clone();
             }
             Ok(())

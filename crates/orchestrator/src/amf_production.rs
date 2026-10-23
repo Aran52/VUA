@@ -971,7 +971,8 @@ impl AmfProductionEngine {
         if let Some(id) = run.snapshot_id.as_deref() {
             keep.push(id);
         }
-        if let Some(id) = run.ft_pre_patch_snapshot.as_deref() {
+        // The pre-patch copy is kept only while the line still carries the creator-patch marker.
+        if let Some(id) = run.ft_pre_patch_snapshot.as_deref().filter(|_| face_tracking::manual_face_tracking(run)) {
             keep.push(id);
         }
         if keep.is_empty() {

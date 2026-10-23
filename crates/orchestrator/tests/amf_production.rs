@@ -681,6 +681,27 @@ fn pre_patch_copy_survives_later_fixes_and_a_reviewed_restore_returns_to_it() {
 }
 
 #[test]
+fn a_patch_after_the_marker_left_records_its_own_pre_patch_copy() {
+    let h = Harness::new();
+    let digest = face_tracking_ready(&h);
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let mut run = h.engine.get("n3-test").unwrap();
+    let stale = run.ft_pre_patch_snapshot.clone().expect("the first patch records its pre-patch copy");
+    // A restore took the line back before the patch while the record still names the old copy.
+    fs::remove_file(Path::new(&run.project_root).join("ProjectSettings/VUA.FaceTracking.json")).unwrap();
+    run.result["facts"]["faceTracking"]["manualReplayRequired"] = serde_json::json!(false);
+    fs::write(h.root.join("production/runs/n3-test.json"), serde_json::to_vec(&run).unwrap()).unwrap();
+    assert!(h.engine.rollback_plan("n3-test").unwrap()["prePatch"].is_null());
+    let digest: String = h.engine.face_tracking_plan("n3-test", &"a".repeat(64)).unwrap()["planDigest"].as_str().unwrap().into();
+    assert!(h.job(move |e, ctx| e.face_tracking_patch("n3-test", &"a".repeat(64), &digest, true, ctx)));
+    let patched = h.engine.get("n3-test").unwrap();
+    assert_ne!(patched.ft_pre_patch_snapshot.as_deref(), Some(stale.as_str()), "the stale copy is not reused");
+    assert_eq!(patched.ft_pre_patch_snapshot, patched.snapshot_id, "the new patch keeps the state right before it");
+    let keeps = h.platform.prune_keeps.lock().unwrap().last().cloned().unwrap();
+    assert!(!keeps.contains(&stale), "pruning drops the stale copy: {keeps:?}");
+}
+
+#[test]
 fn patch_failure_missing_receipt_recheck_failure_target_drift_and_cancel_restore_marker_and_facts() {
     for outcome in [2, 3, 4, 5, 6] {
         let h = Harness::new();

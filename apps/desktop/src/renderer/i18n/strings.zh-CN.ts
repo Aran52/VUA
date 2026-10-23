@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -32,6 +34,8 @@ import type { Strings } from "./strings.en.ts";
  *   仅 gateway fixture 可达,生产构建被 Tree-shaking 剔除)。
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["zh-CN"],
+  outfitRemoval: outfitRemovalCopy["zh-CN"],
   faceTracking: faceTrackingCopy["zh-CN"],
   toolConnection: toolConnectionCopy["zh-CN"],
   browser: browserCopy["zh-CN"],
@@ -59,10 +63,14 @@ export const strings: Strings = {
     invalid: "需填写名称和不重复的 HTTPS 地址，地址不能含登录信息或片段标记。",
     empty: "点击右上角 + 添加网站。", unavailable: "网站测试暂不可用，不影响安装软件。",
     storageFailed: "修改本次有效，但未能保存。",
-    europe: "欧洲", america: "美国", japan: "日本", west: "西部", east: "东部", regionUnavailable: "区域测试暂不可用",
+    regionUnavailable: "区域测试暂不可用",
     regionTitle: "区域参考延迟", testRegions: "测试各区", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "圣何塞 · 美西", use: "Ashburn · 华盛顿附近", jp: "东京 · 日本", eu: "阿姆斯特丹 · 欧洲" },
-    regionScope: "参考点为各游戏区域附近的 Oracle Cloud 节点，取三次 HTTPS 响应中位数，用于比较各区；游戏内 Ping 可能不同。",
+    regionShort: { usw: "美西", use: "美东", jp: "日本", eu: "欧洲" },
+    regionClosest: "最近", regionAboutSame: "差不多", regionTierN: "第 {n} 档",
+    regionUnsteady: "不稳定", regionUnsteadyHint: "多次测量差距较大，数值仅供参考。",
+    regionViaProxy: "本次经过本机代理测得，和游戏实际走的路线可能不同。",
+    regionScope: "到各区参考点的时延，不是 VRChat 房间的 Ping。",
     statuses: { timeout: "超时", connection_failed: "失败", probe_error: "不可用", http_error: "HTTP 错误", redirected: "重定向", reachable: "已连接" },
   },
   /** 术语本地注释(键必须与 terms.ts 的 TERMS 一一对应;空串 = 无注释,仅显示术语) */

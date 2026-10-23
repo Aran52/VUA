@@ -176,6 +176,14 @@
 .vua-control__toolbar > .vua-button:last-child { margin-inline-start: auto; }
 .vua-control__confirm { --kind: var(--vua-warning); }
 
+/* 包页面按权限模式分档:结论卡片、自行决定模式的「详情」折叠、guide 提示行。 */
+.vua-control__conclusion { display: grid; gap: 8px; }
+.vua-control__next-step { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.vua-control__moded > summary { padding: 4px 0; color: var(--vua-text-secondary); font: var(--vua-font-caption); cursor: pointer; }
+.vua-control__moded[open] > summary { margin-bottom: 8px; }
+.vua-control__moded > summary:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-control__guide-need { margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
 .vua-control__table { display: flex; flex-direction: column; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); }
 .vua-control__tr { display: grid; grid-template-columns: minmax(0, 1fr) 170px 150px 56px; align-items: center; gap: 12px; padding: 10px 14px 10px 11px; border-top: 1px solid var(--vua-border); border-inline-start: 3px solid transparent; }
 .vua-control__tr:first-child { border-top: 0; }
@@ -240,3 +248,12 @@ html[data-effects="off"] .vua-graph__edges line, html[data-effects="off"] .vua-g
   .vua-control__corner, .vua-control__edge { background: CanvasText; }
   .vua-control__backdrop { display: none; }
 }
+.vua-fits { padding-top: 8px; border-top: 1px solid var(--vua-border); }
+.vua-fits__list { padding: 0; margin: 0; list-style: none; }
+.vua-fits__list > li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-block: 12px; border-bottom: 1px solid var(--vua-border); }
+.vua-fits__list > li > input { flex: 1; min-width: 180px; }
+.vua-fits__facts { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.vua-fits__facts small { color: var(--vua-text-secondary); overflow-wrap: anywhere; }
+.vua-fits__actions { display: flex; gap: 8px; margin-inline-start: auto; }
+.vua-fits__error { flex-basis: 100%; }
+.vua-fits__error p { margin: 4px 0 0; }

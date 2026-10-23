@@ -415,7 +415,7 @@ export class AiToolsServer {
         || !editors.some(v => record(v) && v.path === request.params.editorPath)) throw new Error("material_or_editor_no_longer_available");
       reviewed = { sources: sources.filter(v => record(v) && request.params.sources.some(s => s.sourceId === v.sourceId)),
         editors: editors.filter(v => record(v) && v.path === request.params.editorPath) };
-    } else if (request.method === "amf.production.reinspect" || request.method === "amf.production.open" || request.method === "amf.production.upload") {
+    } else if (request.method === "amf.production.reinspect" || request.method === "amf.production.open" || request.method === "amf.production.closeEditor" || request.method === "amf.production.upload") {
       reviewed = await this.invoke({ schemaVersion: 1, requestId: `review-${randomUUID()}`, method: "amf.production.get", params: { schemaVersion: "0.1", runId: request.params.runId } });
       if (record(reviewed)) reviewed = { runId: reviewed.runId, phase: reviewed.phase, projectRoot: reviewed.projectRoot,
         editor: reviewed.editor, sources: reviewed.sources, selection: reviewed.selection };

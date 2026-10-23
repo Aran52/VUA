@@ -229,6 +229,12 @@
 .vua-release-guide__button { justify-self: start; padding: 3px 10px; border-radius: 4px; background: var(--room); color: var(--vua-on-status); font-weight: 650; }
 @media (max-width: 720px) { .vua-release-guide__body { grid-template-columns: minmax(0, 1fr); } }
 
+/* 上传图解:每步一句话加一张图位;图待作者补,先留空位不画假界面。 */
+.vua-upload-guide__steps { margin: 0; padding-inline-start: 1.2em; display: grid; gap: var(--vua-space-3); font: var(--vua-font-caption); }
+.vua-upload-guide__steps li { display: grid; gap: var(--vua-space-2); }
+.vua-upload-guide__steps p { margin: 0; }
+.vua-upload-guide__shot { display: grid; place-items: center; aspect-ratio: 16 / 9; max-width: 480px; border: 1px dashed var(--vua-border-strong); border-radius: var(--vua-radius-control); color: var(--vua-text-secondary); background: color-mix(in srgb, var(--room) 5%, var(--vua-bg-panel)); }
+
 /* Upload check against the account's Avatar list (vrchat-session v0.1). */
 .vua-vrchat-check { display: grid; gap: var(--vua-space-1); padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); font: var(--vua-font-caption); }
 .vua-vrchat-check__title { display: inline-flex; align-items: center; gap: 6px; color: var(--vua-text-secondary); font-weight: 650; }

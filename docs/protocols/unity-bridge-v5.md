@@ -1,14 +1,14 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.14.0
+> Document version: 0.19.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
 The fixed entry point is `Vua.Editor.Bridge.AmfProductionEntryPoint.Run`.
 
-Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix` and `amf_ft_patch`. The command envelope has `schemaVersion: 5`,
+Operations are `amf_prepare`, `amf_inspect`, `amf_assemble`, `amf_turntable`, `amf_sdk_fix`, `amf_ft_patch`, `amf_texture_import` and `amf_outfit_remove`. The command envelope has `schemaVersion: 5`,
 `commandId`, `projectId`, `operation`, `dryRun`, optional `expectedProjectFingerprint` and
 `payload`. `payload.planRef` names an `*.amf-plan.json` request under the managed project's
 `.vua/bridge/`; `payload.planHash` is its lowercase 64-character SHA-256 (without a prefix).
@@ -121,6 +121,46 @@ Avatar, invokes the Auto Fix of each named item the SDK still offers one for, sa
 scene and assets, and then observes the scene and reads `sdkReview` again. `sdkFixesApplied`
 lists the items it fixed; `amf.sdk.fix_unavailable` names how many chosen items no longer offer a
 fix, and `amf.sdk.fix_failed` carries each fix the SDK could not complete.
+
+## Save and close handoff
+
+The interface-mode `InstallHandoffObserver` accepts `.vua/bridge/amf-close.json` before the SDK
+open request, using the same exact Editor pair. This is an Editor lifecycle handoff, not another
+batch command or permission to change the Avatar. The file is written atomically after the
+player confirms in VUA and the engine persists its disk restore point and version record:
+
+`{schemaVersion: "0.1", runId, closeId, confirmed: true, expiresAt}`.
+
+`runId` must match `.vua/amf-run.txt`; IDs are plain ASCII alphanumeric/hyphen strings of at most
+100 characters. The request is at most 8 KiB, consumed once before saving and valid for two
+minutes. The observer refuses expired/invalid times and expiry more than three minutes away.
+It waits through compiling and importing. Play mode, an open prefab stage or an active/pending
+SDK upload/open handoff answers `editor_busy`, without exit.
+
+Before saving any scene, the observer rejects a loaded dirty scene with no saved path as
+`untitled_scene`, so the player chooses its path in Unity. It saves each loaded dirty scene with
+[EditorSceneManager.SaveScene](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/SceneManagement.EditorSceneManager.SaveScene.html),
+checks its return and dirty state, then calls
+[AssetDatabase.SaveAssets](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/AssetDatabase.SaveAssets.html).
+Exceptions, save error/exception/assert logs, remaining persistent dirty serialized assets/importers on disk in the project (`Assets/` or embedded `Packages/`), and scenes dirtied
+again by save hooks prevent exit. Unity's internal MonoScript reflection objects and registry-package
+cache resources are excluded from the dirty-object check; script import settings in the project
+still count through their MonoImporter. It never treats dismissing a save dialog as saving.
+
+It atomically writes `.vua/bridge/amf-close.result.json` before attempting exit:
+
+`{schemaVersion: "0.1", runId, closeId, outcome: "saved" | "failed", scenesSaved, assetsSaved,
+editorClosed: false, reason, detail}`.
+
+`scenesSaved` and `assetsSaved` record the steps verified so far; `saved` requires both and an
+empty reason. Failure reasons are `scene_save_failed`, `asset_save_failed`, `untitled_scene`,
+`editor_busy`, `expired`, `cancelled` or `save_failed`; `detail` is at most 1000 characters. A receipt-write
+failure keeps Unity open. Only a successful saving receipt, an unexpired request and no matching
+`.vua/bridge/amf-close.cancel` (plain close ID) permit `EditorApplication.Exit(0)` in that Editor
+update. Cancellation after that check cannot interrupt synchronous exit. The native caller bounds
+receipts to regular files of at most 16 KiB, validates their closed shape and nonce/run binding,
+ignores stale identities, and separately waits for the project lock to release. The Editor
+never claims its own process has already ended. Timeouts neither kill Unity nor claim saving.
 
 ## Managed upload in the open Editor
 
@@ -235,7 +275,10 @@ there is no arbitrary-string fallback.
 rejected before dispatch. In the dedicated GUI process, the Bridge verifies the owned Avatar,
 its assembled selection and the freshly rediscovered menu. It persists dispatch state in
 Unity SessionState before executing the menu once. Domain reload only reopens VUA's completion
-window; process restart cannot resume it.
+window; process restart cannot resume it. The parent engine does not apply the Bridge's usual
+20-minute command budget to this process: supervision waits for the completion window's exit
+(Finish or Cancel) however long the player's manual steps take, while the engine's Stop ends
+Unity's process tree within half a second and an 8-hour safety cap ends a runaway process.
 
 Finish saves the single managed scene and checks the original Avatar/outfit relationships,
 writes `ProjectSettings/VUA.FaceTracking.json` with local source/menu/command identities and manual replay
@@ -244,7 +287,105 @@ The parent engine owns the snapshot and independent batch recheck; no Bridge men
 alone declares FT functional. The operation's listed changed paths are the managed scene and
 marker, not an exhaustive claim about opaque creator writes.
 
+## Explicit outfit removal
+
+`amf_outfit_remove` is mutating and requires the current `expectedProjectFingerprint`.
+The request adds `outfitRemoval`, using the [AMF removal inventory](amf-production-v0.1.md#removing-one-owned-outfit).
+Inspection and successful mutations report optional `data.outfitRemoval` inventories. A successful
+removal additionally reports exactly one `data.outfitRemovalApplied` entry with `sourceId`,
+`avatarGlobalObjectId` and the complete `deletedObjectIds`; other operations return an empty
+array. Old receipts may omit both fields. New consumers validate present fields.
+
+The existing `Assets/VUA/Ownership.json` records, scoped by the active Avatar key, are the only
+authority for resolving the garment and menu roots. Every child/component is inventoried by
+GlobalObjectId; display paths never locate deletions. Another ownership record within either
+root, duplicate/unresolved identities or an over-limit inventory prevents application. The
+Bridge observes the saved scene, recomputes and compares the full inventory before the first
+deletion, rejects face-tracking markers, destroys only the two recorded roots and verifies the
+listed IDs no longer resolve. It saves the scene and ownership, prunes only the target's fit
+baseline/report entries and reinspects the active Avatar through the usual observer. The AMF
+engine then performs a separate Bridge inspection and verifies retained outfits/Avatars.
+
+Scene additions use Unity's [added-object override API](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/PrefabUtility.IsAddedGameObjectOverride.html)
+and prefab correspondence, conservatively warning about added components of unknown provenance.
+Identity resolution uses [GlobalObjectId](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/GlobalObjectId.GlobalObjectIdentifierToObjectSlow.html),
+never object names. API references checked 2026-10-23.
+
 ## Document changelog
+
+- 0.19.0 (2026-10-23): add ownership-ID-bound outfit-removal inventories and a protected mutating operation; retain other garments, Avatars and fit baselines.
+
+## Texture memory observations and importer changes
+
+`data.textureMemory` is an optional additive observation field. When an active owned Avatar is
+present it contains PC and Android reports; without one it is empty. Older receipts omit it.
+The closed report/texture fields and estimate/threshold rules are owned by
+[AMF texture tuning](amf-production-v0.1.md#texture-memory-and-importer-tuning) and represented
+in `schemas/unity-bridge/v5/result.schema.json`. Native and renderer consumers validate present
+fields; absence remains readable and requires fresh inspection before tuning.
+
+`amf_texture_import` is a mutating operation with `dryRun: false` and an exact current
+`expectedProjectFingerprint`. Its separate request adds a nonempty `textureChanges` array of
+`{path, platform, maxSize, format}`. The managed run marker, active saved Avatar ownership and
+payload digest are checked before changes. Each path must be an editable texture dependency of
+the active Avatar. The entire batch is checked before its first write, including duplicate
+paths, allowed platform/format, no size increase, a power-of-two Max Size (no reduction below 512, with existing smaller sizes retained), local
+asset and `.meta` ownership, and absence of reparse points on their paths. Files in the original
+library, package assets and other Avatar dependencies cannot be changed.
+
+For PC the platform override name is `Standalone`; for Android it is `Android`. The Bridge uses
+`TextureImporter.SetPlatformTextureSettings` and `SaveAndReimport`. It changes the selected
+platform's Max Size and format, disabling incompatible Crunch for BC7/ASTC, and preserves the
+remaining properties and the other platform override. `changedPaths` lists the written `.meta`
+files. It re-observes textures, SDK checks and project fingerprints; the engine performs a second
+independent inspection and owns restoration if any part fails. No image source is rewritten.
+
+## Document changelog
+
+- 0.18.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
+
+## Synced parameter budget evidence
+
+Each inspection candidate may carry `parameterBudget`, source evidence for VRChat's 256-bit
+synced expression-parameter limit. Absence is compatible with older results. It holds:
+
+- `expressionParametersObserved`: whether the candidate's own Expression Parameters are fully
+  known. An outfit has none, so it reports `true` with an empty list. An Avatar reports `true`
+  only when its descriptor's expression-parameter asset could be read whole; a missing asset is
+  `false` because the build substitutes the SDK default asset, whose cost this observation
+  cannot read. When `false` the list is empty and must not be displayed as a measured zero.
+- `expressionParameters`: the asset's synced entries as `{name, bits, unique: false}`, counting
+  Bool as 1 and Int/Float as 8 bits. Entries with `networkSynced` false cost no synced bits and
+  are left out.
+- `maComponents`: one entry per `Modular Avatar Parameters` component under the prefab, with the
+  component's path inside the prefab (empty names the prefab root) and its synced configs as
+  `{name, bits, unique}`. `NotSynced` and local-only configs are left out because the merged
+  parameter keeps `networkSynced` off. `internalParameter` entries are `unique: true`: MA
+  renames them at build time, so they never merge with a same-named declaration. `remapTo`
+  owns the merged name. On an Avatar candidate these components are the outfits its prefab
+  already wears; on an outfit candidate they are what assembling it would add.
+- `unresolvedPrefixConfigs`: configs using a parameter-name prefix. They bind parameters that
+  exist only after build-time resolution, carry no bits here, and make any total that includes
+  them an understatement.
+- `truncated`: a bound was hit (more than 256 asset entries, 64 components or 256 component
+  entries, or an unreadable name or path), so the lists are incomplete evidence rather than a
+  budget.
+
+Modular Avatar merges all of this into the Avatar's asset only at build time, deduplicating by
+merged name with the Avatar's own asset first. The consumer's plan estimate reproduces that
+merge order and adds the switch VUA itself creates for each labelled outfit; it cannot
+reproduce what else only exists after the build: other automatically created menu-item
+parameters, parameters other tools (VRCFury, reactive components) generate, or an
+unsynced asset entry that an MA config upgrades to synced. The authoritative synced cost stays
+with the SDK's own check on the built result.
+
+## Document changelog
+
+- 0.17.0 (2026-10-23): add the confirmed, expiring save/close observer handoff, explicit scene/asset saving facts and cooperative cancellation before exit.
+
+- 0.16.0 (2026-10-23): each inspection candidate may carry `parameterBudget`, the source-side synced expression-parameter evidence (asset entries, MA Parameters per component, unresolved prefix configs) behind the assembly-plan estimate against the 256-bit limit.
+
+- 0.15.0 (2026-10-22): `amf_ft_patch` supervision waits for the completion window's exit instead of the Bridge's 20-minute command budget; Stop still ends the process tree and an 8-hour safety cap ends a runaway process.
 
 - 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
 
@@ -256,10 +397,3 @@ marker, not an exhaustive claim about opaque creator writes.
 - 0.9.0 (2026-10-18): read the VRChat SDK's own Avatar checks and performance ratings into `sdkReview` after inspection and assembly.
 - 0.8.0 (2026-10-17): bake the 60-frame release turntable with `amf_turntable`, and upload through the SDK builder in the open Editor after the player's rights confirmation in VUA.
 - 0.7.0 (2026-10-17): write bridge, previews and finishing stage lines to the run log.
-- 0.6.0 (2026-10-16): render the active Avatar from three sides after inspection and assembly, and each prefab candidate during inspection.
-- 0.5.0 (2026-10-16): share one company and product name across work projects, report the SDK sign-in state and list materials whose shader is absent.
-- 0.4.0 (2026-10-15): bind Recipe application to observed Avatar identities, support independent same-scene Avatar scopes, and observe retained Avatars separately.
-
-- 0.3.0 (2026-10-15): report source dependencies actually used by the saved scene for Recipe capture.
-- 0.2.0 (2026-10-14): observe retained scene objects and current supported settings during reinspection and restoration.
-- 0.1.0 (2026-10-13): define a separate Candidate N3 entry point, exact f1/c1 identity, hash-bound requests and observed result relationships.

@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -28,6 +30,8 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} の名前はソース表と完全一致させること。
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["ja"],
+  outfitRemoval: outfitRemovalCopy["ja"],
   faceTracking: faceTrackingCopy["ja"],
   toolConnection: toolConnectionCopy["ja"],
   browser: browserCopy["ja"],
@@ -55,10 +59,14 @@ export const strings: Strings = {
     invalid: "名前と重複しない HTTPS アドレスを入力してください。ログイン情報やフラグメントは含められません。",
     empty: "右上の + からサイトを追加してください。", unavailable: "サイトテストは利用できません。ソフトのインストールには影響しません。",
     storageFailed: "変更は今回のみ有効です。保存できませんでした。",
-    europe: "ヨーロッパ", america: "米国", japan: "日本", west: "西部", east: "東部", regionUnavailable: "地域テストを利用できません",
+    regionUnavailable: "地域テストを利用できません",
     regionTitle: "地域別の参考遅延", testRegions: "各地域をテスト", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "サンノゼ · 米国西部", use: "アッシュバーン · ワシントン近郊", jp: "東京 · 日本", eu: "アムステルダム · 欧州" },
-    regionScope: "参照先は各ゲームリージョン近くの Oracle Cloud ノードで、HTTPS 応答 3 回の中央値です。リージョンの比較用で、ゲーム内の Ping とは異なる場合があります。",
+    regionShort: { usw: "米国西部", use: "米国東部", jp: "日本", eu: "欧州" },
+    regionClosest: "最短", regionAboutSame: "ほぼ同じ", regionTierN: "{n} 番目",
+    regionUnsteady: "不安定", regionUnsteadyHint: "測定ごとのばらつきが大きいため、値は目安です。",
+    regionViaProxy: "このパソコンのプロキシ経由で測定しました。ゲームの実際の経路とは異なる場合があります。",
+    regionScope: "各リージョンの参照点までの遅延で、VRChat ルームの Ping ではありません。",
     statuses: { timeout: "タイムアウト", connection_failed: "失敗", probe_error: "利用不可", http_error: "HTTP エラー", redirected: "リダイレクト", reachable: "接続済み" },
   },
   terms: {

@@ -10,6 +10,53 @@ const run = {schemaVersion:"0.1",runId:"n3-test",phase:"succeeded",taskId:"task-
   result:{facts:{sdkDescriptorRecognized:true,missingReferences:0,avatarName:"Avatar",instances:[{sourceId:"coat",bindingVerified:true,menuVerified:true,menuModified:true}]}}};
 
 describe("AMF production response boundary", () => {
+  it("validates optional close facts while keeping old runs readable", () => {
+    const editorClose = {schemaVersion:"0.1",runId:"n3-test",closeId:"close-1",outcome:"saved",
+      scenesSaved:true,assetsSaved:true,editorClosed:true,reason:"",detail:""};
+    expect(isAmfProductionRun(run)).toBe(true);
+    expect(isAmfProductionRun({...run,editorClose})).toBe(true);
+    for (const invalid of [null, {}, {...editorClose,runId:"n3-other"}, {...editorClose,assetsSaved:"yes"},
+      {...editorClose,scenesSaved:false}, {...editorClose,outcome:"closed"}, {...editorClose,detail:"x".repeat(1001)}]) {
+      expect(isAmfProductionRun({...run,editorClose:invalid})).toBe(false);
+    }
+  });
+  it("preserves the optional project-open action and validates it", async () => {
+    let params: Record<string, unknown> = {detail:"Save and close Unity first.",suggestedAction:"amf.production.closeEditor"};
+    const client = {invoke:async()=>({ok:false,error:{kind:"application",error:{code:"vua.amf_production.project_open",params}}}),subscribe:()=>()=>{}} as unknown as GatewayClient;
+    const port=createAmfProductionPort(client);
+    await expect(port.reinspect("n3-test")).rejects.toMatchObject({code:"vua.amf_production.project_open",suggestedAction:"amf.production.closeEditor"});
+    params={detail:"Close Unity first."};
+    await expect(port.reinspect("n3-test")).rejects.toThrow("Close Unity first.");
+    params={suggestedAction:"kill"};
+    await expect(port.reinspect("n3-test")).rejects.toThrow("amf_production_error_invalid");
+  });
+  it("submits a confirmed close as a task with the caller's localized title", async () => {
+    const requests: unknown[]=[];
+    const client={invoke:async(request:unknown)=>{requests.push(request);return {ok:true,value:{schemaVersion:"0.1",runId:"n3-test",taskId:"task-close"}};},subscribe:()=>()=>{}} as unknown as GatewayClient;
+    await expect(createAmfProductionPort(client).closeEditor("n3-test",true,"Save and close Unity")).resolves.toEqual({runId:"n3-test",taskId:"task-close"});
+    expect(requests[0]).toMatchObject({method:"amf.production.closeEditor",params:{schemaVersion:"0.1",runId:"n3-test",confirmed:true}});
+  });
+  it("tolerates old absent removal facts and validates every new inventory and proof", async () => {
+    const removal = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/outfit-removal.valid.result.json", import.meta.url), "utf8")).data.outfitRemoval[0];
+    expect(isAmfProductionRun(run)).toBe(true);
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,outfitRemoval:[removal],outfitRemovalApplied:[]}}})).toBe(true);
+    for (const invalid of [null,{},[removal,removal],[{...removal,objects:[{...removal.objects[0],manual:"yes"}]}]]) {
+      expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,outfitRemoval:invalid}}})).toBe(false);
+    }
+    expect(isAmfProductionRun({...run,result:{facts:{...run.result.facts,outfitRemovalApplied:[{}]}}})).toBe(false);
+    const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"a".repeat(64),removal};
+    let response: unknown = plan; const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){ requests.push(request); return {ok:true,value:response as DesktopGatewaySuccessValueV1}; },subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    const reviewed = await port.planOutfitRemoval("n3-test", "outfit");
+    expect(requests[0]).toMatchObject({method:"amf.production.planOutfitRemoval",params:{sourceId:"outfit"}});
+    response = {...plan,removal:{...removal,sourceId:"other"}};
+    await expect(port.planOutfitRemoval("n3-test","outfit")).rejects.toThrow("removal_plan_invalid");
+    response = {schemaVersion:"0.1",runId:"n3-test",taskId:"task-remove"};
+    await port.removeOutfit("n3-test",reviewed,true);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.removeOutfit",params:{sourceId:"outfit",planDigest:plan.planDigest,confirmed:true}});
+    await expect(port.removeOutfit("n3-other",reviewed,true)).rejects.toThrow("confirmation_required");
+  });
   it("accepts absent FT facts on old runs and validates new facts without claiming runtime success", () => {
     const faceTracking = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json", import.meta.url), "utf8")).data.faceTracking;
     expect(isAmfProductionRun(run)).toBe(true);
@@ -173,16 +220,32 @@ describe("AMF production response boundary", () => {
   it("requires a restore plan to preserve current work and belong to this run", async () => {
     const plan = {schemaVersion:"0.1",runId:"n3-test",planDigest:"a".repeat(64),snapshotId:"n3-snapshot",projectRoot:run.projectRoot,currentChanged:true,preserveCurrent:true};
     let response: unknown = plan;
-    const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const requests: unknown[] = [];
+    const client: GatewayClient = {async invoke(request){requests.push(request);return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
     const port = createAmfProductionPort(client);
     expect((await port.rollbackPlan("n3-test")).currentChanged).toBe(true);
     response = {...plan,preserveCurrent:false}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     response = {...plan,runId:"n3-other"}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     response = {...plan,snapshotId:""}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
     await expect(port.rollback("n3-other",{...plan,preserveCurrent:true})).rejects.toThrow("restore_plan_invalid");
+    // The pre-patch target is optional; present it must name a snapshot and its own digest.
+    const prePatch = {snapshotId:"ft-snapshot-0",planDigest:"b".repeat(64)};
+    response = {...plan,prePatch}; expect((await port.rollbackPlan("n3-test")).prePatch?.planDigest).toBe(prePatch.planDigest);
+    response = {...plan,prePatch:{...prePatch,planDigest:"short"}}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
+    response = {...plan,prePatch:{...prePatch,snapshotId:""}}; await expect(port.rollbackPlan("n3-test")).rejects.toThrow("restore_plan_invalid");
+    // Rolling back to it sends its digest and target; without the choice the default digest goes alone.
+    response = {schemaVersion:"0.1",operation:"amf.production",runId:"n3-test",taskId:"task-restore"};
+    await port.rollback("n3-test",{...plan,preserveCurrent:true,prePatch},"prePatch");
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.rollback",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:prePatch.planDigest,target:"prePatch"}});
+    await port.rollback("n3-test",{...plan,preserveCurrent:true,prePatch});
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.rollback",params:{schemaVersion:"0.1",runId:"n3-test",planDigest:plan.planDigest}});
+    await expect(port.rollback("n3-test",{...plan,preserveCurrent:true},"prePatch")).rejects.toThrow("restore_plan_invalid");
   });
   it("accepts a run without revisions and rejects malformed revision items", () => {
     expect(isAmfProductionRun(run)).toBe(true);
+    expect(amfRunProblem({...run,ftPrePatchSnapshot:"ft-snapshot-0"})).toBeNull();
+    expect(amfRunProblem({...run,ftPrePatchSnapshot:null})).toBeNull();
+    expect(amfRunProblem({...run,ftPrePatchSnapshot:""})).toBe("snapshotId");
     const revision = {id:"rev-1",before:"assembly",takenAt:"2026-10-18T00:00:00Z",editedInUnity:false,
       summary:{avatar:null,outfits:[],sources:["coat"],lightingMaterials:0,sdkFixes:[]}};
     expect(isAmfProductionRun({...run,revisions:[revision]})).toBe(true);
@@ -283,6 +346,20 @@ describe("AMF production response boundary", () => {
     for (const changed of [{...plan,avatarGlobalObjectId:"active-avatar"},{...plan,targets:[plan.targets[1],plan.targets[1]]},{...plan,targets:plan.targets.map(t=>({...t,verified:false}))}]) {
       response = {schemaVersion:"0.1",plan:changed};
       await expect(port.recipeApplyPlan("n3-test","recipe-test","other-avatar")).rejects.toThrow("apply_plan_invalid");
+    }
+  });
+});
+
+
+describe("texture memory response boundary", () => {
+  const textureMemory = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/texture-memory.valid.result.json", import.meta.url), "utf8")).data.textureMemory;
+  it("keeps old runs readable and validates all new platform facts", () => {
+    expect(isAmfProductionRun(run)).toBe(true);
+    const withFacts = (facts: unknown) => ({ ...run, result: { facts: { ...run.result.facts, textureMemory: facts } } });
+    expect(isAmfProductionRun(withFacts(textureMemory))).toBe(true);
+    for (const invalid of [null, {}, [textureMemory[0]], [{...textureMemory[0], totalBytes: -1}, textureMemory[1]],
+      [{...textureMemory[0], textures: [{ ...textureMemory[0].textures[0], format: undefined }]}, textureMemory[1]]]) {
+      expect(isAmfProductionRun(withFacts(invalid))).toBe(false);
     }
   });
 });

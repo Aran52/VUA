@@ -10,16 +10,24 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
+mod editor_close;
+pub use editor_close::*;
 mod release;
 pub use release::*;
 mod lighting;
 pub use lighting::*;
+mod texture_memory;
+pub use texture_memory::*;
 mod revisions;
 pub use revisions::*;
 mod fits;
 pub use fits::*;
+mod outfit_removal;
+pub use outfit_removal::*;
 mod face_tracking;
 pub use face_tracking::*;
+mod parameter_budget;
+pub use parameter_budget::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -99,6 +107,9 @@ pub struct PrefabCandidate {
     /// Work-project-relative PNG the Bridge rendered for this candidate during inspection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<String>,
+    /// Source evidence for the synced parameter budget; an older Bridge omits it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parameter_budget: Option<ParameterBudget>,
 }
 
 /// Bridge previews live in this work-project folder, one subfolder per Bridge command.
@@ -302,8 +313,8 @@ impl Drop for FingerprintCheck<'_> {
 fn interrupted_change(run: &ProductionRun) -> bool {
     run.phase == "assembling"
         && run.snapshot_id.is_some()
-        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking") && step.state == "running")
-            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| step.key == "face_tracking"))
+        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking" | "texture_memory" | "outfit_removal") && step.state == "running")
+            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| matches!(step.key.as_str(), "face_tracking" | "texture_memory" | "outfit_removal")))
 }
 
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
@@ -367,6 +378,10 @@ pub struct ProductionRun {
     /// The line's materials at the restore point, when that point was taken before they changed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_sources: Option<SourceSnapshot>,
+    /// The full copy taken before the creator patch, kept while the line carries its manual-replay
+    /// marker so later restore points cannot make the pre-patch state unreachable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ft_pre_patch_snapshot: Option<String>,
     /// The line's version records, newest first, taken before each protected change.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub revisions: Vec<ProductionRevision>,
@@ -395,6 +410,8 @@ pub struct ProductionRun {
     pub result: serde_json::Value,
     pub error: Option<String>,
     pub recovery: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor_close: Option<EditorCloseResult>,
 }
 
 #[derive(Debug, Clone)]
@@ -471,7 +488,13 @@ pub trait AmfProductionPlatform: Send + Sync {
     ) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
     }
+    fn remove_outfit(&self, _: &ProductionRun, _: &OutfitRemoval, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("outfit_removal_unavailable", "Owned outfit removal is unavailable on this platform."))
+    }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
+    fn texture_import(&self, _: &ProductionRun, _: &[TextureImportChange], _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("texture_import_unavailable", "Texture import changes are unavailable on this platform."))
+    }
     fn face_tracking_patch(&self, _: &ProductionRun, _: &FaceTrackingPatch, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("face_tracking_unavailable", "Creator patch sessions are unavailable on this platform."))
     }
@@ -481,9 +504,10 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn source_content_hash(&self, _source_id: &str) -> Result<Option<String>, AppErrorV1> {
         Ok(None)
     }
-    /// Deletes every retained full-copy snapshot of the run's project except `keep`. Best
-    /// effort: problems come back as diagnostics and never fail the calling operation.
-    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &str) -> Vec<String> {
+    /// Deletes every retained full-copy snapshot of the run's project except those named in
+    /// `keep`. Best effort: problems come back as diagnostics and never fail the calling
+    /// operation.
+    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &[&str]) -> Vec<String> {
         Vec::new()
     }
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
@@ -495,6 +519,13 @@ pub trait AmfProductionPlatform: Send + Sync {
     /// Hands one build-and-upload to the official VRChat SDK in the open Editor and waits for its receipt.
     fn upload(&self, _: &ProductionRun, _: &UploadRequest, _: &TaskContext, _: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
         Err(production_error("upload_unavailable", "Managed upload is unavailable on this platform."))
+    }
+    /// Captures the on-disk state before a confirmed Editor save, without writing project files.
+    fn snapshot_open_editor(&self, _: &ProductionRun) -> Result<String, AppErrorV1> {
+        Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))
+    }
+    fn close_editor(&self, _: &ProductionRun, _: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+        Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))
     }
     /// Whether a Unity Editor holds the work project now.
     fn editor_open(&self, _: &Path) -> bool { false }
@@ -518,14 +549,21 @@ pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "
 use crate::filesystem::remove_tree;
 
 pub fn production_error(code: &str, detail: impl Into<String>) -> AppErrorV1 {
-    AppErrorV1::new(
+    let detail = detail.into();
+    let mut error = AppErrorV1::new(
         format!("vua.amf_production.{code}"),
         ErrorCategory::Validation,
         "errors.amfProduction.failed",
         "amf-production",
     )
     .with_recoverable(true)
-    .with_param("detail", ParamValue::Text(detail.into()))
+    .with_param("detail", ParamValue::Text(if code == "project_open" {
+        format!("{detail} You can save and close Unity first.")
+    } else { detail }));
+    if code == "project_open" {
+        error = error.with_param("suggestedAction", ParamValue::Text("amf.production.closeEditor".into()));
+    }
+    error
 }
 
 fn io_error(error: impl std::fmt::Display) -> AppErrorV1 {
@@ -852,6 +890,7 @@ impl AmfProductionEngine {
             snapshot_id: None,
             snapshot_selection: None,
             snapshot_sources: None,
+            ft_pre_patch_snapshot: None,
             revisions: Vec::new(),
             sdk_fixes_applied: Vec::new(),
             recipe_adjustments: None,
@@ -864,6 +903,7 @@ impl AmfProductionEngine {
             result: serde_json::Value::Null,
             error: None,
             recovery: None,
+            editor_close: None,
         })
     }
     fn step(
@@ -955,13 +995,24 @@ impl AmfProductionEngine {
             }
         }
     }
-    /// Keeps exactly one full-copy snapshot per line: once the run record naming the current
-    /// restore point is persisted, every unreferenced snapshot directory under
-    /// `.vua/snapshots/` is deleted. Pruning is best-effort; problems are recorded in a
-    /// bounded diagnostics file and never fail the operation they follow.
+    /// Keeps the run's named full-copy snapshots per line: the current restore point and, while
+    /// the line carries the creator-patch marker, the pre-patch copy. Once the run record naming
+    /// them is persisted, every unreferenced snapshot directory under `.vua/snapshots/` is
+    /// deleted. Pruning is best-effort; problems are recorded in a bounded diagnostics file and
+    /// never fail the operation they follow.
     fn prune_snapshots(&self, run: &ProductionRun) {
-        let Some(keep) = run.snapshot_id.as_deref() else { return };
-        let diagnostics = self.platform.prune_snapshots(run, keep);
+        let mut keep: Vec<&str> = Vec::new();
+        if let Some(id) = run.snapshot_id.as_deref() {
+            keep.push(id);
+        }
+        // The pre-patch copy is kept only while the line still carries the creator-patch marker.
+        if let Some(id) = run.ft_pre_patch_snapshot.as_deref().filter(|_| face_tracking::manual_face_tracking(run)) {
+            keep.push(id);
+        }
+        if keep.is_empty() {
+            return;
+        }
+        let diagnostics = self.platform.prune_snapshots(run, &keep);
         if diagnostics.is_empty() {
             return;
         }
@@ -1349,7 +1400,8 @@ impl AmfProductionEngine {
             "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
             "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
                 "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes})),
-            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>()}),
+            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>(),
+            "parameterBudget":plan_parameter_budget(&run, selection)}),
         )
     }
     pub fn assemble(
@@ -1553,17 +1605,33 @@ impl AmfProductionEngine {
             production_error("snapshot_missing", "This project has no retained restore point.")
         })?;
         let (unchanged, current) = self.project_state(&run)?;
-        let digest = rollback_digest(&run, &current)?;
-        Ok(serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
+        let digest = rollback_digest(&run, &current, RollbackTarget::RestorePoint)?;
+        let mut plan = serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
             "planDigest":digest, "snapshotId":snapshot, "projectRoot":run.project_root,
-            "currentChanged":!unchanged, "preserveCurrent":true}))
+            "currentChanged":!unchanged, "preserveCurrent":true});
+        // While the line carries the creator-patch marker, its pre-patch copy stays a second
+        // reviewed target; when it equals the restore point the default restore already reaches it.
+        if run.ft_pre_patch_snapshot.as_deref().is_some_and(|id| id != snapshot)
+            && face_tracking::manual_face_tracking(&run) {
+            plan["prePatch"] = serde_json::json!({
+                "snapshotId":run.ft_pre_patch_snapshot,
+                "planDigest":rollback_digest(&run, &current, RollbackTarget::PreCreatorPatch)?});
+        }
+        Ok(plan)
     }
     /// A restore is itself reversible. Persist the current-state snapshot before
     /// touching the project so a crash, failed inspection or cancellation cannot
     /// discard the player's latest edits.
-    pub fn rollback(&self, run_id: &str, digest: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+    pub fn rollback(&self, run_id: &str, digest: &str, target: Option<RollbackTarget>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let target = target.unwrap_or(RollbackTarget::RestorePoint);
         let plan = self.rollback_plan(run_id)?;
-        if plan["planDigest"].as_str() != Some(digest) {
+        let reviewed = match target {
+            RollbackTarget::RestorePoint => plan["planDigest"].as_str(),
+            RollbackTarget::PreCreatorPatch => Some(plan["prePatch"]["planDigest"].as_str().ok_or_else(|| {
+                production_error("snapshot_missing", "This line no longer keeps a state from before the creator patch.")
+            })?),
+        };
+        if reviewed != Some(digest) {
             return Err(production_error("plan_drift", "The project or restore point changed. Review the restore again."));
         }
         let mut run = self.get(run_id)?;
@@ -1575,10 +1643,20 @@ impl AmfProductionEngine {
                 step.ended_at = Some(SystemClock.now_rfc3339());
             }
         }
-        let target = run.snapshot_id.clone().expect("reviewed restore point");
-        let target_selection = run.snapshot_selection.clone();
+        let target_kind = target;
+        let (target, target_selection, target_sources) = match target {
+            RollbackTarget::RestorePoint => (
+                run.snapshot_id.clone().expect("reviewed restore point"),
+                run.snapshot_selection.clone(),
+                run.snapshot_sources.clone(),
+            ),
+            RollbackTarget::PreCreatorPatch => (
+                run.ft_pre_patch_snapshot.clone().expect("reviewed pre-patch copy"),
+                run.selection.clone(),
+                None,
+            ),
+        };
         let current_selection = run.selection.clone();
-        let target_sources = run.snapshot_sources.clone();
         let current_sources = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
         run.task_id = ctx.task_id().into();
         run.phase = "restoring".into();
@@ -1592,7 +1670,7 @@ impl AmfProductionEngine {
         let result = (|| {
             self.step(&mut run, ctx, "protect_current", "Protect the current project before restoring")?;
             let current = self.platform.fingerprint(Path::new(&run.project_root))?;
-            if rollback_digest(&run, &current)? != digest {
+            if rollback_digest(&run, &current, target_kind)? != digest {
                 return Err(production_error("plan_drift", "The project changed before restoration. Review it again."));
             }
             safety = Some(self.platform.snapshot(&run)?);
@@ -1616,6 +1694,11 @@ impl AmfProductionEngine {
             run.selection = target_selection;
             run.phase = "ready".into();
             run.completed_at = None;
+            // A successful return to the pre-patch state ends the marker's retention: the
+            // copy is spent and the protected current (patched) state is the restore point.
+            if target_kind == RollbackTarget::PreCreatorPatch {
+                run.ft_pre_patch_snapshot = None;
+            }
             Ok(())
         })();
         if result.is_err() && mutated {
@@ -1907,11 +1990,53 @@ pub fn plan_digest_with_fits(
     )
 }
 
-fn rollback_digest(run: &ProductionRun, current_fingerprint: &str) -> Result<String, AppErrorV1> {
-    let value = serde_json::json!({"operation":"restore", "runId":run.run_id,
+fn rollback_digest(
+    run: &ProductionRun,
+    current_fingerprint: &str,
+    target: RollbackTarget,
+) -> Result<String, AppErrorV1> {
+    // A marked line's selection and materials cannot change, so the pre-patch copy restores to
+    // the selection the line still wears; the digest names which retained copy a review bound.
+    let (target_name, snapshot_id, snapshot_selection) = match target {
+        RollbackTarget::RestorePoint => (
+            "restore_point",
+            run.snapshot_id.clone(),
+            run.snapshot_selection.clone(),
+        ),
+        RollbackTarget::PreCreatorPatch => (
+            "pre_creator_patch",
+            run.ft_pre_patch_snapshot.clone(),
+            run.selection.clone(),
+        ),
+    };
+    let value = serde_json::json!({"operation":"restore", "target":target_name, "runId":run.run_id,
         "revision":run.revision, "editor":run.editor, "projectRoot":run.project_root,
-        "snapshotId":run.snapshot_id, "snapshotSelection":run.snapshot_selection,
+        "snapshotId":snapshot_id, "snapshotSelection":snapshot_selection,
         "currentFingerprint":current_fingerprint});
     Ok(Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
         .iter().map(|byte| format!("{byte:02x}")).collect())
 }
+
+/// Which retained full copy a reviewed restore returns the line to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollbackTarget {
+    /// The line's current restore point.
+    RestorePoint,
+    /// The copy kept from before the creator patch, present while the line carries its marker.
+    PreCreatorPatch,
+}
+
+impl RollbackTarget {
+    /// The wire name of the target; `None` names the default restore point for older callers.
+    pub fn parse(value: Option<&str>) -> Result<Self, AppErrorV1> {
+        match value {
+            None | Some("restorePoint") => Ok(Self::RestorePoint),
+            Some("prePatch") => Ok(Self::PreCreatorPatch),
+            Some(_) => Err(production_error(
+                "params_invalid",
+                "Choose the restore point or the state before the creator patch.",
+            )),
+        }
+    }
+}
+

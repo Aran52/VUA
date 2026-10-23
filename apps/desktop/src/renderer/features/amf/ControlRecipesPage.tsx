@@ -8,6 +8,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { strings, format, formatDateTime } from "../../i18n/index.ts";
 import { RecipeWorkspace } from "../recipe/RecipePage.tsx";
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
+import { FitsPanel } from "./FitsPanel.tsx";
 import { AmfRecipeImportDialog } from "./AmfRecipeImportDialog.tsx";
 import { requestProductionRecipe } from "./production-recipe-navigation.ts";
 import { buildRecipeGraph, materialNodeId, pinnedVersions, prefabLabel, recipeNodeId, recipeParts, sharedParts, NODE_KINDS, type GraphNode, type GraphNodeKind, type RecipeGraph } from "./control-graph-model.ts";
@@ -119,6 +120,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
       <Button variant="subtle" aria-expanded={draftsOpen} aria-controls="control-recipe-drafts" onClick={() => setDraftsOpen(value => !value)}>{production.recipeWorkspace}</Button>
       {draftsOpen && <div id="control-recipe-drafts"><RecipeWorkspace/></div>}
     </section>
+    <FitsPanel port={port} />
     {sharing !== null && <AmfRecipeShareDialog recipeId={sharing} onClose={() => setSharing(null)}/>}
     {importing && <AmfRecipeImportDialog onClose={() => setImporting(false)} onImported={() => setReload(value => value + 1)} onOpen={recipeId => setSelected(recipeNodeId(recipeId))}/>}
   </div>;

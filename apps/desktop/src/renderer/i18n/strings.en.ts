@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -34,6 +36,8 @@ import { journeyCopy } from "./journey-copy.ts";
  *   (DEV-only, reachable only from gateway fixtures, tree-shaken in release).
  */
 export const strings = {
+  textureMemory: textureMemoryCopy["en"],
+  outfitRemoval: outfitRemovalCopy["en"],
   faceTracking: faceTrackingCopy["en"],
   toolConnection: toolConnectionCopy["en"],
   browser: browserCopy["en"],
@@ -61,10 +65,14 @@ export const strings = {
     invalid: "Enter a name and a unique HTTPS address without credentials or a fragment.",
     empty: "Add a website with the + button.", unavailable: "Site tests unavailable; installing software still works.",
     storageFailed: "Changes apply for this session but could not be saved.",
-    europe: "Europe", america: "USA", japan: "Japan", west: "West", east: "East", regionUnavailable: "Regional test unavailable",
+    regionUnavailable: "Regional test unavailable",
     regionTitle: "Regional reference latency", testRegions: "Test regions", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "San José · US West", use: "Ashburn · near Washington, D.C.", jp: "Tokyo · Japan", eu: "Amsterdam · Europe" },
-    regionScope: "References are Oracle Cloud nodes near each game region, median of three HTTPS responses; for comparing regions, in-game ping may differ.",
+    regionShort: { usw: "US West", use: "US East", jp: "Japan", eu: "Europe" },
+    regionClosest: "Closest", regionAboutSame: "About the same", regionTierN: "Tier {n}",
+    regionUnsteady: "Unsteady", regionUnsteadyHint: "Repeated measurements differ widely; treat this value as rough.",
+    regionViaProxy: "Measured through a proxy on this computer; the game's route may differ.",
+    regionScope: "Latency to reference points near each game region, not VRChat room ping.",
     statuses: { timeout: "Timed out", connection_failed: "Failed", probe_error: "Unavailable", http_error: "HTTP error", redirected: "Redirect", reachable: "Connected" },
   },
   terms: {

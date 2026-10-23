@@ -1,0 +1,14 @@
+{
+  "method": "amf.production.applyTextureMemory",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-test",
+    "platform": "pc",
+    "targetRank": "good",
+    "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "textures": [
+      "Assets/../Library/Color.png"
+    ]
+  }
+}

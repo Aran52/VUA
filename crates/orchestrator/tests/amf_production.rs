@@ -1023,9 +1023,10 @@ fn recipes_require_current_observations_and_reopen_with_pinned_inputs() {
     let h = Harness::new(); h.prepared();
     assert!(h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").is_err());
     let plan = h.engine.plan("n3-test", &selection()).unwrap(); let digest = plan["planDigest"].as_str().unwrap().to_owned();
-    // The fixture Avatar carries 8+1 asset bits plus one embedded MA bit; the Coat adds one more.
+    // The fixture Avatar carries 8+1 asset bits plus one embedded MA bit; the Coat adds one more,
+    // and the switch VUA adds for it one more.
     assert_eq!(plan["parameterBudget"]["state"], "fits");
-    assert_eq!(plan["parameterBudget"]["estimateBits"], 11);
+    assert_eq!(plan["parameterBudget"]["estimateBits"], 12);
     assert_eq!(plan["parameterBudget"]["limitBits"], 256);
     assert!(h.job(move |engine, ctx| engine.assemble("n3-test", selection(), &digest, ctx)));
     let saved = h.engine.save_recipe("n3-test", "recipe-test", "My Avatar").unwrap();

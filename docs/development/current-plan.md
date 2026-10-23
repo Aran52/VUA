@@ -112,7 +112,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 46 | Library migration grouping | — | planned; executes the migration design |
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
 | 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
-| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a QR "VUA inside" badge and a short-link service (author, 2026-10-24); prompts nn8-d and nn8-e |
+| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts nn8-d and nn8-e |
 | 50 | AI connection as a first-run choice | — | planned |
 | 51 | Recipes creators trust | P-04 | planned: prompts nn8-a, nn8-c, nn8-d, nn8-e for agents; B by Claude |
 | 52 | Signed Windows releases | — | SignPath application filled in on 2026-10-24; awaits the author's submission and approval |
@@ -871,25 +871,33 @@ The author tested X on 2026-10-24: a video cannot be dragged out of a post, and 
 from X into another application arrives recompressed, without EXIF or other metadata. The Recipe
 therefore travels in the pixels as a short link, not in the file's metadata.
 
-1. The release room exports the turntable as an animated GIF for chats, Discord and X, and as a
-   still PNG of the front view. Size and frame rate fit the platforms' upload limits.
+X also turns an uploaded GIF into a video, which cannot be dragged out, so the image players
+drag from X is a still picture; the animated GIF serves chats and Discord.
+
+1. The release room exports the turntable as a still PNG of a chosen angle, for X, and as an
+   animated GIF for chats and Discord. Size and frame rate fit the platforms' upload limits.
 2. Each image carries a small VUA logo mark. With a Recipe included, the mark becomes a
-   "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24), and the
-   badge itself is a QR code, styled around the logo, holding the Recipe's short link. It sits on
-   every frame and survives recompression. Including the Recipe is the player's choice per export
-   and runs the existing reviewed share export first.
-3. Publishing the Recipe stores its share declaration on VUA's Recipe link service under a
+   "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24).
+   Including the Recipe is the player's choice per export and runs the existing reviewed share
+   export first.
+3. The Recipe's short code hides in the background: VUA renders the turntable on its own plain
+   background, and the code's modules are drawn there as blocks a few luminance levels lighter or
+   darker than the background, large enough to survive X's recompression and repeated across the
+   background so the Avatar never covers every copy. People see a plain background; VUA, which
+   knows the background colour, subtracts it and reads the code (author, 2026-10-24). The contrast
+   is the smallest one that passes a round trip through X in testing.
+4. Publishing the Recipe stores its share declaration on VUA's Recipe link service under a
    content-derived code (`https://<host>/r/<code>`): the code is a prefix of the declaration's
    SHA-256, so VUA verifies whatever the service returns. Publishing is explicit, needs no
    account, and the player can withdraw a link they published.
-4. Dropping an image or pasting a link in VUA reads the code (QR decoding in VUA, from any frame),
-   fetches and verifies the declaration and opens the Recipe preview. A phone that scans the badge
-   opens the link's web page: the Avatar's materials with their BOOTH pages and creators, and
-   "Open in VUA".
-5. The paste text stays available for players without a network or who prefer not to publish.
+5. Dropping an image or pasting a link in VUA reads the code, fetches and verifies the
+   declaration and opens the Recipe preview, with the image as its preview. The link also opens a
+   web page listing the Avatar's materials with their BOOTH pages and creators, and "Open in VUA";
+   the export offers the link for the post text, since a phone camera cannot read the hidden code.
+6. The paste text stays available for players without a network or who prefer not to publish.
 
-**Done when** the author posts the P-02 turntable GIF to X, drags it from X into a second VUA,
-and VUA opens the Recipe; a phone scan of the badge shows the material page.
+**Done when** the author posts the P-02 turntable PNG to X, drags it from X into a second VUA,
+and VUA opens the Recipe, while the background looks plain to the eye.
 
 ## 50 — AI connection as a first-run choice
 
@@ -940,8 +948,8 @@ its materials for the receiver's chosen use; the share preview lists exactly wha
 contains, and exported Recipes carry the material creators' names for slice 37's credits.
 
 **D — The shareable turntable** (agent, `nn8-d`). Slice 49 in VUA: GIF and PNG export, the
-"VUA inside" QR badge, publishing and withdrawing a link, and reading a code from a dropped image
-or a pasted link.
+"VUA inside" badge and the code hidden in the background, publishing and withdrawing a link, and
+reading the code from a dropped image or a pasted link.
 
 **E — The Recipe link service** (agent, `nn8-e`). Slice 49's service and its web page: storing
 validated declarations under content-derived codes, withdrawal, rate limits, and the material
@@ -951,7 +959,7 @@ page in four languages. The host is the author's call.
 reproduced on a second computer, one of them after a package update. The runs, with their
 turntables, become the material for the first creator contacts.
 
-**Done when** a Recipe shared as a "VUA inside" GIF on X reproduces the same Avatar on another
+**Done when** a Recipe shared as a "VUA inside" picture on X reproduces the same Avatar on another
 computer after one of its packages updated, the receiver sees what they own, miss and may use before
 anything runs, and P-04 passes.
 

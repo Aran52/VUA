@@ -529,7 +529,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}
       <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
-      {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy}
+      {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy} onUnityHolds={e => fail(e)}
         onStarted={id => { setTaskId(id); setTaskAction("faceTracking"); }} onRestore={ftRestore} onNewLine={newPreparation} />}
     </>}
     </div>

@@ -10,12 +10,16 @@ import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsS
 import { controlPreview } from "./control-center-preview.tsx";
 import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
+import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
+import "../../src/renderer/features/deployer/website-tests.css";
+import "../../src/renderer/features/home/home.css";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
 import { UnityLicenseGuide } from "../../src/renderer/features/settings/UnityLicenseGuide.tsx";
 import { ProductTerms } from "../../src/renderer/features/warehouse/ProductTerms.tsx";
 import { termsPreviewPort } from "./terms-preview.tsx";
 import "../../src/renderer/features/warehouse/warehouse.css";
-import type { UnityLicenseSnapshotV01 } from "@vua/contracts";
+import type { NetworkIntent, NetworkReport, UnityLicenseSnapshotV01, WebsiteObservation } from "@vua/contracts";
+import { REGIONAL_REFERENCES } from "../../src/renderer/features/deployer/regional-reference.ts";
 import "../../src/renderer/features/deployer/deployer.css";
 import { Card } from "../../src/renderer/components/primitives/Card.tsx";
 import { Button } from "../../src/renderer/components/primitives/Button.tsx";
@@ -196,6 +200,35 @@ const licenseSnapshots: Record<string, UnityLicenseSnapshotV01> = {
     lastCheck: { state: "active", editorVersion: "2022.3.22f1", checkedAt: "2026-10-19T09:30:00.000Z" }, state: "likely_active", nextAction: "none" },
 };
 const licensePort = licenseSnapshots[view] ? { snapshot: async () => licenseSnapshots[view]!, check: async () => ({ taskId: "task-license" }) } : undefined;
+// The regional tier preview: one finished measurement with an unsteady region and
+// a proxy note, so the collapsed tile and the expanded rows are both reviewable.
+const regionObservation = (id: string, elapsedMs: number, p90Ms: number): WebsiteObservation => ({
+  url: REGIONAL_REFERENCES.find(region => region.id === id)!.url,
+  status: "http_error", elapsedMs, httpStatus: 404,
+  regional: { medianMs: elapsedMs + 2, p90Ms, samples: 9, connections: 3, viaProxy: true },
+});
+const regionRows = [regionObservation("jp", 28, 34), regionObservation("usw", 40, 95), regionObservation("use", 120, 124), regionObservation("eu", 240, 246)];
+const networkPreviewPort = {
+  websiteCapability: async () => ({ state: "ready" as const }),
+  capability: async () => ({ state: "ready" as const }),
+  testWebsites: async (urls: readonly string[]) => urls.map(url => regionRows.find(row => row.url === url) ?? { url, status: "reachable" as const, elapsedMs: 120, httpStatus: 200 as const }),
+  check: async (intent: NetworkIntent): Promise<NetworkReport> => ({ schemaVersion: "0.1", intent, detectedRegion: "unknown", effectiveRegion: "unknown", capturedAt: "2026-10-22T00:00:00Z", durationMs: 0, results: [] }),
+};
+/** Runs the regional test the way the player does, with the details expanded on
+ * the details view. */
+function NetworkPreview({ details }: { details: boolean }) {
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      const action = document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-test]");
+      if (!action || action.disabled) return;
+      clearInterval(timer);
+      if (details) document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-details]")?.click();
+      action.click();
+    }, 300);
+    return () => clearInterval(timer);
+  }, [details]);
+  return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
+}
 createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
   <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
@@ -212,6 +245,8 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
     <section className="vua-page__hero"><h1 className="vua-title">设置 · 实验性</h1></section>
     <Card><VrchatSignInSection /></Card>
   </div>
+</GatewayProvider> : view.startsWith("network-") ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, network: networkPreviewPort } }}>
+  <NetworkPreview details={view === "network-tiers-details"} />
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>

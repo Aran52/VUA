@@ -961,9 +961,12 @@ contains, and exported Recipes carry the material creators' names for slice 37's
 "VUA inside" badge and the code hidden in the background, publishing and withdrawing a link, and
 reading the code from a dropped image or a pasted link.
 
-**E — The Recipe link service** (agent, `nn8-e`). Slice 49's service and its web page: storing
-validated declarations under content-derived codes, withdrawal, rate limits, and the material
-page in four languages. The host is the author's call.
+**E — The share link service** (agent, `nn8-e`). Slice 49's service and its web page: storing
+validated Recipes and product selections under content-derived codes, withdrawal, rate limits,
+and the material page in five languages, which shows the product list and leaves out the
+player's own title. It runs on the author's existing server in mainland China; a Tokyo server
+with the same code follows only if tests from abroad show connection problems (author,
+2026-10-24).
 
 **Proof.** After A–E, the author and Claude run P-04 with real materials: three base Avatars, each
 reproduced on a second computer, one of them after a package update. The runs, with their

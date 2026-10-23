@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-19
+> Updated: 2026-10-23
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -8,7 +8,8 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 
 ## Where things stand
 
-- `main` carries the Ibis releases (v0.6.7).
+- `main` carries v0.7.0 Stone Age, published on 2026-10-22 (VUA-Project/VUA#90): the production
+  path from materials to an uploaded Avatar, offered as Beta.
 - `slice/north-star` (VUA-Project/VUA#83) adds the north star, the Eval and the documentation rules.
 - `slice/n3-n4-ma-production` (VUA-Project/VUA#84) is the production branch of this stage. It
   carries the AMF production work, the MSIX Hub detection (#85), and the slices merged on the
@@ -50,30 +51,35 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
   project for the SDK timed out waiting for the SDK panel, and a restore after a material change
   and a new assembly returned to the later state. Slices 42–44 and items in 5 and 6 take the
   findings.
-- Release: on 2026-10-19 the author postponed the next release, planned for the end of October,
-  for a stage pause and a real-machine test round through the MCP adapter; it is numbered under
-  the [version policy](../release/versioning.md) when it is cut.
+- Since the release, on 2026-10-23, the production branch took the follow-up slices
+  Aran52/VUA#50–#60: the version list and saved fits in the workshop, the regional tiers, the
+  package page by permission mode, the upload guide, the creator-patch follow-ups, save and close
+  for Unity, Poiyomi release sets, the synced parameter estimate, texture memory and outfit
+  removal (amf-production 0.34.0, unity-bridge-v5 0.19.0).
+- The author's order (2026-10-23): settle how AMF is operated first, then hold the appearance
+  design session (slice 13); functional fixes go in parallel. Calibration against in-game Ping
+  (38) and Eval runs (16) wait for a concrete need.
 
 ## Order
 
 | # | Slice | Eval | State |
 | --- | --- | --- | --- |
-| 1 | Integrate | — | next: the author merges #83, #84 and #86 with the organization account |
+| 1 | Integrate | — | done: v0.7.0 was integrated upstream (VUA-Project/VUA#90) and published on 2026-10-22 |
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done (Aran52/VUA#1) |
-| 5 | Unity editor handoff | P-02 | in progress: item 3 is in (Aran52/VUA#36), the open waits through a slow first import and names the SDK panel menu; items 1–2 remain |
-| 6 | SDK step for newcomers | P-02 | in progress: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12) are in; the build and upload guide and the SDK panel's own Auto Fix in the facts (item 4) remain |
+| 5 | Unity editor handoff | P-02 | in progress: item 3 (Aran52/VUA#36), and item 1's save and close with its MCP request (Aran52/VUA#53); item 2's buttons remain |
+| 6 | SDK step for newcomers | P-02 | built: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12), the check read again after an upload (Aran52/VUA#44) and the build and upload guide (Aran52/VUA#59); the guide's four screenshots come from the author |
 | 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
-| 8 | Known packages | P-01, P-03 | in progress: the known-packages table with detection and installs is in (Aran52/VUA#21); the package page by permission mode (items 3–4) and two follow-ups remain |
-| 9 | Material tuning | P-02, P-03 | in progress: item 2 is in, with its engine (Aran52/VUA#29) and the quality-check entry; the author's check in a dark world and item 1 remain |
-| 10 | Face tracking add-on | P-03 | |
+| 8 | Known packages | P-01, P-03 | built: the known-packages table (Aran52/VUA#21), multi-line Poiyomi copies with the preparation test (Aran52/VUA#55) and the package page by permission mode (Aran52/VUA#56); P-01 with a Poiyomi outfit awaits the author |
+| 9 | Material tuning | P-02, P-03 | in progress: item 2 with its entry (Aran52/VUA#29, #34) and item 1, texture memory on the quality-check station (Aran52/VUA#57); the author's checks in a dark world and on a P-02 rank remain |
+| 10 | Face tracking add-on | P-03 | in progress: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52); the workshop station and the Meiyun run in VRChat remain |
 | 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
-| 13 | Appearance and one-click styles | — | architecture and tokens ready; needs a design session |
+| 13 | Appearance and one-click styles | — | after the AMF operations settle (author, 2026-10-23); needs a design session |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
-| 16 | Eval runs | all `ready` cases | |
+| 16 | Eval runs | all `ready` cases | when a concrete need arises (author, 2026-10-23) |
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
 | 19 | Experimental VRChat sign-in | P-02 | merged (Aran52/VUA#5); the upload check reads VRChat's real list shape since slice 26; awaits the real-account checks |
@@ -87,26 +93,26 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 27 | Queue factory work | P-02 | built (Aran52/VUA#18): one job at a time, the rest wait in a visible queue; queueing and cancelling verified in the 2026-10-19 MCP round. Item 2: the engine (Aran52/VUA#23) and the workshop setting are in; a run with two lines side by side remains |
 | 28 | Quitting during a task | — | done (Aran52/VUA#14) |
 | 29 | Restore after an interrupted assembly | — | done (Aran52/VUA#15) |
-| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20); the material change and deletion verified in the 2026-10-19 MCP round, whose restore found slice 42's gap; removing an outfit through the plan remains |
+| 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20) with removing an outfit through a reviewed plan (Aran52/VUA#58); the material change and deletion were verified in the 2026-10-19 MCP round; the author's two-outfit removal check remains |
 | 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
 | 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md); item 2 and the Resources of item 3 move to 44 |
-| 33 | Switch options and built-result evidence | P-02, P-03 | planned from the reference study |
+| 33 | Switch options and built-result evidence | P-02, P-03 | item 4, the synced parameter estimate in the plan, is in (Aran52/VUA#60); the rest is planned |
 | 34 | Evidence layers and toolchain profile | P-03, B-02 | planned from the reference study |
 | 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
 | 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
 | 37 | Creator credits | P-02 | planned |
-| 38 | Steadier regional latency | — | planned; calibration needs the author's in-game Ping readings |
+| 38 | Steadier regional latency | — | built: three connections per region, the minimum value and the proxy note (Aran52/VUA#46), and the tile's tiers (Aran52/VUA#54); calibration against in-game Ping waits for a need (author, 2026-10-23) |
 | 39 | Resource panel that guides | P-02 | planned; items 1 and 2 need the author's decision |
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 | 41 | VN3 terms and filtering by use | P-02 | built: the backend (Aran52/VUA#31), the library drawer and MCP reads (Aran52/VUA#37), and the release room's check (Aran52/VUA#38); the author's check with real products remains |
-| 42 | Line revisions and saved fits | P-02 | planned: state records replace project copies (author, 2026-10-19); revisions first, fits second |
+| 42 | Line revisions and saved fits | P-02 | built: revisions (Aran52/VUA#40), saved fits (Aran52/VUA#45), the version list on the assembly station (Aran52/VUA#50) and the fit prompt and management (Aran52/VUA#51); the author's restore and fit checks remain |
 | 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
-| 44 | MCP result envelope | P-02 | planned: the round's payload findings with slice 32's commit-aware results and Resources |
+| 44 | MCP result envelope | P-02 | done (Aran52/VUA#43): compact reads with Resources, the build in `vua_status`, and errors that say whether a retry is safe |
 
-Suggested next order: 43 Fixes from the MCP round, 42 Line revisions and saved fits, 1 Integrate, the
-rest of 8, the rest of 6 (build and upload guide), 5 Editor handoff, the rest of 7 (image
-confirmation). 43 and 42 remove the traps the MCP round met; integration keeps the production
-branch close to `main`; 6 and 8 close the largest gaps a newcomer meets in P-02 and P-01.
+Suggested next order: the AMF operations first — 10's workshop station, 5's save-and-close buttons,
+43's reproductions, the rest of 7 (image confirmation) and 33's switch options — with functional
+fixes alongside; then 13's design session. The author's real-machine checks listed in each row
+close the built slices.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.

@@ -3,7 +3,7 @@ import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
-import { AmfProductionError, useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
@@ -73,6 +73,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   onNavigate: (page: PageId) => void; onPrepareEnv: () => void;
 }) {
   const gateway = useGateway(); const port = gateway.amfProduction;
+  // Work started elsewhere (an AI request, the release room, another line) changes the task list;
+  // the line list and the open line read again whenever a task starts or changes state.
+  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
+  const [runReload, setRunReload] = useState(0);
   const [list, setList] = useState<AmfProductionList | null>(null);
   const [sourceIds, setSourceIds] = useState<readonly string[]>(storedMaterials);
   const [editorPath, setEditorPath] = useState("");
@@ -122,7 +126,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       setSourceIds(ids => ids.filter(id => present.has(id)));
     } catch (e) { setError(e instanceof Error ? e.message : unavailable); }
   }, [port]);
-  useEffect(() => { void refreshList(); }, [refreshList]);
+  useEffect(() => { void refreshList(); setRunReload(value => value + 1); }, [refreshList, taskKey]);
   useEffect(() => {
     if (!port || !requestedRecipe) return;
     let alive = true; setRequesting(true); remember(runKey, "");
@@ -152,7 +156,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     };
     void load();
     return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };
-  }, [port, runId, taskId]);
+  }, [port, runId, taskId, runReload]);
   useEffect(() => {
     if (taskId === null) return;
     let alive = true; let timer: ReturnType<typeof setTimeout> | undefined;

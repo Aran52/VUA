@@ -8,7 +8,7 @@ import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsStartDialog.tsx";
 import { controlPreview } from "./control-center-preview.tsx";
-import type { AmfProductionPort, AmfProductionRun, LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
+import { AmfProductionError, type AmfProductionPort, type AmfProductionRun, type LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
 import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
 import "../../src/renderer/features/deployer/website-tests.css";
@@ -98,7 +98,11 @@ const api = {
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
   async previewImage() { return pixel; },
-  async open(runId: string) { return { runId, taskId: "task-open" }; },
+  // The close-offer view: Unity holds the project, so opening it is refused with the save-and-close action.
+  async open(runId: string) {
+    if (view === "workshop-close-offer") throw new AmfProductionError("vua.amf_production.project_open", "Unity has this work project open. You can save and close Unity first.", "amf.production.closeEditor");
+    return { runId, taskId: "task-open" };
+  },
   // The real case: the T-shirt materials use 0.05 while the body uses 0.1.
   async planLighting(runId: string) { return { runId, planDigest: "a".repeat(64), reference: { min: "0.1", max: "1" }, referenceReason: null,
     entries: ["ts_Black", "ts_Blue", "ts_Pink", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, sourceId: "outfit", current: { min: "0.05", max: "1" }, proposed: { min: "0.1", max: "1" } })),
@@ -181,6 +185,7 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   "ft-dialog": { run: "ftline", clicks: ["workshop-station-face", "workshop-ft-menu-aaaaaaaa"] },
   "ft-locked": { run: "ftlocked", clicks: ["workshop-station-face"] },
   "ft-none": { run: "ftnone", clicks: ["workshop-station-face"] },
+  "close-offer": { run: "finished", clicks: ["workshop-open"] },
   versions: { run: "versions", clicks: ["workshop-station-assemble"] },
   "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
   "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },

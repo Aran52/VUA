@@ -11,7 +11,7 @@ const mib = (bytes: number) => (bytes / 1024 / 1024).toFixed(2);
 
 export function TextureMemoryCard({ port, run, level, disabled, onStarted, onError }: {
   port: AmfProductionPort; run: AmfProductionRun; level: AutomationLevel; disabled: boolean;
-  onStarted: (task: string) => void; onError: (message: string) => void;
+  onStarted: (task: string) => void; onError: (error: unknown) => void;
 }) {
   const copy = strings.textureMemory;
   const [platform, setPlatform] = useState<TexturePlatform>("pc");
@@ -37,7 +37,7 @@ export function TextureMemoryCard({ port, run, level, disabled, onStarted, onErr
     if (!review || starting) return;
     setStarting(true);
     try { onStarted((await port.applyTextureMemory(run.runId, review, paths)).taskId); }
-    catch (error) { onError(error instanceof Error ? error.message : copy.unavailable); }
+    catch (error) { onError(error); }
     finally { setStarting(false); }
   };
   const current = reports?.find(r => r.platform === platform);

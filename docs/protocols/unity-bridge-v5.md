@@ -276,8 +276,9 @@ synced expression-parameter limit. Absence is compatible with older results. It 
 
 Modular Avatar merges all of this into the Avatar's asset only at build time, deduplicating by
 merged name with the Avatar's own asset first. The consumer's plan estimate reproduces that
-merge order; it cannot reproduce what only exists after the build: MA's automatically created
-menu-item parameters, parameters other tools (VRCFury, reactive components) generate, or an
+merge order and adds the switch VUA itself creates for each labelled outfit; it cannot
+reproduce what else only exists after the build: other automatically created menu-item
+parameters, parameters other tools (VRCFury, reactive components) generate, or an
 unsynced asset entry that an MA config upgrades to synced. The authoritative synced cost stays
 with the SDK's own check on the built result.
 

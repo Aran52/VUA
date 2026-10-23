@@ -84,27 +84,26 @@ impl BudgetCount {
             for entry in &component.parameters { self.add(entry); }
         }
     }
-    fn budget_bits(budget: &ParameterBudget) -> u32 {
-        let mut count = Self::new();
-        count.add_budget(budget);
-        count.bits
-    }
 }
 
 /// The plan's estimate of the synced parameter bits the assembled Avatar would use:
 /// the Avatar's own Expression Parameters plus every selected candidate's MA Parameters,
-/// merged by name the way MA merges at build time. Old runs without the evidence, an
+/// merged by name the way MA merges at build time, plus one bit for each switch VUA adds.
+/// Each source row holds the bits it adds to the running total, so the rows sum to it. Old runs without the evidence, an
 /// unreadable Avatar asset or a truncated observation report `unknown` instead of a number.
 pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection) -> serde_json::Value {
     let avatar = run.prefabs.iter().find(|prefab| prefab.is_avatar && prefab.path == selection.avatar_prefab);
     let avatar_budget = avatar.and_then(|prefab| prefab.parameter_budget.as_ref());
-    let outfits: Vec<&PrefabCandidate> = selection
+    let outfits: Vec<(&OutfitSelection, &PrefabCandidate)> = selection
         .outfits
         .iter()
         .filter_map(|outfit| {
-            run.prefabs.iter().find(|prefab| {
-                !prefab.is_avatar && prefab.source_id == outfit.source_id && prefab.path == outfit.prefab_path
-            })
+            run.prefabs
+                .iter()
+                .find(|prefab| {
+                    !prefab.is_avatar && prefab.source_id == outfit.source_id && prefab.path == outfit.prefab_path
+                })
+                .map(|prefab| (outfit, prefab))
         })
         .collect();
     let unusable = |budget: &Option<&ParameterBudget>| match budget {
@@ -113,7 +112,7 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
     };
     if avatar_budget.map(|budget| !budget.expression_parameters_observed).unwrap_or(true)
         || unusable(&avatar_budget)
-        || outfits.iter().any(|outfit| unusable(&outfit.parameter_budget.as_ref()))
+        || outfits.iter().any(|(_, outfit)| unusable(&outfit.parameter_budget.as_ref()))
     {
         return serde_json::json!({"schemaVersion":"0.1","limitBits":PARAMETER_LIMIT_BITS,"state":"unknown",
             "estimateBits":0,"evidence":"unity_source_estimate","sources":[],"unresolvedPrefixConfigs":0});
@@ -123,28 +122,33 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
     let mut count = BudgetCount::new();
     for entry in &avatar_budget.expression_parameters { count.add(entry); }
     let expression_bits = count.bits;
-    let mut avatar_ma = BudgetCount::new();
     for component in &avatar_budget.ma_components {
-        for entry in &component.parameters { avatar_ma.add(entry); }
+        for entry in &component.parameters { count.add(entry); }
     }
+    let avatar_ma_bits = count.bits - expression_bits;
     let mut sources = vec![serde_json::json!({"kind":"expression_parameters","origin":"avatar_base",
         "name":avatar_name,"bits":expression_bits})];
-    if avatar_ma.bits > 0 || avatar_budget.unresolved_prefix_configs > 0 {
+    if avatar_ma_bits > 0 || avatar_budget.unresolved_prefix_configs > 0 {
         sources.push(serde_json::json!({"kind":"ma_parameters","origin":"avatar_base",
-            "name":avatar_name,"bits":avatar_ma.bits}));
+            "name":avatar_name,"bits":avatar_ma_bits}));
     }
-    count.add_budget(avatar_budget);
     let mut unresolved = avatar_budget.unresolved_prefix_configs;
-    for outfit in &outfits {
+    for (choice, outfit) in &outfits {
         // Checked above to be present and untruncated.
         let budget = outfit.parameter_budget.as_ref().expect("checked above");
-        let bits = BudgetCount::budget_bits(budget);
+        let before = count.bits;
+        count.add_budget(budget);
+        // VUA's own switch for a labelled outfit is an MA Menu Item whose parameter MA creates
+        // at build time under a unique name: one synced Bool.
+        if !choice.toggle_name.trim().is_empty() {
+            count.bits += 1;
+        }
+        let bits = count.bits - before;
         unresolved += budget.unresolved_prefix_configs;
         if bits > 0 || budget.unresolved_prefix_configs > 0 {
             sources.push(serde_json::json!({"kind":"ma_parameters","origin":"selected_outfit",
                 "name":outfit.name,"bits":bits}));
         }
-        count.add_budget(budget);
     }
     let estimate = count.bits;
     let state = if estimate > PARAMETER_LIMIT_BITS {
@@ -218,6 +222,35 @@ mod tests {
         let plan = plan_parameter_budget(&run, &selection_with(&[("outfit", "Assets/Outfit.prefab")]));
         // The outfit's OutfitMode merges into the Avatar's own; internal parameters keep theirs.
         assert_eq!(plan["estimateBits"], 8 + 1 + 1 + 1);
+        // The merged name stays with the Avatar's row, so the rows still sum to the estimate.
+        assert_eq!(plan["sources"][1]["bits"], 3);
+        assert_eq!(rows_total(&plan), 11);
+    }
+
+    fn rows_total(plan: &serde_json::Value) -> u64 {
+        plan["sources"].as_array().unwrap().iter().map(|row| row["bits"].as_u64().unwrap()).sum()
+    }
+
+    #[test]
+    fn each_labelled_outfit_adds_the_bit_of_the_switch_vua_creates() {
+        let evidence = budget(true, vec![entry("VRCEmote", 8)], vec![component("", vec![entry("Shared", 1)])]);
+        let coat = budget(true, vec![], vec![component("", vec![entry("Shared", 1), entry("Hood", 1)])]);
+        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+            candidate("Coat", "Assets/Outfit.prefab", false, Some(coat)),
+            candidate("Hat", "Assets/Hat.prefab", false, Some(budget(true, vec![], vec![])))]);
+        let mut selection = selection_with(&[("outfit", "Assets/Outfit.prefab"), ("outfit", "Assets/Hat.prefab")]);
+        selection.outfits[0].toggle_name = "Coat".into();
+        selection.outfits[1].toggle_name = "Hat".into();
+        let plan = plan_parameter_budget(&run, &selection);
+        // Avatar 8 + 1, the coat's Hood plus its switch, the hat's switch alone.
+        assert_eq!(plan["estimateBits"], 8 + 1 + 2 + 1);
+        assert_eq!(plan["sources"][2]["bits"], 2);
+        assert_eq!(plan["sources"][3]["name"], "Hat");
+        assert_eq!(plan["sources"][3]["bits"], 1);
+        assert_eq!(rows_total(&plan), 12);
+        // An imported-only outfit has no switch and adds no bit of its own.
+        selection.outfits[1].toggle_name = "  ".into();
+        assert_eq!(plan_parameter_budget(&run, &selection)["estimateBits"], 11);
     }
 
     #[test]

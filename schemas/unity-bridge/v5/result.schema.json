@@ -24,6 +24,107 @@
       "maxLength": 256,
       "pattern": "^[^\\u0000]+$"
     },
+    "parameterEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "bits",
+        "unique"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000]+$"
+        },
+        "bits": {
+          "enum": [
+            1,
+            8
+          ]
+        },
+        "unique": {
+          "type": "boolean"
+        }
+      }
+    },
+    "parameterBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expressionParametersObserved",
+        "expressionParameters",
+        "maComponents",
+        "unresolvedPrefixConfigs",
+        "truncated"
+      ],
+      "properties": {
+        "expressionParametersObserved": {
+          "type": "boolean"
+        },
+        "expressionParameters": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/parameterEntry"
+          }
+        },
+        "maComponents": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "parameters"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "maxLength": 1024,
+                "pattern": "^[^\\u0000]*$"
+              },
+              "parameters": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                  "$ref": "#/$defs/parameterEntry"
+                }
+              }
+            }
+          }
+        },
+        "unresolvedPrefixConfigs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "expressionParametersObserved": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "expressionParameters": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
     "materialUseEntry": {
       "type": "object",
       "additionalProperties": false,
@@ -926,6 +1027,9 @@
                     "$ref": "#/$defs/previewPath"
                   }
                 ]
+              },
+              "parameterBudget": {
+                "$ref": "#/$defs/parameterBudget"
               }
             }
           }

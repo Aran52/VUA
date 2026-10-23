@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.14.0
+> Document version: 0.15.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -244,7 +244,43 @@ The parent engine owns the snapshot and independent batch recheck; no Bridge men
 alone declares FT functional. The operation's listed changed paths are the managed scene and
 marker, not an exhaustive claim about opaque creator writes.
 
+## Synced parameter budget evidence
+
+Each inspection candidate may carry `parameterBudget`, source evidence for VRChat's 256-bit
+synced expression-parameter limit. Absence is compatible with older results. It holds:
+
+- `expressionParametersObserved`: whether the candidate's own Expression Parameters are fully
+  known. An outfit has none, so it reports `true` with an empty list. An Avatar reports `true`
+  only when its descriptor's expression-parameter asset could be read whole; a missing asset is
+  `false` because the build substitutes the SDK default asset, whose cost this observation
+  cannot read. When `false` the list is empty and must not be displayed as a measured zero.
+- `expressionParameters`: the asset's synced entries as `{name, bits, unique: false}`, counting
+  Bool as 1 and Int/Float as 8 bits. Entries with `networkSynced` false cost no synced bits and
+  are left out.
+- `maComponents`: one entry per `Modular Avatar Parameters` component under the prefab, with the
+  component's path inside the prefab (empty names the prefab root) and its synced configs as
+  `{name, bits, unique}`. `NotSynced` and local-only configs are left out because the merged
+  parameter keeps `networkSynced` off. `internalParameter` entries are `unique: true`: MA
+  renames them at build time, so they never merge with a same-named declaration. `remapTo`
+  owns the merged name. On an Avatar candidate these components are the outfits its prefab
+  already wears; on an outfit candidate they are what assembling it would add.
+- `unresolvedPrefixConfigs`: configs using a parameter-name prefix. They bind parameters that
+  exist only after build-time resolution, carry no bits here, and make any total that includes
+  them an understatement.
+- `truncated`: a bound was hit (more than 256 asset entries, 64 components or 256 component
+  entries, or an unreadable name or path), so the lists are incomplete evidence rather than a
+  budget.
+
+Modular Avatar merges all of this into the Avatar's asset only at build time, deduplicating by
+merged name with the Avatar's own asset first. The consumer's plan estimate reproduces that
+merge order; it cannot reproduce what only exists after the build: MA's automatically created
+menu-item parameters, parameters other tools (VRCFury, reactive components) generate, or an
+unsynced asset entry that an MA config upgrades to synced. The authoritative synced cost stays
+with the SDK's own check on the built result.
+
 ## Document changelog
+
+- 0.15.0 (2026-10-23): each inspection candidate may carry `parameterBudget`, the source-side synced expression-parameter evidence (asset entries, MA Parameters per component, unresolved prefix configs) behind the assembly-plan estimate against the 256-bit limit.
 
 - 0.14.0 (2026-10-21): add optional per-mesh FT source evidence and confirmed interactive `amf_ft_patch`; retain unknown runtime/built-budget facts and explicit manual replay.
 

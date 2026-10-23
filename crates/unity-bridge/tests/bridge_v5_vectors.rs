@@ -52,6 +52,31 @@ fn candidate_bridge_schemas_refuse_legacy_ops_drift_and_false_sdk_claims() {
 }
 
 #[test]
+fn parameter_budget_evidence_is_optional_bounded_and_source_attributed() {
+    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    assert!(old.data["prefabs"].as_array().unwrap().iter().all(|candidate| candidate.get("parameterBudget").is_none()));
+    let value = read("examples/parameter-budget.valid.result.json");
+    let prefabs: Vec<vua_orchestrator::amf_production::PrefabCandidate> =
+        serde_json::from_value(value["data"]["prefabs"].clone()).unwrap();
+    assert!(prefabs.iter().all(|candidate| candidate.parameter_budget.is_some()));
+    vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&prefabs).unwrap();
+    assert_eq!(prefabs[0].parameter_budget.as_ref().unwrap().expression_parameters.len(), 3);
+    for file in [
+        "invalid-parameter-budget-entry-bits.result.json",
+        "invalid-parameter-budget-unobserved.result.json",
+    ] {
+        let invalid: Vec<vua_orchestrator::amf_production::PrefabCandidate> =
+            serde_json::from_value(read(&format!("examples/{file}"))["data"]["prefabs"].clone()).unwrap();
+        assert_eq!(
+            vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&invalid)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.receipt_invalid"
+        );
+    }
+}
+
+#[test]
 fn native_consumer_retains_exact_c1_facts_and_never_upgrades_sdk_checks() {
     let command: UnityCommand =
         serde_json::from_value(read("examples/assembly.valid.command.json")).unwrap();

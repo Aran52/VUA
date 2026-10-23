@@ -1,7 +1,7 @@
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
 import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AmfAssemblySelection, AmfOutfitSelection } from "@vua/contracts";
+import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
 import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -397,6 +397,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
         <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
+        {plan.parameterBudget && <ParameterBudgetNote budget={plan.parameterBudget}/>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
@@ -451,9 +452,27 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   </div>;
 }
 
+/** The plan's estimate of the synced parameter bits the assembled Avatar would use, with the
+ *  sources that spend them. MA merges parameters at build time, so the number is an estimate. */
+function ParameterBudgetNote({ budget }: { budget: AmfParameterBudgetPlanV01 }) {
+  const budgetCopy = copy.parameterBudget;
+  const kind = (source: AmfParameterBudgetPlanV01["sources"][number]) =>
+    source.kind === "expression_parameters" ? budgetCopy.own : source.origin === "avatar_base" ? budgetCopy.embedded : budgetCopy.outfit;
+  if (budget.state === "unknown") return <p className="vua-caption vua-text-secondary">{budgetCopy.unknown}</p>;
+  return <div className="vua-line__budget">
+    <p className={budget.state === "over_limit" ? "vua-n3__notice" : undefined} role={budget.state === "over_limit" ? "alert" : undefined}>
+      {budgetCopy.title} · {budgetCopy.estimate} · {format(budgetCopy.total, { used: String(budget.estimateBits), limit: String(budget.limitBits) })}
+      {budget.state === "over_limit" ? ` ${budgetCopy.overLimit}` : budget.state === "near_limit" ? ` ${budgetCopy.nearLimit}` : ""}
+    </p>
+    <ul className="vua-n3__review">{budget.sources.map((source, index) => <li key={`${source.kind}-${source.name}-${index}`}>
+      <strong>{source.name}</strong><span>{kind(source)} · {source.bits} bit</span></li>)}</ul>
+    {budget.unresolvedPrefixConfigs > 0 && <p className="vua-caption vua-text-secondary">
+      {format(budgetCopy.prefixNote, { count: String(budget.unresolvedPrefixConfigs) })}</p>}
+  </div>;
+}
+
 /** Why VUA chose the Avatar and outfits it starts the plan with, in its stated rules. */
-function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {
-  const reasons = strings.factory.reasons;
+function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {  const reasons = strings.factory.reasons;
   const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
   const parts = [
     ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),

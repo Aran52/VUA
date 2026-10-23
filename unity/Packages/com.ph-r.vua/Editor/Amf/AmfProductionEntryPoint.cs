@@ -34,13 +34,14 @@ namespace Vua.Editor.Bridge
         [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; public FitObjects fit; }
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
         [Serializable] internal sealed class ApplyTarget { public string avatarGlobalObjectId; public string newAvatarKey; public string[] writeSourceIds; }
-        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; }
+        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; public TextureImportChange[] textureChanges; public OutfitRemoval outfitRemoval; }
         [Serializable] internal sealed class Candidate
         {
             public string sourceId; public string path; public string name; public bool isAvatar;
             public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts;
             public List<string> humanoidBones = new List<string>();
             public string preview = "";
+            public ParameterBudget parameterBudget = new ParameterBudget();
         }
         [Serializable] internal sealed class PreviewImage { public string view; public string path; }
         [Serializable] internal sealed class MaterialUse { public string owner; public string renderer; public string material; }
@@ -70,6 +71,9 @@ namespace Vua.Editor.Bridge
             public List<FitChangeEntry> fitChanges = new List<FitChangeEntry>();
             public List<FitSkipEntry> fitSkipped = new List<FitSkipEntry>();
             public FtFacts faceTracking;
+            public List<TextureMemoryReport> textureMemory = new List<TextureMemoryReport>();
+            public List<OutfitRemoval> outfitRemoval = new List<OutfitRemoval>();
+            public List<RemovalApplied> outfitRemovalApplied = new List<RemovalApplied>();
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -122,7 +126,7 @@ namespace Vua.Editor.Bridge
                 throw new InvalidOperationException("AMF requires Bridge v5 and bound command/project identities.");
             if (Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
                 throw new InvalidOperationException("Unsupported actual Editor version: " + Application.unityVersion);
-            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch")
+            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import" && command.operation != "amf_outfit_remove")
                 throw new InvalidOperationException("Unknown AMF operation.");
             if (command.operation == "amf_ft_patch" && Application.isBatchMode)
                 throw new InvalidOperationException("Creator patch menus require a dedicated interactive Editor session.");
@@ -164,7 +168,7 @@ namespace Vua.Editor.Bridge
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             var fingerprint = ProjectFingerprint.Compute();
-            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
+            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
                 throw new InvalidOperationException("The scene changed. Reinspect and review the plan.");
             if (PlayerSettings.companyName != WorkCompany || PlayerSettings.productName != WorkProduct)
             {
@@ -176,18 +180,22 @@ namespace Vua.Editor.Bridge
             result.data.prefabs = Inspect(request);
             if (command.operation == "amf_assemble") Assemble(request, result);
             if (command.operation == "amf_sdk_fix") ApplySdkFixes(request, result);
+            if (command.operation == "amf_outfit_remove") RemoveOutfit(request, result);
             ObserveScene(request, result);
+            if (command.operation == "amf_texture_import") { ApplyTextureImports(request, result); ObserveScene(request, result); }
+            result.data.textureMemory = MeasureTextureMemory(result.data.avatarGlobalObjectId);
+            result.data.outfitRemoval = ObserveOutfitRemoval(request, result.data);
             result.data.faceTracking = ObserveFaceTracking(request, result.data.avatarGlobalObjectId);
             result.data.missingShaderMaterials = MissingShaderMaterials(request, result.data.avatarGlobalObjectId);
             if (result.data.missingShaderMaterials.Count > 0)
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.shaders.missing", result.data.missingShaderMaterials.Count + " materials use a shader that is not in the project."));
-            if (command.operation == "amf_assemble" && result.data.observedSelection == null)
+            if ((command.operation == "amf_assemble" || command.operation == "amf_outfit_remove") && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
-            if (command.operation == "amf_inspect" || command.operation == "amf_assemble" || command.operation == "amf_sdk_fix")
+            if (command.operation == "amf_inspect" || command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove")
                 result.data.sdkReview = ReviewWithSdk(string.IsNullOrEmpty(result.data.avatarGlobalObjectId) ? null : FindOwned(result.data.avatarGlobalObjectId));
             result.data.projectFingerprint = ProjectFingerprint.Compute();
             if (command.operation == "amf_turntable") BakeTurntable(command, result, root);
-            else if (command.operation != "amf_prepare" && command.operation != "amf_ft_patch") RenderPreviews(command, result, root);
+            else if (command.operation != "amf_prepare" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import") RenderPreviews(command, result, root);
             return request;
         }
 
@@ -321,7 +329,8 @@ namespace Vua.Editor.Bridge
                 candidates.Add(new Candidate { sourceId = source.sourceId, path = path, name = prefab.name,
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
-                    hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>() });
+                    hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),
+                    parameterBudget = ObserveParameterBudget(prefab, IsAvatar(prefab)) });
             }
             return candidates;
         }
@@ -660,6 +669,7 @@ namespace Vua.Editor.Bridge
                 if (EditorApplication.timeSinceStartup < next || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
                 next = EditorApplication.timeSinceStartup + 0.5;
                 var file = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".vua", "bridge", "amf-open.json"));
+                if (HandleCloseRequest(Path.GetDirectoryName(file))) return;
                 if (!File.Exists(file)) return;
                 try
                 {

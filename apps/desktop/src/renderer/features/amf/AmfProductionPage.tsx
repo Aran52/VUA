@@ -1,7 +1,7 @@
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
 import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AmfAssemblySelection, AmfOutfitSelection } from "@vua/contracts";
+import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
 import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -16,7 +16,11 @@ import { strings, format, formatDateMinute, formatShortDateTime, termLabel } fro
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
+import { TextureMemoryCard } from "./TextureMemoryCard.tsx";
+import { OutfitRemovalCard } from "./OutfitRemovalCard.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { RevisionsCard } from "./RevisionsCard.tsx";
+import { FitSaveCard } from "./FitSaveCard.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
@@ -90,7 +94,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
@@ -167,7 +171,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const edit = (next: AmfAssemblySelection) => { setSelection(next); setPlan(null); setError(null); };
   const outfit = (id: string, patch: Partial<AmfOutfitSelection> | null) => edit(updateOutfitSelection(selection, id, patch));
   const busy = requesting || taskId !== null || (run !== null && ["preparing", "inspecting", "assembling", "restoring"].includes(run.phase));
-  const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources") => {
+  const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources", rollbackTarget?: "restorePoint" | "prePatch") => {
     if (!port || busy) return;
     if ((action === "assemble" && !plan) || (action === "rollback" && !restorePlan) || (action === "changeSources" && !changing)) return;
     setRequesting(true); setError(null); setChosenStation(null);
@@ -175,7 +179,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const response = action === "prepare" ? await port.prepare(sourceIds.map(sourceId => ({ sourceId, role: "auto" })), editorPath || list?.editors[0]?.path || "")
         : action === "changeSources" && changing !== null ? await port.changeSources(runId, changing.map(sourceId => ({ sourceId, role: "auto" })))
         : action === "assemble" && plan !== null ? await port.assemble(runId, plan)
-        : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan)
+        : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan, rollbackTarget)
         : action === "reinspect" ? await port.reinspect(runId) : await port.open(runId);
       setTaskId(response.taskId); setTaskAction(action);
       setRestored(false); setRestorePlan(null); setOpened(null);
@@ -232,6 +236,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
+  // Fits the working selection would apply, by name; a Recipe's own fits carry no name.
+  const fitNames = [...new Set((run?.availableFits ?? [])
+    .filter(fit => fit.name !== null && selection.outfits.some(outfit => outfit.sourceId === fit.sourceId))
+    .map(fit => fit.name as string))];
+  const planFitNames = [...new Set((plan?.fits ?? [])
+    .filter(fit => fit.name !== null).map(fit => fit.name as string))];
 
   const panels = factory.panels;
   const lines: RailLine[] = (list?.runs ?? []).map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
@@ -324,7 +334,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {restored && !busy && <Card><p role="status">{copy.restored}</p></Card>}
       {restorePlan && !busy && <Card><h2>{copy.restoreTitle}</h2><p>{copy.restoreHint}</p>
         {restorePlan.currentChanged && <p className="vua-n3__notice">{copy.restoreChanged}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
+        {restorePlan.prePatch && <p className="vua-n3__notice">{copy.restorePrePatchHint}</p>}
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button>
+          {restorePlan.prePatch && <Button variant="subtle" onClick={() => { void command("rollback", "prePatch"); }}>{copy.restorePrePatch}</Button>}
+          <Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
       </Card>}
       {shown === "prepare" && <Card className="vua-line__panel">
         <h2>{panels.materials.title}</h2>
@@ -357,6 +370,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && planOpen && plan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        {fitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: fitNames.join(" · ") })}</p>}
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
@@ -389,14 +403,18 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             </div>}</div></Card>;
         })}
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} data-nav-id="workshop-plan-review" onClick={() => {
           if (!port) return; setRequesting(true); setError(null);
           void port.plan(runId,selection).then(setPlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
         }}>{copy.reviewCta}</Button></div>
       </>}
+      {shown === "plan" && run.phase === "succeeded" && port && !busy && <OutfitRemovalCard port={port} run={run} disabled={busy}
+        onStarted={task => { initialized.current = ""; setTaskId(task); setTaskAction("assemble"); setPlan(null); setAdjusting(false); setChosenStation(null); }} onError={setError}/>}
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
         <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
+        {planFitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: planFitNames.join(" · ") })}</p>}
+        {plan.parameterBudget && <ParameterBudgetNote budget={plan.parameterBudget}/>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
@@ -411,6 +429,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           }} data-nav-id="workshop-restore">{copy.restore}</Button></div>
         </>}
       </Card>}
+      {shown === "assemble" && port && <RevisionsCard port={port} run={run} disabled={busy}
+        onStarted={accepted => { setTaskId(accepted); setTaskAction("restoreRevision"); }} />}
       {shown === "check" && !(run.phase === "succeeded" && !restorePlan) && <Card className="vua-line__panel"><h2>{factory.stations.check}</h2><p className="vua-text-secondary">{panels.check.waiting}</p></Card>}
       {shown === "check" && run.phase === "succeeded" && !restorePlan && <Card><h2>{copy.completed}</h2><p>{copy.next}</p>
         {port && <AmfResultViews port={port} run={run}/>}
@@ -428,8 +448,11 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
         {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}
       </Card>}
+      {shown === "check" && !restorePlan && (run.phase === "succeeded" || (busy && !!run.result?.facts?.textureMemory?.length)) && port && <TextureMemoryCard port={port} run={run} level={level} disabled={busy}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={setError}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
+      {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
         <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
         {savedRecipe ? <><Button disabled={busy} onClick={() => setSharingRecipe(savedRecipe.recipe.recipeId)}>{copy.shareRecipe}</Button><p role="status">{format(copy.recipeSaved,{title:savedRecipe.recipe.title})}</p><Button onClick={() => { setSavedRecipe(null); newPreparation(); }}>{copy.recipes}</Button></> :
@@ -451,9 +474,27 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   </div>;
 }
 
+/** The plan's estimate of the synced parameter bits the assembled Avatar would use, with the
+ *  sources that spend them. MA merges parameters at build time, so the number is an estimate. */
+function ParameterBudgetNote({ budget }: { budget: AmfParameterBudgetPlanV01 }) {
+  const budgetCopy = copy.parameterBudget;
+  const kind = (source: AmfParameterBudgetPlanV01["sources"][number]) =>
+    source.kind === "expression_parameters" ? budgetCopy.own : source.origin === "avatar_base" ? budgetCopy.embedded : budgetCopy.outfit;
+  if (budget.state === "unknown") return <p className="vua-caption vua-text-secondary">{budgetCopy.unknown}</p>;
+  return <div className="vua-line__budget">
+    <p className={budget.state === "over_limit" ? "vua-n3__notice" : undefined} role={budget.state === "over_limit" ? "alert" : undefined}>
+      {budgetCopy.title} · {budgetCopy.estimate} · {format(budgetCopy.total, { used: String(budget.estimateBits), limit: String(budget.limitBits) })}
+      {budget.state === "over_limit" ? ` ${budgetCopy.overLimit}` : budget.state === "near_limit" ? ` ${budgetCopy.nearLimit}` : ""}
+    </p>
+    <ul className="vua-n3__review">{budget.sources.map((source, index) => <li key={`${source.kind}-${source.name}-${index}`}>
+      <strong>{source.name}</strong><span>{kind(source)} · {source.bits} bit</span></li>)}</ul>
+    {budget.unresolvedPrefixConfigs > 0 && <p className="vua-caption vua-text-secondary">
+      {format(budgetCopy.prefixNote, { count: String(budget.unresolvedPrefixConfigs) })}</p>}
+  </div>;
+}
+
 /** Why VUA chose the Avatar and outfits it starts the plan with, in its stated rules. */
-function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {
-  const reasons = strings.factory.reasons;
+function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {  const reasons = strings.factory.reasons;
   const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
   const parts = [
     ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),

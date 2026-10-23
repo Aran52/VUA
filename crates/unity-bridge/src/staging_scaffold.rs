@@ -21,6 +21,8 @@ pub const MA_STUB_PACKAGE_ID: &str = "nadena.dev.modular-avatar.core";
 /// Candidate N3 files require the real MA package. They are deliberately
 /// excluded from conversion scaffolds that use the minimal compile stub.
 pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
+    ("Editor/Amf/AmfProductionEntryPoint.Close.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Close.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.Close.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Close.cs.meta")),
     ("Editor/Amf/AmfFaceTracking.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfFaceTracking.cs")),
     ("Editor/Amf/AmfFaceTracking.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfFaceTracking.cs.meta")),
     ("Editor/Amf/AmfFaceTrackingSession.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfFaceTrackingSession.cs")),
@@ -28,12 +30,18 @@ pub static AMF_PRODUCTION_BRIDGE_FILES: &[(&str, &str)] = &[
     ("Editor/Amf.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.cs.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.OutfitRemoval.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.OutfitRemoval.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.OutfitRemoval.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.OutfitRemoval.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Fits.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Fits.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Fits.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Fits.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.Release.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Release.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.Release.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.Release.cs.meta")),
     ("Editor/Amf/AmfProductionEntryPoint.SdkReview.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.SdkReview.cs")),
     ("Editor/Amf/AmfProductionEntryPoint.SdkReview.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.SdkReview.cs.meta")),
+    ("Editor/Amf/AmfParameterBudget.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfParameterBudget.cs")),
+    ("Editor/Amf/AmfParameterBudget.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfParameterBudget.cs.meta")),
+    ("Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs")),
+    ("Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs.meta", include_str!("../../../unity/Packages/com.ph-r.vua/Editor/Amf/AmfProductionEntryPoint.TextureMemory.cs.meta")),
 ];
 
 pub const MA_STUB_PACKAGE_JSON: &str =

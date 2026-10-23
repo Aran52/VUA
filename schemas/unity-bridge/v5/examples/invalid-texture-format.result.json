@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-command",
+  "operation": "amf_assemble",
+  "status": "succeeded",
+  "changedPaths": [
+    "Assets/VUA/Production.unity",
+    "Assets/VUA/Ownership.json"
+  ],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1c1",
+    "projectFingerprint": "scene-after",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-vector",
+    "prefabs": [],
+    "instances": [
+      {
+        "sourceId": "copy-outfit",
+        "prefabPath": "Assets/Outfit.prefab",
+        "globalObjectId": "GlobalObjectId_V1-outfit",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true
+      }
+    ],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "textureMemory": [
+      {
+        "platform": "pc",
+        "textures": [
+          {
+            "id": "synthetic-color",
+            "path": "Assets/Color.png",
+            "width": 4096,
+            "height": 4096,
+            "mipmap": true,
+            "faces": 1,
+            "estimatedBytes": 89478484,
+            "known": true,
+            "maxSize": 4096,
+            "editable": true,
+            "reason": ""
+          }
+        ],
+        "totalBytes": 89478484,
+        "complete": true,
+        "rank": "medium"
+      },
+      {
+        "platform": "android",
+        "textures": [
+          {
+            "id": "synthetic-color",
+            "path": "Assets/Color.png",
+            "width": 4096,
+            "height": 4096,
+            "format": "RGBA32",
+            "mipmap": true,
+            "faces": 1,
+            "estimatedBytes": 89478484,
+            "known": true,
+            "maxSize": 4096,
+            "editable": true,
+            "reason": ""
+          }
+        ],
+        "totalBytes": 89478484,
+        "complete": true,
+        "rank": "very_poor"
+      }
+    ]
+  }
+}

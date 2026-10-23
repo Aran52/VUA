@@ -56,9 +56,15 @@ Object.assign(window, { networkReview: { run: async () => {
   await click(strings.websiteTests.testAll);
   assert(pending?.urls.length === 3 && button(strings.websiteTests.testAll).disabled, "test all uses one bounded batch");
   assert(pending!.urls.every(url => !regionalPending.urls.includes(url)), "website tests remain independent while a regional test is pending");
-  regionalPending.resolve(regionalPending.urls.map((url, index) => ({ url, status: index === 1 ? "timeout" : "http_error", elapsedMs: index === 1 ? 6000 : 210 + index, httpStatus: index === 1 ? null : 404 }))); await tick();
-  assert(regionalTile().textContent?.includes("≈ 210 ms") && regionalTile().textContent?.includes(strings.websiteTests.statuses.timeout) && !regionAction().disabled, "expected regional 404s produce reference times and one timeout does not erase other regions");
-  assert(!regionalTile().textContent?.includes("≈ 6000"), "timeout duration never becomes a latency result");
+  regionalPending.resolve(regionalPending.urls.map((url, index) => ({ url, status: index === 1 ? "timeout" : "http_error", elapsedMs: index === 1 ? 6000 : 210 + index, httpStatus: index === 1 ? null : 404,
+    ...(index === 1 ? {} : { regional: { medianMs: 210 + index, p90Ms: index === 2 ? 330 : 210 + index, samples: 9, connections: 3, viaProxy: index === 0 } }) }))); await tick();
+  const tileText = () => regionalTile().textContent ?? "";
+  assert(tileText().includes(strings.websiteTests.regionClosest) && tileText().includes(strings.websiteTests.regionAboutSame) && !tileText().includes("≈"), "the tile speaks in tiers and keeps milliseconds out");
+  assert(tileText().indexOf(strings.websiteTests.regionShort.usw) < tileText().indexOf(strings.websiteTests.regionShort.jp) && tileText().indexOf(strings.websiteTests.regionShort.jp) < tileText().indexOf(strings.websiteTests.regionShort.eu), "regions list in closeness order");
+  assert(tileText().includes(strings.websiteTests.regionUnsteady) && tileText().includes(strings.websiteTests.regionViaProxy), "a wide-spread region reads unsteady and a proxied measurement says so");
+  assert(document.querySelector(".vua-network")!.textContent?.includes(format(strings.websiteTests.approximateMilliseconds, { ms: 210 })), "expanded rows keep the measured milliseconds");
+  assert(tileText().includes(strings.websiteTests.statuses.timeout) && !regionAction().disabled, "one timeout does not erase other regions");
+  assert(!regionalTile().textContent?.includes("6000") && !document.querySelector(".vua-network")!.textContent?.includes("6000"), "timeout duration never becomes a latency result");
   pending!.resolve(rows(pending!.urls)); pending = null; await tick();
   assert(document.body.textContent?.includes("123 ms") && document.body.textContent?.includes(strings.websiteTests.statuses.timeout), "mixed results remain visible per card");
   await click(format(strings.websiteTests.testSite, { name: "VRChat" }));
@@ -69,11 +75,12 @@ Object.assign(window, { networkReview: { run: async () => {
   document.querySelector<HTMLButtonElement>("[data-region-test=eu]")!.click(); await tick();
   assert(pending?.urls.join() === REGIONAL_REFERENCES[3].url, "single-region retry requests only its origin");
   pending!.reject(); pending = null; await tick();
-  assert(regionalTile().textContent?.includes("≈ 210 ms") && regionalTile().textContent?.includes(strings.websiteTests.statuses.probe_error), "a failed regional retry preserves the other regions");
+  assert(tileText().includes(strings.websiteTests.regionClosest) && tileText().includes(strings.websiteTests.regionAboutSame) && tileText().includes(strings.websiteTests.statuses.probe_error), "a failed regional retry preserves the other regions' tiers");
   assert(document.querySelector(".vua-network__cards")!.textContent?.includes("123 ms"), "regional retry leaves website observations intact");
   regionAction().click(); await tick();
   pending!.resolve(pending!.urls.map((url, index) => ({ url, status: index === 0 ? "redirected" : "http_error", elapsedMs: 800, httpStatus: [302, 429, 503, 403][index]! }))); pending = null; await tick();
   assert(!regionalTile().textContent?.includes("≈") && regionalTile().textContent?.includes("HTTP 429"), "redirects, rate limits and other unexpected HTTP errors show errors rather than reference numbers");
+  assert(!tileText().includes(strings.websiteTests.regionClosest) && !tileText().includes(strings.websiteTests.regionViaProxy), "a fully failed run clears tiers and the proxy note");
   assert(Math.abs(regionalTile().getBoundingClientRect().height - 88) < 1 && [...regionalTile().querySelectorAll("button")].every(control => control.scrollHeight - control.clientHeight < 3), "compact regional results fit the small Play content width without vertical clipping");
   await click(strings.websiteTests.add);
   assert(Boolean(document.querySelector('[role="dialog"]')), "add opens an editor");

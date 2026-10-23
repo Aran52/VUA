@@ -6,6 +6,20 @@ use vua_orchestrator::{UnityCommand, UnityOperation, UnityResult};
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/unity-bridge/v5")
 }
+
+#[test]
+fn removal_is_a_bound_mutation_with_optional_bounded_inventory_and_exact_proof() {
+    use vua_orchestrator::amf_production::validate_outfit_removal_facts;
+    validate_outfit_removal_facts(&read("examples/assembly.valid.result.json")["data"]).unwrap();
+    validate_outfit_removal_facts(&read("examples/outfit-removal.valid.result.json")["data"]).unwrap();
+    validate_outfit_removal_facts(&read("examples/outfit-removed.valid.result.json")["data"]).unwrap();
+    for file in ["invalid-outfit-removal-manual.result.json", "invalid-outfit-removal-duplicate.result.json", "invalid-outfit-removal-no-proof.result.json"] {
+        assert!(validate_outfit_removal_facts(&read(&format!("examples/{file}"))["data"]).is_err());
+    }
+    let command: UnityCommand = serde_json::from_value(read("examples/outfit-removal.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfOutfitRemove);
+    assert!(command.operation.is_mutating() && !command.dry_run && command.expected_project_fingerprint.is_some());
+}
 fn read(file: &str) -> Value {
     serde_json::from_slice(&fs::read(root().join(file)).unwrap()).unwrap()
 }
@@ -47,6 +61,31 @@ fn candidate_bridge_schemas_refuse_legacy_ops_drift_and_false_sdk_claims() {
             validator.is_valid(&value),
             name.contains(".valid."),
             "{name}"
+        );
+    }
+}
+
+#[test]
+fn parameter_budget_evidence_is_optional_bounded_and_source_attributed() {
+    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    assert!(old.data["prefabs"].as_array().unwrap().iter().all(|candidate| candidate.get("parameterBudget").is_none()));
+    let value = read("examples/parameter-budget.valid.result.json");
+    let prefabs: Vec<vua_orchestrator::amf_production::PrefabCandidate> =
+        serde_json::from_value(value["data"]["prefabs"].clone()).unwrap();
+    assert!(prefabs.iter().all(|candidate| candidate.parameter_budget.is_some()));
+    vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&prefabs).unwrap();
+    assert_eq!(prefabs[0].parameter_budget.as_ref().unwrap().expression_parameters.len(), 3);
+    for file in [
+        "invalid-parameter-budget-entry-bits.result.json",
+        "invalid-parameter-budget-unobserved.result.json",
+    ] {
+        let invalid: Vec<vua_orchestrator::amf_production::PrefabCandidate> =
+            serde_json::from_value(read(&format!("examples/{file}"))["data"]["prefabs"].clone()).unwrap();
+        assert_eq!(
+            vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&invalid)
+                .unwrap_err()
+                .code,
+            "vua.amf_production.receipt_invalid"
         );
     }
 }
@@ -201,4 +240,22 @@ fn creator_menu_schema_accepts_custom_roots_without_native_commands_or_shortcuts
         result["data"]["faceTracking"]["patchMenus"][0]["menuPath"] = path.into();
         assert!(!validator.is_valid(&result), "{path}");
     }
+}
+
+
+#[test]
+fn texture_inventory_is_optional_but_new_facts_and_writes_are_checked() {
+    let old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    assert!(old.data.get("textureMemory").is_none());
+    let value = read("examples/texture-memory.valid.result.json");
+    let reports = vua_orchestrator::amf_production::validate_texture_memory(&value["data"]["textureMemory"]).unwrap();
+    assert_eq!(reports[0].total_bytes, 89_478_484);
+    assert_eq!(reports[0].rank, vua_orchestrator::amf_production::TextureRank::Medium);
+    for file in ["invalid-texture-bytes.result.json", "invalid-texture-format.result.json"] {
+        assert!(vua_orchestrator::amf_production::validate_texture_memory(&read(&format!("examples/{file}"))["data"]["textureMemory"]).is_err());
+    }
+    let command: UnityCommand = serde_json::from_value(read("examples/texture-import.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfTextureImport);
+    assert!(command.operation.is_mutating() && !command.dry_run);
+    assert!(command.expected_project_fingerprint.is_some());
 }

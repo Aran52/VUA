@@ -192,6 +192,17 @@ export function ReleasePreview({ view }: { view: string }) {
     }, 100);
     return () => clearInterval(timer);
   }, [view]);
+  React.useEffect(() => {
+    if (view !== "release-guide") return;
+    // Scrolls the album to the build-and-upload guide the way a jump link does.
+    const timer = setInterval(() => {
+      const guide = document.getElementById("release-upload-guide");
+      if (!guide) return;
+      clearInterval(timer);
+      guide.scrollIntoView({ block: "start" });
+    }, 100);
+    return () => clearInterval(timer);
+  }, [view]);
   if (view === "release-turn") return <AmfRoom page="release" navigate={() => {}}><TurningAlbum production={production} release={release} /></AmfRoom>;
   return <AmfRoom page="release" navigate={() => {}}><ReleaseAlbumPage onNavigate={() => {}} /></AmfRoom>;
 }

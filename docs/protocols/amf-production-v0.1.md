@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.28.0
+> Document version: 0.34.0
 > Status: Candidate
-> Updated: 2026-10-21
+> Updated: 2026-10-23
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -19,17 +19,20 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | --- | --- | --- | --- |
 | `amf.production.list` | Query | none | Local UnityPackage source identities, detected admitted Editors, retained run summaries, `capacity`, `running`, `busy` and the waiting `queue` |
 | `amf.production.setCapacity` | Command | `capacity: 1 \| 2 \| 3` | Saved `capacity` with `schemaVersion: "0.1"` |
+| `amf.production.closeEditor` | Command | `runId`, `confirmed: true` | Durable task: protect the on-disk project, save open scenes/assets, and wait for Unity to release it |
 | `amf.production.get` | Query | `runId` | Run facts, actual candidates, timed steps, checks, recovery state, version record summaries, usual step durations and the running step's progress |
 | `amf.production.faceTrackingPlan` | Query | `runId`, `menuId` | Exact imported menu, active owned Avatar, project/revision digest, interactive execution and manual replay/trust warning |
 | `amf.production.faceTrackingPatch` | Command | `runId`, `menuId`, `planDigest`, `confirmTrustedCode: true` | Durable task: snapshot, creator session, independent reinspection, automatic restoration on failure |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
-| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild` and pending Recipe `adjustments` |
+| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild`, pending Recipe `adjustments` and the estimated synced `parameterBudget` |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
+| `amf.production.planOutfitRemoval` | Query | `runId`, `sourceId` | Complete owned deletion inventory and digest |
+| `amf.production.removeOutfit` | Command | `runId`, `sourceId`, `planDigest`, `confirmed: true` | Protected removal task; independent reinspection and automatic recovery |
 | `amf.production.reinspect` | Command | `runId` | Durable task acceptance; continues a stopped run; never automatically resumes an interrupted assembly |
 | `amf.production.changeSources` | Command | `runId`, `sources: [{sourceId, role}]` | Durable task changing the line's own materials behind a restore point; the line plans again |
 | `amf.production.delete` | Command | `runId` | Durable task deleting the line's work project, release record and run record |
-| `amf.production.rollbackPlan` | Query | `runId` | Digest-bound restore point, current drift notice and current-state preservation promise |
-| `amf.production.rollback` | Command | `runId`, `planDigest` | Durable task acceptance; protect current state, restore, then inspect in Unity |
+| `amf.production.rollbackPlan` | Query | `runId` | Digest-bound restore point, the optional `prePatch` target of a marked line, current drift notice and current-state preservation promise |
+| `amf.production.rollback` | Command | `runId`, `planDigest`, optional `target: "restorePoint" \| "prePatch"` | Durable task acceptance; protect current state, restore the reviewed target, then inspect in Unity |
 | `amf.production.revisionPlan` | Query | `runId`, `revisionId` | Digest-bound replay review: the steps a restore to that version takes and skips, and the foreign-edit warning |
 | `amf.production.restoreRevision` | Command | `runId`, `revisionId`, `planDigest` | Durable task acceptance; records the current state as a version, then replays the reviewed one |
 | `amf.production.open` | Command | `runId` | Durable task acceptance; open project, select result and request official SDK panel |
@@ -48,6 +51,8 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
 | `amf.production.bakeTurntable` | Command | `runId` | Durable task baking the 60-frame turntable of the finished Avatar |
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
+| `amf.production.planTextureMemory` | Query | `runId`, `platform: pc / android`, `targetRank: excellent / good / medium / poor` | Digest-bound current inventory, suggested importer changes, predicted bytes/rank and `reachesTarget` |
+| `amf.production.applyTextureMemory` | Command | `runId`, `platform`, `targetRank`, `planDigest`, `textures` | Durable confirmed subset task; snapshot, version record, importer changes, independent reinspection and automatic restore on failure |
 | `amf.production.planLighting` | Query | `runId` | Digest-bound lilToon brightness alignment: the Avatar's reference limits, the outfit entries that differ and the shared materials left alone |
 | `amf.production.applyLighting` | Command | `runId`, `planDigest`, `materials` | Durable task acceptance; aligns the chosen reviewed materials behind a restore point and rechecks the project in Unity |
 | `amf.production.listFits` | Query | none | Retained saved fits: name, times, object count and the garment/Avatar content identities each belongs to |
@@ -166,22 +171,26 @@ identity, actual instance targets and per-step state. SDK descriptor recognition
 official SDK build/upload checks remain `not_run` until actually performed. No upload is automated.
 
 A retained `snapshotId` also enables user-requested restoration. The review digest binds the
-run, observation revision, Editor, managed project, restore point and the **current** project
-fingerprint. If external edits exist, the review reports `currentChanged`; no current edit is
-discarded silently. Execution refuses a stale review. It snapshots the current project and
-persists that recovery identity before restoring the reviewed state. Actual Unity inspection
-must succeed before the run becomes `ready`; partial restore, cancellation or failed inspection
-attempts recovery to the protected current state and reports its outcome separately. The
-protected state remains the next restore point, making restoration itself reversible. Interrupted
-restoration requires explicit reinspection. Original library inputs are never restoration targets.
+run, observation revision, Editor, managed project, the **chosen restore target** and the
+**current** project fingerprint. A line carrying the creator-patch marker keeps a second full
+copy from before the patch (see [Face tracking](#face-tracking-source-evidence-and-creator-sessions));
+its review lists that copy as `prePatch` with its own digest, and `rollback` restores it when
+`target` names `prePatch`. If external edits exist, the review reports `currentChanged`; no
+current edit is discarded silently. Execution refuses a stale review. It snapshots the current
+project and persists that recovery identity before restoring the reviewed state. Actual Unity
+inspection must succeed before the run becomes `ready`; partial restore, cancellation or failed
+inspection attempts recovery to the protected current state and reports its outcome separately.
+The protected state remains the next restore point, making restoration itself reversible.
+Interrupted restoration requires explicit reinspection. Original library inputs are never
+restoration targets.
 
 ### Version records
 
 Every protected change — a material change, an assembly, a rebuild on another base, an SDK fix,
-a lighting alignment and every restore — first records the line's state as a **version record**
+a lighting alignment, texture tuning and every restore — first records the line's state as a **version record**
 and keeps it on the run (`revisions`, newest first, at most 50; the oldest are discarded beyond
 that). A record carries its identity, the change it precedes (`materials`, `assembly`, `rebuild`,
-`sdk_fix`, `face_tracking`, `lighting` or `restore`), when it was taken, and the state a replay needs: the source
+`sdk_fix`, `face_tracking`, `lighting`, `texture_memory` or `restore`), when it was taken, and the state a replay needs: the source
 choices and each source's content identity (original package filename and SHA-256), the assembly
 selection, the brightness limits written into each in-use lilToon material, the SDK fixes applied
 so far and the observed VPM dependency versions. A display `summary` names the Avatar, outfits and
@@ -192,11 +201,14 @@ version built from their retained restore point; what the restore point never re
 
 A change that fails and whose automatic restore brings the project back discards the version it
 recorded: the state never changed. The full-copy snapshot under `.vua/snapshots/` remains the
-hard guarantee for failed or interrupted changes, and exactly one is retained per line: once the
-run record naming the current restore point is persisted, every unreferenced snapshot directory
-is deleted. Pruning validates each entry as a plain directory inside the project's own snapshot
-folder, never follows links, and only records diagnostics (`snapshot-prune.json` in AMF's
-production data root) when an entry cannot be removed — the change itself never fails over it.
+hard guarantee for failed or interrupted changes, and exactly one is retained per line — with one
+exception: while the line carries the creator-patch marker, the copy taken before the patch is
+retained next to the current restore point, so later protected edits cannot make the pre-patch
+state unreachable. Once the run record naming the retained copies is persisted, every
+unreferenced snapshot directory is deleted. Pruning validates each entry as a plain directory
+inside the project's own snapshot folder, never follows links, and only records diagnostics
+(`snapshot-prune.json` in AMF's production data root) when an entry cannot be removed — the
+change itself never fails over it.
 
 `revisionPlan` reviews a restore to a recorded version: the steps the replay takes (`materials`,
 `assembly` — with `rebuild` — `lighting`, `sdk_fix`) and which it skips, the record's summary, and
@@ -259,7 +271,7 @@ Recipe's fits take precedence over stored fits for the garments they name.
 ## Progress, stop and continue
 
 Step keys are `project`, `materials`, `inspect`, `reinspect`, `snapshot`, `assembly`,
-`protect_current`, `restore`, `turntable`, `upload`, `sdk_fix`, `face_tracking` and `lighting`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
+`protect_current`, `restore`, `turntable`, `upload`, `sdk_fix`, `face_tracking`, `lighting` and `texture_memory`. Each step records `startedAt` and `endedAt` as UTC RFC 3339
 times; records written before step times carry `null`. Step states are `running`, `succeeded`,
 `failed` and `stopped`. `amf.production.get` shows the unfinished step of work whose task no
 longer runs as `interrupted`, next to the run phase `inspect_required`.
@@ -306,7 +318,7 @@ closed.
 
 Unity work has a capacity of 1, 2 or 3, defaulting to 1. The commands that start it — `prepare`, `prepareRecipe`,
 `assemble`, `reinspect`, `sdkFix`, `faceTrackingPatch`, `changeSources`, `applyRecipe`, `rollback`, `restoreRevision`, `open`, `delete`,
-`bakeTurntable`, `upload` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
+`bakeTurntable`, `upload`, `closeEditor` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
 in request order, when admitted by these rules:
 
 - At most `capacity` jobs run at once. Capacity 1 runs one job at a time in submission order.
@@ -319,7 +331,7 @@ in request order, when admitted by these rules:
 Checks of the request itself (keys, plan digest
 shape, Avatar name, rights confirmation, SDK items) answer at once, and so does `project_open`
 for work that changes the project (reinspection, assembly, a material change, an SDK fix, a
-restore, a version restore, a Recipe application, lighting and deletion) while Unity holds it; other checks against
+restore, a version restore, a Recipe application, lighting, texture tuning and deletion) while Unity holds it; other checks against
 the work project and the run (Editor identity, `project_open` again, `project_drift`,
 `result_not_ready`) run when the job starts, and a job that cannot start then ends `failed` with
 that reason. A `runId` without a run answers `run_not_found`.
@@ -348,6 +360,41 @@ another mutex, released before Unity executes. Project files, Bridge requests, f
 snapshots and release records belong to individual managed projects or runs and use per-run
 exclusion. SQLite task and BDL writes retain their existing transactional locks. Interactive
 Editor and SDK upload work use the exclusive lane rule.
+
+Explicit outfit removal adds query `amf.production.planOutfitRemoval` (`runId`, `sourceId`)
+and command `amf.production.removeOutfit` (`runId`, `sourceId`, `planDigest`, `confirmed: true`).
+The query returns `{schemaVersion, runId, planDigest, removal}`. The command returns the usual
+accepted task. Omitting an existing outfit from an assembly selection remains an error.
+
+### Removing one owned outfit
+
+Only a completed, reinspected line without an opaque face-tracking patch can remove an outfit.
+This slice retains the existing nonempty outfit-selection contract: at least one outfit must
+remain. Imported source assets and library choices stay available for a later explicit assembly.
+
+Optional Bridge facts `outfitRemoval` contain at most 64 removal inventories. Each has `sourceId`,
+`avatarGlobalObjectId`, `roots` (one owned `outfit` root and optionally its owned `menu` root,
+each with `globalObjectId`), `objects` and `blockedReason`. Each object has `globalObjectId`,
+`path` (display only), `typeName` and `manual`. The inventory enumerates the roots' GameObjects
+and components, including MA bindings, menu items and object toggles. It is bounded at 8192
+entries per outfit. Scene additions are marked `manual`; additions whose provenance cannot be
+distinguished from VUA-created bindings are conservatively included in that warning. An
+unresolvable identity, incomplete inventory, or another ownership record inside the deletion
+roots blocks removal. Missing facts in older data remain readable and require reinspection.
+
+The digest binds the run/revision, both project fingerprints, current selection and complete
+inventory, including warnings about manually added children/components. The player reviews that
+inventory and explicitly confirms deletion. A full restore point and `outfit_removal` version
+record are saved before the mutating Bridge operation. The Bridge independently recomputes the
+inventory from ownership IDs, compares it with the reviewed request and deletes only those owned
+roots. It never selects by display name or path. Ownership and only the removed outfit's fit
+baseline/report entries are pruned; saved fits and other outfits' manual adjustments remain.
+
+A separate inspection must observe the same Avatar, exactly the remaining outfit settings and
+instance IDs, and unchanged other owned Avatars. Cancellation or any import/verification failure
+restores project files and pre-change run observations. A failed restore is explicit and retains
+the version record. Interrupted removal requires inspection and offers the retained restore point.
+The ordinary assembly path can add the imported outfit back, including its saved fit.
 
 ### Changing a line's materials
 
@@ -461,6 +508,59 @@ fix for are refused with `vua.amf_production.sdk_fix_unavailable` before any res
 failure restores the project. The release page offers it as "Fix with the SDK" after the player
 reads what happens.
 
+## Save and close the open Editor
+
+`amf.production.closeEditor` is an explicit, confirmed lifecycle command for one managed line.
+It occupies the exclusive Unity lane like `open` and `upload`, so it cannot close an Editor while
+another AMF job uses it. A closed project returns `{schemaVersion: "0.1", runId,
+outcome: "already_closed", editorClosed: true}` without saving or creating a restore point.
+
+For an open project the engine captures its current **on-disk** `Assets`, `Packages` and
+`ProjectSettings` in a verified full-copy restore point before dispatch. It compares fingerprints
+around the copy and rejects concurrent disk changes. Unsaved Editor memory is not part of a disk
+snapshot. The line first persists the restore point and an `editor_save` version record (marked
+`editedInUnity: true` because replay cannot reproduce arbitrary manual edits), then starts step
+`editor_close` and writes the [Bridge save/close request](unity-bridge-v5.md#save-and-close-handoff).
+It does not run Avatar edits, SDK fixes, uploads or the previously refused production operation.
+
+The task succeeds only with a matching successful save receipt **and** the existing project-lock
+probe observing that Unity released the project. It waits at most two minutes, never terminates
+Unity, removes an unconsumed request on every return, and expires late requests. Cancellation
+removes an unconsumed request and marks a picked-up request cancelled; the Editor checks again
+before exit. A synchronous save/exit already past that check may still finish. Missing or old
+Bridge support times out and asks the player to reopen the project to load the current Bridge.
+An absent receipt remains unknown even when the project lock has disappeared.
+
+The optional run field `editorClose` retains `{schemaVersion: "0.1", runId, closeId,
+outcome: "saved" | "failed", scenesSaved, assetsSaved, editorClosed, reason, detail}`. The Editor
+writes saving facts before exit; only AMF's lock observation sets `editorClosed`. `reason` is
+empty for a completed save/close, or `scene_save_failed`, `asset_save_failed`, `untitled_scene`,
+`editor_busy`, `expired`, `cancelled`, `save_failed` or `timeout`; `detail` is at most 1000 characters. A saved
+receipt with `reason: "timeout"` and `editorClosed: false` means saving succeeded but exit did not.
+Failures return `editor_save_failed`, or `editor_close_timeout` for a timeout. Receipt shape and
+identity failures return `receipt_invalid`; other handoff I/O failures return `editor_close_failed`.
+
+A line with unfinished snapshot recovery refuses another save/close so that its earlier recovery
+point cannot be replaced; the player saves/closes Unity manually and resolves that recovery first.
+
+A bound `editor_busy`, `untitled_scene` or early `expired` receipt with both saved flags false
+proves no save was attempted: discard that change's version and allow a retry after the player
+resolves the blocker. Other failures attempt the existing automatic snapshot restore. Its project-lock guard remains in
+force: when Unity still holds the project, the restore point and version remain and `recovery`
+reports `restore_failed: vua.amf_production.project_open`; VUA never overwrites a live Editor's
+files. After the player resolves saving and closes Unity, the existing reviewed full-copy
+rollback recovers that point. Successful automatic restoration discards the failed change's
+version. Every successful close invalidates the confirmed plan; changed project files put the
+line in `inspect_required` before the player checks and assembles again.
+
+All `project_open` errors retain their code and add the text that saving and closing Unity is
+available and optional `params.suggestedAction: "amf.production.closeEditor"`. Renderer and MCP
+consumers can offer the action without automatically invoking it. Renderer boundaries validate
+both new fields when present and accept old runs/errors without them. The renderer port exposes
+the confirmed task and preserves the typed error hint; request-card buttons and automatic retry
+are separate frontend work. MCP's `vua_request_amf_close_editor` uses the existing local player
+approval queue.
+
 ## Unity producing face
 
 [Bridge v5](unity-bridge-v5.md) is a separate Candidate entry point for these operations. Frozen
@@ -489,9 +589,12 @@ feed: the newest stable release of the material's single version line, pinned as
 Materials spanning several lines and projects already carrying the package get no install.
 A legacy copy bundled inside a selected package — located through the feed cache's
 `legacyFolders`/`legacyFiles`, or the table's fallback before the first feed refresh — leaves
-for the official package only when the exact release about to be installed covers every
-`.shader` GUID in the copy; lilToon keeps its historical always-replace rule. Any other copy
-imports unchanged and nothing is installed for it. Installation failures keep failing the step.
+for the official package only when one recorded release's complete `.shader` set covers every
+GUID in the copy, the shaders the selected materials reference and the package's shaders other
+selected sources provide; the install pins that exact release, so a copy never meets an
+unverified release. Multi-line Poiyomi copies and the utility shaders shipped with them leave
+too; lilToon keeps its historical always-replace rule. Any other copy imports unchanged and
+nothing is installed for it. Installation failures keep failing the step.
 After Unity reports `facts.missingShaderMaterials`, each recognized `guide` package, and each
 recognized `auto` package whose needed version lines the project does not carry, adds one
 `amf.package.guide` warning naming the package, the affected material count, the needed version
@@ -524,14 +627,18 @@ serializes work through the existing production lane, rejects an open project an
 digest again when the task runs.
 
 The engine records the pre-change `face_tracking` version and full snapshot, then launches a
-dedicated supervised interactive Editor with a 20-minute budget. Only the `amf_ft_patch`
-operation omits batch/quit flags. The player completes creator dialogs and prefab steps on
+dedicated supervised interactive Editor. Only the `amf_ft_patch`
+operation omits batch/quit flags. The session has no fixed completion budget: a creator patch
+with manual steps waits however long the player needs, and Stop still ends Unity's process tree
+and restores the snapshot. An 8-hour safety cap is the only time limit, so a runaway Editor
+process cannot outlive its supervision; reaching it restores the snapshot like any failure.
+The player completes creator dialogs and prefab steps on
 the existing Avatar, then chooses Finish and check or Cancel and restore. Dispatch is not a
 completion receipt. After a successful session exits, a separate batch inspection must retain
 the same owned Avatar and outfit selection and observe the manual-replay marker. The phase
 returns to `succeeded`; actual FT movement still requires a VRChat check. Missing completion,
-cancellation, timeout, target drift or inspection failure restores the snapshot after process
-exit. Successful automatic restoration also restores the prior run facts and removes the
+cancellation, the safety cap, target drift or inspection failure restores the snapshot after
+process exit. Successful automatic restoration also restores the prior run facts and removes the
 failed change's version record. Failed restoration remains explicit.
 If child-process cleanup cannot be verified, `vua.amf_production.process_cleanup_unverified`
 retains the snapshot and defers automatic restoration. The player must close the creator helper
@@ -542,16 +649,117 @@ the snapshotted `ProjectSettings/VUA.FaceTracking.json` file, outside the AssetD
 pipeline. Version state adds optional/default-false
 `faceTrackingManual`. Saving a new Recipe, assembling/rebuilding, replacing sources or applying
 a Recipe to a marked line is refused as `vua.amf_production.face_tracking_manual_replay`.
-Version replay also refuses a marked current or target state. The existing full-copy rollback
-remains available and restores the marker with the files. Further protected edits can replace
-that single retained snapshot as usual; this does not create a permanent FT uninstall point.
+Version replay also refuses a marked current or target state.
+While the marker exists, the line keeps the full copy taken before its first patch
+(`ftPrePatchSnapshot` on the run view) next to its current restore point: `sdkFix`,
+`applyLighting` and every other protected change take their own restore point, and pruning
+never replaces the pre-patch copy. `rollbackPlan` offers that copy as `prePatch` with its own
+digest, and `rollback` with `target: "prePatch"` returns the line to it; while the copy equals
+the current restore point — directly after a patch — the default restore already reaches it and
+no second target is offered. A successful return to the pre-patch state removes the marker with
+the files and ends the retention: the patched state the return left behind becomes the restore
+point, so the return is reversible, and a later patch records a new pre-patch copy.
 The Recipe format and external-tool lifecycle are unchanged.
 
 The recovery boundary covers VUA's work-project writes. Imported scripts execute with ordinary
 Editor privileges; this is not an OS sandbox and cannot undo external writes. See the
 [design and SOP drafts](../development/face-tracking.md) for adapter limits and real-device review.
 
+## Texture memory and importer tuning
+
+`facts.textureMemory` is optional on retained runs. A new Bridge reports either an empty list
+(no active Avatar) or PC and Android reports in that order. Each report contains `platform`,
+`textures`, `totalBytes`, `complete` and the texture-category `rank`. Each texture has a distinct
+`id`, project-relative `path` (empty for generated textures), imported `width`/`height`, `format`,
+`mipmap`, `faces`, `maxSize`, `estimatedBytes`, `known`, `editable` and a `reason` for exclusions.
+The dependency graph includes inactive renderers and animation-referenced materials, and counts
+one texture object once even when several materials share it. This is a scene/importer estimate
+before build processors; the SDK's built Avatar statistics remain authoritative.
+
+Known estimates sum the decoded GPU storage of every mip, rounding each compressed mip to whole
+blocks and multiplying cube faces. The CPU-readable copy, allocator overhead, file/download size
+and transient Editor allocations are excluded. Crunch is estimated as its decoded DXT/ETC format.
+Unknown formats, non-POT importer scaling and unsupported platform formats have `known: false`
+and zero known bytes. Any unknown entry makes `complete: false` and `rank: unknown`; the displayed
+sum is then a lower bound, never a successful rank claim.
+
+Thresholds consulted on **2026-10-23**: VRChat's [official performance ranks](https://creators.vrchat.com/avatars/avatar-performance-ranking-system/)
+publish PC Excellent/Good/Medium/Poor limits of 40/75/110/150 MB and mobile limits of 10/18/25/40 MB.
+This estimate uses inclusive limits in MiB (1,048,576 bytes), displays MiB explicitly, and assigns
+`very_poor` above Poor. It describes only texture memory, independently of the overall SDK rank.
+Unity's [2022.3 texture format documentation](https://docs.unity3d.com/2022.3/Documentation/Manual/class-TextureImporterOverride.html)
+was consulted on the same date for platform compression and Crunch's unchanged decoded footprint.
+
+Planning requires a succeeded line, new measured facts and an unchanged project fingerprint.
+The digest binds the run identity/revision, project fingerprint, platform, target and the full
+plan. Suggestions first use BC7 on PC or ASTC 4x4 on Android when this saves memory without
+changing resolution. Already smaller compressed formats are retained. If needed, the greatest
+remaining saving is selected one halving at a time, down to a conservative maximum-dimension
+floor of 512. Mipmaps, alpha, sRGB, read/write and other importer properties are preserved.
+Only ordinary sRGB Texture2D color assets with POT sources and writable local files qualify;
+normal/data/HDR textures, special shapes, package/generated/sub-assets and textures shared with
+another Avatar in the saved scene remain unchanged. An unreachable target is explicit.
+
+The player confirms every mutation: ask mode submits one reviewed path at a time; smart mode
+reviews a selectable list; full mode confirms the target's entire suggested set with one action.
+Full mode's target does not grant unattended mutation authority. Every command names a nonempty,
+distinct subset of the digest-bound plan; other paths and stale digests fail before the snapshot.
+The queued task validates the project again on admission, saves a restore point and a
+`texture_memory` version record before writes, changes only platform importer settings in the
+managed work project, then independently inspects Unity and verifies the selected settings.
+A complete suggested set that was predicted to reach the target must reach it in the recheck.
+Cancellation, failed import, missing facts or verification failure restore both project files
+and the prior observations. A failed restoration stays explicit with its recovery point.
+An interrupted texture step also offers the retained full-copy restore point.
+
+Importer tuning is not captured in Recipes in this slice. Version records retain stable texture
+facts; replay fails with `texture_manual_replay` when a texture both the version and the current
+line carry has different settings now, rather than claiming to reconstruct them. Textures that
+came or went with other outfits, and versions recorded before texture facts existed, stay
+replayable. The retained full-copy restore point can undo the last
+protected change. Full historical importer/Recipe replay remains follow-up work.
+
+lilAvatarUtils was evaluated on **2026-10-23**. Its [MIT-licensed texture panel](https://lilxyzw.github.io/lilAvatarUtils/ja_JP/docs/TexturesGUI.html)
+provides inventory, VRAM sorting and batch importer edits. It does not provide VUA's reviewed
+digests, permission receipts, durable tasks, restore points or failure recovery. This slice uses
+Unity's public importer API directly and neither copies nor distributes lilAvatarUtils code.
+
 ## Document changelog
+
+- 0.34.0 (2026-10-23): add explicit reviewed outfit removal with ownership inventory, confirmation, protected history, fit preservation and independent verification.
+
+- 0.33.0 (2026-10-23): add platform texture-memory observations and digest-bound, confirmed importer tuning with restore and consumer validation.
+
+## Synced parameter budget estimate
+
+`amf.production.plan` carries `parameterBudget`, the plan's estimate of the synced
+expression-parameter bits the assembled Avatar would use against VRChat's 256-bit limit. It
+merges, by merged name and in MA's build order, the selected Avatar's own Expression Parameters
+asset, the MA Parameters its prefab already carries (the outfits it wears), and each selected
+outfit's MA Parameters, and adds one synced Bool for each switch VUA adds to a labelled outfit
+(an MA Menu Item whose parameter MA creates at build time under a unique name). `state` is
+`fits`, `near_limit` (above 90 % of the limit), `over_limit` (the SDK refuses the upload; the
+plan says so) or `unknown`. `unknown` covers runs whose last inspection predates the evidence,
+an Avatar whose Expression Parameters asset could not be read, and any truncated observation;
+it carries no number. `sources` attributes every counted bit to one row — the Avatar's own
+asset, its embedded components, or one selected outfit with its switch — as the bits that
+source adds to the running total, so a merged name stays with the first source that declares
+it and the rows sum to `estimateBits`. `unresolvedPrefixConfigs` counts MA prefix configs whose
+parameters exist only after build-time resolution; they are not in the estimate, which is
+therefore a floor where they appear. The evidence and its bounds are the Bridge's
+[candidate `parameterBudget`](unity-bridge-v5.md#synced-parameter-budget-evidence). The number
+is a source estimate (`evidence: "unity_source_estimate"`), never the SDK's built cost, which
+the SDK's own check reports after assembly.
+
+## Document changelog
+
+- 0.32.0 (2026-10-23): add confirmed, protected save/close tasks, bound Editor saving receipts plus project-release observation, optional close facts and project-open action hints.
+
+- 0.31.0 (2026-10-23): `amf.production.plan` estimates the assembled Avatar's synced parameter bits against the 256-bit limit from per-candidate Bridge evidence, counting one bit for each switch VUA adds, with per-source attribution that sums to the estimate and an explicit `unknown` instead of a number when the evidence is missing or truncated.
+
+- 0.30.0 (2026-10-23): the creator-patch session waits for the player's Finish or Cancel instead of the 20-minute Bridge budget (Stop unchanged; an 8-hour cap only ends a runaway process), and a marked line keeps its pre-patch full copy next to the current restore point, offered by `rollbackPlan` and `rollback` as the digest-bound `prePatch` target.
+
+- 0.29.0 (2026-10-23): bundled Poiyomi copies spanning several version lines — and the utility shaders shipped with them — leave for the official package when one recorded release's complete shader set covers them, pinned to that exact release; the feed cache reads vrc-get's nested repository documents.
 
 - 0.28.0 (2026-10-21): add optional FT source facts, a digest-bound confirmed creator-menu session with snapshot/version/recheck recovery, and explicit opaque-patch replay restrictions.
 
@@ -564,24 +772,3 @@ Editor privileges; this is not an OS sandbox and cannot undo external writes. Se
 - 0.22.0 (2026-10-19): a missing run answers `run_not_found`; work that changes a project Unity holds answers `project_open` when it is requested; deleting a line also removes its assembly records.
 - 0.21.0 (2026-10-19): `amf.production.planLighting` and `amf.production.applyLighting` align outfit lilToon brightness limits with the Avatar's reference behind a restore point, from the Bridge's material-use facts.
 - 0.20.0 (2026-10-19): another Avatar prefab on an assembled line rebuilds the line on that base behind a restore point; `plan` reports it as `rebuild`.
-- 0.19.0 (2026-10-19): add persisted capacity 1–3, per-line exclusion, exclusive Editor and deletion work, strict queue admission, running task identities and shared-resource write locks.
-- 0.18.0 (2026-10-19): preparation resolves missing shaders through the known-package table with `auto`, `guide` and `bundled` delivery, per-line pinned installs, legacy-copy replacement only when the exact release covers the copy, and the `amf.package.guide` diagnostic naming needed version lines.
-- 0.17.0 (2026-10-18): `amf.production.changeSources` changes a line's own materials behind a restore point that keeps them, and `amf.production.delete` deletes a line with its work project and records.
-- 0.16.0 (2026-10-18): Unity work requested while a job runs waits as a `queued` task and starts by itself in request order; `list` reports the `queue`, and cancelling a queued task removes it without running it.
-- 0.15.0 (2026-10-18): `recommendAssembly` recommends the Avatar and outfits with stated rules and leaves equally plausible candidates to the player.
-- 0.14.0 (2026-10-18): `amf.production.sdkFix` and the `sdk_fix` step run the SDK's own Auto Fix behind a restore point.
-- 0.13.0 (2026-10-18): cached v2 project fingerprints with a per-file hash cache in `.vua/fingerprint-cache.json`, one-time v1 comparison for older records, and the `fingerprint` progress stage for the after-Unity project-file check.
-- 0.12.0 (2026-10-18): run facts carry `sdkReview`, the SDK's own Avatar checks and performance ratings, shown on the release page.
-- 0.11.0 (2026-10-18): the upload record names `sdkSignIn` (`vua_session` / `panel`), the sign-in source of the SDK panel, and links the experimental [VRChat sign-in](vrchat-session-v0.1.md).
-- 0.10.0 (2026-10-17): release the finished Avatar: a recorded 60-frame turntable and managed upload through the VRChat SDK after the player's rights confirmation.
-- 0.9.0 (2026-10-17): add step times, usual step durations, Unity stages in task progress and `get`, Stop through task cancellation, and the `stopped` and `inspecting` phases.
-- 0.8.0 (2026-10-16): report result and candidate previews and read them through `amf.production.previewImage`.
-- 0.7.0 (2026-10-16): start Unity Hub before Unity work and install lilToon for lilToon materials whose shader is absent.
-- 0.6.0 (2026-10-15): add observed Recipe differences, reviewed priority choices, same-project new Avatars and preserved unmentioned outfits.
-
-- 0.5.0 (2026-10-15): connect source-reviewed export and idempotent received Recipes through the closed production Gateway.
-
-- 0.4.0 (2026-10-15): connect verified scene settings to local Recipe saving, reopening and pinned new-project preparation.
-- 0.3.0 (2026-10-14): expose actual saved-scene observations and prefer verified current settings when editing again.
-- 0.2.0 (2026-10-14): extend the Candidate with reviewed, reversible user restoration and continued editing after assembly.
-- 0.1.0 (2026-10-13): add the Candidate material-first N3 face, isolated managed-project path, exact confirmation and explicit evidence/recovery limits.

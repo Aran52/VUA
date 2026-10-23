@@ -11,7 +11,8 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { DEFAULT_TEST_WEBSITES, normalizeWebsiteUrl, parseTestWebsites, type TestWebsite } from "./website-model.ts";
 import { brandGlyphPath } from "./website-glyphs.ts";
-import { REGIONAL_REFERENCES, referenceElapsed, type RegionalReference } from "./regional-reference.ts";
+import { REGIONAL_REFERENCES } from "./regional-reference.ts";
+import { RegionalTierList, RegionalTierSummary, regionalMeasuredViaProxy } from "./RegionalTiers.tsx";
 import "./website-tests.css";
 
 const copy = strings.websiteTests;
@@ -94,30 +95,21 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
   if (!port && !compact) return null;
   const busy = sites.some(site => states[site.url]?.busy);
   const regionBusy = REGIONAL_REFERENCES.some(region => referenceStates[region.url]?.busy);
-  const regionLabel = (region: RegionalReference) => {
-    const state = referenceStates[region.url];
-    if (state?.busy) return copy.testing;
-    if (!state) return "—";
-    const ms = referenceElapsed(region, state.result);
-    return ms !== null ? format(copy.approximateMilliseconds, { ms }) : state.result?.httpStatus !== null && state.result?.httpStatus !== undefined
-      ? format(copy.httpStatus, { code: state.result.httpStatus }) : copy.statuses[state.result?.status ?? "probe_error"];
-  };
+  const regionViaProxy = regionalMeasuredViaProxy(referenceStates);
   const regionSites = REGIONAL_REFERENCES.map(region => ({ name: copy.regionCities[region.id], url: region.url }));
   return <>
-    {compact ? <article className="vua-environment-card vua-network-tile">
+    {compact ? <article className="vua-environment-card vua-network-tile" data-proxy={regionViaProxy || undefined}>
       <button type="button" className="vua-environment-card__details" data-nav-id="play-network-details" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
         <span className="vua-route-tile__icon" aria-hidden="true"><Icon name="gauge" size={24} /></span><strong>{copy.regionTitle}</strong>
-        <span className="vua-network-tile__results" aria-live="polite"><span title={copy.regionCities.eu}>{copy.europe}<span>{regionLabel(REGIONAL_REFERENCES[3])}</span></span><span>{copy.america}<span title={copy.regionCities.usw}>{copy.west} {regionLabel(REGIONAL_REFERENCES[0])}</span><span title={copy.regionCities.use}>{copy.east} {regionLabel(REGIONAL_REFERENCES[1])}</span></span><span title={copy.regionCities.jp}>{copy.japan}<span>{regionLabel(REGIONAL_REFERENCES[2])}</span></span></span>
+        <RegionalTierSummary states={referenceStates} />
       </button>
       <button type="button" className="vua-environment-card__action" data-nav-id="play-network-test" disabled={!ready || regionBusy} aria-label={ready === false ? copy.regionUnavailable : copy.testRegions} onClick={() => { void test(regionSites, true); }}>
         <span className={regionBusy ? "vua-environment-card__spin" : undefined} aria-hidden="true"><Icon name={regionBusy ? "refresh" : "gauge"} size={24} /></span><span role="status">{regionBusy ? copy.testing : ready === false ? copy.regionUnavailable : copy.testRegions}</span>
       </button>
+      {regionViaProxy ? <p className="vua-network-tile__proxy">{copy.regionViaProxy}</p> : null}
     </article> : null}
     <Card className="vua-network" hidden={compact && !expanded}>
-    {compact ? <section className="vua-network__references" aria-label={copy.regionTitle}>
-      <h2>{copy.regionTitle}</h2><p className="vua-text-secondary">{copy.regionScope}</p>
-      <ul>{REGIONAL_REFERENCES.map(region => <li key={region.id}><span><strong>{copy.regionCities[region.id]}</strong><span className="vua-text-secondary">Oracle Cloud · {region.id.toUpperCase()}</span></span><button type="button" className="vua-network__region-test" data-region-test={region.id} title={region.url} disabled={!ready || referenceStates[region.url]?.busy} aria-label={format(copy.testSite, { name: copy.regionCities[region.id] })} onClick={() => { void test([{ name: copy.regionCities[region.id], url: region.url }], true); }}><span role="status">{referenceStates[region.url] ? regionLabel(region) : copy.test}</span></button></li>)}</ul>
-    </section> : null}
+    {compact ? <RegionalTierList states={referenceStates} ready={ready} onTest={region => { void test([{ name: copy.regionCities[region.id], url: region.url }], true); }} /> : null}
     <header className="vua-network__header">
       {/* 仪表盘字形:本面板测的是到站耗时(ms),不是信号有无 */}
       <span className="vua-network__heading-icon"><Icon name="gauge" size={24} /></span><h2>{copy.title}</h2>

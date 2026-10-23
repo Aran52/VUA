@@ -112,7 +112,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 46 | Library migration grouping | — | planned; executes the migration design |
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
 | 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
-| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts nn8-d and nn8-e |
+| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts nn8-d, nn8-e and nn8-f |
 | 50 | AI connection as a first-run choice | — | planned |
 | 51 | Recipes creators trust | P-04 | planned: prompts nn8-a, nn8-c, nn8-d, nn8-e for agents; B by Claude |
 | 52 | Signed Windows releases | — | SignPath application filled in on 2026-10-24; awaits the author's submission and approval |
@@ -880,24 +880,34 @@ drag from X is a still picture; the animated GIF serves chats and Discord.
    "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24).
    Including the Recipe is the player's choice per export and runs the existing reviewed share
    export first.
-3. The Recipe's short code hides in the background: VUA renders the turntable on its own plain
-   background, and the code's modules are drawn there as blocks a few luminance levels lighter or
-   darker than the background, large enough to survive X's recompression and repeated across the
-   background so the Avatar never covers every copy. People see a plain background; VUA, which
-   knows the background colour, subtracts it and reads the code (author, 2026-10-24). The contrast
-   is the smallest one that passes a round trip through X in testing.
-4. Publishing the Recipe stores its share declaration on VUA's Recipe link service under a
-   content-derived code (`https://<host>/r/<code>`): the code is a prefix of the declaration's
-   SHA-256, so VUA verifies whatever the service returns. Publishing is explicit, needs no
-   account, and the player can withdraw a link they published.
-5. Dropping an image or pasting a link in VUA reads the code, fetches and verifies the
-   declaration and opens the Recipe preview, with the image as its preview. The link also opens a
-   web page listing the Avatar's materials with their BOOTH pages and creators, and "Open in VUA";
-   the export offers the link for the post text, since a phone camera cannot read the hidden code.
-6. The paste text stays available for players without a network or who prefer not to publish.
+3. The short code is for VUA only and hides in areas whose colour VUA controls (author,
+   2026-10-24): the code's modules are blocks a few luminance levels lighter or darker than their
+   surroundings. The main carrier is the plate of the "VUA inside" badge, which VUA draws on any
+   picture, so the code reads on any background; on the turntable's plain background further
+   copies repeat around the Avatar. People see the badge and the picture; VUA subtracts the known
+   plate or background colour and reads the code. The contrast and module size are the smallest
+   that pass a round trip through X in testing, including the smaller copies X serves.
+4. Publishing stores the shared document on VUA's link service under a content-derived code
+   (`https://<host>/r/<code>`): the code is a prefix of the document's SHA-256, so VUA verifies
+   whatever the service returns. Publishing is explicit, needs no account, and the player can
+   withdraw a link they published.
+5. Dropping an image or pasting a link in VUA reads the code, fetches and verifies the document
+   and opens its preview, with the image as the preview picture. The link also opens a web page
+   listing the materials with their BOOTH pages and creators, and "Open in VUA"; the export offers
+   the link for the post text.
+6. Besides Recipes, a shared document can be a selection of BOOTH products, reusing the
+   [selection drafts](../protocols/recipe-selection-draft-v0.1.md): a receiver sees the products,
+   which they own, their terms and the BOOTH pages, and can keep them as a draft.
+7. Two more ways to make such pictures (author, 2026-10-24):
+   - right-clicking a BOOTH product in the library or the workshop exports its product image
+     with the badge and a one-product selection;
+   - a standalone badge maker adds the "VUA inside" badge to any picture the player chooses,
+     carrying a Recipe, a selection draft or a few products picked on the spot.
+8. The paste text stays available for players without a network or who prefer not to publish.
 
-**Done when** the author posts the P-02 turntable PNG to X, drags it from X into a second VUA,
-and VUA opens the Recipe, while the background looks plain to the eye.
+**Done when** the author posts the P-02 turntable PNG and a product picture on a busy background
+to X, drags each from X into a second VUA, and VUA opens the Recipe and the product selection,
+while the badge and the picture look unchanged to the eye.
 
 ## 50 — AI connection as a first-run choice
 

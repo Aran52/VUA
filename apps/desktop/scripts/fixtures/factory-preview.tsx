@@ -67,6 +67,12 @@ runs.versions = { ...runs.finished!, runId: "versions", revisions: [
   { id: "rev-2", before: "rebuild", takenAt: "2026-10-21T15:02:00Z", editedInUnity: false, summary: { ...versionSummary, avatar: "Meiyun" } },
   { id: "rev-1", before: "materials", takenAt: "2026-10-21T13:30:00Z", editedInUnity: false, summary: { avatar: null, outfits: [], sources: ["Meiyun_v2.1.0.zip"], lightingMaterials: 0, sdkFixes: [] } },
 ] } as AmfProductionRun;
+// A finished line with unsaved Unity-side adjustments on its outfit, and a stored fit the next assembly applies.
+const fitObject = (path: string) => ({ path, localPosition: { x: 0.01, y: 0, z: 0 }, localRotation: { x: 0, y: 0, z: 0, w: 1 }, localScale: { x: 1, y: 1, z: 1 } });
+runs.fitline = { ...runs.finished!, runId: "fitline",
+  selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
+  fitChanges: [{ sourceId: "outfit", moved: [fitObject("ChestRibbon"), fitObject("Skirt/Bow#1")], missing: ["Clips#2"], changesDigest: "d".repeat(64) }],
+  availableFits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] } as AmfProductionRun;
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
@@ -92,6 +98,11 @@ const api = {
         : [{ key: "materials", skipped: true }, { key: "assembly", skipped: false }, { key: "lighting", skipped: false, materials: ["ts_Black", "ts_White"].map(name => ({ material: `Assets/Amenbo/TshirtShorts/Material/${name}.mat`, min: "0.1", max: "1" })) }, { key: "sdk_fix", skipped: true, fixes: [] }] };
   },
   async restoreRevision(runId: string) { return { runId, taskId: "task-restore" }; },
+  // The fits views: the plan names the stored fit the assembly applies, and saving keeps the reported adjustments.
+  async plan(runId: string, selection: unknown) { return { runId, planDigest: "c".repeat(64), selection,
+    inputs: [{ sourceId: "avatar", name: "Meiyu_改変", role: "avatar" }, { sourceId: "outfit", name: "TshirtShorts", role: "outfit" }],
+    fits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] }; },
+  async saveFit(runId: string, sourceId: string, name: string) { return { fitId: "fit-new", name, createdAt: "2026-10-23T01:00:00Z", updatedAt: "2026-10-23T01:00:00Z" }; },
 } as unknown as AmfProductionPort;
 // The materials-start views: the library's products mapped to the AMF sources above,
 // plus one unrelated dress so the "other outfits" fold has a row.
@@ -148,6 +159,9 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
   "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },
   "versions-error": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-1"] },
+  fitsave: { run: "fitline", clicks: [] },
+  fitplan: { run: "fitline", clicks: ["workshop-station-plan"] },
+  fitreview: { run: "fitline", clicks: ["workshop-station-plan", "workshop-plan-adjust", "workshop-plan-review"] },
 };
 const runOf = selected === "full-access" || selected === "mode-menu" ? "waiting" : clickThrough[selected]?.run ?? selected.replace(/-auto$/u, "");
 function ClickThrough({ clicks }: { clicks: readonly string[] }) {

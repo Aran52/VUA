@@ -101,3 +101,8 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 .vua-revisions__steps li { display: flex; justify-content: space-between; gap: 16px; padding-block: 10px; border-bottom: 1px solid var(--vua-border); }
 .vua-revisions__steps li[data-skipped] { color: var(--vua-text-secondary); }
 .vua-revisions__steps small { display: block; margin-top: 4px; color: var(--vua-text-secondary); font-weight: 400; }
+.vua-fitsave__entry { display: grid; gap: 10px; padding-block: 12px; }
+.vua-fitsave__entry + .vua-fitsave__entry { border-top: 1px solid var(--vua-border); }
+.vua-fitsave__entry p { margin: 0; }
+.vua-fitsave__row { display: flex; gap: 12px; align-items: center; }
+.vua-fitsave__row input { flex: 1; min-width: 180px; }

@@ -129,6 +129,14 @@ pub(super) fn texture_revision_state(run: &ProductionRun) -> serde_json::Value {
     if state.is_empty() { serde_json::Value::Null } else { serde_json::json!(state) }
 }
 
+/// Replay reproduces materials and assembly, not importer settings. It is refused only when a
+/// texture both states carry has different settings now; textures that came or went with other
+/// outfits, and versions recorded before texture facts existed, stay replayable.
+pub(super) fn texture_replay_conflict(recorded: &serde_json::Value, current: &serde_json::Value) -> bool {
+    let (Some(recorded), Some(current)) = (recorded.as_object(), current.as_object()) else { return false };
+    recorded.iter().any(|(key, settings)| current.get(key).is_some_and(|now| now != settings))
+}
+
 pub fn compute_texture_plan(report: &TextureMemoryReport, target: TextureRank) -> Result<TextureMemoryPlan, AppErrorV1> {
     let budget = target.budget(report.platform).ok_or_else(|| production_error("params_invalid", "Choose Excellent, Good, Medium or Poor."))?;
     let mut entries: BTreeMap<String, TexturePlanEntry> = BTreeMap::new();
@@ -301,6 +309,18 @@ mod tests {
         let plan = compute_texture_plan(&report, TextureRank::Good).unwrap();
         assert_eq!(plan.estimated_rank, TextureRank::Unknown);
         assert!(!plan.reaches_target);
+    }
+    #[test]
+    fn replay_is_refused_only_where_a_shared_texture_changed_its_settings() {
+        let state = |entries: &[(&str, &str)]| serde_json::json!(entries.iter()
+            .map(|(key, format)| ((*key).to_owned(), serde_json::json!({"format": format, "maxSize": 2048})))
+            .collect::<serde_json::Map<_, _>>());
+        let tuned = state(&[("\"pc\":Assets/Coat.png", "BC7"), ("\"pc\":Assets/Body.png", "DXT5")]);
+        assert!(texture_replay_conflict(&state(&[("\"pc\":Assets/Coat.png", "RGBA32")]), &tuned), "a tuned texture cannot replay back");
+        assert!(!texture_replay_conflict(&state(&[("\"pc\":Assets/Hat.png", "RGBA32")]), &tuned), "another outfit's textures do not block");
+        assert!(!texture_replay_conflict(&state(&[("\"pc\":Assets/Body.png", "DXT5")]), &tuned));
+        assert!(!texture_replay_conflict(&serde_json::Value::Null, &tuned), "versions before texture facts stay replayable");
+        assert!(!texture_replay_conflict(&tuned, &serde_json::Value::Null));
     }
     #[test]
     fn consumers_reject_false_totals_bad_paths_and_unknown_bytes() {

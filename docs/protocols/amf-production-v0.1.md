@@ -676,8 +676,10 @@ and the prior observations. A failed restoration stays explicit with its recover
 An interrupted texture step also offers the retained full-copy restore point.
 
 Importer tuning is not captured in Recipes in this slice. Version records retain stable texture
-facts; replay across different recorded texture settings fails with `texture_manual_replay`,
-rather than claiming to reconstruct them. The retained full-copy restore point can undo the last
+facts; replay fails with `texture_manual_replay` when a texture both the version and the current
+line carry has different settings now, rather than claiming to reconstruct them. Textures that
+came or went with other outfits, and versions recorded before texture facts existed, stay
+replayable. The retained full-copy restore point can undo the last
 protected change. Full historical importer/Recipe replay remains follow-up work.
 
 lilAvatarUtils was evaluated on **2026-10-23**. Its [MIT-licensed texture panel](https://lilxyzw.github.io/lilAvatarUtils/ja_JP/docs/TexturesGUI.html)

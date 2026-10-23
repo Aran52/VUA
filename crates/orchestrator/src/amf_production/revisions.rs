@@ -401,7 +401,7 @@ impl AmfProductionEngine {
         if revision.state.face_tracking_manual {
             return Err(production_error("face_tracking_manual_replay", "This version contains an opaque creator patch and requires manual replay."));
         }
-        if revision.state.texture_memory != texture_memory::texture_revision_state(&run) {
+        if texture_memory::texture_replay_conflict(&revision.state.texture_memory, &texture_memory::texture_revision_state(&run)) {
             return Err(production_error("texture_manual_replay", "Texture import settings differ from this version. Use the retained full restore point; version replay does not yet reproduce texture tuning."));
         }
         let edited = self.edited_in_unity(&run);

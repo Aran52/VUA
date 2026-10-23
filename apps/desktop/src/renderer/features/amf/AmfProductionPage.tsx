@@ -19,6 +19,7 @@ import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
 import { TextureMemoryCard } from "./TextureMemoryCard.tsx";
 import { OutfitRemovalCard } from "./OutfitRemovalCard.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { FaceTrackingCard, FtLockNote } from "./FaceTrackingCard.tsx";
 import { RevisionsCard } from "./RevisionsCard.tsx";
 import { FitSaveCard } from "./FitSaveCard.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
@@ -54,7 +55,7 @@ function LiveProgress({ progress }: { progress: AmfRunProgress }) {
     {quiet && <span className="vua-line__quiet">{format(factory.quiet, { time: new Date(quietSince).toLocaleTimeString() })}</span>}
   </div>;
 }
-const STATION_ICONS = { prepare: "folder", inspect: "flask", plan: "edit", assemble: "outfit", check: "square-check" } as const;
+const STATION_ICONS = { prepare: "folder", inspect: "flask", plan: "edit", assemble: "outfit", check: "square-check", face: "avatar" } as const;
 /** A recorded step's state, in the words of the stations. */
 const stepState = (state: string) => state === "succeeded" ? "done" : state === "failed" ? "failed" : state === "running" ? "running" : "stopped";
 const unavailable = format(copy.unavailable, { amf: termLabel("amf") });
@@ -94,7 +95,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
@@ -236,6 +237,13 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
+  // A creator-patched line locks the operations that cannot replay its manual steps (face_tracking_manual_replay).
+  const ftLocked = run?.result?.facts?.faceTracking?.manualReplayRequired === true;
+  const reviewRestore = () => {
+    if (!port) return; setRequesting(true); setError(null);
+    void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+  };
+  const ftRestore = run?.snapshotId ? reviewRestore : null;
   // Fits the working selection would apply, by name; a Recipe's own fits carry no name.
   const fitNames = [...new Set((run?.availableFits ?? [])
     .filter(fit => fit.name !== null && selection.outfits.some(outfit => outfit.sourceId === fit.sourceId))
@@ -342,14 +350,15 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "prepare" && <Card className="vua-line__panel">
         <h2>{panels.materials.title}</h2>
         {changing === null && <ul className="vua-line__materials">{materials.map(item => <li key={item.id}><strong>{item.item}</strong>{item.name && <small>{item.name}</small>}</li>)}</ul>}
-        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button></div> : <>
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
+        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange || ftLocked} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button></div> : <>
           <h3>{panels.materials.changeTitle}</h3>
           <MaterialPicker sources={list?.sources ?? []} chosen={changing} onChange={setChanging} disabled={busy} />
           {sameMaterials && <p className="vua-caption vua-text-secondary">{panels.materials.unchanged}</p>}
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setChanging(null)}>{panels.materials.cancel}</Button>
             <Popconfirm title={panels.materials.confirmTitle} description={panels.materials.confirmBody} confirmLabel={panels.materials.confirm} cancelLabel={panels.materials.cancel}
               onConfirm={() => { void command("changeSources"); }}>
-              <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button>
+              <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0 || ftLocked} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button>
             </Popconfirm></div>
         </>}
       </Card>}
@@ -375,8 +384,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         {unchangedPlan && <p className="vua-caption vua-text-secondary">{panels.plan.current}</p>}
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)} data-nav-id="workshop-plan-adjust">{factory.adjust}</Button>
-          <Button variant="primary" disabled={requesting || unchangedPlan || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
+          <Button variant="primary" disabled={requesting || unchangedPlan || !selection.avatarPrefab || selection.outfits.length === 0 || ftLocked} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
       </Card>}
       {shown === "plan" && planOpen && plan === null && showDetails && <>
         <Card><h2>{copy.menuTitle}</h2><p className="vua-caption vua-text-secondary">{copy.menuHint}</p>
@@ -416,7 +426,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {planFitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: planFitNames.join(" · ") })}</p>}
         {plan.parameterBudget && <ParameterBudgetNote budget={plan.parameterBudget}/>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" disabled={ftLocked} onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
       {shown === "assemble" && <Card className="vua-line__panel">
         <h2>{factory.stations.assemble}</h2>
@@ -454,16 +465,19 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
-        <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
+        <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button disabled={ftLocked} onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
         {savedRecipe ? <><Button disabled={busy} onClick={() => setSharingRecipe(savedRecipe.recipe.recipeId)}>{copy.shareRecipe}</Button><p role="status">{format(copy.recipeSaved,{title:savedRecipe.recipe.title})}</p><Button onClick={() => { setSavedRecipe(null); newPreparation(); }}>{copy.recipes}</Button></> :
           <form onSubmit={event => {
             event.preventDefault(); if (!port) return; setRequesting(true); setError(null);
             void port.saveRecipe(runId,recipeTitle.trim() || run.result?.facts?.avatarName || copy.title).then(setSavedRecipe)
               .catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
           }}><label className="vua-n3__field">{copy.recipeName}<input value={recipeTitle} maxLength={120} placeholder={run.result.facts.avatarName || copy.title} onChange={e => setRecipeTitle(e.target.value)}/></label>
-          <Button type="submit" variant="primary">{copy.saveRecipe}</Button></form>}
+          <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}
       <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
+      {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy}
+        onStarted={id => { setTaskId(id); setTaskAction("faceTracking"); }} onRestore={ftRestore} onNewLine={newPreparation} />}
     </>}
     </div>
     {sharingRecipe && <AmfRecipeShareDialog recipeId={sharingRecipe} onClose={() => setSharingRecipe(null)}/>}

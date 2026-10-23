@@ -276,7 +276,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     .filter(fit => fit.name !== null).map(fit => fit.name as string))];
 
   const panels = factory.panels;
-  const lines: RailLine[] = (list?.runs ?? []).map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
+  // One card per run, even if a list read ever repeats an entry.
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
     extra: labels.get(recent.runId)?.extra ?? null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"

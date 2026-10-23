@@ -112,9 +112,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 46 | Library migration grouping | — | planned; executes the migration design |
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
 | 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
-| 49 | Shareable turntable with an embedded Recipe | P-02, P-04 | planned |
+| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a QR "VUA inside" badge and a short-link service (author, 2026-10-24); prompts nn8-d and nn8-e |
 | 50 | AI connection as a first-run choice | — | planned |
-| 51 | Recipes creators trust | P-04 | planned: four workstreams of about 24 agent hours each |
+| 51 | Recipes creators trust | P-04 | planned: prompts nn8-a, nn8-c, nn8-d, nn8-e for agents; B by Claude |
 | 52 | Signed Windows releases | — | SignPath application filled in on 2026-10-24; awaits the author's submission and approval |
 
 Suggested next order: the AMF operations first — 10's workshop station, 5's save-and-close buttons,
@@ -859,7 +859,7 @@ VUA knows which copies are identical.
 **Done when** the author imports the same package twice with each setting, and with "store once"
 the warehouse holds its bytes once while both items open, produce and delete independently.
 
-## 49 — Shareable turntable with an embedded Recipe
+## 49 — Shareable turntable with a Recipe link
 
 Author request, 2026-10-24. A finished line already bakes a 60-frame turntable
 ([amf-production](../protocols/amf-production-v0.1.md), `bakeTurntable`), and a saved Recipe
@@ -867,21 +867,29 @@ already exports a reviewed share declaration, the `vuar0.4.` paste text of
 [Recipe v0.4](../protocols/amf-recipe-v0.4.md) with BOOTH references and no machine paths. A
 still picture looks like any Unity screenshot; the turning Avatar is what players post.
 
-1. The release room exports the turntable as an animated image: GIF for chats and Discord, and an
-   MP4 for X, which turns GIFs into video. Size and frame rate fit each platform's upload limit.
-2. Each image carries a small VUA logo mark. With a Recipe included, the mark becomes a
-   "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24), so a
-   viewer knows the image can be dropped into VUA. Including the Recipe is the player's choice per
-   export and runs the existing reviewed share export first.
-3. The Recipe travels as the share declaration inside the file's own metadata (a GIF comment or
-   application extension, and the MP4's metadata). Dropping such a file on VUA reads it and opens
-   the existing Recipe share preview; a file without a valid declaration is refused there.
-4. Platforms that recompress uploads remove metadata, so the export also offers the paste text
-   for the post, and the share dialog says which copy keeps the Recipe: the original file.
-5. Optional: the creators of the materials, from slice 37, in a caption line.
+The author tested X on 2026-10-24: a video cannot be dragged out of a post, and an image dragged
+from X into another application arrives recompressed, without EXIF or other metadata. The Recipe
+therefore travels in the pixels as a short link, not in the file's metadata.
 
-**Done when** the author exports the P-02 turntable with its Recipe, a second VUA imports the
-Recipe by dropping the original GIF, and the MP4 posts to X with the paste text beside it.
+1. The release room exports the turntable as an animated GIF for chats, Discord and X, and as a
+   still PNG of the front view. Size and frame rate fit the platforms' upload limits.
+2. Each image carries a small VUA logo mark. With a Recipe included, the mark becomes a
+   "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24), and the
+   badge itself is a QR code, styled around the logo, holding the Recipe's short link. It sits on
+   every frame and survives recompression. Including the Recipe is the player's choice per export
+   and runs the existing reviewed share export first.
+3. Publishing the Recipe stores its share declaration on VUA's Recipe link service under a
+   content-derived code (`https://<host>/r/<code>`): the code is a prefix of the declaration's
+   SHA-256, so VUA verifies whatever the service returns. Publishing is explicit, needs no
+   account, and the player can withdraw a link they published.
+4. Dropping an image or pasting a link in VUA reads the code (QR decoding in VUA, from any frame),
+   fetches and verifies the declaration and opens the Recipe preview. A phone that scans the badge
+   opens the link's web page: the Avatar's materials with their BOOTH pages and creators, and
+   "Open in VUA".
+5. The paste text stays available for players without a network or who prefer not to publish.
+
+**Done when** the author posts the P-02 turntable GIF to X, drags it from X into a second VUA,
+and VUA opens the Recipe; a phone scan of the badge shows the material page.
 
 ## 50 — AI connection as a first-run choice
 
@@ -911,11 +919,13 @@ The promise to a creator: a Recipe is a list, never a copy. It carries BOOTH pro
 and settings, no files; each receiver must own and hold the materials; the creators are named;
 their terms are checked.
 
-**A — Reproduction across package versions** (backend agent). When a referenced file's bytes
-differ, VUA resolves the same BOOTH product's current file, inspects it in Unity, and maps the
-saved prefabs and bindings by asset GUID and path. The plan lists each changed or missing target
-as a difference to review; nothing maps silently. Reapplied fits and adjustments report what they
-could not place. Synthetic packages with renamed, moved and removed prefabs test it.
+**A — Materials found by BOOTH product** (agent, `nn8-a`). The author ruled on 2026-10-24 that
+a Recipe locates materials by BOOTH product ID instead of exact SHA-256. A new Recipe version
+names each material by its BOOTH product, keeps the package file name as a hint and the
+original digest as evidence only, and records prefab GUIDs. Reproduction takes the receiver's
+files of that product, picks the package by name (or asks among the product's packages, such as
+per-Avatar variants), inspects it in Unity and maps the saved prefabs and bindings by GUID, then
+path. The plan lists each changed or missing target to review; nothing maps silently.
 
 **B — "Wear this" for the receiver** (Claude). Opening a Recipe by paste text, file or a "VUA
 inside" image shows one page: the result previews when the image carried them, each material as
@@ -923,20 +933,26 @@ owned and present, owned and not downloaded (download it), or not owned (its BOO
 terms check. One action prepares and assembles under the player's permission mode, and the result
 shows beside the sender's previews.
 
-**C — Trust signals** (backend agent). Before import, the VN3 check of slice 41 runs across all
-of the Recipe's materials for the receiver's chosen use, and the share preview lists exactly what
-the Recipe contains: references, settings and adjustments, no file. Exported Recipes carry the
-material creators' names for slice 37's credits.
+**C — Terms everywhere** (agent, `nn8-c`). VN3 terms today appear in the library drawer, the
+release room's check and the MCP reads. The library gains a filter by use, so a player finds
+the materials fit for a VTuber or a game; before a Recipe is imported, the check runs across all
+its materials for the receiver's chosen use; the share preview lists exactly what the Recipe
+contains, and exported Recipes carry the material creators' names for slice 37's credits.
 
-**D — The shareable turntable** (backend agent). Slice 49's export and drop import: GIF and MP4
-encoding, the "VUA inside" badge and the declaration in the file's metadata.
+**D — The shareable turntable** (agent, `nn8-d`). Slice 49 in VUA: GIF and PNG export, the
+"VUA inside" QR badge, publishing and withdrawing a link, and reading a code from a dropped image
+or a pasted link.
 
-**Proof.** After A–D, the author and Claude run P-04 with real materials: three base Avatars, each
+**E — The Recipe link service** (agent, `nn8-e`). Slice 49's service and its web page: storing
+validated declarations under content-derived codes, withdrawal, rate limits, and the material
+page in four languages. The host is the author's call.
+
+**Proof.** After A–E, the author and Claude run P-04 with real materials: three base Avatars, each
 reproduced on a second computer, one of them after a package update. The runs, with their
 turntables, become the material for the first creator contacts.
 
-**Done when** a Recipe shared as a "VUA inside" GIF reproduces the same Avatar on another computer
-after one of its packages updated, the receiver sees what they own, miss and may use before
+**Done when** a Recipe shared as a "VUA inside" GIF on X reproduces the same Avatar on another
+computer after one of its packages updated, the receiver sees what they own, miss and may use before
 anything runs, and P-04 passes.
 
 ## 52 — Signed Windows releases

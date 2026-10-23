@@ -31,8 +31,8 @@ import "../../src/renderer/features/settings/settings.css";
 
 const view = location.hash.slice(1) || "map";
 const sources = [
-  { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage" },
-  { sourceId: "outfit", itemId: "b", itemName: "TshirtShorts_Meiyun_v1.00.zip", name: "TshirtShorts_Meiyun_v1.00.unitypackage" },
+  { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage", productIds: ["booth:1"] },
+  { sourceId: "outfit", itemId: "b", itemName: "TshirtShorts_Meiyun_v1.00.zip", name: "TshirtShorts_Meiyun_v1.00.unitypackage", productIds: ["booth:2"] },
   { sourceId: "costume", itemId: "c", itemName: "Meiyun_Costume4_v1.0.0.zip", name: "Meiyun_Costume4.unitypackage" },
 ];
 const base = (runId: string, phase: AmfProductionRun["phase"], steps: [string, string, string?][], outfit = "outfit"): AmfProductionRun => ({
@@ -337,7 +337,7 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
   <NetworkPreview details={view === "network-tiers-details"} />
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
-</GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api }}>
+</GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api, libraryBrowser: libraryApi }}>
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
 </GatewayProvider>);
 

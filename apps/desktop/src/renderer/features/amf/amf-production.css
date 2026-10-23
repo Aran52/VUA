@@ -121,3 +121,11 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 .vua-texture__controls { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-block: 8px; }
 .vua-texture__controls label { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-texture__controls select { min-width: 150px; padding: 6px 10px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-primary); font: var(--vua-font-body); }
+/* The plan's materials with their product images, read beside the sentence. */
+.vua-plan-images { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 12px; padding: 0; list-style: none; }
+.vua-plan-images li { display: flex; align-items: center; gap: 10px; max-width: 280px; padding: 6px 12px 6px 6px; border: 1px solid var(--vua-border); border-radius: 12px; background: var(--vua-bg-panel); }
+.vua-plan-images img, .vua-plan-images__blank { flex-shrink: 0; width: 56px; height: 56px; border-radius: 8px; object-fit: cover; }
+.vua-plan-images__blank { display: grid; place-items: center; color: var(--vua-text-secondary); background: color-mix(in srgb, var(--vua-text-secondary) 10%, transparent); }
+.vua-plan-images li > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.vua-plan-images small { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-plan-images strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }

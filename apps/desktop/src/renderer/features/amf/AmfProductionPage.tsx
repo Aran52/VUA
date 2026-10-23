@@ -23,6 +23,7 @@ import { LightingCard } from "./LightingCard.tsx";
 import { FaceTrackingCard, FtLockNote } from "./FaceTrackingCard.tsx";
 import { RevisionsCard } from "./RevisionsCard.tsx";
 import { FitSaveCard } from "./FitSaveCard.tsx";
+import { PlanImages } from "./PlanImages.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
@@ -409,6 +410,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && planOpen && plan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        <PlanImages run={run} selection={selection} librarySources={list?.sources ?? []} />
         {fitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: fitNames.join(" · ") })}</p>}
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}

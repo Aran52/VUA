@@ -23,7 +23,9 @@ export function FitSaveCard({ port, run, disabled }: { port: AmfProductionPort; 
   const [failure, setFailure] = useState<{ readonly sourceId: string; readonly message: string } | null>(null);
   // Only moved objects make a prompt; player-deleted paths alone never ask for anything.
   const pending = (run.fitChanges ?? []).filter(entry => entry.moved.length > 0 && !saved.includes(entry.sourceId));
-  if (pending.length === 0) return null;
+  // Saved-fit objects the last assembly could not find: those stayed where the garment put them.
+  const skipped = (run.result?.facts?.fitSkipped ?? []).filter(entry => entry.paths.length > 0);
+  if (pending.length === 0 && skipped.length === 0) return null;
   const garmentName = (sourceId: string) => run.sources.find(source => source.sourceId === sourceId)?.itemName ?? sourceId;
   const nameOf = (entry: AmfProductionFitChanges) => names[entry.sourceId] ?? defaultFitName(garmentName(entry.sourceId), avatarItemName(run));
   const save = async (entry: AmfProductionFitChanges) => {
@@ -40,6 +42,8 @@ export function FitSaveCard({ port, run, disabled }: { port: AmfProductionPort; 
   };
   return <Card className="vua-fitsave">
     <h2>{copy.title}</h2>
+    {skipped.map(entry => <p key={`skipped-${entry.sourceId}`} className="vua-caption vua-text-secondary" title={entry.paths.join("\n")}>
+      {format(copy.skipped, { garment: garmentName(entry.sourceId), count: entry.paths.length })}</p>)}
     {pending.map(entry => {
       const name = nameOf(entry);
       const hint = failure?.sourceId === entry.sourceId ? fitFailure(failure.message) : null;

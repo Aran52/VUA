@@ -3,7 +3,7 @@ import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon } from "@vua/design-system";
-import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
@@ -12,6 +12,7 @@ import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
+import { toast } from "../../components/primitives/toast-store.ts";
 import { strings, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
@@ -22,6 +23,7 @@ import { LightingCard } from "./LightingCard.tsx";
 import { FaceTrackingCard, FtLockNote } from "./FaceTrackingCard.tsx";
 import { RevisionsCard } from "./RevisionsCard.tsx";
 import { FitSaveCard } from "./FitSaveCard.tsx";
+import { PlanImages } from "./PlanImages.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
@@ -36,6 +38,7 @@ import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
+const editorClose = strings.amfProduction.editorClose;
 /** The running step's live state: Unity's stage and count, a running clock, the usual time on this computer, and Unity's silence. */
 function LiveProgress({ progress }: { progress: AmfRunProgress }) {
   const [now, setNow] = useState(() => Date.now());
@@ -70,6 +73,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   onNavigate: (page: PageId) => void; onPrepareEnv: () => void;
 }) {
   const gateway = useGateway(); const port = gateway.amfProduction;
+  // Work started elsewhere (an AI request, the release room, another line) changes the task list;
+  // the line list and the open line read again whenever a task starts or changes state.
+  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
+  const [runReload, setRunReload] = useState(0);
   const [list, setList] = useState<AmfProductionList | null>(null);
   const [sourceIds, setSourceIds] = useState<readonly string[]>(storedMaterials);
   const [editorPath, setEditorPath] = useState("");
@@ -95,7 +102,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | "closeEditor" | null>(null);
+  // A project_open refusal offers saving and closing Unity; the refused action continues afterwards.
+  const [closeOffer, setCloseOffer] = useState<{ readonly message: string; readonly retry: (() => void) | null } | null>(null);
+  const afterClose = useRef<(() => void) | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
   const [confirmFull, setConfirmFull] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
@@ -116,7 +126,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       setSourceIds(ids => ids.filter(id => present.has(id)));
     } catch (e) { setError(e instanceof Error ? e.message : unavailable); }
   }, [port]);
-  useEffect(() => { void refreshList(); }, [refreshList]);
+  useEffect(() => { void refreshList(); setRunReload(value => value + 1); }, [refreshList, taskKey]);
   useEffect(() => {
     if (!port || !requestedRecipe) return;
     let alive = true; setRequesting(true); remember(runKey, "");
@@ -146,7 +156,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     };
     void load();
     return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };
-  }, [port, runId, taskId]);
+  }, [port, runId, taskId, runReload]);
   useEffect(() => {
     if (taskId === null) return;
     let alive = true; let timer: ReturnType<typeof setTimeout> | undefined;
@@ -161,6 +171,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
           if (taskAction === "rollback" && ["completed", "completedWithWarnings"].includes(task.status)) setRestored(true);
           if (taskAction === "open" && ["completed", "completedWithWarnings"].includes(task.status)) setOpened(runId);
+          if (taskAction === "closeEditor") {
+            const next = afterClose.current; afterClose.current = null;
+            if (["completed", "completedWithWarnings"].includes(task.status)) { if (next) next(); else toast(editorClose.closed, "success"); }
+          }
           return;
         }
       } catch { /* Keep waiting for an authoritative terminal task fact. */ }
@@ -188,7 +202,22 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       if (action === "reinspect" || action === "rollback" || action === "changeSources") { initialized.current = ""; setPlan(null); setAdjusting(false); }
       if (action === "changeSources") setChanging(null);
       setRunId(response.runId); remember(runKey, response.runId);
-    } catch (e) { setError(e instanceof Error ? e.message : copy.taskFailed); }
+    } catch (e) { fail(e, () => { void command(action, rollbackTarget); }); }
+    finally { setRequesting(false); }
+  };
+  /** Shows a refusal; Unity holding the project offers saving and closing it, then `retry`. */
+  const fail = (e: unknown, retry: (() => void) | null = null) => {
+    const message = e instanceof Error ? e.message : copy.taskFailed;
+    setError(message);
+    setCloseOffer(e instanceof AmfProductionError && e.suggestedAction === "amf.production.closeEditor" ? { message, retry } : null);
+  };
+  const closeUnity = async (retry: (() => void) | null) => {
+    if (!port || busy) return;
+    setRequesting(true); setError(null); setCloseOffer(null);
+    try {
+      const accepted = await port.closeEditor(runId, true, editorClose.task);
+      afterClose.current = retry; setOpened(null); setTaskId(accepted.taskId); setTaskAction("closeEditor");
+    } catch (e) { fail(e); }
     finally { setRequesting(false); }
   };
   const newPreparation = () => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(""); setRun(null); setPlan(null); setRestorePlan(null); setRestored(false); setSelection(blank); setError(null); remember(runKey, ""); void refreshList(); };
@@ -252,7 +281,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     .filter(fit => fit.name !== null).map(fit => fit.name as string))];
 
   const panels = factory.panels;
-  const lines: RailLine[] = (list?.runs ?? []).map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
+  // One card per run, even if a list read ever repeats an entry.
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
     extra: labels.get(recent.runId)?.extra ?? null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
@@ -282,7 +312,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
     {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
       action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
-      : error !== null && <Alert tone="error" title={copy.error} action={<Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{error}</Alert>}
+      : error !== null && <Alert tone="error" title={copy.error} action={closeOffer !== null && closeOffer.message === error && run !== null
+        ? <Popconfirm title={editorClose.confirmTitle} description={editorClose.confirmBody} confirmLabel={editorClose.confirm} cancelLabel={editorClose.cancel}
+            onConfirm={() => { void closeUnity(closeOffer.retry); }}>
+            <Button variant="subtle" disabled={busy} data-nav-id="workshop-close-unity">{closeOffer.retry ? editorClose.actionContinue : editorClose.action}</Button>
+          </Popconfirm>
+        : <Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{closeOffer !== null && closeOffer.message === error ? editorClose.held : error}</Alert>}
     {run === null ? <>
       <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></header>
       {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
@@ -379,6 +414,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && planOpen && plan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        <PlanImages run={run} selection={selection} librarySources={list?.sources ?? []} />
         {fitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: fitNames.join(" · ") })}</p>}
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
@@ -419,7 +455,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         }}>{copy.reviewCta}</Button></div>
       </>}
       {shown === "plan" && run.phase === "succeeded" && port && !busy && <OutfitRemovalCard port={port} run={run} disabled={busy}
-        onStarted={task => { initialized.current = ""; setTaskId(task); setTaskAction("assemble"); setPlan(null); setAdjusting(false); setChosenStation(null); }} onError={setError}/>}
+        onStarted={task => { initialized.current = ""; setTaskId(task); setTaskAction("assemble"); setPlan(null); setAdjusting(false); setChosenStation(null); }} onError={e => fail(e)}/>}
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
         <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
@@ -457,12 +493,18 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{panels.check.toRelease}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button></div>
         {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
+        {taskAction === "closeEditor" && <p role="status" className="vua-caption vua-text-secondary">{editorClose.closing}</p>}
         {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}
+        {opened === runId && taskAction !== "open" && <div className="vua-n3__actions">
+          <Popconfirm title={editorClose.confirmTitle} description={editorClose.confirmBody} confirmLabel={editorClose.confirm} cancelLabel={editorClose.cancel}
+            onConfirm={() => { void closeUnity(null); }}>
+            <Button variant="subtle" disabled={busy} data-nav-id="workshop-done-checking">{editorClose.doneChecking}</Button>
+          </Popconfirm></div>}
       </Card>}
       {shown === "check" && !restorePlan && (run.phase === "succeeded" || (busy && !!run.result?.facts?.textureMemory?.length)) && port && <TextureMemoryCard port={port} run={run} level={level} disabled={busy}
-        onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={setError}/>}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
-        onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
         <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button disabled={ftLocked} onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>

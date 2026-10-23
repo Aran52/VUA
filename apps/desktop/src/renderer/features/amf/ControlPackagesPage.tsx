@@ -331,7 +331,7 @@ function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavig
     : <>
       <PackageGuideAlert needs={guide}/>
       {detail !== "table" && installed.kind === "ok" ? <ProjectPackageConclusion level={level} rows={rows.installed} cached={installedCached} pins={pins} guideCount={guide.length} busy={busy}
-        onHandleDependencies={detail === "next_step" ? () => { void handleDependencies(); } : undefined}/> : null}
+        onHandleDependencies={detail === "next_step" && canInstall && !lineBusy ? () => { void handleDependencies(); } : undefined}/> : null}
       {detail === "conclusion" ? (installed.kind === "ok" ? null : packageStates)
         : detail === "next_step" && installed.kind === "ok"
           ? <details className="vua-control__moded"><summary>{factory.details}</summary>{packageTools}</details>

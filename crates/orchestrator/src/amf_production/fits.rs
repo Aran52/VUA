@@ -351,9 +351,9 @@ impl AmfProductionEngine {
             .iter()
             .filter_map(|outfit| {
                 let source = run.sources.iter().find(|source| source.source_id == outfit.source_id);
-                let material_id = source.map(|source| {
+                let material_id = run.recipe_material_sources.iter().find(|(_,id)| **id == outfit.source_id).map(|(material,_)| material.clone()).or_else(|| source.map(|source| {
                     format!("m-{}", source.sha256.strip_prefix("sha256:").unwrap_or(&source.sha256))
-                });
+                }));
                 if let Some(recipe_fit) =
                     material_id.as_ref().and_then(|id| recipe_fits.iter().find(|fit| fit.material_id == *id))
                 {

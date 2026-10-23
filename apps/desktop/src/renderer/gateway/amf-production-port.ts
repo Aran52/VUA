@@ -1,3 +1,5 @@
+import type { AmfMaterialChoices, AmfRecipeMaterialPlan, AmfRecipeMaterialResolution, AmfRecipeDifference } from "@vua/contracts";
+import { hasValidAmfRecipeReview, isAmfRecipeMaterialPlan, isAmfRecipeMaterials, isAmfMaterialChoices } from "@vua/contracts";
 import type { AmfTextureMemoryPlan, TexturePlatform, TextureTargetRank, TextureMemoryReport } from "@vua/contracts";
 import { isTextureMemoryFacts, isAmfTextureMemoryPlan } from "@vua/contracts";
 import type { OutfitRemoval, OutfitRemovalApplied, OutfitRemovalPlan, AmfEditorCloseResult, FaceTrackingFactsV01, FaceTrackingPlanV01, AmfAssemblySelection, AmfProductionBodyV01, AmfSourceChoice, AmfSourceRole, AmfRecipeDocument, AmfSharedRecipe, AmfRecipeApplyChoice,
@@ -16,6 +18,7 @@ export interface AmfProductionSource { readonly sourceId: string; readonly itemI
 export interface AmfProductionEditor { readonly path: string; readonly version: string }
 export interface AmfPrefab {
   readonly sourceId: string; readonly path: string; readonly name: string; readonly isAvatar: boolean;
+  readonly prefabGuid?: string; readonly objectPaths?: readonly string[];
   readonly hasSkinnedMesh: boolean; readonly hasMergeArmature: boolean; readonly hasMissingScripts: boolean; readonly humanoidBones: readonly string[];
   /** Work-project-relative PNG rendered for this candidate; read it with `previewImage`. */
   readonly preview?: string;
@@ -35,6 +38,10 @@ export interface AmfProductionRun {
   /** The running step while a task works on the run, otherwise `null`. `amf.production.get` always reports it. */
   readonly progress?: AmfRunProgressV01 | null;
   readonly editorClose?: AmfEditorCloseResult;
+  readonly recipeMaterials?: readonly AmfRecipeMaterialResolution[];
+  readonly recipeMaterialSources?: AmfMaterialChoices;
+  readonly materialChoices?: AmfMaterialChoices;
+  readonly recipeDifferences?: readonly AmfRecipeDifference[];
   readonly selection: AmfAssemblySelection | null; readonly error: string | null; readonly recovery: string | null;
   readonly snapshotId: string | null;
   /** The copy kept from before the creator patch, while the line carries its marker; absent when the engine keeps none. */
@@ -50,7 +57,7 @@ export interface AmfProductionRun {
   readonly result: { readonly facts?: { readonly sdkDescriptorRecognized: boolean; readonly missingReferences: number; readonly avatarName: string | null;
     readonly instances: readonly { readonly sourceId: string; readonly bindingVerified: boolean; readonly menuVerified: boolean; readonly menuModified?: boolean }[];
     readonly observedSelection?: AmfAssemblySelection | null; readonly hasMissingScripts?: boolean;
-    readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
+    readonly materialPaths?: readonly string[]; readonly missingShaderMaterials?: readonly string[]; readonly sdkSignedIn?: "yes" | "no" | "unknown";
     readonly faceTracking?: FaceTrackingFactsV01;
     readonly outfitRemoval?: readonly OutfitRemoval[]; readonly outfitRemovalApplied?: readonly OutfitRemovalApplied[];
     readonly previews?: readonly AmfPreviewImage[]; readonly sdkReview?: AmfSdkReview;
@@ -85,6 +92,10 @@ export interface AmfProductionPlan {
   readonly inputs: readonly { readonly sourceId: string; readonly name: string; readonly role: "avatar" | "outfit" | "import_only" }[];
   /** Assembling rebuilds the line on another Avatar prefab, behind a restore point. */
   readonly rebuild?: boolean;
+  readonly materials?: readonly AmfRecipeMaterialResolution[];
+  readonly materialChoices?: AmfMaterialChoices;
+  readonly recipeDifferences?: readonly AmfRecipeDifference[];
+  readonly canAssemble?: boolean;
   /** Estimated synced parameter bits of the assembled Avatar against the 256-bit limit; absent when
    *  the engine predates the estimate. */
   readonly parameterBudget?: AmfParameterBudgetPlanV01;
@@ -154,6 +165,8 @@ export interface AmfRecipeSharePlan {
 }
 export interface AmfRecipeShareExport { readonly shareCode: string; readonly fileText: string; readonly document: AmfSharedRecipe }
 export interface AmfRecipeApplyPlan {
+  readonly materials?: readonly AmfRecipeMaterialResolution[]; readonly materialChoices?: AmfMaterialChoices;
+  readonly recipeDifferences?: readonly AmfRecipeDifference[]; readonly canApply?: boolean;
   readonly runId: string; readonly recipeId: string; readonly title: string; readonly avatarName: string;
   readonly avatarGlobalObjectId: string; readonly planDigest: string; readonly retainedOutfits: number; readonly overlayBlocker: string | null;
   readonly conflicts: readonly { readonly sourceId: string; readonly packageName: string; readonly field: "mode" | "bone" | "toggleName" | "active"; readonly current: string | boolean; readonly incoming: string | boolean }[];
@@ -161,8 +174,9 @@ export interface AmfRecipeApplyPlan {
   readonly targets: readonly { readonly globalObjectId: string; readonly name: string; readonly verified: boolean }[];
 }
 export interface AmfProductionPort {
-  recipeApplyPlan(runId: string, recipeId: string, avatarGlobalObjectId?: string): Promise<AmfRecipeApplyPlan>;
-  applyRecipe(plan: AmfRecipeApplyPlan, choice: AmfRecipeApplyChoice): Promise<AmfProductionAccepted>;
+  recipeMaterialPlan(recipeId: string, materialChoices?: AmfMaterialChoices): Promise<AmfRecipeMaterialPlan>;
+  recipeApplyPlan(runId: string, recipeId: string, avatarGlobalObjectId?: string, materialChoices?: AmfMaterialChoices): Promise<AmfRecipeApplyPlan>;
+  applyRecipe(plan: AmfRecipeApplyPlan, choice: AmfRecipeApplyChoice, recipeDifferencesConfirmed?: true): Promise<AmfProductionAccepted>;
   recipeSharePlan(recipeId: string): Promise<AmfRecipeSharePlan>;
   exportRecipe(recipeId: string, planDigest: string, sources: Readonly<Record<string,string>>): Promise<AmfRecipeShareExport>;
   previewRecipeShare(text: string): Promise<AmfSharedRecipe>;
@@ -170,13 +184,13 @@ export interface AmfProductionPort {
   listRecipes(): Promise<readonly AmfRecipeSummary[]>;
   getRecipe(recipeId: string): Promise<AmfSavedRecipe>;
   saveRecipe(runId: string, title: string): Promise<AmfSavedRecipe>;
-  prepareRecipe(recipeId: string, editorPath: string): Promise<AmfProductionAccepted>;
+  prepareRecipe(recipeId: string, editorPath: string, materialChoices?: AmfMaterialChoices): Promise<AmfProductionAccepted>;
   list(): Promise<AmfProductionList>;
   setCapacity(capacity: AmfProductionCapacity): Promise<AmfProductionCapacity>;
   get(runId: string): Promise<AmfProductionRun>;
   prepare(sources: readonly AmfSourceChoice[], editorPath: string): Promise<AmfProductionAccepted>;
   plan(runId: string, selection: AmfAssemblySelection): Promise<AmfProductionPlan>;
-  assemble(runId: string, plan: AmfProductionPlan): Promise<AmfProductionAccepted>;
+  assemble(runId: string, plan: AmfProductionPlan, recipeDifferencesConfirmed?: true): Promise<AmfProductionAccepted>;
   reinspect(runId: string): Promise<AmfProductionAccepted>;
   /** Runs the VRChat SDK's own Auto Fix for items its last check offers one for, by the SDK's exact words. */
   faceTrackingPlan(runId: string, menuId: string): Promise<FaceTrackingPlanV01>;
@@ -234,7 +248,9 @@ const source = (v: unknown): v is AmfProductionSource => record(v) && [v.sourceI
   && (v.productIds === undefined || (Array.isArray(v.productIds) && v.productIds.length <= 64 && v.productIds.every(id => typeof id === "string" && /^[a-z]+:[A-Za-z0-9_-]{1,64}$/u.test(id))));
 const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path, v.name].every(text)
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
-  && (v.preview === undefined || isAmfPreviewPath(v.preview));
+  && (v.preview === undefined || isAmfPreviewPath(v.preview))
+  && (v.prefabGuid === undefined || (typeof v.prefabGuid === "string" && /^[a-f0-9]{32}$/u.test(v.prefabGuid)))
+  && (v.objectPaths === undefined || (texts(v.objectPaths) && v.objectPaths.length <= 2048 && v.objectPaths.every(p => p.length <= 512) && new Set(v.objectPaths).size === v.objectPaths.length));
 const ratings: readonly string[] = AMF_SDK_RATINGS;
 const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "editor_save", "outfit_removal", "lighting", "texture_memory", "restore"];
 const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
@@ -269,6 +285,7 @@ function result(v: unknown): boolean {
     && (facts.sdkSignedIn === undefined || ["yes","no","unknown"].includes(String(facts.sdkSignedIn)))
     && (facts.outfitRemoval === undefined || isOutfitRemovalFacts(facts.outfitRemoval))
     && (facts.outfitRemovalApplied === undefined || (Array.isArray(facts.outfitRemovalApplied) && facts.outfitRemovalApplied.length <= 1 && facts.outfitRemovalApplied.every(isOutfitRemovalApplied)))
+    && (facts.materialPaths === undefined || (texts(facts.materialPaths) && facts.materialPaths.length <= 4096 && new Set(facts.materialPaths).size === facts.materialPaths.length && facts.materialPaths.every(p => p.length <= 2048 && p.startsWith("Assets/") && p.endsWith(".mat") && !/[\\:\0]/u.test(p) && p.split("/").every(part => part !== "" && part !== "." && part !== ".."))))
     && (facts.faceTracking === undefined || isFaceTrackingFacts(facts.faceTracking))
     && (facts.textureMemory === undefined || isTextureMemoryFacts(facts.textureMemory))
     && (facts.sdkReview === undefined || isAmfSdkReview(facts.sdkReview))
@@ -287,6 +304,7 @@ const runChecks: readonly (readonly [string, (v: Record<string, unknown>) => boo
   ["steps", v => Array.isArray(v.steps) && v.steps.every(isAmfStep)],
   ["usualDurations", v => v.usualDurations === undefined || isAmfUsualDurations(v.usualDurations)],
   ["progress", v => v.progress === undefined || v.progress === null || isAmfRunProgress(v.progress)],
+  ["recipeReview", v => hasValidAmfRecipeReview({...v,materials:v.recipeMaterials}) && (v.recipeMaterialSources === undefined || isAmfMaterialChoices(v.recipeMaterialSources))],
   ["editorClose", v => v.editorClose === undefined || (isAmfEditorCloseResult(v.editorClose) && v.editorClose.runId === v.runId)],
   ["error", v => (v.error === null || text(v.error)) && (v.recovery === null || text(v.recovery))],
   ["snapshotId", v => (v.snapshotId === null || (text(v.snapshotId) && v.snapshotId.length > 0))
@@ -311,7 +329,7 @@ export function isAmfProductionRun(v: unknown): v is AmfProductionRun {
   return amfRunProblem(v) === null;
 }
 export class AmfProductionError extends Error {
-  constructor(readonly code: string, detail: string, readonly suggestedAction?: "amf.production.closeEditor") { super(detail); }
+  constructor(readonly code: string, detail: string, readonly suggestedAction?: "amf.production.closeEditor" | "amf.production.recipeMaterialPlan", readonly materials?: readonly AmfRecipeMaterialResolution[]) { super(detail); }
 }
 export function createAmfProductionPort(client: GatewayClient): AmfProductionPort {
   const call = async (body: AmfProductionBodyV01): Promise<unknown> => {
@@ -320,8 +338,13 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       const error = response.error;
       if (error.kind === "application") {
         const action = error.error.params?.suggestedAction;
-        if (action !== undefined && (action !== "amf.production.closeEditor" || error.error.code !== "vua.amf_production.project_open")) throw new Error("amf_production_error_invalid");
-        throw new AmfProductionError(error.error.code, typeof error.error.params?.detail === "string" ? error.error.params.detail : error.error.code, action);
+        if (action !== undefined && !((action === "amf.production.closeEditor" && error.error.code === "vua.amf_production.project_open") || (action === "amf.production.recipeMaterialPlan" && error.error.code === "vua.amf_production.recipe_materials_unresolved"))) throw new Error("amf_production_error_invalid");
+        let materials: unknown;
+        if (error.error.params?.materials !== undefined) {
+          try { materials = JSON.parse(String(error.error.params.materials)); } catch { throw new Error("amf_production_error_invalid"); }
+          if (!isAmfRecipeMaterials(materials)) throw new Error("amf_production_error_invalid");
+        }
+        throw new AmfProductionError(error.error.code, typeof error.error.params?.detail === "string" ? error.error.params.detail : error.error.code, action, materials as readonly AmfRecipeMaterialResolution[] | undefined);
       }
       throw new Error(error.kind);
     }
@@ -333,12 +356,17 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     return { runId: value.runId, taskId: value.taskId };
   };
   return {
-    async recipeApplyPlan(runId, recipeId, avatarGlobalObjectId) {
-      const v = await call({method:"amf.production.recipeApplyPlan", params:{schemaVersion:"0.1", runId, recipeId, ...(avatarGlobalObjectId !== undefined ? {avatarGlobalObjectId} : {})}});
+    async recipeMaterialPlan(recipeId, materialChoices) {
+      const v = await call({method:"amf.production.recipeMaterialPlan",params:{schemaVersion:"0.1",recipeId,...(materialChoices !== undefined ? {materialChoices} : {})}});
+      if (!record(v) || v.schemaVersion !== "0.1" || !isAmfRecipeMaterialPlan(v.plan) || v.plan.recipeId !== recipeId) throw new Error("amf_recipe_material_plan_invalid");
+      return v.plan;
+    },
+    async recipeApplyPlan(runId, recipeId, avatarGlobalObjectId, materialChoices) {
+      const v = await call({method:"amf.production.recipeApplyPlan", params:{schemaVersion:"0.1", runId, recipeId, ...(avatarGlobalObjectId !== undefined ? {avatarGlobalObjectId} : {}),...(materialChoices !== undefined ? {materialChoices} : {})}});
       const p = record(v) && v.schemaVersion === "0.1" ? v.plan : null;
-      if (!record(p) || p.runId !== runId || p.recipeId !== recipeId || !text(p.title) || !text(p.avatarName) || !text(p.avatarGlobalObjectId) || !p.avatarGlobalObjectId
+      if (!record(p) || !hasValidAmfRecipeReview(p) || p.runId !== runId || p.recipeId !== recipeId || !text(p.title) || !text(p.avatarName) || !text(p.avatarGlobalObjectId) || !p.avatarGlobalObjectId
         || !text(p.planDigest) || !/^[a-f0-9]{64}$/u.test(p.planDigest) || !Number.isSafeInteger(p.retainedOutfits) || Number(p.retainedOutfits) < 0 || Number(p.retainedOutfits) > 64
-        || (p.overlayBlocker !== null && !text(p.overlayBlocker)) || !isAmfAssemblySelection(p.recipeSelection) || !isAmfAssemblySelection(p.currentSelection)
+        || (p.overlayBlocker !== null && !text(p.overlayBlocker)) || (p.canApply !== false && !isAmfAssemblySelection(p.recipeSelection)) || !isAmfAssemblySelection(p.currentSelection)
         || !Array.isArray(p.conflicts) || p.conflicts.length > 256 || !p.conflicts.every(c => record(c) && text(c.sourceId) && text(c.packageName)
           && ["mode","bone","toggleName","active"].includes(String(c.field)) && (c.field === "active" ? typeof c.current === "boolean" && typeof c.incoming === "boolean" : text(c.current) && text(c.incoming)))) throw new Error("amf_recipe_apply_plan_invalid");
       if (!Array.isArray(p.targets) || p.targets.length < 1 || p.targets.length > 64
@@ -348,8 +376,8 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
         || (avatarGlobalObjectId !== undefined && avatarGlobalObjectId !== p.avatarGlobalObjectId)) throw new Error("amf_recipe_apply_plan_invalid");
       return p as unknown as AmfRecipeApplyPlan;
     },
-    async applyRecipe(plan, choice) {
-      return accepted(await call({method:"amf.production.applyRecipe",params:{schemaVersion:"0.1",runId:plan.runId,recipeId:plan.recipeId,planDigest:plan.planDigest,choice,avatarGlobalObjectId:plan.avatarGlobalObjectId}}),strings.amfProduction.assembling);
+    async applyRecipe(plan, choice, recipeDifferencesConfirmed) {
+      return accepted(await call({method:"amf.production.applyRecipe",params:{schemaVersion:"0.1",runId:plan.runId,recipeId:plan.recipeId,planDigest:plan.planDigest,choice,...(recipeDifferencesConfirmed !== undefined ? {recipeDifferencesConfirmed} : {}),...(plan.materialChoices !== undefined ? {materialChoices:plan.materialChoices} : {}),avatarGlobalObjectId:plan.avatarGlobalObjectId}}),strings.amfProduction.assembling);
     },
     async recipeSharePlan(recipeId) {
       const v = await call({ method: "amf.production.recipeSharePlan", params: {schemaVersion:"0.1",recipeId} });
@@ -357,14 +385,14 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       const booth = (id: unknown): id is string => text(id) && /^[1-9][0-9]{0,19}$/u.test(id);
       if (!record(plan) || plan.recipeId !== recipeId || !text(plan.title) || !Number.isSafeInteger(plan.revision) || Number(plan.revision) < 1
         || !text(plan.planDigest) || !/^[a-f0-9]{64}$/u.test(plan.planDigest) || !Array.isArray(plan.materials) || plan.materials.length < 1 || plan.materials.length > 64
-        || !plan.materials.every(m => record(m) && text(m.materialId) && /^m-[a-f0-9]{64}$/u.test(m.materialId) && text(m.packageName) && Array.isArray(m.candidates) && m.candidates.every(booth) && (m.selectedProductId === null || booth(m.selectedProductId)))
+        || !plan.materials.every(m => record(m) && text(m.materialId) && /^[a-zA-Z0-9_-]{1,100}$/u.test(m.materialId) && text(m.packageName) && Array.isArray(m.candidates) && m.candidates.every(booth) && (m.selectedProductId === null || booth(m.selectedProductId)))
         || new Set(plan.materials.map(m=>m.materialId)).size !== plan.materials.length) throw new Error("amf_recipe_share_plan_invalid");
       return plan as unknown as AmfRecipeSharePlan;
     },
     async exportRecipe(recipeId, planDigest, sources) {
       const v = await call({ method:"amf.production.exportRecipe", params:{schemaVersion:"0.1",recipeId,planDigest,sources} });
       const result = record(v) && v.schemaVersion === "0.1" ? v.export : null;
-      if (!record(result) || !text(result.shareCode) || !result.shareCode.startsWith("vuar0.4.") || result.shareCode.length > 349557 || !text(result.fileText)
+      if (!record(result) || !text(result.shareCode) || !/^vuar0\.[45]\./u.test(result.shareCode) || result.shareCode.length > 349557 || !text(result.fileText)
         || new TextEncoder().encode(result.fileText).length > 262144 || !isAmfSharedRecipe(result.document) || result.document.recipe.recipeId !== recipeId) throw new Error("amf_recipe_share_invalid");
       const file = decodeAmfRecipeShare(result.fileText); const code = decodeAmfRecipeShare(result.shareCode);
       if (!file || !code || !sameAmfRecipeShare(file,result.document) || !sameAmfRecipeShare(code,result.document)) throw new Error("amf_recipe_share_invalid");
@@ -395,7 +423,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       if (!record(v) || v.schemaVersion !== "0.1" || !savedRecipe(v.document)) throw new Error("amf_recipe_document_invalid");
       return v.document;
     },
-    async prepareRecipe(recipeId, editorPath) { return accepted(await call({ method: "amf.production.prepareRecipe", params: { schemaVersion: "0.1", recipeId, editorPath } }), strings.amfProduction.preparing); },
+    async prepareRecipe(recipeId, editorPath, materialChoices) { return accepted(await call({ method: "amf.production.prepareRecipe", params: { schemaVersion: "0.1", recipeId, editorPath,...(materialChoices !== undefined ? {materialChoices} : {}) } }), strings.amfProduction.preparing); },
     async list() {
       const v = await call({ method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.sources) || !v.sources.every(source) || !Array.isArray(v.editors) || !v.editors.every(editor)
@@ -423,10 +451,10 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
         || !isAmfAssemblySelection(v.selection) || v.preserveOriginals !== true || v.officialSdkChecks !== "not_run" || !editor(v.editor) || !text(v.projectRoot)
         || !v.inputs.every(i => record(i) && text(i.sourceId) && text(i.name) && ["avatar", "outfit", "import_only"].includes(String(i.role)))
         || (v.parameterBudget !== undefined && !isAmfParameterBudgetPlan(v.parameterBudget))
-        || !planFits(v.fits)) throw new Error("amf_production_plan_invalid");
+        || !planFits(v.fits) || !hasValidAmfRecipeReview(v)) throw new Error("amf_production_plan_invalid");
       return v as unknown as AmfProductionPlan;
     },
-    async assemble(runId, plan) { return accepted(await call({ method: "amf.production.assemble", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, selection: plan.selection } }), strings.amfProduction.assembling); },
+    async assemble(runId, plan, recipeDifferencesConfirmed) { return accepted(await call({ method: "amf.production.assemble", params: { schemaVersion: "0.1", runId, planDigest: plan.planDigest, selection: plan.selection,...(recipeDifferencesConfirmed !== undefined ? {recipeDifferencesConfirmed} : {}) } }), strings.amfProduction.assembling); },
     async reinspect(runId) { return accepted(await call({ method: "amf.production.reinspect", params: { schemaVersion: "0.1", runId } }), strings.amfProduction.reinspect); },
     async faceTrackingPlan(runId, menuId) {
       const value = await call({ method: "amf.production.faceTrackingPlan", params: { schemaVersion: "0.1", runId, menuId } });

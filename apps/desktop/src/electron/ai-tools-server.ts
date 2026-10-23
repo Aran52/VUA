@@ -359,13 +359,21 @@ export class AiToolsServer {
       let input: Record<string, unknown> = args;
       let recommendation: ReturnType<typeof recommendAssembly> | null = null;
       if (name === "vua_amf_plan" && input.selection === undefined) {
-        const run = await this.invoke({ schemaVersion: 1, requestId: `recommend-${randomUUID()}`, method: "amf.production.get", params: { schemaVersion: "0.1", runId: String(input.runId) } }) as { prefabs?: readonly AmfCandidateFacts[]; sources?: readonly AmfSourceFacts[] };
-        recommendation = recommendAssembly(run.prefabs ?? [], run.sources ?? []);
+        const run = await this.invoke({ schemaVersion: 1, requestId: `recommend-${randomUUID()}`, method: "amf.production.get", params: { schemaVersion: "0.1", runId: String(input.runId) } }) as { prefabs?: readonly AmfCandidateFacts[]; sources?: readonly AmfSourceFacts[]; recipeId?:string; selection?:unknown; recipeMaterials?:unknown; recipeDifferences?:unknown };
+        if (run.recipeId && run.selection === null) {
+          const missing = Array.isArray(run.recipeDifferences) && run.recipeDifferences.some(difference => record(difference) && difference.kind === "prefab_missing");
+          return this.result({whatHappened:missing ? "The Recipe has unresolved prefab targets; no assembly can start." : "The Recipe has no inspected assembly selection yet.",error:missing ? "recipe_prefab_missing" : "inspect_required",
+            nextAction:missing ? "Show the player every Recipe difference and resolve missing prefabs before assembly." : "Wait for preparation or request reinspection, then read a new plan.",expectedResult:spec.expected,data:{materials:run.recipeMaterials,recipeDifferences:run.recipeDifferences}},true);
+        }
+        recommendation = run.recipeId && run.selection ? null : recommendAssembly(run.prefabs ?? [], run.sources ?? []);
+        if (!recommendation) { input = {...input,selection:run.selection}; }
+        else {
         if (!recommendation.selection.avatarPrefab || recommendation.selection.outfits.length === 0 || recommendation.outfits.some(outfit => outfit.path === null)) {
           return this.result({ whatHappened: "VUA could not pick every part on its own; no plan was made.", error: "recommendation_needs_player",
             nextAction: "Show the player the tied candidates, then call vua_amf_plan with the selection they choose.", expectedResult: spec.expected, data: { recommendation } }, true);
         }
         input = { ...input, selection: recommendation.selection };
+        }
       }
       const request = aiGatewayRequest(spec, structuredClone(input), `ai-${randomUUID()}`);
       if (spec.command) {

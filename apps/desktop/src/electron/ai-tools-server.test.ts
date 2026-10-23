@@ -243,7 +243,7 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
   });
@@ -263,6 +263,22 @@ describe("the experimental VRChat sign-in stays outside the AI tool catalog", ()
 });
 
 describe("vua_amf_plan without a selection", () => {
+  it("returns the same Recipe checklist and differences and retains its mapped selection", async () => {
+    const selection={avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"coat",prefabPath:"Assets/Moved.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}]};
+    const materials=[{materialId:"material-2",status:"material_not_downloaded",boothProductId:"1001"}];
+    const recipeDifferences=[{kind:"prefab_mapped",rule:"guid",before:"Assets/Old.prefab",after:"Assets/Moved.prefab"}];
+    const {client,calls}=await setup(async request=>envelope(request,request.method==="amf.production.get"
+      ? {recipeId:"recipe-test",selection,recipeMaterials:materials,recipeDifferences}
+      : {materials,recipeDifferences,planDigest:digest}));
+    const checklist=await client.callTool({name:"vua_recipe_materials",arguments:{recipeId:"recipe-test",materialChoices:{"material-2":"source-2"}}});
+    expect(JSON.stringify(data(checklist))).toContain("material_not_downloaded");
+    expect(calls.at(-1)).toMatchObject({method:"amf.production.recipeMaterialPlan",params:{materialChoices:{"material-2":"source-2"}}});
+    const result=await client.callTool({name:"vua_amf_plan",arguments:{runId:"n3-test"}});
+    expect(result.isError).toBeFalsy();
+    expect(calls.at(-1)).toMatchObject({method:"amf.production.plan",params:{selection}});
+    expect(JSON.stringify(data(result))).toContain("recipeDifferences");
+    expect(calls.every(call=>!["amf.production.assemble","amf.production.prepareRecipe"].includes(call.method))).toBe(true);
+  });
   const prefab = (sourceId: string, name: string, isAvatar: boolean) => ({ sourceId, path: `Assets/${sourceId}/${name}.prefab`, name, isAvatar,
     hasSkinnedMesh: !isAvatar, hasMergeArmature: !isAvatar, hasMissingScripts: false, humanoidBones: [] });
   const run = (avatars: readonly string[]) => ({ runId: "n3-test", prefabs: [...avatars.map(name => prefab("avatar", name, true)), prefab("outfit", "TshirtShorts_Meiyun", false)],

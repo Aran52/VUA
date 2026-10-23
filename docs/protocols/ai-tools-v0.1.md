@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.8.0
+> Document version: 0.9.0
 > Status: Candidate
-> Updated: 2026-10-20
+> Updated: 2026-10-24
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -208,7 +208,21 @@ The real isolated host check observed this workstation's installed C1 without an
 or installation task. The bundled-MCP check forbids external module loads and checks older HTTP
 clients, guarding against Node/browser dependency-resolution differences in the shipping bundle.
 
+## Recipe material reads
+
+`vua_recipe_materials(recipeId, materialChoices?)` reads the full local material checklist before
+preparation. `vua_recipe_apply_plan(runId, recipeId, avatarGlobalObjectId?, materialChoices?)`
+returns the same checklist and observed `recipeDifferences`. `vua_amf_plan` preserves the prepared
+Recipe selection and returns its checklist and differences, rather than recommending replacement
+prefabs when a Recipe target is missing. The Agent explains all purchase/download/choice needs
+and every difference before requesting a change. `vua_request_amf_assemble` accepts optional
+`recipeDifferencesConfirmed: true`, required by AMF when the exact digest-bound difference list is
+nonempty. The ordinary player approval remains required; a read never approves or downloads.
+The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and difference shapes.
+
 ## Document changelog
+
+- 0.9.0 (2026-10-24): expose complete Recipe material checklists and reviewed mapping differences.
 
 - 0.8.0 (2026-10-20): add bounded task summaries and filters, full run/release Resources, compact AMF/library reads, build identity, sanitized error envelopes, AMF change evidence and approved-request task attribution.
 - 0.7.0 (2026-10-19): read recorded VN3 terms through `vua_terms` and check one use across several products through `vua_terms_check`.

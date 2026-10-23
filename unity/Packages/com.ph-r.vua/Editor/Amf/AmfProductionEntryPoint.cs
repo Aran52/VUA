@@ -37,7 +37,7 @@ namespace Vua.Editor.Bridge
         [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; public TextureImportChange[] textureChanges; public OutfitRemoval outfitRemoval; }
         [Serializable] internal sealed class Candidate
         {
-            public string sourceId; public string path; public string name; public bool isAvatar;
+            public string sourceId; public string path; public string name; public string prefabGuid; public List<string> objectPaths = new List<string>(); public bool isAvatar;
             public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts;
             public List<string> humanoidBones = new List<string>();
             public string preview = "";
@@ -55,6 +55,7 @@ namespace Vua.Editor.Bridge
         {
             public string editorVersion; public string projectFingerprint; public string avatarName;
             public string avatarGlobalObjectId; public List<Candidate> prefabs = new List<Candidate>();
+            public List<string> materialPaths = new List<string>();
             public List<BoundObject> instances = new List<BoundObject>();
             public bool sdkDescriptorRecognized; public string officialSdkChecks = "not_run";
             public string visualReview = "pending"; public int missingReferences;
@@ -178,6 +179,9 @@ namespace Vua.Editor.Bridge
             result.data.sdkSignedIn = SdkSignedIn();
             result.data.editorVersion = Application.unityVersion;
             result.data.prefabs = Inspect(request);
+            result.data.materialPaths = request.sources.SelectMany(source => source.assetPaths).Distinct()
+                .Where(path => path.EndsWith(".mat", StringComparison.Ordinal) && AssetDatabase.LoadAssetAtPath<Material>(path) != null)
+                .OrderBy(path => path, StringComparer.Ordinal).Take(4096).ToList();
             if (command.operation == "amf_assemble") Assemble(request, result);
             if (command.operation == "amf_sdk_fix") ApplySdkFixes(request, result);
             if (command.operation == "amf_outfit_remove") RemoveOutfit(request, result);
@@ -327,6 +331,8 @@ namespace Vua.Editor.Bridge
                 if (!path.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase)) continue;
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path); if (prefab == null) continue;
                 candidates.Add(new Candidate { sourceId = source.sourceId, path = path, name = prefab.name,
+                    prefabGuid = AssetDatabase.AssetPathToGUID(path),
+                    objectPaths = CollectObjects(prefab.transform).Select(item => item.path).Where(item => item.Length <= 512).Take(2048).ToList(),
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
                     hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),

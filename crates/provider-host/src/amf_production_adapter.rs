@@ -397,6 +397,7 @@ impl NativeAmfProduction {
             diagnostics.push(vua_orchestrator::Diagnostic { code: "amf.preview.failed".into(), severity: vua_orchestrator::DiagnosticSeverity::Warning,
                 message: format!("{} preview images were left out because their files are missing or too large.", omitted.len()) });
         }
+        vua_orchestrator::amf_recipe_materials::validate_inspection(&facts)?;
         let prefabs: Vec<PrefabCandidate> = serde_json::from_value(facts["prefabs"].clone())
             .map_err(|e| err("receipt_invalid", e))?;
         vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&prefabs)?;
@@ -563,6 +564,40 @@ impl AmfProductionPlatform for NativeAmfProduction {
         Ok(matches)
     }
 
+    fn recipe_materials(&self, recipe: &vua_orchestrator::amf_recipe::ProductionRecipe, choices: &vua_orchestrator::amf_recipe_materials::MaterialChoices) -> Result<Vec<vua_orchestrator::amf_recipe_materials::RecipeMaterialResolution>,AppErrorV1> {
+        use vua_orchestrator::amf_recipe_materials::{MaterialInventory,MaterialPackage,resolve_materials};
+        let available = self.sources()?;
+        let mut known = HashMap::new();
+        for item_id in available.iter().map(|source| &source.item_id).collect::<BTreeSet<_>>() {
+            for copy in self.bdl.entry_copies(item_id).map_err(|e| err("library_failed",e))? {
+                known.insert(copy.copy_id,copy.artifact_sha256.trim_start_matches("sha256:").to_owned());
+            }
+        }
+        let mut inventory = Vec::new();
+        for source in available {
+            let product_ids = source.product_ids.iter().filter_map(|id| id.strip_prefix("booth:")).map(str::to_owned).collect::<Vec<_>>();
+            let by_hash = known.get(&source.source_id).is_some_and(|hash| recipe.materials.iter().any(|m| &m.sha256 == hash));
+            let by_product = recipe.materials.iter().any(|m| m.booth_product_id.as_ref().is_some_and(|id| product_ids.contains(id)));
+            // Retained hashes narrow plain files; archive members have their own content hashes.
+            if !by_hash && !by_product && source.archive_member.is_none() { continue; }
+            let sha256 = vua_unity_bridge::material_exec::sha256_file(&self.package_path(&source)?).map_err(|e| err("source_unreadable",e))?;
+            inventory.push(MaterialInventory {package:MaterialPackage {source_id:source.source_id,package_name:source.name.rsplit(['/', '\\']).next().unwrap_or(&source.name).into(),sha256:sha256.trim_start_matches("sha256:").into()},product_ids});
+        }
+        let mut purchased = BTreeMap::new();
+        for material in &recipe.materials {
+            if let Some(id) = &material.booth_product_id {
+                let product = format!("booth:{id}");
+                if !self.bdl.product_library_memberships(&product).map_err(|e| err("library_failed",e))?.is_empty() {
+                    purchased.insert(id.clone(),self.bdl.downloadables_for_product(&product).map_err(|e| err("library_failed",e))?.into_iter().map(|(_,name)|name).collect());
+                }
+            }
+        }
+        resolve_materials(recipe,&inventory,&purchased,choices)
+    }
+    fn recipe_shop_name(&self, id: &str) -> Result<Option<String>,AppErrorV1> {
+        Ok(self.bdl.library_product_summaries().map_err(|e| err("library_failed",e))?.into_iter().find(|p| p.product_id == format!("booth:{id}")).and_then(|p| p.shop_name)
+            .filter(|name| !name.trim().is_empty() && name.chars().count() <= 240 && !name.chars().any(char::is_control)))
+    }
     fn resolve_recipe_materials(&self, materials: &[vua_orchestrator::amf_recipe::RecipeMaterial]) -> Result<BTreeMap<String, String>, AppErrorV1> {
         let available = self.sources()?;
         let mut known = HashMap::new();
@@ -1549,6 +1584,48 @@ fn prune_empty_folders(project: &Path, removed: &[String]) {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn recipe_resolution_reads_local_ownership_download_names_and_all_product_packages() {
+        use vua_orchestrator::amf_recipe_materials::{MaterialStatus,MaterialChoices};
+        use vua_bdl_store::{ArtifactInspectionState,CopyRole,NewLocalArtifact};
+        let (root,adapter) = preparation_fixture();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
+        let page = vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+        let now = "2026-10-24T00:00:00Z";
+        adapter.bdl.record_product_observation(&vua_acquisition::library_item_to_observation(&page.items[0],&format!("sha256:{}","0".repeat(64)),now,None,Some("bought"))).unwrap();
+        adapter.bdl.upsert_product_downloadables("booth:901",&[(901,"Recorded download.zip".into())],now,None,Some("bought")).unwrap();
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json")).unwrap();
+        recipe.materials[0].booth_product_id = Some("901".into());
+        recipe.materials[1].booth_product_id = Some("902".into());
+        let checklist = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
+        assert_eq!(checklist[0].status,MaterialStatus::MaterialNotDownloaded);
+        assert_eq!(checklist[0].download_names,vec!["Recorded download.zip"]);
+        assert_eq!(checklist[1].status,MaterialStatus::MaterialNotOwned);
+        adapter.bdl.seed_product("booth:902","902").unwrap();
+        let mut source_ids = Vec::new();
+        for (index,name) in ["Coat-New-A.unitypackage","Coat-New-B.unitypackage"].iter().enumerate() {
+            let file = root.join(name);
+            write_unitypackage(&file,&[PackageEntry {guid:BODY_MAT,logical:"Assets/Body.mat",asset:format!("Synthetic variant {index}").into_bytes()}]);
+            let hash = vua_unity_bridge::material_exec::sha256_file(&file).unwrap();
+            adapter.bdl.record_untrusted_artifact(&NewLocalArtifact {artifact_sha256:hash.clone(),size_bytes:fs::metadata(&file).unwrap().len(),suggested_file_name:Some((*name).into()),download_id:None,first_seen_at:now.into()}).unwrap();
+            for state in [ArtifactInspectionState::Inspected,ArtifactInspectionState::Admitted] { adapter.bdl.transition_artifact(&hash,state,now,None).unwrap(); }
+            adapter.bdl.record_artifact_mapping(&hash,"booth:902",None,None,now).unwrap();
+            let item = adapter.bdl.create_warehouse_item("Synthetic coat","downloaded_material",now).unwrap();
+            let copy = adapter.bdl.record_artifact_copy(&item.warehouse_item_id,&hash,name,file.to_str().unwrap(),CopyRole::Original,now).unwrap();
+            source_ids.push(copy.copy_id);
+        }
+        let checklist = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
+        assert_eq!(checklist[1].status,MaterialStatus::MaterialChoiceRequired);
+        assert_eq!(checklist[1].candidates.len(),2);
+        let choices = MaterialChoices::from([(recipe.materials[1].id.clone(),source_ids[1].clone())]);
+        let chosen = adapter.recipe_materials(&recipe,&choices).unwrap();
+        assert_eq!(chosen[1].resolved.as_ref().unwrap().source_id,source_ids[1]);
+        recipe.materials[1].package_name = "Coat-New-A.unitypackage".into();
+        let named = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
+        assert_eq!(named[1].resolved.as_ref().unwrap().source_id,source_ids[0]);
+        drop(adapter); fs::remove_dir_all(root).unwrap();
+    }
 
     /// A stand-in task context for synthetic preparation runs: nothing cancels
     /// and every progress step name is recorded.

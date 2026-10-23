@@ -81,6 +81,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec!["Head".into()],
             preview: Some(".vua/previews/cmd/candidate-000.png".into()),
+            prefab_guid:None, object_paths:None,
             parameter_budget: Some(ParameterBudget {
                 expression_parameters_observed: true,
                 expression_parameters: vec![
@@ -105,6 +106,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
+            prefab_guid:None, object_paths:None,
             parameter_budget: Some(ParameterBudget {
                 expression_parameters_observed: true,
                 expression_parameters: vec![],
@@ -126,7 +128,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
-            parameter_budget: None,
+            parameter_budget: None, prefab_guid:None, object_paths:None,
         },
     ]
 }
@@ -180,7 +182,7 @@ impl AmfProductionPlatform for TestPlatform {
                 name: format!("{}.unitypackage", s.source_id),
                 item_name: s.source_id.clone(),
                 sha256: format!("sha256:{}", if s.source_id == "avatar" { if self.alt_avatar_hash.load(Ordering::SeqCst) { "d".repeat(64) } else { "a".repeat(64) } } else if self.change_recipe_input.load(Ordering::SeqCst) { "c".repeat(64) } else { "b".repeat(64) }),
-                asset_paths: vec![format!("Assets/{}.prefab", s.source_id)],
+                asset_paths: vec![format!("Assets/{}.prefab", s.source_id), if s.source_id == "avatar" {"Assets/Avatar/Body.mat".into()} else {"Assets/Outfit/Coat.mat".into()}],
             })
             .collect())
     }
@@ -1048,6 +1050,55 @@ fn recipes_require_current_observations_and_reopen_with_pinned_inputs() {
     assert_eq!(h.engine.save_recipe("n3-test", "recipe-stale", "Stale").unwrap_err().code, "vua.amf_production.inspect_required");
     let restarted = AmfProductionEngine::new(h.root.join("production"), h.platform.clone());
     assert_eq!(restarted.get_recipe("recipe-test").unwrap(), saved);
+}
+
+#[test]
+fn v04_share_still_imports_and_prepares_with_exact_originals() {
+    use vua_orchestrator::amf_recipe::ProductionRecipe;
+    use vua_orchestrator::amf_recipe_share::{SharedRecipe,RecipeSourceStatement};
+    let h = Harness::new(); assembled(&h);
+    let saved = h.engine.save_recipe("n3-test","recipe-legacy","Legacy").unwrap();
+    let mut recipe: ProductionRecipe = serde_json::from_value(saved.recipe).unwrap();
+    let ids = recipe.materials.iter().map(|m| (m.id.clone(),format!("m-{}",m.sha256))).collect::<std::collections::BTreeMap<_,_>>();
+    recipe.format_version = "0.4".into();
+    for m in &mut recipe.materials { m.id = ids[&m.id].clone(); m.booth_product_id = None; }
+    recipe.avatar.material_id = ids[&recipe.avatar.material_id].clone(); recipe.avatar.prefab_guid = None;
+    for outfit in &mut recipe.outfits { outfit.material_id = ids[&outfit.material_id].clone(); outfit.prefab_guid = None; }
+    let shared = SharedRecipe {format_version:"0.4".into(),sources:recipe.materials.iter().map(|m| (m.id.clone(),RecipeSourceStatement::Legacy("1000001".into()))).collect(),recipe};
+    let imported = h.engine.import_recipe(&shared.encode().unwrap()).unwrap();
+    assert_eq!(imported.recipe["formatVersion"],"0.4");
+    let id = imported.recipe["recipeId"].as_str().unwrap();
+    h.engine.begin_recipe("n3-legacy",id,"synthetic-editor").unwrap();
+    assert!(h.job(|engine,ctx| engine.prepare("n3-legacy",ctx)));
+    let prepared = h.engine.get("n3-legacy").unwrap();
+    assert_eq!(prepared.selection,Some(selection()));
+    assert!(prepared.recipe_differences.is_empty());
+}
+
+#[test]
+fn recipe_difference_confirmation_and_digest_precede_snapshot_and_failed_confirmed_assembly_recovers() {
+    use vua_orchestrator::amf_recipe_materials::{RecipeDifference,RecipeDifferenceKind};
+    let h = Harness::new(); h.prepared();
+    let mut run = h.engine.get("n3-test").unwrap();
+    run.recipe_differences.push(RecipeDifference {kind:RecipeDifferenceKind::MaterialFileChanged,material_id:"material-2".into(),
+        before:"Old.unitypackage".into(),after:Some("New.unitypackage".into()),rule:None,paths:vec![],count:1});
+    let file = h.root.join("production/runs/n3-test.json");
+    fs::write(&file,serde_json::to_vec(&run).unwrap()).unwrap();
+    let digest = h.engine.plan("n3-test",&selection()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    let first = digest.clone();
+    assert!(!h.job(move |engine,ctx| engine.assemble("n3-test",selection(),&first,ctx)));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),0);
+    run.recipe_differences[0].after = Some("Another.unitypackage".into());
+    fs::write(&file,serde_json::to_vec(&run).unwrap()).unwrap();
+    assert!(!h.job(move |engine,ctx| engine.assemble_with_review("n3-test",selection(),&digest,true,ctx)));
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),0);
+    let digest = h.engine.plan("n3-test",&selection()).unwrap()["planDigest"].as_str().unwrap().to_owned();
+    h.platform.fail.store(true,Ordering::SeqCst);
+    assert!(!h.job(move |engine,ctx| engine.assemble_with_review("n3-test",selection(),&digest,true,ctx)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert_eq!(h.platform.snapshots.load(Ordering::SeqCst),1);
+    assert!(!failed.revisions.is_empty());
+    assert_eq!(fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(),"before");
 }
 
 #[test]
@@ -2326,7 +2377,8 @@ fn recipes_carry_and_replay_the_applied_fits() {
     h.engine.save_recipe("n3-second", "recipe-fits", "Fitted").unwrap();
     let stored = h.engine.get_recipe("recipe-fits").unwrap();
     let fits = &stored.recipe["adjustments"]["fits"];
-    assert_eq!(fits[0]["materialId"], format!("m-{}", "b".repeat(64)));
+    assert_eq!(fits[0]["materialId"], stored.recipe["outfits"][0]["materialId"]);
+    assert_eq!(stored.recipe["formatVersion"], "0.5");
     assert_eq!(fits[0]["objects"][0]["path"], "Clip");
     // Saving again for the same garment and Avatar updates the stored fit in place, leaving
     // the Recipe's recorded objects behind.

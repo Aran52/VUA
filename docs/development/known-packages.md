@@ -117,7 +117,8 @@ the other `auto` packages, preparation reads every `.shader` GUID in the copy fr
 `asset.meta` files and replaces the copy only when one recorded release set covers them all —
 together with the shaders the selected materials reference and the package's shaders other
 selected sources provide, so one verified official release serves the whole project. The
-install pins that exact release version; the newest covering release wins. In every other
+install pins that exact release version; the earliest covering release wins, the one closest
+to the era the copy came from. In every other
 case — an unknown GUID, a copy mixing lines no single release carries, a Poiyomi Pro copy, an
 unreadable shader, or a project that already carries the package — the copy imports unchanged
 and nothing is installed, exactly as before this table existed. Poiyomi's recorded sets let a

@@ -67,8 +67,8 @@ pub(crate) struct KnownPackage {
     pub shader_guids: &'static [&'static str],
     /// Release lines, oldest first; a GUID belongs to the newest line that carries it.
     pub version_lines: &'static [VersionLine],
-    /// Recorded releases, oldest first; the newest one covering a bundled copy
-    /// replaces it. Empty for packages without version lines or without a
+    /// Recorded releases, oldest first; the earliest one covering a bundled copy
+    /// replaces it, the release closest to the copy's own era. Empty for packages without version lines or without a
     /// recorded set, whose copies then always import unchanged.
     pub releases: &'static [ReleaseSet],
     pub legacy_policy: LegacyPolicy,
@@ -397,9 +397,11 @@ pub(crate) fn package_action(
     let provided_lines: BTreeSet<&str> = provided_guids.keys().filter_map(&line_of).collect();
     if legacy.present {
         // The whole copy — several version lines and the utility shaders shipped
-        // with them — leaves for the newest recorded release whose complete set
+        // with them — leaves for the earliest recorded release whose complete set
         // also covers the shaders the materials reference and the ones selected
         // sources provide, so one verified official release serves the project.
+        // The earliest covering release stays closest to the era the copy came from,
+        // as the materials-only path pins a line's own release.
         if legacy.unreadable_shader || legacy.shaders.is_empty() || package.releases.is_empty() {
             return keep;
         }
@@ -412,7 +414,7 @@ pub(crate) fn package_action(
                     .filter(|guid| known.contains(guid.as_str()))
                     .all(|guid| set.contains(&guid.as_str()))
         };
-        return match package.releases.iter().rev().find(|release| covers(release.shader_guids)) {
+        return match package.releases.iter().find(|release| covers(release.shader_guids)) {
             Some(release) => PackageAction {
                 install: Some(Install::Release(release.version)),
                 replace_legacy: true,
@@ -977,9 +979,9 @@ mod tests {
     }
 
     #[test]
-    fn a_poiyomi_copy_leaves_for_the_newest_release_covering_it() {
+    fn a_poiyomi_copy_leaves_for_the_earliest_release_covering_it() {
         // A real bundled copy spans several version lines and the utility shaders;
-        // 9.3.64 is the newest recorded release that still carries the 9.2 line.
+        // 9.3.64 is the only recorded release that still carries the 9.2 line.
         let multi_line = action(poiyomi(), PackageNeed::default(),
             copy(&[POIYOMI_92, POIYOMI_93, "245e67c21ccaa9a43ad7e84d1c7bb5fc"]), None);
         assert_eq!(multi_line.install, Some(Install::Release("9.3.64")));
@@ -993,10 +995,10 @@ mod tests {
         assert_eq!(ten.install, Some(Install::Release("10.0.27")));
         assert!(ten.replace_legacy);
 
-        // A copy holding only 9.3 shaders is also covered by 10.0.27, which
-        // still ships the 9.3 line, so the newest covering release wins.
+        // A copy holding only 9.3 shaders is covered by 9.3.64 and by 10.0.27,
+        // which still ships the 9.3 line; the earlier release, its own era, wins.
         let single_line = action(poiyomi(), PackageNeed::default(), copy(&[POIYOMI_93]), None);
-        assert_eq!(single_line.install, Some(Install::Release("10.0.27")));
+        assert_eq!(single_line.install, Some(Install::Release("9.3.64")));
 
         // Materials may ask for another line as long as the same release covers it.
         let with_material = action(poiyomi(), need(&[POIYOMI_93]), copy(&[POIYOMI_92]), None);

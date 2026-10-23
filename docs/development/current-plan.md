@@ -112,9 +112,9 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 46 | Library migration grouping | — | planned; executes the migration design |
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
 | 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
-| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts nn8-d, nn8-e and nn8-f |
+| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts turntable-share, share-link-service and product-pictures |
 | 50 | AI connection as a first-run choice | — | planned |
-| 51 | Recipes creators trust | P-04 | planned: prompts nn8-a, nn8-c, nn8-d, nn8-e for agents; B by Claude |
+| 51 | Recipes creators trust | P-04 | planned: prompts recipe-booth-materials (Aran52/VUA#65), terms-everywhere, turntable-share, share-link-service; B by Claude |
 | 52 | Signed Windows releases | — | SignPath application filled in on 2026-10-24; awaits the author's submission and approval |
 
 Suggested next order: the AMF operations first — 10's workshop station, 5's save-and-close buttons,
@@ -937,7 +937,7 @@ The promise to a creator: a Recipe is a list, never a copy. It carries BOOTH pro
 and settings, no files; each receiver must own and hold the materials; the creators are named;
 their terms are checked.
 
-**A — Materials found by BOOTH product** (agent, `nn8-a`). The author ruled on 2026-10-24 that
+**A — Materials found by BOOTH product** (agent, `recipe-booth-materials`). The author ruled on 2026-10-24 that
 a Recipe locates materials by BOOTH product ID instead of exact SHA-256. A new Recipe version
 names each material by its BOOTH product, keeps the package file name as a hint and the
 original digest as evidence only, and records prefab GUIDs. Reproduction takes the receiver's
@@ -951,17 +951,17 @@ owned and present, owned and not downloaded (download it), or not owned (its BOO
 terms check. One action prepares and assembles under the player's permission mode, and the result
 shows beside the sender's previews.
 
-**C — Terms everywhere** (agent, `nn8-c`). VN3 terms today appear in the library drawer, the
+**C — Terms everywhere** (agent, `terms-everywhere`). VN3 terms today appear in the library drawer, the
 release room's check and the MCP reads. The library gains a filter by use, so a player finds
 the materials fit for a VTuber or a game; before a Recipe is imported, the check runs across all
 its materials for the receiver's chosen use; the share preview lists exactly what the Recipe
 contains, and exported Recipes carry the material creators' names for slice 37's credits.
 
-**D — The shareable turntable** (agent, `nn8-d`). Slice 49 in VUA: GIF and PNG export, the
+**D — The shareable turntable** (agent, `turntable-share`). Slice 49 in VUA: GIF and PNG export, the
 "VUA inside" badge and the code hidden in the background, publishing and withdrawing a link, and
 reading the code from a dropped image or a pasted link.
 
-**E — The share link service** (agent, `nn8-e`). Slice 49's service and its web page: storing
+**E — The share link service** (agent, `share-link-service`). Slice 49's service and its web page: storing
 validated Recipes and product selections under content-derived codes, withdrawal, rate limits,
 and the material page in five languages, which shows the product list and leaves out the
 player's own title. It runs on the author's existing server in mainland China; a Tokyo server

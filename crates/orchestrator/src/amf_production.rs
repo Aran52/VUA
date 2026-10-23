@@ -77,6 +77,49 @@ pub struct OutfitSelection {
     pub bone: String,
     pub toggle_name: String,
     pub active: bool,
+    /// Whether the switch keeps its state across worlds; MA's default. Left out of the JSON when
+    /// true, so selections, plan digests and Recipes from before this field stay byte-identical.
+    #[serde(default = "switch_saved_default", skip_serializing_if = "switch_saved_is_default")]
+    pub saved: bool,
+    /// An exclusive group: switches sharing one turn each other off. Empty for an independent
+    /// switch, and then left out of the JSON.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
+}
+
+pub(crate) fn switch_saved_default() -> bool {
+    true
+}
+pub(crate) fn switch_saved_is_default(saved: &bool) -> bool {
+    *saved
+}
+
+/// Checks the switch options of a whole selection: a group name is a short ASCII identifier
+/// (the Bridge derives the shared parameter from it), only an outfit with a switch can join a
+/// group, and at most one switch of a group is on by default.
+pub(crate) fn validate_switch_options<'a>(
+    outfits: impl IntoIterator<Item = (&'a str, &'a str, bool)>,
+) -> Result<(), AppErrorV1> {
+    let mut defaults = std::collections::BTreeMap::<&str, usize>::new();
+    for (toggle_name, group, active) in outfits {
+        if group.is_empty() {
+            continue;
+        }
+        if group.len() > 32 || !group.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') {
+            return Err(production_error("menu_invalid", "A switch group name is 1-32 letters, digits, '_' or '-'."));
+        }
+        if toggle_name.trim().is_empty() {
+            return Err(production_error("menu_invalid", "Only an outfit with a switch can join a switch group."));
+        }
+        let count = defaults.entry(group).or_default();
+        if active {
+            *count += 1;
+            if *count > 1 {
+                return Err(production_error("menu_invalid", "At most one switch of a group can be on by default."));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -1944,6 +1987,7 @@ fn validate_selection_inner(run: &ProductionRun, selection: &AssemblySelection, 
             _ => {}
         }
     }
+    validate_switch_options(selection.outfits.iter().map(|outfit| (outfit.toggle_name.as_str(), outfit.group.as_str(), outfit.active)))?;
     if require_all && !required.is_subset(&selected) {
         return Err(production_error(
             "outfits_invalid",
@@ -2040,3 +2084,36 @@ impl RollbackTarget {
     }
 }
 
+
+#[cfg(test)]
+mod switch_option_tests {
+    use super::*;
+
+    fn outfit(json: serde_json::Value) -> OutfitSelection {
+        serde_json::from_value(json).expect("outfit selection")
+    }
+
+    #[test]
+    fn default_switch_options_stay_out_of_the_json() {
+        let plain = serde_json::json!({"sourceId":"coat","prefabPath":"Assets/Coat.prefab","mode":"merge_armature","bone":"","toggleName":"Coat","active":true});
+        let read = outfit(plain.clone());
+        assert!(read.saved && read.group.is_empty());
+        // Selections, plan digests and Recipes written before the options read and write unchanged.
+        assert_eq!(serde_json::to_value(&read).unwrap(), plain);
+        let mut grouped = plain.clone();
+        grouped["saved"] = false.into(); grouped["group"] = "main".into();
+        assert_eq!(serde_json::to_value(outfit(grouped.clone())).unwrap(), grouped);
+    }
+
+    #[test]
+    fn a_group_holds_switches_with_one_default_on() {
+        let ok = [("Coat", "main", true), ("Dress", "main", false), ("Hat", "", true)];
+        assert!(validate_switch_options(ok).is_ok());
+        let two_on = [("Coat", "main", true), ("Dress", "main", true)];
+        assert_eq!(validate_switch_options(two_on).unwrap_err().code, "vua.amf_production.menu_invalid");
+        assert!(validate_switch_options([("", "main", false)]).is_err(), "an outfit without a switch joins no group");
+        assert!(validate_switch_options([("Coat", "主服装", false)]).is_err(), "group names are ASCII identifiers");
+        let long = "g".repeat(33);
+        assert!(validate_switch_options([("Coat", long.as_str(), false)]).is_err());
+    }
+}

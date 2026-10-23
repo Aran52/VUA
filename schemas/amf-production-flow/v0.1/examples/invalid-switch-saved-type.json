@@ -1,0 +1,33 @@
+{
+  "method": "amf.production.assemble",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-vector",
+    "selection": {
+      "avatarPrefab": "Assets/Avatar.prefab",
+      "outfits": [
+        {
+          "sourceId": "copy-outfit",
+          "prefabPath": "Assets/Outfit.prefab",
+          "mode": "merge_armature",
+          "bone": "",
+          "toggleName": "Coat",
+          "active": true,
+          "saved": "no",
+          "group": "main"
+        },
+        {
+          "sourceId": "copy-dress",
+          "prefabPath": "Assets/Dress.prefab",
+          "mode": "merge_armature",
+          "bone": "",
+          "toggleName": "Dress",
+          "active": false,
+          "group": "main"
+        }
+      ]
+    },
+    "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

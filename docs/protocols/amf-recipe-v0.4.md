@@ -1,8 +1,8 @@
 # AMF production Recipe v0.4
 
-> Document version: 0.5.0
+> Document version: 0.6.0
 > Status: Candidate
-> Updated: 2026-10-20
+> Updated: 2026-10-24
 > Owner: AMF
 
 This format connects saved declarations to the real material-first production path. It is separate
@@ -92,7 +92,17 @@ existing external-project copies and experimental VPM material intake remain sep
 N4 acceptance and player visual review remain owned by
 [the N sequence](../development-outline.md#n4-recipe-and-multi-flow-reproduction).
 
+## Switch options
+
+An outfit entry may carry the selection's switch options, `saved` and `group`, with the same
+rules as `amf.production` selections. Both are left out at their defaults, so Recipes saved
+before them are unchanged and still valid. Saving a Recipe records them; reproducing and applying
+one writes them back, and an apply that would change them lists them as conflicts like the other
+switch settings.
+
 ## Document changelog
+
+- 0.6.0 (2026-10-24): outfit entries may carry the switch options `saved` and `group`, left out at their defaults.
 
 - 0.5.0 (2026-10-20): `adjustments` gains optional `fits`, the per-object local-Transform saved fits the line assembled with, written into new instances on reproduction.
 

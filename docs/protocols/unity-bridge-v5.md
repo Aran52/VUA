@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.19.0
+> Document version: 0.20.0
 > Status: Candidate
-> Updated: 2026-10-23
+> Updated: 2026-10-24
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -24,7 +24,8 @@ Preparation creates a new empty managed work scene and refuses an existing scene
 reads the selected source paths and the saved managed scene, reports actual prefab descriptor,
 bone and MA facts, and changes no scene. Saved ownership resolves exact scene objects; a missing
 object is never replaced by a same-name match. It checks current prefab identity, actual binding
-targets, owned switches, activation, missing scripts and renderer references. `observedSelection`
+targets, owned switches with their saved state and exclusive group, activation, missing scripts and
+renderer references. `observedSelection`
 is available only when all retained relationships can be represented and verified; it reflects
 current scene settings rather than the last requested selection. Missing or changed relationships
 remain explicit diagnostics. Assembly uses stable run/instance-owned objects, public MA
@@ -365,13 +366,27 @@ synced expression-parameter limit. Absence is compatible with older results. It 
 
 Modular Avatar merges all of this into the Avatar's asset only at build time, deduplicating by
 merged name with the Avatar's own asset first. The consumer's plan estimate reproduces that
-merge order and adds the switch VUA itself creates for each labelled outfit; it cannot
+merge order and adds the switches VUA itself creates (a Bool per independent switch, an Int per
+exclusive group); it cannot
 reproduce what else only exists after the build: other automatically created menu-item
 parameters, parameters other tools (VRCFury, reactive components) generate, or an
 unsynced asset entry that an MA config upgrades to synced. The authoritative synced cost stays
 with the SDK's own check on the built result.
 
+## Switch options
+
+A plan's outfit may carry `saved` (default `true`) and `group` (default empty). Unity's
+JsonUtility keeps the field initializers when VUA leaves them out. Assembly writes `saved` to the
+owned MA Menu Item's saved setting. An independent switch keeps an empty parameter, so MA creates
+its own; the switches of a group share the parameter `VUA/Group/<group>`, with values 1..n in the
+selection's order, so the menu works as radio buttons. Inspection reads both back into
+`observedSelection`: `saved` from the item, `group` from the parameter's suffix (empty for an
+independent switch). A grouped item with a value below 1 or a parameter outside that prefix does
+not verify.
+
 ## Document changelog
+
+- 0.20.0 (2026-10-24): plan outfits carry optional `saved` and `group`; grouped switches share `VUA/Group/<group>` with values 1..n, and inspection reports both in `observedSelection`.
 
 - 0.19.0 (2026-10-23): add ownership-ID-bound outfit-removal inventories and a protected mutating operation; retain other garments, Avatars and fit baselines.
 

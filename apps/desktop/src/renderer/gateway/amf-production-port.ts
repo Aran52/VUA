@@ -158,7 +158,7 @@ export interface AmfRecipeShareExport { readonly shareCode: string; readonly fil
 export interface AmfRecipeApplyPlan {
   readonly runId: string; readonly recipeId: string; readonly title: string; readonly avatarName: string;
   readonly avatarGlobalObjectId: string; readonly planDigest: string; readonly retainedOutfits: number; readonly overlayBlocker: string | null;
-  readonly conflicts: readonly { readonly sourceId: string; readonly packageName: string; readonly field: "mode" | "bone" | "toggleName" | "active"; readonly current: string | boolean; readonly incoming: string | boolean }[];
+  readonly conflicts: readonly { readonly sourceId: string; readonly packageName: string; readonly field: "mode" | "bone" | "toggleName" | "active" | "saved" | "group"; readonly current: string | boolean; readonly incoming: string | boolean }[];
   readonly recipeSelection: AmfAssemblySelection; readonly currentSelection: AmfAssemblySelection;
   readonly targets: readonly { readonly globalObjectId: string; readonly name: string; readonly verified: boolean }[];
 }
@@ -343,7 +343,9 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
         || !text(p.planDigest) || !/^[a-f0-9]{64}$/u.test(p.planDigest) || !Number.isSafeInteger(p.retainedOutfits) || Number(p.retainedOutfits) < 0 || Number(p.retainedOutfits) > 64
         || (p.overlayBlocker !== null && !text(p.overlayBlocker)) || !isAmfAssemblySelection(p.recipeSelection) || !isAmfAssemblySelection(p.currentSelection)
         || !Array.isArray(p.conflicts) || p.conflicts.length > 256 || !p.conflicts.every(c => record(c) && text(c.sourceId) && text(c.packageName)
-          && ["mode","bone","toggleName","active"].includes(String(c.field)) && (c.field === "active" ? typeof c.current === "boolean" && typeof c.incoming === "boolean" : text(c.current) && text(c.incoming)))) throw new Error("amf_recipe_apply_plan_invalid");
+          && ["mode","bone","toggleName","active","saved","group"].includes(String(c.field))
+          && (c.field === "active" || c.field === "saved" ? typeof c.current === "boolean" && typeof c.incoming === "boolean"
+            : c.field === "group" ? typeof c.current === "string" && typeof c.incoming === "string" : text(c.current) && text(c.incoming)))) throw new Error("amf_recipe_apply_plan_invalid");
       if (!Array.isArray(p.targets) || p.targets.length < 1 || p.targets.length > 64
         || !p.targets.every(t => record(t) && text(t.globalObjectId) && t.globalObjectId.length > 0 && t.globalObjectId.length <= 256 && text(t.name) && typeof t.verified === "boolean")
         || new Set(p.targets.map(t=>t.globalObjectId)).size !== p.targets.length

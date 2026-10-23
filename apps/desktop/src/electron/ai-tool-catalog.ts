@@ -13,7 +13,10 @@ const id={type:"string",minLength:1,maxLength:256};
 const filePath={type:"string",minLength:1,maxLength:4096,pattern:"^[^\\u0000]*$"};
 const digest={type:"string",pattern:"^[a-f0-9]{64}$"};
 const boothProduct={type:"string",pattern:"^booth:[1-9][0-9]{0,19}$"};
-const selection=object({avatarPrefab:filePath,outfits:{type:"array",minItems:1,maxItems:64,items:object({sourceId:id,prefabPath:filePath,mode:{enum:["merge_armature","attach_to_bone"]},bone:{type:"string",maxLength:80},toggleName:{type:"string",maxLength:80},active:{type:"boolean"}})}});
+const selection=object({avatarPrefab:filePath,outfits:{type:"array",minItems:1,maxItems:64,items:object({sourceId:id,prefabPath:filePath,mode:{enum:["merge_armature","attach_to_bone"]},bone:{type:"string",maxLength:80},toggleName:{type:"string",maxLength:80},active:{type:"boolean"},
+  saved:{type:"boolean",description:"Keep the switch state across worlds; omit for the default, true."},
+  group:{type:"string",pattern:"^[A-Za-z0-9_-]{0,32}$",description:"Exclusive switch group, such as main for main outfits worn one at a time; omit for an independent switch."}},
+  ["sourceId","prefabPath","mode","bone","toggleName","active"])}});
 const intent=object({purposes:{type:"array",minItems:1,maxItems:4,uniqueItems:true,items:{enum:["desktop_play","pico_pcvr","pc_avatar","quest_avatar"]}},editorRoot:{type:"string",description:"Editor installation directory. Omit to use the ordinary VUA default."},useMirrors:{type:"boolean"},picoRegion:{enum:["china_mainland","other"]}},["purposes"]);
 export const AI_TOOLS:readonly AiToolSpec[]=[
   {name:"vua_unity_license",description:"Read Unity license file metadata, Hub/client process observations and the last explicit check. Starts no program and never reads license contents. File presence is only a hint; an explicit real Editor check is required to confirm usability.",inputSchema:object({}),title:"Read Unity license hints",next:"Explain the reported next action; the player runs a real check from VUA's interface.",expected:"Metadata-only hints and historical check evidence, not a fresh active-license claim.",method:"environment.unityLicense",fixed:{schemaVersion:"0.1"}},

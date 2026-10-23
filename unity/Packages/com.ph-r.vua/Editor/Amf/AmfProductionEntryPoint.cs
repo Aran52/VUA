@@ -31,7 +31,11 @@ namespace Vua.Editor.Bridge
         private const int CandidateSize = 256;
         private const int MaxCandidatePreviews = 128;
         [Serializable] internal sealed class Source { public string sourceId; public string role; public string[] assetPaths; }
-        [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; public FitObjects fit; }
+        // A missing `saved` or `group` keeps its initializer: VUA leaves both out at their defaults.
+        [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; public bool saved = true; public string group = ""; public FitObjects fit; }
+        // An exclusive group's switches share this parameter, one value per outfit; the group name follows the prefix.
+        private const string SwitchGroupPrefix = "VUA/Group/";
+        private static bool ValidSwitchGroup(string group) => group != null && group.Length <= 32 && group.All(c => c < 128 && (char.IsLetterOrDigit(c) || c == '_' || c == '-'));
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
         [Serializable] internal sealed class ApplyTarget { public string avatarGlobalObjectId; public string newAvatarKey; public string[] writeSourceIds; }
         [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; public TextureImportChange[] textureChanges; public OutfitRemoval outfitRemoval; }
@@ -403,16 +407,22 @@ namespace Vua.Editor.Bridge
                 var menuOwner = owners.objects.SingleOrDefault(o => o.key == ScopedKey(owners, "menu-" + ShortHash(source.sourceId)));
                 fact.menuModified = menuOwner != null;
                 fact.menuVerified = menuOwner == null;
+                var switchSaved = true; var switchGroup = "";
                 if (menuOwner != null)
                 {
                     var menu = FindOwned(menuOwner.globalObjectId);
                     var item = menu == null ? null : menu.GetComponent<ModularAvatarMenuItem>();
                     var toggle = menu == null ? null : menu.GetComponent<ModularAvatarObjectToggle>();
                     fact.toggleName = item == null ? "" : item.label ?? "";
+                    var parameter = item == null ? "" : item.PortableControl.Parameter ?? "";
+                    var grouped = parameter.StartsWith(SwitchGroupPrefix, StringComparison.Ordinal);
+                    switchSaved = item == null || item.isSaved;
+                    switchGroup = grouped ? parameter.Substring(SwitchGroupPrefix.Length) : "";
                     fact.menuVerified = menu != null && menu.transform.IsChildOf(avatar.transform)
                         && menu.GetComponents<ModularAvatarMenuInstaller>().Length == 1
                         && menu.GetComponents<ModularAvatarMenuItem>().Length == 1 && menu.GetComponents<ModularAvatarObjectToggle>().Length == 1
-                        && item.PortableControl.Type == PortableControlType.Toggle && item.PortableControl.Value == 1
+                        && item.PortableControl.Type == PortableControlType.Toggle
+                        && (parameter.Length == 0 ? item.PortableControl.Value == 1 : grouped && switchGroup.Length > 0 && ValidSwitchGroup(switchGroup) && item.PortableControl.Value >= 1)
                         && item.isDefault == instance.activeSelf && !string.IsNullOrWhiteSpace(fact.toggleName)
                         && fact.toggleName.Length <= 80 && !fact.toggleName.Any(char.IsControl)
                         && toggle.Objects != null && toggle.Objects.Count == 1
@@ -420,7 +430,7 @@ namespace Vua.Editor.Bridge
                 }
                 complete &= fact.prefabMatches && fact.bindingVerified && fact.menuVerified;
                 observedOutfits.Add(new Outfit { sourceId = fact.sourceId, prefabPath = fact.prefabPath,
-                    mode = fact.binding, bone = fact.bone, toggleName = fact.toggleName, active = fact.active });
+                    mode = fact.binding, bone = fact.bone, toggleName = fact.toggleName, active = fact.active, saved = switchSaved, group = switchGroup });
             }
             if (complete && observedOutfits.Count > 0) { selection.outfits = observedOutfits.ToArray(); data.observedSelection = selection; }
             var dependencies = new HashSet<string>(EditorUtility.CollectDependencies(new UnityEngine.Object[] { avatar })
@@ -472,7 +482,10 @@ namespace Vua.Editor.Bridge
                 if (outfit.mode == "attach_to_bone" && (candidate.hasSkinnedMesh || !avatarCandidate.humanoidBones.Contains(outfit.bone)))
                     throw new InvalidOperationException("A static accessory needs an observed humanoid bone.");
                 if ((outfit.toggleName ?? "").Length > 80 || (outfit.toggleName ?? "").Any(char.IsControl)) throw new InvalidOperationException("Invalid switch label.");
+                if (!ValidSwitchGroup(outfit.group) || (outfit.group.Length > 0 && string.IsNullOrWhiteSpace(outfit.toggleName))) throw new InvalidOperationException("Invalid switch group.");
             }
+            if (selection.outfits.Where(o => !string.IsNullOrEmpty(o.group) && o.active).GroupBy(o => o.group).Any(g => g.Count() > 1))
+                throw new InvalidOperationException("At most one switch of a group can be on by default.");
             if (request.applyTarget == null && !required.IsSubsetOf(chosen)) throw new InvalidOperationException("Some inputs lack an explicit target prefab.");
             var writes = chosen;
             if (request.applyTarget != null)
@@ -535,7 +548,10 @@ namespace Vua.Editor.Bridge
                         skip.paths.AddRange(skipped);
                     }
                 }
-                var menuOk = ConfigureSwitch(owners, avatar, instance, outfit);
+                // Group members take values 1..n in selection order, so a partial write keeps the others' values.
+                var groupValue = string.IsNullOrEmpty(outfit.group) ? 0
+                    : selection.outfits.Where(o => o.group == outfit.group && !string.IsNullOrWhiteSpace(o.toggleName)).ToList().IndexOf(outfit) + 1;
+                var menuOk = ConfigureSwitch(owners, avatar, instance, outfit, groupValue);
                 var bindingOk = outfit.mode == "attach_to_bone"
                     ? instance.transform.parent == HumanAnimator(avatar).GetBoneTransform((HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), outfit.bone))
                     : instance.GetComponentsInChildren<ModularAvatarMergeArmature>(true).All(m => m.mergeTarget != null && m.mergeTarget.Get(m) != null && m.mergeTarget.Get(m).transform.IsChildOf(avatar.transform) && !m.mergeTarget.Get(m).transform.IsChildOf(instance.transform));
@@ -627,7 +643,7 @@ namespace Vua.Editor.Bridge
                 }
             }
         }
-        private static bool ConfigureSwitch(Owners owners, GameObject avatar, GameObject target, Outfit outfit)
+        private static bool ConfigureSwitch(Owners owners, GameObject avatar, GameObject target, Outfit outfit, int groupValue)
         {
             if (string.IsNullOrWhiteSpace(outfit.toggleName)) return true;
             var key = ScopedKey(owners, "menu-" + ShortHash(outfit.sourceId)); var owner = owners.objects.SingleOrDefault(o => o.key == key);
@@ -642,7 +658,9 @@ namespace Vua.Editor.Bridge
             var item = menu.GetComponent<ModularAvatarMenuItem>() ?? menu.AddComponent<ModularAvatarMenuItem>();
             var toggle = menu.GetComponent<ModularAvatarObjectToggle>() ?? menu.AddComponent<ModularAvatarObjectToggle>();
             item.label = outfit.toggleName; item.PortableControl.Type = PortableControlType.Toggle;
-            item.PortableControl.Value = 1; item.isDefault = outfit.active;
+            // An independent switch lets MA create its own parameter; a group shares one, one value per outfit.
+            item.PortableControl.Parameter = groupValue > 0 ? SwitchGroupPrefix + outfit.group : "";
+            item.PortableControl.Value = groupValue > 0 ? groupValue : 1; item.isDefault = outfit.active; item.isSaved = outfit.saved;
             toggle.Objects = new List<ToggledObject> { new ToggledObject { Object = new AvatarObjectReference(target), Active = true } };
             EditorUtility.SetDirty(installer); EditorUtility.SetDirty(item); EditorUtility.SetDirty(toggle);
             return toggle.Objects.Count == 1 && toggle.Objects[0].Object.Get(toggle) == target && item.PortableControl.Type == PortableControlType.Toggle;

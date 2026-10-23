@@ -35,3 +35,26 @@ describe("Unity-observed material preselection", () => {
     expect(updateOutfitSelection(initial,"outfit",null)).toEqual({avatarPrefab:initial.avatarPrefab,outfits:[]});
   });
 });
+
+describe("switch options", () => {
+  const two = { avatarPrefab: "Assets/Avatar.prefab", outfits: [
+    { sourceId: "coat", prefabPath: "Assets/Coat.prefab", mode: "merge_armature" as const, bone: "", toggleName: "Coat", active: true },
+    { sourceId: "dress", prefabPath: "Assets/Dress.prefab", mode: "merge_armature" as const, bone: "", toggleName: "Dress", active: false },
+  ] };
+  it("leaves the options out of the selection at their defaults", () => {
+    const saved = updateOutfitSelection(two, "coat", { saved: true, group: "" });
+    expect(Object.keys(saved.outfits[0]!)).toEqual(["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"]);
+    expect(updateOutfitSelection(two, "coat", { saved: false }).outfits[0]).toMatchObject({ saved: false });
+  });
+  it("wears main outfits one at a time: turning one on turns the others off", () => {
+    let selection = updateOutfitSelection(two, "coat", { group: "main" });
+    selection = updateOutfitSelection(selection, "dress", { group: "main" });
+    expect(selection.outfits.map(o => o.active)).toEqual([true, false]);
+    selection = updateOutfitSelection(selection, "dress", { active: true });
+    expect(selection.outfits.map(o => [o.sourceId, o.active])).toEqual([["coat", false], ["dress", true]]);
+  });
+  it("keeps an outfit without a switch out of every group", () => {
+    const selection = updateOutfitSelection(two, "coat", { group: "main", toggleName: " " });
+    expect(selection.outfits[0]).not.toHaveProperty("group");
+  });
+});

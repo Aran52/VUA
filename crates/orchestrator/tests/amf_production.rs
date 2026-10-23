@@ -446,6 +446,8 @@ fn selection() -> AssemblySelection {
             bone: "".into(),
             toggle_name: "Coat".into(),
             active: true,
+            saved: true,
+            group: String::new(),
         }],
     }
 }
@@ -1758,6 +1760,8 @@ fn selection2() -> AssemblySelection {
             bone: "".into(),
             toggle_name: "Dress".into(),
             active: true,
+            saved: true,
+            group: String::new(),
         }],
     }
 }

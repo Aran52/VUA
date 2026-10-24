@@ -37,6 +37,8 @@ accepted baseline for deciding which UI changes worked.
   Preserve synthetic regressions for real small targets, contrast, spacing and clipped text.
 - Repair fixture selection, current navigation stubs, language-dependent assertions and waits
   for actual dialog completion. Keep assertions that expose product defects.
+  The retired name-based dependency dialog is replaced in the audit by the current inline
+  description-link filter required by the [product boundary](../product-boundary.md).
 - Baselines retain the worst count/severity across locales and reject count growth, severity
   growth and new groups. Only a complete full run can update the committed baseline.
 

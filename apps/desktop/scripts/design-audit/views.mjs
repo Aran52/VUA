@@ -72,16 +72,6 @@ export const FIXTURES = {
     readyGlobal: "n5MaintenanceReview",
     viewport: () => ({ width: 1200, height: 900 }),
   },
-  "dependency-clues": {
-    prefix: "/__dependency-clues",
-    shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
-      + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
-      + `<script type="module" src="/scripts/fixtures/dependency-clues.tsx"></script></body></html>`,
-    themeMode: "attribute",
-    readyGlobal: "n5DependencyReview",
-    viewport: () => ({ width: 1200, height: 900 }),
-  },
   "first-run": {
     prefix: "/__first-run-review",
     shell: ({ locale, theme }) =>
@@ -218,7 +208,7 @@ export const VIEWS = [
   { id: "library-corners", fixture: "library-corners", area: "library", steps: ["await window.libraryBulkReview.run()"], settleMs: 600 },
   { id: "library-entries", fixture: "library-entries", area: "library", steps: ["await window.n5EntriesReview.run()"], settleMs: 600 },
   { id: "library-maintenance", fixture: "library-maintenance", area: "library", steps: ["await window.n5MaintenanceReview.run()"], settleMs: 600 },
-  { id: "dependency-clues", fixture: "dependency-clues", area: "library", steps: ["await window.n5DependencyReview.run()"], settleMs: 600 },
+  { id: "library-adaptations", fixture: "library-navigation", area: "library", steps: ["await window.libraryNavigationReview.run()", "await window.libraryNavigationReview.showAdaptations()"], settleMs: 600 },
 
   // Whole-shell App states via first-run-review. The fixture renders the real
   // App only inside mount() (internal), so states are driven through its

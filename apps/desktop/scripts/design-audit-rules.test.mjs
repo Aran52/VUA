@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES } from "./design-audit/rules.mjs";
+import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES, isThemeInvariant, THEME_INVARIANT_RULES, classifyCapture } from "./design-audit/rules.mjs";
 import { groupFindings, checkAgainstBaseline, findingKey } from "./design-audit/baseline.mjs";
 import { rankRootCauses, suggestForRootCause } from "./design-audit/report.mjs";
 import { parseColor, composite, contrastRatio, rgbDistance, selectorSpecificity, compareSpecificity, nearestTypeScale } from "./design-audit/tokens.mjs";
@@ -214,11 +214,54 @@ test("radius-nesting flags equal-or-larger child radius, exempts pills/circles",
   assert.equal(stepped.filter(f => f.rule === "radius-nesting").length, 0);
 });
 
-test("surface-nesting flags three or more nested surfaces", () => {
-  const deep = evaluateSnapshot(snapshot([el({ surfaceDepth: 3 })]));
-  assert.equal(deep.filter(f => f.rule === "surface-nesting").length, 1);
-  const shallow = evaluateSnapshot(snapshot([el({ surfaceDepth: 2 })]));
+test("surface-nesting reports only self-surfaces, once each; svg and inner text never", () => {
+  // A deep surface itself: flagged once.
+  const deep = evaluateSnapshot(snapshot([el({ selfSurface: true, surfaceDepth: 3 })]));
+  const deepFindings = deep.filter(f => f.rule === "surface-nesting");
+  assert.equal(deepFindings.length, 1);
+  // Text and icons inside that surface: depth repeats but they are not surfaces.
+  const inner = evaluateSnapshot(snapshot([
+    el({ cls: ["inner-span"], selfSurface: false, surfaceDepth: 4 }),
+    el({ cls: ["inner-strong"], selfSurface: false, surfaceDepth: 4 }),
+    el({ cls: ["inner-svg"], tag: "svg", selfSurface: false, surfaceDepth: 4 }),
+    el({ cls: ["svg-with-bg"], tag: "svg", selfSurface: true, surfaceDepth: 4 }),
+  ]));
+  assert.equal(inner.filter(f => f.rule === "surface-nesting").length, 0);
+  // A shallow self-surface passes.
+  const shallow = evaluateSnapshot(snapshot([el({ selfSurface: true, surfaceDepth: 2 })]));
   assert.equal(shallow.filter(f => f.rule === "surface-nesting").length, 0);
+});
+
+test("theme-invariant classification covers the layout rules only", () => {
+  for (const rule of ["spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting", "surface-nesting", "target-size", "overflow"]) {
+    assert.ok(isThemeInvariant(rule), `${rule} is theme-invariant`);
+  }
+  for (const rule of ["color-token", "contrast", "shadow-panel", "one-accent", "border-density"]) {
+    assert.ok(!isThemeInvariant(rule), `${rule} is theme-dependent`);
+  }
+  assert.equal(THEME_INVARIANT_RULES.size, 8);
+});
+
+test("capture failures: vite error overlay and near-empty pages are unusable", () => {
+  assert.match(classifyCapture({ errorOverlay: true, elementCount: 3 }, 20), /vite error overlay/);
+  assert.match(classifyCapture({ errorOverlay: false, elementCount: 3 }, 20), /floor 20/);
+  assert.equal(classifyCapture({ errorOverlay: false, elementCount: 28 }, 20), null);
+});
+
+test("theme-invariant findings aggregate once: the light state drops layout rules", () => {
+  // Mirrors the runner's aggregation: dark keeps everything, light drops
+  // theme-invariant rules so per-view totals count layout findings once.
+  const darkFindings = [finding("spacing-grid", ".a @ f.css"), finding("color-token", ".c @ g.css", "warning")];
+  const lightFindings = [finding("spacing-grid", ".a @ f.css"), finding("color-token", ".c @ g.css", "warning"), finding("contrast", ".d @ h.css", "error")];
+  const aggregated = [
+    ...darkFindings,
+    ...lightFindings.filter(f => !isThemeInvariant(f.rule)),
+  ];
+  const spacing = aggregated.filter(f => f.rule === "spacing-grid");
+  assert.equal(spacing.length, 1, "layout finding counted once across themes");
+  const color = aggregated.filter(f => f.rule === "color-token");
+  assert.equal(color.length, 2, "color findings counted per theme");
+  assert.equal(aggregated.filter(f => f.rule === "contrast").length, 1, "light-only contrast kept");
 });
 
 test("border-density fires above the cross-view P90", () => {

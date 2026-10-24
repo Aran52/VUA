@@ -22,7 +22,7 @@ import {
 } from "./design-audit/views.mjs";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
-import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES } from "./design-audit/rules.mjs";
+import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES, THEME_INVARIANT_RULES, isThemeInvariant, classifyCapture } from "./design-audit/rules.mjs";
 import { Attributor } from "./design-audit/attributor.mjs";
 import { groupFindings, writeBaseline, loadBaseline, checkAgainstBaseline } from "./design-audit/baseline.mjs";
 import { scanStatic } from "./design-audit/static-scan.mjs";
@@ -51,6 +51,13 @@ const NO_SCREENS = hasFlag("no-screens");
 const CHECK_BASELINE = hasFlag("check-baseline");
 const UPDATE_BASELINE = hasFlag("update-baseline");
 const BASELINE_PATH = path.join(scriptDir, "design-audit", "baseline.json");
+// Failure floors: a state below the per-state floor (e.g. a Vite error overlay
+// page with ~3 elements) is a capture failure; a full run below the total floor
+// means the results are unusable. Filtered runs skip the total floor unless the
+// floor is passed explicitly.
+const PER_STATE_ELEMENT_FLOOR = Number(argValue("per-state-elements", "20"));
+const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER);
+const TOTAL_ELEMENT_FLOOR = Number(argValue("min-total-elements", PARTIAL_PLAN ? "0" : "30000"));
 
 if (hasFlag("list")) {
   console.log(VIEWS.map(v => `${v.id}\t${v.area}\t${v.fixture}`).join("\n"));
@@ -93,6 +100,7 @@ let commit = null;
 try { commit = execSync("git rev-parse --short HEAD", { cwd: repoRoot }).toString().trim(); } catch { /* detached */ }
 
 const errors = [];
+const collectionFailures = [];
 const groups = planGroups();
 
 // vua-img must be privileged before app ready (library-entries thumbnails).
@@ -128,7 +136,9 @@ async function main() {
     plugins: [react()],
     logLevel: "error",
     server: { host: "127.0.0.1", port: 0 },
-    optimizeDeps: { include: ["react", "react-dom/client", "@vua/contracts"] },
+    // force like the smoke scripts: a cold cache must finish optimizing before
+    // the first page load, or Vite reloads mid-navigation (ERR_ABORTED).
+    optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] },
   });
 
   // The middleware must know which locale/theme the runner is about to load.
@@ -217,7 +227,16 @@ async function main() {
 
     const load = async theme => {
       shellParams = { locale, theme };
-      await win.loadURL(viewUrl(view, theme));
+      const url = viewUrl(view, theme);
+      // A Vite re-optimization reloads the page mid-navigation and aborts the
+      // load (ERR_ABORTED); one retry after the dust settles.
+      try {
+        await win.loadURL(url);
+      } catch (error) {
+        if (!/ERR_ABORTED/.test(String(error.message ?? error))) throw error;
+        await sleep(1200);
+        await win.loadURL(url);
+      }
       // Fixtures assert the system appearance resolves to light (the
       // first-run smoke emulates the same media feature).
       if (win.webContents.debugger.isAttached()) {
@@ -247,6 +266,16 @@ async function main() {
       const collectorOptions = { proposed: !rules, overflowChecks: true };
       const collectSource = `${collectAuditSnapshot.toString()};collectAuditSnapshot(${JSON.stringify(collectorOptions)})`;
       const snapshot = await win.webContents.executeJavaScript(collectSource, true);
+
+      // A Vite error overlay or a near-empty page means the view did not
+      // render; record a capture failure instead of auditing the debris.
+      const captureFailure = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR);
+      if (captureFailure) {
+        collectionFailures.push({ view: view.id, locale, theme, reason: captureFailure });
+        console.error(`[capture-fail] ${view.id} ${locale}/${theme}: ${captureFailure}`);
+        continue;
+      }
+
       let findings = evaluateSnapshot(snapshot, { rules, exemptRules: view.exemptRules ?? [] });
 
       // Root-cause attribution against the live page.
@@ -330,11 +359,14 @@ async function main() {
   const findingsByKey = new Map(collected.map(c => [`${c.view}|${c.locale}|${c.theme}`, c.findings]));
   applyBorderDensity(densityMetrics, findingsByKey);
 
-  // Group findings per state and aggregate.
+  // Group findings per state and aggregate. Theme-invariant rules count once
+  // per view: the light state's layout findings would exactly duplicate the
+  // dark ones, so the aggregate (totals, ranking, baseline) uses the dark
+  // state only. Per-state JSON keeps the raw findings.
   const allGroups = [];
   for (const state of collected) {
-    const groups = groupFindings(state.view, state.findings).map(g => ({ ...g, area: state.area, locale: state.locale, theme: state.theme }));
-    state.groups = groups;
+    const rawGroups = groupFindings(state.view, state.findings).map(g => ({ ...g, area: state.area, locale: state.locale, theme: state.theme }));
+    state.groups = rawGroups;
     state.findingsCount = state.findings.length;
     state.bySeverity = {};
     state.byRule = {};
@@ -342,8 +374,13 @@ async function main() {
       state.bySeverity[finding.severity] = (state.bySeverity[finding.severity] ?? 0) + 1;
       state.byRule[finding.rule] = (state.byRule[finding.rule] ?? 0) + 1;
     }
-    state.groupSummaries = groups.map(g => ({ rule: g.rule, severity: g.severity, rootCause: g.rootCause, count: g.elements.length }));
-    for (const group of groups) allGroups.push(group);
+    state.groupSummaries = rawGroups.map(g => ({ rule: g.rule, severity: g.severity, rootCause: g.rootCause, count: g.elements.length }));
+    const aggregateFindings = state.theme === "light"
+      ? state.findings.filter(f => !isThemeInvariant(f.rule))
+      : state.findings;
+    for (const group of groupFindings(state.view, aggregateFindings)) {
+      allGroups.push({ ...group, area: state.area, locale: state.locale, theme: state.theme });
+    }
     await writeFile(
       path.join(jsonDir, `${jsonName(state.view, state.locale, state.theme)}.json`),
       JSON.stringify({
@@ -359,7 +396,7 @@ async function main() {
   // Static scans and the card inventory.
   const rendererDir = path.join(desktopRoot, "src", "renderer");
   const staticScan = await scanStatic(rendererDir);
-  const cards = await scanCardStyles(rendererDir, path.join(repoRoot, "packages", "design-system", "src", "tokens.css"));
+  const cards = await scanCardStyles(rendererDir, path.join(repoRoot, "packages", "design-system", "src", "tokens.css"), repoRoot);
   const cardImports = await countCardImports(rendererDir);
 
   const rootCauses = rankRootCauses(allGroups);
@@ -409,6 +446,8 @@ async function main() {
     elementTotal: collected.reduce((sum, c) => sum + c.elementCount, 0),
     defaultLocale: DEFAULT_LOCALE,
     overflowLocales: OVERFLOW_LOCALES,
+    themeInvariantRules: [...THEME_INVARIANT_RULES].sort().join(", "),
+    perStateElementFloor: PER_STATE_ELEMENT_FLOOR,
   };
 
   const overviewHtml = buildOverviewHtml({
@@ -420,11 +459,11 @@ async function main() {
   const summary = buildSummary({
     meta, viewResults, groups: allGroups, rootCauses, staticScan, cards, cardImports,
     uncovered: UNCOVERED_PAGES, limitations: LIMITATIONS, rulesMeta: RULES_META_FOR_DOCS,
-    checkOutcome,
+    checkOutcome, collectionFailures,
   });
   await writeFile(path.join(OUT, "summary.md"), summary, "utf8");
   await writeFile(path.join(OUT, "run-summary.json"), JSON.stringify({
-    meta, errors, states: collected.map(c => ({
+    meta, errors, collectionFailures, states: collected.map(c => ({
       view: c.view, locale: c.locale, theme: c.theme, findings: c.findingsCount, elements: c.elementCount,
     })),
   }, null, 2), "utf8");
@@ -433,6 +472,16 @@ async function main() {
   console.log(`output: ${OUT}`);
   await server.close();
   const plannedStates = groups.reduce((sum, g) => sum + g.states.length, 0);
+  const elementTotal = collected.reduce((sum, c) => sum + c.elementCount, 0);
+  if (collectionFailures.length > 0) {
+    console.error(`FAILED: ${collectionFailures.length} capture failures (see summary)`);
+    process.exitCode = 1;
+  }
+  if (TOTAL_ELEMENT_FLOOR > 0 && elementTotal < TOTAL_ELEMENT_FLOOR) {
+    console.error(`FAILED: ${elementTotal} elements inspected, below the floor of ${TOTAL_ELEMENT_FLOOR}`);
+    process.exitCode = 1;
+  }
+  console.log(`elements: ${elementTotal}${TOTAL_ELEMENT_FLOOR > 0 ? ` (floor ${TOTAL_ELEMENT_FLOOR})` : ""}`);
   app.exit(errors.length >= plannedStates && plannedStates > 0 ? 1 : process.exitCode ?? 0);
 }
 

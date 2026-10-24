@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
-import { evaluateSnapshot } from "./design-audit/rules.mjs";
+import { evaluateSnapshot, classifyCapture } from "./design-audit/rules.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,13 +57,27 @@ body { margin: 0; background: var(--vua-bg-canvas); color: var(--vua-text-strong
 <div id="clip" class="clipped">this long text is clipped by the container</div>
 <div id="ell" class="ellipsis">this long text ends with an intentional ellipsis</div>
 <button id="tinybtn" class="tiny" style="border-radius:0">x</button>
+<div style="border: 1px solid #2e2a45; background: #151322; padding: 8px;">
+  <div style="border: 1px solid #2e2a45; background: #1e1b30; padding: 8px;">
+    <div id="deepsurface" class="deepsurface" style="border: 1px solid #2e2a45; background: #24203a; padding: 8px;">deep surface
+      <span id="deeptext">plain text inside</span>
+      <svg id="deepsvg" width="16" height="16"><rect width="16" height="16"/></svg>
+    </div>
+  </div>
+</div>
 <div data-audit-skip="art">
   <div id="skipped" class="offscale hardcolor" style="border-radius: 3px; box-shadow: 0 2px 6px #000;">art layer</div>
 </div>
 </body></html>`;
 
+const OVERLAY_PAGE = `<!doctype html><html><body>
+<div id="root"></div>
+<vite-error-overlay><pre>Failed to resolve import "@vua/contracts"</pre></vite-error-overlay>
+</body></html>`;
+
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
+let server; // assigned in main; shared with the overlay test
 
 test("collector and rules run end-to-end on a synthetic page", async win => {
   const snapshot = await win.webContents.executeJavaScript(
@@ -93,6 +107,12 @@ test("collector and rules run end-to-end on a synthetic page", async win => {
   assert.ok(has("overflow", "clipped"), "overflow flags hidden clipping");
   assert.ok(!has("overflow", "ell"), "ellipsis clipping is exempt");
   assert.ok(has("target-size", "tiny"), "target-size flags 16px button");
+  // surface-nesting: the deep surface itself is flagged once; text and svg
+  // inside it are never flagged.
+  const deepFindings = (byRule["surface-nesting"] ?? []).filter(f => (f.cls ?? []).includes("deepsurface"));
+  assert.equal(deepFindings.length, 1, "surface-nesting flags the deep surface once");
+  assert.equal(deepFindings[0].details.surfaceDepth, 3, "depth counts self + two ancestors");
+  assert.equal((byRule["surface-nesting"] ?? []).length, 1, "text and svg inside the surface stay silent");
   // data-audit-skip subtree is invisible to every rule
   for (const rule of Object.keys(byRule)) {
     assert.ok(!(byRule[rule] ?? []).some(f => (f.cls ?? []).includes("skipped")), `skip region silent for ${rule}`);
@@ -115,6 +135,20 @@ test("annotation overlay draws and removes cleanly", async win => {
   assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('[data-vua-audit-overlay]').length"), 0);
 });
 
+test("vite error overlay marks the snapshot as a capture failure", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/overlay`);
+  const snapshot = await win.webContents.executeJavaScript(
+    `${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed: true, overflowChecks: true })`, true);
+  assert.equal(snapshot.errorOverlay, true, "overlay detected");
+  assert.match(classifyCapture(snapshot, 20), /vite error overlay/);
+  // The normal page stays clean.
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
+  const clean = await win.webContents.executeJavaScript(
+    `${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed: true, overflowChecks: true })`, true);
+  assert.equal(clean.errorOverlay, false, "no overlay on the normal page");
+  assert.equal(classifyCapture(clean, 20), null);
+});
+
 test("e2e page CSS parses with the static block parser", () => {
   // Imported late so the node-side parser is exercised against the same source.
   return import("./design-audit/static-scan.mjs").then(({ parseCssBlocks }) => {
@@ -128,9 +162,9 @@ test("e2e page CSS parses with the static block parser", () => {
 async function main() {
   try {
     await app.whenReady();
-    const server = createServer((req, res) => {
+    server = createServer((req, res) => {
       res.setHeader("Content-Type", "text/html");
-      res.end(PAGE);
+      res.end(req.url === "/overlay" ? OVERLAY_PAGE : PAGE);
     });
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const win = new BrowserWindow({

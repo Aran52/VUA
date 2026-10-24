@@ -27,6 +27,26 @@ export const RULES = {
 
 const ACTIVE_RULES_DEFAULT = Object.keys(RULES);
 
+// Layout rules cannot differ between themes: the same view's light state would
+// duplicate the dark state's findings, so aggregation counts them once (dark).
+export const THEME_INVARIANT_RULES = new Set([
+  "spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting",
+  "surface-nesting", "target-size", "overflow",
+]);
+
+export function isThemeInvariant(ruleId) {
+  return THEME_INVARIANT_RULES.has(ruleId);
+}
+
+/** Why this snapshot is not auditable content, or null when it is usable. */
+export function classifyCapture(snapshot, perStateElementFloor) {
+  if (snapshot.errorOverlay) return "vite error overlay (page did not render)";
+  if ((snapshot.elementCount ?? 0) < perStateElementFloor) {
+    return `only ${snapshot.elementCount} elements collected (floor ${perStateElementFloor})`;
+  }
+  return null;
+}
+
 export function severityOf(ruleId) { return RULES[ruleId].severity; }
 export function categoryOf(ruleId) { return RULES[ruleId].category; }
 
@@ -221,7 +241,10 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       }
     }
     if (active.has("surface-nesting")) {
-      if (el.surfaceDepth >= 3) {
+      // Report only the over-deep surface itself — text and icons inside one
+      // would repeat the same finding once per element. SVG frames are not
+      // surfaces.
+      if (el.tag !== "svg" && el.selfSurface && el.surfaceDepth >= 3) {
         push(makeFinding("surface-nesting", el, index, { surfaceDepth: el.surfaceDepth },
           `${el.surfaceDepth} nested bordered/filled surfaces`, null));
       }

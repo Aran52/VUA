@@ -104,7 +104,34 @@ the suggestions never blur together.
 | ID | Meaning | Exceptions |
 | --- | --- | --- |
 | `radius-nesting` | Element radius ≥ nearest radiused ancestor (should step down per level) | Pills (≥ 100px), circles (50%), and zero-radius elements exempt |
-| `surface-nesting` | ≥ 3 nested surfaces, where a surface has a border or a non-transparent background | — |
+| `surface-nesting` | An element that is itself a bordered or independently-filled surface sits 3+ surface levels deep | Only self-surfaces are reported — text and icons inside a surface never repeat the finding; SVG frames and canvas-colored containers (the backdrop, including body) do not count |
+
+### Counting and themes
+
+Layout rules cannot differ between themes: `spacing-grid`, `type-scale`,
+`type-weight`, `radius-token`, `radius-nesting`, `surface-nesting`,
+`target-size` and `overflow` are **counted once per view** (the dark state).
+Color rules (`color-token`, `contrast`, `shadow-panel`, `one-accent`) are
+counted per theme. The per-state JSON files keep every raw finding; the
+deduplication applies to the aggregate tables, the top-20 rankings (one table
+for current-standard rules, one for proposed rules) and the baseline.
+
+## Capture failures and when the run fails
+
+A state is a **capture failure** — recorded and listed at the top of
+`summary.md`, excluded from all counts — when:
+
+- the page shows Vite's error overlay (the view did not render, e.g. an
+  unbuilt workspace package), or
+- fewer than 20 elements were collected (`--per-state-elements` to override).
+
+A full run (no `--only`/`--max`/locale/theme filters) **fails** — exit code 1,
+so the CI job shows red — when there is any capture failure or when the total
+inspected elements are below 30,000 (`--min-total-elements` to override; the
+2026-10-24 reference run inspected 74,058). Filtered runs skip the total floor
+unless it is passed explicitly. CI builds `@vua/contracts` and
+`@vua/orchestrator-provider` before running the audit; the run also fails on
+`ERR_ABORTED` loads that survive one retry.
 
 ## Reading the outputs
 
@@ -146,7 +173,9 @@ images), `MediaSlot` (product photos), `VrchatAvatarShelf` (avatar covers).
    Baselines may only move when the violation count goes down; the committed
    `apps/desktop/scripts/design-audit/baseline.json` diff in the PR is the
    record.
-4. CI runs the audit as a non-blocking job (`.github/workflows/design-audit.yml`)
+4. CI runs the audit on every PR (`.github/workflows/design-audit.yml`, not a
+   required check — it never blocks merge, but a broken run shows red instead
+   of pretending success)
    and uploads the screenshots/JSON as artifacts. `--check-baseline` mode is
    available for a hard gate once the first fix wave lands; it is deliberately
    not wired into the required check chain yet.

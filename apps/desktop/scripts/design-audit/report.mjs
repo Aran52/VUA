@@ -93,7 +93,7 @@ const RULE_SEVERITY = {
 export function buildSummary(data) {
   const {
     meta, viewResults, groups, rootCauses, staticScan, cards, cardImports,
-    uncovered, rulesMeta, checkOutcome,
+    uncovered, rulesMeta, checkOutcome, collectionFailures = [],
   } = data;
   const lines = [];
   const push = (...xs) => lines.push(...xs);
@@ -104,11 +104,19 @@ export function buildSummary(data) {
   push(`- Views: ${meta.viewCount} (${meta.viewLocaleStates} view/locale/theme states; ${meta.elementTotal.toLocaleString("en-US")} elements inspected).`);
   push(`- Default pass: every view x ${meta.defaultLocale} x dark + light, all rules.`);
   push(`- Overflow pass: every view x ${meta.overflowLocales.join(", ")} x dark, overflow rule only.`);
+  push(`- Theme-invariant rules (${meta.themeInvariantRules}) are counted once per view (dark state); color rules are counted per theme.`);
   push(`- Uncovered pages and reasons:`);
   if (uncovered.length) {
     for (const item of uncovered) push(`  - ${item}`);
   } else {
     push("  - none recorded");
+  }
+  if (collectionFailures.length) {
+    push("", `## Capture failures`, "");
+    push(`These states did not render auditable content (Vite error overlay, or fewer than ${meta.perStateElementFloor} elements). They are excluded from the counts below and fail the run:`, "");
+    push(mdTable(["View", "Locale", "Theme", "Reason"], collectionFailures.map(f => [f.view, f.locale, f.theme, f.reason])));
+  } else {
+    push("", `Capture failures: none — every planned state rendered auditable content.`);
   }
   push("", `## Totals`, "");
   push(`Findings are grouped per view by rule + root cause; counts below are element instances.`);
@@ -122,14 +130,20 @@ export function buildSummary(data) {
   push("", `By functional area:`, "", mdTable(["Area", "Instances"], Object.entries(t.byArea).sort((a, b) => b[1] - a[1])));
   push("", `By category (current standard vs proposed rules):`, "", mdTable(["Category", "Instances"], Object.entries(t.byCategory).sort((a, b) => b[1] - a[1])));
 
-  push("", `## Top ${Math.min(20, rootCauses.length)} root causes`, "");
-  push(`Ranked by how many element instances one style source explains; fixing one line often clears many findings. Suggested fixes are mechanical mappings (nearest token); the author decides the intended design.`, "");
-  const top = rootCauses.slice(0, 20);
-  push(mdTable(["#", "Rule", "Root cause (selector @ file)", "Views", "Instances", "Typical view", "Suggestion"],
-    top.map((rc, i) => [
-      i + 1, rc.rule, `\`${rc.rootCause}\``, rc.viewCount, rc.instances, rc.exampleView,
-      suggestForRootCause(rc),
-    ])));
+  const categoryOfRule = rule => rulesMeta[rule]?.category ?? "current";
+  const rankTable = (list, label) => {
+    push("", `## Top ${Math.min(20, list.length)} root causes — ${label}`, "");
+    push(`Ranked by how many element instances one style source explains; fixing one line often clears many findings. Suggested fixes are mechanical mappings (nearest token); the author decides the intended design.`, "");
+    push(mdTable(["#", "Rule", "Root cause (selector @ file)", "Views", "Instances", "Typical view", "Suggestion"],
+      list.slice(0, 20).map((rc, i) => [
+        i + 1, rc.rule, `\`${rc.rootCause}\``, rc.viewCount, rc.instances, rc.exampleView,
+        suggestForRootCause(rc),
+      ])));
+  };
+  const causesCurrent = rootCauses.filter(rc => categoryOfRule(rc.rule) === "current");
+  const causesProposed = rootCauses.filter(rc => categoryOfRule(rc.rule) === "proposed");
+  rankTable(causesCurrent, "current standard");
+  rankTable(causesProposed, "proposed rules (not yet VUA standard)");
 
   push("", `## Per-page card styles vs the shared Card`, "");
   push(`The shared \`Card\` primitive (\`components/primitives/card.css\`) is imported by ${cardImports.length} files. The CSS scan found ${cards.cards.length} other card-style components:`, "");

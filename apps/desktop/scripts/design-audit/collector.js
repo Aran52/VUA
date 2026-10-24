@@ -258,12 +258,16 @@ export function collectAuditSnapshot(options) {
     }));
 
     // Nearest ancestor radius and surface depth, computed on the real chain.
+    // The walk stops at body: body (and containers painted in the canvas
+    // color) are the backdrop, not surfaces in the nesting sense.
     // Skipped when the proposed rules are not being evaluated (overflow passes).
     let ancestorRadius = 0;
     let ancestorDecorative = false;
     let surfaceDepth = 0;
     if (opts.proposed) {
-      for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+      const canvasBg = parseColor(getComputedStyle(document.body).backgroundColor);
+      const rgbDist = (a, b) => a && b ? Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2) : 999;
+      for (let node = el.parentElement; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
         if (node.namespaceURI && node.namespaceURI.includes("svg")) continue;
         const acs = getComputedStyle(node);
         if (!ancestorRadius) {
@@ -273,7 +277,8 @@ export function collectAuditSnapshot(options) {
         }
         const abg = parseColor(acs.backgroundColor);
         const aborder = (parseFloat(acs.borderTopWidth) || 0) > 0 && acs.borderTopStyle !== "none";
-        if ((abg && abg.a >= 0.05) || aborder) surfaceDepth += 1;
+        const independent = (abg && abg.a >= 0.05 && rgbDist(abg, canvasBg) > 2) || aborder;
+        if (independent) surfaceDepth += 1;
       }
     }
     const ownBg = parseColor(cs.backgroundColor);
@@ -337,9 +342,14 @@ export function collectAuditSnapshot(options) {
       iconOnly: !text && hasIcon,
       hasText: Boolean(text),
       ancestorRadius, ancestorDecorative,
+      selfSurface: selfSurface === 1,
       surfaceDepth: surfaceDepth + selfSurface,
     });
   }
+
+  // Vite's error overlay means the page did not render; the runner records a
+  // collection failure instead of auditing the overlay page.
+  const errorOverlay = Boolean(document.querySelector("vite-error-overlay"));
 
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight },
@@ -347,6 +357,7 @@ export function collectAuditSnapshot(options) {
     theme: document.documentElement.getAttribute("data-theme") || "",
     module: moduleRoot.getAttribute("data-module") || "",
     locale: localStorage.getItem("vua-locale") || "",
+    errorOverlay,
     accentModuleScope, accentRootScope,
     palette, shadowTokens, radiusTokens, tokenRaw,
     elementCount: elements.length,

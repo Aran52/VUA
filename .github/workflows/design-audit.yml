@@ -1,10 +1,11 @@
 # Design audit (optional, non-blocking).
 #
-# Runs the automated UI design review on every PR that touches renderer code,
-# uploads the screenshots/JSON/report as artifacts, and runs the tool's own
-# tests. Failure here never blocks a merge; findings are consumed through
-# docs/design/design-audit.md's fix workflow. The audit's --check-baseline
-# gate is available locally but intentionally not wired into required CI yet.
+# Runs the automated UI design review on every PR that touches renderer code
+# and uploads the screenshots/JSON/report as artifacts. The audit fails the
+# job when results are unusable (capture failures or element totals below the
+# documented floors), but it is not a required check, so merge is never
+# blocked. The audit's --check-baseline gate is available locally but
+# intentionally not wired into required CI yet.
 name: design-audit
 
 on:
@@ -25,7 +26,6 @@ concurrency:
 jobs:
   audit:
     runs-on: windows-latest
-    continue-on-error: true
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +36,10 @@ jobs:
           cache: pnpm
       - name: pnpm install
         run: pnpm install --frozen-lockfile
+      - name: Build workspace packages the renderer imports
+        run: |
+          pnpm --filter @vua/contracts build
+          pnpm --filter @vua/orchestrator-provider build
       - name: Design-audit tool tests (rules unit + synthetic-page end-to-end)
         run: pnpm --filter @vua/desktop test:design-audit
       - name: Full design audit

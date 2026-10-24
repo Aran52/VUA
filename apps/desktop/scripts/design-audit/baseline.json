@@ -1,9 +1,9 @@
 {
   "toolVersion": 1,
-  "generatedAt": "2026-10-24T11:38:11.087Z",
-  "commit": "282792e9",
+  "generatedAt": "2026-10-24T12:37:06.828Z",
+  "commit": "c4ea50d5",
   "views": 99,
-  "entryCount": 2706,
+  "entryCount": 2690,
   "entries": {
     "spacing-grid|map|.vua-factory__alerts @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 2,
@@ -449,23 +449,11 @@
       "instances": 4,
       "severity": "warning"
     },
-    "contrast|map-control|.vua-factory__room @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|map-control|div.vua-factory__label @ (no matching rule; area: factory-map)": {
-      "instances": 4,
-      "severity": "error"
-    },
     "contrast|map-control|.vua-factory__plate @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 4,
       "severity": "error"
     },
     "contrast|map-control|span.vua-factory__tag @ (no matching rule; area: factory-map)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|map-control|.vua-factory__name @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 4,
       "severity": "error"
     },
@@ -1097,11 +1085,23 @@
       "instances": 4,
       "severity": "warning"
     },
+    "contrast|map-workshop|.vua-factory__room @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 4,
+      "severity": "error"
+    },
+    "contrast|map-workshop|div.vua-factory__label @ (no matching rule; area: factory-map)": {
+      "instances": 4,
+      "severity": "error"
+    },
     "contrast|map-workshop|.vua-factory__plate @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 4,
       "severity": "error"
     },
     "contrast|map-workshop|span.vua-factory__tag @ (no matching rule; area: factory-map)": {
+      "instances": 4,
+      "severity": "error"
+    },
+    "contrast|map-workshop|.vua-factory__name @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 4,
       "severity": "error"
     },
@@ -1585,19 +1585,35 @@
       "instances": 1,
       "severity": "warning"
     },
+    "shadow-panel|workshop-waiting|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 2,
+      "severity": "warning"
+    },
     "contrast|workshop-waiting|.vua-line__status[data-status=\"waiting\"] @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 2,
       "severity": "error"
     },
     "contrast|workshop-waiting|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
+      "instances": 6,
       "severity": "error"
     },
     "contrast|workshop-waiting|small @ (no matching rule; area: workshop)": {
-      "instances": 1,
+      "instances": 6,
       "severity": "error"
     },
     "contrast|workshop-waiting|.vua-line__stop @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "contrast|workshop-waiting|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "color-token|workshop-waiting|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "contrast|workshop-waiting|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
       "instances": 1,
       "severity": "error"
     },
@@ -1749,19 +1765,35 @@
       "instances": 1,
       "severity": "warning"
     },
+    "shadow-panel|workshop-mode-menu|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 2,
+      "severity": "warning"
+    },
     "contrast|workshop-mode-menu|.vua-line__status[data-status=\"waiting\"] @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 2,
       "severity": "error"
     },
     "contrast|workshop-mode-menu|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
+      "instances": 6,
       "severity": "error"
     },
     "contrast|workshop-mode-menu|small @ (no matching rule; area: workshop)": {
-      "instances": 1,
+      "instances": 6,
       "severity": "error"
     },
     "contrast|workshop-mode-menu|.vua-line__stop @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "contrast|workshop-mode-menu|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "color-token|workshop-mode-menu|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "contrast|workshop-mode-menu|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
       "instances": 1,
       "severity": "error"
     },
@@ -1913,23 +1945,43 @@
       "instances": 1,
       "severity": "warning"
     },
+    "shadow-panel|workshop-full-access|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 2,
+      "severity": "warning"
+    },
     "contrast|workshop-full-access|.vua-line__status[data-status=\"waiting\"] @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 2,
       "severity": "error"
     },
-    "contrast|workshop-full-access|.vua-confirm-dialog__actions .vua-button--danger @ apps/desktop/src/renderer/components/primitives/confirm-dialog.css": {
+    "contrast|workshop-full-access|.vua-button--default @ apps/desktop/src/renderer/components/primitives/button.css": {
       "instances": 1,
       "severity": "error"
     },
-    "contrast|workshop-full-access|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
+    "color-token|workshop-full-access|.vua-confirm-dialog__actions .vua-button--danger @ apps/desktop/src/renderer/components/primitives/confirm-dialog.css": {
       "instances": 1,
+      "severity": "warning"
+    },
+    "contrast|workshop-full-access|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 6,
       "severity": "error"
     },
     "contrast|workshop-full-access|small @ (no matching rule; area: workshop)": {
-      "instances": 1,
+      "instances": 6,
       "severity": "error"
     },
     "contrast|workshop-full-access|.vua-line__stop @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "contrast|workshop-full-access|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "color-token|workshop-full-access|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "contrast|workshop-full-access|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
       "instances": 1,
       "severity": "error"
     },
@@ -2225,6 +2277,42 @@
       "instances": 1,
       "severity": "warning"
     },
+    "shadow-panel|workshop-interrupted|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 2,
+      "severity": "warning"
+    },
+    "contrast|workshop-interrupted|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 5,
+      "severity": "error"
+    },
+    "contrast|workshop-interrupted|small @ (no matching rule; area: workshop)": {
+      "instances": 5,
+      "severity": "error"
+    },
+    "contrast|workshop-interrupted|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 2,
+      "severity": "error"
+    },
+    "contrast|workshop-interrupted|.vua-line__stop @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 1,
+      "severity": "error"
+    },
+    "color-token|workshop-interrupted|.vua-card @ apps/desktop/src/renderer/components/primitives/card.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "color-token|workshop-interrupted|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "contrast|workshop-interrupted|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "error"
+    },
+    "contrast|workshop-interrupted|.vua-button--default @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "error"
+    },
     "spacing-grid|workshop-finished|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -2513,30 +2601,6 @@
       "instances": 2,
       "severity": "warning"
     },
-    "shadow-panel|workshop-materials|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-materials|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-materials|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-materials|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-materials|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-materials|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
-    },
     "spacing-grid|workshop-inspect|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -2653,19 +2717,31 @@
       "instances": 2,
       "severity": "warning"
     },
+    "shadow-panel|workshop-inspect|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
     "contrast|workshop-inspect|.vua-line__status[data-status=\"waiting\"] @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 2,
       "severity": "error"
     },
     "contrast|workshop-inspect|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
+      "instances": 5,
       "severity": "error"
     },
     "contrast|workshop-inspect|small @ (no matching rule; area: workshop)": {
-      "instances": 1,
+      "instances": 5,
       "severity": "error"
     },
     "contrast|workshop-inspect|.vua-line__stop @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "contrast|workshop-inspect|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "error"
+    },
+    "contrast|workshop-inspect|.vua-button--default @ apps/desktop/src/renderer/components/primitives/button.css": {
       "instances": 1,
       "severity": "error"
     },
@@ -2792,30 +2868,6 @@
     "one-accent|workshop-line-menu|view-level: 3 filled primary buttons in one view": {
       "instances": 1,
       "severity": "warning"
-    },
-    "shadow-panel|workshop-line-menu|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 3,
-      "severity": "warning"
-    },
-    "contrast|workshop-line-menu|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 5,
-      "severity": "error"
-    },
-    "contrast|workshop-line-menu|small @ (no matching rule; area: workshop)": {
-      "instances": 5,
-      "severity": "error"
-    },
-    "contrast|workshop-line-menu|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-line-menu|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-line-menu|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
     },
     "spacing-grid|workshop-delete|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
@@ -3069,30 +3121,6 @@
       "instances": 1,
       "severity": "warning"
     },
-    "shadow-panel|workshop-capacity|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 3,
-      "severity": "warning"
-    },
-    "contrast|workshop-capacity|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 5,
-      "severity": "error"
-    },
-    "contrast|workshop-capacity|small @ (no matching rule; area: workshop)": {
-      "instances": 5,
-      "severity": "error"
-    },
-    "contrast|workshop-capacity|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-capacity|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-capacity|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
-    },
     "spacing-grid|workshop-rebuild|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -3232,30 +3260,6 @@
     "one-accent|workshop-rebuild|view-level: 2 filled primary buttons in one view": {
       "instances": 1,
       "severity": "warning"
-    },
-    "shadow-panel|workshop-rebuild|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-rebuild|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-rebuild|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-rebuild|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-rebuild|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-rebuild|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
     },
     "spacing-grid|workshop-opening|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
@@ -3493,30 +3497,6 @@
       "instances": 1,
       "severity": "warning"
     },
-    "shadow-panel|workshop-opened|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 3,
-      "severity": "warning"
-    },
-    "contrast|workshop-opened|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 5,
-      "severity": "error"
-    },
-    "contrast|workshop-opened|small @ (no matching rule; area: workshop)": {
-      "instances": 5,
-      "severity": "error"
-    },
-    "contrast|workshop-opened|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-opened|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-opened|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "error"
-    },
     "spacing-grid|workshop-versions|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -3644,22 +3624,6 @@
     "spacing-grid|workshop-versions|.vua-revisions__line time @ apps/desktop/src/renderer/features/amf/amf-production.css": {
       "instances": 2,
       "severity": "warning"
-    },
-    "shadow-panel|workshop-versions|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-versions|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-versions|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-versions|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
     },
     "contrast|workshop-versions|.vua-badge[data-tone=\"warning\"] @ apps/desktop/src/renderer/components/primitives/badge.css": {
       "instances": 1,
@@ -3813,31 +3777,7 @@
       "instances": 1,
       "severity": "warning"
     },
-    "shadow-panel|workshop-versions-plan|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-versions-plan|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-versions-plan|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-versions-plan|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
     "contrast|workshop-versions-plan|.vua-badge[data-tone=\"warning\"] @ apps/desktop/src/renderer/components/primitives/badge.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-versions-plan|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-versions-plan|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
       "instances": 1,
       "severity": "error"
     },
@@ -3997,32 +3937,8 @@
       "instances": 1,
       "severity": "warning"
     },
-    "shadow-panel|workshop-versions-confirm|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-versions-confirm|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-versions-confirm|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-versions-confirm|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
     "contrast|workshop-versions-confirm|.vua-badge[data-tone=\"warning\"] @ apps/desktop/src/renderer/components/primitives/badge.css": {
       "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-versions-confirm|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-versions-confirm|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
       "severity": "error"
     },
     "spacing-grid|workshop-versions-error|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
@@ -4437,30 +4353,6 @@
       "instances": 1,
       "severity": "warning"
     },
-    "shadow-panel|workshop-fitplan|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-fitplan|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-fitplan|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-fitplan|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-fitplan|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-fitplan|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
-    },
     "spacing-grid|workshop-fitreview|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -4588,30 +4480,6 @@
     "one-accent|workshop-fitreview|view-level: 2 filled primary buttons in one view": {
       "instances": 1,
       "severity": "warning"
-    },
-    "shadow-panel|workshop-fitreview|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|workshop-fitreview|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-fitreview|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-fitreview|.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 1,
-      "severity": "error"
-    },
-    "color-token|workshop-fitreview|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-fitreview|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
     },
     "spacing-grid|workshop-ft|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
@@ -4909,22 +4777,6 @@
       "instances": 1,
       "severity": "warning"
     },
-    "shadow-panel|workshop-ft-dialog|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "warning"
-    },
-    "contrast|workshop-ft-dialog|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-ft-dialog|small @ (no matching rule; area: workshop)": {
-      "instances": 4,
-      "severity": "error"
-    },
-    "contrast|workshop-ft-dialog|.vua-button--default @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 1,
-      "severity": "error"
-    },
     "spacing-grid|workshop-ft-locked|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -5148,6 +5000,18 @@
     "spacing-grid|workshop-ft-none|.vua-ft__meshes @ apps/desktop/src/renderer/features/amf/amf-production.css": {
       "instances": 2,
       "severity": "warning"
+    },
+    "shadow-panel|workshop-ft-none|.vua-button--primary @ apps/desktop/src/renderer/components/primitives/button.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "contrast|workshop-ft-none|.vua-line__station strong @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 4,
+      "severity": "error"
+    },
+    "contrast|workshop-ft-none|small @ (no matching rule; area: workshop)": {
+      "instances": 4,
+      "severity": "error"
     },
     "spacing-grid|workshop-close-offer|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
@@ -6212,22 +6076,6 @@
     "border-density|control-recipes-part|unattributed": {
       "instances": 1,
       "severity": "hint"
-    },
-    "contrast|control-recipes-part|.vua-button--default @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "error"
-    },
-    "color-token|control-recipes-part|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "warning"
-    },
-    "contrast|control-recipes-part|.vua-button--subtle @ apps/desktop/src/renderer/components/primitives/button.css": {
-      "instances": 2,
-      "severity": "error"
-    },
-    "color-token|control-recipes-part|svg @ (no matching rule; area: control-center)": {
-      "instances": 1,
-      "severity": "warning"
     },
     "contrast|control-recipes-part|.vua-control__kind @ apps/desktop/src/renderer/features/amf/control-center.css": {
       "instances": 1,
@@ -7336,6 +7184,10 @@
     "spacing-grid|control-packages-repos|.vua-control input:not([type=\"checkbox\"]), .vua-control select @ apps/desktop/src/renderer/features/amf/control-center.css": {
       "instances": 4,
       "severity": "warning"
+    },
+    "border-density|control-packages-repos|unattributed": {
+      "instances": 1,
+      "severity": "hint"
     },
     "spacing-grid|release-album|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
@@ -8989,6 +8841,38 @@
       "instances": 1,
       "severity": "warning"
     },
+    "spacing-grid|release-empty|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "warning"
+    },
+    "spacing-grid|release-empty|user-agent stylesheet: input[type=\"button\" i], input[type=\"submit\" i], input[type=\"reset\" i], input[type=\"file\" i]::-webkit-file-upload-button, button": {
+      "instances": 2,
+      "severity": "warning"
+    },
+    "type-weight|release-empty|.vua-room__name @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "spacing-grid|release-empty|.vua-room__name @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 3,
+      "severity": "warning"
+    },
+    "type-scale|release-empty|.vua-factory__tag @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "type-weight|release-empty|.vua-factory__tag @ apps/desktop/src/renderer/features/amf/factory.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "shadow-panel|release-empty|.vua-album__cover @ apps/desktop/src/renderer/features/amf/release/release-album.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "spacing-grid|release-empty|.vua-album__bake @ apps/desktop/src/renderer/features/amf/release/release-album.css": {
+      "instances": 4,
+      "severity": "warning"
+    },
     "spacing-grid|release-sdk|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -9753,6 +9637,10 @@
       "instances": 3,
       "severity": "error"
     },
+    "target-size|terms-link|button.vua-terms__link @ (no matching rule; area: terms)": {
+      "instances": 1,
+      "severity": "error"
+    },
     "spacing-grid|materials-start|.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css": {
       "instances": 3,
       "severity": "warning"
@@ -10413,6 +10301,26 @@
       "instances": 1,
       "severity": "warning"
     },
+    "type-weight|library-entries|.vua-content-dialog__title @ apps/desktop/src/renderer/components/primitives/content-dialog.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "type-scale|library-entries|.vua-content-dialog__close @ apps/desktop/src/renderer/components/primitives/content-dialog.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "spacing-grid|library-entries|user-agent stylesheet: input[type=\"button\" i], input[type=\"submit\" i], input[type=\"reset\" i], input[type=\"file\" i]::-webkit-file-upload-button, button": {
+      "instances": 2,
+      "severity": "warning"
+    },
+    "target-size|library-entries|button.vua-content-dialog__close @ (no matching rule; area: library)": {
+      "instances": 1,
+      "severity": "error"
+    },
+    "target-size|library-entries|input @ (no matching rule; area: library)": {
+      "instances": 2,
+      "severity": "error"
+    },
     "spacing-grid|library-maintenance|user-agent stylesheet: p": {
       "instances": 2,
       "severity": "warning"
@@ -10471,6 +10379,34 @@
     },
     "spacing-grid|first-run-home|.vua-route-tile @ apps/desktop/src/renderer/features/home/home.css": {
       "instances": 12,
+      "severity": "warning"
+    },
+    "radius-token|first-run-settings|.vua-shell__logo-home @ apps/desktop/src/renderer/features/home/home.css": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "spacing-grid|first-run-settings|user-agent stylesheet: input[type=\"button\" i], input[type=\"submit\" i], input[type=\"reset\" i], input[type=\"file\" i]::-webkit-file-upload-button, button": {
+      "instances": 8,
+      "severity": "warning"
+    },
+    "spacing-grid|first-run-settings|.vua-shell__sidebar @ apps/desktop/src/renderer/features/home/home.css": {
+      "instances": 2,
+      "severity": "warning"
+    },
+    "target-size|first-run-settings|button.vua-shell__sidebar-label @ (no matching rule; area: settings)": {
+      "instances": 1,
+      "severity": "error"
+    },
+    "type-scale|first-run-settings|.vua-shell__sidebar:not(:hover):not(:focus-within) .vua-shell__sidebar-item @ apps/desktop/src/renderer/app-shell.css": {
+      "instances": 4,
+      "severity": "warning"
+    },
+    "type-scale|first-run-settings|svg @ (no matching rule; area: settings)": {
+      "instances": 1,
+      "severity": "warning"
+    },
+    "spacing-grid|first-run-settings|.vua-route-tile @ apps/desktop/src/renderer/features/home/home.css": {
+      "instances": 4,
       "severity": "warning"
     },
     "radius-token|env-play|.vua-shell__logo-home @ apps/desktop/src/renderer/features/home/home.css": {

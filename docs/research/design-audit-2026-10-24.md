@@ -5,13 +5,14 @@
 > (screenshots, annotated screenshots, per-view JSON) ride as CI artifacts on this PR and are
 > not committed.
 
-Tool: `pnpm audit:design` at commit `6135351b`. Full machine output lives in the run directory (screenshots, annotated screenshots, per-view JSON, `baseline.json`); this file is the human report and is committed under `docs/research/`.
+Tool: `pnpm audit:design` at commit `c4ea50d5`. Full machine output lives in the run directory (screenshots, annotated screenshots, per-view JSON, `baseline.json`); this file is the human report and is committed under `docs/research/`.
 
 ## Scope
 
-- Views: 99 (564 view/locale/theme states; 74,058 elements inspected).
+- Views: 99 (564 view/locale/theme states; 75,798 elements inspected).
 - Default pass: every view x zh-CN x dark + light, all rules.
 - Overflow pass: every view x en, ja, ko, zh-TW x dark, overflow rule only.
+- Theme-invariant rules (overflow, radius-nesting, radius-token, spacing-grid, surface-nesting, target-size, type-scale, type-weight) are counted once per view (dark state); color rules are counted per theme.
 - Uncovered pages and reasons:
   - Play page environment cards beyond the two preview states (network-check covers the network tile only) — no dedicated fixture; partially covered via env-play/env-create.
   - Tools page and Settings home/categories pages — no fixture mounts them; smoke:vrcft drives the packaged app and is out of scope for the audit harness. Settings accounts is covered via first-run-settings.
@@ -21,13 +22,29 @@ Tool: `pnpm audit:design` at commit `6135351b`. Full machine output lives in the
   - Overlay windows (desktop overlay task window is covered; VR overlay, game guide, tutorial companion, reader window) — separate windows not mounted by any fixture.
   - Command palette and Ctrl+P surfaces — no fixture (first-run-settings opens and closes it mid-run).
 
-Five fixture states could not be captured on this machine (2026-10-24): `library-bulk`,
-`dependency-clues`, `first-run-settings`, `deployment-check` and `import-dialog`. Each fails
-inside its fixture's `run()` assertion chain, and the upstream smoke scripts
-(`smoke-library-bulk`, `smoke-import-dialog`, `smoke-deployment`) fail with the same errors when
-run directly on this machine, so these are environment-sensitive interaction assertions rather
-than audit-harness bugs (the same states pass in CI). They remain registered in the view
-registry and will be captured on a machine where the smokes pass.
+Four fixture states fail on this machine (2026-10-24): `library-bulk`, `dependency-clues`,
+`deployment-check` and `import-dialog`. Each fails inside its fixture's `run()` assertion chain,
+and the upstream smoke scripts (`smoke-library-bulk`, `smoke-import-dialog`, `smoke-deployment`)
+fail with the same errors when run directly on this machine, so these are environment-sensitive
+interaction assertions rather than audit-harness bugs (the same states pass in CI); whether CI
+captures them is recorded in the CI results note below. `first-run-settings` flaked in earlier
+runs and captures in this one. One view is a genuine capture failure: `release-queued` crashes
+with `Uncaught TypeError: Cannot read properties of undefined (reading 'length')` under its
+queued-run fixture — `preview-factory` crashes identically — which is a pre-existing view bug
+the audit surfaces (fixing it belongs to a release-room slice, not to this review tool).
+
+## Capture failures
+
+These states did not render auditable content (Vite error overlay, or fewer than 6 elements). They are excluded from the counts below and fail the run:
+
+| View | Locale | Theme | Reason |
+| --- | --- | --- | --- |
+| release-queued | zh-CN | dark | only 2 elements collected (floor 6); last console error: Uncaught TypeError: Cannot read properties of undefined (reading 'length') |
+| release-queued | zh-CN | light | only 2 elements collected (floor 6); last console error: Uncaught TypeError: Cannot read properties of undefined (reading 'length') |
+| release-queued | en | dark | only 2 elements collected (floor 6); last console error: Uncaught TypeError: Cannot read properties of undefined (reading 'length') |
+| release-queued | ja | dark | only 2 elements collected (floor 6); last console error: Uncaught TypeError: Cannot read properties of undefined (reading 'length') |
+| release-queued | ko | dark | only 2 elements collected (floor 6); last console error: Uncaught TypeError: Cannot read properties of undefined (reading 'length') |
+| release-queued | zh-TW | dark | only 2 elements collected (floor 6); last console error: Uncaught TypeError: Cannot read properties of undefined (reading 'length') |
 
 ## Totals
 
@@ -37,82 +54,110 @@ By rule:
 
 | Rule | Category | Severity | Instances | Views |
 | --- | --- | --- | --- | --- |
-| spacing-grid | current | warning | 17162 | 89 |
-| surface-nesting | proposed | hint | 14306 | 85 |
-| type-scale | current | warning | 2278 | 80 |
-| type-weight | current | warning | 1742 | 78 |
-| overflow | current | error | 825 | 7 |
-| shadow-panel | current | warning | 477 | 71 |
-| contrast | current | error | 361 | 34 |
-| target-size | current | error | 315 | 48 |
-| radius-nesting | proposed | hint | 260 | 33 |
-| color-token | current | warning | 205 | 23 |
-| blur-scope | current | warning | 144 | 39 |
-| radius-token | current | warning | 132 | 24 |
-| one-accent | current | warning | 40 | 24 |
+| spacing-grid | current | warning | 8769 | 91 |
+| type-scale | current | warning | 1171 | 82 |
+| type-weight | current | warning | 876 | 79 |
+| overflow | current | error | 687 | 7 |
+| contrast | current | error | 535 | 37 |
+| shadow-panel | current | warning | 495 | 72 |
+| color-token | current | warning | 211 | 25 |
+| target-size | current | error | 163 | 50 |
+| blur-scope | current | warning | 150 | 40 |
+| radius-nesting | proposed | hint | 130 | 33 |
+| surface-nesting | proposed | hint | 86 | 19 |
+| radius-token | current | warning | 67 | 25 |
+| one-accent | current | warning | 40 | 25 |
 | border-density | proposed | hint | 10 | 10 |
 
 By severity:
 
 | Severity | Instances |
 | --- | --- |
-| warning | 22180 |
-| hint | 14576 |
-| error | 1501 |
+| warning | 11779 |
+| error | 1385 |
+| hint | 226 |
 
 By functional area:
 
 | Area | Instances |
 | --- | --- |
-| workshop | 19348 |
-| control-center | 6941 |
-| release-room | 3829 |
-| factory-map | 3681 |
-| feedback | 1311 |
-| terms | 792 |
-| library | 628 |
-| settings-licenses | 368 |
-| network-tiers | 362 |
-| environment | 344 |
-| materials-start | 312 |
-| resource-monitor | 162 |
-| task-window | 72 |
-| ai-preparation | 59 |
-| first-run | 48 |
+| workshop | 6774 |
+| control-center | 1935 |
+| factory-map | 1724 |
+| release-room | 1394 |
+| feedback | 444 |
+| library | 346 |
+| environment | 146 |
+| terms | 127 |
+| resource-monitor | 114 |
+| settings-licenses | 96 |
+| materials-start | 96 |
+| network-tiers | 72 |
+| ai-preparation | 40 |
+| task-window | 37 |
+| first-run | 24 |
+| settings | 21 |
 
 By category (current standard vs proposed rules):
 
 | Category | Instances |
 | --- | --- |
-| current | 23681 |
-| proposed | 14576 |
+| current | 13164 |
+| proposed | 226 |
 
-## Top 20 root causes
+## Top 20 root causes — current standard
 
 Ranked by how many element instances one style source explains; fixing one line often clears many findings. Suggested fixes are mechanical mappings (nearest token); the author decides the intended design.
 
 | # | Rule | Root cause (selector @ file) | Views | Instances | Typical view | Suggestion |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | spacing-grid | `.vua-line__status @ apps/desktop/src/renderer/features/amf/factory.css` | 37 | 3704 | workshop-running | move to 4px (4 px grid) |
-| 2 | spacing-grid | `.vua-workshop__line @ apps/desktop/src/renderer/features/amf/factory.css` | 32 | 3328 | workshop-running | move to 8px (4 px grid) |
-| 3 | surface-nesting | `span @ (no matching rule; area: workshop)` | 30 | 940 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 4 | type-scale | `.vua-line__status @ apps/desktop/src/renderer/features/amf/factory.css` | 33 | 918 | workshop-running | use --vua-font-caption (12/16) |
-| 5 | surface-nesting | `span.vua-line__status @ (no matching rule; area: workshop)` | 30 | 780 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 6 | surface-nesting | `button.vua-workshop__line @ (no matching rule; area: workshop)` | 30 | 720 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 7 | surface-nesting | `svg @ (no matching rule; area: control-center)` | 14 | 668 | control-recipes | flatten nested bordered/filled surfaces (proposed rule) |
-| 8 | surface-nesting | `small.vua-workshop__line-extra @ (no matching rule; area: workshop)` | 30 | 660 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 9 | surface-nesting | `svg @ (no matching rule; area: workshop)` | 30 | 636 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 10 | spacing-grid | `user-agent stylesheet: input[type="button" i], input[type="submit" i], input[type="reset" i], input[type="file" i]::-webkit-file-upload-button, button` | 72 | 604 | workshop-running | move to 4px (4 px grid) |
-| 11 | spacing-grid | `user-agent stylesheet: p` | 35 | 464 | workshop-running | move to 12px (4 px grid) |
-| 12 | surface-nesting | `strong @ (no matching rule; area: workshop)` | 30 | 456 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 13 | surface-nesting | `small @ (no matching rule; area: workshop)` | 30 | 452 | workshop-running | flatten nested bordered/filled surfaces (proposed rule) |
-| 14 | spacing-grid | `.vua-workshop__capacity-choices button @ apps/desktop/src/renderer/features/amf/factory.css` | 32 | 384 | workshop-running | move to 8px (4 px grid) |
-| 15 | surface-nesting | `span @ (no matching rule; area: release-room)` | 12 | 384 | release-album | flatten nested bordered/filled surfaces (proposed rule) |
-| 16 | type-weight | `user-agent stylesheet: strong, b` | 39 | 382 | workshop-running | use weight 400 or 600 |
-| 17 | spacing-grid | `.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css` | 63 | 378 | workshop-running | move to 12px (4 px grid) |
-| 18 | spacing-grid | `.vua-room__name @ apps/desktop/src/renderer/features/amf/factory.css` | 63 | 378 | workshop-running | move to 8px (4 px grid) |
-| 19 | spacing-grid | `.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css` | 30 | 360 | workshop-running | move to 8px (4 px grid) |
-| 20 | type-scale | `.vua-line__station small @ apps/desktop/src/renderer/features/amf/factory.css` | 30 | 360 | workshop-running | use --vua-font-caption (12/16) |
+| 1 | spacing-grid | `.vua-line__status @ apps/desktop/src/renderer/features/amf/factory.css` | 38 | 1908 | workshop-running | move to 4px (4 px grid) |
+| 2 | spacing-grid | `.vua-workshop__line @ apps/desktop/src/renderer/features/amf/factory.css` | 33 | 1716 | workshop-running | move to 8px (4 px grid) |
+| 3 | type-scale | `.vua-line__status @ apps/desktop/src/renderer/features/amf/factory.css` | 34 | 473 | workshop-running | use --vua-font-caption (12/16) |
+| 4 | spacing-grid | `user-agent stylesheet: input[type="button" i], input[type="submit" i], input[type="reset" i], input[type="file" i]::-webkit-file-upload-button, button` | 74 | 312 | workshop-running | move to 4px (4 px grid) |
+| 5 | spacing-grid | `user-agent stylesheet: p` | 36 | 244 | workshop-running | move to 12px (4 px grid) |
+| 6 | spacing-grid | `.vua-workshop__capacity-choices button @ apps/desktop/src/renderer/features/amf/factory.css` | 33 | 198 | workshop-running | move to 8px (4 px grid) |
+| 7 | spacing-grid | `.vua-room__bar @ apps/desktop/src/renderer/features/amf/factory.css` | 64 | 192 | workshop-running | move to 12px (4 px grid) |
+| 8 | spacing-grid | `.vua-room__name @ apps/desktop/src/renderer/features/amf/factory.css` | 64 | 192 | workshop-running | move to 8px (4 px grid) |
+| 9 | type-weight | `user-agent stylesheet: strong, b` | 39 | 191 | workshop-running | use weight 400 or 600 |
+| 10 | spacing-grid | `.vua-line__station @ apps/desktop/src/renderer/features/amf/factory.css` | 31 | 186 | workshop-running | move to 8px (4 px grid) |
+| 11 | type-scale | `.vua-line__station small @ apps/desktop/src/renderer/features/amf/factory.css` | 31 | 186 | workshop-running | use --vua-font-caption (12/16) |
+| 12 | spacing-grid | `.vua-factory__enter @ apps/desktop/src/renderer/features/amf/factory.css` | 6 | 174 | map | move to 4px (4 px grid) |
+| 13 | spacing-grid | `.vua-control__part @ apps/desktop/src/renderer/features/amf/control-center.css` | 7 | 168 | control-recipes | move to 8px (4 px grid) |
+| 14 | shadow-panel | `.vua-card @ apps/desktop/src/renderer/components/primitives/card.css` | 40 | 150 | workshop-running | remove the shadow (§4: no shadow on ordinary panels/cards) |
+| 15 | blur-scope | `.vua-card @ apps/desktop/src/renderer/components/primitives/card.css` | 40 | 150 | workshop-running | limit backdrop-filter to top/side/task/elevated structure |
+| 16 | spacing-grid | `.vua-control__switch button @ apps/desktop/src/renderer/features/amf/control-center.css` | 13 | 130 | control-recipes | move to 4px (4 px grid) |
+| 17 | spacing-grid | `.vua-room__tabs button @ apps/desktop/src/renderer/features/amf/factory.css` | 16 | 128 | control-recipes | move to 4px (4 px grid) |
+| 18 | spacing-grid | `.vua-mode-picker__button @ apps/desktop/src/renderer/features/amf/factory.css` | 31 | 124 | workshop-running | move to 8px (4 px grid) |
+| 19 | spacing-grid | `.vua-factory__label @ apps/desktop/src/renderer/features/amf/factory.css` | 6 | 120 | map | move to 16px (4 px grid) |
+| 20 | spacing-grid | `.vua-library-list__title > button @ apps/desktop/src/renderer/features/warehouse/warehouse.css` | 2 | 112 | library-wall | move to 4px (4 px grid) |
+
+## Top 20 root causes — proposed rules (not yet VUA standard)
+
+Ranked by how many element instances one style source explains; fixing one line often clears many findings. Suggested fixes are mechanical mappings (nearest token); the author decides the intended design.
+
+| # | Rule | Root cause (selector @ file) | Views | Instances | Typical view | Suggestion |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | surface-nesting | `span.vua-control__shared-dot @ (no matching rule; area: control-center)` | 7 | 48 | control-recipes | flatten nested bordered/filled surfaces (proposed rule) |
+| 2 | radius-nesting | `section.vua-album__page @ (no matching rule; area: release-room)` | 12 | 26 | release-album | step radius down per nesting level (proposed rule) |
+| 3 | radius-nesting | `button.vua-revisions__row @ (no matching rule; area: workshop)` | 4 | 20 | workshop-versions | step radius down per nesting level (proposed rule) |
+| 4 | radius-nesting | `li @ (no matching rule; area: workshop)` | 6 | 13 | workshop-waiting-auto | step radius down per nesting level (proposed rule) |
+| 5 | radius-nesting | `div.vua-sdk-review__rank @ (no matching rule; area: release-room)` | 11 | 12 | release-album | step radius down per nesting level (proposed rule) |
+| 6 | radius-nesting | `button.vua-album__dogear @ (no matching rule; area: release-room)` | 11 | 12 | release-album | step radius down per nesting level (proposed rule) |
+| 7 | border-density | `unattributed` | 10 | 10 | control-recipes | reduce bordered elements; separate with spacing/hierarchy (proposed rule) |
+| 8 | surface-nesting | `select.vua-control__version @ (no matching rule; area: control-center)` | 2 | 10 | control-packages-project | flatten nested bordered/filled surfaces (proposed rule) |
+| 9 | surface-nesting | `li @ (no matching rule; area: release-room)` | 2 | 10 | release-signin | flatten nested bordered/filled surfaces (proposed rule) |
+| 10 | radius-nesting | `button.vua-n3__recipe @ (no matching rule; area: feedback)` | 2 | 6 | feedback-tiers | step radius down per nesting level (proposed rule) |
+| 11 | radius-nesting | `label.vua-n3__material @ (no matching rule; area: feedback)` | 2 | 6 | feedback-tiers | step radius down per nesting level (proposed rule) |
+| 12 | radius-nesting | `button.vua-network__region-test @ (no matching rule; area: network-tiers)` | 1 | 4 | network-tiers-details | step radius down per nesting level (proposed rule) |
+| 13 | radius-nesting | `button.vua-network__region-test @ (no matching rule; area: environment)` | 1 | 4 | network-check | step radius down per nesting level (proposed rule) |
+| 14 | radius-nesting | `span.vua-usage-panel__bar-fill @ (no matching rule; area: resource-monitor)` | 1 | 4 | resource-monitor | step radius down per nesting level (proposed rule) |
+| 15 | radius-nesting | `label.vua-n3__material @ (no matching rule; area: workshop)` | 1 | 3 | workshop-materials | step radius down per nesting level (proposed rule) |
+| 16 | radius-nesting | `li.vua-network__site @ (no matching rule; area: network-tiers)` | 1 | 3 | network-tiers-details | step radius down per nesting level (proposed rule) |
+| 17 | radius-nesting | `li.vua-network__site @ (no matching rule; area: environment)` | 1 | 3 | network-check | step radius down per nesting level (proposed rule) |
+| 18 | radius-nesting | `button.vua-ft__menu @ (no matching rule; area: workshop)` | 2 | 2 | workshop-ft | step radius down per nesting level (proposed rule) |
+| 19 | surface-nesting | `code @ (no matching rule; area: release-room)` | 2 | 2 | release-uploaded | flatten nested bordered/filled surfaces (proposed rule) |
+| 20 | surface-nesting | `div.vua-vrchat-check @ (no matching rule; area: release-room)` | 2 | 2 | release-uploaded | flatten nested bordered/filled surfaces (proposed rule) |
 
 ## Per-page card styles vs the shared Card
 
@@ -120,21 +165,21 @@ The shared `Card` primitive (`components/primitives/card.css`) is imported by 41
 
 | Card component | Defined in | Radius | Padding | Border | Background | Shadow | Verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `.preview-lab` (4 rules) | dev/preview-lab/preview-lab.css | 10px | — | 1px solid #2e2a45 | #151322 | — | close to Card; align padding/border, then replace |
-| `.vua-card` (1 rules) | dev/showcase.css | — | — | — | — | — | keep as a variant; record the token it should use |
-| `.vua-card-entry` (7 rules) | features/home/home.css | — | — | — | — | — | keep as a variant; record the token it should use |
-| `.vua-environment-card` (25 rules) | features/home/home.css | 12px | — | 1px solid #2e2a45 | color-mix(in srgb, #151322 75%, transparent) | — | keep as a variant; record the token it should use |
-| `.vua-exp-card` (4 rules) | features/settings/settings.css | — | — | — | — | — | keep as a variant; record the token it should use |
-| `.vua-flow` (5 rules) | features/warehouse/warehouse.css | — | — | — | — | — | keep as a variant; record the token it should use |
-| `.vua-manager-card` (3 rules) | features/home/home.css | — | — | — | — | — | keep as a variant; record the token it should use |
-| `.vua-mode-picker` (2 rules) | features/amf/factory.css | 10px | 6px | 1px solid #2e2a45 | #1e1b30 | 0 10px 30px color-mix(in srgb, #0b0a12 55%, transparent) | keep as a variant; record the token it should use |
-| `.vua-network` (2 rules) | features/deployer/website-tests.css | — | 24px | — | — | — | keep as a variant; record the token it should use |
-| `.vua-recipe-canvas-card` (1 rules) | features/recipe/recipe.css | — | — | — | — | — | keep as a variant; record the token it should use |
-| `.vua-release-card` (8 rules) | features/release/release.css | 10px | 12px | 1px solid #2e2a45 | #151322 | none | close to Card; align padding/border, then replace |
-| `.vua-tool-card` (8 rules) | features/tools/tools.css | 10px | 16px | 1px solid #2e2a45 | #151322 | — | close to Card; align padding/border, then replace |
-| `.vua-tour` (7 rules) | features/tour/tour.css | — | var(--vua-space-6, 32px) | 0 | transparent | none | keep as a variant; record the token it should use |
-| `.vua-vrchat-shelf` (5 rules) | features/amf/release/release-album.css | 10px | 8px | 1px solid #2e2a45 | #151322 | — | close to Card; align padding/border, then replace |
-| `.vua-warehouse-card` (29 rules) | features/warehouse/warehouse.css | 10px | — | 1px solid #2e2a45 | color-mix(in srgb, #151322 78%, transparent) | — | close to Card; align padding/border, then replace |
+| `.preview-lab` (4 rules) | apps/desktop/src/renderer/dev/preview-lab/preview-lab.css | 10px | — | 1px solid #2e2a45 | #151322 | — | close to Card; align padding/border, then replace |
+| `.vua-card` (1 rules) | apps/desktop/src/renderer/dev/showcase.css | — | — | — | — | — | keep as a variant; record the token it should use |
+| `.vua-card-entry` (7 rules) | apps/desktop/src/renderer/features/home/home.css | — | — | — | — | — | keep as a variant; record the token it should use |
+| `.vua-environment-card` (25 rules) | apps/desktop/src/renderer/features/home/home.css | 12px | — | 1px solid #2e2a45 | color-mix(in srgb, #151322 75%, transparent) | — | keep as a variant; record the token it should use |
+| `.vua-exp-card` (4 rules) | apps/desktop/src/renderer/features/settings/settings.css | — | — | — | — | — | keep as a variant; record the token it should use |
+| `.vua-flow` (5 rules) | apps/desktop/src/renderer/features/warehouse/warehouse.css | — | — | — | — | — | keep as a variant; record the token it should use |
+| `.vua-manager-card` (3 rules) | apps/desktop/src/renderer/features/home/home.css | — | — | — | — | — | keep as a variant; record the token it should use |
+| `.vua-mode-picker` (2 rules) | apps/desktop/src/renderer/features/amf/factory.css | 10px | 6px | 1px solid #2e2a45 | #1e1b30 | 0 10px 30px color-mix(in srgb, #0b0a12 55%, transparent) | keep as a variant; record the token it should use |
+| `.vua-network` (2 rules) | apps/desktop/src/renderer/features/deployer/website-tests.css | — | 24px | — | — | — | keep as a variant; record the token it should use |
+| `.vua-recipe-canvas-card` (1 rules) | apps/desktop/src/renderer/features/recipe/recipe.css | — | — | — | — | — | keep as a variant; record the token it should use |
+| `.vua-release-card` (8 rules) | apps/desktop/src/renderer/features/release/release.css | 10px | 12px | 1px solid #2e2a45 | #151322 | none | close to Card; align padding/border, then replace |
+| `.vua-tool-card` (8 rules) | apps/desktop/src/renderer/features/tools/tools.css | 10px | 16px | 1px solid #2e2a45 | #151322 | — | close to Card; align padding/border, then replace |
+| `.vua-tour` (7 rules) | apps/desktop/src/renderer/features/tour/tour.css | — | var(--vua-space-6, 32px) | 0 | transparent | none | keep as a variant; record the token it should use |
+| `.vua-vrchat-shelf` (5 rules) | apps/desktop/src/renderer/features/amf/release/release-album.css | 10px | 8px | 1px solid #2e2a45 | #151322 | — | close to Card; align padding/border, then replace |
+| `.vua-warehouse-card` (29 rules) | apps/desktop/src/renderer/features/warehouse/warehouse.css | 10px | — | 1px solid #2e2a45 | color-mix(in srgb, #151322 78%, transparent) | — | close to Card; align padding/border, then replace |
 
 ## Static checks (renderer CSS + TSX inline styles)
 
@@ -284,48 +329,48 @@ The shared `Card` primitive (`components/primitives/card.css`) is imported by 41
 
 ## Proposed rules (ZCode-inspired, not yet VUA standard)
 
-- `surface-nesting`: 14306 instances across 85 views.
-- `radius-nesting`: 260 instances across 33 views.
+- `radius-nesting`: 130 instances across 33 views.
+- `surface-nesting`: 86 instances across 19 views.
 - `border-density`: 10 instances across 10 views.
 Adopting them is a standard change and needs the author's ruling; the counts above estimate the blast radius.
 
 ## What the numbers say
 
-Reading order for fixes: the top-20 table above is dominated by two files. `factory.css` alone
-explains the five largest spacing/type root causes (`.vua-line__status`, `.vua-workshop__line`,
-`.vua-room__bar`, `.vua-room__name`, `.vua-line__station` — over 9,000 instances combined),
-and Chromium's user-agent defaults (`button` padding, `p` margins, `strong` 700) explain another
-~1,450. After factory.css, `.vua-button--subtle` (light-theme contrast, 91 instances) is the
-single most impactful shared component to touch.
+Reading order for fixes: the current-standard table is dominated by two sources. `factory.css`
+alone explains the eight largest spacing/type root causes (`.vua-line__status`,
+`.vua-workshop__line`, `.vua-room__bar`, `.vua-room__name`, `.vua-line__station`, … — about
+5,200 instances combined), and Chromium's user-agent defaults (`button` padding, `p` margins,
+`strong` 700) explain another ~750. The shared `Card` primitive is the single largest
+shadow/blur source (`.vua-card`: 150 shadow + 150 blur instances — a card wall using
+backdrop-filter and hover glow, which §4 disallows on card walls). After factory.css,
+`.vua-button--subtle` (light-theme contrast) remains the most impactful shared component.
 
-- **spacing-grid (17,162 across 89 views)** — the dominant drift. Mostly 6/10/14/18/22 px steps
-  in `factory.css`, plus elements that rely on UA default margins. Every value is within 2 px of
+- **spacing-grid (8,769 across 91 views)** — the dominant drift. Mostly 6/10/14/18/22 px steps
+  in `factory.css`, plus elements relying on UA default margins. Every value is within 2 px of
   a grid step, so a mechanical pass mapping each to `--vua-space-*` is low-risk.
-- **type-scale / type-weight** — factory.css uses an 11 px tag size, 650 and 700 weights, and a
-  26 px room name; the overlay/game-guide/tour CSS uses `em`-relative sizes (0.78–1.3 em) that
-  have no token mapping at all. Either these are intended styles that need token definitions of
-  their own, or they drift to 12 px/400/600 — the author decides.
-- **contrast (361 across 34 views)** — dark theme is nearly clean (1 root cause). All the real
-  failures are light theme: `.vua-button--subtle` at 2.9:1 vs the 4.5:1 requirement, the
-  factory room muted/hint/plate text family, and `.vua-control__shared-dot`. These are the
-  WCAG-gate items a fix wave should start from.
-- **shadow-panel (477 across 71 views)** — mostly the shared `.vua-card` glass hover glow and
-  per-page cards that carry decorative shadows; `blur-scope` (144 across 39 views) is the same
-  card family using backdrop-filter. Both concentrate in one decision: whether card walls stay
-  glass at all (§4 says no; the shared primitive currently does it).
-- **target-size (315 across 48 views)** — sidebar idle labels (152×20), small close/expand
+- **type-scale / type-weight (1,171 + 876)** — factory.css uses an 11 px tag size and 650/700
+  weights; the overlay/game-guide/tour CSS uses `em`-relative sizes (0.78–1.3 em) that have no
+  token mapping at all. Either these are intended styles that need token definitions of their
+  own, or they drift to 12 px/400/600 — the author decides.
+- **contrast (535 across 37 views)** — dark theme is nearly clean; the real failures are light
+  theme: `.vua-button--subtle` below 4.5:1, the factory room muted/hint/plate text family, and
+  `.vua-control__shared-dot`. These are the WCAG-gate items a fix wave should start from.
+- **shadow-panel (495) / blur-scope (150)** — mostly the shared `.vua-card` glass treatment and
+  per-page cards carrying decorative shadows; one decision (whether card walls stay glass at
+  all) resolves the largest share.
+- **target-size (163 across 50 views)** — sidebar idle labels (152×20), small close/expand
   buttons, and status chips below the 24 px floor.
-- **one-accent (40 across 24 views)** — no view mixes purple and orange jurisdictions (the
+- **overflow (687 across 7 views)** — concentrated in the base map (map-control/map-release
+  scene elements poking beyond the window edge) and the control-center packages table. Both
+  deserve a look at their annotated screenshots; the map may be by-design scene clipping (its
+  canvas layer is audit-skipped, the DOM room overlays are not).
+- **one-accent (40 across 25 views)** — no view mixes purple and orange jurisdictions (the
   standard's hard rule holds everywhere); all findings are "N filled accent controls in one
   view", which is the heuristic's selected-state caveat and should be eyeballed before acting.
-- **overflow (825 across 7 views)** — after the horizontal-only fix, what remains is
-  concentrated in the base map (map-control/map-release scene elements poking beyond the window
-  edge) and the control-center packages table. Both deserve a look at their annotated
-  screenshots; the map may be by-design scene clipping (its canvas layer is audit-skipped, the
-  DOM room overlays are not).
-- **Proposed rules** — `surface-nesting` (14,306) would be a massive refactor and is advisory
-  only; `radius-nesting` (260) and `border-density` (10 views) are small. Do not adopt them
-  without a ruling; they are reported so the scale of the change is known.
+- **Proposed rules** — with double-counting removed, the blast radius is small: 226 instances
+  total. `surface-nesting` (86) now points at concrete over-deep surfaces (status dots,
+  selects, list items); `radius-nesting` (130) mostly wants album/revisions buttons stepped
+  down one level. Do not adopt them without a ruling; the counts show the change is affordable.
 
 ## Suggestions to the standard (data-driven)
 
@@ -339,11 +384,11 @@ Where the current tokens ran out, in rough priority order:
 2. **Weight 650/700.** `factory.css` uses 650 repeatedly and `strong` falls through at 700. If
    a heavier step is wanted, add it to the token table; otherwise the fix is `font-weight: 600`.
 3. **A glass-surface token.** Cards are built as `color-mix(in srgb, var(--vua-bg-panel) 75–78%,
-   transparent)` in at least three files with slightly different ratios. One
-   `--vua-surface-glass` token (plus a stated blur allowance in §4) would collapse the
-   shadow/blur findings into a single decision.
+   transparent)` in at least three files with slightly different ratios, and the shared Card
+   adds backdrop-filter + hover glow. One `--vua-surface-glass` token (plus a stated blur
+   allowance in §4) would collapse the shadow/blur findings into a single decision.
 4. **UA-default normalization.** `p` margins and `button` padding from the user-agent
-   stylesheet account for ~1,450 spacing findings. A reset (or explicit token-based defaults)
+   stylesheet account for ~750 spacing findings. A reset (or explicit token-based defaults)
    in `base.css` removes a whole finding class from every future page.
 5. **Machine-readable room palette for canvas code.** `RoomCanvas.tsx` re-declares token values
    as string literals (`#4ade80`, `#facc15`, `#f87171`, …) as fallbacks. Exporting the palette
@@ -355,7 +400,7 @@ Where the current tokens ran out, in rough priority order:
 ## Baseline
 
 
-- Refreshed the committed gate baseline with 4458 entries (one per rule + view + root cause).
+- Refreshed the committed gate baseline with 2690 entries (one per rule + view + root cause).
 - Future runs use `--check-baseline` to fail on findings outside this baseline; update it only when a fix lowers the violation count (`pnpm audit:design --update-baseline`).
 
 ## Limitations

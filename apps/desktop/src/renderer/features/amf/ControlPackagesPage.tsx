@@ -319,7 +319,7 @@ function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavig
       </div>
       {project.runId !== null && <div className="vua-n3__actions">
         <Button onClick={() => { requestProductionRun(project.runId!); onNavigate("workshop"); }}>{copy.openLine}</Button>
-        <Button variant="primary" disabled={busy || lineBusy} onClick={() => { void openInUnity(); }}>{copy.openUnity}</Button>
+        <Button variant={level === "smart" && canInstall && updates.length > 0 ? "default" : "primary"} disabled={busy || lineBusy} onClick={() => { void openInUnity(); }}>{copy.openUnity}</Button>
       </div>}
     </div>
     {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}

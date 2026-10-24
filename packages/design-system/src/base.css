@@ -134,6 +134,10 @@ summary {
   cursor: pointer;
 }
 
+legend {
+  padding: 0;
+}
+
 strong,
 b,
 th {

@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-23
+> Updated: 2026-10-24
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -68,12 +68,12 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 2 | Finish the first real production runs | P-02, P-01 | done: P-01 passed; P-02 assembled, shaded correctly and built and uploaded through the SDK |
 | 3 | Unity Hub and SDK sign-in | P-02 | Hub start verified; with slice 19 the SDK starts signed in from VUA's session; the shared SDK sign-in awaits a check |
 | 4 | Result previews | P-02 | done (Aran52/VUA#1) |
-| 5 | Unity editor handoff | P-02 | in progress: item 3 (Aran52/VUA#36), and item 1's save and close with its MCP request (Aran52/VUA#53); item 2's buttons remain |
+| 5 | Unity editor handoff | P-02 | built: item 3 (Aran52/VUA#36), item 1's save and close with its MCP request (Aran52/VUA#53), and item 2's workshop buttons (Aran52/VUA#63); the author's check of a held project remains |
 | 6 | SDK step for newcomers | P-02 | built: the sign-in guide, the SDK's own checks (Aran52/VUA#6), one-click fixes and plain-word messages (Aran52/VUA#12), the check read again after an upload (Aran52/VUA#44) and the build and upload guide (Aran52/VUA#59); the guide's four screenshots come from the author |
-| 7 | Permission modes and simpler choices | P-02, P-03 | permission modes (Aran52/VUA#11) and stated recommendations (Aran52/VUA#16) in the workshop and `vua_amf_plan`; the image confirmation remains |
+| 7 | Permission modes and simpler choices | P-02, P-03 | built: permission modes (Aran52/VUA#11), stated recommendations (Aran52/VUA#16) and the plan confirmation with the materials' BOOTH images (Aran52/VUA#63); the author's P-02 runs in each mode remain |
 | 8 | Known packages | P-01, P-03 | built: the known-packages table (Aran52/VUA#21), multi-line Poiyomi copies with the preparation test (Aran52/VUA#55) and the package page by permission mode (Aran52/VUA#56); P-01 with a Poiyomi outfit awaits the author |
 | 9 | Material tuning | P-02, P-03 | in progress: item 2 with its entry (Aran52/VUA#29, #34) and item 1, texture memory on the quality-check station (Aran52/VUA#57); the author's checks in a dark world and on a P-02 rank remain |
-| 10 | Face tracking add-on | P-03 | in progress: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52); the workshop station and the Meiyun run in VRChat remain |
+| 10 | Face tracking add-on | P-03 | built: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52), and the workshop station (Aran52/VUA#62); the Meiyun run in VRChat remains |
 | 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
 | 13 | Appearance and one-click styles | — | after the AMF operations settle (author, 2026-10-23); needs a design session |
@@ -96,7 +96,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 30 | Workshop stations and line management | P-02 | built (Aran52/VUA#20) with removing an outfit through a reviewed plan (Aran52/VUA#58); the material change and deletion were verified in the 2026-10-19 MCP round; the author's two-outfit removal check remains |
 | 31 | Change a finished line's base Avatar | P-02 | built (Aran52/VUA#27); awaits the author's real-run check |
 | 32 | Agent interface refinements | P-02, P-03 | planned from the [reference study](../research/reference-projects-2026-10-19.md); item 2 and the Resources of item 3 move to 44 |
-| 33 | Switch options and built-result evidence | P-02, P-03 | item 4, the synced parameter estimate in the plan, is in (Aran52/VUA#60); the rest is planned |
+| 33 | Switch options and built-result evidence | P-02, P-03 | items 1 and 4 are in: switch options with saved state and main outfits worn one at a time (Aran52/VUA#64), and the synced parameter estimate (Aran52/VUA#60); the slider, built-result evidence and VRCFury remain |
 | 34 | Evidence layers and toolchain profile | P-03, B-02 | planned from the reference study |
 | 35 | Start card, preflight and attribution | P-02, P-03 | planned from the reference study |
 | 36 | Licensed entry guide | — | design drafted; awaits the author's network verification |
@@ -106,13 +106,21 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 40 | Notification center redesign | P-02 | planned; a preview for the author comes first |
 | 41 | VN3 terms and filtering by use | P-02 | built: the backend (Aran52/VUA#31), the library drawer and MCP reads (Aran52/VUA#37), and the release room's check (Aran52/VUA#38); the author's check with real products remains |
 | 42 | Line revisions and saved fits | P-02 | built: revisions (Aran52/VUA#40), saved fits (Aran52/VUA#45), the version list on the assembly station (Aran52/VUA#50) and the fit prompt and management (Aran52/VUA#51); the author's restore and fit checks remain |
-| 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32): items 1, 3, 4 and 5, and item 2's banner; the transient failure behind it, the stale progress line and the duplicate card (item 6) need a reproduction |
+| 43 | Fixes from the MCP round | P-02 | built (Aran52/VUA#32, #63): items 1, 3, 4 and 5, the banner names the failing field, the workshop follows tasks started elsewhere, and one card per run; a real reproduction of the transient failure remains |
 | 44 | MCP result envelope | P-02 | done (Aran52/VUA#43): compact reads with Resources, the build in `vua_status`, and errors that say whether a retry is safe |
+| 45 | Source hints from owned file names | — | planned |
+| 46 | Library migration grouping | — | planned; executes the migration design |
+| 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
+| 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
+| 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts turntable-share, share-link-service and product-pictures |
+| 50 | AI connection as a first-run choice | — | planned |
+| 51 | Recipes creators trust | P-04 | planned: prompts recipe-booth-materials (Aran52/VUA#65), terms-everywhere, turntable-share, share-link-service; B by Claude |
+| 52 | Signed Windows releases | — | on hold (author, 2026-10-25): SignPath Foundation declined on 2026-10-24 for low public visibility; releases stay unsigned for now |
+| 53 | Consistent interface by audit | — | item 1 prompted (`design-audit`); items 2–3 follow its report |
 
-Suggested next order: the AMF operations first — 10's workshop station, 5's save-and-close buttons,
-43's reproductions, the rest of 7 (image confirmation) and 33's switch options — with functional
-fixes alongside; then 13's design session. The author's real-machine checks listed in each row
-close the built slices.
+Suggested next order: with the workshop's operations in place (2026-10-24), the author's
+real-machine checks listed in each row come first, then 13's design session. Functional fixes go
+alongside; 35's start card and 33's built-result evidence are the next AMF features.
 
 Every slice ships its player-facing text in the four UI languages; slice 14 reviews them together
 with the author.
@@ -774,6 +782,248 @@ of slice 32, so the result shape changes once.
 **Done when** an agent repeats the round's reads at under 10 KB each, reads a run's full facts as a
 Resource, names the build it tests, and after a dropped connection decides from a task read
 whether to retry.
+
+## 45 — Source hints from owned file names
+
+Author decision, 2026-10-20. Source hints in `source_hint` (`crates/acquisition/src/library_reconcile.rs`)
+compare a local entry's names with product IDs and titles of known products. Account sync already
+records each owned file's BOOTH name in `product_downloadables.anchor_text` (BDL v0.4); in the
+author's library on 2026-10-19, 84 of 85 owned file names were distinct. Filename cleanup rules of
+the kind VRCAL uses stay out: they guess and can remove meaningful words.
+
+1. A local original whose file name equals exactly one owned file name suggests that file's
+   product, ranked after an explicit association and existing mapping, before product IDs and
+   titles. A name shared by several owned files suggests nothing.
+2. The hint stays a read-model suggestion; content equality still comes from the hash
+   verification, which reports equal or unverified content as today.
+
+**Done when** a local copy of an owned BOOTH file suggests its product by its file name in the
+library, and a file name shared by two products suggests none.
+
+## 46 — Library migration grouping
+
+The library's "Import multiple items" entry previews a chosen directory read-only. The
+[migration design](library-migration-design.md) defines the grouping the player confirms: each
+directory is one material, a collection to review, or excluded; loose files are grouped,
+separated or excluded; every observed file has exactly one disposition, and groups never
+overlap. This slice executes it.
+
+1. The preview offers the three choices per directory, the bulk "these selected sibling folders
+   are separate materials", and loose-file grouping, with undo before submission.
+2. Confirmed materials, unassigned, excluded and unreadable areas show separately; the import
+   runs only on confirmed complete groups and names any remainder.
+3. Each confirmed group becomes one library entry through the existing copy-in intake, keeping
+   its relative paths; originals stay unchanged.
+4. The grouping is a versioned migration manifest, the same document slice 47's agent writes.
+
+**Done when** the author migrates a real local collection with wrappers, mixed loose files and
+nested collections into the library, with every file accounted for.
+
+## 47 — Library migration through the player's agent
+
+Author idea, 2026-10-20: the player tells a connected agent "organize my library into a format
+VUA can use", and the agent handles the corner cases of each personal folder layout. VUA publishes
+the format and keeps the validation and the copy.
+
+1. An MCP read returns the migration manifest's schema, its rules and an example: materials as
+   groups of files under a chosen root, optional names, BOOTH product IDs as claims, excluded
+   paths, and the coverage and no-overlap rules of slice 46.
+2. The agent reads the folders itself and requests an import with a manifest. VUA validates it
+   (paths inside the root, files present, full coverage, no overlap) and shows it in the migration
+   preview as proposed groups; the player confirms like any other AI request, and the permission
+   modes decide how much is shown.
+3. The agent changes no files; product IDs in a manifest remain claims, checked like the player's
+   own association.
+
+**Done when** an agent turns a real messy collection into a manifest that VUA accepts, and the
+player imports it after reviewing the proposed groups.
+
+## 48 — Identical content: the player's choice
+
+The [warehouse layout ruling](../decisions/warehouse-layout.md) (2026-09-06, ruling 2) keeps every
+copy: importing the same content twice stores it twice. The author decided on 2026-10-21 that the
+player chooses instead. Inspection facts are already keyed by content (`local_artifacts`), so
+VUA knows which copies are identical.
+
+1. A new decision records the choice and replaces ruling 2; the ruling itself stays as recorded.
+2. A library setting, "Identical files": keep a separate copy for each item, or store the content
+   once; the default keeps a separate copy, as today (author, 2026-10-21). Storing once keeps every
+   library item and its relative paths; identical files share their bytes through NTFS hard links
+   inside the warehouse. Where a hard link is unavailable (another volume after a relocation, a
+   file system without hard links), VUA copies and says so.
+3. For a warehouse that already holds identical copies, the setting offers to share them, after a
+   preview of the items and the space they take; no item is removed.
+4. Removing an item's files removes only its own links; the content stays while another item uses
+   it. Space shown in the library counts shared content once.
+
+**Done when** the author imports the same package twice with each setting, and with "store once"
+the warehouse holds its bytes once while both items open, produce and delete independently.
+
+## 49 — Shareable turntable with a Recipe link
+
+Author request, 2026-10-24. A finished line already bakes a 60-frame turntable
+([amf-production](../protocols/amf-production-v0.1.md), `bakeTurntable`), and a saved Recipe
+already exports a reviewed share declaration, the `vuar0.4.` paste text of
+[Recipe v0.4](../protocols/amf-recipe-v0.4.md) with BOOTH references and no machine paths. A
+still picture looks like any Unity screenshot; the turning Avatar is what players post.
+
+The author tested X on 2026-10-24: a video cannot be dragged out of a post, and an image dragged
+from X into another application arrives recompressed, without EXIF or other metadata. The Recipe
+therefore travels in the pixels as a short link, not in the file's metadata.
+
+X also turns an uploaded GIF into a video, which cannot be dragged out, so the image players
+drag from X is a still picture; the animated GIF serves chats and Discord.
+
+1. The release room exports the turntable as a still PNG of a chosen angle, for X, and as an
+   animated GIF for chats and Discord. Size and frame rate fit the platforms' upload limits.
+2. Each image carries a small VUA logo mark. With a Recipe included, the mark becomes a
+   "VUA inside" badge with the logo, in the manner of "Intel inside" (author, 2026-10-24).
+   Including the Recipe is the player's choice per export and runs the existing reviewed share
+   export first.
+3. The short code is for VUA only and hides in areas whose colour VUA controls (author,
+   2026-10-24): the code's modules are blocks a few luminance levels lighter or darker than their
+   surroundings. The main carrier is the plate of the "VUA inside" badge, which VUA draws on any
+   picture, so the code reads on any background; on the turntable's plain background further
+   copies repeat around the Avatar. People see the badge and the picture; VUA subtracts the known
+   plate or background colour and reads the code. The contrast and module size are the smallest
+   that pass a round trip through X in testing, including the smaller copies X serves.
+4. Publishing stores the shared document on VUA's link service under a content-derived code
+   (`https://<host>/r/<code>`): the code is a prefix of the document's SHA-256, so VUA verifies
+   whatever the service returns. Publishing is explicit, needs no account, and the player can
+   withdraw a link they published.
+5. Dropping an image or pasting a link in VUA reads the code, fetches and verifies the document
+   and opens its preview, with the image as the preview picture. The link also opens a web page
+   listing the materials with their BOOTH pages and creators, and "Open in VUA"; the export offers
+   the link for the post text.
+6. Besides Recipes, a shared document can be a selection of BOOTH products, reusing the
+   [selection drafts](../protocols/recipe-selection-draft-v0.1.md): a receiver sees the products,
+   which they own, their terms and the BOOTH pages, and can keep them as a draft.
+7. Two more ways to make such pictures (author, 2026-10-24):
+   - right-clicking a BOOTH product in the library or the workshop exports its product image
+     with the badge and a one-product selection;
+   - a standalone badge maker adds the "VUA inside" badge to any picture the player chooses,
+     carrying a Recipe, a selection draft or a few products picked on the spot.
+8. The paste text stays available for players without a network or who prefer not to publish.
+
+**Done when** the author posts the P-02 turntable PNG and a product picture on a busy background
+to X, drags each from X into a second VUA, and VUA opens the Recipe and the product selection,
+while the badge and the picture look unchanged to the eye.
+
+## 50 — AI connection as a first-run choice
+
+Author decision, 2026-10-24, for players in Japan who avoid AI tools. The local MCP connection
+is already off until the player enables it in Help. The choice becomes visible and complete.
+
+1. The first-run wizard asks once whether to use AI tools with VUA, worded neutrally, with
+   "No" as the default; Settings changes it later.
+2. With "No", VUA shows nothing about AI: the Help entry, AI request cards, the agent wording of
+   the permission modes and AI mentions in tours stay hidden, and the MCP connection cannot be
+   enabled until the choice changes.
+3. With "Yes", the Help entry works as today; the connection itself still starts only when the
+   player turns it on.
+
+**Done when** a first run with "No" shows no AI wording anywhere the author looks, and switching to
+"Yes" in Settings brings back the Help entry without a restart.
+
+## 51 — Recipes creators trust
+
+Author request, 2026-10-24: Avatar creators who see VUA's promotion should find Recipes
+impressive, useful and safe. Budget: 24 hours of work for each of four agents. Today a Recipe
+([v0.4](../protocols/amf-recipe-v0.4.md)) saves, shares and reproduces a line, but reproduction
+resolves materials by exact SHA-256, so a creator's routine package update breaks every shared
+Recipe; the receiver learns what is missing only when preparation fails; and P-04 has not passed.
+
+The promise to a creator: a Recipe is a list, never a copy. It carries BOOTH product references
+and settings, no files; each receiver must own and hold the materials; the creators are named;
+their terms are checked.
+
+**A — Materials found by BOOTH product** (agent, `recipe-booth-materials`). The author ruled on 2026-10-24 that
+a Recipe locates materials by BOOTH product ID instead of exact SHA-256. A new Recipe version
+names each material by its BOOTH product, keeps the package file name as a hint and the
+original digest as evidence only, and records prefab GUIDs. Reproduction takes the receiver's
+files of that product, picks the package by name (or asks among the product's packages, such as
+per-Avatar variants), inspects it in Unity and maps the saved prefabs and bindings by GUID, then
+path. The plan lists each changed or missing target to review; nothing maps silently.
+
+**B — "Wear this" for the receiver** (Claude). Opening a Recipe by paste text, file or a "VUA
+inside" image shows one page: the result previews when the image carried them, each material as
+owned and present, owned and not downloaded (download it), or not owned (its BOOTH page), and the
+terms check. One action prepares and assembles under the player's permission mode, and the result
+shows beside the sender's previews.
+
+**C — Terms everywhere** (agent, `terms-everywhere`). VN3 terms today appear in the library drawer, the
+release room's check and the MCP reads. The library gains a filter by use, so a player finds
+the materials fit for a VTuber or a game; before a Recipe is imported, the check runs across all
+its materials for the receiver's chosen use; the share preview lists exactly what the Recipe
+contains, and exported Recipes carry the material creators' names for slice 37's credits.
+
+**D — The shareable turntable** (agent, `turntable-share`). Slice 49 in VUA: GIF and PNG export, the
+"VUA inside" badge and the code hidden in the background, publishing and withdrawing a link, and
+reading the code from a dropped image or a pasted link.
+
+**E — The share link service** (agent, `share-link-service`). Slice 49's service and its web page: storing
+validated Recipes and product selections under content-derived codes, withdrawal, rate limits,
+and the material page in five languages, which shows the product list and leaves out the
+player's own title. It runs on the author's existing server in mainland China; a Tokyo server
+with the same code follows only if tests from abroad show connection problems (author,
+2026-10-24).
+
+**Proof.** After A–E, the author and Claude run P-04 with real materials: three base Avatars, each
+reproduced on a second computer, one of them after a package update. The runs, with their
+turntables, become the material for the first creator contacts.
+
+**Done when** a Recipe shared as a "VUA inside" picture on X reproduces the same Avatar on another
+computer after one of its packages updated, the receiver sees what they own, miss and may use before
+anything runs, and P-04 passes.
+
+## 52 — Signed Windows releases
+
+Author decision, 2026-10-24: VUA applies to the SignPath Foundation's free code signing for open
+source, and signing moves from the publishing computer into GitHub Actions. The
+[official hosting](../release/official-hosting.md) rule that signing stays on the publishing
+computer changes with this slice.
+
+1. After SignPath approves the project, the release workflow sends VUA's own executables (the
+   NSIS installer, its uninstaller, the helper and the bootstrap) for Authenticode signing with a
+   timestamp, before the signed release inventory and its Ed25519 envelope are computed, so the
+   inventory names the signed bytes.
+2. The stock `electron.exe` keeps its upstream bytes; the installer's check of those bytes stays.
+3. The download page states that releases are signed through the SignPath Foundation, as the
+   program requires.
+
+**Done when** a published installer shows VUA's signer in Windows' file properties and installs
+from a fresh download.
+
+On hold since 2026-10-25. The SignPath Foundation declined the application on 2026-10-24: its
+program requires public signals such as stars, articles and contributors, and invites a new
+application once VUA has them. Options for later: a Certum open-source certificate (the signer
+shows the author's name; signing on the publishing computer), an OV certificate in the name of a
+company the author can use, or Azure Trusted Signing if that company's country is eligible.
+Website (DV) certificates cannot sign programs.
+
+## 53 — Consistent interface by audit
+
+Author request, 2026-10-24: the interface should look more refined without a page-by-page review
+by the author. The renderer has 61 stylesheets of about 9,100 lines, the shared `Card` beside 33
+hand-made card styles, and literal font sizes, radii and colours in 28, 45 and 17 places. The
+inconsistency, more than any single page, is what reads as unrefined.
+
+1. An audit tool renders every preview view and fixture in both themes, checks computed styles
+   against the [design standard](../design/design-standard.md) (type scale, colour tokens,
+   contrast, spacing grid, radii, shadows, blur, one jurisdiction colour, target size, overflow in
+   all five languages) and, as proposals, rules adapted from ZCode's design system (radii that
+   step down with nesting, fewer nested bordered surfaces, border density). Findings group by the
+   stylesheet rule that causes them, so the report ranks fixes by how much each one repairs. It
+   also writes a baseline. The audit process lives in `docs/design/design-audit.md`.
+2. Claude tightens the tokens and adds page anatomy and composed components (card variants, list
+   row, section header, key-value row, stat tile, toolbar), deciding the proposal rules with the
+   author from the first report's data.
+3. Agents migrate one functional area per pull request onto those components; each pull request
+   lowers the area's findings and shows its before-and-after contact sheet, and CI then refuses
+   findings beyond the baseline.
+
+**Done when** the audit reports no findings beyond an agreed baseline that only shrinks, and the
+author approves the before-and-after sheets of each area.
 
 ## Open decisions
 

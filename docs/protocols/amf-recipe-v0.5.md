@@ -1,8 +1,8 @@
 # AMF production Recipe v0.5
 
-> Document version: 0.1.0
+> Document version: 0.2.0
 > Status: Candidate
-> Updated: 2026-10-24
+> Updated: 2026-10-25
 > Owner: AMF
 
 Recipe v0.5 identifies material by BOOTH product where a source association is known. A creator
@@ -30,6 +30,11 @@ value strings keep the v0.4 grammar. Capture refuses an ambiguous lighting packa
 Editor admission, exact VPM pins, binding modes, switches, fit transforms and size limits retain
 the v0.4 rules. Asset bodies, local source IDs, project paths and scene object identities are
 never portable fields.
+
+Outfits retain the optional switch fields `saved` (default `true`) and `group` (default empty)
+from v0.4. Saving, sharing, material substitution and replay preserve both fields; an absent
+field keeps its default. Group names follow the existing 0–32 ASCII letter/digit/underscore/
+hyphen grammar and the existing exclusive-switch validation.
 
 Saving uses the player's retained source choices or an unambiguous existing library association.
 Multiple or absent BOOTH associations remain absent until explicitly supplemented. Received
@@ -117,6 +122,8 @@ Receiver pages and download actions are separate work; this Candidate supplies t
 explicit confirmation parameters.
 
 ## Document changelog
+
+- 0.2.0 (2026-10-25): retain optional outfit `saved` and `group` options across capture, shared declarations and product-based reproduction.
 
 - 0.1.0 (2026-10-24): introduce product-based material resolution, opaque references, prefab GUID
   capture, shop attribution, complete checklists and digest-bound explicit difference review.

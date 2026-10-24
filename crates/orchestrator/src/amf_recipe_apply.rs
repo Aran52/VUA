@@ -247,6 +247,7 @@ fn compare_recipe_with_materials(run: &ProductionRun,recipe: &ProductionRecipe,a
             for (field, before, after) in [
                 ("mode", json!(old.mode), json!(outfit.mode)), ("bone", json!(old.bone), json!(outfit.bone)),
                 ("toggleName", json!(old.toggle_name), json!(outfit.toggle_name)), ("active", json!(old.active), json!(outfit.active)),
+                ("saved", json!(old.saved), json!(outfit.saved)), ("group", json!(old.group), json!(outfit.group)),
             ] {
                 if before != after && !(field == "toggleName" && outfit.toggle_name.trim().is_empty()) {
                     conflicts.push(RecipeApplyConflict { source_id: outfit.source_id.clone(), package_name: name.clone(), field: field.into(), current: before, incoming: after });
@@ -283,7 +284,7 @@ mod tests {
                 has_merge_armature:!avatar,has_missing_scripts:false,humanoid_bones:vec![],preview:None,parameter_budget:None, prefab_guid:None, object_paths:None });
         }
         let selection = AssemblySelection { avatar_prefab:"Assets/avatar.prefab".into(),outfits:["coat","hat"].into_iter().map(|id| OutfitSelection {
-            source_id:id.into(),prefab_path:format!("Assets/{id}.prefab"),mode:BindingMode::MergeArmature,bone:String::new(),toggle_name:id.into(),active:true,
+            source_id:id.into(),prefab_path:format!("Assets/{id}.prefab"),mode:BindingMode::MergeArmature,bone:String::new(),toggle_name:id.into(),active:true,saved:true,group:String::new(),
         }).collect() };
         run.result=json!({"facts":{"avatarGlobalObjectId":"GlobalObjectId_V1-test-avatar", "avatarName":"My Avatar", "observedSelection":selection,"usedSourceIds":["avatar","coat","hat"]},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});

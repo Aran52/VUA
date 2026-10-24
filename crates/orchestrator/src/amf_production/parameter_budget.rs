@@ -133,6 +133,15 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
             "name":avatar_name,"bits":avatar_ma_bits}));
     }
     let mut unresolved = avatar_budget.unresolved_prefix_configs;
+    // An exclusive group's switches share one parameter: a Bool for a group of one, an Int (8
+    // bits) otherwise, counted on the group's first outfit.
+    let mut group_sizes = std::collections::BTreeMap::<&str, u32>::new();
+    for (choice, _) in &outfits {
+        if !choice.group.is_empty() && !choice.toggle_name.trim().is_empty() {
+            *group_sizes.entry(choice.group.as_str()).or_default() += 1;
+        }
+    }
+    let mut groups_counted = std::collections::BTreeSet::<&str>::new();
     for (choice, outfit) in &outfits {
         // Checked above to be present and untruncated.
         let budget = outfit.parameter_budget.as_ref().expect("checked above");
@@ -141,7 +150,11 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
         // VUA's own switch for a labelled outfit is an MA Menu Item whose parameter MA creates
         // at build time under a unique name: one synced Bool.
         if !choice.toggle_name.trim().is_empty() {
-            count.bits += 1;
+            if choice.group.is_empty() {
+                count.bits += 1;
+            } else if groups_counted.insert(choice.group.as_str()) {
+                count.bits += if group_sizes[choice.group.as_str()] > 1 { 8 } else { 1 };
+            }
         }
         let bits = count.bits - before;
         unresolved += budget.unresolved_prefix_configs;
@@ -192,7 +205,8 @@ mod tests {
         AssemblySelection { avatar_prefab: "Assets/Avatar.prefab".into(),
             outfits: outfits.iter().map(|(source, path)| OutfitSelection {
                 source_id: (*source).into(), prefab_path: (*path).into(),
-                mode: BindingMode::MergeArmature, bone: String::new(), toggle_name: String::new(), active: true }).collect() }
+                mode: BindingMode::MergeArmature, bone: String::new(), toggle_name: String::new(), active: true,
+                saved: true, group: String::new() }).collect() }
     }
 
     #[test]
@@ -229,6 +243,29 @@ mod tests {
 
     fn rows_total(plan: &serde_json::Value) -> u64 {
         plan["sources"].as_array().unwrap().iter().map(|row| row["bits"].as_u64().unwrap()).sum()
+    }
+
+    #[test]
+    fn an_exclusive_group_shares_one_int_on_its_first_outfit() {
+        let evidence = budget(true, vec![entry("VRCEmote", 8)], vec![]);
+        let run = run(vec![candidate("Avatar", "Assets/Avatar.prefab", true, Some(evidence)),
+            candidate("Coat", "Assets/Coat.prefab", false, Some(budget(true, vec![], vec![]))),
+            candidate("Dress", "Assets/Dress.prefab", false, Some(budget(true, vec![], vec![]))),
+            candidate("Hat", "Assets/Hat.prefab", false, Some(budget(true, vec![], vec![])))]);
+        let mut selection = selection_with(&[("outfit", "Assets/Coat.prefab"), ("outfit", "Assets/Dress.prefab"), ("outfit", "Assets/Hat.prefab")]);
+        for (outfit, name) in selection.outfits.iter_mut().zip(["Coat", "Dress", "Hat"]) { outfit.toggle_name = name.into(); }
+        selection.outfits[0].group = "main".into();
+        selection.outfits[1].group = "main".into();
+        let plan = plan_parameter_budget(&run, &selection);
+        // VRCEmote 8, the main group's Int 8 on the coat, the hat's own Bool.
+        assert_eq!(plan["estimateBits"], 8 + 8 + 1);
+        assert_eq!(plan["sources"][1]["name"], "Coat");
+        assert_eq!(plan["sources"][1]["bits"], 8);
+        assert_eq!(plan["sources"][2]["name"], "Hat");
+        assert_eq!(rows_total(&plan), 17);
+        // A group of one stays a Bool.
+        selection.outfits[1].group.clear();
+        assert_eq!(plan_parameter_budget(&run, &selection)["estimateBits"], 8 + 1 + 1 + 1);
     }
 
     #[test]

@@ -594,7 +594,9 @@ mod tests {
     #[test]
     fn moved_and_renamed_prefab_uses_guid_and_deleted_prefab_blocks_assembly_with_full_differences()
     {
-        let recipe = recipe();
+        let mut recipe = recipe();
+        recipe.outfits[0].saved = false;
+        recipe.outfits[0].group = "wardrobe".into();
         let mut inventory = inventory(&recipe);
         inventory[1].package.sha256 = "f".repeat(64);
         inventory[1].package.package_name = "Updated.unitypackage".into();
@@ -603,8 +605,11 @@ mod tests {
         let mut run = run(&recipe, &inventory);
         run.prefabs[1].path = "Assets/Moved/Renamed.prefab".into();
         let mapped = map_recipe(&recipe, &run, &materials).unwrap();
+        let selection = mapped.selection.as_ref().unwrap();
+        assert!(!selection.outfits[0].saved);
+        assert_eq!(selection.outfits[0].group, "wardrobe");
         assert_eq!(
-            mapped.selection.unwrap().outfits[0].prefab_path,
+            selection.outfits[0].prefab_path,
             "Assets/Moved/Renamed.prefab"
         );
         assert!(mapped

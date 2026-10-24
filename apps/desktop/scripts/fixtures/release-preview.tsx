@@ -97,7 +97,7 @@ export function releasePorts(view: string): { production: AmfProductionPort; rel
     return { runId, editorOpen: false, uploads, turntable: runId === runs[2]!.runId ? null : { frames: 60, size: 512, bakedAt: "2026-10-17T05:30:00Z", current: true } };
   };
   const production = {
-    async list() { return { sources: view === "release-terms" ? termsSources : [], editors: [], busy: view === "release-queued", queue: view === "release-queued" ? [{ taskId: "task-queued-upload", runId: runs[0]!.runId, operation: "amf.production.upload" }] : [], runs: (view === "release-empty" ? [] : runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
+    async list() { return { sources: view === "release-terms" ? termsSources : [], editors: [], capacity: 1, running: view === "release-queued" ? [{ taskId: "task-running-check", runId: runs[0]!.runId, operation: "amf.production.reinspect" }] : [], busy: view === "release-queued", queue: view === "release-queued" ? [{ taskId: "task-queued-upload", runId: runs[0]!.runId, operation: "amf.production.upload" }] : [], runs: (view === "release-empty" ? [] : runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
     async get(runId: string) { return structuredClone(runs.find(run => run.runId === runId)!); },
     async previewImage(runId: string, path: string) { return frame(lookOf(runId), path.endsWith("side.png") ? 15 : path.endsWith("back.png") ? 30 : 0); },
     async reinspect(runId: string) { return { runId, taskId: "task" }; },

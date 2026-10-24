@@ -129,5 +129,5 @@ export function SceneCanvas({ factory, className }: SceneCanvasProps) {
   }, [mode]);
 
   if (mode === "off") return null;
-  return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={className} aria-hidden="true" data-audit-skip="webgl-scene-art" />;
 }

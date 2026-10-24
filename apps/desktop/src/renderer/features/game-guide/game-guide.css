@@ -33,7 +33,8 @@ html[data-vua-surface="game-guide"] body {
   border-radius: var(--vua-radius-overlay, 12px);
   overflow: hidden;
   font-family: var(--vua-font-family);
-  font-size: 14px;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
   color: var(--vua-text-strong);
 }
 

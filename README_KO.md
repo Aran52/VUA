@@ -64,6 +64,21 @@ Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·�
 - [v0.7.0 릴리스 노트](docs/release/v0.7.0_KO.md)
 - [기여 가이드](CONTRIBUTING.md) · [보안 정책](SECURITY.md)
 
+## 지나온 길
+날짜는 각 릴리스와 풀 리퀘스트에 대해 GitHub가 기록한 시각입니다.
+
+| 날짜 | 마일스톤 |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0): 데스크톱 앱에서 Rust 오케스트레이터를 거쳐 실제 Unity 2022.3 프로젝트까지 이어져, 아바타에 의상 한 벌을 조립 |
+| 2026-10-01 | [목적에 맞춘 플레이 환경 준비](https://github.com/VUA-Project/VUA/pull/60) (지역별 Unity 다운로드 경로 포함) |
+| 2026-10-08 | [BOOTH 라이브러리 동기화, 선택 다운로드, 로컬 파일 관리](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6): 첫 공개 베타, AMF를 내장 모듈로 포함 |
+| 2026-10-12 | [NSIS 설치 프로그램과 AMF 개별 업데이트](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [소재 중심 아바타 제작, Recipe, 로컬 MCP 연결](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [60프레임 턴테이블과 관리형 업로드를 갖춘 릴리스 룸](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 약관 해석과 용도별 검사](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0): 아바타 제작 흐름을 담은 첫 릴리스 |
+
 ## 라이선스
 
 VUA는 [Apache-2.0](LICENSE)을 사용합니다. 외부 앱에는 각각의 라이선스가 적용되며, 여기에는 [VRCFaceTracking(Apache-2.0)](https://github.com/benaclejames/VRCFaceTracking/blob/master/LICENSE)과 [Space Calibrator(MIT 본체 및 별도 라이선스의 서드파티 구성 요소)](https://github.com/hyblocker/OpenVR-SpaceCalibrator/blob/develop/LICENSE)도 포함됩니다. 지원 예정인 모든 외부 연결, 저작권과 향후 재배포 조건은 [서드파티 고지](THIRD_PARTY_NOTICES.md)를 참조하세요.

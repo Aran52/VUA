@@ -122,6 +122,7 @@ export function MediaSlot({
         key={attempt}
         ref={imageRef}
         className="vua-media-slot__img"
+        data-audit-skip="product-photo"
         data-pending={effective !== "ready" || undefined}
         loading="lazy"
         decoding="async"

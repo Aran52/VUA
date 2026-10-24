@@ -151,6 +151,13 @@
               "prefabGuid": {
                 "type": "string",
                 "pattern": "^[a-f0-9]{32}$"
+              },
+              "saved": {
+                "type": "boolean"
+              },
+              "group": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{0,32}$"
               }
             }
           }

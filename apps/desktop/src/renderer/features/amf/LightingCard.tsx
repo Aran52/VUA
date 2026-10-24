@@ -12,7 +12,7 @@ const fileName = (path: string) => path.split("/").pop()!.replace(/\.mat$/iu, ""
 
 export function LightingCard({ port, run, level, disabled, onStarted, onError }: {
   port: AmfProductionPort; run: AmfProductionRun; level: AutomationLevel; disabled: boolean;
-  onStarted: (taskId: string) => void; onError: (message: string) => void;
+  onStarted: (taskId: string) => void; onError: (error: unknown) => void;
 }) {
   const [plan, setPlan] = useState<AmfLightingPlan | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "needs_check" | "unavailable">("loading");
@@ -37,7 +37,7 @@ export function LightingCard({ port, run, level, disabled, onStarted, onError }:
     if (!plan || starting) return;
     setStarting(true);
     try { onStarted((await port.applyLighting(run.runId, plan, [...chosen])).taskId); }
-    catch (error) { onError(error instanceof Error ? error.message : copy.title); }
+    catch (error) { onError(error); }
     finally { setStarting(false); }
   };
   const perMaterial = level === "ask";

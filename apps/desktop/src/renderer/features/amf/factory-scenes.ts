@@ -159,19 +159,22 @@ export function drawWorkshop(ctx: Ctx, p: Palette, f: SceneFacts, t: number, top
   const stations = f.stations ?? [];
   const at = Math.max(0, stations.findIndex(s => ["running", "waiting", "failed"].includes(s.state)));
   const lamp = (state: StationState) => state === "done" ? p.success : state === "running" ? p.accent : state === "waiting" ? p.warning : state === "failed" ? p.error : p.border;
-  // Machines with status lamps and a robot arm at the active station.
+  // Machines with status lamps and a robot arm at the active station; the row fits every station.
+  const pitch = Math.min(76, 368 / Math.max(stations.length, 5));
+  const width = Math.min(64, pitch - 10);
+  const center = (i: number) => 16 + i * pitch + width / 2;
   for (const [i, s] of stations.entries()) {
-    const x = 16 + i * 76;
-    fillRect(ctx, s.state === "running" ? p.room : p.border, x, 32, 64, 66, 4); fillRect(ctx, p.elevated, x + 2, 34, 60, 62, 3);
+    const x = 16 + i * pitch;
+    fillRect(ctx, s.state === "running" ? p.room : p.border, x, 32, width, 66, 4); fillRect(ctx, p.elevated, x + 2, 34, width - 4, 62, 3);
     const blink = s.state === "running" ? 0.55 + 0.45 * Math.sin(t * 6) : 1;
-    alpha(ctx, blink, () => fillRect(ctx, lamp(s.state), x + 24, 40, 16, 6, 3));
-    ctx.fillStyle = p.text; ctx.font = "9px sans-serif"; ctx.textAlign = "center"; ctx.fillText(s.label, x + 32, 70, 58);
-    fillRect(ctx, p.border, x + 28, 98, 8, 40);
+    alpha(ctx, blink, () => fillRect(ctx, lamp(s.state), center(i) - 8, 40, 16, 6, 3));
+    ctx.fillStyle = p.text; ctx.font = "9px sans-serif"; ctx.textAlign = "center"; ctx.fillText(s.label, center(i), 70, width - 6);
+    fillRect(ctx, p.border, center(i) - 4, 98, 8, 40);
     if (i === at && s.state === "running") {
       const swing = Math.sin(t * 3) * 0.5;
-      ctx.save(); ctx.translate(x + 32, 98); ctx.rotate(swing); ctx.strokeStyle = p.room; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.save(); ctx.translate(center(i), 98); ctx.rotate(swing); ctx.strokeStyle = p.room; ctx.lineWidth = 4; ctx.lineCap = "round";
       ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 22); ctx.lineTo(10, 34); ctx.stroke(); ctx.restore();
-      for (let k = 0; k < 6; k++) { const life = (t * 2 + hash(k)) % 1; alpha(ctx, 1 - life, () => { ctx.fillStyle = p.warning; ctx.fillRect(x + 36 + Math.cos(k * 1.3) * life * 16, 132 - life * 14 + Math.sin(k) * 4, 2, 2); }); }
+      for (let k = 0; k < 6; k++) { const life = (t * 2 + hash(k)) % 1; alpha(ctx, 1 - life, () => { ctx.fillStyle = p.warning; ctx.fillRect(center(i) + 4 + Math.cos(k * 1.3) * life * 16, 132 - life * 14 + Math.sin(k) * 4, 2, 2); }); }
     }
   }
   // Conveyor belt with rollers; crates move while a line runs.
@@ -180,9 +183,9 @@ export function drawWorkshop(ctx: Ctx, p: Palette, f: SceneFacts, t: number, top
   ctx.fillStyle = p.muted; for (let x = 14 - shift + 24; x < 390; x += 24) ctx.fillRect(x, 151, 10, 2);
   ctx.fillStyle = p.strong; for (let x = 20; x < 390; x += 40) { ctx.beginPath(); ctx.arc(x, 164, 3, 0, Math.PI * 2); ctx.fill(); }
   if (stations.length) {
-    const target = 34 + at * 76; const drift = f.running ? Math.sin(t * 1.5) * 3 : 0;
+    const target = center(at) - 14; const drift = f.running ? Math.sin(t * 1.5) * 3 : 0;
     fillRect(ctx, p.room, target + drift, 124, 26, 20, 2); ctx.strokeStyle = p.border; ctx.strokeRect(target + drift + 0.5, 124.5, 25, 19);
-    for (let i = 0; i < at; i++) { const x = 30 + i * 76; alpha(ctx, 0.35, () => fillRect(ctx, p.room, x, 130, 16, 14, 2)); }
+    for (let i = 0; i < at; i++) { const x = center(i) - 18; alpha(ctx, 0.35, () => fillRect(ctx, p.room, x, 130, 16, 14, 2)); }
   }
   worker(ctx, p, 350, 176, t, f.running ? "walk" : "stand", -1);
   floor(ctx, p);

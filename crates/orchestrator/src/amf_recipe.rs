@@ -35,6 +35,12 @@ pub struct RecipeOutfit {
     pub bone: String,
     pub toggle_name: String,
     pub active: bool,
+    /// The switch's saved state, as in the selection; absent means saved.
+    #[serde(default = "crate::amf_production::switch_saved_default", skip_serializing_if = "crate::amf_production::switch_saved_is_default")]
+    pub saved: bool,
+    /// The switch's exclusive group, as in the selection; absent means independent.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
 }
 
 /// The saved fit of one material's garment: every adjusted object with its local Transform.
@@ -151,6 +157,8 @@ impl ProductionRecipe {
                 return Err(invalid("Invalid or ambiguous outfit declaration."));
             }
         }
+        crate::amf_production::validate_switch_options(self.outfits.iter().map(|outfit| (outfit.toggle_name.as_str(), outfit.group.as_str(), outfit.active)))
+            .map_err(|_| invalid("Invalid switch group declaration."))?;
         if self.packages.len() > 64 || !self.packages.contains_key("com.vrchat.avatars") || !self.packages.contains_key("nadena.dev.modular-avatar")
             || self.packages.iter().any(|(id, version)| id.len() > 128 || !id.contains('.') || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b))
                 || version.is_empty() || version.len() > 80 || !version.bytes().all(|b| b.is_ascii_alphanumeric() || b".-+".contains(&b))) {
@@ -203,7 +211,7 @@ impl ProductionRecipe {
             let source = source_by_id.get(outfit.source_id.as_str()).ok_or_else(|| invalid("An observed outfit has no retained input."))?;
             Ok(RecipeOutfit { material_id: source_materials[&source.source_id].clone(), prefab_path: outfit.prefab_path.clone(),
                 prefab_guid:run.prefabs.iter().find(|p| p.source_id == outfit.source_id && p.path == outfit.prefab_path).and_then(|p| p.prefab_guid.clone()), mode: outfit.mode,
-                bone: outfit.bone.clone(), toggle_name: outfit.toggle_name.clone(), active: outfit.active })
+                bone: outfit.bone.clone(), toggle_name: outfit.toggle_name.clone(), active: outfit.active, saved: outfit.saved, group: outfit.group.clone() })
         }).collect::<Result<Vec<_>, AppErrorV1>>()?;
         if let Some(adjustments) = &mut adjustments {
             for fit in &mut adjustments.fits {
@@ -229,6 +237,7 @@ impl ProductionRecipe {
         Ok(AssemblySelection { avatar_prefab: self.avatar.prefab_path.clone(), outfits: self.outfits.iter().map(|outfit| OutfitSelection {
             source_id: sources[&outfit.material_id].clone(), prefab_path: outfit.prefab_path.clone(), mode: outfit.mode,
             bone: outfit.bone.clone(), toggle_name: if outfit.toggle_name.trim().is_empty() { String::new() } else { outfit.toggle_name.clone() }, active: outfit.active,
+            saved: outfit.saved, group: outfit.group.clone(),
         }).collect() })
     }
 }

@@ -66,6 +66,21 @@ Beta は継続します。公開は N1/N5 や未完了の実機・素材・人�
 - [v0.7.0 リリースノート](docs/release/v0.7.0_JA.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 
+## これまでの歩み
+日付は、各リリースとプルリクエストについて GitHub が記録した時刻です。
+
+| 日付 | できごと |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0)：デスクトップアプリから Rust のオーケストレーターを経て実際の Unity 2022.3 プロジェクトまでつながり、アバターに衣装を 1 着組み込めるようになりました |
+| 2026-10-01 | [目的に合わせたプレイ環境の準備](https://github.com/VUA-Project/VUA/pull/60)（地域に応じた Unity の入手先を含む） |
+| 2026-10-08 | [BOOTH ライブラリの同期、選んだ商品のダウンロード、ローカルファイルの管理](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)：最初の公開ベータ版。AMF を同梱モジュールとして搭載 |
+| 2026-10-12 | [NSIS インストーラーと AMF の個別更新](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [素材から始めるアバター制作、Recipe、ローカル MCP 接続](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [60 フレームのターンテーブルとアップロードを備えたリリースルーム](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 規約の読み取りと用途別チェック](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：アバター制作の流れを含む最初のリリース |
+
 ## ライセンス
 
 VUA は [Apache-2.0](LICENSE) です。外部アプリにはそれぞれのライセンスが適用されます。[VRCFaceTracking（Apache-2.0）](https://github.com/benaclejames/VRCFaceTracking/blob/master/LICENSE) や [Space Calibrator（MIT の本体と個別ライセンスの第三者コンポーネント）](https://github.com/hyblocker/OpenVR-SpaceCalibrator/blob/develop/LICENSE) も同様です。対応予定の全外部連携、帰属と将来の再配布条件は[第三者通知](THIRD_PARTY_NOTICES.md)を参照してください。

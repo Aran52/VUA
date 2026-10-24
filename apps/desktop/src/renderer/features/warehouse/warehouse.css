@@ -24,7 +24,7 @@
   padding: var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -184,7 +184,7 @@
   padding: 0 var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-bg-panel) 70%, transparent);
+  background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
   font: inherit;
 }
@@ -201,7 +201,7 @@
   padding: 0 calc(var(--vua-space-3) + 20px) 0 var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-bg-panel) 70%, transparent);
+  background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
   font: inherit;
   cursor: pointer;
@@ -226,7 +226,7 @@
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
   /* 玻璃卡:半透明底透出画布氛围(整墙卡片不上 backdrop-filter,性能优先) */
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   overflow: hidden;
   cursor: pointer;
   /* 309 张卡片的长墙:视口外卡片跳过布局/绘制;auto 记住实测尺寸,
@@ -572,8 +572,8 @@
   border-radius: var(--vua-radius-control);
   background: var(--vua-bg-canvas);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--vua-text-caption-size);
+  line-height: var(--vua-text-caption-leading);
   max-height: 280px;
   overflow: auto;
   user-select: text;
@@ -691,7 +691,8 @@
   border: none;
   padding: 0;
   background: transparent;
-  font-size: 28px;
+  font-size: var(--vua-text-display-size);
+  line-height: var(--vua-text-display-leading);
   color: var(--vua-text-strong);
   text-shadow: 0 0 4px var(--vua-bg-canvas);
   opacity: 0;
@@ -758,7 +759,8 @@
   border-radius: var(--vua-radius-control);
   background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
-  font-size: 18px;
+  font-size: var(--vua-text-title-size);
+  line-height: var(--vua-text-title-leading);
   cursor: pointer;
 }
 
@@ -890,7 +892,7 @@
   padding: var(--vua-space-2) var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -1034,7 +1036,8 @@
 
 .vua-warehouse__group-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
   font-weight: 600;
 }
 
@@ -1050,7 +1053,8 @@
 
 /* 卡片变体标记行(购买变体名;用户裁决 2026-10-03) */
 .vua-warehouse-card__variant {
-  font-size: 0.875rem;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
   font-weight: 600;
   color: var(--vua-text-primary);
   white-space: nowrap;
@@ -1111,7 +1115,7 @@
   width: 100%;
   padding: var(--vua-space-2) var(--vua-space-3);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -1123,7 +1127,7 @@
 }
 
 .vua-add-to-recipe__name {
-  font-weight: 500;
+  font-weight: var(--vua-weight-strong);
   flex: 1;
 }
 
@@ -1161,7 +1165,7 @@
   gap: var(--vua-space-1);
   padding: var(--vua-space-2) var(--vua-space-3);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
 }
 
 .vua-compatible-items__main {
@@ -1172,14 +1176,15 @@
 }
 
 .vua-compatible-items__name {
-  font-weight: 500;
+  font-weight: var(--vua-weight-strong);
 }
 
 .vua-compatible-items__kind {
-  font-size: 0.75rem;
+  font-size: var(--vua-text-caption-size);
+  line-height: var(--vua-text-caption-leading);
   padding: 0 var(--vua-space-2);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 999px;
+  border-radius: var(--vua-radius-pill);
   color: var(--vua-text-secondary);
   white-space: nowrap;
 }
@@ -1236,7 +1241,7 @@
 .vua-download-checklist__row {
   padding: var(--vua-space-1) var(--vua-space-2);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
 }
 
 .vua-download-checklist__label {
@@ -1262,7 +1267,7 @@
 .vua-terms__uses li[data-decision="conforms"] strong { color: var(--vua-success); }
 .vua-terms__uses li[data-decision="contact_licensor"] strong { color: var(--vua-warning); }
 .vua-terms__uses li[data-decision="nonconforming"] strong { color: var(--vua-error); }
-.vua-terms__uses li[data-decision="unknown"] strong, .vua-terms__uses li[data-decision="pending"] strong { color: var(--vua-text-secondary); font-weight: 500; }
+.vua-terms__uses li[data-decision="unknown"] strong, .vua-terms__uses li[data-decision="pending"] strong { color: var(--vua-text-secondary); font-weight: var(--vua-weight-strong); }
 .vua-terms__note { display: grid; gap: 4px; }
 .vua-terms__note blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--vua-warning); background: var(--vua-bg-elevated);
   white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow: auto; }

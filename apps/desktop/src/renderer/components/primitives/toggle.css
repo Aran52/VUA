@@ -6,7 +6,7 @@
   height: 24px;
   padding: 0;
   border: 1px solid var(--vua-border);
-  border-radius: 12px;
+  border-radius: var(--vua-radius-xl);
   background: var(--vua-bg-panel);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;

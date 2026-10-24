@@ -1,7 +1,9 @@
 import { isAmfRecipeDocument as legacyDocument, isAmfSharedRecipe as legacyShare } from "./amf-recipe-v04.js";
+import { hasAmfSwitchOptions } from "./amf-production-v01.js";
 /** Candidate portable declarations. Local saving does not establish sharing provenance. */
 export interface AmfRecipeMaterial { readonly id: string; readonly packageName: string; readonly sha256: string; readonly boothProductId?: string }
-export interface AmfRecipeOutfit { readonly materialId: string; readonly prefabPath: string; readonly prefabGuid?: string; readonly mode: "merge_armature" | "attach_to_bone"; readonly bone: string; readonly toggleName: string; readonly active: boolean }
+export interface AmfRecipeOutfit { readonly materialId: string; readonly prefabPath: string; readonly prefabGuid?: string; readonly mode: "merge_armature" | "attach_to_bone"; readonly bone: string; readonly toggleName: string; readonly active: boolean;
+  readonly saved?: boolean; readonly group?: string }
 export interface AmfRecipeLighting { readonly materialId?: string; readonly material: string; readonly min: string; readonly max: string }
 /** One object's saved local-Transform adjustment of a garment on an Avatar. */
 export interface AmfRecipeFitObject {
@@ -60,7 +62,7 @@ export function isAmfRecipeDocument(v: unknown): v is AmfRecipeDocument {
   if (!record(v.avatar) || !exact(v.avatar,["materialId","prefabPath",...("prefabGuid" in v.avatar ? ["prefabGuid"] : [])]) || !guid(v.avatar.prefabGuid) || typeof v.avatar.materialId !== "string" || !ids.has(v.avatar.materialId) || !assetPath(v.avatar.prefabPath)) return false;
   const outfits = new Set<string>();
   for (const o of v.outfits) {
-    if (!record(o) || !exact(o,["materialId","prefabPath","mode","bone","toggleName","active",...("prefabGuid" in o ? ["prefabGuid"] : [])]) || !guid(o.prefabGuid) || typeof o.materialId !== "string" || !ids.has(o.materialId) || outfits.has(o.materialId)
+    if (!record(o) || !hasAmfSwitchOptions(o,["materialId","prefabPath","mode","bone","toggleName","active",...("prefabGuid" in o ? ["prefabGuid"] : [])]) || !guid(o.prefabGuid) || typeof o.materialId !== "string" || !ids.has(o.materialId) || outfits.has(o.materialId)
       || !assetPath(o.prefabPath) || (o.mode !== "merge_armature" && o.mode !== "attach_to_bone") || typeof o.bone !== "string" || new TextEncoder().encode(o.bone).length > 80
       || /[\u0000-\u001f\u007f-\u009f]/u.test(o.bone) || (o.mode === "attach_to_bone" && !o.bone) || typeof o.toggleName !== "string" || [...o.toggleName].length > 80
       || /[\u0000-\u001f\u007f-\u009f]/u.test(o.toggleName) || typeof o.active !== "boolean") return false;

@@ -448,6 +448,8 @@ fn selection() -> AssemblySelection {
             bone: "".into(),
             toggle_name: "Coat".into(),
             active: true,
+            saved: true,
+            group: String::new(),
         }],
     }
 }
@@ -1050,6 +1052,26 @@ fn recipes_require_current_observations_and_reopen_with_pinned_inputs() {
     assert_eq!(h.engine.save_recipe("n3-test", "recipe-stale", "Stale").unwrap_err().code, "vua.amf_production.inspect_required");
     let restarted = AmfProductionEngine::new(h.root.join("production"), h.platform.clone());
     assert_eq!(restarted.get_recipe("recipe-test").unwrap(), saved);
+}
+
+#[test]
+fn recipe_v05_capture_and_preparation_retain_nondefault_switch_options() {
+    let h = Harness::new();
+    h.prepared();
+    let mut configured = selection();
+    configured.outfits[0].saved = false;
+    configured.outfits[0].group = "wardrobe".into();
+    let plan = h.engine.plan("n3-test", &configured).unwrap();
+    let digest = plan["planDigest"].as_str().unwrap().to_owned();
+    let assembling = configured.clone();
+    assert!(h.job(move |engine, ctx| engine.assemble("n3-test", assembling, &digest, ctx)));
+    let saved = h.engine.save_recipe("n3-test", "recipe-switches", "Wardrobe").unwrap();
+    assert_eq!(saved.recipe["formatVersion"], "0.5");
+    assert_eq!(saved.recipe["outfits"][0]["saved"], false);
+    assert_eq!(saved.recipe["outfits"][0]["group"], "wardrobe");
+    h.engine.begin_recipe("n3-recipe-switches", "recipe-switches", "synthetic-editor").unwrap();
+    assert!(h.job(|engine, ctx| engine.prepare("n3-recipe-switches", ctx)));
+    assert_eq!(h.engine.get("n3-recipe-switches").unwrap().selection, Some(configured));
 }
 
 #[test]
@@ -1809,6 +1831,8 @@ fn selection2() -> AssemblySelection {
             bone: "".into(),
             toggle_name: "Dress".into(),
             active: true,
+            saved: true,
+            group: String::new(),
         }],
     }
 }

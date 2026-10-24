@@ -115,7 +115,7 @@
   padding: var(--vua-space-4);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
   cursor: pointer;
   transition:

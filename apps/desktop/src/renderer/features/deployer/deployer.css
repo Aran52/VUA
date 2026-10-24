@@ -215,7 +215,7 @@
   padding: var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-bg-panel) 55%, transparent);
+  background: var(--vua-bg-panel);
 }
 
 .vua-version-track__header {

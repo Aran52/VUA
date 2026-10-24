@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-24
+> Updated: 2026-10-25
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -14,9 +14,9 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
 | docs/protocols/ai-tools-v0.1.md | 0.9.0 | Candidate | Integration | 2026-10-24 |
-| docs/protocols/amf-production-v0.1.md | 0.35.0 | Candidate | AMF | 2026-10-24 |
-| docs/protocols/amf-recipe-v0.4.md | 0.5.0 | Candidate | AMF | 2026-10-20 |
-| docs/protocols/amf-recipe-v0.5.md | 0.1.0 | Candidate | AMF | 2026-10-24 |
+| docs/protocols/amf-production-v0.1.md | 0.36.0 | Candidate | AMF | 2026-10-25 |
+| docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
+| docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
 | docs/protocols/bdl-commands-v0.4.md | 0.4 | Frozen | Data | 2026-09-09 |
 | docs/protocols/bdl-commands-v0.5.md | 0.5 | Frozen | Data | 2026-10-03 |
@@ -90,7 +90,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.20.0 | Candidate | Production | 2026-10-24 |
+| docs/protocols/unity-bridge-v5.md | 0.21.0 | Candidate | Production | 2026-10-25 |
 | docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |

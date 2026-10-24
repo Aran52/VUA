@@ -95,6 +95,18 @@
   --vua-font-title: 600 20px/28px var(--vua-font-family);
   --vua-font-body: 400 14px/20px var(--vua-font-family);
   --vua-font-caption: 400 12px/16px var(--vua-font-family);
+  /* The same four steps as size and leading pairs, for rules that set a size and keep their own
+   * weight; four steps and two weights only (author ruling, 2026-10-25). */
+  --vua-text-caption-size: 12px;
+  --vua-text-caption-leading: 16px;
+  --vua-text-body-size: 14px;
+  --vua-text-body-leading: 20px;
+  --vua-text-title-size: 20px;
+  --vua-text-title-leading: 28px;
+  --vua-text-display-size: 28px;
+  --vua-text-display-leading: 36px;
+  --vua-weight-regular: 400;
+  --vua-weight-strong: 600;
 
   /* ---- 间距刻度 ---- */
   --vua-space-1: 4px;
@@ -111,6 +123,13 @@
   --vua-radius-card: 10px;
   --vua-radius-badge: 999px;
   --vua-radius-overlay: 12px;
+  /* Radii step down with nesting (author ruling, 2026-10-25): dialogs and overlays use xl; the
+   * first rounded container on a page uses lg; a rounded container inside it md; inside that sm,
+   * the smallest. Controls use md, or sm inside an md container. Pills and circles stay pills. */
+  --vua-radius-xl: var(--vua-radius-overlay);
+  --vua-radius-lg: var(--vua-radius-card);
+  --vua-radius-md: var(--vua-radius-control);
+  --vua-radius-sm: 4px;
 
   /* ---- 控件尺寸 ---- */
   --vua-control-height: 36px;

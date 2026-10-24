@@ -7,7 +7,7 @@ import { strings } from "../../i18n/index.ts";
 
 export function OutfitRemovalCard({ port, run, disabled, onStarted, onError }: {
   port: AmfProductionPort; run: AmfProductionRun; disabled: boolean;
-  onStarted: (task: string) => void; onError: (message: string) => void;
+  onStarted: (task: string) => void; onError: (error: unknown) => void;
 }) {
   const copy = strings.outfitRemoval;
   const [source, setSource] = useState("");
@@ -23,14 +23,14 @@ export function OutfitRemovalCard({ port, run, disabled, onStarted, onError }: {
   const review = async () => {
     setWorking(true); setPlan(null); setConfirmed(false);
     try { setPlan(await port.planOutfitRemoval(run.runId, source)); }
-    catch (e) { onError(e instanceof Error ? e.message : copy.unknown); }
+    catch (e) { onError(e); }
     finally { setWorking(false); }
   };
   const apply = async () => {
     if (!plan || !confirmed) return;
     setWorking(true);
     try { onStarted((await port.removeOutfit(run.runId, plan, true)).taskId); }
-    catch (e) { onError(e instanceof Error ? e.message : copy.unknown); }
+    catch (e) { onError(e); }
     finally { setWorking(false); }
   };
   return <Card>

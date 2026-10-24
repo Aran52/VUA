@@ -49,7 +49,7 @@ body:has(.vua-overlay) {
 
 .vua-overlay__title {
   flex: 1;
-  font-size: 0.86em;
+  font: var(--vua-font-caption);
   color: var(--vua-text-secondary);
 }
 
@@ -92,7 +92,7 @@ body:has(.vua-overlay) {
   display: flex;
   gap: var(--vua-space-2);
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding-bottom: var(--vua-space-1);
   flex: none;
 }
 
@@ -118,7 +118,7 @@ body:has(.vua-overlay) {
 
 .vua-overlay-guide__topic[data-active] {
   background: var(--vua-accent, var(--vua-bg-elevated));
-  color: var(--vua-on-accent, var(--vua-text-strong));
+  color: var(--vua-accent-contrast);
 }
 
 .vua-overlay-guide__content {
@@ -130,7 +130,7 @@ body:has(.vua-overlay) {
 
 .vua-overlay-guide__title {
   margin: 0;
-  font-size: 1.15em;
+  font: var(--vua-font-title);
   color: var(--vua-text-strong);
 }
 
@@ -149,14 +149,15 @@ body:has(.vua-overlay) {
 
 .vua-overlay-guide__section-title {
   margin: 0;
-  font-size: 0.95em;
+  font: var(--vua-font-body);
+  font-weight: var(--vua-weight-strong);
   color: var(--vua-text-strong);
 }
 
 .vua-overlay-guide__paragraph {
   margin: 0;
   color: var(--vua-text-secondary);
-  line-height: 1.55;
+  line-height: var(--vua-text-body-leading);
 }
 
 /* 插图与四语言图注:图注明示示意图属性,与真实软件截图区分(首玩 ibis A) */

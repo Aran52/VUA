@@ -103,7 +103,7 @@
 
 .vua-taskbar__task-glyph {
   display: inline-flex;
-  margin-top: 2px;
+  margin-top: var(--vua-space-1);
   color: var(--vua-text-secondary);
 }
 

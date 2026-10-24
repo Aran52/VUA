@@ -44,14 +44,19 @@ export function Popconfirm({ title, description, confirmLabel, cancelLabel, dang
   };
 
   useLayoutEffect(() => {
-    if (!open || !anchor.current || !bubble.current) return;
+    if (!open || !shown || !anchor.current || !bubble.current) return;
     const a = anchor.current.getBoundingClientRect();
-    const b = bubble.current.getBoundingClientRect();
-    const side = a.bottom + GAP + b.height <= window.innerHeight - EDGE ? "bottom" : "top";
-    const left = Math.min(Math.max(a.left + a.width / 2 - b.width / 2, EDGE), window.innerWidth - b.width - EDGE);
-    setPosition({ left, top: side === "bottom" ? a.bottom + GAP : a.top - GAP - b.height, side });
-    cancel.current?.focus();
-  }, [open]);
+    // Entrance transforms must not shrink the dimensions used for placement.
+    const width = bubble.current.offsetWidth;
+    const height = bubble.current.offsetHeight;
+    const side = a.bottom + GAP + height <= window.innerHeight - EDGE ? "bottom" : "top";
+    const clamp = (value: number, available: number) => Math.max(EDGE, Math.min(value, available - EDGE));
+    const left = clamp(a.left + a.width / 2 - width / 2, window.innerWidth - width);
+    const top = clamp(side === "bottom" ? a.bottom + GAP : a.top - GAP - height, window.innerHeight - height);
+    setPosition({ left, top, side });
+    // The first render is parked offscreen; focusing it must not scroll the page.
+    cancel.current?.focus({ preventScroll: true });
+  }, [open, shown]);
 
   useEffect(() => {
     if (!open) return;

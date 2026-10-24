@@ -1,6 +1,6 @@
 /* Compact website cards; palette follows the current VUA theme. */
 .vua-network { margin-block-end: var(--vua-space-4); padding: 0; overflow: hidden; }
-.vua-network__header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--vua-border); }
+.vua-network__header { display: flex; align-items: center; gap: 16px; padding: var(--vua-space-4) 24px; border-bottom: 1px solid var(--vua-border); }
 .vua-network__header h2 { margin: 0; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
 .vua-network__heading-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--vua-radius-lg); background: color-mix(in srgb, var(--vua-accent) 12%, var(--vua-bg-panel)); color: var(--vua-accent); }
 .vua-network__heading-icon svg { width: 32px; height: 32px; }
@@ -9,20 +9,20 @@
 .vua-network__icon-button svg { width: 20px; height: 20px; }
 .vua-network__icon-button:hover { background: var(--vua-bg-elevated); }
 .vua-network__cards { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 0; padding: 24px; }
-.vua-network__site { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 20px 16px 10px; border-radius: var(--vua-radius-xl); background: color-mix(in srgb, var(--vua-accent) 8%, var(--vua-bg-panel)); }
+.vua-network__site { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 20px 16px var(--vua-space-2); border-radius: var(--vua-radius-xl); background: color-mix(in srgb, var(--vua-accent) 8%, var(--vua-bg-panel)); }
 /* 站点字形:品牌标志为实心填充(24 盒内常满幅),比描边线稿视觉更重,
  * 缩小到 38px 并居中,避免卡片显得拥挤;中性 globe 同尺寸描边。 */
 .vua-network__site-icon { color: var(--vua-text-strong); width: 46px; height: 46px; margin-bottom: 8px; display: grid; place-items: center; }
 .vua-network__site-icon svg { width: 38px; height: 38px; }
 .vua-network__site strong { font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vua-text-secondary); }
-.vua-network__test { width: 100%; margin-top: 14px; padding: 12px 0 6px; border: 0; border-top: 1px solid var(--vua-border); color: var(--vua-accent); background: transparent; font: inherit; cursor: pointer; }
+.vua-network__test { width: 100%; margin-top: var(--vua-space-4); padding: 12px 0 var(--vua-space-2); border: 0; border-top: 1px solid var(--vua-border); color: var(--vua-accent); background: transparent; font: inherit; cursor: pointer; }
 .vua-network__test[data-result="timeout"], .vua-network__test[data-result="connection_failed"], .vua-network__test[data-result="http_error"], .vua-network__test[data-result="probe_error"] { color: var(--vua-text-secondary); }
-.vua-network__edit { position: absolute; inset-inline-end: 5px; top: 3px; border: 0; border-radius: var(--vua-radius-sm); background: transparent; color: var(--vua-text-secondary); cursor: pointer; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); padding: 0 6px; }
+.vua-network__edit { position: absolute; inset-inline-end: 5px; top: 3px; border: 0; border-radius: var(--vua-radius-sm); background: transparent; color: var(--vua-text-secondary); cursor: pointer; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); padding: 0 var(--vua-space-2); }
 .vua-network button:focus-visible { outline: 2px solid var(--vua-accent); outline-offset: 2px; }
 .vua-network button:disabled { opacity: .55; cursor: default; }
 .vua-network__note { margin: 0; padding: 0 24px 16px; color: var(--vua-text-secondary); }
 .vua-network__form { display: grid; gap: 16px; }
-.vua-network__form label { display: grid; gap: 6px; }
+.vua-network__form label { display: grid; gap: var(--vua-space-2); }
 .vua-network__form input { padding: 8px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: inherit; }
 .vua-network__form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .vua-network__references { padding: 20px 24px; border-bottom: 1px solid var(--vua-border); display: grid; gap: 12px; }
@@ -36,7 +36,7 @@
 .vua-network__unsteady, .vua-network-tile__unsteady { border-bottom: 1px dotted currentColor; cursor: default; }
 /* 经本机代理测得时卡片长高一行放说明,不挤掉档位。 */
 .vua-network-tile[data-proxy] { height: auto; min-height: var(--vua-environment-height, 176px); }
-.vua-network-tile__proxy { grid-column: 1 / -1; margin: 0; padding: 0 28px 10px; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-network-tile__proxy { grid-column: 1 / -1; margin: 0; padding: 0 28px var(--vua-space-2); color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-network-tile .vua-environment-card__spin { display: inline-flex; }
 @media (max-width: 600px) { .vua-network__references ul { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .vua-network__header { padding: 12px; gap: 10px; } .vua-network__cards { padding: 12px; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); } }
+@media (max-width: 600px) { .vua-network__header { padding: 12px; gap: var(--vua-space-2); } .vua-network__cards { padding: 12px; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); } }

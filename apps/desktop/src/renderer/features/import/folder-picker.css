@@ -96,7 +96,7 @@
 
 .vua-folder-picker__path-edit { flex: 1; min-width: 0; }
 .vua-folder-picker__path-edit input {
-  width: 100%; box-sizing: border-box; min-height: 36px; padding: 8px 10px;
+  width: 100%; box-sizing: border-box; min-height: 36px; padding: 8px var(--vua-space-2);
   border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control);
   color: var(--vua-text-strong); background: var(--vua-bg-canvas); direction: ltr;
 }
@@ -150,7 +150,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vua-space-1);
   margin: 0 var(--vua-space-3);
   padding: var(--vua-space-1);
   border: 1px solid var(--vua-border);

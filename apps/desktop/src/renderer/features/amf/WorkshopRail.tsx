@@ -109,7 +109,7 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDele
   };
   // The confirmation sits outside the sticky rail, so it layers above the whole page.
   return <><aside className="vua-workshop__rail" aria-label={factory.lineList}>
-    <Button variant="primary" onClick={onNew}>{factory.newLine}</Button>
+    <Button variant={lines.length === 0 ? "primary" : "default"} onClick={onNew}>{factory.newLine}</Button>
     <ul className="vua-workshop__lines">
       {lines.filter(line => showHidden || !hidden.has(line.runId)).map(line => {
         const removing = deleting.has(line.runId);

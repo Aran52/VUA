@@ -81,11 +81,57 @@ textarea {
 /* Browser defaults moved onto the 4 px grid and the two weights; components set their own
  * values on top (design audit, 2026-10-25). */
 button {
+  min-width: 28px;
+  min-height: 28px;
   padding-inline: var(--vua-space-2);
+}
+
+/* A native indicator stays compact; its associated label supplies the hit area. */
+:where(label:has(> input:is([type="checkbox"], [type="radio"]))) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vua-space-2);
+  min-height: 28px;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select) {
+  min-height: var(--vua-control-height);
 }
 
 p {
   margin-block: var(--vua-space-3);
+}
+
+h1,
+h2 {
+  font: var(--vua-font-title);
+  margin-block: var(--vua-space-4);
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font: var(--vua-font-body);
+  font-weight: var(--vua-weight-strong);
+  margin-block: var(--vua-space-3);
+}
+
+small {
+  font: var(--vua-font-caption);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+summary {
+  min-height: 28px;
+  cursor: pointer;
 }
 
 strong,

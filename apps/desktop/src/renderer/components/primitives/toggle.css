@@ -15,10 +15,11 @@
 .vua-toggle::after {
   content: "";
   position: absolute;
-  top: 2px;
+  top: 50%;
   left: 2px;
   width: 18px;
   height: 18px;
+  margin-top: -9px;
   border-radius: 50%;
   background: var(--vua-text-secondary);
   transition: transform 120ms ease, background 120ms ease;

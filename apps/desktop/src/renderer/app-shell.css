@@ -326,8 +326,6 @@
   cursor: pointer;
   transform-origin: left center;
   transition:
-    font-size 180ms ease,
-    padding 180ms ease,
     transform 180ms ease,
     background-color 140ms ease,
     color 140ms ease,
@@ -337,13 +335,14 @@
 /* 未激活态(指针/键盘焦点均不在侧栏):全栏收为小字,选中项也只保留
  * 颜色与左条身份;特异性须高于下方 hover/选中规则 */
 .vua-shell__sidebar:not(:hover):not(:focus-within) .vua-shell__sidebar-item {
-  font-size: 0.86em;
+  font-size: var(--vua-text-caption-size);
+  line-height: var(--vua-text-caption-leading);
 }
 
 .vua-shell__sidebar-item:hover {
   background: color-mix(in srgb, var(--vua-text-strong) 6%, transparent);
   color: var(--vua-text-strong);
-  font-size: 1.14em;
+  font: var(--vua-font-body);
   padding: var(--vua-space-3) var(--vua-space-4);
   transform: translateX(3px);
 }
@@ -355,7 +354,8 @@
   box-shadow: inset 2px 0 0 var(--vua-accent);
   color: var(--vua-accent-text);
   font-weight: 600;
-  font-size: 1.14em;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
   padding: var(--vua-space-3) var(--vua-space-4);
   transform: translateX(3px);
   text-shadow: var(--vua-glow-accent-soft);

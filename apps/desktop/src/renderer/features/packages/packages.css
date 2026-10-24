@@ -106,7 +106,7 @@
 
 .vua-packages__migration svg {
   flex: 0 0 auto;
-  margin-top: 2px;
+  margin-top: var(--vua-space-1);
   color: var(--vua-accent-text);
 }
 
@@ -415,7 +415,7 @@
 
 .vua-packages__warning-strip svg {
   flex: 0 0 auto;
-  margin-top: 2px;
+  margin-top: var(--vua-space-1);
   color: var(--vua-warning);
 }
 
@@ -753,7 +753,7 @@
 .vua-packages__cache-note {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--vua-space-2);
   margin: 0;
   font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading);
   color: var(--vua-text-secondary, var(--vua-text-2, inherit));

@@ -10,6 +10,9 @@
   gap: var(--vua-space-2);
   width: max-content;
   max-width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  overflow-wrap: anywhere;
   padding: var(--vua-space-3);
   border: 1px solid var(--vua-border-strong);
   border-radius: var(--vua-radius-card);
@@ -33,7 +36,6 @@
 .vua-popconfirm__body {
   color: var(--vua-text-secondary);
   font: var(--vua-font-caption);
-  line-height: 1.5;
 }
 
 .vua-popconfirm__body p {
@@ -42,11 +44,13 @@
 
 .vua-popconfirm__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--vua-space-2);
 }
 
 .vua-popconfirm__actions .vua-button {
-  min-height: 30px;
+  min-height: var(--vua-control-height);
+  flex-shrink: 0;
   padding-inline: var(--vua-space-3);
 }

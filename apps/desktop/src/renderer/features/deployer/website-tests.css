@@ -2,14 +2,14 @@
 .vua-network { margin-block-end: var(--vua-space-4); padding: 0; overflow: hidden; }
 .vua-network__header { display: flex; align-items: center; gap: 16px; padding: var(--vua-space-4) 24px; border-bottom: 1px solid var(--vua-border); }
 .vua-network__header h2 { margin: 0; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
-.vua-network__heading-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--vua-radius-lg); background: color-mix(in srgb, var(--vua-accent) 12%, var(--vua-bg-panel)); color: var(--vua-accent); }
+.vua-network__heading-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--vua-radius-lg); background: var(--vua-accent-tint); color: var(--vua-accent); }
 .vua-network__heading-icon svg { width: 32px; height: 32px; }
 .vua-network__toolbar { display: flex; gap: 8px; margin-inline-start: auto; }
 .vua-network__icon-button { display: grid; place-items: center; width: 40px; height: 40px; padding: 8px; border: 0; border-radius: 50%; background: transparent; color: var(--vua-text-strong); font-size: var(--vua-text-display-size); line-height: var(--vua-text-display-leading); cursor: pointer; }
 .vua-network__icon-button svg { width: 20px; height: 20px; }
 .vua-network__icon-button:hover { background: var(--vua-bg-elevated); }
 .vua-network__cards { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 0; padding: 24px; }
-.vua-network__site { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 20px 16px var(--vua-space-2); border-radius: var(--vua-radius-xl); background: color-mix(in srgb, var(--vua-accent) 8%, var(--vua-bg-panel)); }
+.vua-network__site { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 20px 16px var(--vua-space-2); border-radius: var(--vua-radius-md); background: var(--vua-bg-panel); }
 /* 站点字形:品牌标志为实心填充(24 盒内常满幅),比描边线稿视觉更重,
  * 缩小到 38px 并居中,避免卡片显得拥挤;中性 globe 同尺寸描边。 */
 .vua-network__site-icon { color: var(--vua-text-strong); width: 46px; height: 46px; margin-bottom: 8px; display: grid; place-items: center; }
@@ -34,6 +34,7 @@
 /* 分档:同一档读作「差不多」,再往后按档数;毫秒只留在展开后的行内。 */
 .vua-network__tier { margin-inline-start: auto; flex-shrink: 0; display: flex; align-items: center; gap: 8px; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-network__unsteady, .vua-network-tile__unsteady { border-bottom: 1px dotted currentColor; cursor: default; }
+.vua-network__unsteady { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; }
 /* 经本机代理测得时卡片长高一行放说明,不挤掉档位。 */
 .vua-network-tile[data-proxy] { height: auto; min-height: var(--vua-environment-height, 176px); }
 .vua-network-tile__proxy { grid-column: 1 / -1; margin: 0; padding: 0 28px var(--vua-space-2); color: var(--vua-text-secondary); font: var(--vua-font-caption); }

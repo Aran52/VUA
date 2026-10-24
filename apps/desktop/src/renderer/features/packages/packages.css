@@ -88,7 +88,7 @@
 .vua-packages__invalid-projects svg {
   position: relative;
   top: 2px;
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
   flex: 0 0 auto;
 }
 
@@ -416,7 +416,7 @@
 .vua-packages__warning-strip svg {
   flex: 0 0 auto;
   margin-top: var(--vua-space-1);
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
 }
 
 .vua-packages__warning-strip p {
@@ -446,7 +446,7 @@
   position: relative;
   top: 2px;
   flex: 0 0 auto;
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-packages__change-group {
@@ -543,7 +543,7 @@
 }
 
 .vua-packages__health[data-health="unreachable"] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-packages__health[data-health="unreachable"] .vua-packages__health-dot {

@@ -358,7 +358,6 @@
   line-height: var(--vua-text-body-leading);
   padding: var(--vua-space-3) var(--vua-space-4);
   transform: translateX(3px);
-  text-shadow: var(--vua-glow-accent-soft);
 }
 
 .vua-shell__main {
@@ -491,7 +490,7 @@
 /* close hover 用错误红淡底 + 红图标,与应用 hover 语言一致(全走 Token) */
 .vua-shell__window-button--close:hover {
   background: color-mix(in srgb, var(--vua-error) 16%, transparent);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 /* forced-colors 守卫:背景裁剪文字在系统强制色下会不可读(透明字 + 系统底),

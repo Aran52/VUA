@@ -26,7 +26,7 @@
 .vua-n3__progress, .vua-n3__checks { padding: 0; list-style: none; display: grid; gap: var(--vua-space-4); }
 .vua-n3__progress li, .vua-n3__checks li { display: flex; gap: 12px; align-items: center; }
 .vua-n3__progress small { display: block; margin-top: var(--vua-space-2); color: var(--vua-text-secondary); }
-.vua-n3__progress li[data-state=failed] { color: var(--vua-error); }
+.vua-n3__progress li[data-state=failed] { color: var(--vua-error-text); }
 .vua-n3__spinner { display: block; width: 16px; height: 16px; border: 2px solid var(--vua-border); border-top-color: var(--vua-accent); border-radius: 50%; animation: vua-n3-spin 1s linear infinite; }
 .vua-n3__review { padding: 0; list-style: none; display: grid; gap: 12px; }
 .vua-n3__review li, .vua-n3__history button { display: flex; justify-content: space-between; gap: 20px; padding-block: 12px; border-bottom: 1px solid var(--vua-border); }

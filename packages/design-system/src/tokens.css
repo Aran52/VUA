@@ -48,6 +48,9 @@
   --vua-error: #fb7185; /* 错误红:全应用通用 */
   --vua-warning: #fde047; /* 需注意:仅环境部署模块 */
   --vua-info: #94a3ff; /* 中性信息色 */
+  --vua-success-text: var(--vua-success);
+  --vua-error-text: var(--vua-error);
+  --vua-warning-text: var(--vua-warning);
 
   /* 状态灯图标色(实底状态灯上的图标):深浅主题同用近黑 */
   --vua-on-status: #0b0a12;
@@ -243,6 +246,9 @@
   --vua-error: #d13438;
   --vua-warning: #805900;
   --vua-on-error: #ffffff;
+  --vua-success-text: #0b650b;
+  --vua-error-text: #9f1f29;
+  --vua-warning-text: #6b4800;
   --vua-info: #5f6b8a;
 
   --vua-bg-canvas: #f6f6f9;
@@ -320,6 +326,9 @@
     --vua-amber: CanvasText;
     --vua-amber-text: CanvasText;
     --vua-info: CanvasText;
+    --vua-success-text: CanvasText;
+    --vua-error-text: CanvasText;
+    --vua-warning-text: CanvasText;
     --vua-room-control: Highlight;
     --vua-room-materials: Highlight;
     --vua-room-workshop: Highlight;
@@ -363,6 +372,9 @@
   --vua-amber: #ffd600;
   --vua-amber-text: #ffd600;
   --vua-info: #ffffff;
+  --vua-success-text: var(--vua-success);
+  --vua-error-text: var(--vua-error);
+  --vua-warning-text: var(--vua-warning);
   --vua-on-status: #000000;
   --vua-on-error: #000000;
   --vua-room-control: #ffd600;

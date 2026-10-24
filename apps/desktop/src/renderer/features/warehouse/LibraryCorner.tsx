@@ -18,6 +18,7 @@ export function LibraryCorner({ state, onAction, busy = false }: { state: Librar
       onClick={event => { event.stopPropagation(); if (action) onAction?.(); }} onDoubleClick={event => event.stopPropagation()}>
       <span className="vua-library-corner__rest"><Icon name={icons[state]} size={20} /></span>
       <span className="vua-library-corner__hover"><Icon name={action ? hoveredIcon : icons[state]} size={20} /></span>
+      <svg className="vua-library-corner__focus" viewBox="0 0 58 58" aria-hidden="true"><path d="M2 2H53L2 53Z" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
     </button>
     {anchor === null ? null : createPortal(<div id={id} role="tooltip" className="vua-library-corner__tooltip" style={{ left: Math.max(8, Math.min(anchor.left, window.innerWidth - 280)), top: Math.max(8, Math.min(anchor.top, window.innerHeight - 80)) }}>{copy[state]}</div>, document.body)}
   </>;

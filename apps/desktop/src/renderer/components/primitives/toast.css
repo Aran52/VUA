@@ -34,13 +34,13 @@
 }
 
 .vua-toast[data-tone="success"] > svg {
-  color: var(--vua-success);
+  color: var(--vua-success-text);
 }
 
 .vua-toast[data-tone="warning"] > svg {
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
 }
 
 .vua-toast[data-tone="error"] > svg {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }

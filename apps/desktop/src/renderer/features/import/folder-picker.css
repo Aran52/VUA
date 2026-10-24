@@ -83,7 +83,7 @@
 }
 
 .vua-folder-picker__inline-error {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-folder-picker__toolbar {

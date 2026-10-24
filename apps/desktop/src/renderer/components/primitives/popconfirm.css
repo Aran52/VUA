@@ -30,7 +30,7 @@
 }
 
 .vua-popconfirm__title[data-danger] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-popconfirm__body {

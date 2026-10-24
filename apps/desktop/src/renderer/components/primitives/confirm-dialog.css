@@ -31,7 +31,7 @@
 }
 
 .vua-confirm-dialog__title[data-danger] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-confirm-dialog__title[data-danger]::before {
@@ -63,7 +63,7 @@
   border: 1px solid var(--vua-error);
   border-radius: var(--vua-radius-control);
   background: color-mix(in srgb, var(--vua-error) 12%, transparent);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-confirm-dialog__warning p {

@@ -138,6 +138,25 @@ legend {
   padding: 0;
 }
 
+ul,
+ol,
+dl,
+figure,
+blockquote {
+  margin-block: var(--vua-space-3);
+}
+
+form {
+  margin: 0;
+}
+
+fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--vua-space-3);
+  border: 1px solid var(--vua-border);
+}
+
 strong,
 b,
 th {

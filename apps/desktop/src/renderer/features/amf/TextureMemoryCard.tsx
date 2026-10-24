@@ -69,7 +69,7 @@ export function TextureMemoryCard({ port, run, level, disabled, onStarted, onErr
         {level === "ask" && <Button disabled={disabled || starting} onClick={() => { void apply([entry.proposed.path]); }}>{copy.one}</Button>}
       </li>)}</ul>
       {plan.entries.length > 0 && <p className="vua-caption vua-text-secondary">{copy.restore}</p>}
-      {level !== "ask" && selected.length > 0 && <Button variant="primary" disabled={disabled || starting} onClick={() => { void apply(selected.map(e => e.proposed.path)); }}>
+      {level !== "ask" && selected.length > 0 && <Button disabled={disabled || starting} onClick={() => { void apply(selected.map(e => e.proposed.path)); }}>
         {starting ? copy.applying : copy.apply}</Button>}
     </>}
     {current && <details><summary>{copy.inventory}</summary><ul>{current.textures.map(t => <li key={t.id}>

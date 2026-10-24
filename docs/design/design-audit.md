@@ -95,11 +95,11 @@ layout), **warning** = violates the current standard's token discipline,
 | `overflow` | Text clipped without an intentional ellipsis, or an element extending horizontally beyond the viewport | Ellipsis (`text-overflow: ellipsis`) and line-clamp exempt; children of a scrolling container exempt; vertical growth beyond the fold is normal page scrolling and not flagged |
 | `border-density` (hint) | Bordered elements per 10k px² above the all-view P90 | Cross-view metric evaluated over the default-locale dark states |
 
-### Proposed rules (ZCode-inspired, not yet VUA standard)
+### Nesting rules (adopted 2026-10-25)
 
-Advisory only (`hint` severity); adopting them is a design-standard change for
-the author to rule on. They are reported separately so the current standard and
-the suggestions never blur together.
+Adapted from ZCode's design system and adopted into the [design standard](design-standard.md)
+by the author on 2026-10-25; they are current rules with `warning` severity.
+`border-density` stays an advisory `hint`.
 
 | ID | Meaning | Exceptions |
 | --- | --- | --- |

@@ -78,6 +78,22 @@ textarea {
   color: inherit;
 }
 
+/* Browser defaults moved onto the 4 px grid and the two weights; components set their own
+ * values on top (design audit, 2026-10-25). */
+button {
+  padding-inline: var(--vua-space-2);
+}
+
+p {
+  margin-block: var(--vua-space-3);
+}
+
+strong,
+b,
+th {
+  font-weight: var(--vua-weight-strong);
+}
+
 :focus-visible {
   outline: 2px solid var(--vua-border-focus);
   outline-offset: 2px;

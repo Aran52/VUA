@@ -5,7 +5,7 @@
 .vua-ai-request__header h3 { margin: 0; }
 .vua-ai-request__controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .vua-ai-review { overflow-wrap: anywhere; }
-.vua-ai-review pre { max-height: 220px; overflow: auto; font-size: 13px; white-space: pre-wrap; }
+.vua-ai-review pre { max-height: 220px; overflow: auto; font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading); white-space: pre-wrap; }
 .vua-ai-review li { margin-block: 8px; }
 .vua-ai-review summary { cursor: pointer; }
 .vua-ai-review h4 { margin: 12px 0 4px; }

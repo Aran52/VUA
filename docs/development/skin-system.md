@@ -1,10 +1,10 @@
 # Skin system
 
-> Updated: 2026-10-17
+> Updated: 2026-10-25
 > Status: architecture approved by the author on 2026-10-17; slice 13 settles the native skins
 
 A skin changes how VUA looks and moves without changing what it does. VUA ships the current
-purple style as its default skin and the author's two briefs (天使界隈 Tenshi, 地雷系 Jirai) as native skins;
+purple style as its default skin, **Grid**, and the author's two briefs (天使界隈 Tenshi, 地雷系 Jirai) as native skins;
 the same format can later admit community skins. The [current plan](current-plan.md) schedules
 the skin work as slice 13; this document fixes the architecture now so the screens built before
 then are ready for it. The [design standard](../design/design-standard.md) keeps the
@@ -16,7 +16,7 @@ community-skin direction.
 | --- | --- | --- |
 | Color | surfaces, text, borders, the two module accents, the four room colors, status colors, per dark and light | CSS custom properties (`--vua-*`) |
 | Type | font families (bundled WOFF2 with its license), the type scale | `--vua-font-*` shorthands, used with `font:`; the default families follow a skin's fonts for any glyph they lack, so all four UI languages render |
-| Shape | corner style (cut, round, scalloped, lace edge), radii, border weights | shape tokens; clip-path and mask presets chosen by name |
+| Shape | one corner style and size per role group (actions, fields, indicators, containers, overlays), border weights, named special shapes | shape tokens; clip-path and mask presets chosen by name; see [controls and motion](../design/controls-and-motion.md) |
 | Motion | durations, easing, camera flight time, ambient motion strength | `--vua-motion-*` tokens and the scene engine |
 | Effects | glow, gradients, surface textures, background pattern | existing `--vua-glow-*`, `--vua-aurora-*`, `--vua-shine` plus a pattern slot |
 | Motifs | decorative images in named slots: page corners, room plates, empty states, dialog headers, the base-map frame | `data-skin-slot` elements that render a skin's image or nothing |
@@ -24,7 +24,7 @@ community-skin direction.
 | Factory scenes | the base map's room interiors: backdrops, props, characters, particles | a scene pack: sprites plus a declarative layer description (below) |
 | Sound | reserved for later | — |
 
-A skin never changes text, layout order, controls, focus behavior or what a screen shows. High
+A skin never changes text, layout order, controls, control sizes, focus behavior or what a screen shows. High
 contrast and Windows forced colors override every skin, and resource-saving mode stills every
 skin's motion, so the accessibility gates hold for all skins.
 
@@ -85,7 +85,7 @@ frame. A pack that fails validation falls back to the default scene for that roo
 
 | Skin | Color | Shape and motifs | Motion |
 | --- | --- | --- | --- |
-| **Default** | the current purple and orange | cut corners, grid canvas | current |
+| **Grid** (default) | the current purple and orange | a cut top-right corner on every control and container, thin strokes, grid canvas | crisp; press is a 1 px inset shift |
 | **天使界隈 (Tenshi)** | sky blue and white | flat, rounded pill shapes; wings, halos, bandages, pills | light, bouncy |
 | **地雷系 (Jirai)** | pink and black | lace edges, bows, leather textures, energy drinks; dimensional | slower, softer |
 

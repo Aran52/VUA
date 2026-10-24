@@ -36,7 +36,8 @@
 
 .vua-media-slot__note {
   color: var(--vua-text-secondary);
-  font-size: 13px;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
 }
 
 /* 自动重试模式的等待指示(auto retry):转圈,仅消费 Token 色。

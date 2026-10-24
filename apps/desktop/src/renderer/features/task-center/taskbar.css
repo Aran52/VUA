@@ -203,11 +203,11 @@
 .vua-taskbar__transfer { display: flex; justify-content: space-between; gap: var(--vua-space-2); flex-wrap: wrap; color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }
 .vua-taskbar__download-progress {
   appearance: none; display: block; border: 0; width: 100%; height: 5px;
-  margin: var(--vua-space-1) 0; border-radius: 3px; overflow: hidden;
+  margin: var(--vua-space-1) 0; border-radius: var(--vua-radius-sm); overflow: hidden;
   background: var(--vua-border); accent-color: var(--vua-accent);
 }
-.vua-taskbar__download-progress::-webkit-progress-bar { background: var(--vua-border); border-radius: 3px; }
-.vua-taskbar__download-progress::-webkit-progress-value { background: var(--vua-accent); border-radius: 3px; }
+.vua-taskbar__download-progress::-webkit-progress-bar { background: var(--vua-border); border-radius: var(--vua-radius-sm); }
+.vua-taskbar__download-progress::-webkit-progress-value { background: var(--vua-accent); border-radius: var(--vua-radius-sm); }
 .vua-taskbar__download-progress:indeterminate { background: repeating-linear-gradient(120deg, var(--vua-border) 0 12px, color-mix(in srgb, var(--vua-accent) 35%, var(--vua-border)) 12px 24px); }
 .vua-taskbar__download-progress:indeterminate::-webkit-progress-bar { background: repeating-linear-gradient(120deg, var(--vua-border) 0 12px, color-mix(in srgb, var(--vua-accent) 35%, var(--vua-border)) 12px 24px); }
 @media (max-width: 420px) {

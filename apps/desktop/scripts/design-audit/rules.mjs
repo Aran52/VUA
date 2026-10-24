@@ -20,8 +20,8 @@ export const RULES = {
   "one-accent": { severity: "warning", category: "current", attribution: null },
   "target-size": { severity: "error", category: "current", attribution: "size" },
   "overflow": { severity: "error", category: "current", attribution: null },
-  "radius-nesting": { severity: "hint", category: "proposed", attribution: null },
-  "surface-nesting": { severity: "hint", category: "proposed", attribution: null },
+  "radius-nesting": { severity: "warning", category: "current", attribution: null },
+  "surface-nesting": { severity: "warning", category: "current", attribution: null },
   "border-density": { severity: "hint", category: "proposed", attribution: null },
 };
 

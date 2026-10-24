@@ -126,7 +126,7 @@ export function collectAuditSnapshot(options) {
   }
 
   const radiusTokens = {};
-  for (const name of ["--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay"]) {
+  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay"]) {
     const raw = (tokenRaw[name] || "").trim();
     const value = parseFloat(raw);
     if (Number.isFinite(value)) radiusTokens[name] = value;

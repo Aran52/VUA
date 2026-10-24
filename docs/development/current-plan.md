@@ -115,7 +115,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts turntable-share, share-link-service and product-pictures |
 | 50 | AI connection as a first-run choice | — | planned |
 | 51 | Recipes creators trust | P-04 | planned: prompts recipe-booth-materials (Aran52/VUA#65), terms-everywhere, turntable-share, share-link-service; B by Claude |
-| 52 | Signed Windows releases | — | SignPath application submitted on 2026-10-24; awaits approval |
+| 52 | Signed Windows releases | — | on hold (author, 2026-10-25): SignPath Foundation declined on 2026-10-24 for low public visibility; releases stay unsigned for now |
 | 53 | Consistent interface by audit | — | item 1 prompted (`design-audit`); items 2–3 follow its report |
 
 Suggested next order: with the workshop's operations in place (2026-10-24), the author's
@@ -993,6 +993,13 @@ computer changes with this slice.
 
 **Done when** a published installer shows VUA's signer in Windows' file properties and installs
 from a fresh download.
+
+On hold since 2026-10-25. The SignPath Foundation declined the application on 2026-10-24: its
+program requires public signals such as stars, articles and contributors, and invites a new
+application once VUA has them. Options for later: a Certum open-source certificate (the signer
+shows the author's name; signing on the publishing computer), an OV certificate in the name of a
+company the author can use, or Azure Trusted Signing if that company's country is eligible.
+Website (DV) certificates cannot sign programs.
 
 ## 53 — Consistent interface by audit
 

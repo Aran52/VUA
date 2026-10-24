@@ -243,9 +243,10 @@ test("theme-invariant classification covers the layout rules only", () => {
 });
 
 test("capture failures: vite error overlay and near-empty pages are unusable", () => {
-  assert.match(classifyCapture({ errorOverlay: true, elementCount: 3 }, 20), /vite error overlay/);
-  assert.match(classifyCapture({ errorOverlay: false, elementCount: 3 }, 20), /floor 20/);
-  assert.equal(classifyCapture({ errorOverlay: false, elementCount: 28 }, 20), null);
+  assert.match(classifyCapture({ errorOverlay: true, elementCount: 3 }, 6), /vite error overlay/);
+  assert.match(classifyCapture({ errorOverlay: false, elementCount: 3 }, 6), /floor 6/);
+  assert.equal(classifyCapture({ errorOverlay: false, elementCount: 10 }, 6), null, "sparsest real view passes");
+  assert.equal(classifyCapture({ errorOverlay: false, elementCount: 28 }, 6), null);
 });
 
 test("theme-invariant findings aggregate once: the light state drops layout rules", () => {

@@ -16,6 +16,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildInfo } from "./build-info.mjs";
 
 import {
   FIXTURES, VIEWS, OVERFLOW_LOCALES, DEFAULT_LOCALE, THEMES,
@@ -55,7 +56,8 @@ const BASELINE_PATH = path.join(scriptDir, "design-audit", "baseline.json");
 // page with ~3 elements) is a capture failure; a full run below the total floor
 // means the results are unusable. Filtered runs skip the total floor unless the
 // floor is passed explicitly.
-const PER_STATE_ELEMENT_FLOOR = Number(argValue("per-state-elements", "20"));
+// Vite debris pages collect ~3 elements; the sparsest real view collects 10.
+const PER_STATE_ELEMENT_FLOOR = Number(argValue("per-state-elements", "6"));
 const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER);
 const TOTAL_ELEMENT_FLOOR = Number(argValue("min-total-elements", PARTIAL_PLAN ? "0" : "30000"));
 
@@ -139,6 +141,8 @@ async function main() {
     // force like the smoke scripts: a cold cache must finish optimizing before
     // the first page load, or Vite reloads mid-navigation (ERR_ABORTED).
     optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] },
+    // Views that read the build info crash at module init without it.
+    define: { __VUA_BUILD_INFO__: JSON.stringify(buildInfo) },
   });
 
   // The middleware must know which locale/theme the runner is about to load.
@@ -155,6 +159,7 @@ async function main() {
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
 
   let window = null;
+  let recentConsoleErrors = [];
   function ensureWindow() {
     if (!window || window.isDestroyed()) {
       // Hidden (not offscreen) like the smoke harnesses: some dialog focus
@@ -164,7 +169,11 @@ async function main() {
         webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false },
       });
       window.webContents.on("console-message", event => {
-        if (event.level === "error") console.error(`[console] ${event.message?.slice(0, 240)}`);
+        if (event.level === "error") {
+          console.error(`[console] ${event.message?.slice(0, 240)}`);
+          recentConsoleErrors.push(String(event.message ?? "").slice(0, 200));
+          if (recentConsoleErrors.length > 5) recentConsoleErrors.shift();
+        }
       });
       // One debugger session per window (attach is synchronous): attribution
       // (CDP) and the media emulation the fixtures assert against share it.
@@ -226,6 +235,7 @@ async function main() {
     win.setBounds({ width: size.width, height: size.height });
 
     const load = async theme => {
+      recentConsoleErrors = [];
       shellParams = { locale, theme };
       const url = viewUrl(view, theme);
       // A Vite re-optimization reloads the page mid-navigation and aborts the
@@ -269,10 +279,12 @@ async function main() {
 
       // A Vite error overlay or a near-empty page means the view did not
       // render; record a capture failure instead of auditing the debris.
-      const captureFailure = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR);
-      if (captureFailure) {
-        collectionFailures.push({ view: view.id, locale, theme, reason: captureFailure });
-        console.error(`[capture-fail] ${view.id} ${locale}/${theme}: ${captureFailure}`);
+      const baseReason = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR);
+      if (baseReason) {
+        const lastError = recentConsoleErrors.at(-1);
+        const reason = lastError ? `${baseReason}; last console error: ${lastError}` : baseReason;
+        collectionFailures.push({ view: view.id, locale, theme, reason });
+        console.error(`[capture-fail] ${view.id} ${locale}/${theme}: ${reason}`);
         continue;
       }
 

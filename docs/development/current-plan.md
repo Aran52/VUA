@@ -1018,6 +1018,9 @@ inconsistency, more than any single page, is what reads as unrefined.
 2. Claude tightens the tokens and adds page anatomy and composed components (card variants, list
    row, section header, key-value row, stat tile, toolbar), deciding the proposal rules with the
    author from the first report's data.
+   PR #67 delivered the first token pass and approved control direction. The
+   [Grid normalization plan](grid-theme-normalization.md) orders audit calibration, the remaining
+   shared-control migration and correction of verified findings (author request, 2026-10-25).
 3. Agents migrate one functional area per pull request onto those components; each pull request
    lowers the area's findings and shows its before-and-after contact sheet, and CI then refuses
    findings beyond the baseline.

@@ -186,6 +186,10 @@ wrapper is not a text sample. Shared split actions declare `data-vua-primary-gro
 command and menu half count once. `data-vua-control-role="indicator"` declares a status control,
 such as the library's local/linked corner; its hit area stays checked while its semantic colour
 does not declare a second brand or primary action. These are component roles, not selector skips.
+Overflow clipping follows the positioned element's containing-block chain, as specified by
+[CSS overflow](https://drafts.csswg.org/css2/#overflow-clipping). Fixed and absolute overlays can
+escape unrelated overflow ancestors; transforms and paint/layout containment restore the
+containing-block boundary. Synthetic cases retain both escaping overlays and truly clipped text.
 
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art

@@ -110,6 +110,10 @@ input { width:16px; height:16px; padding:0; margin:0; }
 <span id="icon-line" style="line-height:0"><svg width="16" height="16"></svg></span>
 <button id="status-control" data-vua-control-role="indicator">status</button>
 <div data-vua-primary-group=""><button id="split-main">main</button><button id="split-menu">menu</button></div>
+<div style="width:100px;height:24px;overflow:hidden"><span id="fixed-escape" style="position:fixed;left:500px;top:100px;width:100px;height:20px">fixed overlay</span></div>
+<div style="position:relative;transform:translateX(0);width:100px;height:24px;overflow:hidden"><span id="fixed-trapped" style="position:fixed;left:80px;top:0;width:200px;height:20px;white-space:nowrap">truly clipped fixed text</span></div>
+<div style="position:relative;width:250px;height:24px"><div style="width:40px;height:24px;overflow:hidden"><span id="absolute-escape" style="position:absolute;left:100px;top:0;width:100px;height:20px">absolute overlay</span></div></div>
+<div style="visibility:hidden"><span id="visibility-override" style="visibility:visible">a visibly restored child</span></div>
 <div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
 <div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
 </body></html>`;
@@ -203,6 +207,11 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   assert.equal(element("status-control").indicatorRole, true);
   assert.equal(element("split-main").primaryGroup, element("split-menu").primaryGroup);
   assert.ok(element("split-main").primaryGroup);
+  assert.equal(Math.round(element("fixed-escape").paintedRect.w), 100, "fixed content escapes an unrelated overflow ancestor");
+  assert.equal(flagged("overflow", "fixed-escape"), false);
+  assert.equal(flagged("overflow", "fixed-trapped"), true, "a transformed containing block still clips fixed content");
+  assert.equal(Math.round(element("absolute-escape").paintedRect.w), 100, "absolute content follows its containing block");
+  assert.ok(element("visibility-override"), "inherited visibility may be explicitly restored");
   assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
   assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");
   assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");

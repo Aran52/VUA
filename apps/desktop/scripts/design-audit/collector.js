@@ -24,9 +24,10 @@ export function collectAuditSnapshot(options) {
   // to the overflow rule, and content below the fold still needs its style audit.
   function paintedRect(element, rectangle) {
     let left = rectangle.left, right = rectangle.right, top = rectangle.top, bottom = rectangle.bottom;
+    let escapingPosition = null;
     for (let node = element; node; node = node.parentElement) {
       const style = styleOf(node);
-      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+      if (style.display === "none" || (node === element && style.visibility !== "visible") || Number(style.opacity) === 0) return null;
       if (node !== element && style.contentVisibility === "hidden") return null;
       if (node !== element && node.tagName === "DETAILS" && !node.open) {
         const summary = [...node.children].find(child => child.tagName === "SUMMARY");
@@ -41,13 +42,21 @@ export function collectAuditSnapshot(options) {
       }
       const legacyClip = style.clip.match(/^rect\(([^)]*)\)$/)?.[1].split(/[\s,]+/).map(parseFloat);
       if (legacyClip && /^(absolute|fixed)$/.test(style.position) && (legacyClip[1] <= legacyClip[3] || legacyClip[2] <= legacyClip[0])) return null;
-      if (node === element) continue;
+      const establishesFixedBlock = style.transform !== "none" || style.perspective !== "none"
+        || style.filter !== "none" || style.backdropFilter !== "none"
+        || /(?:layout|paint|strict|content)/.test(style.contain)
+        || style.contentVisibility === "auto" || /(?:transform|perspective|filter)/.test(style.willChange);
+      if (node !== element && escapingPosition && (establishesFixedBlock || (escapingPosition === "absolute" && style.position !== "static"))) escapingPosition = null;
       const clipX = /^(hidden|clip)$/.test(style.overflowX);
       const clipY = /^(hidden|clip)$/.test(style.overflowY);
-      if (!clipX && !clipY) continue;
-      const clip = node.getBoundingClientRect();
-      if (clipX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
-      if (clipY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+      if (node !== element && !escapingPosition && (clipX || clipY)) {
+        const clip = node.getBoundingClientRect();
+        if (clipX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+        if (clipY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+      }
+      // Overflow between a positioned descendant and its containing block does
+      // not clip it. Visibility and zero-opacity ancestors still apply above.
+      if (style.position === "fixed" || style.position === "absolute") escapingPosition = style.position;
     }
     return right > left && bottom > top ? { x: left, y: top, w: right - left, h: bottom - top } : null;
   }

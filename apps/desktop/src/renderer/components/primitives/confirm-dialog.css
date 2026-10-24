@@ -26,7 +26,7 @@
 
 /* Only a dangerous confirmation colors its title; the rest read like any heading. */
 .vua-confirm-dialog__title {
-  font-weight: 700;
+  font-weight: var(--vua-weight-strong);
   color: var(--vua-text-strong);
 }
 
@@ -42,8 +42,8 @@
   border: none;
   background: transparent;
   color: var(--vua-text-secondary);
-  font-size: 1.25rem;
-  line-height: 1;
+  font-size: var(--vua-text-title-size);
+  line-height: var(--vua-text-title-leading);
   cursor: pointer;
 }
 

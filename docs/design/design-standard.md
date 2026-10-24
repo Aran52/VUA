@@ -1,7 +1,7 @@
 # VUA design standard
 
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation
-> Updated: 2026-10-12
+> Updated: 2026-10-25
 
 ## 0. Position of this version
 
@@ -288,15 +288,29 @@ colors.
 ```
 
 Caption `400 12px/16px`; Body `400 14px/20px`; Title `600 20px/28px`; Display `600 28px/36px`.
+These four steps are the whole scale, and weights are 400 and 600 only (author ruling,
+2026-10-25): a rule that sets a size uses the `--vua-text-<step>-size` and `-leading` pair, and
+emphasis uses `--vua-weight-strong`. The desktop and VR overlays and the game guide scale their
+text relative to the player's overlay text setting and keep `em` sizes inside that frame.
 Structured data uses `ui-monospace, "Cascadia Mono", Consolas, monospace`; versions and counts use
 tabular numerals.
 
 - Grid: 4 / 8 / 12 / 16 / 24 / 32 px.
 - Compact controls: 28–32 px; comfortable: 36–40 px; primary pointer interior at least 32×32 px, with
   WCAG's 24×24 px only as the floor.
-- Pill radius for primary buttons/status chips; inputs/menus 6 px; cards 10 px; dialogs 12 px.
-- Default 1 px borders; no shadow on ordinary panels/cards; subtle shadow only for elevated surfaces.
-- Blur is limited to top/side/task/elevated structure, never card walls, tables, or long lists.
+- Radii step down with nesting (author ruling, 2026-10-25, adapted from ZCode's design system):
+  dialogs and overlays use `xl` (12 px); the first rounded container on a page uses `lg` (10 px);
+  a rounded container inside it `md` (6 px); inside that `sm` (4 px), the smallest. Controls use
+  `md`, or `sm` inside an `md` container. Pills and circles are deliberate shapes for primary
+  buttons, status chips and avatars. Layout wrappers without their own surface do not count as
+  a level.
+- Bordered or filled surfaces nest at most two levels; deeper structure uses spacing and type
+  instead of another box.
+- Cards are solid (author ruling, 2026-10-25): an opaque panel colour and a 1 px border, without
+  blur, glow or shadow. Default 1 px borders; subtle shadow only for elevated surfaces.
+- Blur is limited to top/side/task/elevated structure and to labels floating over scene art,
+  never card walls, tables, or long lists.
+- The [design audit](design-audit.md) checks these rules on every preview view.
 
 ## 5. Component standard
 

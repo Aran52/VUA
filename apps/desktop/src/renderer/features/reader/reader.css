@@ -17,7 +17,8 @@
   background: var(--vua-bg-canvas);
   color: var(--vua-text-strong);
   font-family: var(--vua-font-family);
-  font-size: 15px;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
 }
 
 .vua-reader__body {

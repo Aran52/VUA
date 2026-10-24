@@ -10,6 +10,7 @@ export const TYPE_SCALE = [
 
 // --vua-radius-* values that are ordinary lengths (pill/badge are 999px capsules).
 export const RADIUS_TOKENS = [
+  { value: 4, name: "--vua-radius-sm" },
   { value: 6, name: "--vua-radius-control" },
   { value: 10, name: "--vua-radius-card" },
   { value: 12, name: "--vua-radius-overlay" },

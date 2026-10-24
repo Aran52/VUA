@@ -1,74 +1,27 @@
-/* 玻璃卡片 2.0:半透明面板 + 背景模糊 + 顶部内高光 + conic 渐变发丝描边(::before),
- * 透出画布/WebGL 场景氛围;forced-colors 由 UA 抹除 ::before 背景并强制系统色边框,
- * 手动 HC([data-hc="on"])由底部守卫关闭装饰描边 */
+/* Solid card (author ruling, 2026-10-25): an opaque panel with a 1 px border, no blur, glow or
+ * shadow, so pages read calm and the jurisdiction colour stays for actions and selection.
+ * The first rounded container on a page uses the lg radius; containers inside it step down. */
 
 .vua-card {
   position: relative;
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid color-mix(in srgb, var(--vua-border) 60%, transparent);
-  border-radius: var(--vua-radius-card);
+  background: var(--vua-bg-panel);
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-lg);
   padding: var(--vua-space-4);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--vua-text-strong) 5%, transparent);
-  transition:
-    transform 120ms ease,
-    border-color 120ms ease,
-    box-shadow 120ms ease;
+  transition: border-color var(--vua-motion-fast) ease;
 }
 
-/* 渐变发丝描边:1px 环形区域(双 mask 合成),对角两缕辖区色;hover 提不透明度 */
-.vua-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from 140deg,
-    color-mix(in srgb, var(--vua-accent) 45%, transparent),
-    transparent 30%,
-    transparent 70%,
-    color-mix(in srgb, var(--vua-accent) 45%, transparent)
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.5;
-  pointer-events: none;
-  transition: opacity 150ms ease;
-}
-
+/* Elevated cards sit above the page like an overlay and keep the elevated shadow. */
 .vua-card--elevated {
-  background: color-mix(in srgb, var(--vua-bg-elevated) 88%, transparent);
+  background: var(--vua-bg-elevated);
   border-color: transparent;
   box-shadow: var(--vua-shadow-elevated);
 }
 
-/* 卡片 hover:上浮 + 边框泛当前模块辖区色 + 辖区色柔光(HC 下 glow 置 none) */
 .vua-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--vua-accent);
-  box-shadow: var(--vua-glow-accent-soft);
-}
-
-.vua-card:hover::before {
-  opacity: 1;
+  border-color: var(--vua-border-strong);
 }
 
 .vua-card--elevated:hover {
-  box-shadow: var(--vua-glow-accent-soft);
-}
-
-[data-hc="on"] .vua-card::before {
-  display: none;
-}
-
-@media (forced-colors: active) {
-  .vua-card {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
+  border-color: transparent;
 }

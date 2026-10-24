@@ -105,7 +105,7 @@
 
 .vua-usage-panel__bar {
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--vua-radius-sm);
   background: color-mix(in srgb, var(--vua-text-strong) 10%, transparent);
   overflow: hidden;
 }

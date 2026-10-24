@@ -25,7 +25,7 @@
   gap: var(--vua-space-3, 12px);
   padding: var(--vua-space-2, 8px) var(--vua-space-3, 12px);
   border: 1px solid var(--vua-accent, #ff8c42);
-  border-radius: 8px;
+  border-radius: var(--vua-radius-md);
   background: var(--vua-bg-panel, #1c1c22);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 1001;
@@ -42,7 +42,7 @@
 
 .vua-login-browser__toast-cancel {
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
   background: transparent;
   color: inherit;
   padding: 2px 10px;

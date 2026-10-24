@@ -32,15 +32,15 @@
 }
 
 .vua-folder-picker__title {
-  font-weight: 700;
+  font-weight: var(--vua-weight-strong);
 }
 
 .vua-folder-picker__close {
   border: none;
   background: transparent;
   color: var(--vua-text-secondary);
-  font-size: 1.25rem;
-  line-height: 1;
+  font-size: var(--vua-text-title-size);
+  line-height: var(--vua-text-title-leading);
   cursor: pointer;
 }
 

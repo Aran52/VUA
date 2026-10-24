@@ -27,7 +27,7 @@
   left: 4px;
   width: calc((100% - 8px) / 3);
   border: 1px solid var(--vua-accent);
-  border-radius: calc(var(--vua-radius-control) - 2px);
+  border-radius: var(--vua-radius-sm);
   background: var(--vua-accent-tint);
   pointer-events: none;
   transition: transform 220ms ease;
@@ -38,7 +38,7 @@
   min-height: var(--vua-control-height);
   padding: 8px;
   border: 0;
-  border-radius: calc(var(--vua-radius-control) - 2px);
+  border-radius: var(--vua-radius-sm);
   background: transparent;
   color: var(--vua-text-secondary);
   font: var(--vua-font-body);
@@ -237,7 +237,7 @@
 .vua-vrchat__thumb {
   width: 44px;
   height: 44px;
-  border-radius: calc(var(--vua-radius-control) - 2px);
+  border-radius: var(--vua-radius-sm);
   object-fit: cover;
 }
 

@@ -96,9 +96,11 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
   const push = finding => { if (active.has(finding.rule)) findings.push(finding); };
   const tokens = snapshot.palette ?? [];
   const familiesSeen = { purple: [], orange: [] };
+  const indicators = (snapshot.elements ?? []).filter(el => el.selfSurface && !el.hasText && el.rect.h <= 8);
 
   for (const [index, el] of (snapshot.elements ?? []).entries()) {
-    if (active.has("type-scale")) {
+    const typographyRelevant = el.hasText || el.isTextField || el.tag === "select" || el.tag === "textarea";
+    if (active.has("type-scale") && typographyRelevant) {
       if (el.fontSize > 0) {
         const ok = TYPE_SCALE.some(t => t.size === el.fontSize && (t.lineHeight === el.lineHeight || el.nativeLineHeight));
         if (!ok) {
@@ -111,7 +113,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         }
       }
     }
-    if (active.has("type-weight")) {
+    if (active.has("type-weight") && typographyRelevant) {
       if (el.fontSize > 0 && el.fontWeight !== 400 && el.fontWeight !== 600) {
         push(makeFinding("type-weight", el, index, { fontWeight: el.fontWeight },
           `font weight ${el.fontWeight} is not 400 or 600`, "font-weight"));
@@ -208,7 +210,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       }
     }
     if (active.has("one-accent")) {
-      if (el.isControl && !el.disabled && el.family && el.backgroundColor && el.backgroundColor.a >= 0.95) {
+      if (el.isControl && !el.indicatorRole && !el.disabled && el.family && el.backgroundColor && el.backgroundColor.a >= 0.95) {
         familiesSeen[el.family]?.push(index);
       }
     }
@@ -218,7 +220,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         if (w < THRESHOLDS.targetFloor || h < THRESHOLDS.targetFloor) {
           push(makeFinding("target-size", el, index, { w, h, floor: THRESHOLDS.targetFloor },
             `interactive target ${w}x${h} is below the 24x24 floor`, "size"));
-        } else if (el.primary && (w < THRESHOLDS.primaryFloor || h < THRESHOLDS.primaryFloor)) {
+        } else if (el.primary && !el.isChoice && !el.indicatorRole && (w < THRESHOLDS.primaryFloor || h < THRESHOLDS.primaryFloor)) {
           push(makeFinding("target-size", el, index, { w, h, floor: THRESHOLDS.primaryFloor, primary: true },
             `primary action ${w}x${h} is below the 32x32 interior`, "size"));
         }
@@ -261,9 +263,11 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       // Report only the over-deep surface itself — text and icons inside one
       // would repeat the same finding once per element. SVG frames are not
       // surfaces.
-      if (el.tag !== "svg" && el.selfSurface && el.surfaceDepth >= 3) {
-        push(makeFinding("surface-nesting", el, index, { surfaceDepth: el.surfaceDepth },
-          `${el.surfaceDepth} nested bordered/filled surfaces`, null));
+      const indicatorDepth = indicators.filter(marker => marker.path.length <= el.path.length && marker.path.every((part, i) => el.path[i] === part)).length;
+      const surfaceDepth = el.surfaceDepth - indicatorDepth;
+      if (el.tag !== "svg" && el.selfSurface && !indicators.includes(el) && surfaceDepth >= 3) {
+        push(makeFinding("surface-nesting", el, index, { surfaceDepth },
+          `${surfaceDepth} nested bordered/filled surfaces`, null));
       }
     }
   }
@@ -282,10 +286,14 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         message: `two jurisdiction accent families (${families.join(", ")}) in one view`, property: null,
       });
     }
-    const primariesByScope = Object.groupBy((snapshot.elements ?? [])
-      .map((el, i) => ({ el, i }))
-      .filter(({ el }) => el.primary && !el.disabled)
-      .map(({ el, i }) => ({ index: i, path: el.path, cls: el.cls, text: el.text, scope: el.actionScope ?? "page" })), primary => primary.scope);
+    const commands = new Map();
+    for (const [index, el] of (snapshot.elements ?? []).entries()) {
+      if (!el.primary || el.isChoice || el.indicatorRole || el.disabled) continue;
+      const scope = el.actionScope ?? "page";
+      const key = `${scope}|${el.primaryGroup ?? `element-${index}`}`;
+      if (!commands.has(key)) commands.set(key, { index, path: el.path, cls: el.cls, text: el.text, scope });
+    }
+    const primariesByScope = Object.groupBy([...commands.values()], primary => primary.scope);
     for (const primaries of Object.values(primariesByScope).filter(items => items.length > 1)) {
       findings.push({
         rule: "one-accent", severity: severityOf("one-accent"), category: categoryOf("one-accent"),

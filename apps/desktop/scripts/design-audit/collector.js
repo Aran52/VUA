@@ -342,10 +342,14 @@ export function collectAuditSnapshot(options) {
     const eff = effectiveBackground(el);
     const interactive = Boolean(el.closest(interactiveControlSelector));
     const isControl = el.matches(interactiveControlSelector);
+    const isChoice = el.matches('select, input[type="checkbox"], input[type="radio"], [aria-pressed], [aria-selected], [role="tab"], [role="switch"], [role="radio"], [role="checkbox"], [role="option"]');
+    const isTextField = el.matches('textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])');
+    const indicatorRole = el.getAttribute("data-vua-control-role") === "indicator";
+    const primaryGroup = el.closest("[data-vua-primary-group]");
     const disabled = el.disabled === true || el.getAttribute("aria-disabled") === "true"
       || Boolean(el.closest('[aria-disabled="true"], [inert]'));
     const actionOwner = el.closest('[role="dialog"], [role="alertdialog"]');
-    const primary = isControl && !disabled && backgroundColor && backgroundColor.a >= 0.95
+    const primary = isControl && !indicatorRole && !disabled && backgroundColor && backgroundColor.a >= 0.95
       && (rgbDistance(backgroundColor, accentModuleScope || { r: -1, g: -1, b: -1 }) <= 12
         || rgbDistance(backgroundColor, accentRootScope || { r: -1, g: -1, b: -1 }) <= 12);
 
@@ -439,7 +443,9 @@ export function collectAuditSnapshot(options) {
       display: cs.display, position: cs.position, zIndex: parseInt(cs.zIndex, 10) || 0,
       opacity: parseFloat(cs.opacity),
       inlineStyle: Boolean(el.getAttribute("style")),
-      interactive, isControl, disabled, primary,
+      interactive, isControl, isChoice, isTextField, indicatorRole, disabled, primary,
+      primaryGroup: primaryGroup ? elementPath(primaryGroup).join(".") : null,
+      role: el.getAttribute("role"),
       actionScope: actionOwner ? elementPath(actionOwner).join(".") : "page",
       family: familyOf(backgroundColor) || familyOf(color),
       overlayContext: isOverlayContext(el),

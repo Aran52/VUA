@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
 import { finishThemeTransitions } from "./design-audit/settle.js";
+import { captureAuditPage } from "./design-audit/capture.mjs";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
 import { evaluateSnapshot, classifyCapture } from "./design-audit/rules.mjs";
 
@@ -105,6 +106,10 @@ input { width:16px; height:16px; padding:0; margin:0; }
 <div style="content-visibility:hidden"><button id="content-hidden-control">hidden content</button></div>
 <div id="mixed" style="background:color-mix(in srgb, white 20%, black);color:#888">dim text on a mixed surface</div>
 <div id="local-token" class="local">a locally scoped token</div>
+<input id="text-field" type="text" style="font:400 13px/18px sans-serif">
+<span id="icon-line" style="line-height:0"><svg width="16" height="16"></svg></span>
+<button id="status-control" data-vua-control-role="indicator">status</button>
+<div data-vua-primary-group=""><button id="split-main">main</button><button id="split-menu">menu</button></div>
 <div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
 <div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
 </body></html>`;
@@ -166,9 +171,7 @@ test("annotation overlay draws and removes cleanly", async win => {
     `${applyAnnotations.toString()};applyAnnotations(${JSON.stringify(items)}, { view: "e2e", theme: "dark", locale: "zh-CN" })`, true);
   assert.equal(drawn, items.length);
   assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('[data-vua-audit-overlay]').length"), 1);
-  win.webContents.invalidate();
-  await win.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))", true);
-  const pixels = (await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true })).toBitmap();
+  const pixels = (await captureAuditPage(win, true)).toBitmap();
   let legendPixels = 0;
   for (let offset = 0; offset < pixels.length; offset += 4) {
     if (pixels[offset] >= 40 && pixels[offset] <= 50 && pixels[offset + 1] >= 40 && pixels[offset + 1] <= 50 && pixels[offset + 2] >= 250) legendPixels += 1;
@@ -194,6 +197,12 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   assert.ok(Math.abs(element("mixed").backgroundColor.r - 51) < 0.1);
   assert.ok(snapshot.palette.some(entry => entry.name === "--vua-local-surface" && Math.abs(entry.color.r - 153) < 0.1), "local tokens resolve in their feature scope");
   assert.equal(flagged("type-scale", "native-select"), false, "native select leading is controlled by Chromium");
+  assert.equal(element("native-select").isChoice, true);
+  assert.equal(flagged("type-scale", "icon-line"), false);
+  assert.equal(flagged("type-scale", "text-field"), true, "empty text fields still retain their type check");
+  assert.equal(element("status-control").indicatorRole, true);
+  assert.equal(element("split-main").primaryGroup, element("split-menu").primaryGroup);
+  assert.ok(element("split-main").primaryGroup);
   assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
   assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");
   assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");

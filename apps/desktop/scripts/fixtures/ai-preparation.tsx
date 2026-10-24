@@ -13,6 +13,7 @@ import { strings } from "../../src/renderer/i18n/index.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/features/deployer/deployer.css";
+import "../../src/renderer/features/home/home.css";
 let snapshot: AiToolsSnapshotV01 = { schemaVersion: "0.1", enabled: false, endpoint: null, connections: 0, requests: [], error: null };
 let copied = false, checks = 0, plans = 0, installs = 0, sopReads = 0, approved = false;
 const listeners = new Set<(value: AiToolsSnapshotV01) => void>();
@@ -45,7 +46,13 @@ createRoot(document.getElementById("root")!).render(<Fixture/>);
 const wait=()=>new Promise<void>(resolve=>setTimeout(resolve,30));
 async function until(predicate:()=>boolean){for(let i=0;i<120;i++){if(predicate())return;await wait();}throw Error("UI state timeout");}
 const button=(text:string)=>[...document.querySelectorAll<HTMLButtonElement>("button")].find(b=>b.textContent?.trim()===text);
-Object.assign(window,{agentUiReview:{async run(){ const passed:string[]=[]; const assert=(value:unknown,name:string)=>{if(!value)throw Error(name);passed.push(name);};
+Object.assign(window,{agentUiReview:{
+  async previewPreparation() {
+    document.getElementById("to-preparation")!.click();
+    await until(() => !!button(strings.scenarioEnvironment.check));
+    for (const id of ["to-preparation", "to-license"]) document.getElementById(id)!.hidden = true;
+  },
+  async run(){ const passed:string[]=[]; const assert=(value:unknown,name:string)=>{if(!value)throw Error(name);passed.push(name);};
   await until(()=>!!button(strings.aiTools.title));button(strings.aiTools.title)!.click();await until(()=>!!button(strings.aiTools.enable));
   assert(!document.querySelector("textarea"),"No pairing token is shown before enabling");
   button(strings.aiTools.enable)!.click();await until(()=>!!document.querySelector("textarea"));

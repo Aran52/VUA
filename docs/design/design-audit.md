@@ -176,6 +176,16 @@ Computed `color(srgb ...)` / `color(srgb-linear ...)` values participate in cont
 checks, including CSS `color-mix` backgrounds. Scoped feature tokens resolve at their declaring
 elements. Jurisdiction mixing concerns filled actions; the approved room/graph/status roles
 retain their semantic colours.
+Non-text surfaces at the status-light/progress scale (at most 8 px high) are indicators rather
+than container layers; their other applicable checks remain active. Synthetic capture tests
+use the runner's same repaint/retry path and still require the annotation legend in the pixels.
+Selection controls (native choices and ARIA pressed/selected/switch/tab roles) retain the
+general hit-area floor and do not compete as primary commands merely because they use accent fill.
+Typography checks apply to rendered text and native text fields; an icon's zero-height line-box
+wrapper is not a text sample. Shared split actions declare `data-vua-primary-group`, so their
+command and menu half count once. `data-vua-control-role="indicator"` declares a status control,
+such as the library's local/linked corner; its hit area stays checked while its semantic colour
+does not declare a second brand or primary action. These are component roles, not selector skips.
 
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art

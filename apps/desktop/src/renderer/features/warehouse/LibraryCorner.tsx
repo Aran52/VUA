@@ -11,7 +11,7 @@ export function LibraryCorner({ state, onAction, busy = false }: { state: Librar
   const action = onAction !== undefined && state !== "searching" && !busy;
   const hoveredIcon = state === "cloud" || state === "error" ? "download" : state === "local" ? "refresh" : state === "downloading" ? "pause" : state === "paused" ? "anim" : icons[state];
   return <>
-    <button type="button" className="vua-library-corner" data-corner-state={state} data-action={action || undefined}
+    <button type="button" className="vua-library-corner" data-vua-control-role="indicator" data-corner-state={state} data-action={action || undefined}
       aria-label={copy[state]} aria-describedby={anchor === null ? undefined : id} aria-disabled={!action}
       onMouseEnter={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left + 12, top: rect.top + 58 }); }}
       onMouseLeave={() => setAnchor(null)} onFocus={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left + 12, top: rect.top + 58 }); }} onBlur={() => setAnchor(null)}

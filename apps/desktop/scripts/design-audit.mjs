@@ -24,6 +24,7 @@ import {
 } from "./design-audit/views.mjs";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
 import { finishThemeTransitions } from "./design-audit/settle.js";
+import { captureAuditPage } from "./design-audit/capture.mjs";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
 import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES, THEME_INVARIANT_RULES, isThemeInvariant, classifyCapture } from "./design-audit/rules.mjs";
 import { Attributor } from "./design-audit/attributor.mjs";
@@ -357,26 +358,7 @@ async function main() {
   }
 
   async function writeCapture(win, file, annotated = false) {
-    win.webContents.invalidate();
-    await withTimeout(win.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))", true), 5000, "screenshot paint timed out");
-    let image = await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true });
-    if (image.isEmpty()) throw new Error("The screenshot is empty.");
-    if (annotated) {
-      const hasLegendStroke = capture => {
-        const pixels = capture.toBitmap();
-        let count = 0;
-        for (let offset = 0; offset < pixels.length; offset += 4) {
-          if (pixels[offset] >= 40 && pixels[offset] <= 50 && pixels[offset + 1] >= 40 && pixels[offset + 1] <= 50 && pixels[offset + 2] >= 250 && pixels[offset + 3] >= 250 && ++count >= 20) return true;
-        }
-        return false;
-      };
-      if (!hasLegendStroke(image)) {
-        win.webContents.invalidate();
-        await sleep(200);
-        image = await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true });
-      }
-      if (!hasLegendStroke(image)) throw new Error("The annotation legend was not painted in the screenshot.");
-    }
+    const image = await captureAuditPage(win, annotated);
     await writeFile(file, image.toPNG());
   }
 

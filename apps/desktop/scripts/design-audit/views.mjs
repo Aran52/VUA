@@ -226,7 +226,7 @@ export const VIEWS = [
   { id: "resource-monitor", fixture: "resource-monitor", area: "resource-monitor",
     steps: ["await window.resourceMonitorSmoke.base()", "document.querySelector('[data-nav-id=\"system-resources\"]').click()"], settleMs: 600 },
   { id: "task-window", fixture: "task-window", area: "task-window" },
-  { id: "ai-preparation", fixture: "ai-preparation", area: "ai-preparation" },
+  { id: "ai-preparation", fixture: "ai-preparation", area: "ai-preparation", steps: ["await window.agentUiReview.previewPreparation()"] },
 ];
 
 export const AREAS = [...new Set(VIEWS.map(v => v.area))].sort();

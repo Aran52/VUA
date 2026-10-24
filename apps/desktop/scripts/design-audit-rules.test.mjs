@@ -74,6 +74,14 @@ test("type-scale flags 'normal' line height", () => {
   assert.equal(findings.filter(f => f.rule === "type-scale").length, 1);
 });
 
+test("type rules check painted text and fields rather than icon line-box scaffolding", () => {
+  const findings = evaluateSnapshot(snapshot([
+    el({ hasText: false, fontSize: 13, lineHeight: 0, fontWeight: 700 }),
+    el({ hasText: false, isTextField: true, fontSize: 13, lineHeight: 18, fontWeight: 700 }),
+  ]), { rules: ["type-scale", "type-weight"] });
+  assert.deepEqual(findings.map(finding => finding.index), [1, 1]);
+});
+
 test("native select line boxes retain platform leading while token sizes still apply", () => {
   const findings = evaluateSnapshot(snapshot([
     el({ tag: "select", fontSize: 12, lineHeight: "normal", nativeLineHeight: true }),
@@ -195,6 +203,10 @@ test("one primary is allowed in each action scope and inert controls never compe
   assert.equal(check([inPage, inDialog]).length, 0);
   assert.equal(check([inPage, { ...inPage }]).length, 1);
   assert.equal(check([inPage, { ...inPage, disabled: true }]).length, 0);
+  assert.equal(check([inPage, { ...inPage, isChoice: true }]).length, 0, "selected choices are not primary commands");
+  assert.equal(check([inPage, { ...inPage, indicatorRole: true }]).length, 0, "status colours do not declare a primary command");
+  assert.equal(check([{ ...inPage, primaryGroup: "split" }, { ...inPage, primaryGroup: "split" }]).length, 0, "a split action is one primary group");
+  assert.equal(evaluateSnapshot(snapshot([el({ primary: true, isControl: true, isChoice: true, rect: { x: 0, y: 0, w: 28, h: 28 } })]), { rules: ["target-size"] }).length, 0);
 });
 
 test("one-accent is exemptable per view (factory map)", () => {
@@ -260,6 +272,11 @@ test("surface-nesting reports only self-surfaces, once each; svg and inner text 
   // A shallow self-surface passes.
   const shallow = evaluateSnapshot(snapshot([el({ selfSurface: true, surfaceDepth: 2 })]));
   assert.equal(shallow.filter(f => f.rule === "surface-nesting").length, 0);
+  const progress = evaluateSnapshot(snapshot([
+    el({ path: [1, 0], selfSurface: true, surfaceDepth: 3, hasText: false, rect: { x: 0, y: 0, w: 80, h: 6 } }),
+    el({ path: [1, 1], selfSurface: true, surfaceDepth: 3 }),
+  ]));
+  assert.equal(progress.filter(f => f.rule === "surface-nesting").length, 1, "thin progress indicators do not become container layers");
 });
 
 test("theme-invariant classification covers the layout rules only", () => {

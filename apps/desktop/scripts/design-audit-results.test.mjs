@@ -8,6 +8,19 @@ import { groupFindings, writeBaseline, checkAgainstBaseline } from "./design-aud
 import { buildSummary, buildOverviewHtml } from "./design-audit/report.mjs";
 import vm from "node:vm";
 import { FIXTURES, OVERFLOW_LOCALES, DEFAULT_LOCALE } from "./design-audit/views.mjs";
+import { captureAuditPage } from "./design-audit/capture.mjs";
+
+test("annotation capture retries stale paint but rejects a persistently missing legend", async () => {
+  const pixels = Uint8Array.from({ length: 80 }, (_, i) => [45, 45, 255, 255][i % 4]);
+  const stale = { isEmpty: () => false, toBitmap: () => new Uint8Array(80) };
+  const painted = { isEmpty: () => false, toBitmap: () => pixels };
+  let captures = 0;
+  const win = { webContents: { invalidate() {}, executeJavaScript: async () => {}, capturePage: async () => ++captures === 1 ? stale : painted } };
+  assert.equal(await captureAuditPage(win, true, 0), painted);
+  assert.equal(captures, 2);
+  win.webContents.capturePage = async () => stale;
+  await assert.rejects(captureAuditPage(win, true, 0), /legend/);
+});
 
 test("every fixture shell selects the requested locale before its module loads", () => {
   for (const [name, fixture] of Object.entries(FIXTURES)) {

@@ -22,16 +22,20 @@ Tool: `pnpm audit:design` at commit `c4ea50d5`. Full machine output lives in the
   - Overlay windows (desktop overlay task window is covered; VR overlay, game guide, tutorial companion, reader window) — separate windows not mounted by any fixture.
   - Command palette and Ctrl+P surfaces — no fixture (first-run-settings opens and closes it mid-run).
 
-Four fixture states fail on this machine (2026-10-24): `library-bulk`, `dependency-clues`,
-`deployment-check` and `import-dialog`. Each fails inside its fixture's `run()` assertion chain,
-and the upstream smoke scripts (`smoke-library-bulk`, `smoke-import-dialog`, `smoke-deployment`)
-fail with the same errors when run directly on this machine, so these are environment-sensitive
-interaction assertions rather than audit-harness bugs (the same states pass in CI); whether CI
-captures them is recorded in the CI results note below. `first-run-settings` flaked in earlier
-runs and captures in this one. One view is a genuine capture failure: `release-queued` crashes
-with `Uncaught TypeError: Cannot read properties of undefined (reading 'length')` under its
-queued-run fixture — `preview-factory` crashes identically — which is a pre-existing view bug
-the audit surfaces (fixing it belongs to a release-room slice, not to this review tool).
+`release-queued` is a genuine capture failure in every environment: it crashes with
+`Uncaught TypeError: Cannot read properties of undefined (reading 'length')` under its
+queued-run fixture — `preview-factory` crashes identically — a pre-existing view bug the audit
+surfaces (fixing it belongs to a release-room slice, not to this review tool).
+
+Four fixture states fail on this machine and on CI alike (run 40094805803, commit `ff0ca6d1`):
+`library-bulk`, `dependency-clues`, `deployment-check` and `import-dialog` each fail inside
+their fixture `run()` assertion chains with the same errors in both environments, so their
+assertions are timing-fragile rather than machine-specific; no CI smoke covers them
+(`ts.yml` runs `smoke:library-maintenance` and `smoke:first-run-ui`, but none of these four).
+`first-run-settings` flaked in earlier runs and captures in this one. CI results for this run:
+560 states, 75,020 elements (local: 564 states, 75,798 — same magnitude), the same single
+capture-failed view, and the audit job correctly red. Screenshots, annotated screenshots and
+per-view JSON for the CI run are the `design-audit-40094805803` artifact of that run.
 
 ## Capture failures
 

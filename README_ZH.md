@@ -64,6 +64,21 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - [v0.7.0 发行说明](docs/release/v0.7.0_ZH.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
 
+## 里程碑
+日期为 GitHub 记录的发布和拉取请求时间。
+
+| 日期 | 里程碑 |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0)：首次从桌面应用经 Rust 编排器到真实 Unity 2022.3 工程，完成 Avatar 加一件衣装的装配 |
+| 2026-10-01 | [按目标部署游玩环境](https://github.com/VUA-Project/VUA/pull/60)，含按地区选择 Unity 下载源 |
+| 2026-10-08 | [BOOTH 素材库同步、选择性下载和本地文件管理](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)：首个公开测试版，AMF 作为内置模块 |
+| 2026-10-12 | [NSIS 安装包和 AMF 独立更新](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [素材优先的 Avatar 制作、Recipe 和本地 MCP 连接](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [发布室：60 帧转台图和托管上传](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 条款解析和按用途检查](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：首个带 Avatar 制作路径的版本 |
+
 ## 许可证
 
 VUA 采用 [Apache-2.0](LICENSE)。外部软件保留各自许可证，包括 [VRCFaceTracking（Apache-2.0）](https://github.com/benaclejames/VRCFaceTracking/blob/master/LICENSE) 和 [Space Calibrator（MIT 主体及单独授权的第三方组件）](https://github.com/hyblocker/OpenVR-SpaceCalibrator/blob/develop/LICENSE)。首批计划支持的全部外部连接、上游归属及未来再分发条件见[第三方声明](THIRD_PARTY_NOTICES.md)。

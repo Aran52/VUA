@@ -166,6 +166,10 @@ The runner saves full collected geometry/style snapshots in `snapshots/` for lat
 re-evaluation. Inert background actions do not compete with the active modal; each dialog or
 confirmation owns its primary-action scope. Zero-blur inset bars and concentric rings are
 selection/focus/binding edges. Offset cast shadows remain subject to the ordinary-panel rule.
+Fully clipped assistive labels have no visible paint. Native selects keep Chromium's platform
+line box when it reports `normal`; their text size and weight are still checked. Before
+collection, colour transitions finish at the requested theme; camera and activity motion remain
+available for their dedicated captured states.
 
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art

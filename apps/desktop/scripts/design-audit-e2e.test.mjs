@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
+import { finishThemeTransitions } from "./design-audit/settle.js";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
 import { evaluateSnapshot, classifyCapture } from "./design-audit/rules.mjs";
 
@@ -97,6 +98,8 @@ input { width:16px; height:16px; padding:0; margin:0; }
 <input id="unlabelled" type="checkbox" aria-label="tiny independent control">
 <div inert><button id="inert-control" style="width:16px;height:16px;padding:0">inactive background action</button></div>
 <div role="dialog"><button id="scoped-control">dialog action</button></div>
+<span id="assistive" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">assistive label</span>
+<select id="native-select" style="font:400 12px/16px sans-serif"><option>native choice</option></select>
 <div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
 <div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
 </body></html>`;
@@ -178,6 +181,8 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   const findings = evaluateSnapshot(snapshot);
   const flagged = (rule, id) => findings.some(f => f.rule === rule && f.index === snapshot.elements.indexOf(element(id)));
   assert.equal(element("hidden-control"), undefined, "opacity-zero ancestors are not painted controls");
+  assert.equal(element("assistive"), undefined, "fully clipped assistive labels have no paint");
+  assert.equal(flagged("type-scale", "native-select"), false, "native select leading is controlled by Chromium");
   assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
   assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");
   assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");
@@ -193,6 +198,25 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   assert.equal(flagged("spacing-grid", "fixed"), true);
   assert.equal(element("choice").selfSurface, false, "an action is not another nested container");
   await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
+});
+
+test("settling theme colours preserves camera and activity motion", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/calibration`);
+  await win.webContents.executeJavaScript(`(async () => {
+    document.body.style.transition = 'color 60s linear';
+    getComputedStyle(document.body).color;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    document.body.style.color = 'black';
+    getComputedStyle(document.body).color;
+    window.camera = document.getElementById('scene').animate([{transform:'translateX(0)'}, {transform:'translateX(100px)'}], {duration:60000});
+    window.camera.pause(); window.camera.currentTime = 30000;
+    window.activity = document.getElementById('bleed').animate([{opacity:1}, {opacity:.5}], {duration:1000, iterations:Infinity});
+  })()`, true);
+  await win.webContents.executeJavaScript(`${finishThemeTransitions.toString()};finishThemeTransitions()`, true);
+  const state = await win.webContents.executeJavaScript(`({colour:getComputedStyle(document.body).color, camera:window.camera.currentTime, activity:window.activity.playState})`, true);
+  assert.equal(state.colour, "rgb(0, 0, 0)");
+  assert.equal(state.camera, 30000);
+  assert.equal(state.activity, "running");
 });
 
 test("vite error overlay marks the snapshot as a capture failure", async win => {

@@ -23,6 +23,7 @@ import {
   FIXTURES, VIEWS, OVERFLOW_LOCALES, DEFAULT_LOCALE, THEMES,
 } from "./design-audit/views.mjs";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
+import { finishThemeTransitions } from "./design-audit/settle.js";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
 import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES, THEME_INVARIANT_RULES, isThemeInvariant, classifyCapture } from "./design-audit/rules.mjs";
 import { Attributor } from "./design-audit/attributor.mjs";
@@ -277,6 +278,7 @@ async function main() {
         await setTheme(fixture, win, theme);
       }
       await settle(win, 400);
+      await win.webContents.executeJavaScript(`${finishThemeTransitions.toString()};finishThemeTransitions()`, true);
 
       const rules = state.rules ?? undefined;
       const collectorOptions = { proposed: !rules, overflowChecks: true };

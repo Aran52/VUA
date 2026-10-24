@@ -74,6 +74,15 @@ test("type-scale flags 'normal' line height", () => {
   assert.equal(findings.filter(f => f.rule === "type-scale").length, 1);
 });
 
+test("native select line boxes retain platform leading while token sizes still apply", () => {
+  const findings = evaluateSnapshot(snapshot([
+    el({ tag: "select", fontSize: 12, lineHeight: "normal", nativeLineHeight: true }),
+    el({ tag: "select", fontSize: 13, lineHeight: "normal", nativeLineHeight: true }),
+    el({ tag: "select", fontSize: 12, lineHeight: "normal", nativeLineHeight: false }),
+  ]), { rules: ["type-scale"] });
+  assert.deepEqual(findings.map(finding => finding.index), [1, 2]);
+});
+
 test("type-weight flags weights outside 400/600", () => {
   const findings = evaluateSnapshot(snapshot([el({ fontWeight: 500 }), el({ fontWeight: 600 }), el({ fontWeight: 400 })]));
   assert.equal(findings.filter(f => f.rule === "type-weight").length, 1);

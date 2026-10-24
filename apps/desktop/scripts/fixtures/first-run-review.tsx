@@ -1,7 +1,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { scenarioRequiredComponents, type DeploymentPurpose, type DesktopShellCommandV1, type VuaDesktopApiV2 } from "@vua/contracts";
 import { App } from "../../src/renderer/App.tsx";
-import { strings } from "../../src/renderer/i18n/index.ts";
+import { currentLocale, format, strings } from "../../src/renderer/i18n/index.ts";
 import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
 import { TOUR_STEPS } from "../../src/renderer/features/tour/tour-model.ts";
 import "@vua/design-system/tokens.css";
@@ -93,7 +93,7 @@ window.vua = {
 
 async function mount(mode: typeof scenario = "installed", legacyMode = "desktop") {
   root?.unmount(); localStorage.clear(); location.hash = ""; scenario = mode; playUnavailable = false; installationRunning = false; websiteCalls = 0; borrowedSteam = true; playStates.desktop_play = "idle"; playStates.pico_pcvr = "idle"; playCalls.length = 0;
-  localStorage.setItem(storageKeys.locale, "en");
+  localStorage.setItem(storageKeys.locale, currentLocale);
   localStorage.setItem(storageKeys.retiredDisplayMode, legacyMode);
   localStorage.setItem(storageKeys.tourProgress, JSON.stringify({ v: 1, status: "skipped", step: 0 }));
   if (mode === "restored") {
@@ -237,7 +237,7 @@ const review = {
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop"]')!.click(); await wait(() => document.querySelector('[data-route-stage="prepare"]'));
     check("left half opens details without launching software", playCalls.length === 0 && document.querySelector(".vua-environment-software"));
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click(); await wait(() => card().dataset.action === "stop");
-    check("pending start offers scoped close rather than a second start", card().querySelector(".vua-environment-card__action")!.getAttribute("aria-label")?.includes("Close this session"));
+    check("pending start offers scoped close rather than a second start", card().querySelector(".vua-environment-card__action")!.getAttribute("aria-label") === format(strings.environmentCards.stop, { name: card().querySelector(".vua-environment-card__details strong")!.textContent ?? "" }));
     await wait(() => card().textContent?.includes(strings.environmentCards.close));
     check("observed running software identifies pre-existing Steam as retained", document.querySelector(".vua-environment-software")!.textContent?.includes(strings.environmentCards.borrowed));
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click(); await wait(() => card().dataset.action === "start", "close returns the card to start");

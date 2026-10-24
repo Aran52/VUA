@@ -100,7 +100,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
   for (const [index, el] of (snapshot.elements ?? []).entries()) {
     if (active.has("type-scale")) {
       if (el.fontSize > 0) {
-        const ok = TYPE_SCALE.some(t => t.size === el.fontSize && t.lineHeight === el.lineHeight);
+        const ok = TYPE_SCALE.some(t => t.size === el.fontSize && (t.lineHeight === el.lineHeight || el.nativeLineHeight));
         if (!ok) {
           const nearest = nearestTypeScale(el.fontSize);
           push(makeFinding("type-scale", el, index, {

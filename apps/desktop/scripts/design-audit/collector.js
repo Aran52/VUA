@@ -27,6 +27,15 @@ export function collectAuditSnapshot(options) {
     for (let node = element; node; node = node.parentElement) {
       const style = styleOf(node);
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+      // Assistive labels clipped to no painted area are still available to
+      // accessibility APIs, but they are not visibly truncated text.
+      const inset = style.clipPath.match(/^inset\(([^)]*)\)$/)?.[1].split(/\s+round\s+/)[0].trim().split(/\s+/);
+      if (inset && inset.every(value => /^\d+(?:\.\d+)?%$/.test(value))) {
+        const [top, right = top, bottom = top, left = right] = inset.map(parseFloat);
+        if (top + bottom >= 100 || left + right >= 100) return null;
+      }
+      const legacyClip = style.clip.match(/^rect\(([^)]*)\)$/)?.[1].split(/[\s,]+/).map(parseFloat);
+      if (legacyClip && /^(absolute|fixed)$/.test(style.position) && (legacyClip[1] <= legacyClip[3] || legacyClip[2] <= legacyClip[0])) return null;
       if (node === element) continue;
       const clipX = /^(hidden|clip)$/.test(style.overflowX);
       const clipY = /^(hidden|clip)$/.test(style.overflowY);
@@ -375,6 +384,7 @@ export function collectAuditSnapshot(options) {
       textLength: text.length,
       fontSize: parseFloat(cs.fontSize) || 0,
       lineHeight: cs.lineHeight === "normal" ? "normal" : parseFloat(cs.lineHeight) || 0,
+      nativeLineHeight: tag === "select" && cs.appearance !== "none" && cs.lineHeight === "normal",
       fontWeight: parseInt(cs.fontWeight, 10) || 0,
       color,
       backgroundColor,

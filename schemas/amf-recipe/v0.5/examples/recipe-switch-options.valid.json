@@ -1,0 +1,72 @@
+{
+  "formatVersion": "0.5",
+  "recipeId": "recipe-fits",
+  "title": "Two-piece Avatar with a saved fit",
+  "editorVersion": "2022.3.22f1c1",
+  "materials": [
+    {
+      "id": "material-1",
+      "packageName": "Avatar.unitypackage",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "boothProductId": "1000001"
+    },
+    {
+      "id": "material-2",
+      "packageName": "Coat.unitypackage",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "boothProductId": "1000001"
+    }
+  ],
+  "avatar": {
+    "materialId": "material-1",
+    "prefabPath": "Assets/Avatar.prefab",
+    "prefabGuid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "outfits": [
+    {
+      "materialId": "material-2",
+      "prefabPath": "Assets/Coat.prefab",
+      "mode": "merge_armature",
+      "bone": "",
+      "toggleName": "Coat",
+      "active": true,
+      "prefabGuid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "saved": false,
+      "group": "wardrobe"
+    }
+  ],
+  "packages": {
+    "com.vrchat.avatars": "3.10.5",
+    "nadena.dev.modular-avatar": "1.18.7"
+  },
+  "adjustments": {
+    "lighting": [],
+    "sdkFixes": [],
+    "fits": [
+      {
+        "materialId": "material-2",
+        "objects": [
+          {
+            "path": "HairClip",
+            "localPosition": {
+              "x": 0.12,
+              "y": 0.03,
+              "z": 0
+            },
+            "localRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "localScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

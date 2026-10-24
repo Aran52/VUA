@@ -3,7 +3,8 @@ use vua_orchestrator::amf_recipe::ProductionRecipe;
 
 #[test]
 fn candidate_recipe_vectors_are_closed_portable_declarations() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-recipe/v0.4");
+    for version in ["v0.4","v0.5"] {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-recipe").join(version);
     let schema = serde_json::from_slice(&fs::read(root.join("recipe.schema.json")).unwrap()).unwrap();
     let validator = jsonschema::validator_for(&schema).unwrap();
     for entry in fs::read_dir(root.join("examples")).unwrap() {
@@ -13,6 +14,7 @@ fn candidate_recipe_vectors_are_closed_portable_declarations() {
         assert_eq!(validator.is_valid(&value), expected, "{}", path.display());
         let valid = serde_json::from_value::<ProductionRecipe>(value).is_ok_and(|recipe| recipe.validate().is_ok());
         assert_eq!(valid, expected, "{}", path.display());
+    }
     }
 }
 
@@ -30,7 +32,8 @@ fn recipe_cannot_redirect_a_relationship_or_hide_a_duplicate_input() {
 #[test]
 fn share_schema_codec_and_rust_agree_on_closed_payloads() {
     use vua_orchestrator::amf_recipe_share::SharedRecipe;
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-recipe/v0.4");
+    for version in ["v0.4","v0.5"] {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-recipe").join(version);
     let schema = serde_json::from_slice(&fs::read(root.join("share.schema.json")).unwrap()).unwrap();
     let validator = jsonschema::validator_for(&schema).unwrap();
     for entry in fs::read_dir(root.join("share-examples")).unwrap() {
@@ -45,4 +48,5 @@ fn share_schema_codec_and_rust_agree_on_closed_payloads() {
     shared.sources.remove(&shared.recipe.materials[0].id); assert!(shared.validate().is_err());
     assert!(SharedRecipe::decode(&"x".repeat(350000)).is_err());
     assert!(SharedRecipe::decode("vuar0.2.aaaa").is_err());
+    }
 }

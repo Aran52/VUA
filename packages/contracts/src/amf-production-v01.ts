@@ -1,3 +1,4 @@
+import { isAmfMaterialChoices, type AmfMaterialChoices } from "./amf-recipe-materials.js";
 /** Candidate AMF material-first production. Frozen legacy production faces are separate. */
 import { isTexturePlatform, isTextureTargetRank, isTexturePath } from "./texture-memory-v01.js";
 import type { TexturePlatform, TextureTargetRank } from "./texture-memory-v01.js";
@@ -51,8 +52,8 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.faceTrackingPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string } }
   | { readonly method: "amf.production.faceTrackingPatch"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string; readonly planDigest: string; readonly confirmTrustedCode: true } }
   | { readonly method: "amf.production.setCapacity"; readonly params: { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity } }
-  | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string } }
-  | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string } }
+  | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string; readonly materialChoices?: AmfMaterialChoices } }
+  | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string; readonly materialChoices?: AmfMaterialChoices; readonly recipeDifferencesConfirmed?: true } }
   | { readonly method: "amf.production.previewRecipeShare" | "amf.production.importRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly text: string } }
   | { readonly method: "amf.production.exportRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly planDigest: string; readonly sources: Readonly<Record<string,string>> } }
   | { readonly method: "amf.production.list"; readonly params: { readonly schemaVersion: "0.1" } }
@@ -70,7 +71,8 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.changeSources"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sources: readonly AmfSourceChoice[] } }
   /** Deletes a line with its work project and release record. */
   | { readonly method: "amf.production.delete"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
-  | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
+  | { readonly method: "amf.production.recipeMaterialPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly materialChoices?: AmfMaterialChoices } }
+  | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string; readonly materialChoices?: AmfMaterialChoices } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   /** Reviews the lilToon brightness alignment of an assembled line. */
   | { readonly method: "amf.production.planLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
@@ -86,7 +88,7 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.deleteFit"; readonly params: { readonly schemaVersion: "0.1"; readonly fitId: string } }
   | { readonly method: "amf.production.prepare"; readonly params: { readonly schemaVersion: "0.1"; readonly sources: readonly AmfSourceChoice[]; readonly editorPath: string } }
   | { readonly method: "amf.production.plan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly selection: AmfAssemblySelection } }
-  | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection } };
+  | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection; readonly recipeDifferencesConfirmed?: true } };
 export interface AmfEditorCloseResult {
   readonly schemaVersion: "0.1"; readonly runId: string; readonly closeId: string;
   readonly outcome: "saved" | "failed"; readonly scenesSaved: boolean; readonly assetsSaved: boolean;
@@ -207,14 +209,16 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
   switch (method) {
     case "amf.production.setCapacity": return exact(value, ["schemaVersion", "capacity"]) && isAmfProductionCapacity(value.capacity);
     case "amf.production.recipeApplyPlan": case "amf.production.applyRecipe":
-      return exact(value, [...(method === "amf.production.recipeApplyPlan" ? ["schemaVersion","runId","recipeId"] : ["schemaVersion","runId","recipeId","planDigest","choice"]), ...("avatarGlobalObjectId" in value ? ["avatarGlobalObjectId"] : [])])
+      return exact(value, [...(method === "amf.production.recipeApplyPlan" ? ["schemaVersion","runId","recipeId"] : ["schemaVersion","runId","recipeId","planDigest","choice"]), ...("avatarGlobalObjectId" in value ? ["avatarGlobalObjectId"] : []),...("materialChoices" in value ? ["materialChoices"] : []),...(method === "amf.production.applyRecipe" && "recipeDifferencesConfirmed" in value ? ["recipeDifferencesConfirmed"] : [])])
         && (!("avatarGlobalObjectId" in value) || text(value.avatarGlobalObjectId,256))
         && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId)
+        && (value.materialChoices === undefined || isAmfMaterialChoices(value.materialChoices))
+        && (value.recipeDifferencesConfirmed === undefined || value.recipeDifferencesConfirmed === true)
         && (method === "amf.production.recipeApplyPlan" || (typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest) && ["recipe_wins","avatar_wins","new_avatar"].includes(String(value.choice))));
     case "amf.production.previewRecipeShare": case "amf.production.importRecipe": return exact(value,["schemaVersion","text"]) && text(value.text,349557);
     case "amf.production.exportRecipe": return exact(value,["schemaVersion","recipeId","planDigest","sources"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId)
       && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest) && record(value.sources) && Object.keys(value.sources).length <= 64
-      && Object.entries(value.sources).every(([id,booth]) => /^m-[a-f0-9]{64}$/u.test(id) && typeof booth === "string" && /^[1-9][0-9]{0,19}$/u.test(booth));
+      && Object.entries(value.sources).every(([id,booth]) => /^[a-zA-Z0-9_-]{1,100}$/u.test(id) && typeof booth === "string" && /^[1-9][0-9]{0,19}$/u.test(booth));
     case "amf.production.list": case "amf.production.listRecipes": return exact(value, ["schemaVersion"]);
     case "amf.production.getRecipe": case "amf.production.recipeSharePlan": return exact(value, ["schemaVersion", "recipeId"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId);
     case "amf.production.saveRecipe": return exact(value, ["schemaVersion", "runId", "title"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
@@ -243,7 +247,7 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && value.sources.every(source => record(source) && exact(source, ["sourceId", "role"]) && text(source.sourceId, 256) && typeof source.role === "string" && roles.includes(source.role))
         && new Set(value.sources.map((source: AmfSourceChoice) => source.sourceId)).size === value.sources.length;
     case "amf.production.delete": return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
-    case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
+    case "amf.production.recipeMaterialPlan": case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId",...(method === "amf.production.prepareRecipe" ? ["editorPath"] : []),...("materialChoices" in value ? ["materialChoices"] : [])]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && (method === "amf.production.recipeMaterialPlan" || text(value.editorPath)) && (value.materialChoices === undefined || isAmfMaterialChoices(value.materialChoices));
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan": case "amf.production.planLighting":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
     case "amf.production.planTextureMemory":
@@ -284,8 +288,9 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && value.sources.every(source => record(source) && exact(source, ["sourceId", "role"]) && text(source.sourceId, 256) && typeof source.role === "string" && roles.includes(source.role))
         && new Set(value.sources.map((source: AmfSourceChoice) => source.sourceId)).size === value.sources.length;
     case "amf.production.plan": case "amf.production.assemble":
-      return exact(value, method === "amf.production.plan" ? ["schemaVersion", "runId", "selection"] : ["schemaVersion", "runId", "selection", "planDigest"])
+      return exact(value, method === "amf.production.plan" ? ["schemaVersion", "runId", "selection"] : ["schemaVersion", "runId", "selection", "planDigest",...("recipeDifferencesConfirmed" in value ? ["recipeDifferencesConfirmed"] : [])])
         && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId) && isAmfAssemblySelection(value.selection)
+        && (value.recipeDifferencesConfirmed === undefined || value.recipeDifferencesConfirmed === true)
         && (method === "amf.production.plan" || (typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)));
     default: return false;
   }

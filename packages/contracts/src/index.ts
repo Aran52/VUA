@@ -1,7 +1,7 @@
 export * from "./application-contract.js";
 export * from "./amf-production-v01.js";
 export * from "./amf-recommendation.js";
-export * from "./amf-recipe-v04.js";
+export * from "./amf-recipe-v05.js";
 export * from "./catalog-sync.js";
 export * from "./catalog-sync-v03.js";
 export * from "./library-download-v01.js";
@@ -38,3 +38,5 @@ export * from "./parameter-budget-v01.js";
 export * from "./texture-memory-v01.js";
 
 export * from "./outfit-removal-v01.js";
+
+export * from "./amf-recipe-materials.js";

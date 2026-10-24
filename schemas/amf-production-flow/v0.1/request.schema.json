@@ -385,6 +385,9 @@
             "planDigest": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
+            },
+            "recipeDifferencesConfirmed": {
+              "const": true
             }
           }
         }
@@ -760,6 +763,19 @@
               "minLength": 1,
               "maxLength": 4096,
               "pattern": "^[^\\u0000]+$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
             }
           }
         }
@@ -951,7 +967,7 @@
               "type": "object",
               "maxProperties": 64,
               "propertyNames": {
-                "pattern": "^m-[a-f0-9]{64}$"
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
               },
               "additionalProperties": {
                 "type": "string",
@@ -1002,6 +1018,19 @@
               "minLength": 1,
               "maxLength": 256,
               "pattern": "^[^\\u0000]+$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
             }
           }
         }
@@ -1060,6 +1089,22 @@
               "minLength": 1,
               "maxLength": 256,
               "pattern": "^[^\\u0000]+$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
+            },
+            "recipeDifferencesConfirmed": {
+              "const": true
             }
           }
         }
@@ -1940,6 +1985,53 @@
             },
             "confirmed": {
               "const": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.recipeMaterialPlan"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "recipeId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "recipeId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
             }
           }
         }

@@ -191,7 +191,7 @@ mod tests {
     fn candidate(name: &str, path: &str, avatar: bool, evidence: Option<ParameterBudget>) -> PrefabCandidate {
         PrefabCandidate { source_id: if avatar { "avatar" } else { "outfit" }.into(), path: path.into(),
             name: name.into(), is_avatar: avatar, has_skinned_mesh: true, has_merge_armature: false,
-            has_missing_scripts: false, humanoid_bones: vec![], preview: None, parameter_budget: evidence }
+            has_missing_scripts: false, humanoid_bones: vec![], preview: None, parameter_budget: evidence, prefab_guid:None, object_paths:None }
     }
     fn run(prefabs: Vec<PrefabCandidate>) -> ProductionRun {
         ProductionRun { run_id: "n3-test".into(), prefabs, ..serde_json::from_value(serde_json::json!({

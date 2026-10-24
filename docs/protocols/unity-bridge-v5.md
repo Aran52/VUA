@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.20.0
+> Document version: 0.21.0
 > Status: Candidate
-> Updated: 2026-10-24
+> Updated: 2026-10-25
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -312,6 +312,21 @@ and prefab correspondence, conservatively warning about added components of unkn
 Identity resolution uses [GlobalObjectId](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/GlobalObjectId.GlobalObjectIdentifierToObjectSlow.html),
 never object names. API references checked 2026-10-23.
 
+## Recipe inspection evidence
+
+Each inspected prefab additionally reports optional `prefabGuid`, the exact lowercase 32-digit
+result of `AssetDatabase.AssetPathToGUID(path)`, and optional `objectPaths`, up to 2048 distinct
+fit-compatible paths of its current Transform hierarchy, including the empty root path. Each path
+is at most 512 characters. The result's optional `data.materialPaths` lists up to 4096 distinct
+loadable `.mat` asset paths from the requested sources, in ordinal order. Older receipts may omit
+these fields. Present fields are validated at the native and renderer boundaries.
+
+AMF uses these observations to map [Recipe v0.5](amf-recipe-v0.5.md) prefabs by GUID, exact path or
+unique identical filename, and to list missing prefab/fit/material targets before assembly.
+Inventories stay bounded; unreported paths count as missing for review. Reporting a match does
+not confirm or execute a Recipe difference. No asset content or local hierarchy inventory is
+copied into a shared Recipe beyond its existing declared fit transforms.
+
 ## Texture memory observations and importer changes
 
 `data.textureMemory` is an optional additive observation field. When an active owned Avatar is
@@ -385,6 +400,8 @@ independent switch). A grouped item with a value below 1 or a parameter outside 
 not verify.
 
 ## Document changelog
+
+- 0.21.0 (2026-10-25): report optional prefab GUIDs and bounded prefab-object/material path inventories for reviewed Recipe v0.5 reproduction, retaining switch options in plans and observations.
 
 - 0.20.0 (2026-10-24): plan outfits carry optional `saved` and `group`; grouped switches share `VUA/Group/<group>` with values 1..n, and inspection reports both in `observedSelection`.
 

@@ -10,6 +10,35 @@ const run = {schemaVersion:"0.1",runId:"n3-test",phase:"succeeded",taskId:"task-
   result:{facts:{sdkDescriptorRecognized:true,missingReferences:0,avatarName:"Avatar",instances:[{sourceId:"coat",bindingVerified:true,menuVerified:true,menuModified:true}]}}};
 
 describe("AMF production response boundary", () => {
+  it("reads complete Recipe material plans and carries explicit package choices", async () => {
+    const row={materialId:"material-2",packageName:"Coat.unitypackage",boothProductId:"1001",status:"material_not_downloaded",resolved:null,candidates:[],downloadNames:["Coat.zip"]};
+    let response: unknown={schemaVersion:"0.1",plan:{recipeId:"recipe-test",materials:[row],materialChoices:{},ready:false,planDigest:"a".repeat(64)}};
+    const requests: unknown[]=[];
+    const client={invoke:async(request:unknown)=>{requests.push(request);return {ok:true,value:response};},subscribe:()=>()=>{}} as unknown as GatewayClient;
+    const port=createAmfProductionPort(client);
+    await expect(port.recipeMaterialPlan("recipe-test")).resolves.toMatchObject({ready:false,materials:[row]});
+    response={schemaVersion:"0.1",plan:{recipeId:"recipe-test",materials:[{...row,boothProductId:"bad"}],materialChoices:{},ready:false,planDigest:"a".repeat(64)}};
+    await expect(port.recipeMaterialPlan("recipe-test")).rejects.toThrow("material_plan_invalid");
+    response={schemaVersion:"0.1",runId:"n3-test",taskId:"task-recipe"};
+    await port.prepareRecipe("recipe-test","C:/Unity/Editor/Unity.exe",{"material-2":"source-2"});
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.prepareRecipe",params:{materialChoices:{"material-2":"source-2"}}});
+  });
+  it("validates optional Recipe differences and prefab evidence while retaining old reads", async () => {
+    const recipeDifferences=[{kind:"prefab_mapped",materialId:"material-2",before:"Assets/Old.prefab",after:"Assets/Moved.prefab",rule:"guid",paths:[],count:1}];
+    expect(isAmfProductionRun({...run,recipeDifferences})).toBe(true);
+    expect(isAmfProductionRun({...run,recipeDifferences:[{...recipeDifferences[0],rule:"fuzzy"}]})).toBe(false);
+    const prefab={sourceId:"coat",path:"Assets/Coat.prefab",name:"Coat",isAvatar:false,hasSkinnedMesh:true,hasMergeArmature:true,hasMissingScripts:false,humanoidBones:[],prefabGuid:"a".repeat(32),objectPaths:["","Clip"]};
+    expect(isAmfProductionRun({...run,prefabs:[prefab]})).toBe(true);
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,prefabGuid:"broken"}]})).toBe(false);
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,objectPaths:["same","same"]}]})).toBe(false);
+    const plan={schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),selection,inputs:[],preserveOriginals:true,officialSdkChecks:"not_run",editor:run.editor,projectRoot:run.projectRoot,recipeDifferences};
+    let response:unknown=plan;const requests:unknown[]=[];
+    const client={invoke:async(request:unknown)=>{requests.push(request);return {ok:true,value:response};},subscribe:()=>()=>{}} as unknown as GatewayClient;
+    const port=createAmfProductionPort(client);const reviewed=await port.plan("n3-test",selection);
+    response={schemaVersion:"0.1",runId:"n3-test",taskId:"task-review"};
+    await port.assemble("n3-test",reviewed,true);
+    expect(requests.at(-1)).toMatchObject({method:"amf.production.assemble",params:{recipeDifferencesConfirmed:true,planDigest:plan.planDigest}});
+  });
   it("validates optional close facts while keeping old runs readable", () => {
     const editorClose = {schemaVersion:"0.1",runId:"n3-test",closeId:"close-1",outcome:"saved",
       scenesSaved:true,assetsSaved:true,editorClosed:true,reason:"",detail:""};

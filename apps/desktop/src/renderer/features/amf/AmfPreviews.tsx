@@ -30,7 +30,7 @@ export function AmfPreview({ port, runId, path, label }: { port: AmfProductionPo
     return () => { alive = false; };
   }, [port, runId, path]);
   return <figure className="vua-n3__preview">
-    {src !== null ? <img src={src} alt={label} draggable={false}/> : <span className="vua-n3__preview-frame" aria-busy={path !== undefined || undefined}/>}
+    {src !== null ? <img src={src} alt={label} draggable={false} data-audit-skip="bridge-preview-image"/> : <span className="vua-n3__preview-frame" aria-busy={path !== undefined || undefined}/>}
     <figcaption title={label}>{label}</figcaption>
   </figure>;
 }

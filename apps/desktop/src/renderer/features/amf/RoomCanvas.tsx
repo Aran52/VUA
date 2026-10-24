@@ -83,5 +83,5 @@ export function RoomCanvas({ room, facts, zoom = 1 }: { room: keyof typeof SCENE
     SCENES[room](ctx, palette(element), facts, 0, -(size.height - SCENE_HEIGHT * fit) / fit);
   }, [animated, facts, room, size]);
 
-  return <canvas ref={canvas} className="vua-factory__canvas" aria-hidden="true" style={{ width: "100%", height: "100%" }}/>;
+  return <canvas ref={canvas} className="vua-factory__canvas" aria-hidden="true" data-audit-skip="factory-scene-art" style={{ width: "100%", height: "100%" }}/>;
 }

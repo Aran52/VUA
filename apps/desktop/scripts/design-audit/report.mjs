@@ -123,7 +123,7 @@ export function buildSummary(data) {
   }
   if (collectionFailures.length) {
     push("", `## Capture failures`, "");
-    push(`These states did not render auditable content (Vite error overlay, or fewer than ${meta.perStateElementFloor} elements). They are excluded from the counts below and fail the run:`, "");
+    push(`These states produced unusable evidence (rendering, shared foundation, locale or capture validation). They are excluded from the counts below and fail the run:`, "");
     push(mdTable(["View", "Locale", "Theme", "Reason"], collectionFailures.map(f => [f.view, f.locale, f.theme, f.reason])));
   } else {
     push("", `Capture failures: none among the collected states.${errors.length ? " Execution failures are listed above; coverage is incomplete." : ""}`);
@@ -208,7 +208,8 @@ export function buildSummary(data) {
   push(...data.limitations.map(l => `- ${l}`));
   push("", `## Machine-readable artifacts`, "");
   push(`- \`shots/<view>--<theme>.png\` and \`<view>--<theme>.annot.png\`: clean and annotated screenshots (default locale).`);
-  push(`- \`json/<view>--<locale>--<theme>.json\`: grouped findings per state.`);
+  push(`- \`json/<view>--<locale>--<theme>.json\`: actual findings and groups per state.`);
+  push(`- \`snapshots/<view>--<theme>.json\`: collected style and geometry for rule re-evaluation (locale suffix for overflow passes).`);
   push(`- \`index.html\`: filterable overview (by rule, area, severity) linking screenshots and finding lists.`);
   push(`- \`baseline.json\`: committed gate input; keys are \`rule|view|root cause\`.`);
   return lines.join("\n") + "\n";

@@ -178,6 +178,9 @@ test("one-accent flags mixed jurisdiction families and multiple filled primaries
   const oneAccent = mixed.filter(f => f.rule === "one-accent");
   assert.equal(oneAccent.length, 1);
   assert.deepEqual(oneAccent[0].details.families.sort(), ["orange", "purple"]);
+  assert.equal(evaluateSnapshot(snapshot([
+    el({ family: "purple" }), el({ family: "orange" }),
+  ]), { rules: ["one-accent"] }).length, 0, "semantic graph and room colours are not competing jurisdiction actions");
   const primaries = evaluateSnapshot(snapshot([
     el({ backgroundColor: { r: 167, g: 139, b: 250, a: 1 }, primary: true, interactive: true, isControl: true }),
     el({ backgroundColor: { r: 167, g: 139, b: 250, a: 1 }, primary: true, interactive: true, isControl: true }),
@@ -360,6 +363,8 @@ test("baseline check flags new groups and reports resolved keys", () => {
 // ---- color math ---------------------------------------------------------------
 
 test("color math: parse, distance, composite and WCAG ratio", () => {
+  assert.deepEqual(parseColor("color(srgb 0.5 0 1 / 25%)"), { r: 127.5, g: 0, b: 255, a: 0.25 });
+  assert.ok(Math.abs(parseColor("color(srgb-linear .5 0 0)").r - 187.516) < 0.01);
   assert.deepEqual(parseColor("#a78bfa"), { r: 167, g: 139, b: 250, a: 1 });
   assert.deepEqual(parseColor("rgb(255 0 0 / 0.5)"), { r: 255, g: 0, b: 0, a: 0.5 });
   assert.equal(parseColor("not-a-color"), null);

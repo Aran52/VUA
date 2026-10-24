@@ -56,10 +56,20 @@ export function isInteractiveLike(el) {
 
 // ---- Color parsing / math ----------------------------------------------------
 
-/** Parses "rgb(r, g, b)", "rgba(r, g, b, a)" or "#rgb|#rgba|#rrggbb|#rrggbbaa". */
+/** Parses computed rgb/rgba, sRGB/linear-sRGB color() and CSS hex colours. */
 export function parseColor(text) {
   if (typeof text !== "string") return null;
   const value = text.trim();
+  const modern = value.match(/^color\(srgb(-linear)?\s+([^)]*)\)$/i);
+  if (modern) {
+    const values = modern[2].split(/[\s/]+/).filter(Boolean).map(part => parseFloat(part) / (part.endsWith("%") ? 100 : 1));
+    if (values.length < 3 || !values.every(Number.isFinite)) return null;
+    const channel = value => {
+      const clamped = Math.max(0, Math.min(1, value));
+      return 255 * (modern[1] ? clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * clamped ** (1 / 2.4) - 0.055 : clamped);
+    };
+    return { r: channel(values[0]), g: channel(values[1]), b: channel(values[2]), a: values[3] ?? 1 };
+  }
   const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
   if (rgb) {
     const parts = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);

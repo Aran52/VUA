@@ -90,6 +90,7 @@ input { width:16px; height:16px; padding:0; margin:0; }
 .auto { width:101px; margin-left:auto; }
 .fixed { margin-inline:6px; }
 .separator { border-bottom:1px solid white; }
+.local { --vua-local-surface:color-mix(in srgb, blue 40%, white); background:var(--vua-local-surface); }
 </style></head><body>
 <div class="camera"><div id="scene" class="scene"></div><div class="hidden"><button id="hidden-control">hidden</button></div></div>
 <div id="bleed" class="bleed">actual viewport overflow</div>
@@ -100,6 +101,10 @@ input { width:16px; height:16px; padding:0; margin:0; }
 <div role="dialog"><button id="scoped-control">dialog action</button></div>
 <span id="assistive" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">assistive label</span>
 <select id="native-select" style="font:400 12px/16px sans-serif"><option>native choice</option></select>
+<details><summary id="closed-summary">collapsed details</summary><button id="collapsed-control">hidden child</button></details>
+<div style="content-visibility:hidden"><button id="content-hidden-control">hidden content</button></div>
+<div id="mixed" style="background:color-mix(in srgb, white 20%, black);color:#888">dim text on a mixed surface</div>
+<div id="local-token" class="local">a locally scoped token</div>
 <div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
 <div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
 </body></html>`;
@@ -182,6 +187,12 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   const flagged = (rule, id) => findings.some(f => f.rule === rule && f.index === snapshot.elements.indexOf(element(id)));
   assert.equal(element("hidden-control"), undefined, "opacity-zero ancestors are not painted controls");
   assert.equal(element("assistive"), undefined, "fully clipped assistive labels have no paint");
+  assert.equal(element("collapsed-control"), undefined, "closed details retain layout without painting their children");
+  assert.equal(element("content-hidden-control"), undefined, "content-visibility hidden is not painted content");
+  assert.ok(element("closed-summary"), "a closed details summary remains a visible action");
+  assert.equal(flagged("contrast", "mixed"), true, "modern computed colours retain real contrast failures");
+  assert.ok(Math.abs(element("mixed").backgroundColor.r - 51) < 0.1);
+  assert.ok(snapshot.palette.some(entry => entry.name === "--vua-local-surface" && Math.abs(entry.color.r - 153) < 0.1), "local tokens resolve in their feature scope");
   assert.equal(flagged("type-scale", "native-select"), false, "native select leading is controlled by Chromium");
   assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
   assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");

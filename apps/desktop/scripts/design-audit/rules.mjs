@@ -208,7 +208,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       }
     }
     if (active.has("one-accent")) {
-      if (el.family && el.backgroundColor && el.backgroundColor.a >= 0.95) {
+      if (el.isControl && !el.disabled && el.family && el.backgroundColor && el.backgroundColor.a >= 0.95) {
         familiesSeen[el.family]?.push(index);
       }
     }

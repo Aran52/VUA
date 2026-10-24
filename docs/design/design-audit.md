@@ -170,6 +170,12 @@ Fully clipped assistive labels have no visible paint. Native selects keep Chromi
 line box when it reports `normal`; their text size and weight are still checked. Before
 collection, colour transitions finish at the requested theme; camera and activity motion remain
 available for their dedicated captured states.
+Children hidden by closed details or `content-visibility: hidden` are excluded even when a forced
+layout returns their old geometry. The closed summary itself remains audited.
+Computed `color(srgb ...)` / `color(srgb-linear ...)` values participate in contrast and colour
+checks, including CSS `color-mix` backgrounds. Scoped feature tokens resolve at their declaring
+elements. Jurisdiction mixing concerns filled actions; the approved room/graph/status roles
+retain their semantic colours.
 
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art

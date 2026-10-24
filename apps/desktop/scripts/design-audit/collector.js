@@ -27,6 +27,11 @@ export function collectAuditSnapshot(options) {
     for (let node = element; node; node = node.parentElement) {
       const style = styleOf(node);
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+      if (node !== element && style.contentVisibility === "hidden") return null;
+      if (node !== element && node.tagName === "DETAILS" && !node.open) {
+        const summary = [...node.children].find(child => child.tagName === "SUMMARY");
+        if (!summary?.contains(element)) return null;
+      }
       // Assistive labels clipped to no painted area are still available to
       // accessibility APIs, but they are not visibly truncated text.
       const inset = style.clipPath.match(/^inset\(([^)]*)\)$/)?.[1].split(/\s+round\s+/)[0].trim().split(/\s+/);
@@ -73,6 +78,16 @@ export function collectAuditSnapshot(options) {
   function parseColor(text) {
     if (typeof text !== "string") return null;
     const value = text.trim();
+    const modern = value.match(/^color\(srgb(-linear)?\s+([^)]*)\)$/i);
+    if (modern) {
+      const values = modern[2].split(/[\s/]+/).filter(Boolean).map(part => parseFloat(part) / (part.endsWith("%") ? 100 : 1));
+      if (values.length < 3 || !values.every(Number.isFinite)) return null;
+      const channel = value => {
+        const clamped = Math.max(0, Math.min(1, value));
+        return 255 * (modern[1] ? clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * clamped ** (1 / 2.4) - 0.055 : clamped);
+      };
+      return { r: channel(values[0]), g: channel(values[1]), b: channel(values[2]), a: values[3] ?? 1 };
+    }
     const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
     if (rgb) {
       const parts = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);
@@ -109,10 +124,17 @@ export function collectAuditSnapshot(options) {
 
   // ---- token palette ---------------------------------------------------------
   const customNames = new Set();
+  const scopedNames = new Map();
   function gatherNames(rules) {
     for (const rule of rules) {
       if (rule.style) {
-        for (const prop of rule.style) if (prop.startsWith("--vua-")) customNames.add(prop);
+        for (const prop of rule.style) if (prop.startsWith("--vua-")) {
+          customNames.add(prop);
+          if (rule.selectorText) {
+            if (!scopedNames.has(rule.selectorText)) scopedNames.set(rule.selectorText, new Set());
+            scopedNames.get(rule.selectorText).add(prop);
+          }
+        }
       }
       if (rule.cssRules) gatherNames(rule.cssRules);
     }
@@ -154,9 +176,23 @@ export function collectAuditSnapshot(options) {
     tokenRaw[name] = raw;
     // Only values that start as a color resolve to one; composite values such
     // as box-shadow lists are not palette members.
-    if (!/^\s*(var\(|#|rgb|hsl|color-mix)/i.test(raw)) continue;
+    if (!/^\s*(var\(|#|rgb|hsl|color(?:-mix)?\()/i.test(raw)) continue;
     const color = resolveTokenColor(name, moduleRoot);
     if (color) palette.push({ name, color });
+  }
+  // Feature tokens (graph and room surfaces) resolve in their declaring scope.
+  for (const [selector, names] of scopedNames) {
+    let hosts;
+    try { hosts = document.querySelectorAll(selector); } catch { continue; }
+    for (const host of hosts) {
+      if (host === moduleRoot || host === document.documentElement) continue;
+      for (const name of names) {
+        const raw = styleOf(host).getPropertyValue(name).trim();
+        if (!/^\s*(var\(|#|rgb|hsl|color(?:-mix)?\()/i.test(raw)) continue;
+        const color = resolveTokenColor(name, host);
+        if (color && !palette.some(entry => entry.name === name && rgbDistance(entry.color, color) < 0.01)) palette.push({ name, color });
+      }
+    }
   }
   // Accent in the default (non-production) scope for jurisdiction family checks.
   const accentRootScope = resolveTokenColor("--vua-accent", document.documentElement);
@@ -164,11 +200,9 @@ export function collectAuditSnapshot(options) {
 
   const familyColors = { purple: [], orange: [] };
   for (const entry of palette) {
-    if (/purple|accent/.test(entry.name)) familyColors.purple.push(entry.color);
-    if (/orange/.test(entry.name)) familyColors.orange.push(entry.color);
+    if (/^--vua-purple(?:-|$)/.test(entry.name)) familyColors.purple.push(entry.color);
+    if (/^--vua-orange(?:-|$)/.test(entry.name)) familyColors.orange.push(entry.color);
   }
-  if (accentRootScope) familyColors.purple.push(accentRootScope);
-  if (accentModuleScope) familyColors.orange.push(accentModuleScope);
 
   // Resolved shadow/glow tokens for shadow-panel classification.
   const shadowTokens = {};
@@ -302,7 +336,7 @@ export function collectAuditSnapshot(options) {
       if (style.textOverflow === "ellipsis" || (style.webkitLineClamp && style.webkitLineClamp !== "none")) { truncation = true; break; }
     }
 
-    const text = directText(el);
+    const text = cs.contentVisibility === "hidden" ? "" : directText(el);
     const color = parseColor(cs.color);
     const backgroundColor = parseColor(cs.backgroundColor);
     const eff = effectiveBackground(el);

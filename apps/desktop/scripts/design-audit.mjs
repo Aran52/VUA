@@ -132,8 +132,10 @@ async function main() {
 
   const shotsDir = path.join(OUT, "shots");
   const jsonDir = path.join(OUT, "json");
+  const snapshotsDir = path.join(OUT, "snapshots");
   await mkdir(shotsDir, { recursive: true });
   await mkdir(jsonDir, { recursive: true });
+  await mkdir(snapshotsDir, { recursive: true });
 
   const server = await createServer({
     configFile: false,
@@ -280,13 +282,15 @@ async function main() {
       const collectorOptions = { proposed: !rules, overflowChecks: true };
       const collectSource = `${collectAuditSnapshot.toString()};collectAuditSnapshot(${JSON.stringify(collectorOptions)})`;
       const snapshot = await win.webContents.executeJavaScript(collectSource, true);
+      await writeFile(path.join(snapshotsDir, `${shotName(view.id, locale, theme)}.json`), JSON.stringify(snapshot));
 
       // A Vite error overlay or a near-empty page means the view did not
       // render; record a capture failure instead of auditing the debris.
       const baseReason = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR, { requireFoundation: true });
-      if (baseReason) {
+      const localeReason = snapshot.locale === locale ? null : `requested locale ${locale}, collected ${snapshot.locale || "no locale"}`;
+      if (baseReason || localeReason) {
         const lastError = recentConsoleErrors.at(-1);
-        const reason = lastError ? `${baseReason}; last console error: ${lastError}` : baseReason;
+        const reason = lastError ? `${baseReason ?? localeReason}; last console error: ${lastError}` : baseReason ?? localeReason;
         collectionFailures.push({ view: view.id, locale, theme, reason });
         console.error(`[capture-fail] ${view.id} ${locale}/${theme}: ${reason}`);
         continue;

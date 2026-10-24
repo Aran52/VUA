@@ -95,6 +95,8 @@ input { width:16px; height:16px; padding:0; margin:0; }
 <div class="caption-clip"><span id="caption" class="caption">actual clipped caption</span></div>
 <label id="large-label" class="label"><input id="labelled" type="checkbox">a usable label</label>
 <input id="unlabelled" type="checkbox" aria-label="tiny independent control">
+<div inert><button id="inert-control" style="width:16px;height:16px;padding:0">inactive background action</button></div>
+<div role="dialog"><button id="scoped-control">dialog action</button></div>
 <div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
 <div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
 </body></html>`;
@@ -181,6 +183,9 @@ test("paint clipping, label hit regions and auto margins preserve real defects",
   assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");
   assert.equal(flagged("target-size", "labelled"), false, "the associated 28px label supplies the real hit region");
   assert.equal(flagged("target-size", "unlabelled"), true, "an independent tiny checkbox still fails");
+  assert.equal(element("inert-control").disabled, true, "modal isolation makes background actions inactive");
+  assert.equal(flagged("target-size", "inert-control"), false);
+  assert.notEqual(element("scoped-control").actionScope, element("inert-control").actionScope, "dialog actions have their own primary-action scope");
   assert.equal(element("labelled").hitRect.source, "label");
   assert.equal(await win.webContents.executeJavaScript("document.getElementById('large-label').click(); document.getElementById('labelled').checked"), true);
   assert.equal(element("auto").autoMargins[3], true);

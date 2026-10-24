@@ -77,6 +77,18 @@ function passSpacing(value) {
 
 const MARGIN_SIDES = ["top", "right", "bottom", "left"];
 
+// Zero-blur inset bars and concentric rings draw selection/focus/binding edges.
+// Offset cast shadows still count, even when their blur is zero.
+export function isLineShadow(value) {
+  if (!value || value === "none") return false;
+  const shadows = value.replace(/(?:rgba?|hsla?|color)\([^)]*\)|#[\da-f]+/gi, "color").split(",");
+  return shadows.every(shadow => {
+    const lengths = [...shadow.matchAll(/(-?(?:\d*\.)?\d+)(?:px)?\b/g)].map(match => Number(match[1]));
+    return lengths.length >= 2 && (lengths[2] ?? 0) === 0
+      && (/\binset\b/.test(shadow) || (lengths[0] === 0 && lengths[1] === 0));
+  });
+}
+
 /** Evaluates the selected rules over one page snapshot. */
 export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemptRules = [] } = {}) {
   const active = new Set(rules.filter(id => !exemptRules.includes(id)));
@@ -177,8 +189,8 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
     }
     if (active.has("shadow-panel")) {
       const shadow = el.boxShadow;
-      if (shadow && shadow !== "none") {
-        const glow = Object.values(snapshot.shadowTokens ?? {}).some(v => shadow === v);
+      if (shadow && shadow !== "none" && !isLineShadow(shadow)) {
+        const glow = Object.entries(snapshot.shadowTokens ?? {}).some(([name, value]) => name.startsWith("--vua-glow-") && shadow === value);
         const elevated = shadow === (snapshot.shadowTokens ?? {})["--vua-shadow-elevated"];
         const floating = el.overlayContext || el.shellStructure
           || el.position === "fixed" || (el.position === "absolute" && el.zIndex >= 600);
@@ -270,15 +282,15 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         message: `two jurisdiction accent families (${families.join(", ")}) in one view`, property: null,
       });
     }
-    const primaries = (snapshot.elements ?? [])
+    const primariesByScope = Object.groupBy((snapshot.elements ?? [])
       .map((el, i) => ({ el, i }))
-      .filter(({ el }) => el.primary)
-      .map(({ el, i }) => ({ index: i, path: el.path, cls: el.cls, text: el.text }));
-    if (primaries.length > 1) {
+      .filter(({ el }) => el.primary && !el.disabled)
+      .map(({ el, i }) => ({ index: i, path: el.path, cls: el.cls, text: el.text, scope: el.actionScope ?? "page" })), primary => primary.scope);
+    for (const primaries of Object.values(primariesByScope).filter(items => items.length > 1)) {
       findings.push({
         rule: "one-accent", severity: severityOf("one-accent"), category: categoryOf("one-accent"),
         index: null, path: null, tag: "view", cls: [], text: `${primaries.length} filled primary buttons`,
-        details: { primaries }, message: `${primaries.length} filled primary buttons in one view`, property: null,
+        details: { primaries }, message: `${primaries.length} filled primary buttons in one action scope`, property: null,
       });
     }
   }

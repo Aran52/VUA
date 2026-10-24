@@ -162,6 +162,11 @@ Every fixture loads the application's shared tokens and base styles. A page with
 foundation tokens is a capture failure, even when it has enough DOM elements. Fixture shell
 tests also verify the requested locale is installed before the entry module loads.
 
+The runner saves full collected geometry/style snapshots in `snapshots/` for later rule
+re-evaluation. Inert background actions do not compete with the active modal; each dialog or
+confirmation owns its primary-action scope. Zero-blur inset bars and concentric rings are
+selection/focus/binding edges. Offset cast shadows remain subject to the ordinary-panel rule.
+
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art
 element itself (not its interactive container) with `data-audit-skip`:

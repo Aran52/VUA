@@ -138,13 +138,20 @@ test("radius-token accepts 0, tokens, pill and circles", () => {
   assert.ok(flagged[0].details.nearest === 6 || flagged[0].details.nearest === 10);
 });
 
-test("shadow-panel flags ordinary panels but not glow, elevated tokens or floating layers", () => {
+test("shadow-panel distinguishes cast shadows from selection and focus edges", () => {
+  for (const boxShadow of ["inset 0 -2px 0 rgb(255, 122, 69)", "rgb(255, 122, 69) 0px 0px 0px 2px", "rgba(0,0,0,.2) 0px 0px 0px 0px"]) {
+    assert.equal(evaluateSnapshot(snapshot([el({ boxShadow })])).filter(f => f.rule === "shadow-panel").length, 0);
+  }
+  assert.equal(evaluateSnapshot(snapshot([el({ boxShadow: "0 4px 0 black" })])).filter(f => f.rule === "shadow-panel").length, 1);
   const glow = evaluateSnapshot(snapshot([el({ boxShadow: "0 0 18px rgba(167,139,250,0.45)" })]));
   assert.equal(glow.filter(f => f.rule === "shadow-panel").length, 0);
   const shadow = evaluateSnapshot(snapshot([el({ boxShadow: "0 4px 12px rgba(0,0,0,0.4)" })]));
   assert.equal(shadow.filter(f => f.rule === "shadow-panel").length, 1);
   const floating = evaluateSnapshot(snapshot([el({ boxShadow: "0 4px 12px rgba(0,0,0,0.4)", overlayContext: true })]));
   assert.equal(floating.filter(f => f.rule === "shadow-panel").length, 0);
+  const elevated = snapshot([el({ boxShadow: "0 8px 28px black" })]);
+  elevated.shadowTokens["--vua-shadow-elevated"] = "0 8px 28px black";
+  assert.equal(evaluateSnapshot(elevated).filter(f => f.rule === "shadow-panel").length, 1, "an elevation token does not authorize an ordinary panel's cast shadow");
 });
 
 test("blur-scope flags card walls, exempts shell structure and overlays", () => {
@@ -167,6 +174,15 @@ test("one-accent flags mixed jurisdiction families and multiple filled primaries
     el({ backgroundColor: { r: 167, g: 139, b: 250, a: 1 }, primary: true, interactive: true, isControl: true }),
   ]));
   assert.equal(primaries.filter(f => f.rule === "one-accent").length, 1);
+});
+
+test("one primary is allowed in each action scope and inert controls never compete", () => {
+  const inPage = el({ primary: true, actionScope: "page" });
+  const inDialog = el({ primary: true, actionScope: "dialog" });
+  const check = elements => evaluateSnapshot(snapshot(elements), { rules: ["one-accent"] });
+  assert.equal(check([inPage, inDialog]).length, 0);
+  assert.equal(check([inPage, { ...inPage }]).length, 1);
+  assert.equal(check([inPage, { ...inPage, disabled: true }]).length, 0);
 });
 
 test("one-accent is exemptable per view (factory map)", () => {

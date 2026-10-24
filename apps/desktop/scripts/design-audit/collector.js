@@ -300,7 +300,8 @@ export function collectAuditSnapshot(options) {
     const interactive = Boolean(el.closest(interactiveControlSelector));
     const isControl = el.matches(interactiveControlSelector);
     const disabled = el.disabled === true || el.getAttribute("aria-disabled") === "true"
-      || Boolean(el.closest('[aria-disabled="true"]'));
+      || Boolean(el.closest('[aria-disabled="true"], [inert]'));
+    const actionOwner = el.closest('[role="dialog"], [role="alertdialog"]');
     const primary = isControl && !disabled && backgroundColor && backgroundColor.a >= 0.95
       && (rgbDistance(backgroundColor, accentModuleScope || { r: -1, g: -1, b: -1 }) <= 12
         || rgbDistance(backgroundColor, accentRootScope || { r: -1, g: -1, b: -1 }) <= 12);
@@ -320,7 +321,6 @@ export function collectAuditSnapshot(options) {
     let surfaceDepth = 0;
     if (opts.proposed) {
       const canvasBg = parseColor(getComputedStyle(document.body).backgroundColor);
-      const rgbDist = (a, b) => a && b ? Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2) : 999;
       for (let node = el.parentElement; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
         if (node.namespaceURI && node.namespaceURI.includes("svg")) continue;
         const acs = getComputedStyle(node);
@@ -396,6 +396,7 @@ export function collectAuditSnapshot(options) {
       opacity: parseFloat(cs.opacity),
       inlineStyle: Boolean(el.getAttribute("style")),
       interactive, isControl, disabled, primary,
+      actionScope: actionOwner ? elementPath(actionOwner).join(".") : "page",
       family: familyOf(backgroundColor) || familyOf(color),
       overlayContext: isOverlayContext(el),
       shellStructure: isShellStructure(el),

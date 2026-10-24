@@ -163,13 +163,18 @@ async function main() {
     return window;
   }
 
+  // Same-path loadURLs (hash or shell-only differences) would be treated as
+  // hash navigations and keep the previous page alive, so every real (re)load
+  // gets a unique query counter to force a full navigation.
+  let loadCounter = 0;
   const viewUrl = (view, theme) => {
+    loadCounter += 1;
     if (view.fixture === "factory") {
-      const query = view.id.startsWith("feedback-") ? "?feedback=1" : "";
-      return `${origin}/__factory${query}#${view.id}`;
+      const feedback = view.id.startsWith("feedback-") ? "feedback=1&" : "";
+      return `${origin}/__factory?${feedback}r=${loadCounter}#${view.id}`;
     }
     // Fixtures read their state from the shell itself; the hash is for humans.
-    return `${origin}${FIXTURES[view.fixture].prefix}`;
+    return `${origin}${FIXTURES[view.fixture].prefix}?r=${loadCounter}`;
   };
 
   function pollReady(fixture, win) {

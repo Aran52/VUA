@@ -65,6 +65,35 @@ Native skin installation, community CSS execution and new backend behaviour stay
 own scheduled work. Gateway permissions, task state, material ownership and confirmation
 behaviour remain authoritative throughout presentation changes.
 
+### Delivery order and exit checks
+
+1. **Measurement and verified repairs (this PR).** Complete the calibrated comparison, repair
+   confirmed defects and refresh the gate baseline from a complete run. Keep audit-policy changes
+   separate from presentation changes in both commits and the comparison report.
+2. **Foundation and shape implementation.** Add the role-group corner tokens and one shared
+   shape renderer. Exercise diagonal strokes, inset focus, forced colours, nested cuts and
+   overlay elevation in a primitive fixture before changing feature markup. Legacy token names
+   alias the new roles while their consumers migrate.
+3. **Primitive catalogue.** Implement the actions/choices first, then fields/indicators,
+   containers and overlays. Each primitive exposes the three size steps where applicable and
+   the complete state ladder. Verify accessible names, keyboard ownership, disabled/busy width
+   and native-select behaviour; expand the audit's size/corner/motion checks with the catalogue.
+4. **Shell, then feature areas.** Migrate the shell first, followed by workshop, control centre,
+   release, library, environment/help and settings in separate reviewable batches. Each batch
+   replaces bespoke recipes with the shared role and supplies a dark/light before/after sheet.
+   Re-run its existing interaction fixture and the shared primitive regressions.
+5. **Coverage and completion review.** Add settled fixtures for the audit's documented gaps,
+   including settings categories, tools, wizard steps and separate windows. A catalogue entry
+   is complete only when its consumers and states are represented; a green 99-view run alone
+   cannot stand for these uncovered surfaces. Retire compatibility aliases after their final
+   consumer moves.
+
+The migration is complete when every default-theme control uses the shared role/size/state
+recipe, literal corner and duration recipes have no unrecorded consumers, the registered audit
+states complete without execution/capture failures or confirmed current-rule defects, and the
+author has reviewed the affected keyboard/focus and visual sheets. Device, real-material and
+N-stage acceptance still follow their owning evidence rows.
+
 ## 3. Correct the verified findings
 
 Use a frozen revision of the calibrated auditor for the before/after comparison. Repair

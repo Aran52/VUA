@@ -93,7 +93,7 @@
 .vua-environment-section { display: flex; flex-direction: column; gap: 16px; }
 .vua-environment-section h2 { margin: 0; font: var(--vua-font-title); }
 .vua-manager-card { position: relative; }
-.vua-manager-card .vua-route-tile { width: 100%; padding-bottom: 54px; }
+.vua-manager-card .vua-route-tile { width: 100%; padding-bottom: calc(var(--vua-space-6) + var(--vua-space-5)); }
 .vua-manager-card__status { position: absolute; bottom: 22px; left: 28px; right: 28px; pointer-events: none; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-compact-environments .vua-environment-card > button { padding: var(--vua-space-2) 16px; gap: 8px; }
 .vua-compact-environments .vua-environment-card__details { flex-direction: row; }

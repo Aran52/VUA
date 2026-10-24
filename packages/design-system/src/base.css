@@ -84,6 +84,9 @@ button {
   min-width: 28px;
   min-height: 28px;
   padding-inline: var(--vua-space-2);
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  background: var(--vua-bg-panel);
 }
 
 /* A native indicator stays compact; its associated label supplies the hit area. */

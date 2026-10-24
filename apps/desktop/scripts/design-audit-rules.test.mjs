@@ -249,6 +249,8 @@ test("capture failures: vite error overlay and near-empty pages are unusable", (
   assert.match(classifyCapture({ errorOverlay: false, elementCount: 3 }, 6), /floor 6/);
   assert.equal(classifyCapture({ errorOverlay: false, elementCount: 10 }, 6), null, "sparsest real view passes");
   assert.equal(classifyCapture({ errorOverlay: false, elementCount: 28 }, 6), null);
+  assert.match(classifyCapture({ elementCount: 40 }, 6, { requireFoundation: true }), /foundation/);
+  assert.equal(classifyCapture({ elementCount: 40, tokenRaw: { "--vua-font-body": "400 14px/20px sans-serif" }, palette: [{ name: "--vua-text-strong" }] }, 6, { requireFoundation: true }), null);
 });
 
 test("theme-invariant findings aggregate once: the light state drops layout rules", () => {

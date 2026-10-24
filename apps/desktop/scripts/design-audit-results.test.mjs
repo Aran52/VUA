@@ -6,6 +6,21 @@ import path from "node:path";
 import { auditCoverage, runPassed, stateResult } from "./design-audit/results.mjs";
 import { groupFindings, writeBaseline, checkAgainstBaseline } from "./design-audit/baseline.mjs";
 import { buildSummary, buildOverviewHtml } from "./design-audit/report.mjs";
+import vm from "node:vm";
+import { FIXTURES, OVERFLOW_LOCALES, DEFAULT_LOCALE } from "./design-audit/views.mjs";
+
+test("every fixture shell selects the requested locale before its module loads", () => {
+  for (const [name, fixture] of Object.entries(FIXTURES)) {
+    for (const locale of [DEFAULT_LOCALE, ...OVERFLOW_LOCALES]) {
+      const values = new Map();
+      const html = fixture.shell({ locale, theme: "dark" });
+      for (const script of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
+        vm.runInNewContext(script[1], { localStorage: { setItem: (key, value) => values.set(key, value) } });
+      }
+      assert.equal(values.get("vua-locale"), locale, `${name} / ${locale}`);
+    }
+  }
+});
 
 const plan = [{ view: { id: "library" }, locale: "en", states: [{ theme: "dark" }, { theme: "light" }] }];
 const dark = { view: "library", locale: "en", theme: "dark" };

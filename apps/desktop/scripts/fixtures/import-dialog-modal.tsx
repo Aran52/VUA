@@ -10,6 +10,8 @@ import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx"
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
 import { strings } from "../../src/renderer/i18n/index.ts";
 import { IMPORT_ACCEPTED_AUTO_CLOSE_MS } from "../../src/renderer/features/import/import-model.ts";
+import "@vua/design-system/tokens.css";
+import "@vua/design-system/base.css";
 
 const root = createRoot(document.getElementById("root")!);
 // 壳面桩:文件系统窄面返回合成目录树(零真实文件操作);原生文件夹拾取

@@ -39,8 +39,11 @@ export function isThemeInvariant(ruleId) {
 }
 
 /** Why this snapshot is not auditable content, or null when it is usable. */
-export function classifyCapture(snapshot, perStateElementFloor) {
+export function classifyCapture(snapshot, perStateElementFloor, { requireFoundation = false } = {}) {
   if (snapshot.errorOverlay) return "vite error overlay (page did not render)";
+  if (requireFoundation && (!snapshot.tokenRaw?.["--vua-font-body"] || !snapshot.palette?.some(token => token.name === "--vua-text-strong"))) {
+    return "shared design foundation did not load";
+  }
   if ((snapshot.elementCount ?? 0) < perStateElementFloor) {
     return `only ${snapshot.elementCount} elements collected (floor ${perStateElementFloor})`;
   }

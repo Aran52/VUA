@@ -107,7 +107,7 @@ export const FIXTURES = {
   "import-dialog": {
     prefix: "/__import-dialog",
     shell: ({ locale }) =>
-      `<html data-theme="dark"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify("locale")});</script></head>`
+      `<html data-theme="dark"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});</script></head>`
       + `<body><div id="root"></div>`
       + `<script type="module" src="/scripts/fixtures/import-dialog-modal.tsx"></script></body></html>`,
     themeMode: "attribute",

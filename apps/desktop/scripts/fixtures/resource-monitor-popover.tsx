@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import { ResourceMonitor } from "../../src/renderer/features/resource-monitor/ResourceMonitor.tsx";
 import { strings } from "../../src/renderer/i18n/index.ts";
 import type { SystemResourceUsageV2 } from "@vua/contracts";
+import "@vua/design-system/tokens.css";
+import "@vua/design-system/base.css";
 
 const root = createRoot(document.getElementById("root")!);
 const wait = (ms = 40) => new Promise<void>((resolve) => setTimeout(resolve, ms));

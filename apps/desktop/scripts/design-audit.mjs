@@ -283,7 +283,7 @@ async function main() {
 
       // A Vite error overlay or a near-empty page means the view did not
       // render; record a capture failure instead of auditing the debris.
-      const baseReason = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR);
+      const baseReason = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR, { requireFoundation: true });
       if (baseReason) {
         const lastError = recentConsoleErrors.at(-1);
         const reason = lastError ? `${baseReason}; last console error: ${lastError}` : baseReason;

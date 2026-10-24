@@ -92,7 +92,7 @@ layout), **warning** = violates the current standard's token discipline,
 | `blur-scope` | `backdrop-filter` outside top/side/task/elevated structure | Same floating/structure exemptions as `shadow-panel` |
 | `one-accent` | Two jurisdiction accent families (purple + orange) in one view, or more than one filled accent control | Family = opaque fill or text within RGB distance 12 of the purple or orange token family. The base map composes four room colors by design and is exempt in the registry |
 | `target-size` | Interactive target below 24×24 (error); primary action below 32×32 (reported as an error with `floor: 32`) | "Primary" = interactive element filled with an opaque accent color. Inline text links and disabled controls exempt |
-| `overflow` | Text clipped without an intentional ellipsis, or an element beyond the viewport | Ellipsis (`text-overflow: ellipsis`) and line-clamp exempt; children of a scrolling container exempt |
+| `overflow` | Text clipped without an intentional ellipsis, or an element extending horizontally beyond the viewport | Ellipsis (`text-overflow: ellipsis`) and line-clamp exempt; children of a scrolling container exempt; vertical growth beyond the fold is normal page scrolling and not flagged |
 | `border-density` (hint) | Bordered elements per 10k px² above the all-view P90 | Cross-view metric evaluated over the default-locale dark states |
 
 ### Proposed rules (ZCode-inspired, not yet VUA standard)

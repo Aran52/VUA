@@ -203,10 +203,12 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       }
       const { x, y, w, h } = el.rect;
       const tol = THRESHOLDS.overflowTolerance;
+      // Horizontal only: vertical growth beyond the fold is normal document
+      // scrolling, not layout breakage.
       const beyond = !el.insideScrollContainer
-        && (x < -tol || y < -tol || x + w > snapshot.viewport.w + tol || y + h > snapshot.viewport.h + tol);
-      if (beyond && (w > 4 && h > 4)) {
-        push(makeFinding("overflow", el, index, { kind: "viewport", rect: el.rect }, "element extends beyond the viewport", null));
+        && (x < -tol || x + w > snapshot.viewport.w + tol);
+      if (beyond && w > 4 && h > 4) {
+        push(makeFinding("overflow", el, index, { kind: "viewport", rect: el.rect }, "element extends horizontally beyond the viewport", null));
       }
     }
     if (active.has("radius-nesting")) {

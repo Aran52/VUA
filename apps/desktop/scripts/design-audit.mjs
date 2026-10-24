@@ -104,7 +104,7 @@ const LIMITATIONS = [
   "Computed-style analysis sees one state per view. Hover, focus, pressed and disabled interactions, and states that require live Gateway traffic, are not exercised unless a fixture mounts them.",
   "Contrast is computed against alpha-composited backgrounds; gradient and image backgrounds fall back to their background-color layer, so text over busy art may be mis-graded.",
   "Attribution prefers the CDP cascade winner; hover-only rules (:hover) cannot be matched from the static state, so those findings fall back to class+area attribution.",
-  "Overflow checks see the zh-CN layout for all views plus four extra locales in dark theme; light-theme text growth in other locales is not measured.",
+  "Overflow checks see the zh-CN layout for all views plus four extra locales in dark theme; light-theme text growth in other locales is not measured. The viewport branch reports horizontal overflow only — vertical growth beyond the fold is normal document scrolling.",
   "Primary-action detection is heuristic (opaque accent-filled controls); custom-selected states can inflate the one-accent count.",
   "data-audit-skip regions (base-map scene canvas, turntable frames, WebGL scenes, product imagery) are excluded by design and not audited.",
 ];

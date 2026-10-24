@@ -296,14 +296,12 @@ Structured data uses `ui-monospace, "Cascadia Mono", Consolas, monospace`; versi
 tabular numerals.
 
 - Grid: 4 / 8 / 12 / 16 / 24 / 32 px.
-- Compact controls: 28–32 px; comfortable: 36–40 px; primary pointer interior at least 32×32 px, with
-  WCAG's 24×24 px only as the floor.
-- Radii step down with nesting (author ruling, 2026-10-25, adapted from ZCode's design system):
-  dialogs and overlays use `xl` (12 px); the first rounded container on a page uses `lg` (10 px);
-  a rounded container inside it `md` (6 px); inside that `sm` (4 px), the smallest. Controls use
-  `md`, or `sm` inside an `md` container. Pills and circles are deliberate shapes for primary
-  buttons, status chips and avatars. Layout wrappers without their own surface do not count as
-  a level.
+- Control sizes (three steps: 28 / 32 / 40 px), hit areas and indicator heights are set in
+  [controls and motion](controls-and-motion.md) and hold in every theme.
+- Shapes belong to the theme (author ruling, 2026-10-25): each theme sets one corner style and
+  size per role group, and every control of that group follows it. The default theme, **Grid**,
+  uses a cut top-right corner throughout. An inner corner is never larger than the corner
+  around it. Layout wrappers without their own surface do not count as a level.
 - Bordered or filled surfaces nest at most two levels; deeper structure uses spacing and type
   instead of another box.
 - Cards are solid (author ruling, 2026-10-25): an opaque panel colour and a 1 px border, without
@@ -317,7 +315,9 @@ tabular numerals.
 The initial system covers Button, Icon Button, Text/Number Field, Combo Box, Tabs, Menu, Dialog,
 Drawer, Toast, Inline Notification, Task Item, Progress, Badge, Skeleton, Empty State,
 Inspector Row, Tree, Table, and Graph primitives. Applicable components cover default, hover, pressed,
-focused, selected, disabled, loading, error, warning, and success.
+focused, selected, disabled, loading, error, warning, and success. The control catalogue, size
+steps, state ladder and elevation levels are in [controls and motion](controls-and-motion.md);
+features use the primitives instead of styling their own buttons, tabs or tags.
 
 Disabled critical actions expose a discoverable reason. Dialogs have a visible named close/cancel
 action. Icons use a consistent 16/20/24 px line style and accessible names; unfamiliar icons include
@@ -379,14 +379,8 @@ rows, each with a title and at most one line on what it changes). Rules:
 
 ## 7. Motion and asset discipline
 
-| Token | Duration | Use |
-| --- | ---: | --- |
-| Instant | 0 ms | degradation and immediate replacement |
-| Fast | 120 ms | hover, pressed, focus support |
-| Normal | 180 ms | drawer, menu, local reveal |
-| Slow | 360 ms | cards, modules, and rare causally related staged entrances |
-
-Default staged easing is `cubic-bezier(0.2, 0.9, 0.25, 1)`. Motion uses opacity/transform rather than layout.
+Motion tokens, easing, the motion vocabulary and a theme's motion feel are in
+[controls and motion](controls-and-motion.md#motion). Motion uses opacity/transform rather than layout.
 Reduced motion removes translation, scale, parallax, and loops, leaving at most 120 ms opacity.
 `data-effects="off"` disables decorative motion, glow, blur, and optional canvas effects without
 changing function. Infinite motion is reserved for real active state/loading and restrained breathing

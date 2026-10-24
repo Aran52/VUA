@@ -50,6 +50,7 @@ body { margin: 0; background: var(--vua-bg-canvas); color: var(--vua-text-strong
 <div id="blur" class="blurcard">blur card wall</div>
 <div style="border-radius: 10px; padding: 4px;">
   <div id="nested" class="same-radius" style="border-radius: 10px;">same radius as parent</div>
+  <div id="larger" class="larger-radius" style="border-radius: 12px;">larger radius than parent</div>
   <div id="pill" class="pill-in-card">pill</div>
   <div id="circle" class="circle"></div>
   <div id="step" class="stepdown">steps down</div>
@@ -73,6 +74,29 @@ body { margin: 0; background: var(--vua-bg-canvas); color: var(--vua-text-strong
 const OVERLAY_PAGE = `<!doctype html><html><body>
 <div id="root"></div>
 <vite-error-overlay><pre>Failed to resolve import "@vua/contracts"</pre></vite-error-overlay>
+</body></html>`;
+
+const CALIBRATION_PAGE = `<!doctype html><html><head><style>
+body { margin:0; color:white; background:black; font:400 14px/20px sans-serif; }
+.camera { position:relative; width:200px; height:80px; overflow:hidden; }
+.scene { width:1200px; height:60px; transform:translateX(-300px); background:gray; }
+.hidden { opacity:0; }
+.bleed { position:absolute; top:100px; left:740px; width:200px; height:40px; }
+.caption-clip { width:100px; overflow:hidden; }
+.caption { display:block; width:300px; white-space:nowrap; }
+.label { display:inline-flex; align-items:center; min-height:28px; padding:0 8px; gap:8px; }
+input { width:16px; height:16px; padding:0; margin:0; }
+.auto { width:101px; margin-left:auto; }
+.fixed { margin-inline:6px; }
+.separator { border-bottom:1px solid white; }
+</style></head><body>
+<div class="camera"><div id="scene" class="scene"></div><div class="hidden"><button id="hidden-control">hidden</button></div></div>
+<div id="bleed" class="bleed">actual viewport overflow</div>
+<div class="caption-clip"><span id="caption" class="caption">actual clipped caption</span></div>
+<label id="large-label" class="label"><input id="labelled" type="checkbox">a usable label</label>
+<input id="unlabelled" type="checkbox" aria-label="tiny independent control">
+<div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
+<div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
 </body></html>`;
 
 const tests = [];
@@ -101,7 +125,8 @@ test("collector and rules run end-to-end on a synthetic page", async win => {
   assert.ok(has("shadow-panel", "shadowed"), "shadow-panel flags ordinary panel");
   assert.ok(!has("shadow-panel", "glow"), "accent glow is exempt");
   assert.ok(has("blur-scope", "blurcard"), "blur-scope flags card-wall blur");
-  assert.ok(has("radius-nesting", "same-radius"), "radius-nesting flags same-radius child");
+  assert.ok(!has("radius-nesting", "same-radius"), "equal inner corners follow the approved standard");
+  assert.ok(has("radius-nesting", "larger-radius"), "larger inner corners are flagged");
   assert.ok(!has("radius-nesting", "pill") && !has("radius-nesting", "circle"), "pill/circle exempt from radius-nesting");
   assert.ok(!has("radius-nesting", "step"), "stepped-down radius passes");
   assert.ok(has("overflow", "clipped"), "overflow flags hidden clipping");
@@ -131,8 +156,38 @@ test("annotation overlay draws and removes cleanly", async win => {
     `${applyAnnotations.toString()};applyAnnotations(${JSON.stringify(items)}, { view: "e2e", theme: "dark", locale: "zh-CN" })`, true);
   assert.equal(drawn, items.length);
   assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('[data-vua-audit-overlay]').length"), 1);
+  win.webContents.invalidate();
+  await win.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))", true);
+  const pixels = (await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true })).toBitmap();
+  let legendPixels = 0;
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (pixels[offset] >= 40 && pixels[offset] <= 50 && pixels[offset + 1] >= 40 && pixels[offset + 1] <= 50 && pixels[offset + 2] >= 250) legendPixels += 1;
+  }
+  assert.ok(legendPixels >= 20, "the captured image contains the red annotation legend, not only a DOM overlay");
   await win.webContents.executeJavaScript(`${removeAnnotations.toString()};removeAnnotations()`, true);
   assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('[data-vua-audit-overlay]').length"), 0);
+});
+
+test("paint clipping, label hit regions and auto margins preserve real defects", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/calibration`);
+  const snapshot = await win.webContents.executeJavaScript(
+    `${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed: true, overflowChecks: true })`, true);
+  const element = id => snapshot.elements.find(value => value.id === id);
+  const findings = evaluateSnapshot(snapshot);
+  const flagged = (rule, id) => findings.some(f => f.rule === rule && f.index === snapshot.elements.indexOf(element(id)));
+  assert.equal(element("hidden-control"), undefined, "opacity-zero ancestors are not painted controls");
+  assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
+  assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");
+  assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");
+  assert.equal(flagged("target-size", "labelled"), false, "the associated 28px label supplies the real hit region");
+  assert.equal(flagged("target-size", "unlabelled"), true, "an independent tiny checkbox still fails");
+  assert.equal(element("labelled").hitRect.source, "label");
+  assert.equal(await win.webContents.executeJavaScript("document.getElementById('large-label').click(); document.getElementById('labelled').checked"), true);
+  assert.equal(element("auto").autoMargins[3], true);
+  assert.equal(flagged("spacing-grid", "auto"), false);
+  assert.equal(flagged("spacing-grid", "fixed"), true);
+  assert.equal(element("choice").selfSurface, false, "an action is not another nested container");
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
 });
 
 test("vite error overlay marks the snapshot as a capture failure", async win => {
@@ -164,7 +219,7 @@ async function main() {
     await app.whenReady();
     server = createServer((req, res) => {
       res.setHeader("Content-Type", "text/html");
-      res.end(req.url === "/overlay" ? OVERLAY_PAGE : PAGE);
+      res.end(req.url === "/overlay" ? OVERLAY_PAGE : req.url === "/calibration" ? CALIBRATION_PAGE : PAGE);
     });
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const win = new BrowserWindow({

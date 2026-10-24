@@ -29,7 +29,7 @@
     "preview:overlay": "electron scripts/preview-overlay.mjs",
     "preview:factory": "electron scripts/preview-factory.mjs",
     "audit:design": "electron scripts/design-audit.mjs",
-    "test:design-audit": "node --test scripts/design-audit-rules.test.mjs && electron scripts/design-audit-e2e.test.mjs",
+    "test:design-audit": "node --test scripts/design-audit-rules.test.mjs scripts/design-audit-results.test.mjs && electron scripts/design-audit-e2e.test.mjs",
     "smoke:remote-content": "pnpm build && electron scripts/smoke-remote-content.mjs",
     "smoke:download-port": "pnpm build && electron scripts/smoke-download-port.mjs",
     "smoke:f4-deliverables": "pnpm build && node scripts/smoke-f4-deliverables.mjs",

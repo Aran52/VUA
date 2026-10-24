@@ -119,9 +119,10 @@ test("spacing-grid passes multiples of 4 and border compensation, flags 6/10/14"
   assert.deepEqual(flagged.map(f => f.details.property).sort(), ["margin-right", "row-gap"]);
 });
 
-test("spacing-grid exempts symmetric horizontal centering margins", () => {
-  const findings = evaluateSnapshot(snapshot([el({ margins: [0, 33, 0, 33] })]));
+test("spacing-grid exempts actual auto margins but still flags equal fixed margins", () => {
+  const findings = evaluateSnapshot(snapshot([el({ margins: [0, 34, 0, 34], autoMargins: [false, true, false, true] })]));
   assert.equal(findings.filter(f => f.rule === "spacing-grid").length, 0);
+  assert.equal(evaluateSnapshot(snapshot([el({ margins: [0, 6, 0, 6] })])).filter(f => f.rule === "spacing-grid").length, 2);
 });
 
 test("radius-token accepts 0, tokens, pill and circles", () => {
@@ -195,7 +196,7 @@ test("overflow flags hidden clipping without ellipsis, exempts ellipsis and line
   const clamp = evaluateSnapshot(snapshot([el({ overflowY: "hidden", scrollH: 220, clientH: 40, lineClamp: "2" })]));
   assert.equal(clamp.filter(f => f.rule === "overflow").length, 0);
   const scrolled = evaluateSnapshot(snapshot([el({ overflowX: "hidden", scrollW: 220, clientW: 100, insideScrollContainer: true })]));
-  assert.equal(scrolled.filter(f => f.rule === "overflow").length, 0);
+  assert.equal(scrolled.filter(f => f.rule === "overflow").length, 1, "a scroller does not excuse a child clipping its own text");
 });
 
 test("overflow flags elements beyond the viewport", () => {
@@ -205,9 +206,10 @@ test("overflow flags elements beyond the viewport", () => {
   assert.equal(flagged[0].details.kind, "viewport");
 });
 
-test("radius-nesting flags equal-or-larger child radius, exempts pills/circles", () => {
-  const nested = evaluateSnapshot(snapshot([el({ radius: [10, 10, 10, 10], ancestorRadius: 10 })]));
+test("radius-nesting follows the approved inner-not-larger rule, exempts pills/circles", () => {
+  const nested = evaluateSnapshot(snapshot([el({ radius: [12, 12, 12, 12], ancestorRadius: 10 })]));
   assert.equal(nested.filter(f => f.rule === "radius-nesting").length, 1);
+  assert.equal(evaluateSnapshot(snapshot([el({ radius: [10, 10, 10, 10], ancestorRadius: 10 })])).filter(f => f.rule === "radius-nesting").length, 0);
   const pill = evaluateSnapshot(snapshot([el({ radius: [999, 999, 999, 999], ancestorRadius: 10 })]));
   assert.equal(pill.filter(f => f.rule === "radius-nesting").length, 0);
   const stepped = evaluateSnapshot(snapshot([el({ radius: [6, 6, 6, 6], ancestorRadius: 10 })]));

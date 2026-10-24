@@ -203,6 +203,13 @@ async function openDialog() {
   await wait();
 }
 const dialogOpen = () => document.querySelector('[role="dialog"]') !== null;
+async function waitForClosed() {
+  const deadline = performance.now() + 2000;
+  while (dialogOpen()) {
+    if (performance.now() > deadline) throw new Error("The import dialog did not finish closing.");
+    await wait();
+  }
+}
 
 /* ---- 场景 ---- */
 
@@ -234,6 +241,7 @@ async function escClosesPath() {
   await openDialog();
   check(dialogOpen(), "Esc 路径:弹窗打开");
   await key("Escape");
+  await waitForClosed();
   check(!dialogOpen(), "Esc 关闭弹窗(路径一)");
   check(closeCount === 1, "Esc 恰一次关闭请求");
 }
@@ -244,6 +252,7 @@ async function backdropClosesPath() {
   check(overlay !== null, "背板路径:遮罩在场");
   overlay.click();
   await wait();
+  await waitForClosed();
   check(!dialogOpen(), "背板点击关闭弹窗(路径二)");
 }
 
@@ -253,6 +262,7 @@ async function closeButtonClosesPath() {
   check(close !== null, "× 路径:关闭钮在场");
   close.click();
   await wait();
+  await waitForClosed();
   check(!dialogOpen(), "× 关闭弹窗(路径三)");
 }
 
@@ -267,6 +277,7 @@ async function acceptAutoCloses() {
   );
   check(dialogOpen(), "时滞内弹窗仍在(用户看得见受理信息)");
   await wait(IMPORT_ACCEPTED_AUTO_CLOSE_MS + 250);
+  await waitForClosed();
   check(!dialogOpen(), "受理后弹窗自动关闭(不滞留模态)");
   check(closeCount === 1, "自动关闭恰一次请求");
 }
@@ -285,6 +296,7 @@ async function failureStaysWithProminentClose() {
   check(dialogOpen(), "失败态弹窗驻留(不自动关走,失败需用户知悉)");
   prominent!.click();
   await wait();
+  await waitForClosed();
   check(!dialogOpen(), "主按钮关闭失败态弹窗(× 仅辅助)");
 }
 
@@ -294,6 +306,7 @@ async function manualCloseDuringWindowNoStaleTimer() {
   await driveToLocalSubmission();
   check(document.body.textContent!.includes(strings.warehouse.acquire.importAccepted), "受理词面呈现");
   await key("Escape");
+  await waitForClosed();
   check(!dialogOpen(), "受理窗口内手动 Esc 先关");
   const closesBefore = closeCount;
   await openDialog();
@@ -324,6 +337,7 @@ async function userTakeoverCancelsAutoClose() {
   await wait();
   check(document.body.textContent!.includes(strings.warehouse.acquire.importAccepted), "二次受理词面呈现");
   await wait(IMPORT_ACCEPTED_AUTO_CLOSE_MS + 250);
+  await waitForClosed();
   check(!dialogOpen(), "二次受理重新武装后照常自动收口(同窗二次受理重新计时语义保持)");
 }
 
@@ -345,6 +359,7 @@ async function windowsPickerPathInsideDialog() {
   );
   await key("Escape");
   await wait();
+  await waitForClosed();
   check(!dialogOpen(), "原生次级路径收尾:弹窗已关");
 }
 
@@ -368,6 +383,7 @@ async function cloudDownloadsWithoutHostHonestUnavailable() {
   );
   await key("Escape");
   await wait();
+  await waitForClosed();
   check(!dialogOpen(), "无宿主场景收尾:弹窗已关");
   cloudMode = false;
 }
@@ -386,6 +402,7 @@ async function userClosesViewWithNoDownloadsAutoCloses() {
     check(document.querySelector(".vua-import__browse-bar") !== null, "首开自动导航:内嵌视图打开,导航条在场");
     navCloseButton().click();
     await wait();
+    await waitForClosed();
     check(!dialogOpen(), "用户关闭视图且零完成下载:宿主弹窗自动收口");
     check(closeCount === 1, "自动收口恰一次关闭请求");
   } finally {
@@ -420,6 +437,7 @@ async function userClosesViewWithDownloadsStaysOpen() {
     cloudMode = false;
     await key("Escape");
     await wait();
+    await waitForClosed();
     check(!dialogOpen(), "有下载驻留场景收尾:弹窗已关");
   }
 }

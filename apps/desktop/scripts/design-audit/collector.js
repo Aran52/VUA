@@ -13,6 +13,53 @@ export function collectAuditSnapshot(options) {
     '[role="checkbox"]', '[role="radio"]', '[role="switch"]', '[role="link"]',
     '[tabindex]:not([tabindex="-1"])',
   ].join(",");
+  const styles = new WeakMap();
+  const styleOf = element => {
+    if (!styles.has(element)) styles.set(element, getComputedStyle(element));
+    return styles.get(element);
+  };
+
+  // CSS clipping confines a camera scene's paint without breaking the page.
+  // Do not clip to the window here: genuinely escaping content must stay visible
+  // to the overflow rule, and content below the fold still needs its style audit.
+  function paintedRect(element, rectangle) {
+    let left = rectangle.left, right = rectangle.right, top = rectangle.top, bottom = rectangle.bottom;
+    for (let node = element; node; node = node.parentElement) {
+      const style = styleOf(node);
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+      if (node === element) continue;
+      const clipX = /^(hidden|clip)$/.test(style.overflowX);
+      const clipY = /^(hidden|clip)$/.test(style.overflowY);
+      if (!clipX && !clipY) continue;
+      const clip = node.getBoundingClientRect();
+      if (clipX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+      if (clipY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+    }
+    return right > left && bottom > top ? { x: left, y: top, w: right - left, h: bottom - top } : null;
+  }
+
+  function hitRegion(element, rectangle) {
+    let region = { ...rectangle, source: "control" };
+    if (!element.matches('input[type="checkbox"], input[type="radio"]')) return region;
+    for (const label of element.labels || []) {
+      if (label.control !== element) continue;
+      // A fragment is a real clickable label area; a bounding box spanning
+      // separate lines or separate labels would invent a target between them.
+      for (const fragment of label.getClientRects()) {
+        const candidate = paintedRect(label, fragment);
+        if (candidate && Math.min(candidate.w, candidate.h) > Math.min(region.w, region.h)) region = { ...candidate, source: "label" };
+      }
+    }
+    return region;
+  }
+
+  function isSurface(element, style, canvas) {
+    if (!element.matches("div,article,section,aside,main,nav,header,footer,ul,ol,li,dl,table,fieldset,details,form")) return false;
+    if (element.matches(interactiveControlSelector) || style.display === "inline" || style.display === "contents") return false;
+    const background = parseColor(style.backgroundColor);
+    const enclosingEdges = ["Top", "Right", "Bottom", "Left"].filter(side => parseFloat(style[`border${side}Width`]) > 0 && style[`border${side}Style`] !== "none").length;
+    return enclosingEdges >= 3 || Boolean(background && background.a >= 0.05 && (!canvas || rgbDistance(background, canvas) > 2));
+  }
 
   function parseColor(text) {
     if (typeof text !== "string") return null;
@@ -163,11 +210,11 @@ export function collectAuditSnapshot(options) {
     }
     return false;
   }
-  function insideScrollContainer(el) {
+  function insideScrollContainer(el, axis) {
     for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
       const cs = getComputedStyle(node);
-      if (/(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight + 1) return true;
-      if (/(auto|scroll)/.test(cs.overflowX) && node.scrollWidth > node.clientWidth + 1) return true;
+      if (axis === "y" && /(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight + 1) return true;
+      if (axis === "x" && /(auto|scroll)/.test(cs.overflowX) && node.scrollWidth > node.clientWidth + 1) return true;
     }
     return false;
   }
@@ -238,6 +285,13 @@ export function collectAuditSnapshot(options) {
     const rect = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none") continue;
+    const paint = paintedRect(el, rect);
+    if (!paint) continue;
+    let truncation = false;
+    for (let node = el; node; node = node.parentElement) {
+      const style = styleOf(node);
+      if (style.textOverflow === "ellipsis" || (style.webkitLineClamp && style.webkitLineClamp !== "none")) { truncation = true; break; }
+    }
 
     const text = directText(el);
     const color = parseColor(cs.color);
@@ -275,15 +329,11 @@ export function collectAuditSnapshot(options) {
           if (r && !(typeof r === "object" && r.pct >= 45) && r < 100) ancestorRadius = typeof r === "object" ? 0 : r;
           if ((typeof r === "object" && r.pct >= 45) || r >= 100) ancestorDecorative = true;
         }
-        const abg = parseColor(acs.backgroundColor);
-        const aborder = (parseFloat(acs.borderTopWidth) || 0) > 0 && acs.borderTopStyle !== "none";
-        const independent = (abg && abg.a >= 0.05 && rgbDist(abg, canvasBg) > 2) || aborder;
+        const independent = isSurface(node, acs, canvasBg);
         if (independent) surfaceDepth += 1;
       }
     }
-    const ownBg = parseColor(cs.backgroundColor);
-    const ownBorder = borders.some(b => b.width >= 1 && b.style !== "none");
-    const selfSurface = (ownBg && ownBg.a >= 0.05) || ownBorder ? 1 : 0;
+    const selfSurface = isSurface(el, cs, parseColor(getComputedStyle(document.body).backgroundColor)) ? 1 : 0;
 
     let hasIcon = false;
     for (const child of el.querySelectorAll("svg, img")) {
@@ -292,15 +342,24 @@ export function collectAuditSnapshot(options) {
     }
 
     // The scroll-container walk is expensive; run it only for overflow candidates.
-    let insideScroll = false;
+    let insideScrollX = false;
+    let insideScrollY = false;
     if (opts.overflowChecks) {
       const tol = 2;
       const beyond = rect.x < -tol || rect.y < -tol
         || rect.x + rect.width > window.innerWidth + tol || rect.y + rect.height > window.innerHeight + tol;
       const clipped = (cs.overflowX === "hidden" && el.scrollWidth > el.clientWidth + 1)
         || (cs.overflowY === "hidden" && el.scrollHeight > el.clientHeight + 1);
-      if (beyond || clipped) insideScroll = insideScrollContainer(el);
+      if (beyond || clipped) {
+        insideScrollX = insideScrollContainer(el, "x");
+        insideScrollY = insideScrollContainer(el, "y");
+      }
     }
+
+    let typedStyle;
+    try { typedStyle = el.computedStyleMap?.(); } catch { /* optional Typed OM */ }
+    const gapApplies = /flex|grid/.test(cs.display) && [...el.childNodes].filter(node => node.nodeType === 3
+      ? node.textContent.trim() : node.nodeType === 1 && node.getClientRects().length > 0 && styleOf(node).position !== "absolute").length > 1;
 
     elements.push({
       path: elementPath(el),
@@ -308,6 +367,10 @@ export function collectAuditSnapshot(options) {
       id: el.id || "",
       cls: (el.getAttribute("class") || "").split(/\s+/).filter(Boolean),
       rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+      paintedRect: paint,
+      hitRect: hitRegion(el, paint),
+      clippedByAncestor: paint.w < rect.width - 2 || paint.h < rect.height - 2,
+      intentionalTruncation: truncation,
       text: text.slice(0, MAX_TEXT),
       textLength: text.length,
       fontSize: parseFloat(cs.fontSize) || 0,
@@ -322,8 +385,9 @@ export function collectAuditSnapshot(options) {
       radius: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map(k => parseRadius(cs["border" + k + "Radius"])),
       paddings: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["padding" + k]) || 0)),
       margins: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["margin" + k]) || 0)),
-      rowGap: cs.rowGap === "normal" ? 0 : Math.round(parseFloat(cs.rowGap) || 0),
-      columnGap: cs.columnGap === "normal" ? 0 : Math.round(parseFloat(cs.columnGap) || 0),
+      autoMargins: ["top", "right", "bottom", "left"].map(side => typedStyle?.get(`margin-${side}`)?.toString() === "auto"),
+      rowGap: !gapApplies || cs.rowGap === "normal" ? 0 : Math.round(parseFloat(cs.rowGap) || 0),
+      columnGap: (!gapApplies && cs.columnCount === "auto") || cs.columnGap === "normal" ? 0 : Math.round(parseFloat(cs.columnGap) || 0),
       overflowX: cs.overflowX, overflowY: cs.overflowY,
       textOverflow: cs.textOverflow,
       lineClamp: cs.webkitLineClamp || "none",
@@ -335,7 +399,8 @@ export function collectAuditSnapshot(options) {
       family: familyOf(backgroundColor) || familyOf(color),
       overlayContext: isOverlayContext(el),
       shellStructure: isShellStructure(el),
-      insideScrollContainer: insideScroll,
+      insideScrollContainer: insideScrollX || insideScrollY,
+      insideScrollX, insideScrollY,
       effBg: eff.color,
       effBgFromCanvas: eff.fromCanvas,
       hasBackgroundImage: cs.backgroundImage !== "none",

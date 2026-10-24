@@ -60,6 +60,7 @@ function makeFinding(ruleId, el, index, details, message, property = null) {
     tag: el.tag,
     cls: el.cls,
     text: el.text,
+    rect: el.paintedRect ?? el.rect,
     details,
     message,
     property,
@@ -146,8 +147,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       (el.paddings ?? []).forEach((v, i) => { if (v !== 0 && !passSpacing(v)) offenders.push([`padding-${MARGIN_SIDES[i]}`, v]); });
       (el.margins ?? []).forEach((v, i) => {
         if (v === 0) return;
-        // Symmetric horizontal auto-centering is a layout idiom, not spacing rhythm.
-        if ((i === 1 || i === 3) && el.margins[1] === el.margins[3]) return;
+        if (el.autoMargins?.[i]) return;
         if (!passSpacing(v)) offenders.push([`margin-${MARGIN_SIDES[i]}`, v]);
       });
       for (const [kind, v] of [["row-gap", el.rowGap], ["column-gap", el.columnGap]]) {
@@ -199,7 +199,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
     }
     if (active.has("target-size")) {
       if (el.isControl && !el.disabled && el.display !== "inline") {
-        const { w, h } = el.rect;
+        const { w, h } = el.hitRect ?? el.rect;
         if (w < THRESHOLDS.targetFloor || h < THRESHOLDS.targetFloor) {
           push(makeFinding("target-size", el, index, { w, h, floor: THRESHOLDS.targetFloor },
             `interactive target ${w}x${h} is below the 24x24 floor`, "size"));
@@ -211,7 +211,6 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
     }
     if (active.has("overflow")) {
       const clipped = (el.overflowX === "hidden" || el.overflowY === "hidden")
-        && !el.insideScrollContainer
         && el.textOverflow !== "ellipsis" && el.lineClamp === "none"
         && ((el.overflowX === "hidden" && el.scrollW > el.clientW + 1)
           || (el.overflowY === "hidden" && el.scrollH > el.clientH + 1))
@@ -221,11 +220,14 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
           kind: "clipped", scrollW: el.scrollW, clientW: el.clientW, scrollH: el.scrollH, clientH: el.clientH,
         }, "text is clipped without an ellipsis", null));
       }
-      const { x, y, w, h } = el.rect;
+      if (el.clippedByAncestor && el.hasText && !el.intentionalTruncation && !clipped) {
+        push(makeFinding("overflow", el, index, { kind: "ancestor_clip", rect: el.rect, paintedRect: el.paintedRect }, "text is clipped by an ancestor without an ellipsis", null));
+      }
+      const { x, y, w, h } = el.paintedRect ?? el.rect;
       const tol = THRESHOLDS.overflowTolerance;
       // Horizontal only: vertical growth beyond the fold is normal document
       // scrolling, not layout breakage.
-      const beyond = !el.insideScrollContainer
+      const beyond = !(el.insideScrollX ?? el.insideScrollContainer)
         && (x < -tol || x + w > snapshot.viewport.w + tol);
       if (beyond && w > 4 && h > 4) {
         push(makeFinding("overflow", el, index, { kind: "viewport", rect: el.rect }, "element extends horizontally beyond the viewport", null));
@@ -235,9 +237,9 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       const own = Math.max(...(el.radius ?? [0]).map(r => (typeof r === "object" ? 999 : r)));
       const ownPct = (el.radius ?? []).some(r => typeof r === "object");
       if (!ownPct && own > 0 && own < 100 && el.ancestorRadius > 0 && !el.ancestorDecorative
-        && own >= el.ancestorRadius) {
+        && own > el.ancestorRadius) {
         push(makeFinding("radius-nesting", el, index, { radius: own, ancestorRadius: el.ancestorRadius },
-          `radius ${own}px does not step down from ancestor ${el.ancestorRadius}px`, null));
+          `radius ${own}px is larger than ancestor ${el.ancestorRadius}px`, null));
       }
     }
     if (active.has("surface-nesting")) {

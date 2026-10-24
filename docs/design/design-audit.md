@@ -2,7 +2,7 @@
 
 > Scope: the automated UI design review tool, its rules, outputs and how fix
 > work consumes its reports
-> Updated: 2026-10-24
+> Updated: 2026-10-25
 
 The design audit renders every registered view through the existing preview and
 smoke fixtures, walks the rendered computed styles, and reports where the
@@ -51,6 +51,12 @@ Output directory contents:
 | `baseline.json` | Fresh baseline of this run (also written without `--update-baseline`) |
 | `run-summary.json` | Machine record of states run and failures |
 
+The overview, summary and run record show planned and audited state counts. A fixture assertion,
+navigation, annotation or capture failure fails the run even when other pages rendered. Missing,
+duplicate or unplanned state records also fail. Failed states are listed separately from design
+findings; a successfully generated report does not make an incomplete collection successful.
+Per-state JSON contains that state's raw findings and grouped element details, never its run plan.
+
 ## View registry
 
 Views live in `apps/desktop/scripts/design-audit/views.mjs`. Adding a view to
@@ -86,13 +92,13 @@ layout), **warning** = violates the current standard's token discipline,
 | `type-weight` | Font weight is not 400 or 600 | — |
 | `color-token` | Solid text/background/border color matches no resolved `--vua-*` color | RGB Euclidean distance > 12 to every token counts as "no match" (token pairs differ by ≥ 14, amber #ffd34d vs warning #fde047). Translucent fills (alpha < 0.95) are exempt: the glass panel system is token-composed by construction |
 | `contrast` | Text or icon foreground vs its effective background | Body 4.5:1; large text (≥ 24px, or ≥ 18.66px at weight ≥ 600) and icons 3:1. The background walks ancestors to the first opaque fill and alpha-composites translucent layers in between. Disabled controls exempt |
-| `spacing-grid` | `padding`/`margin`/`gap` off the 4 px grid | Values with `v mod 4 ∈ {0, 1, 3}` pass: multiples of 4 plus ±1 px border compensation. Symmetric horizontal margins (auto-centering) exempt |
+| `spacing-grid` | `padding`/`margin`/`gap` off the 4 px grid | Values with `v mod 4 ∈ {0, 1, 3}` pass: multiples of 4 plus ±1 px border compensation. Actual `auto` margins and unused gaps are excluded; equal fixed margins are still checked |
 | `radius-token` | Border radius is not 0, a `--vua-radius-*` value, a pill (≥ 100px), or a circle (50%) | Tokens: 6 (control), 10 (card), 12 (overlay) |
 | `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt; the elevated-surface shadow token is reported as a finding on non-elevated panels |
 | `blur-scope` | `backdrop-filter` outside top/side/task/elevated structure | Same floating/structure exemptions as `shadow-panel` |
 | `one-accent` | Two jurisdiction accent families (purple + orange) in one view, or more than one filled accent control | Family = opaque fill or text within RGB distance 12 of the purple or orange token family. The base map composes four room colors by design and is exempt in the registry |
-| `target-size` | Interactive target below 24×24 (error); primary action below 32×32 (reported as an error with `floor: 32`) | "Primary" = interactive element filled with an opaque accent color. Inline text links and disabled controls exempt |
-| `overflow` | Text clipped without an intentional ellipsis, or an element extending horizontally beyond the viewport | Ellipsis (`text-overflow: ellipsis`) and line-clamp exempt; children of a scrolling container exempt; vertical growth beyond the fold is normal page scrolling and not flagged |
+| `target-size` | Interactive target below 24×24 (error); primary action below 32×32 (reported as an error with `floor: 32`) | Checkbox/radio targets include a visible, associated label fragment that actually activates the input. Separate fragments are never joined into an invented target. Inline text links and disabled controls are exempt |
+| `overflow` | Text clipped without intentional truncation, or visible paint escaping the viewport horizontally | Ancestor `overflow: hidden/clip` confines scene paint; fully clipped and opacity-zero elements are excluded. Clipped ordinary text still fails. A real horizontal scroller permits horizontal overflow; a vertical scroller alone does not. Vertical growth below the fold is normal scrolling |
 | `border-density` (hint) | Bordered elements per 10k px² above the all-view P90 | Cross-view metric evaluated over the default-locale dark states |
 
 ### Nesting rules (adopted 2026-10-25)
@@ -103,8 +109,8 @@ by the author on 2026-10-25; they are current rules with `warning` severity.
 
 | ID | Meaning | Exceptions |
 | --- | --- | --- |
-| `radius-nesting` | Element radius ≥ nearest radiused ancestor (should step down per level) | Pills (≥ 100px), circles (50%), and zero-radius elements exempt |
-| `surface-nesting` | An element that is itself a bordered or independently-filled surface sits 3+ surface levels deep | Only self-surfaces are reported — text and icons inside a surface never repeat the finding; SVG frames and canvas-colored containers (the backdrop, including body) do not count |
+| `radius-nesting` | Inner corner larger than its nearest cornered container, following [controls and motion](controls-and-motion.md) | Equal corners, pills (≥ 100px), circles (50%), and zero-radius elements are allowed |
+| `surface-nesting` | A bordered or independently-filled container sits 3+ container surfaces deep | Controls, indicators, text, SVG frames, canvas backdrops and a single separator edge do not add container levels. Only the deep container itself is reported |
 
 ### Counting and themes
 
@@ -123,10 +129,10 @@ A state is a **capture failure** — recorded and listed at the top of
 
 - the page shows Vite's error overlay (the view did not render, e.g. an
   unbuilt workspace package), or
-- fewer than 20 elements were collected (`--per-state-elements` to override).
+- fewer than 6 elements were collected (`--per-state-elements` to override; small real views are retained).
 
 A full run (no `--only`/`--max`/locale/theme filters) **fails** — exit code 1,
-so the CI job shows red — when there is any capture failure or when the total
+so the CI job shows red — when any planned state fails or is missing, capture fails, or the total
 inspected elements are below 30,000 (`--min-total-elements` to override; the
 2026-10-24 reference run inspected 74,058). Filtered runs skip the total floor
 unless it is passed explicitly. CI builds `@vua/contracts` and
@@ -134,6 +140,12 @@ unless it is passed explicitly. CI builds `@vua/contracts` and
 `ERR_ABORTED` loads that survive one retry.
 
 ## Reading the outputs
+
+Committed baseline updates require a complete full run. Filtered or incomplete runs cannot
+replace the gate baseline. Baseline format 2 retains the highest instance count and severity for
+each rule/view/root cause across locales; checks reject new groups, increased counts and severity
+regressions. A filtered check reports resolved keys only within its selected views. Calibration
+changes and visual fixes are recorded separately so a lower count can be explained.
 
 Start from `index.html`: sort by findings, filter to one rule or area, and open
 the top thumbnails — the annotated image's numbered boxes correspond to the

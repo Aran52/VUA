@@ -12,7 +12,8 @@ import { app, BrowserWindow, protocol } from "electron";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,7 @@ import { groupFindings, writeBaseline, loadBaseline, checkAgainstBaseline } from
 import { scanStatic } from "./design-audit/static-scan.mjs";
 import { scanCardStyles, countCardImports } from "./design-audit/cards.mjs";
 import { buildSummary, buildOverviewHtml, rankRootCauses } from "./design-audit/report.mjs";
+import { auditCoverage, runPassed, stateKey, stateResult } from "./design-audit/results.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(scriptDir, "..");
@@ -120,7 +122,9 @@ const LIMITATIONS = [
 ];
 
 async function main() {
-  await mkdtemp(path.join(tmpdir(), "vua-design-audit-")).then(dir => app.setPath("userData", dir));
+  const profile = mkdtempSync(path.join(tmpdir(), "vua-design-audit-"));
+  app.setPath("userData", profile);
+  app.setPath("sessionData", profile);
   await app.whenReady();
   protocol.handle("vua-img", request => request.url === `vua-img://local/${"a".repeat(64)}`
     ? new Response(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=", "base64"), { headers: { "Content-Type": "image/png" } })
@@ -312,12 +316,12 @@ async function main() {
       let annotPath = null;
       if (state.capture) {
         const annotateSource = `${applyAnnotations.toString()};applyAnnotations(${JSON.stringify(annotateItems(findings, snapshot))}, ${JSON.stringify({ view: view.id, theme, locale })})`;
-        await win.webContents.executeJavaScript(annotateSource, true).catch(() => {});
+        await win.webContents.executeJavaScript(annotateSource, true);
         await sleep(300);
         const name = shotName(view.id, locale, theme);
         annotPath = path.join(shotsDir, `${name}.annot.png`);
-        await writeCapture(win, annotPath);
-        await win.webContents.executeJavaScript(`${removeAnnotations.toString()};removeAnnotations()`, true).catch(() => {});
+        await writeCapture(win, annotPath, true);
+        await win.webContents.executeJavaScript(`${removeAnnotations.toString()};removeAnnotations()`, true);
         await sleep(150);
         shotPath = path.join(shotsDir, `${name}.png`);
         await writeCapture(win, shotPath);
@@ -346,8 +350,27 @@ async function main() {
     }
   }
 
-  async function writeCapture(win, file) {
-    const image = await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true });
+  async function writeCapture(win, file, annotated = false) {
+    win.webContents.invalidate();
+    await withTimeout(win.webContents.executeJavaScript("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))", true), 5000, "screenshot paint timed out");
+    let image = await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true });
+    if (image.isEmpty()) throw new Error("The screenshot is empty.");
+    if (annotated) {
+      const hasLegendStroke = capture => {
+        const pixels = capture.toBitmap();
+        let count = 0;
+        for (let offset = 0; offset < pixels.length; offset += 4) {
+          if (pixels[offset] >= 40 && pixels[offset] <= 50 && pixels[offset + 1] >= 40 && pixels[offset + 1] <= 50 && pixels[offset + 2] >= 250 && pixels[offset + 3] >= 250 && ++count >= 20) return true;
+        }
+        return false;
+      };
+      if (!hasLegendStroke(image)) {
+        win.webContents.invalidate();
+        await sleep(200);
+        image = await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true });
+      }
+      if (!hasLegendStroke(image)) throw new Error("The annotation legend was not painted in the screenshot.");
+    }
     await writeFile(file, image.toPNG());
   }
 
@@ -356,7 +379,8 @@ async function main() {
       await withTimeout(auditViewLocale(group), 240_000, `${group.view.id}/${group.locale} timed out`);
     } catch (error) {
       for (const state of group.states) {
-        errors.push({ view: group.view.id, locale: group.locale, theme: state.theme, error: String(error.message ?? error) });
+        const failed = { view: group.view.id, locale: group.locale, theme: state.theme, error: String(error.message ?? error) };
+        if (![...collected, ...collectionFailures].some(record => stateKey(record) === stateKey(failed))) errors.push(failed);
       }
       console.error(`[fail] ${group.view.id} ${group.locale}: ${error.message ?? error}`);
       try { if (window && !window.isDestroyed()) window.destroy(); } catch { /* gone */ }
@@ -395,12 +419,7 @@ async function main() {
     }
     await writeFile(
       path.join(jsonDir, `${jsonName(state.view, state.locale, state.theme)}.json`),
-      JSON.stringify({
-        view: state.view, area: state.area, locale: state.locale, theme: state.theme,
-        elementCount: state.elementCount, findingsCount: state.findingsCount,
-        byRule: state.byRule, bySeverity: state.bySeverity,
-        groups,
-      }, null, 2),
+      JSON.stringify(stateResult(state), null, 2),
       "utf8",
     );
   }
@@ -423,25 +442,35 @@ async function main() {
 
   // Baseline handling: every run writes baseline.json into its output dir;
   // --update-baseline additionally refreshes the committed gate baseline.
+  const coverage = auditCoverage(groups, collected, errors, collectionFailures);
+  const elementTotal = collected.reduce((sum, state) => sum + state.elementCount, 0);
+  const usable = runPassed(coverage, elementTotal, TOTAL_ELEMENT_FLOOR);
   let checkOutcome = { mode: "skip" };
   const outBaseline = await writeBaseline(path.join(OUT, "baseline.json"), allGroups, {
     generatedAt: new Date().toISOString(), commit, views: selectedViews.length,
   });
   if (UPDATE_BASELINE) {
-    await writeBaseline(BASELINE_PATH, allGroups, {
-      generatedAt: new Date().toISOString(), commit, views: selectedViews.length,
-    });
-    checkOutcome = { mode: "write", entryCount: outBaseline.entryCount };
-    console.log(`baseline written: ${BASELINE_PATH} (${outBaseline.entryCount} entries)`);
+    if (PARTIAL_PLAN || !usable) {
+      checkOutcome = { mode: "refused", reason: "A committed baseline requires a complete, successful full audit." };
+      console.error(checkOutcome.reason);
+      process.exitCode = 1;
+    } else {
+      await writeBaseline(BASELINE_PATH, allGroups, {
+        generatedAt: new Date().toISOString(), commit, views: selectedViews.length,
+      });
+      checkOutcome = { mode: "write", entryCount: outBaseline.entryCount };
+      console.log(`baseline written: ${BASELINE_PATH} (${outBaseline.entryCount} entries)`);
+    }
   } else if (CHECK_BASELINE) {
     const baseline = await loadBaseline(BASELINE_PATH);
-    const { baselineMissing, newFindings, resolvedKeys } = checkAgainstBaseline(allGroups, baseline);
+    const { baselineMissing, newFindings, resolvedKeys } = checkAgainstBaseline(allGroups, baseline, selectedViews.map(view => view.id));
     checkOutcome = {
       mode: "check", baselineMissing,
-      newCount: newFindings.length, resolvedCount: resolvedKeys.length,
+      newCount: newFindings.length, resolvedCount: resolvedKeys.length, failed: baselineMissing || newFindings.length > 0 || !usable,
     };
     if (baselineMissing) {
       console.error(`baseline missing at ${BASELINE_PATH} — run with --update-baseline first`);
+      process.exitCode = 1;
     } else {
       for (const group of newFindings) console.error(`NEW: ${group.key}`);
       console.error(`baseline check: ${newFindings.length} new, ${resolvedKeys.length} resolved`);
@@ -460,10 +489,11 @@ async function main() {
     overflowLocales: OVERFLOW_LOCALES,
     themeInvariantRules: [...THEME_INVARIANT_RULES].sort().join(", "),
     perStateElementFloor: PER_STATE_ELEMENT_FLOOR,
+    plannedStates: coverage.planned, usable,
   };
 
   const overviewHtml = buildOverviewHtml({
-    meta, viewResults, rootCauses,
+    meta, viewResults, rootCauses, coverage, errors, collectionFailures,
     rulesMeta: Object.fromEntries(Object.entries(RULES).map(([id, r]) => [id, { severity: r.severity, category: r.category }])),
   });
   await writeFile(path.join(OUT, "index.html"), overviewHtml, "utf8");
@@ -471,11 +501,11 @@ async function main() {
   const summary = buildSummary({
     meta, viewResults, groups: allGroups, rootCauses, staticScan, cards, cardImports,
     uncovered: UNCOVERED_PAGES, limitations: LIMITATIONS, rulesMeta: RULES_META_FOR_DOCS,
-    checkOutcome, collectionFailures,
+    checkOutcome, collectionFailures, coverage, errors,
   });
   await writeFile(path.join(OUT, "summary.md"), summary, "utf8");
   await writeFile(path.join(OUT, "run-summary.json"), JSON.stringify({
-    meta, errors, collectionFailures, states: collected.map(c => ({
+    meta, coverage, errors, collectionFailures, states: collected.map(c => ({
       view: c.view, locale: c.locale, theme: c.theme, findings: c.findingsCount, elements: c.elementCount,
     })),
   }, null, 2), "utf8");
@@ -483,8 +513,10 @@ async function main() {
   console.log(`\ndone: ${collected.length} states, ${errors.length} failed states`);
   console.log(`output: ${OUT}`);
   await server.close();
-  const plannedStates = groups.reduce((sum, g) => sum + g.states.length, 0);
-  const elementTotal = collected.reduce((sum, c) => sum + c.elementCount, 0);
+  if (!usable) {
+    console.error(`FAILED: ${coverage.audited}/${coverage.planned} states audited; ${coverage.executionFailures} execution failures, ${coverage.captureFailures} capture failures, ${coverage.missing.length} missing, ${coverage.duplicates.length} duplicate, ${coverage.unexpected.length} unexpected`);
+    process.exitCode = 1;
+  }
   if (collectionFailures.length > 0) {
     console.error(`FAILED: ${collectionFailures.length} capture failures (see summary)`);
     process.exitCode = 1;
@@ -494,7 +526,7 @@ async function main() {
     process.exitCode = 1;
   }
   console.log(`elements: ${elementTotal}${TOTAL_ELEMENT_FLOOR > 0 ? ` (floor ${TOTAL_ELEMENT_FLOOR})` : ""}`);
-  app.exit(errors.length >= plannedStates && plannedStates > 0 ? 1 : process.exitCode ?? 0);
+  app.exit(process.exitCode ?? 0);
 }
 
 function withTimeout(promise, ms, message) {
@@ -527,7 +559,8 @@ function annotateItems(findings, snapshot) {
   return findings
     .map(f => ({
       rule: f.rule, severity: f.severity, message: f.message, cls: f.cls, tag: f.tag,
-      rect: f.index != null ? snapshot.elements[f.index]?.rect ?? null : null,
+      rect: f.rule === "target-size" && f.index != null ? snapshot.elements[f.index]?.hitRect ?? f.rect
+        : f.rect ?? (f.index != null ? snapshot.elements[f.index]?.rect ?? null : null),
     }))
     .filter(item => item.rect)
     .sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));

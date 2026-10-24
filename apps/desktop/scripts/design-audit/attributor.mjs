@@ -135,6 +135,8 @@ export class Attributor {
     this.areaFor = areaFor ?? (() => "");
     this.attached = false;
     this.fileCache = new Map();
+    this.nodeCache = new Map();
+    this.matchedStyleCache = new Map();
     this.cdpOk = false;
   }
 
@@ -166,12 +168,15 @@ export class Attributor {
   }
 
   async resolveNodeId(path) {
+    const key = JSON.stringify(path);
+    if (this.nodeCache.has(key)) return this.nodeCache.get(key);
     const expression = `(() => { let el = document.documentElement; for (const i of ${JSON.stringify(path)}) { el = el.children[i]; if (!el) return null; } return el; })()`;
     const result = await this.webContents.debugger.sendCommand("Runtime.evaluate", {
       expression, returnByValue: false,
     });
     if (!result?.result?.objectId) return null;
     const node = await this.webContents.debugger.sendCommand("DOM.requestNode", { objectId: result.result.objectId });
+    this.nodeCache.set(key, node.nodeId ?? null);
     return node.nodeId ?? null;
   }
 
@@ -200,7 +205,9 @@ export class Attributor {
     try {
       const nodeId = await this.resolveNodeId(path);
       if (!nodeId) return { key: null, reason: "element gone" };
-      const styles = await this.webContents.debugger.sendCommand("CSS.getMatchedStylesForNode", { nodeId });
+      if (!this.matchedStyleCache.has(nodeId)) this.matchedStyleCache.set(nodeId,
+        await this.webContents.debugger.sendCommand("CSS.getMatchedStylesForNode", { nodeId }));
+      const styles = this.matchedStyleCache.get(nodeId);
       if (!styles) return { key: null, reason: "cdp returned nothing" };
 
       const inlineProps = styles.inlineStyle?.cssProperties ?? [];

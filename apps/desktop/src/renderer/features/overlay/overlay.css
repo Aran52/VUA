@@ -26,7 +26,8 @@ body:has(.vua-overlay) {
 /* ---------- 桌面形态(键鼠):紧凑面板,目标 32–40px ---------- */
 
 .vua-overlay--desktop {
-  font-size: calc(14px * var(--vua-overlay-text-scale, 1));
+  font-size: calc(var(--vua-text-body-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-body-leading) * var(--vua-overlay-text-scale, 1));
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-overlay);
 }
@@ -327,6 +328,23 @@ body:has(.vua-overlay) {
   display: flex;
   justify-content: flex-end;
   gap: var(--vua-space-2);
+}
+
+/* Desktop type roles retain the player's text-scale multiplier. */
+.vua-overlay--desktop .vua-overlay__status-title {
+  font-size: calc(var(--vua-text-title-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-title-leading) * var(--vua-overlay-text-scale, 1));
+}
+
+.vua-overlay--desktop :is(.vua-overlay__task-title, .vua-overlay__production-line) {
+  font-size: calc(var(--vua-text-body-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-body-leading) * var(--vua-overlay-text-scale, 1));
+}
+
+.vua-overlay--desktop :is(.vua-overlay__title, .vua-overlay__status-detail, .vua-overlay__section-label,
+  .vua-overlay__task-meta, .vua-overlay__production-meta, .vua-overlay__hint, .vua-overlay__reason) {
+  font-size: calc(var(--vua-text-caption-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-caption-leading) * var(--vua-overlay-text-scale, 1));
 }
 
 /* ---------- VR 形态(激光点按):1024×768 设计预算,目标 ≥56px,

@@ -11,7 +11,7 @@ const identity = (value: unknown): value is string => typeof value === "string" 
 const size = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 const version = (value: unknown): value is string => typeof value === "string" && value.length <= 160 && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(value);
 export function isUpdateComponent(value: unknown): value is UpdateComponentV02 { return value === "host" || value === "amf"; }
-function validTarget(value: unknown, component: UpdateComponentV02): value is ComponentUpdateTargetV02 {
+export function validTarget(value: unknown, component: UpdateComponentV02): value is ComponentUpdateTargetV02 {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
   return identity(v.manifestId) && version(v.version) && typeof v.build === "string" && /^[a-f0-9]{40}$/.test(v.build)
@@ -20,11 +20,12 @@ function validTarget(value: unknown, component: UpdateComponentV02): value is Co
     && size(v.downloadBytes) && size(v.reusedBytes) && size(v.runtimeBytes) && (component !== "amf" || v.runtimeBytes === 0);
 }
 function validSnapshot(value: Record<string, unknown>, component: UpdateComponentV02): value is Record<string, unknown> & ComponentUpdateSnapshotV02 {
-  return value.schemaVersion === "0.2" && value.component === component && value.available === true && value.state === "idle"
+  return value.schemaVersion === "0.2" && value.component === component && value.available === true && ["idle", "staged", "interrupted"].includes(String(value.state))
     && version(value.installedVersion) && typeof value.installedBuild === "string" && /^[a-f0-9]{40}$/.test(value.installedBuild)
     && typeof value.rollbackAvailable === "boolean" && (value.latestVersion === undefined || version(value.latestVersion))
     && (value.requiresHost === undefined || (typeof value.requiresHost === "string" && value.requiresHost.length <= 512))
-    && (value.target === undefined || validTarget(value.target, component));
+    && (value.target === undefined || validTarget(value.target, component))
+    && (value.error === undefined || (typeof value.error === "string" && /^[a-z_]{1,80}$/.test(value.error)));
 }
 export function componentHelper(context: InstalledContext): string {
   const relative = "launcher/VUA.exe";
@@ -64,13 +65,20 @@ export function runComponentHelper(context: InstalledContext, command: string, a
   });
 }
 interface Job { child?: ChildProcessWithoutNullStreams; cancelled: boolean }
-interface Options { readonly context?: InstalledContext | undefined; readonly run?: ComponentRun }
+interface Options {
+  readonly context?: InstalledContext | undefined; readonly run?: ComponentRun;
+  readonly prepareRestart?: () => Promise<boolean>;
+  readonly restart?: (component: UpdateComponentV02, restore: boolean) => void;
+  readonly externalBusy?: () => boolean;
+}
 /** One job/state per component. Renderer supplies a closed role and checked digest, never URLs. */
 export class ComponentUpdater implements DesktopComponentUpdatesApiV02 {
   private readonly views: Record<UpdateComponentV02, ComponentUpdateSnapshotV02>;
   private readonly jobs = new Map<UpdateComponentV02, Job>();
   private readonly listeners = new Set<(view: ComponentUpdateSnapshotV02) => void>();
   private readonly run: ComponentRun;
+  private applying = false;
+  get busy(): boolean { return this.jobs.size > 0 || this.applying; }
   constructor(private readonly options: Options) {
     const context = options.context;
     const initial = (component: UpdateComponentV02): ComponentUpdateSnapshotV02 => ({ schemaVersion: "0.2", component,
@@ -87,35 +95,66 @@ export class ComponentUpdater implements DesktopComponentUpdatesApiV02 {
   }
   subscribe(listener: (view: ComponentUpdateSnapshotV02) => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private invoke(component: UpdateComponentV02, command: string, args: readonly string[], job: Job): Promise<Record<string, unknown>> {
-    return this.run(command, ["--component", component, ...args], progress => this.set(component, { progress }), child => { job.child = child; if (job.cancelled) child.stdin.write("cancel\n"); });
+    return this.run(command, ["--component", component, ...args], ({ completed, total, bytesPerSecond, reusedBytes, fullPack }) => this.set(component, { progress: { completed, total, bytesPerSecond, reusedBytes, fullPack } }), child => { job.child = child; if (job.cancelled) child.stdin.write("cancel\n"); });
   }
   async snapshot(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> {
-    if (!this.views[component].available || this.jobs.has(component)) return this.views[component];
+    if (!this.views[component].available || this.jobs.has(component) || this.applying) return this.views[component];
     const job: Job = { cancelled: false }; this.jobs.set(component, job);
     try {
       const native = await this.invoke(component, "component-snapshot", [], job);
       if (!validSnapshot(native, component)) throw Error("invalid_update_result");
-      return this.set(component, { installedVersion: native.installedVersion, installedBuild: native.installedBuild, rollbackAvailable: native.rollbackAvailable });
-    } catch { return this.set(component, { state: "failed", error: "installed_files_need_repair" }); }
+      return this.set(component, { installedVersion: native.installedVersion, installedBuild: native.installedBuild, rollbackAvailable: native.rollbackAvailable,
+        ...(native.state !== "idle" ? { state: native.state, target: native.target } : {}), error: native.error ?? this.views[component].error });
+    } catch (error) { return this.set(component, { available: error instanceof Error && error.message === "installer_required" ? false : this.views[component].available, state: "failed", error: error instanceof Error && error.message === "installer_required" ? "installer_required" : "installed_files_need_repair" }); }
     finally { this.jobs.delete(component); }
   }
   async check(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> {
-    if (!this.views[component].available || this.jobs.has(component)) return this.views[component];
+    if (!this.views[component].available || this.jobs.has(component) || this.applying) return this.views[component];
+    const retained = this.views[component];
+    const pending = ["staged", "waiting-for-idle", "interrupted"].includes(retained.state) && retained.target;
     const job: Job = { cancelled: false }; this.jobs.set(component, job);
     this.set(component, { state: "checking", target: undefined, latestVersion: undefined, requiresHost: undefined, checkedAt: undefined, error: undefined, progress: undefined });
     try {
       const native = await this.invoke(component, "component-check", [], job);
       if (!validSnapshot(native, component)) throw Error("invalid_update_result");
-      if (job.cancelled) return this.set(component, { state: "idle", error: "cancelled" });
-      return this.set(component, { ...native, checkedAt: new Date().toISOString(), error: undefined });
+      if (job.cancelled) return this.set(component, { state: pending ? retained.state : "idle", target: pending ? retained.target : undefined, error: "cancelled" });
+      return this.set(component, { ...native, checkedAt: new Date().toISOString(), error: native.error });
     } catch (error) {
       const code = error instanceof Error && /^[a-z_]{1,80}$/.test(error.message) ? error.message : "feed_unavailable";
-      return this.set(component, { state: job.cancelled || code === "cancelled" ? "idle" : "failed", error: job.cancelled ? "cancelled" : code });
+      return this.set(component, { available: code === "installer_required" ? false : this.views[component].available, state: pending ? retained.state : job.cancelled || code === "cancelled" ? "idle" : "failed", target: pending ? retained.target : undefined, error: job.cancelled ? "cancelled" : code });
     } finally { this.jobs.delete(component); }
   }
   async cancel(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { const job = this.jobs.get(component); if (job) { job.cancelled = true; job.child?.stdin.write("cancel\n"); } return this.views[component]; }
-  // U4/U5 supply activation; discovery never starts an unfinished activation path.
-  async stage(_component: UpdateComponentV02, _id: string): Promise<ComponentUpdateSnapshotV02> { throw Error("update_activation_unavailable"); }
-  async apply(_component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { throw Error("update_activation_unavailable"); }
-  async restore(_component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { throw Error("update_activation_unavailable"); }
+  async stage(component: UpdateComponentV02, id: string): Promise<ComponentUpdateSnapshotV02> {
+    if (!this.views[component].available || this.jobs.has(component) || this.applying) return this.views[component];
+    if (this.options.externalBusy?.()) return this.set(component, { error: "work_is_running" });
+    if (!identity(id) || id !== this.views[component].target?.manifestId) throw Error("invalid_update_identity");
+    const job: Job = { cancelled: false }; this.jobs.set(component, job);
+    this.set(component, { state: "downloading", error: undefined, progress: undefined });
+    try {
+      const native = await this.invoke(component, "component-stage", ["--manifest", id], job);
+      if (!validSnapshot(native, component) || native.state !== "staged" || native.target?.manifestId !== id) throw Error("invalid_update_result");
+      return this.set(component, { ...native, state: job.cancelled ? "interrupted" : "staged", error: job.cancelled ? "cancelled" : undefined, progress: undefined });
+    } catch (error) {
+      return this.set(component, { state: "interrupted", error: job.cancelled ? "cancelled" : error instanceof Error && /^[a-z_]{1,80}$/.test(error.message) ? error.message : "download_failed" });
+    } finally { this.jobs.delete(component); }
+  }
+  async apply(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { return this.restart(component, false); }
+  async restore(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { return this.restart(component, true); }
+  private async restart(component: UpdateComponentV02, restore: boolean): Promise<ComponentUpdateSnapshotV02> {
+    const view = this.views[component];
+    if (!view.available || this.jobs.size || this.applying || (restore ? !view.rollbackAvailable : !["staged", "waiting-for-idle"].includes(view.state))) return view;
+    if (this.options.externalBusy?.()) return this.set(component, { error: "work_is_running" });
+    if (!this.options.prepareRestart || !this.options.restart) throw Error("update_activation_unavailable");
+    if (component === "amf" && !restore && view.target?.activation === "reload") throw Error("update_activation_unavailable");
+    this.applying = true;
+    try {
+      // Request is inert on normal launch. Validate it before stopping any providers.
+      if (!restore) await this.invoke(component, "component-request", [], { cancelled: false });
+      if (!(await this.options.prepareRestart())) return this.set(component, { state: restore ? view.state : "waiting-for-idle", error: "work_is_running" });
+      this.options.restart(component, restore);
+      return this.set(component, { state: "activating", error: undefined });
+    } catch { return this.set(component, { state: view.state, error: "restart_failed" }); }
+    finally { this.applying = false; }
+  }
 }

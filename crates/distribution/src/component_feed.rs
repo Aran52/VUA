@@ -98,7 +98,7 @@ fn hex(value: &str, bytes: usize) -> bool {
 fn version(value: &str) -> Result<semver::Version> {
     semver::Version::parse(value).map_err(|_| Error("invalid_component_version".into()))
 }
-fn compatible(amf: &Compatibility, host_version: &str, host: &Compatibility) -> bool {
+pub(crate) fn compatible(amf: &Compatibility, host_version: &str, host: &Compatibility) -> bool {
     semver::VersionReq::parse(&amf.host)
         .ok()
         .zip(version(host_version).ok())

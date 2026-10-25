@@ -12,9 +12,10 @@ import type {
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
-  VuaDesktopApiV5,
+  VuaDesktopApiV6,
   UpdateComponentV02,
   ComponentUpdateSnapshotV02,
+  UpdatePlanSnapshotV01,
   AiConnectionLocale,
   AiToolsSnapshotV01,
 } from "@vua/contracts";
@@ -73,7 +74,20 @@ try {
   if (Array.isArray(decoded) && decoded.length <= 32 && decoded.every(language => typeof language === "string" && language.length <= 64)) systemLanguages = decoded;
 } catch { /* Missing OS languages use the source-language fallback. */ }
 
-const api: VuaDesktopApiV5 = Object.freeze({
+const api: VuaDesktopApiV6 = Object.freeze({
+  updatePlans: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:update-plans:snapshot"),
+    propose: () => ipcRenderer.invoke("vua:update-plans:propose"),
+    stage: (id: string) => ipcRenderer.invoke("vua:update-plans:stage", id),
+    cancel: () => ipcRenderer.invoke("vua:update-plans:cancel"),
+    apply: (id: string) => ipcRenderer.invoke("vua:update-plans:apply", id),
+    restore: () => ipcRenderer.invoke("vua:update-plans:restore"),
+    subscribe: (listener: (value: UpdatePlanSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: UpdatePlanSnapshotV01) => listener(value);
+      ipcRenderer.on("vua:update-plans:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:update-plans:changed", wrapped);
+    },
+  }),
   componentUpdates: Object.freeze({
     snapshot: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:snapshot", component),
     check: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:check", component),

@@ -7,6 +7,29 @@ const context = { root: "C:\\isolated\\VUA", host: { host: { version: "0.7.0", b
 const result = (component: string) => ({ schemaVersion: "0.2", component, available: true, state: "idle", installedVersion: component === "host" ? "0.7.0" : "0.2.0", installedBuild: "a".repeat(40), rollbackAvailable: false, latestVersion: component === "host" ? "0.7.1" : "0.2.1",
   target: { manifestId: (component === "host" ? "c" : "d").repeat(64), version: component === "host" ? "0.7.1" : "0.2.1", build: "e".repeat(40), releaseUrl: `https://ph-r.com/vua/components/${component}/v${component === "host" ? "0.7.1" : "0.2.1"}/`, activation: component === "host" ? "restart" : "reload", downloadBytes: 12, reusedBytes: 80, runtimeBytes: 0 } });
 describe("independent component discovery", () => {
+  it("keeps a completely staged update available if a subsequent check is offline", async () => {
+    let offline = false;
+    const run: ComponentRun = async (command, args) => { if (offline && command === "component-check") throw Error("feed_unavailable"); return { ...result(args[1]!), state: command === "component-stage" ? "staged" : "idle" }; };
+    const updates = new ComponentUpdater({ context, run }); await updates.check("host"); await updates.stage("host", result("host").target.manifestId); offline = true;
+    const view = await updates.check("host"); expect(view.state).toBe("staged"); expect(view.target?.manifestId).toBe(result("host").target.manifestId);
+    expect(view.error).toBe("feed_unavailable"); expect(view.latestVersion).toBeUndefined(); expect(view.checkedAt).toBeUndefined();
+  });
+  it("stages only the checked host and waits for lifecycle admission before restarting", async () => {
+    let ready = false; const restart = vi.fn(); const run = vi.fn<ComponentRun>(async (command, args) => command === "component-request" ? {} : { ...result(args[1]!), state: command === "component-stage" ? "staged" : "idle" });
+    const updates = new ComponentUpdater({ context, run, prepareRestart: async () => ready, restart });
+    await updates.check("host");
+    await expect(updates.stage("host", "f".repeat(64))).rejects.toThrow("invalid_update_identity");
+    expect((await updates.stage("host", result("host").target.manifestId)).state).toBe("staged");
+    expect((await updates.apply("host")).state).toBe("waiting-for-idle"); expect(restart).not.toHaveBeenCalled();
+    ready = true; expect((await updates.apply("host")).state).toBe("activating"); expect(restart).toHaveBeenCalledWith("host", false);
+    expect(run.mock.calls.filter(([command]) => command === "component-stage").map(([, args]) => args)).toEqual([["--component", "host", "--manifest", result("host").target.manifestId]]);
+  });
+  it("preserves interrupted host staging without hiding the independent AMF result", async () => {
+    const run: ComponentRun = async (command, args) => { if (command === "component-stage") throw Error("insufficient_disk_space"); return result(args[1]!); };
+    const updates = new ComponentUpdater({ context, run }); await updates.check("host"); await updates.check("amf");
+    expect((await updates.stage("host", result("host").target.manifestId)).error).toBe("insufficient_disk_space");
+    expect((await updates.snapshot("amf")).target?.version).toBe("0.2.1");
+  });
   it("keeps host and AMF results separate, including disabled-module checks", async () => {
     const run = vi.fn<ComponentRun>(async (_command, args) => result(args[1]!));
     const updates = new ComponentUpdater({ context, run });

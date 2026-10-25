@@ -34,6 +34,7 @@ export interface VuaGateway {
   readonly terms?: import("./terms-port.ts").TermsPort | undefined;
   readonly distribution?: import("@vua/contracts").DesktopDistributionApiV01 | undefined;
   readonly componentUpdates?: import("@vua/contracts").DesktopComponentUpdatesApiV02 | undefined;
+  readonly updatePlans?: import("@vua/contracts").DesktopUpdatePlansApiV01 | undefined;
   readonly amfModule: import("@vua/contracts").AmfModuleApiV01;
   readonly environment: EnvironmentPort;
   readonly tutorial: TutorialPort;

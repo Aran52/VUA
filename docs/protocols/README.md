@@ -81,3 +81,7 @@ owns routing and legacy-data migration.
 host/AMF Beta indexes and the additive Desktop v5 update face. Its native consumer and schema
 vectors are in `crates/distribution/src/component_feed/` and `schemas/windows-distribution/v0.2/`.
 The v0.1 inventory and existing installed-client API remain available during migration.
+
+[Windows update plans v0.1](windows-update-plans-v0.1.md) adds the explicit Desktop v6 pair
+proposal/consent face for compatibility cycles and defines restart health/recovery admission.
+It does not change the independent v0.2 indexes or silently couple their update actions.

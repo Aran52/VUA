@@ -264,8 +264,15 @@ channel's failure or cancellation from replacing the other, including checks whi
 The legacy read-only host check remains an installer-transition fallback. All 19 native tests,
 Clippy, desktop type checks, 13 update-controller/preference checks, UI boundary and five-language
 table checks pass. This slice deliberately has no download/apply button; U4/U5 own activation.
-The component endpoints are not yet published. Live discovery and UI acceptance remain U6 gates.
-U4–U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
+U4 adds native per-component staging, explicit pair plans for dependency cycles, payload-local
+helpers, root-launcher capability admission, a durable restart journal and compatible component
+or pair recovery. Staging preserves loaded code and a shared runtime bootstrap until exit. All
+22 native checks, Clippy, desktop type checks and 21 update-controller/preference checks pass.
+Seven actual Chromium control checks pass with synthetic ports; dark/light control captures
+are local diagnostic evidence. The independent host renderer builds successfully. Actual signed
+remote discovery, real restart/health/recovery, migration backups and human review remain U6
+gates; these controlled checks do not complete them. The new component endpoints are not yet
+published. U5/U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
 

@@ -126,7 +126,7 @@ export const FIXTURES = {
   },
   "task-window": {
     prefix: "/__task-window-review",
-    query: { view: "tasks" },
+    query: { view: "status" },
     shell: ({ locale, theme }) =>
       `<html data-theme="${theme}"><head>`
       + `<script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});localStorage.setItem("vua-theme", ${JSON.stringify(theme)});</script></head>`

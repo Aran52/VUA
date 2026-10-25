@@ -6,7 +6,7 @@
   height: var(--vua-control-height);
   padding: 0;
   border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: var(--vua-bg-panel);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
@@ -20,7 +20,8 @@
   width: 18px;
   height: 18px;
   margin-top: -9px;
-  border-radius: 50%;
+  corner-shape: var(--vua-corner-style);
+  border-radius: var(--vua-corners-indicator);
   background: var(--vua-text-secondary);
   transition: transform 120ms ease, background 120ms ease;
 }

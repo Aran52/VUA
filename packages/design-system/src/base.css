@@ -1,3 +1,5 @@
+@import "./shapes.css";
+
 /* 全局基础样式:只消费 Token,不引入新的视觉值 */
 
 *,
@@ -44,7 +46,7 @@ body {
   color: var(--vua-text-strong);
 }
 
-/* 细滚动条:轨道透明,拇指圆头;hover 时染辖区色 */
+/* Thin industrial scrollbars keep a transparent track and square thumb. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--vua-border-strong) transparent;
@@ -62,7 +64,7 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: var(--vua-border-strong);
   border: 3px solid transparent;
-  border-radius: 999px;
+  border-radius: 0;
   background-clip: padding-box;
 }
 

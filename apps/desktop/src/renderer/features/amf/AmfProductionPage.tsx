@@ -346,7 +346,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
       {states && <ol className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key}>
-        <button type="button" className="vua-line__station" data-state={states[key]} aria-pressed={shown === key} aria-current={currentStation(states) === key ? "step" : undefined}
+        <button type="button" className="vua-line__station" data-vua-surface-role="workshop-step" data-state={states[key]} aria-pressed={shown === key} aria-current={currentStation(states) === key ? "step" : undefined}
           onClick={() => setChosenStation(key)} data-nav-id={`workshop-station-${key}`}>
           <Icon name={STATION_ICONS[key]} size={20}/>
           <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>

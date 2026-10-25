@@ -58,7 +58,8 @@ step inside dense rows.
   use the step below its padding (an `md` card holds `sm` or `md` controls).
 - **Overlays:** menus have 32 px rows and 4 px inner padding; dialogs are 400, 560 or 720 px wide
   with 24 px padding; drawers are 360 or 480 px wide; tooltips wrap at 280 px.
-- **Stepper:** stations are 64 px high; the connector belongs to the theme's shape language.
+- **Stepper:** workshop station cards are at least 80 px high, with room below for the
+  selected card's cast shadow; the connector belongs to the theme's shape language.
 
 The steps are theme-independent; a theme changes shapes, colours and motion, never these sizes.
 
@@ -74,26 +75,31 @@ Corners are set per **role group**, each with a style and a size:
 | --- | --- | --- |
 | Actions | buttons, icon buttons, segmented items, tabs | cut, 6 px |
 | Fields | text fields, selects, search | cut, 4 px |
-| Indicators | tags, status chips, badges | cut, 4 px (badges: square) |
+| Indicators | tags, status chips, badges | cut, 4 px |
 | Containers | cards, panels, list and table groups | cut, 12 px |
 | Overlays | menus, popovers, dialogs, drawers, toasts | cut, 16 px (menus 8 px) |
 
-- Styles a theme may choose: `cut` (a chamfer on the top-right corner), `cut-2` (top-right and
+- Styles a theme may choose: `cut` (a chamfer on the upper-left corner), `cut-2` (top-right and
   bottom-left), `round` (a radius of that size), `square` (none), `pill` (fully round ends, for
   actions and indicators only) and `mask` (a named mask image such as a lace edge, from the skin).
-- **Grid** uses `cut` throughout: one chamfer on the top-right corner, its size growing with the
-  element, thin strokes, the grid canvas behind. The diagonal of the chamfer carries the same
-  stroke as the edges.
+- **Grid** uses `cut` throughout: one chamfer on the upper-left corner with a **120-degree
+  interior angle at the top edge**, matching the VUA mark (author review, 2026-10-25). The
+  table's size is the horizontal cut; its vertical depth is that size × √3. The other three
+  corners stay square. All former capsule actions, choices, tags, badges and progress tracks
+  follow this language. The diagonal carries the same thin stroke as the other edges.
 - **Nesting:** an inner corner is never larger than the corner of the element around it.
-- **Special shapes** are allowed for named roles only and declared by the theme: the stepper's
-  connector (Grid: an arrow notch), the brand mark, avatar circles and status dots. A feature does
-  not invent its own shape.
+- **Special shapes** are allowed for named roles only and declared by the theme: the brand
+  mark, library status corner, avatar circles, activity spinners and status dots. Workshop
+  station cards use the container bevel, rather than an arrow notch. A feature does not invent
+  its own shape.
 
-Implementation note. A `cut` corner is a clip-path, which also clips borders, outlines and
-shadows. The shared shape mixin therefore draws the stroke as an inset layer with the same
-polygon, draws the focus ring inside the shape (2 px inset) or on an outer wrapper, and gives
-elevated overlays a drop-shadow filter on a wrapper rather than a box-shadow. One mixin serves
-every control; no feature writes its own polygon.
+Implementation. The bundled Chromium supports native `corner-shape: bevel`. The shared
+`packages/design-system/src/shapes.css` maps role tokens to an elliptical upper-left
+`border-radius` (x / x × √3), with zero radius elsewhere. Native geometry paints the diagonal
+border, focus outline and cast shadow without clipping them away. The custom role property
+does not inherit into text or icon children. Themes own these values; features do not write
+their own polygons. The [CSS borders specification](https://drafts.csswg.org/css-borders-4/)
+defines the native corner geometry.
 
 ### Stroke and fill
 
@@ -128,12 +134,18 @@ across the app:
 | --- | --- | --- | --- |
 | 0 | page canvas | none | no |
 | 1 | cards, panels, rows | none | no |
+| workshop selection | selected station card only | solid lower edge plus heavier cast shadow | no |
 | 2 | menus, popovers, tooltips | small | allowed |
 | 3 | dialogs, drawers | medium | allowed |
 | 4 | toasts | medium | allowed |
 
 The shell (top bar, sidebar, task bar) and labels floating over scene art may use glass. Grid
 keeps glass only on the shell and on level 2–4 overlays.
+
+The selected workshop station is the author's explicit exception to flat ordinary cards:
+`--vua-shadow-workshop-active` gives it visibly more mass than other controls. It follows the
+selected (`aria-pressed`) station; resting stations stay flat. High-contrast and forced-colour
+modes retain the accent edge and focus while removing this decorative shadow.
 
 ### Iconography
 
@@ -196,16 +208,17 @@ The completed control catalogue requires these checks per theme:
 - bespoke controls: a `<button>` outside the primitives that draws its own border or fill.
 
 The current [audit implementation](design-audit.md) measures hit-area floors, typography,
-spacing, colours, contrast, painted overflow and surface/corner nesting. Role-specific size
-steps, a common cut-corner language and complete motion/bespoke-control checks remain scheduled
+spacing, colours, contrast, painted overflow, surface/corner nesting and the shared Grid
+role bevel. Role-specific size
+steps and complete motion/bespoke-control checks remain scheduled
 in the [Grid normalization plan](../development/grid-theme-normalization.md). A complete run
 with no current-rule findings does not establish those remaining catalogue requirements.
 
 ## Grid migration
 
-The default theme today mixes four languages: pill buttons and status chips, skewed
-parallelogram tabs in the shell, cut-corner panels in the factory and control center, and rounded
-cards, fields and tags elsewhere. Moving Grid to its one language:
+Before this migration the default theme mixed pill buttons and chips, skewed shell tabs,
+factory cut corners and rounded fields/cards. The shared upper-left bevel now replaces those
+recipes; the complete role/size/state primitive catalogue continues in this order:
 
 1. Shape mixin, corner tokens per role group and motion tokens in `packages/design-system`.
 2. Primitives: `Button`, `IconButton`, `Segmented`, `Tabs`, `Tag`, `StatusChip`, `Badge`, `Card`,

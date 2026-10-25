@@ -16,7 +16,7 @@
   gap: var(--vua-space-1);
   padding: var(--vua-space-1);
   border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: var(--vua-bg-panel);
   width: fit-content;
 }
@@ -24,7 +24,7 @@
 .vua-packages__section-tab {
   appearance: none;
   border: 1px solid transparent;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: transparent;
   color: var(--vua-text-secondary);
   font: var(--vua-font-body);
@@ -586,6 +586,8 @@
   align-items: center;
   gap: var(--vua-space-2);
 }
+
+.vua-packages__repo-refresh { flex: 0 0 112px; }
 
 /* A2 安装入口(026 v0.2 消费批):「安装最新」行与版本行内安装钮 */
 .vua-packages__install-latest {

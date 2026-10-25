@@ -120,20 +120,34 @@
   --vua-space-5: 24px;
   --vua-space-6: 32px;
 
-  /* ---- 圆角:按钮与状态芯片胶囊形;输入框/下拉/菜单 6px;
-   * 卡片 10px;对话框与大型浮层 12px;同类组件一致 ---- */
-  --vua-radius-pill: 999px;
-  --vua-radius-control: 6px;
-  --vua-radius-card: 10px;
-  --vua-radius-badge: 999px;
-  --vua-radius-overlay: 12px;
-  /* Radii step down with nesting (author ruling, 2026-10-25): dialogs and overlays use xl; the
-   * first rounded container on a page uses lg; a rounded container inside it md; inside that sm,
-   * the smallest. Controls use md, or sm inside an md container. Pills and circles stay pills. */
+  /* Grid's upper-left bevel follows the wordmark: vertical / horizontal = sqrt(3).
+   * The slanted edge meets the horizontal at 120 degrees. Role sizes are horizontal cuts. */
+  --vua-corner-style: bevel;
+  --vua-corner-ratio: 1.732050808;
+  --vua-corner-action: 6px;
+  --vua-corner-field: 4px;
+  --vua-corner-indicator: 4px;
+  --vua-corner-container: 12px;
+  --vua-corner-overlay: 16px;
+  --vua-corner-menu: 8px;
+  --vua-corner-progress: 2px;
+  --vua-corners-action: var(--vua-corner-action) 0 0 0 / calc(var(--vua-corner-action) * var(--vua-corner-ratio)) 0 0 0;
+  --vua-corners-field: var(--vua-corner-field) 0 0 0 / calc(var(--vua-corner-field) * var(--vua-corner-ratio)) 0 0 0;
+  --vua-corners-indicator: var(--vua-corner-indicator) 0 0 0 / calc(var(--vua-corner-indicator) * var(--vua-corner-ratio)) 0 0 0;
+  --vua-corners-container: var(--vua-corner-container) 0 0 0 / calc(var(--vua-corner-container) * var(--vua-corner-ratio)) 0 0 0;
+  --vua-corners-overlay: var(--vua-corner-overlay) 0 0 0 / calc(var(--vua-corner-overlay) * var(--vua-corner-ratio)) 0 0 0;
+  --vua-corners-menu: var(--vua-corner-menu) 0 0 0 / calc(var(--vua-corner-menu) * var(--vua-corner-ratio)) 0 0 0;
+  --vua-corners-progress: var(--vua-corner-progress) 0 0 0 / calc(var(--vua-corner-progress) * var(--vua-corner-ratio)) 0 0 0;
+  /* Compatibility names no longer introduce rounded or capsule silhouettes in Grid. */
+  --vua-radius-pill: 0px;
+  --vua-radius-control: 0px;
+  --vua-radius-card: 0px;
+  --vua-radius-badge: 0px;
+  --vua-radius-overlay: 0px;
   --vua-radius-xl: var(--vua-radius-overlay);
   --vua-radius-lg: var(--vua-radius-card);
   --vua-radius-md: var(--vua-radius-control);
-  --vua-radius-sm: 4px;
+  --vua-radius-sm: 0px;
 
   /* ---- 控件尺寸 ---- */
   --vua-control-height-sm: 28px;
@@ -149,10 +163,11 @@
   --vua-room-release: #5eead4;
 
   /* ---- Shapes: named clip-path presets; skins swap the shape language here ---- */
-  --vua-shape-cut-sm: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
-  --vua-shape-cut-md: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-  --vua-shape-cut-lg: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
-  --vua-shape-step: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
+  --vua-shape-cut-sm: polygon(0 calc(var(--vua-corner-action) * var(--vua-corner-ratio)), var(--vua-corner-action) 0, 100% 0, 100% 100%, 0 100%);
+  --vua-shape-cut-md: polygon(0 calc(var(--vua-corner-container) * var(--vua-corner-ratio)), var(--vua-corner-container) 0, 100% 0, 100% 100%, 0 100%);
+  --vua-shape-cut-lg: polygon(0 calc(var(--vua-corner-overlay) * var(--vua-corner-ratio)), var(--vua-corner-overlay) 0, 100% 0, 100% 100%, 0 100%);
+  --vua-shape-step: var(--vua-shape-cut-md);
+  --vua-shadow-workshop-active: 0 4px 0 rgb(0 0 0 / 65%), 0 12px 20px rgb(0 0 0 / 50%);
 
   /* ---- Motion: durations and easing; scripted motion reads the same values ---- */
   --vua-motion-instant: 0ms;
@@ -266,6 +281,7 @@
   --vua-shadow-elevated:
     0 4px 16px rgb(25 24 36 / 0.1),
     0 0 20px rgb(101 87 210 / 0.05);
+  --vua-shadow-workshop-active: 0 4px 0 rgb(25 24 36 / 24%), 0 12px 20px rgb(25 24 36 / 24%);
   --vua-glow-accent: 0 0 12px rgb(101 87 210 / 0.3);
   --vua-glow-accent-soft: 0 0 20px rgb(101 87 210 / 0.14);
 
@@ -336,6 +352,7 @@
     --vua-on-status: Canvas;
     --vua-on-error: Canvas;
     --vua-shadow-elevated: none;
+    --vua-shadow-workshop-active: none;
     --vua-glow-accent: none;
     --vua-glow-accent-soft: none;
     --vua-accent-gradient: none;
@@ -382,6 +399,7 @@
   --vua-room-workshop: #ffd600;
   --vua-room-release: #ffd600;
   --vua-shadow-elevated: none;
+  --vua-shadow-workshop-active: none;
   --vua-glow-accent: none;
   --vua-glow-accent-soft: none;
   --vua-accent-gradient: none;

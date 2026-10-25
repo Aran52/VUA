@@ -300,12 +300,16 @@ tabular numerals.
   [controls and motion](controls-and-motion.md) and hold in every theme.
 - Shapes belong to the theme (author ruling, 2026-10-25): each theme sets one corner style and
   size per role group, and every control of that group follows it. The default theme, **Grid**,
-  uses a cut top-right corner throughout. An inner corner is never larger than the corner
+  uses an upper-left 120-degree cut matching the VUA mark throughout, including former capsule
+  controls (author review, 2026-10-25). An inner corner is never larger than the corner
   around it. Layout wrappers without their own surface do not count as a level.
 - Bordered or filled surfaces nest at most two levels; deeper structure uses spacing and type
   instead of another box.
 - Cards are solid (author ruling, 2026-10-25): an opaque panel colour and a 1 px border, without
   blur, glow or shadow. Default 1 px borders; subtle shadow only for elevated surfaces.
+  The selected workshop station card is the author's explicit exception: the same container
+  cut with a heavier cast shadow and solid lower edge, defined in
+  [controls and motion](controls-and-motion.md#elevation-and-glass). Resting stations stay flat.
 - Blur is limited to top/side/task/elevated structure and to labels floating over scene art,
   never card walls, tables, or long lists.
 - The [design audit](design-audit.md) checks these rules on every preview view.

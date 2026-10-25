@@ -32,7 +32,7 @@
 .vua-turntable__progress-track {
   height: 4px;
   border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: var(--vua-bg-elevated);
   overflow: hidden;
 }

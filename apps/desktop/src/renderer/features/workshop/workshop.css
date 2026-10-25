@@ -260,14 +260,14 @@
   flex: 1;
   height: 4px;
   overflow: hidden;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: var(--vua-border);
 }
 
 .vua-workshop__replay-progress-fill {
   display: block;
   height: 100%;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   /* 辖区渐变填充 + 微辉光;HC 下 gradient 置 none 退化纯色 */
   background-color: var(--vua-accent);
   background-image: var(--vua-accent-gradient);

@@ -85,7 +85,7 @@ frame. A pack that fails validation falls back to the default scene for that roo
 
 | Skin | Color | Shape and motifs | Motion |
 | --- | --- | --- | --- |
-| **Grid** (default) | the current purple and orange | a cut top-right corner on every control and container, thin strokes, grid canvas | crisp; press is a 1 px inset shift |
+| **Grid** (default) | the current purple and orange | one upper-left 120-degree cut matching the VUA mark on every control and container; thin strokes, grid canvas; heavier selected workshop station | crisp; press is a 1 px inset shift |
 | **天使界隈 (Tenshi)** | sky blue and white | flat, rounded pill shapes; wings, halos, bandages, pills | light, bouncy |
 | **地雷系 (Jirai)** | pink and black | lace edges, bows, leather textures, energy drinks; dimensional | slower, softer |
 
@@ -101,8 +101,9 @@ progress:
 2. Room colors get their own tokens (`--vua-room-control`, `--vua-room-materials`,
    `--vua-room-workshop`, `--vua-room-release`). Status colors keep their meaning and are not used
    as room colors.
-3. Shapes come from named presets (`--vua-shape-*` with clip-path classes) instead of inline
-   polygons.
+3. Shapes come from role tokens and the shared native corner renderer (`--vua-corner-*` /
+   `--vua-corners-*` in `packages/design-system`), rather than feature polygons. The owning
+   [control language](../design/controls-and-motion.md#corners) defines Grid's geometry.
 4. Decorative extras sit in `data-skin-slot` elements; a screen works and reads the same with
    every slot empty.
 5. Canvas and WebGL drawing reads its colors from tokens through one palette helper and keeps its

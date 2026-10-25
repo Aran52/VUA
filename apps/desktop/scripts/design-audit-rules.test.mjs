@@ -280,13 +280,31 @@ test("surface-nesting reports only self-surfaces, once each; svg and inner text 
 });
 
 test("theme-invariant classification covers the layout rules only", () => {
-  for (const rule of ["spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting", "surface-nesting", "target-size", "overflow"]) {
+  for (const rule of ["spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting", "surface-nesting", "target-size", "overflow", "grid-shape"]) {
     assert.ok(isThemeInvariant(rule), `${rule} is theme-invariant`);
   }
   for (const rule of ["color-token", "contrast", "shadow-panel", "one-accent", "border-density"]) {
     assert.ok(!isThemeInvariant(rule), `${rule} is theme-dependent`);
   }
-  assert.equal(THEME_INVARIANT_RULES.size, 8);
+  assert.equal(THEME_INVARIANT_RULES.size, 9);
+});
+
+test("Grid rejects capsules, the wrong corner and a 45-degree bevel", () => {
+  const valid = { shapeRole: "action", shapeTheme: "bevel", shapeExpectedX: 6,
+    cornerShapes: ["superellipse(0)", "superellipse(0)", "superellipse(0)", "superellipse(0)"],
+    cornerPairs: [[6, 6 * Math.sqrt(3)], [0, 0], [0, 0], [0, 0]] };
+  const elements = [el(valid), el({ ...valid, cornerPairs: [[999, 999], [999, 999], [999, 999], [999, 999]] }),
+    el({ ...valid, cornerPairs: [[0, 0], [6, 6 * Math.sqrt(3)], [0, 0], [0, 0]] }),
+    el({ ...valid, cornerPairs: [[6, 6], [0, 0], [0, 0], [0, 0]] })];
+  assert.deepEqual(evaluateSnapshot(snapshot(elements), { rules: ["grid-shape"] }).map(f => f.index), [1, 2, 3]);
+});
+
+test("only the active workshop step receives its approved heavy elevation", () => {
+  const approved = "rgba(0, 0, 0, 0.65) 0px 4px 0px 0px, rgba(0, 0, 0, 0.5) 0px 12px 20px 0px";
+  const elements = [el({ workshopStepActive: true, boxShadow: approved }), el({ boxShadow: approved }),
+    el({ workshopStepActive: true, boxShadow: "rgba(0,0,0,.5) 0px 8px 24px" })];
+  const result = evaluateSnapshot(snapshot(elements, { shadowTokens: { "--vua-shadow-workshop-active": approved } }), { rules: ["shadow-panel"] });
+  assert.deepEqual(result.map(f => f.index), [1, 2]);
 });
 
 test("capture failures: vite error overlay and near-empty pages are unusable", () => {

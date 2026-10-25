@@ -15,6 +15,7 @@ export const RULES = {
   "contrast": { severity: "error", category: "current", attribution: "color" },
   "spacing-grid": { severity: "warning", category: "current", attribution: null },
   "radius-token": { severity: "warning", category: "current", attribution: "radius" },
+  "grid-shape": { severity: "warning", category: "current", attribution: "radius" },
   "shadow-panel": { severity: "warning", category: "current", attribution: "box-shadow" },
   "blur-scope": { severity: "warning", category: "current", attribution: "backdrop-filter" },
   "one-accent": { severity: "warning", category: "current", attribution: null },
@@ -31,7 +32,7 @@ const ACTIVE_RULES_DEFAULT = Object.keys(RULES);
 // duplicate the dark state's findings, so aggregation counts them once (dark).
 export const THEME_INVARIANT_RULES = new Set([
   "spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting",
-  "surface-nesting", "target-size", "overflow",
+  "surface-nesting", "target-size", "overflow", "grid-shape",
 ]);
 
 export function isThemeInvariant(ruleId) {
@@ -180,7 +181,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       const offenders = new Map(); // value -> corner (one finding per distinct value)
       (el.radius ?? []).forEach((r, i) => {
         if (typeof r === "object" || r >= 100 || r === 0) return;
-        const exact = RADIUS_TOKENS.some(t => Math.abs(t.value - r) < 0.01);
+        const exact = [...RADIUS_TOKENS.map(t => t.value), ...Object.values(snapshot.radiusTokens ?? {})].some(value => Math.abs(value - r) < 0.01);
         if (!exact && !offenders.has(r)) offenders.set(r, ["top-left", "top-right", "bottom-right", "bottom-left"][i]);
       });
       for (const [value, corner] of offenders) {
@@ -189,14 +190,26 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
           `border-radius ${corner}: ${value}px is not a --vua-radius-* value`, "radius"));
       }
     }
+    if (active.has("grid-shape") && el.shapeRole && el.shapeRole !== "none" && el.shapeTheme === "bevel") {
+      const pairs = el.cornerPairs ?? [];
+      const [x = 0, y = 0] = pairs[0] ?? [];
+      const bevel = el.cornerShapes?.[0] === "bevel" || el.cornerShapes?.[0] === "superellipse(0)";
+      if (!bevel || !x || Math.abs(y / x - Math.sqrt(3)) > 0.01 || Math.abs(x - el.shapeExpectedX) > 0.1
+        || pairs.slice(1).some(pair => pair.some(value => value > 0.1))) {
+        push(makeFinding("grid-shape", el, index, { role: el.shapeRole, expectedX: el.shapeExpectedX, cornerPairs: pairs, cornerShapes: el.cornerShapes },
+          "Grid requires the role's upper-left 120-degree bevel and three square corners", "radius"));
+      }
+    }
     if (active.has("shadow-panel")) {
       const shadow = el.boxShadow;
       if (shadow && shadow !== "none" && !isLineShadow(shadow)) {
         const glow = Object.entries(snapshot.shadowTokens ?? {}).some(([name, value]) => name.startsWith("--vua-glow-") && shadow === value);
         const elevated = shadow === (snapshot.shadowTokens ?? {})["--vua-shadow-elevated"];
+        const stepShadow = snapshot.shadowTokens?.["--vua-shadow-workshop-active"];
+        const activeStep = el.workshopStepActive && stepShadow && stepShadow !== "none" && shadow.endsWith(stepShadow);
         const floating = el.overlayContext || el.shellStructure
           || el.position === "fixed" || (el.position === "absolute" && el.zIndex >= 600);
-        if (!floating && !glow) {
+        if (!floating && !glow && !activeStep) {
           push(makeFinding("shadow-panel", el, index, { shadow, elevatedShadow: elevated },
             elevated ? "elevated surface shadow on an ordinary panel/card" : "shadow on an ordinary panel/card", "box-shadow"));
         }

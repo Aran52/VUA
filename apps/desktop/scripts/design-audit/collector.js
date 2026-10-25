@@ -215,7 +215,7 @@ export function collectAuditSnapshot(options) {
 
   // Resolved shadow/glow tokens for shadow-panel classification.
   const shadowTokens = {};
-  for (const name of ["--vua-shadow-elevated", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
+  for (const name of ["--vua-shadow-elevated", "--vua-shadow-workshop-active", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
     const probe = document.createElement("div");
     probe.style.position = "absolute";
     probe.style.display = "none";
@@ -225,7 +225,8 @@ export function collectAuditSnapshot(options) {
   }
 
   const radiusTokens = {};
-  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay"]) {
+  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay",
+    ...["action", "field", "indicator", "container", "overlay", "menu", "progress"].map(role => "--vua-corner-" + role)]) {
     const raw = (tokenRaw[name] || "").trim();
     const value = parseFloat(raw);
     if (Number.isFinite(value)) radiusTokens[name] = value;
@@ -453,6 +454,14 @@ export function collectAuditSnapshot(options) {
       opacity: parseFloat(cs.opacity),
       inlineStyle: Boolean(el.getAttribute("style")),
       interactive, isControl, isChoice, isTextField, indicatorRole, disabled, primary,
+      workshopStepActive: el.getAttribute("data-vua-surface-role") === "workshop-step" && el.getAttribute("aria-pressed") === "true",
+      shapeRole: cs.getPropertyValue("--vua-shape-role").trim(),
+      shapeTheme: cs.getPropertyValue("--vua-corner-style").trim(),
+      shapeExpectedX: parseFloat(cs.getPropertyValue("--vua-corner-" + cs.getPropertyValue("--vua-shape-role").trim())) || 0,
+      cornerShapes: ["top-left", "top-right", "bottom-right", "bottom-left"].map(corner => cs.getPropertyValue("corner-" + corner + "-shape")),
+      cornerPairs: [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(raw => {
+        const values = raw.trim().split(/\s+/).map(parseFloat); return [values[0], values[1] ?? values[0]];
+      }),
       primaryGroup: primaryGroup ? elementPath(primaryGroup).join(".") : null,
       role: el.getAttribute("role"),
       actionScope: actionOwner ? elementPath(actionOwner).join(".") : "page",

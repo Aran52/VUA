@@ -100,8 +100,9 @@ layout), **warning** = violates the current standard's token discipline,
 | `color-token` | Solid text/background/border color matches no resolved `--vua-*` color | RGB Euclidean distance > 12 to every token counts as "no match" (token pairs differ by ≥ 14, amber #ffd34d vs warning #fde047). Translucent fills (alpha < 0.95) are exempt: the glass panel system is token-composed by construction |
 | `contrast` | Text or icon foreground vs its effective background | Body 4.5:1; large text (≥ 24px, or ≥ 18.66px at weight ≥ 600) and icons 3:1. The background walks ancestors to the first opaque fill and alpha-composites translucent layers in between. Disabled controls exempt |
 | `spacing-grid` | `padding`/`margin`/`gap` off the 4 px grid | Values with `v mod 4 ∈ {0, 1, 3}` pass: multiples of 4 plus ±1 px border compensation. Actual `auto` margins and unused gaps are excluded; equal fixed margins are still checked |
-| `radius-token` | Border radius is not 0, a `--vua-radius-*` value, a pill (≥ 100px), or a circle (50%) | Tokens: 6 (control), 10 (card), 12 (overlay) |
-| `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt; the elevated-surface shadow token is reported as a finding on non-elevated panels |
+| `radius-token` | Border radius matches neither the resolved radius/corner tokens nor an allowed circle | Resolves role-group cut sizes as well as compatibility radius tokens; a legacy pill allowance in this generic rule does not bypass `grid-shape` |
+| `grid-shape` | A Grid role does not use its upper-left 120-degree native bevel | Checks non-inherited `--vua-shape-role`, role cut size, vertical/horizontal ratio √3 and three square corners. Wrong-corner cuts, 45-degree cuts and capsule overrides fail. Named brand/status symbols have their own roles |
+| `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt. Only a selected `data-vua-surface-role="workshop-step"` using `--vua-shadow-workshop-active` may carry the approved heavier cast shadow; other shadows and resting stations still fail |
 | `blur-scope` | `backdrop-filter` outside top/side/task/elevated structure | Same floating/structure exemptions as `shadow-panel` |
 | `one-accent` | Two jurisdiction accent families (purple + orange) in one view, or more than one filled accent control | Family = opaque fill or text within RGB distance 12 of the purple or orange token family. The base map composes four room colors by design and is exempt in the registry |
 | `target-size` | Interactive target below 24×24 (error); primary action below 32×32 (reported as an error with `floor: 32`) | Checkbox/radio targets include a visible, associated label fragment that actually activates the input. Separate fragments are never joined into an invented target. Inline text links and disabled controls are exempt |
@@ -122,7 +123,7 @@ by the author on 2026-10-25; they are current rules with `warning` severity.
 ### Counting and themes
 
 Layout rules cannot differ between themes: `spacing-grid`, `type-scale`,
-`type-weight`, `radius-token`, `radius-nesting`, `surface-nesting`,
+`type-weight`, `radius-token`, `grid-shape`, `radius-nesting`, `surface-nesting`,
 `target-size` and `overflow` are **counted once per view** (the dark state).
 Color rules (`color-token`, `contrast`, `shadow-panel`, `one-accent`) are
 counted per theme. The per-state JSON files keep every raw finding; the
@@ -188,6 +189,12 @@ than container layers; their other applicable checks remain active. Synthetic ca
 use the runner's same repaint/retry path and still require the annotation legend in the pixels.
 Selection controls (native choices and ARIA pressed/selected/switch/tab roles) retain the
 general hit-area floor and do not compete as primary commands merely because they use accent fill.
+The factory fixture checks the native bevel on every workshop station and verifies that only
+the selected station carries the heavier shadow. Repository fixtures include rows without an
+identifier and a separate unavailable-lifecycle state; both retain visible disabled refresh
+buttons and fixed action slots, with aligned package-count right edges. These are assertions
+against the rendered components, not audit exclusions. This additional state brings the full
+registry to 100 views / 600 locale/theme states; earlier 99-view reports remain historical.
 Typography checks apply to rendered text and native text fields; an icon's zero-height line-box
 wrapper is not a text sample. Shared split actions declare `data-vua-primary-group`, so their
 command and menu half count once. `data-vua-control-role="indicator"` declares a status control,

@@ -1187,7 +1187,7 @@
   line-height: var(--vua-text-caption-leading);
   padding: 0 var(--vua-space-2);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   color: var(--vua-text-secondary);
   white-space: nowrap;
 }

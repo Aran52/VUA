@@ -436,12 +436,14 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
             <span className="vua-control__badge" data-kind={repo.kind}>{pkg.sources[repo.kind]}</span>
             <span className="vua-caption vua-text-secondary">{repo.packageCount !== null ? format(copy.repos.packages, { count: repo.packageCount }) : repo.cached ? "" : copy.repos.notCached}</span>
             <span className="vua-control__repo-actions">
-              {blocks.repoLifecycle && repo.repoId !== null && <Button variant="subtle" disabled={busy !== null} onClick={() => { void run(repo.key, () => gateway.packages.refreshRepo(repo.repoId!), copy.repos.refreshed); }}>
-                <Icon name="refresh" size={16}/>{busy === repo.key ? copy.repos.working : copy.repos.refresh}</Button>}
-              {blocks.repoWrites && repo.removable && <Popconfirm danger title={copy.repos.removeTitle} confirmLabel={copy.repos.removeConfirm} cancelLabel={strings.common.cancel}
+              <Button variant="subtle" disabled={!blocks.repoLifecycle || repo.repoId === null || busy !== null} onClick={() => {
+                if (repo.repoId !== null && blocks.repoLifecycle) void run(repo.key, () => gateway.packages.refreshRepo(repo.repoId!), copy.repos.refreshed);
+              }}>
+                <Icon name="refresh" size={16}/>{busy === repo.key ? copy.repos.working : copy.repos.refresh}</Button>
+              {blocks.repoWrites && repo.removable ? <Popconfirm danger title={copy.repos.removeTitle} confirmLabel={copy.repos.removeConfirm} cancelLabel={strings.common.cancel}
                 onConfirm={() => { void run(repo.key, () => gateway.packages.removeRepo(repo.repoId!), copy.repos.removed); }}>
                 <Button variant="subtle" disabled={busy !== null}>{copy.repos.remove}</Button>
-              </Popconfirm>}
+              </Popconfirm> : <span className="vua-control__repo-action-placeholder" aria-hidden="true" />}
             </span>
           </div>
           {listing && listing.packages.length > 0 && <details className="vua-control__repo-packages"><summary>{copy.repos.showPackages}</summary>

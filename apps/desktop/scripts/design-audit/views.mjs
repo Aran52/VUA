@@ -1,3 +1,5 @@
+import { verifyGridFactoryState } from "./grid-review.js";
+
 // View registry for the design audit. Adding a view to the audit means adding
 // one entry to VIEWS (or one view id to a FACTORY_VIEWS expansion). Each entry
 // names its fixture harness, its functional area and how the runner drives it
@@ -150,7 +152,7 @@ export const FIXTURES = {
   },
 };
 
-// The 82 AMF/preview views from preview-factory.mjs, unchanged.
+// AMF/preview views, including the unavailable repository-action layout.
 const FACTORY_VIEWS = [
   "map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop",
   "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu",
@@ -164,7 +166,7 @@ const FACTORY_VIEWS = [
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part",
   "control-recipes-list", "control-recipes-many", "control-recipes-empty", "control-fits",
   "control-packages", "control-packages-project", "control-packages-project-smart",
-  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos",
+  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos", "control-packages-repos-disabled",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin",
   "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty",
   "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms",
@@ -195,7 +197,9 @@ function factoryArea(view) {
 const ONE_ACCENT_EXEMPT = new Set(FACTORY_VIEWS.filter(v => v.startsWith("map")));
 
 function factoryView(id) {
-  return { id, fixture: "factory", area: factoryArea(id), exemptRules: ONE_ACCENT_EXEMPT.has(id) ? ["one-accent"] : [] };
+  const review = ["workshop-running", "workshop-waiting", "workshop-finished", "control-packages-repos", "control-packages-repos-disabled"].includes(id);
+  return { id, fixture: "factory", area: factoryArea(id), exemptRules: ONE_ACCENT_EXEMPT.has(id) ? ["one-accent"] : [],
+    ...(review ? { steps: [`await (${verifyGridFactoryState.toString()})(${JSON.stringify(id)})`] } : {}) };
 }
 
 export const VIEWS = [

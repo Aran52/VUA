@@ -3,7 +3,7 @@
  * 系统"减少动态效果"时全局规则压掉动画,退化为带静态高光的色块。 */
 .vua-skeleton {
   display: block;
-  border-radius: var(--vua-radius-badge);
+  border-radius: 0;
   background-color: var(--vua-bg-elevated);
   background-image: linear-gradient(
     100deg,

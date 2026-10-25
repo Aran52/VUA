@@ -1,7 +1,7 @@
 # Grid theme normalization
 
 > Updated: 2026-10-25
-> Status: execution plan
+> Status: calibrated repairs delivered; Grid geometry revision awaiting author review in the dev app
 > Scope: reliable design auditing, the default Grid theme and verified interface defects
 
 The author requested audit reliability and false-positive calibration first, this plan after
@@ -14,8 +14,9 @@ the rules; the [audit process](../design/design-audit.md) owns measurement.
 
 PR #67 supplies four type steps, two weights, solid ordinary cards, radius aliases and the
 approved Grid control direction. It does not finish the control catalogue or migrate every
-feature. The implementation still combines pill actions, rounded fields/cards, skewed shell
-tabs and factory cut corners. Several motion and size tokens retain earlier values.
+feature. At that starting revision the implementation combined pill actions, rounded
+fields/cards, skewed shell tabs and factory cut corners. Several motion and size tokens
+retained earlier values.
 
 The first post-merge CI report, run `40130221511`, collected 568 of 594 planned states. Its
 summary omitted 26 execution failures; per-state JSON contained the run plan instead of the
@@ -84,14 +85,15 @@ behaviour remain authoritative throughout presentation changes.
    Re-run its existing interaction fixture and the shared primitive regressions.
 5. **Coverage and completion review.** Add settled fixtures for the audit's documented gaps,
    including settings categories, tools, wizard steps and separate windows. A catalogue entry
-   is complete only when its consumers and states are represented; a green 99-view run alone
+   is complete only when its consumers and states are represented; a green registered-view run alone
    cannot stand for these uncovered surfaces. Retire compatibility aliases after their final
    consumer moves.
 
 The migration is complete when every default-theme control uses the shared role/size/state
 recipe, literal corner and duration recipes have no unrecorded consumers, the registered audit
 states complete without execution/capture failures or confirmed current-rule defects, and the
-author has reviewed the affected keyboard/focus and visual sheets. Device, real-material and
+author has reviewed the affected keyboard/focus and visuals in the latest dev app. Screenshots
+support that review and do not replace it. Device, real-material and
 N-stage acceptance still follow their owning evidence rows.
 
 ## 3. Correct the verified findings
@@ -135,5 +137,35 @@ published release record.
 
 The [calibration and repair comparison](../research/design-audit-calibration-2026-10-25.md)
 records both complete 594-state runs: current-rule instances fall from 8,523 to zero, with
-eight unchanged advisory hints. This completes the measured repair slice; catalogue migration
-and the author's visual/keyboard acceptance remain scheduled above.
+eight unchanged advisory hints. Those results apply to the revisions named in that report,
+before the geometry revision below. They do not establish acceptance of the latest appearance.
+
+## Author geometry review, 2026-10-25
+
+The author rejected the earlier visual completion: industrial cuts were too weak, capsule
+controls remained, station cards lacked mass, and absent refresh actions shifted repository
+columns. The ruling now owned by [controls and motion](../design/controls-and-motion.md)
+requires the following concrete revision:
+
+- Every former capsule control consumes the shared role bevel. The cut is upper-left with
+  a 120-degree interior angle matching the VUA mark; vertical cut depth is √3 × horizontal.
+  Shell tabs lose their skew transform so it cannot change that angle.
+- Workshop stations consume the larger container bevel. The selected station has a solid
+  lower edge and `--vua-shadow-workshop-active`; resting stations stay flat. This is a named
+  author exception to ordinary flat cards.
+- Repository refresh stays visible and disabled when unavailable. Fixed action slots and a
+  removal placeholder preserve the right edge of the middle columns.
+- Acceptance happens in the latest native dev app, with interactive synthetic state review
+  available for states the current local data cannot produce. No screenshot closes that review.
+
+The native shared renderer uses the bundled Chromium's `corner-shape: bevel`, preserving
+diagonal strokes, focus and shadow rather than clipping them. Regression tests check real
+native pixels and hit testing, role isolation, incorrect corner/angle/capsule detection, and
+the selected-station shadow exception. Rendered fixture assertions check station shape and
+refresh-slot alignment, including unavailable lifecycle and missing-identifier rows.
+
+A local targeted run on the working revision completed 16/16 zh-CN dark/light states with
+no execution/capture failure, no current-rule finding and one existing advisory density hint.
+The new unavailable-lifecycle fixture expands the full registry to 100 views / 600 states.
+The complete new matrix and the author's interactive visual/keyboard acceptance are separate
+from the historical 594-state comparison; both must be reported with their actual outcomes.

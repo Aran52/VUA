@@ -5,6 +5,7 @@
 
 import { app, BrowserWindow } from "electron";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +16,7 @@ import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js"
 import { evaluateSnapshot, classifyCapture } from "./design-audit/rules.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+let gridPage = "";
 
 const PAGE = `<!doctype html><html data-theme="dark"><head><style>
 :root {
@@ -288,12 +290,58 @@ test("hidden compositor advances scripted exits across repeated opens", async wi
   assert.equal(completed, true);
 });
 
+test("actual Grid controls paint and hit-test a stroked upper-left 120-degree bevel", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/grid`);
+  const geometry = await win.webContents.executeJavaScript(`(() => {
+    const button = document.querySelector('#grid-button'); const r = button.getBoundingClientRect();
+    const hit = (x,y) => document.elementFromPoint(r.left+x,r.top+y)?.closest('#grid-button') !== null;
+    return { supported: CSS.supports('corner-shape','bevel'), rect:{x:r.x,y:r.y,w:r.width,h:r.height},
+      viewport:{w:innerWidth,h:innerHeight}, clipped:!hit(1,1), inside:hit(1,10),
+      right:hit(r.width-1,1), bottom:hit(1,r.height-1),
+      childRole:getComputedStyle(document.querySelector('#grid-label')).getPropertyValue('--vua-shape-role').trim() };
+  })()`, true);
+  assert.equal(geometry.supported, true);
+  assert.equal(geometry.clipped, true);
+  assert.equal(geometry.inside, true);
+  assert.equal(geometry.right, true);
+  assert.equal(geometry.bottom, true);
+  assert.equal(geometry.childRole, "none", "text never inherits its parent's control role");
+  const capture = await captureAuditPage(win, false, 40);
+  const pixels = capture.toBitmap(); const size = capture.getSize();
+  const scaleX = size.width / geometry.viewport.w, scaleY = size.height / geometry.viewport.h;
+  let diagonalPixels = 0;
+  for (let y = 3; y <= 9; y += 1) for (let x = 2; x <= 5; x += 1) {
+    const px = Math.round((geometry.rect.x + x) * scaleX), py = Math.round((geometry.rect.y + y) * scaleY);
+    const index = (py * size.width + px) * 4;
+    if (pixels[index + 2] > 180 && pixels[index + 1] < 120 && pixels[index] < 120) diagonalPixels += 1;
+  }
+  assert.ok(diagonalPixels >= 2, "the slanted edge itself carries the border");
+  const snapshot = await win.webContents.executeJavaScript(`${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed:true, overflowChecks:true })`, true);
+  const findings = evaluateSnapshot(snapshot, { rules:["grid-shape", "shadow-panel"] });
+  assert.deepEqual(findings.filter(f => f.rule === "grid-shape").map(f => f.cls[0]), ["broken-grid"]);
+  assert.equal(findings.filter(f => f.rule === "shadow-panel").length, 0, "only the active step has approved cast elevation");
+});
+
 async function main() {
   try {
     await app.whenReady();
+    const root = path.resolve(scriptDir, "../../..");
+    const files = ["packages/design-system/src/tokens.css", "packages/design-system/src/base.css", "packages/design-system/src/shapes.css",
+      "apps/desktop/src/renderer/components/primitives/button.css", "apps/desktop/src/renderer/components/primitives/badge.css",
+      "apps/desktop/src/renderer/components/primitives/toggle.css", "apps/desktop/src/renderer/features/amf/factory.css"];
+    const css = (await Promise.all(files.map(file => readFile(path.join(root, file), "utf8")))).join("\n").replace(/@import\s+[^;]+;/g, "");
+    gridPage = `<!doctype html><html data-theme="dark"><head><style>${css}
+      body{padding:32px}#grid-button{width:160px;height:40px;border-color:rgb(255,0,0)}
+      .vua-line__stations{margin-top:24px;width:500px}.broken-grid{border-radius:999px!important}
+    </style></head><body>
+      <button id="grid-button" class="vua-button vua-button--default"><span id="grid-label">Grid action</span></button>
+      <span class="vua-badge" data-tone="neutral">Status</span><input aria-label="Field"><button class="vua-toggle" aria-label="Switch"></button>
+      <ol class="vua-line__stations"><li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="true">Active</button></li>
+      <li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="false">Rest</button></li></ol>
+      <button class="broken-grid">Capsule regression</button></body></html>`;
     server = createServer((req, res) => {
       res.setHeader("Content-Type", "text/html");
-      res.end(req.url === "/overlay" ? OVERLAY_PAGE : req.url === "/calibration" ? CALIBRATION_PAGE : PAGE);
+      res.end(req.url === "/overlay" ? OVERLAY_PAGE : req.url === "/calibration" ? CALIBRATION_PAGE : req.url === "/grid" ? gridPage : PAGE);
     });
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const win = new BrowserWindow({

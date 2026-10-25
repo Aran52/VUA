@@ -2,7 +2,7 @@
 
 > Scope: the automated UI design review tool, its rules, outputs and how fix
 > work consumes its reports
-> Updated: 2026-10-25
+> Updated: 2026-10-26
 
 The design audit renders every registered view through the existing preview and
 smoke fixtures, walks the rendered computed styles, and reports where the
@@ -200,6 +200,12 @@ buttons and fixed action slots, with aligned package-count right edges. These ar
 against the rendered components, not audit exclusions. The add action opens its real form,
 asserts that empty input cannot advance, and cancels without a write. This additional state brings the full
 registry to 100 views / 600 locale/theme states; earlier 99-view reports remain historical.
+The 2026-10-26 layout review adds the standard-editor Creator state and Tools hub, bringing
+the registry to **102 views / 612 locale/theme states**. The separate
+`pnpm --filter @vua/desktop smoke:layout-stability` exercises real non-scrolling/scrolling
+round trips in Workshop, Play, Tools and Avatar editing, and checks sidebar idle/hover/focus
+geometry. These interaction checks run in TypeScript CI; static screenshots alone cannot
+detect a width jump during detail changes.
 `first-run-settings` uses `firstRunReview.previewSettings()`, not the onboarding review's
 `run()` endpoint. It asserts `#settings-theme`, three appearance choices and the actual
 preference switch, then toggles and restores resource saving. The older endpoint ended on

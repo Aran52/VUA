@@ -223,6 +223,8 @@ export const VIEWS = [
   { id: "first-run-settings", fixture: "first-run", area: "settings", steps: ["await window.firstRunReview.previewSettings()"], settleMs: 600 },
   { id: "env-play", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("play")'], settleMs: 600 },
   { id: "env-create", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("create")'], settleMs: 600 },
+  { id: "env-create-standard", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("create", "standard")'], settleMs: 600 },
+  { id: "tools-hub", fixture: "first-run", area: "tools", steps: ["await window.firstRunReview.previewTools()"], settleMs: 600 },
 
   // Focused panels and dialogs.
   { id: "deployment-check", fixture: "deployment-check", area: "first-run-deployment", steps: ["await window.deploymentReview.run()"], settleMs: 600 },

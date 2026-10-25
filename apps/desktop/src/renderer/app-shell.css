@@ -236,9 +236,8 @@
   min-height: 0;
 }
 
-/* 侧栏(2026-09-25 用户裁决重塑):淡化无边框——渐变毛玻璃取代实底+右边线;
- * 页项垂直居中靠左;未激活态全栏小字,指针进入/键盘聚焦(:hover/:focus-within)
- * 即激活——字号动画长大,毛玻璃层向右动画扩大 */
+/* The sidebar retains gradient glass without resizing on pointer entry, focus or
+ * selection (author ruling, 2026-10-26). */
 .vua-shell__sidebar {
   position: relative;
   width: 176px;
@@ -249,6 +248,7 @@
   padding: var(--vua-space-4) var(--vua-space-3);
   /* 矮窗下滚动设置目录;底部常驻任务条已按 2026-10-09 用户裁决取消 */
   overflow-y: auto;
+  scrollbar-gutter: stable;
   /* 基态:向左浓向右淡的渐变玻璃,无边框分界 */
   background: linear-gradient(
     90deg,
@@ -260,14 +260,12 @@
   -webkit-backdrop-filter: blur(12px) saturate(1.3);
 }
 
-/* 激活玻璃层:常态缩在左半、低可见;激活时向右铺满并增强——
- * 模糊区域随宽度动画扩大。绝对定位于滚动容器内,内容溢出滚动时
- * 该层随内容移动(极端矮窗下 glass 随滚出属可接受降级) */
+/* Hover/focus may fade the glass, but never resize its footprint or the menu. */
 .vua-shell__sidebar::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 56%;
+  width: 100%;
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--vua-bg-panel) 52%, transparent) 0%,
@@ -278,14 +276,11 @@
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   opacity: 0.35;
   pointer-events: none;
-  transition:
-    width 240ms ease,
-    opacity 240ms ease;
+  transition: opacity var(--vua-motion-fast) ease;
 }
 
 .vua-shell__sidebar:hover::before,
 .vua-shell__sidebar:focus-within::before {
-  width: 100%;
   opacity: 1;
 }
 
@@ -305,13 +300,12 @@
   padding: 0 var(--vua-space-3) var(--vua-space-1);
 }
 
-/* 侧栏项(S-X-2):hover/选中即生长(字号+内距+微右移),离开或改选回缩;
- * 选中态由项自身承载(tint 底 + 左条 + 辖区色加粗)——生长回缩的重排
- * 会让测量式滑动指示器坐标过期,故指示器退役 */
+/* All states share their text size, padding and layout slot. */
 .vua-shell__sidebar-item {
   position: relative;
   display: block;
   width: 100%;
+  min-height: 36px;
   text-align: left;
   border: none;
   border-radius: var(--vua-radius-control);
@@ -320,40 +314,24 @@
   color: var(--vua-text-secondary);
   font: var(--vua-font-body);
   cursor: pointer;
-  transform-origin: left center;
   transition:
-    transform 180ms ease,
     background-color 140ms ease,
     color 140ms ease,
     box-shadow 140ms ease;
 }
 
-/* 未激活态(指针/键盘焦点均不在侧栏):全栏收为小字,选中项也只保留
- * 颜色与左条身份;特异性须高于下方 hover/选中规则 */
-.vua-shell__sidebar:not(:hover):not(:focus-within) .vua-shell__sidebar-item {
-  font-size: var(--vua-text-caption-size);
-  line-height: var(--vua-text-caption-leading);
-}
-
 .vua-shell__sidebar-item:hover {
   background: color-mix(in srgb, var(--vua-text-strong) 6%, transparent);
   color: var(--vua-text-strong);
-  font: var(--vua-font-body);
-  padding: var(--vua-space-3) var(--vua-space-4);
-  transform: translateX(3px);
 }
 
-/* 选中保持放大(改选才回缩):tint 底 + 左条 + 辖区色文字 */
+/* Selection is colour and a thin edge, without moving its neighbours. */
 .vua-shell__sidebar-item[aria-current="page"],
 .vua-shell__sidebar-item[aria-current="page"]:hover {
   background: var(--vua-accent-tint);
   box-shadow: inset 2px 0 0 var(--vua-accent);
   color: var(--vua-accent-text);
   font-weight: 600;
-  font-size: var(--vua-text-body-size);
-  line-height: var(--vua-text-body-leading);
-  padding: var(--vua-space-3) var(--vua-space-4);
-  transform: translateX(3px);
 }
 
 .vua-shell__main {
@@ -402,6 +380,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .vua-page__hero {

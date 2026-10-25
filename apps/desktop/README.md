@@ -37,6 +37,7 @@ under `target` stay in place. Avoid a bare `cargo clean` when that directory con
 | --- | --- |
 | `pnpm dev:desktop` | Joint Main + Renderer development launch |
 | `pnpm --filter @vua/desktop typecheck` | Strict type check for both renderer and electron tsconfigs |
+| `pnpm --filter @vua/desktop smoke:layout-stability` | Real Chromium sidebar hover/focus and four-page detail/scroll width checks, with synthetic ports and no software launch |
 | `pnpm --filter @vua/desktop test` | vitest unit tests |
 | `pnpm --filter @vua/desktop smoke:help-navigation` | Controlled Main/preload/renderer navigation: embedded hardware/knowledge, reading return, compact Play cards and light/big-screen appearance; isolated profile, no vendor actions |
 | `pnpm --filter @vua/desktop smoke:vrcft` | Native read-only tool discovery and controlled device/connection selection, module guidance and recovery UI; isolated profile, synthetic actions, no vendor/module installation or hardware acceptance |

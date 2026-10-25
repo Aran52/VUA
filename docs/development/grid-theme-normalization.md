@@ -229,3 +229,13 @@ The [hierarchy report](../research/grid-hierarchy-review-2026-10-25.md) includes
 before/after sheet for each priority page, the current 54-state filtered audit, interaction
 checks and native dev-app review limits. This is not a new full-matrix baseline, and visual
 acceptance remains with the author in the open dev app.
+
+## Layout stability review, 2026-10-26
+
+The author reported sidebar activation reflow, width jumps when details introduced a scrollbar,
+and inconsistent Creator tiles. The fixed-size sidebar option is implemented. Shared page
+scroll containers reserve their gutter before overflow; Creator uses aligned software rows,
+inline observed status and a compact AMF group. The owning design standard replaces the earlier
+sidebar activation direction. The [layout report](../research/grid-layout-stability-2026-10-26.md)
+records the 16 geometry/scroll cases, 36-state filtered audit, actual dev-app review and a
+same-inventory dark/light comparison. The new interaction guard runs in TypeScript CI.

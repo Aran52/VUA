@@ -1,7 +1,7 @@
 # VUA design standard
 
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation
-> Updated: 2026-10-25
+> Updated: 2026-10-26
 
 ## 0. Position of this version
 
@@ -10,9 +10,9 @@ v0.6.1 (the historical merge version); the combined scope continues here.
 
 | Treatment | Content |
 | --- | --- |
-| Retain | goal before terminology, Recipe-first, explicit state, recovery first, honest progress, user-content priority, dark-first, VUA purple/AMF orange jurisdictions, 4 px grid, semantic tokens, workshop-track metaphor, the fixed Home and desktop directory (§3; big-screen mode retired by the 2026-10-10 user ruling), slanted control language, sidebar growth impression, three motion levels, WebGL scene direction (the nebula backdrop scene retired by the 2026-09-25 user ruling; see §7), Recipe graph/list/exploded views, Release coverflow and 3D pedestal, community-skin direction, WCAG 2.2 AA and APG gates |
-| Standardize | Windows and Fluent 2 desktop behavior; macOS native-tool texture as a visual reference; Carbon as information-structure reference only; global success/warning/error colors while reserving large traffic-light treatments for environment deployment; tokenized motion; transform-only sidebar growth; Electron mechanism + AMF use case for browsing/download; the five AMF stages kept as the full capability coverage (since 0.7.19 a wizard selects the path by goal/device/state — see Recipe-first) |
-| Replace | framework-private Tauri window/IPC semantics, BDB contracts, a separate Production stage, globally disabled context menus, font-size or padding reflow on hover (superseded for the sidebar shell only by the 2026-09-25 user ruling: the idle sidebar rests as small type and hover/focus-within activates it — see §3), deceptive progress floors, paid font or icon assumptions |
+| Retain | goal before terminology, Recipe-first, explicit state, recovery first, honest progress, user-content priority, dark-first, VUA purple/AMF orange jurisdictions, 4 px grid, semantic tokens, workshop-track metaphor, the fixed Home and desktop directory (§3; big-screen mode retired by the 2026-10-10 user ruling), slanted control language, three motion levels, WebGL scene direction (the nebula backdrop scene retired by the 2026-09-25 user ruling; see §7), Recipe graph/list/exploded views, Release coverflow and 3D pedestal, community-skin direction, WCAG 2.2 AA and APG gates |
+| Standardize | Windows and Fluent 2 desktop behavior; macOS native-tool texture as a visual reference; Carbon as information-structure reference only; global success/warning/error colors while reserving large traffic-light treatments for environment deployment; tokenized motion; fixed sidebar geometry; Electron mechanism + AMF use case for browsing/download; the five AMF stages kept as the full capability coverage (since 0.7.19 a wizard selects the path by goal/device/state — see Recipe-first) |
+| Replace | framework-private Tauri window/IPC semantics, BDB contracts, a separate Production stage, globally disabled context menus, font-size or padding reflow on hover (including the sidebar under the 2026-10-26 user ruling), deceptive progress floors, paid font or icon assumptions |
 | Schedule separately | Visual direction remains part of this standard (merged at v0.6.1). Delivery sequencing, performance gates, and fallback acceptance are reviewed independently from the design decision. |
 
 ## 1. Experience position
@@ -236,13 +236,17 @@ honestly as "unavailable" and the reading degrades to RAM-only — never a guess
 host surface is absent the whole indicator is absent.
 
 The desktop feature directory remains at the left; the task center is reached from Home, with
-notifications in the header; and content scrolls in its own container. Sidebar items retain the original visual impression of growing
-and shifting toward the user, implemented with transform and a stable layout slot. Since the
-2026-09-25 user ruling the sidebar rests as gradient glass without a hard border. The 2026-10-08
-ruling places grouped features at the top and global entries below. Idle items render as small type,
-and pointer entry or keyboard focus-within
-activates the sidebar (type grows and the glass layer animates wider). This activation reflow is
-scoped to the sidebar shell and supersedes the general fixed-type-during-hover rule for it.
+notifications in the header; and content scrolls in its own container. The 2026-10-26 user ruling
+fixes sidebar geometry: idle, hover, focus and selection share text size, padding and item bounds.
+The shell remains 176 px wide at the ordinary desktop breakpoint, with the existing narrow-window
+sizes. Selection uses tint, text weight and an edge; glass may fade without growing. This replaces
+the earlier idle-small-type and activation-reflow direction. The grouped directory remains at the
+top and the sidebar retains its gradient glass without a hard divider.
+
+Page scroll containers reserve their vertical scrollbar gutter even when content fits. Expanding
+or switching details must not change the width or left edge of persistent cards. Avatar editing
+groups editors and managers into compact, full-width rows; names, observed status and disabled
+entries align. Details stay directly beneath their own row, and AMF occupies its own preference group.
 
 Custom title bars retain Windows drag, maximize, system-menu, scaling, and control expectations.
 Remote pages visibly identify origin and security boundary and never imitate a local form.
@@ -858,9 +862,8 @@ A page is deliverable only when:
 10. the fixed Home, logo Home action and feature directory are independent of wizard choices;
     the desktop retains mouse-oriented navigation and native control semantics; big-screen layout
     and directional shell navigation are retired (user ruling 2026-10-10). Scaling and
-    reduced-motion checks pass; sidebar growth moves no
-    neighbor (transform-only; the 2026-09-25 idle-small-type/activation ruling governs the sidebar's
-    idle and hover/focus-within type sizes);
+    reduced-motion checks pass; sidebar idle/hover/focus/selection geometry is fixed, and page/card
+    widths stay stable across the appearance and disappearance of scrolling;
 11. each WebGL scene passes animated/static/off, CSS fallback, context-loss, focus pause, and measured
     performance checks; no wall-to-wall blur, continuous parallax, or layout reflow motion appears;
 12. Recipe's three views and Release coverflow/pedestal retain complete degradation paths;
@@ -870,7 +873,7 @@ A page is deliverable only when:
 
 The accepted scope covers the base visual language, two jurisdictions, tokens, component states, fixed
 Home and logo navigation, desktop directory, independent branching wizard, Help entries
-for the guidance contexts (user ruling 2026-10-08), slanted controls, sidebar growth impression,
+for the guidance contexts (user ruling 2026-10-08), slanted controls, fixed sidebar geometry,
 task feedback, and the five AMF stages as full capability coverage. Wizard choices never hide these
 feature entries; inspection remains available from production records and the directory. The scope
 also includes the WebGL scene direction (the nebula backdrop retired by the 2026-09-25 ruling),

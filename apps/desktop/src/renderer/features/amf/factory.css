@@ -1,5 +1,5 @@
 /* AMF base map: a two-floor building cross-section. Rooms carry their own color; status uses icons and text. */
-.vua-factory { display: flex; flex-direction: column; gap: var(--vua-space-4); width: 100%; max-width: 1180px; margin-inline: auto; min-height: 0; overflow-y: auto; }
+.vua-factory { display: flex; flex-direction: column; gap: var(--vua-space-4); width: 100%; max-width: 1180px; margin-inline: auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .vua-factory__command { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .vua-factory__command h1 { margin: 0 0 4px; }
 .vua-factory__command p { margin: 0; }

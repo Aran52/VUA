@@ -64,6 +64,8 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:asset-browser
       - name: Notifications above browsing and AMF shape ownership (isolated profile, synthetic ports)
         run: pnpm --filter @vua/desktop smoke:browser-shell
+      - name: Stable sidebar and page/card widths across detail scrolling (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:layout-stability
       - name: Regional reference and website tests (four languages, synthetic observations)
         run: pnpm --filter @vua/desktop smoke:network
       - name: Native splash and first-use tour (isolated profile)

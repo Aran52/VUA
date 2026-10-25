@@ -31,6 +31,7 @@ import "../../src/renderer/features/settings/settings.css";
 import { ShapeScope } from "../../src/renderer/components/primitives/ShapeScope.tsx";
 
 const view = location.hash.slice(1) || "map";
+const layoutReview = new URLSearchParams(location.search).has("layout-review");
 const sources = [
   { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage", productIds: ["booth:1"] },
   { sourceId: "outfit", itemId: "b", itemName: "TshirtShorts_Meiyun_v1.00.zip", name: "TshirtShorts_Meiyun_v1.00.unitypackage", productIds: ["booth:2"] },
@@ -110,9 +111,9 @@ runs.texline = { ...runs.finished!, runId: "texline", result: { facts: { ...runs
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
-  async list() { const idle = view === "workshop-capacity"; return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: !idle, queue: [],
+  async list() { const idle = view === "workshop-capacity" || layoutReview; return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: !idle, queue: [],
     capacity: idle ? 2 : 1, running: idle ? [] : [{ taskId: "task-running", runId: "running", operation: "amf.production.prepare" }],
-    runs: Object.values(runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
+    runs: Object.values(runs).filter(run => !layoutReview || run.runId === "finished").map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
   async previewImage() { return pixel; },

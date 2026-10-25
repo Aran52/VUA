@@ -12,6 +12,8 @@ const copy = strings.journey;
 const previewTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
 let root: Root | undefined;
 let scenario: "installed" | "missing" | "restored" = "installed";
+let creatorInventory: "all" | "standard" = "all";
+const editorVersions = () => creatorInventory === "standard" ? ["2022.3.22f1"] : ["2022.3.22f1", "2019.4.31f1", "2021.3.45f1"];
 let guideId: string | null = null;
 const intents: string[][] = [];
 const checks: string[] = [];
@@ -55,7 +57,7 @@ window.vua = {
     let value: unknown;
     if (req.method === "app.snapshot") value = { capabilities: { tasks: true, operations: ["environment.planDeployment", "environment.executeDeployment", "environment.testWebsites", "environment.observePlay", "environment.startPlay", "environment.stopPlay", "environment.inspectManagerApps"].map(operationId => ({ operationId, availability: "available" })) } };
     if (req.method === "task.list") value = { revision: 1, tasks: [] };
-    if (req.method === "environment.getSnapshot") value = { contractVersion: "0.1", revision: 0, capturedAt: new Date().toISOString(), items: [{ checkId: "unity_editors", zone: "create", presence: "detected", facts: { editors: ["2022.3.22f1", "2019.4.31f1", "2021.3.45f1"].map(version => ({ version, path: `C:/Synthetic/Unity/${version}`, classification: "other_unity_version" })) } }] };
+    if (req.method === "environment.getSnapshot") value = { contractVersion: "0.1", revision: 0, capturedAt: new Date().toISOString(), items: [{ checkId: "unity_editors", zone: "create", presence: "detected", facts: { editors: editorVersions().map(version => ({ version, path: `C:/Synthetic/Unity/${version}`, classification: "other_unity_version" })) } }] };
     if (req.method === "environment.testWebsites") { websiteCalls += 1; value = { websiteTests: req.params!.urls!.map(url => ({ url, status: "reachable", elapsedMs: 8, httpStatus: 200 })) }; }
     if (["environment.observePlay", "environment.startPlay", "environment.stopPlay"].includes(req.method)) {
       if (playUnavailable) return { ok: false, error: { code: "unsupported_method", messageKey: "synthetic" } };
@@ -63,7 +65,7 @@ window.vua = {
       if (req.method !== "environment.observePlay") { const stopping = req.method === "environment.stopPlay"; playCalls.push(req.method + ":" + route); playStates[route] = stopping ? "stopping" : "starting"; setTimeout(() => { playStates[route] = stopping ? "idle" : "running"; }, 100); }
       value = syntheticPlay(route);
     }
-    if (req.method === "project.environmentManagers") value = { operation: req.method, result: { schemaVersion: "vua.environment-managers-snapshot/v0.1", editors: ["2022.3.22f1", "2019.4.31f1", "2021.3.45f1"].map(version => ({ version, path: `C:/Synthetic/Unity/${version}`, classification: "other_unity_version" })), vcc: { presence: "found" }, alcom: { presence: "not_found" } } };
+    if (req.method === "project.environmentManagers") value = { operation: req.method, result: { schemaVersion: "vua.environment-managers-snapshot/v0.1", editors: editorVersions().map(version => ({ version, path: `C:/Synthetic/Unity/${version}`, classification: "other_unity_version" })), vcc: { presence: "found" }, alcom: { presence: "not_found" } } };
     if (req.method === "environment.verifyEditor") value = { verdict: "verified", version: req.params!.path!.split("/").at(-1), exePath: req.params!.path! + "/Editor/Unity.exe", classification: "other_unity_version" };
     if (req.method === "environment.inspectManagerApps") value = { managerApps: { schemaVersion: "vua.manager-apps/v0.1", capturedAt: new Date().toISOString(), apps: ["unity_hub", "vcc", "alcom"].map(component => ({ component, presence: component === "alcom" ? "not_found" : "found", path: component === "alcom" ? null : `C:/Synthetic/${component}.exe` })) } };
     if (req.method === "environment.planDeployment") {
@@ -93,7 +95,8 @@ window.vua = {
   remoteContent: { openAccountGuideInBrowser: async (id: string) => { guideId = id; }, authProbe: async () => ({ authOk: false, accountName: null }) },
 } as unknown as VuaDesktopApiV2;
 
-async function mount(mode: typeof scenario = "installed", legacyMode = "desktop", theme?: "dark" | "light") {
+async function mount(mode: typeof scenario = "installed", legacyMode = "desktop", theme?: "dark" | "light", inventory: typeof creatorInventory = "all") {
+  creatorInventory = inventory;
   root?.unmount(); localStorage.clear(); location.hash = ""; scenario = mode; playUnavailable = false; installationRunning = false; websiteCalls = 0; borrowedSteam = true; playStates.desktop_play = "idle"; playStates.pico_pcvr = "idle"; playCalls.length = 0;
   localStorage.setItem(storageKeys.locale, currentLocale);
   if (theme) localStorage.setItem(storageKeys.theme, theme);
@@ -291,10 +294,10 @@ const review = {
     check("closing and switching card details retains the live installation panel and receipt", panel === document.querySelector('#route-desktop-details .vua-deployment') && receipt === localStorage.getItem(storageKeys.deploymentReceiptPlay) && card().dataset.action === 'busy');
     return checks.slice(startAt);
   },
-  async previewEnvironment(page: "play" | "create") {
-    await mount("installed", "desktop", previewTheme); await step("goal"); document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-wizard-step]"));
+  async previewEnvironment(page: "play" | "create", inventory: typeof creatorInventory = "all") {
+    await mount("installed", "desktop", previewTheme, inventory); await step("goal"); document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-wizard-step]"));
     await click(copy[page]);
-    await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
+    await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-editor-status]')?.textContent?.includes("2022.3.22f1"));
     await settlePage();
   },
   async previewSettings() {
@@ -320,6 +323,14 @@ const review = {
     await wait(() => toggle.getAttribute("aria-checked") !== previous);
     toggle.click();
     await wait(() => toggle.getAttribute("aria-checked") === previous);
+    await settlePage();
+  },
+  async previewTools() {
+    await mount("installed", "desktop", previewTheme); await step("goal");
+    document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
+    await wait(() => !document.querySelector("[data-wizard-step]"));
+    await click(copy.tools);
+    await wait(() => document.querySelector(".vua-tools-hub"));
     await settlePage();
   },
   settlePage,

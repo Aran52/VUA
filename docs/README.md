@@ -53,6 +53,7 @@ Pull requests follow the [protected-main policy](meta/protected-main.md).
 | UI changes | [Desktop](architecture/desktop.md), [design standard](design/design-standard.md), [controls and motion](design/controls-and-motion.md), [design audit](design/design-audit.md), [notification tiers](design/notification-tiers.md), [writing style](meta/documentation-governance.md#6-writing-style) | [Guidance contexts](architecture/guidance.md) for guides; human UI acceptance; automated audit reports for token and consistency drift |
 | Recovery | [Orchestrator](architecture/orchestrator.md) | Task store, failure/retry format and tests |
 | Versions / N7 distribution | [Version policy](release/versioning.md), [N7 acceptance](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide), [Windows distribution plan](development/windows-distribution-plan.md) | NSIS, mirrored runtime, AMF incremental updates, screenshots |
+| Independent Host / AMF updates | [Component publication](release/component-updates.md), [distribution v0.2](protocols/windows-distribution-v0.2.md), [U sequence](development/windows-distribution-plan.md#9-independent-component-update-sequence) | Separate channels, component build receipts, in-app activation and recovery |
 | Contract change | [Protocol guide](protocols/README.md) | Schema and consumer tests; older numbered faces can still be served |
 | Documentation | [Governance](meta/documentation-governance.md) | [Registry](REGISTRY.md), [archive index](archive/README.md) |
 

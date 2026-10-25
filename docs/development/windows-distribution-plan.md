@@ -249,10 +249,16 @@ This extends the first delivery; it does not declare a new published product ver
 | U5 — AMF hot activation | Quiesce module work, replace only its provider/UI generation, validate both and commit or restore | Host process remains alive; UI/provider build identities agree; busy/disabled/data-migration cases preserve data and choices |
 | U6 — transition and real acceptance | Bridge installer for legacy helpers, fault injection, real signed test publication and clean-Windows/human review | GitHub-blocked discovery/object transfer; interruption/low-disk/corruption/rollback; existing profiles and production paths remain usable |
 
-U1 now has a native consumer, typed API and 23 positive/negative vectors. All 17 distribution
+U1 now has a native consumer, typed API and 27 positive/negative vectors. All 17 distribution
 tests, native Clippy with warnings denied, contract/provider builds and desktop type checks pass.
+U2 adds independent native/renderer build modes, exact-source receipts, signed component export,
+and the atomic filesystem publisher. All 45 publication/legacy-export checks pass, including an
+actual child-process exit immediately before channel promotion. The AMF-only native build reports
+0.2.0; its renderer, provider and fresh notices assemble without building host binaries/renderer
+or acquiring an Electron distribution. The local diagnostic receipt is labelled dirty and is
+not a publication artifact. CI separately builds host/AMF artifacts and an operator-tool export.
 The new API is not yet exposed by Main, and the component endpoints are not yet published.
-U2–U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
+U3–U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
 

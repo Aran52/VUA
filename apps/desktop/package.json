@@ -76,6 +76,7 @@
     "@vitejs/plugin-react": "6.1.1",
     "electron": "44.9.3",
     "electron-builder": "26.15.3",
+    "semver": "7.8.5",
     "typescript": "7.0.2",
     "vite": "8.2.2",
     "vitest": "4.1.11"

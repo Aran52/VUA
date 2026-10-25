@@ -27,11 +27,12 @@ function copy(source, target) { fs.mkdirSync(path.dirname(target), { recursive: 
 copy(path.join(desktop, "dist/packaged-electron"), path.join(hostRoot, "dist/electron"));
 copy(path.join(desktop, "dist/components/host-renderer"), path.join(hostRoot, "dist/renderer"));
 copy(path.join(desktop, "dist/components/amf-ui"), path.join(amfRoot, "ui"));
-const native = path.join(workspace, "target/x86_64-pc-windows-msvc/release");
+const native = path.resolve(workspace, process.env.CARGO_TARGET_DIR ?? "target", "x86_64-pc-windows-msvc/release");
 copy(path.join(native, "vua-orchestrator-provider.exe"), path.join(hostRoot, "provider/vua-orchestrator-provider.exe"));
 copy(path.join(native, "vua-amf-provider.exe"), path.join(amfRoot, "provider/vua-amf-provider.exe"));
 if (execFileSync(path.join(amfRoot, "provider/vua-amf-provider.exe"), ["--version"], { windowsHide: true, encoding: "utf8" }).trim() !== amf.version) throw Error("AMF UI and native versions disagree");
 copy(path.join(native, "vua-distribution.exe"), path.join(output, "VUA.exe"));
+copy(path.join(native, "vua-distribution.exe"), path.join(hostRoot, "launcher/VUA.exe"));
 for (const root of [hostRoot, amfRoot]) {
   copy(path.join(desktop, "out/release-notices"), path.join(root, "notices"));
   for (const name of ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]) copy(path.join(workspace, name), path.join(root, name));

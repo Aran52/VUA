@@ -825,6 +825,135 @@
     }
   },
   {
+    "name": "overlong-source",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.1.0",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/releases/v0.6.7/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://example.test/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    }
+  },
+  {
+    "name": "null-runtime-is-not-absent",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.1.0",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": "https://ph-r.com/vua/releases/v0.6.7/",
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload",
+          "runtimeVersion": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "array-url-is-not-a-string",
+    "schema": "index",
+    "component": "amf",
+    "schemaValid": false,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "product": "VUA",
+      "platform": "windows",
+      "arch": "x64",
+      "channel": "beta",
+      "component": "amf",
+      "sequence": 3,
+      "releases": [
+        {
+          "version": "0.1.0",
+          "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "releaseUrl": [
+            "https://ph-r.com/vua/"
+          ],
+          "manifest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 4096,
+            "sources": [
+              "https://ph-r.com/vua/releases/v0.6.7/vua-release.json"
+            ]
+          },
+          "compatibility": {
+            "host": ">=0.6.7, <0.7.0",
+            "uiAbi": "amf-ui/0.1",
+            "react": "19.2.8",
+            "application": "0.1",
+            "bridge": "0.1",
+            "bdlWrite": "0.10",
+            "bdlRead": [
+              "0.10"
+            ]
+          },
+          "activation": "reload"
+        }
+      ]
+    }
+  },
+  {
     "name": "node-signed-index",
     "schema": "envelope",
     "component": "amf",
@@ -874,6 +1003,19 @@
       "algorithm": "ed25519",
       "payload": "{\"schemaVersion\":\"0.2\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"channel\":\"beta\",\"component\":\"amf\",\"sequence\":3,\"releases\":[{\"version\":\"0.1.0\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"releaseUrl\":\"https://ph-r.com/vua/releases/v0.6.7/\",\"manifest\":{\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bytes\":4096,\"sources\":[\"https://ph-r.com/vua/releases/v0.6.7/vua-release.json\"]},\"compatibility\":{\"host\":\">=0.6.7, <0.7.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.10\",\"bdlRead\":[\"0.10\"]},\"activation\":\"reload\"}]}",
       "signature": "0"
+    }
+  },
+  {
+    "name": "malformed-unicode-in-signed-payload",
+    "schema": "envelope",
+    "component": "amf",
+    "schemaValid": true,
+    "nativeValid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "algorithm": "ed25519",
+      "payload": "{\"schemaVersion\":\"0.2\",\"product\":\"VUA\",\"platform\":\"windows\",\"arch\":\"x64\",\"channel\":\"beta\",\"component\":\"amf\",\"sequence\":3,\"releases\":[{\"version\":\"0.1.0\",\"build\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"releaseUrl\":\"https://ph-r.com/\\ud800\",\"manifest\":{\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"bytes\":4096,\"sources\":[\"https://ph-r.com/vua/releases/v0.6.7/vua-release.json\"]},\"compatibility\":{\"host\":\">=0.6.7, <0.7.0\",\"uiAbi\":\"amf-ui/0.1\",\"react\":\"19.2.8\",\"application\":\"0.1\",\"bridge\":\"0.1\",\"bdlWrite\":\"0.10\",\"bdlRead\":[\"0.10\"]},\"activation\":\"reload\"}]}",
+      "signature": "0455cff021d8ff39d502c55ca68edb3c23644c06e311f1628bc04eb02d12316937b7d58b86278ea2018daf8406f304918ea23e84d91654c7e2e642e6dff6810e"
     }
   }
 ]

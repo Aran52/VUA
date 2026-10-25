@@ -9,6 +9,8 @@ const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const renderer = path.join(desktop, "src/renderer");
 const require = createRequire(path.join(desktop, "package.json"));
 const amfVersion = JSON.parse(readFileSync(path.join(desktop, "distribution/amf-version.json"))).version;
+const component = process.argv.find(value => value.startsWith("--component="))?.slice(12);
+if (component && !["host", "amf"].includes(component)) throw Error("Unknown component build");
 const bindings = {
   "react": ["React", Object.keys(require("react"))],
   "react-dom": ["ReactDOM", Object.keys(require("react-dom"))],
@@ -38,10 +40,10 @@ const sharedBindings = {
     return `const host = globalThis.__VUA_AMF_UI_HOST_V01__; if (host?.abi !== "amf-ui/0.1") throw new Error("amf_host_binding_unavailable"); const value = host.${name};\n${names.map(key => `export const ${key} = value.${key};`).join("\n")}\nexport default value;`;
   },
 };
-await build(mergeConfig(hostConfig, { root: desktop, configFile: false,
+if (component !== "amf") await build(mergeConfig(hostConfig, { root: desktop, configFile: false,
   plugins: [{ name: "vua-module-csp", transformIndexHtml: html => html.replace("script-src 'self'", "script-src 'self' vua-module:").replace("style-src 'self'", "style-src 'self' vua-module:").replace("connect-src 'self'", "connect-src 'self' vua-module:") }],
   define: { __VUA_SPLIT_AMF__: "true" }, build: { outDir: "dist/components/host-renderer" } }));
-await build({ root: desktop, configFile: false, base: "./", plugins: [sharedBindings, react()],
+if (component !== "host") await build({ root: desktop, configFile: false, base: "./", plugins: [sharedBindings, react()],
   define: { ...hostConfig.define, __VUA_AMF_VERSION__: JSON.stringify(amfVersion), "process.env.NODE_ENV": JSON.stringify("production") }, build: { outDir: "dist/components/amf-ui", emptyOutDir: true,
     lib: { entry: path.join(renderer, "features/amf/amf-entry.ts"), formats: ["es"], fileName: () => "amf-entry.js", cssFileName: "style" },
     rolldownOptions: { output: { codeSplitting: false } }, sourcemap: false } });

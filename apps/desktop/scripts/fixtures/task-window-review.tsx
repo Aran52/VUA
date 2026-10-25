@@ -46,6 +46,16 @@ const review = {
     check("Tasks has no guidance switch or guide content", !document.querySelector('[role="tablist"], .vua-overlay-guide'));
     check("actual tasks are not labelled demonstration data", !document.body.textContent?.includes(strings.common.fixtureBadge));
     check("task title identifies Tasks", document.querySelector(".vua-overlay__title")?.textContent === strings.journey.tasks);
+    const frame = document.querySelector<HTMLElement>(".vua-overlay")!;
+    const typeRoles = [".vua-overlay__status-title", ".vua-overlay__section-label", ".vua-overlay__task-title"]
+      .map(selector => document.querySelector<HTMLElement>(selector)!);
+    const originalScale = frame.style.getPropertyValue("--vua-overlay-text-scale");
+    const sizes = typeRoles.map(node => parseFloat(getComputedStyle(node).fontSize));
+    frame.style.setProperty("--vua-overlay-text-scale", "1.5");
+    check("desktop type roles preserve player text scaling", typeRoles.every((node, index) =>
+      Math.abs(parseFloat(getComputedStyle(node).fontSize) - sizes[index]! * 1.5) < 0.1));
+    if (originalScale) frame.style.setProperty("--vua-overlay-text-scale", originalScale);
+    else frame.style.removeProperty("--vua-overlay-text-scale");
     const details = document.querySelector<HTMLDetailsElement>(".vua-overlay__production-details")!;
     check("production details start collapsed", !!details && !details.open);
     details.querySelector<HTMLElement>("summary")!.click();

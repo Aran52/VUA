@@ -68,6 +68,7 @@ function escape(value) { return String(value).replace(/[&<>"']/g, char => ({ "&"
 export function componentPage(component, entry) {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><title>VUA ${escape(component)} ${escape(entry.version)}</title><main><h1>${escape(component === "host" ? "VUA" : "AMF")} ${escape(entry.version)}</h1><p>Build ${escape(entry.build)}. Update from inside VUA.</p><p>Manifest SHA-256: <code>${entry.manifest.sha256}</code></p><p><a href="/vua/downloads/">VUA installation and recovery</a></p></main></html>\n`;
 }
+export function componentProbeEnvironment() { return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("VUA_"))); }
 export function verifyBuildReceipt(componentRoot, receipt, expected) {
   if (receipt.schemaVersion !== "0.2" || receipt.component !== expected.component || receipt.version !== expected.version || receipt.build !== expected.build
       || receipt.dirty !== false || !Array.isArray(receipt.files)) throw Error("Component build receipt does not match the clean source revision");
@@ -157,6 +158,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   verifyBuildReceipt(path.resolve(componentRoot), receipt, { component, version, build: git(["rev-parse", "HEAD"]) });
   const provider = path.join(path.resolve(componentRoot), "provider", component === "host" ? "vua-orchestrator-provider.exe" : "vua-amf-provider.exe");
   if (component === "amf" && execFileSync(provider, ["--version"], { encoding: "utf8", windowsHide: true }).trim() !== version) throw Error("AMF provider and declared version disagree");
+  if (component === "amf") {
+    const native = JSON.parse(execFileSync(provider, ["--component-identity"], { encoding: "utf8", windowsHide: true, env: componentProbeEnvironment() }));
+    const ui = JSON.parse(fs.readFileSync(path.join(path.resolve(componentRoot), "ui/component.json")));
+    if (native.schemaVersion !== "0.1" || ui.schemaVersion !== "0.1" || native.component !== "amf" || ui.component !== "amf" || native.version !== version || ui.version !== version
+        || native.build !== receipt.build || ui.build !== receipt.build || native.bdlWrite !== amf.bdlWrite || ui.bdlWrite !== amf.bdlWrite || ui.hotReloadAbi !== "amf-hot/0.1") throw Error("AMF UI/provider source or data identity differs from its receipt");
+  }
   if (component === "host" && original.runtime.version !== pkg.devDependencies.electron) throw Error("Provide a signed baseline with the exact configured Electron runtime");
   const previousPath = process.argv.find(value => value.startsWith("--previous="))?.slice(11);
   const privateKeyPath = process.env.VUA_RELEASE_KEY ?? path.join(process.env.USERPROFILE, ".codex/private/vua-release-ed25519.pem");

@@ -11,6 +11,7 @@ name = "vua-amf-provider"
 path = "src/main.rs"
 
 [dependencies]
+serde_json = "1"
 vua-bdl-store = { path = "../bdl-store" }
 vua-orchestrator = { path = "../orchestrator" }
 vua-project-manager = { path = "../project-manager" }

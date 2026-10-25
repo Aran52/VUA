@@ -188,6 +188,104 @@ fn host_update(manifest: &Manifest) -> (Manifest, Vec<u8>) {
 }
 
 #[tokio::test]
+#[ignore = "Requires exact independently built AMF UI/provider artifacts"]
+async fn actual_amf_identity_allows_hot_selection_under_the_live_host_lock() {
+    use crate::component_feed::ComponentKind::Amf;
+    let executable = std::path::PathBuf::from(
+        std::env::var_os("VUA_TEST_AMF_COMPONENT_EXECUTABLE").expect("AMF executable"),
+    );
+    let ui_root =
+        std::path::PathBuf::from(std::env::var_os("VUA_TEST_AMF_COMPONENT_UI").expect("AMF UI"));
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&fs::read(ui_root.join("component.json")).unwrap()).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let input = temp.path().join("input");
+    let (mut current, _, key) = fixture(&input);
+    current.host.version = "0.7.0".into();
+    current.release_version = "0.7.0".into();
+    current.compatibility.host = ">=0.7.0, <0.8.0".into();
+    current.compatibility.bdl_write = metadata["bdlWrite"].as_str().unwrap().into();
+    current.compatibility.bdl_read = vec![current.compatibility.bdl_write.clone()];
+    let installation =
+        Installation::with_key(&temp.path().join("installation"), true, key).unwrap();
+    installation
+        .install(&signed(&current).0, &input, &mut transfer())
+        .await
+        .unwrap();
+    let before = installation.active().unwrap();
+    let entry_js = fs::read(ui_root.join("amf-entry.js")).unwrap();
+    let css = fs::read(ui_root.join("style.css")).unwrap();
+    let ui_metadata = fs::read(ui_root.join("component.json")).unwrap();
+    let provider = fs::read(executable).unwrap();
+    let (files, bytes, pack) = pack(&[
+        ("ui/amf-entry.js", &entry_js),
+        ("ui/style.css", &css),
+        ("ui/component.json", &ui_metadata),
+        ("provider/vua-amf-provider.exe", &provider),
+    ]);
+    let mut target = current.clone();
+    target.amf.files = files;
+    target.amf.pack = pack;
+    target.amf.version = metadata["version"].as_str().unwrap().into();
+    target.amf.build = metadata["build"].as_str().unwrap().into();
+    let id = installation.store_manifest(&signed(&target).0).unwrap().0;
+    installation
+        .accept_component_index(Amf, &component_index(&target, Amf, 1))
+        .unwrap();
+    let local = input.join("actual-amf.bin");
+    fs::write(&local, bytes).unwrap();
+    installation
+        .stage_component(Amf, &id, &mut transfer(), Some(&local))
+        .await
+        .unwrap();
+    assert_eq!(
+        installation.amf_hot_preflight(&id, false).unwrap()["activation"],
+        "reload"
+    );
+    installation.request_component_activation(Amf).unwrap();
+    let running = installation.lock("running.lock").unwrap();
+    installation.begin_amf_hot(&id, false).unwrap();
+    assert_eq!(
+        installation.active().unwrap().host_manifest,
+        before.host_manifest
+    );
+    assert_eq!(
+        installation
+            .acknowledge_component_health(&target.host.build, &target.amf.build)
+            .unwrap_err()
+            .0,
+        "module_health_pending"
+    );
+    assert_eq!(
+        installation.recover_amf_hot().unwrap()["manifestId"],
+        before.amf_manifest
+    );
+    assert_eq!(installation.active().unwrap(), before);
+    installation.begin_amf_hot(&id, false).unwrap();
+    assert_eq!(installation.finish_amf_hot(&id).unwrap()["committed"], true);
+    assert_eq!(installation.active().unwrap().amf_manifest, id);
+    assert_eq!(
+        installation.active().unwrap().host_manifest,
+        before.host_manifest
+    );
+    assert_eq!(
+        installation.amf_hot_preflight("", true).unwrap()["activation"],
+        "restart"
+    );
+    assert_eq!(
+        fs::read(
+            installation
+                .runtime_root(&current)
+                .unwrap()
+                .join("resources/app.asar")
+        )
+        .unwrap(),
+        b"bootstrap"
+    );
+    drop(running);
+}
+
+#[tokio::test]
 async fn explicit_pair_plan_resolves_dependency_cycles_without_an_implicit_module_update() {
     use crate::component_feed::{
         self,
@@ -525,6 +623,42 @@ async fn host_component_cancellation_corruption_and_crashed_bootstrap_switch_pre
         b"bootstrap"
     );
     assert!(!installation.recover_component_activation().unwrap());
+    installation
+        .invalidate_stale_component_pending(Host, &original)
+        .unwrap();
+    assert!(installation.component_pending(Host).unwrap().is_none());
+    assert!(installation
+        .host_root(&target)
+        .unwrap()
+        .join("dist/electron/main.js")
+        .is_file());
+}
+
+#[tokio::test]
+async fn writer_change_requires_data_protection_before_activation() {
+    let temp = tempfile::tempdir().unwrap();
+    let input = temp.path().join("input");
+    let (mut target, raw, key) = fixture(&input);
+    let installation = Installation::with_key(&temp.path().join("installed"), true, key).unwrap();
+    installation
+        .install(&raw, &input, &mut transfer())
+        .await
+        .unwrap();
+    let before = installation.active().unwrap();
+    target.amf.version = "0.1.1".into();
+    target.compatibility.bdl_read.push("0.11".into());
+    target.compatibility.bdl_write = "0.11".into();
+    let id = installation.store_manifest(&signed(&target).0).unwrap().0;
+    let mut next = before.clone();
+    next.amf_manifest = id;
+    assert_eq!(
+        installation
+            .admit_data_update(&before, &next)
+            .unwrap_err()
+            .0,
+        "data_migration_requires_installer"
+    );
+    assert_eq!(installation.active().unwrap(), before);
 }
 
 #[test]

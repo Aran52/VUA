@@ -237,6 +237,7 @@ export function createElectronGateway(
     distribution: createDistributionPort(host?.distribution),
     componentUpdates: host?.componentUpdates,
     updatePlans: host?.updatePlans,
+    amfUiRuntime: host?.amfUiRuntime,
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

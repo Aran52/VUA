@@ -40,6 +40,7 @@ function assembleDevGateway(
     distribution: live.distribution,
     componentUpdates: live.componentUpdates,
     updatePlans: live.updatePlans,
+    amfUiRuntime: live.amfUiRuntime,
     aiTools: live.aiTools,
     environment: selection.targets.environment === "fixture" ? fixture.environment : live.environment,
     tutorial: selection.targets.tutorial === "fixture" ? fixture.tutorial : live.tutorial,

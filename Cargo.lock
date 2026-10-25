@@ -3292,6 +3292,7 @@ dependencies = [
 name = "vua-amf-provider"
 version = "0.2.0"
 dependencies = [
+ "serde_json",
  "vua-bdl-store",
  "vua-orchestrator",
  "vua-project-manager",

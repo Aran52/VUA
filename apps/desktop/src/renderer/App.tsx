@@ -1,5 +1,5 @@
 import { formatDateTime } from "./i18n/index.ts";
-import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { DesktopShellCommandV1, GuideTargetV1 } from "@vua/contracts";
 import { saveDebugMode, useDebugMode } from "./app/debug-mode.ts";
 import {
@@ -103,8 +103,7 @@ import { ComponentUpdatePanel } from "./features/modules/ComponentUpdatePanel.ts
 import { UpdatePlanPanel } from "./features/modules/UpdatePlanPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
-import { loadAmfPages } from "./features/modules/amf-ui-loader.ts";
-const AmfPages = lazy(loadAmfPages);
+import { AmfSurface as AmfPages, AmfUiRuntimeBridge } from "./features/modules/AmfSurface.tsx";
 import { HomePage, directory } from "./features/home/HomePage.tsx";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
 import "./app-shell.css";
@@ -1006,6 +1005,7 @@ function AppShell({
       </div>
       {/* 导航确认卡(015 §12,批 B-3):U9(1)/(3) 确认层的渲染层载体,全局一次挂载 */}
       <NavigationConfirmOverlay />
+      <AmfUiRuntimeBridge />
       <FileDropImporter onOpenLibrary={() => navigate("warehouse")} />
       {/* 应用导览(三类引导裁决 2026-10-05):主窗口内有序高亮;从未运行自动
        *  开始,active 按步号恢复,重播经命令面板;状态独立于阅读器/安装 */}

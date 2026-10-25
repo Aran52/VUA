@@ -27,6 +27,13 @@ interface Options {
   readonly enabled: boolean;
   readonly persist: (enabled: boolean) => void;
   readonly shellBusy?: () => boolean;
+  readonly expectedAmfBuild?: () => string | undefined;
+}
+export interface AmfReplacement {
+  activate(): Promise<void>;
+  verifyUi(): Promise<boolean>;
+  complete(): Promise<void>;
+  restore(): Promise<void>;
 }
 
 /** An explicit two-process composition, not an arbitrary plugin loader.
@@ -43,6 +50,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   #amfUnsubscribes: ProviderUnsubscribe[] = [];
   #enabled: boolean;
   #changing = false;
+  #unhealthy = false;
   #mutations = 0;
   #revision = 0;
   #moduleRevision = 0;
@@ -68,10 +76,51 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   moduleSnapshot(): AmfModuleSnapshotV01 {
     const state = this.#amf?.status().state;
     return { schemaVersion: "0.1", moduleId: "amf", installed: this.#enabled,
-      state: !this.#enabled ? "absent" : state === "ready" ? "ready" : state === "starting" ? "starting" : state === "stopping" ? "stopping" : "failed" };
+      state: !this.#enabled ? "absent" : this.#unhealthy ? "failed" : state === "ready" ? "ready" : state === "starting" ? "starting" : state === "stopping" ? "stopping" : "failed" };
   }
 
-  amfReady(): boolean { return this.#enabled && !this.#changing && this.#amf?.status().acceptingCalls === true; }
+  amfReady(): boolean { return this.#enabled && !this.#changing && !this.#unhealthy && this.#amf?.status().acceptingCalls === true; }
+  /** Transient replacement never changes the saved enabled choice or stops the host. */
+  async replaceAmf(transaction: AmfReplacement): Promise<"updated" | "busy" | "failed"> {
+    if (this.#changing || this.#mutations || this.#shutdown.length || this.options.shellBusy?.()
+        || this.#amf?.status().state === "starting" || this.#amf?.status().state === "stopping") return "busy";
+    this.#changing = true;
+    let activated = false;
+    try {
+      const previous = this.#amf;
+      if (previous?.status().state === "ready") {
+        const tasks = await this.#optionalInvoke(this.#query("task.list"));
+        if (!tasks?.ok || !("tasks" in tasks.value) || (tasks.value.tasks as readonly TaskSnapshotV01[]).some(task => !isTerminalTaskStateV01(task.state))
+            || this.#mutations || this.options.shellBusy?.()) return "busy";
+        if ((await previous.prepareShutdown({ timeoutMs: 3_000 })).outcome !== "safe_to_stop") return "busy";
+      }
+      if (previous?.waitForExit && !(await previous.waitForExit(5_000))) return "busy";
+      this.#detachAmf();
+      activated = true; await transaction.activate();
+      this.#unhealthy = false;
+      if (this.#enabled) {
+        await this.#startAmf();
+        if (this.#unhealthy || this.#amf?.status().state !== "ready") throw Error("amf_generation_failed");
+      }
+      if (!(await transaction.verifyUi())) throw Error("amf_generation_failed");
+      await transaction.complete();
+      return "updated";
+    } catch {
+      this.#unhealthy = true;
+      const failed = this.#amf;
+      try {
+        if (failed?.status().state === "ready" || failed?.status().state === "starting") {
+          if ((await failed.prepareShutdown({ timeoutMs: 3_000 })).outcome !== "safe_to_stop") return "failed";
+        }
+        if (failed?.waitForExit && !(await failed.waitForExit(5_000))) return "failed";
+        this.#detachAmf();
+        if (activated) await transaction.restore();
+        this.#unhealthy = false;
+        if (this.#enabled) await this.#startAmf();
+      } catch { this.#unhealthy = true; }
+      return "failed";
+    } finally { this.#changing = false; this.#publishModule(); }
+  }
   /** Update activation is a user-requested restart. Never force a live task. */
   async prepareForUpdate(): Promise<boolean> {
     if (this.#changing || this.#mutations > 0 || this.#shutdown.length > 0 || this.options.shellBusy?.()) return false;
@@ -99,7 +148,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
         this.options.persist(true);
         this.#enabled = true;
         await this.#startAmf();
-        return result(this.#amf?.status().state === "ready" ? "updated" : "failed");
+        return result(!this.#unhealthy && this.#amf?.status().state === "ready" ? "updated" : "failed");
       }
       if (this.#mutations > 0 || this.options.shellBusy?.()) return result("busy");
       if (this.#amf?.status().state === "ready") {
@@ -133,10 +182,19 @@ export class ModuleProvider implements OrchestratorProviderV01 {
       this.#amf = amf;
       this.#amfUnsubscribes.push(amf.subscribe(event => this.#forward(event, "amf")));
       if (amf.subscribeStatus) this.#amfUnsubscribes.push(amf.subscribeStatus(() => this.#publishModule()));
-      await amf.start();
+      const handshake = await amf.start();
+      const expected = this.options.expectedAmfBuild?.();
+      if (expected && handshake.providerBuildId !== expected) {
+        this.#unhealthy = true;
+        await amf.prepareShutdown({ timeoutMs: 3_000 });
+        await amf.waitForExit?.(5_000);
+        throw Error("amf_generation_identity_mismatch");
+      }
+      this.#unhealthy = amf.status().state !== "ready";
     } catch {
       // Failure belongs to AMF. Never reject the host bootstrap or reopen data
       // with a different layout to make a corrupt module appear healthy.
+      this.#unhealthy = true;
     } finally { this.#publishModule(); }
   }
 

@@ -45,7 +45,9 @@ the established private publishing-key location.
 node apps/desktop/scripts/prepare-component-release.mjs amf C:/private/baseline/vua-release.json C:/private/amf-build/payload C:/private/amf-publication --previous=C:/private/amf-index.json
 ```
 
-The CLI requires the clean source revision, matching build receipt and actual native AMF version.
+The CLI requires the clean source revision, matching build receipt and actual native AMF version,
+source identity, BDL writer and signed UI metadata. The AMF executable reports these compile-time
+facts with `--component-identity` before opening user data.
 It verifies the baseline/index signatures against the shipped anchor before preparing anything.
 It emits only the chosen component's pack, immutable signed v0.1 inventory, signed v0.2 channel
 and deterministic public version page. Host/runtime records stay byte-for-byte equivalent for
@@ -98,6 +100,11 @@ corrupt objects/indexes/pages, same-version immutability, build receipts, destin
 links and idempotent retries. These tests publish only into isolated temporary roots.
 
 The new official routes and channel contents are not declared deployed by the tooling tests.
+The [AMF runtime handshake](../protocols/amf-ui-runtime-v0.1.md) implements generation-bound
+provider/UI replacement and safe refusal for busy or older modules. It does not pass a delivery
+gate by itself. Writer-changing updates currently require data protection and fail closed before
+activation; backup/migration recovery is a required follow-up.
+
 Actual signed test publication, blocked-GitHub transfer, process-preserving AMF activation,
 host restart/recovery, transition installation and clean-Windows/human acceptance remain the
 separate U3–U6 gates. No production version or release is created by this document.

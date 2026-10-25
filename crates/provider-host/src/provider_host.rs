@@ -1,5 +1,14 @@
 //! Transport adapter for the supervised Orchestrator Provider process.
 
+static COMPONENT_BUILD_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+pub fn amf_build_identity(version: &str, build: Option<&str>) -> String {
+    format!("amf/{version}@{}", build.unwrap_or("unknown"))
+}
+/// Set once by the AMF executable from compile-time source facts, never a frame or environment request.
+pub fn configure_amf_build_identity(version: &str, build: Option<&str>) -> bool {
+    COMPONENT_BUILD_ID.set(amf_build_identity(version, build)).is_ok()
+}
+
 use vua_unity_bridge::{
     MaterialCancelToken, MaterialExecutionStatus, MaterialExecutor, RollbackOutcome,
 };
@@ -1219,7 +1228,7 @@ fn handle_frame(
         "handshake" if frame.payload.is_null() => FrameOutcome::Response(json!({
             "contractVersion": APPLICATION_CONTRACT_VERSION,
             "supportedContractVersions": [APPLICATION_CONTRACT_VERSION],
-            "providerBuildId": env!("CARGO_PKG_VERSION"),
+            "providerBuildId": COMPONENT_BUILD_ID.get().map_or(env!("CARGO_PKG_VERSION"), String::as_str),
             "providerInstanceId": state.provider_instance_id,
             "downloadIngest": state.downloads.is_some(),
         })),

@@ -41,6 +41,18 @@ pub async fn execute(
     }
     let mut transfer = Transfer::new(cancel, progress)?;
     match command {
+        "component-amf-preflight" => installation.amf_hot_preflight(
+            option(args, "--manifest").unwrap_or(""),
+            args.iter().any(|value| value == "--restore"),
+        ),
+        "component-amf-begin" => installation.begin_amf_hot(
+            option(args, "--manifest").ok_or_else(|| Error("invalid_update_identity".into()))?,
+            args.iter().any(|value| value == "--restore"),
+        ),
+        "component-amf-finish" => installation.finish_amf_hot(
+            option(args, "--manifest").ok_or_else(|| Error("invalid_update_identity".into()))?,
+        ),
+        "component-amf-recover" => installation.recover_amf_hot(),
         "plan-snapshot" => installation.update_plan_snapshot(),
         "plan-propose" => installation.propose_update_plan(&transfer).await,
         "plan-stage" => {

@@ -46,6 +46,9 @@ pub struct Installation {
     key: [u8; 32],
 }
 impl Installation {
+    pub(crate) fn trust_key(&self) -> &[u8; 32] {
+        &self.key
+    }
     pub fn open(root: &Path, create: bool) -> Result<Self> {
         Self::with_key(root, create, PUBLIC_KEY)
     }

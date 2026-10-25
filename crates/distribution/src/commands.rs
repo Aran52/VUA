@@ -35,6 +35,18 @@ pub async fn execute(
     let installation = Installation::open(&root, command == "install")?;
     let mut transfer = Transfer::new(cancel, progress)?;
     match command {
+        "component-snapshot" | "component-check" => {
+            let component = match option(args, "--component") {
+                Some("host") => crate::component_feed::ComponentKind::Host,
+                Some("amf") => crate::component_feed::ComponentKind::Amf,
+                _ => return Err(Error("invalid_update_component".into())),
+            };
+            if command == "component-check" {
+                installation.check_component(component, &transfer).await
+            } else {
+                installation.component_snapshot(component)
+            }
+        }
         "install" => {
             let input = PathBuf::from(
                 option(args, "--input").ok_or_else(|| Error("missing_install_input".into()))?,

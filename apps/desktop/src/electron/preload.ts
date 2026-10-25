@@ -12,7 +12,9 @@ import type {
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
-  VuaDesktopApiV4,
+  VuaDesktopApiV5,
+  UpdateComponentV02,
+  ComponentUpdateSnapshotV02,
   AiConnectionLocale,
   AiToolsSnapshotV01,
 } from "@vua/contracts";
@@ -71,7 +73,20 @@ try {
   if (Array.isArray(decoded) && decoded.length <= 32 && decoded.every(language => typeof language === "string" && language.length <= 64)) systemLanguages = decoded;
 } catch { /* Missing OS languages use the source-language fallback. */ }
 
-const api: VuaDesktopApiV4 = Object.freeze({
+const api: VuaDesktopApiV5 = Object.freeze({
+  componentUpdates: Object.freeze({
+    snapshot: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:snapshot", component),
+    check: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:check", component),
+    stage: (component: UpdateComponentV02, id: string) => ipcRenderer.invoke("vua:component-updates:stage", component, id),
+    cancel: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:cancel", component),
+    apply: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:apply", component),
+    restore: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:restore", component),
+    subscribe: (listener: (value: ComponentUpdateSnapshotV02) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: ComponentUpdateSnapshotV02) => listener(value);
+      ipcRenderer.on("vua:component-updates:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:component-updates:changed", wrapped);
+    },
+  }),
   aiTools: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:ai-tools:snapshot"),
     setEnabled: (enabled: boolean) => ipcRenderer.invoke("vua:ai-tools:set-enabled", enabled),

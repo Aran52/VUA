@@ -235,6 +235,7 @@ export function createElectronGateway(
     vrchat: createVrchatPort(client),
     terms: createTermsPort(client),
     distribution: createDistributionPort(host?.distribution),
+    componentUpdates: host?.componentUpdates,
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

@@ -103,6 +103,23 @@ button {
   min-height: var(--vua-control-height);
 }
 
+/* Default text-field skin, shared with the folder picker's path editor. Opt in only
+ * where no feature-specific appearance exists; widths and text direction stay local. */
+.vua-text-input {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px var(--vua-space-2);
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  color: var(--vua-text-strong);
+  background: var(--vua-bg-canvas);
+}
+
+.vua-text-input:focus {
+  outline: 2px solid var(--vua-accent);
+  outline-offset: 1px;
+}
+
 p {
   margin-block: var(--vua-space-3);
 }

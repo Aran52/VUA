@@ -17,6 +17,7 @@ import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS, guideTargetForComponent } from "../guide/guide-target.ts";
 import type { CheckZone } from "./deployer-model.ts";
 import { ScenarioPreparation } from "./ScenarioPreparation.tsx";
+import "./deployer.css";
 
 const copy = strings.deployment;
 export interface DeploymentCardState { busy: boolean; error: boolean; ready: boolean }
@@ -202,7 +203,7 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
       <option value="china_mainland">{copy.downloadRegions.china_mainland}</option><option value="other">{copy.downloadRegions.other}</option>
     </select></label></> : null}
     {hasCreatorPurpose ? <>
-      <label>{copy.location}<input className="vua-deployment__location" value={editorRoot} disabled={disabled}
+      <label>{copy.location}<input className="vua-text-input vua-deployment__location" value={editorRoot} disabled={disabled}
         onChange={e => { setEditorRoot(e.target.value); setPlan(null); command.current = null; }} /></label>
       <p className="vua-caption">{copy.locationHint}</p>
     </> : null}

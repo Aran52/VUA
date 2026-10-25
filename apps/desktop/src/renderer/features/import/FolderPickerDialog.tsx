@@ -280,6 +280,7 @@ export function FolderPickerDialog({
               <div className="vua-folder-picker__path-edit" data-vua-esc-local={editingPath ? "true" : undefined}>
                 <input
                   type="text"
+                  className="vua-text-input"
                   value={pathDraft}
                   aria-label={copy.pathInputAria}
                   placeholder={listing.kind === "computer" ? copy.computer : copy.pathLabel}
@@ -344,6 +345,7 @@ export function FolderPickerDialog({
             <div className="vua-folder-picker__new-folder" data-vua-esc-local="true">
               <input
                 type="text"
+                className="vua-text-input"
                 value={newFolderName}
                 aria-label={copy.newFolderNameAria}
                 autoFocus

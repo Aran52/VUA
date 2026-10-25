@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-10-25
+> Updated: 2026-10-26
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 
@@ -36,6 +36,13 @@ to the primitive instead of styling its own button, tab or tag.
 | Container | `Card`, `Panel`, `Section`, `ListRow`, `TableRow` | line cards, library cards, settings sections |
 | Overlay | `Menu`, `ContextMenu`, `Popover`, `Tooltip`, `Dialog`, `Drawer`, `Toast` | mode picker, line menu, confirmations |
 | Sequence | `Stepper` | workshop stations |
+
+Text inputs without a feature-specific appearance use the shared `.vua-text-input` skin in
+`packages/design-system/src/base.css`, including legacy package/project forms. It reuses the
+folder picker's path-field fill, border, padding, corners and focus outline. The folder picker
+uses the same class; feature layouts still own width and path direction. Existing search and
+other deliberately styled fields keep their own appearance, and the AMF geometry scope still
+owns their rectangular shape.
 
 ### Size steps
 

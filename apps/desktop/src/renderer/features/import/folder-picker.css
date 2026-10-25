@@ -80,6 +80,7 @@
 
 .vua-folder-picker__path-edit input {
   width: 100%;
+  direction: ltr;
 }
 
 .vua-folder-picker__inline-error {
@@ -93,14 +94,6 @@
   gap: var(--vua-space-1);
   padding: 0 var(--vua-space-3) var(--vua-space-2);
 }
-
-.vua-folder-picker__path-edit { flex: 1; min-width: 0; }
-.vua-folder-picker__path-edit input {
-  width: 100%; box-sizing: border-box; min-height: 36px; padding: 8px var(--vua-space-2);
-  border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control);
-  color: var(--vua-text-strong); background: var(--vua-bg-canvas); direction: ltr;
-}
-.vua-folder-picker__path-edit input:focus { outline: 2px solid var(--vua-accent); outline-offset: 1px; }
 
 .vua-folder-picker__icon-button {
   display: inline-flex;

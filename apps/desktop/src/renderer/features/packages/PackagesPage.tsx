@@ -812,7 +812,7 @@ function RegisterSection({
       <div className="vua-packages__register-row">
         <input
           type="text"
-          className="vua-packages__register-input"
+        className="vua-text-input vua-packages__register-input"
           placeholder={copy.register.placeholder}
           aria-label={copy.register.inputAria}
           value={path}
@@ -921,7 +921,7 @@ function RepoWriteSection({
         <div className="vua-packages__register-row">
           <input
             type="text"
-            className="vua-packages__register-input"
+            className="vua-text-input vua-packages__register-input"
             placeholder={copy.repoWrite.remoteUrlPlaceholder}
             aria-label={copy.repoWrite.remoteUrlAria}
             value={remoteUrl}
@@ -932,7 +932,7 @@ function RepoWriteSection({
           />
           <input
             type="text"
-            className="vua-packages__register-input vua-packages__repowrite-name"
+            className="vua-text-input vua-packages__register-input vua-packages__repowrite-name"
             placeholder={copy.repoWrite.remoteNamePlaceholder}
             aria-label={copy.repoWrite.remoteNameAria}
             value={remoteName}
@@ -968,7 +968,7 @@ function RepoWriteSection({
         <div className="vua-packages__register-row">
           <input
             type="text"
-            className="vua-packages__register-input"
+            className="vua-text-input vua-packages__register-input"
             placeholder={copy.repoWrite.localPathPlaceholder}
             aria-label={copy.repoWrite.localPathAria}
             value={localPath}
@@ -979,7 +979,7 @@ function RepoWriteSection({
           />
           <input
             type="text"
-            className="vua-packages__register-input vua-packages__repowrite-name"
+            className="vua-text-input vua-packages__register-input vua-packages__repowrite-name"
             placeholder={copy.repoWrite.localNamePlaceholder}
             aria-label={copy.repoWrite.localNameAria}
             value={localName}
@@ -1119,7 +1119,7 @@ function CreateSection({
         <div className="vua-packages__register-row">
           <input
             type="text"
-            className="vua-packages__register-input"
+            className="vua-text-input vua-packages__register-input"
             placeholder={copy.create.parentPlaceholder}
             aria-label={copy.create.parentAria}
             value={parent}
@@ -1130,7 +1130,7 @@ function CreateSection({
           />
           <input
             type="text"
-            className="vua-packages__register-input vua-packages__repowrite-name"
+            className="vua-text-input vua-packages__register-input vua-packages__repowrite-name"
             placeholder={copy.create.namePlaceholder}
             aria-label={copy.create.nameAria}
             value={name}
@@ -1165,7 +1165,7 @@ function CreateSection({
           ) : (
             <input
               type="text"
-              className="vua-packages__register-input"
+              className="vua-text-input vua-packages__register-input"
               placeholder={copy.create.templatePlaceholder}
               aria-label={copy.create.templateAria}
               value={template}

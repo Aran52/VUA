@@ -434,7 +434,7 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
               onChange={event => { void run(repo.key, () => (event.target.checked ? gateway.packages.enableRepo(repo.repoId!) : gateway.packages.disableRepo(repo.repoId!)), format(event.target.checked ? copy.repos.enabled : copy.repos.disabled, { name: repo.name })); }}/></label></Tooltip>
             <span className="vua-control__repo-main"><strong>{repo.name}</strong><small className="vua-control__mono">{repo.url ?? repo.localPath ?? repo.repoId}</small></span>
             <span className="vua-control__badge" data-kind={repo.kind}>{pkg.sources[repo.kind]}</span>
-            <span className="vua-caption vua-text-secondary">{repo.packageCount !== null ? format(copy.repos.packages, { count: repo.packageCount }) : repo.cached ? "" : copy.repos.notCached}</span>
+            <span className="vua-control__repo-count vua-caption vua-text-secondary">{repo.packageCount !== null ? format(copy.repos.packages, { count: repo.packageCount }) : repo.cached ? "" : copy.repos.notCached}</span>
             <span className="vua-control__repo-actions">
               <Button variant="subtle" disabled={!blocks.repoLifecycle || repo.repoId === null || busy !== null} onClick={() => {
                 if (repo.repoId !== null && blocks.repoLifecycle) void run(repo.key, () => gateway.packages.refreshRepo(repo.repoId!), copy.repos.refreshed);

@@ -169,3 +169,15 @@ no execution/capture failure, no current-rule finding and one existing advisory 
 The new unavailable-lifecycle fixture expands the full registry to 100 views / 600 states.
 The complete new matrix and the author's interactive visual/keyboard acceptance are separate
 from the historical 594-state comparison; both must be reported with their actual outcomes.
+
+Opening an existing local line in the native dev app exposed an additional read-boundary
+defect: mutable JSON indexing inserted `revisions: null` when the optional empty version
+list had been omitted by serialization. The Gateway correctly rejected that invalid shape.
+The provider projection now visits an existing version list with `get_mut`, preserving
+absence and stripping retained replay state only from actual items. A synthetic Rust
+regression covers both empty and populated histories and passes. The protocol and stored
+records keep their existing shapes. Rebuilding the provider and reopening an existing local
+waiting line in the native dev app now displays its real station cards and selected elevation.
+A final repository-only run completes 4/4 dark/light states with zero findings, including
+text-range right-edge assertions for the longer unavailable label. Author acceptance remains
+pending in the open dev app.

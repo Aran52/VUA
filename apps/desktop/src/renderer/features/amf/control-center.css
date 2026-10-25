@@ -220,6 +220,7 @@
 .vua-control__repo-main { display: flex; flex-direction: column; gap: var(--vua-space-1); min-width: 0; }
 .vua-control__repo-toggle { display: grid; place-items: center; width: 28px; height: 28px; cursor: pointer; }
 .vua-control__repo-main small { color: var(--vua-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vua-control__repo-count { text-align: end; }
 .vua-control__badge { padding: 1px 8px; border: 1px solid var(--repo, var(--vua-text-secondary)); color: var(--repo, var(--vua-text-secondary)); border-radius: 0; font: var(--vua-font-caption); white-space: nowrap; }
 .vua-control__repo-actions { display: grid; grid-template-columns: repeat(2, 112px); gap: var(--vua-space-2); justify-content: end; }
 .vua-control__repo-actions > * { min-width: 0; width: 100%; }

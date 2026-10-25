@@ -31,6 +31,10 @@ export async function verifyGridFactoryState(view) {
     const aligned = values => values.every(value => Math.abs(value - values[0]) <= 1);
     check(aligned(refresh.map(button => button.getBoundingClientRect().left)), "Refresh positions align across available and unavailable rows");
     check(aligned(rows.map(row => row.children[3].getBoundingClientRect().right)), "Repository package counts keep their common right edge");
+    const countTextEdges = rows.map(row => row.querySelector(".vua-control__repo-count")).filter(element => element.textContent.trim()).map(element => {
+      const range = document.createRange(); range.selectNodeContents(element); return range.getBoundingClientRect().right;
+    });
+    check(aligned(countTextEdges), "Rendered package-count text, including the longer unavailable label, is right-aligned");
     if (view.endsWith("-disabled")) check(refresh.every(button => button.disabled), "Unavailable lifecycle keeps visible disabled refresh controls");
     const local = rows.findIndex(row => row.textContent.includes("Local preview"));
     check(local >= 0 && refresh[local].disabled, "A missing repository identifier keeps the refresh slot disabled");

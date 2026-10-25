@@ -62,6 +62,8 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:help-navigation
       - name: Wiki and AMF browser within shell navigation (isolated profile, synthetic websites)
         run: pnpm --filter @vua/desktop smoke:asset-browser
+      - name: Notifications above browsing and AMF shape ownership (isolated profile, synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:browser-shell
       - name: Regional reference and website tests (four languages, synthetic observations)
         run: pnpm --filter @vua/desktop smoke:network
       - name: Native splash and first-use tour (isolated profile)

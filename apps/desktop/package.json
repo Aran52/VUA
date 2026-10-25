@@ -34,6 +34,7 @@
     "smoke:download-port": "pnpm build && electron scripts/smoke-download-port.mjs",
     "smoke:f4-deliverables": "pnpm build && node scripts/smoke-f4-deliverables.mjs",
     "smoke:production-review": "electron scripts/smoke-production-review.mjs",
+    "smoke:browser-shell": "electron scripts/smoke-browser-shell.mjs",
     "smoke:amf-production": "pnpm --filter @vua/contracts build && electron scripts/smoke-amf-production.mjs",
     "smoke:ai-native": "node scripts/smoke-ai-native.mjs",
     "smoke:ai-ui": "electron scripts/smoke-ai-ui.mjs",

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import "./browser-frame.css";
+import { useShapeScope } from "./primitives/ShapeScope.tsx";
 
 type Frame = { x: number; y: number; width: number; height: number; visible: boolean; covered: boolean };
 const empty: Frame = { x: 0, y: 0, width: 0, height: 0, visible: false, covered: false };
@@ -10,6 +11,7 @@ export function BrowserFrame({ viewId, children, modalOwner, status, hideContent
   viewId: string | null; children: ReactNode; modalOwner?: string | undefined; status?: ReactNode; hideContent?: boolean;
 }) {
   const owner = useRef<HTMLSpanElement>(null);
+  const shapeScope = useShapeScope();
   const viewport = useRef<HTMLDivElement>(null);
   const portal = useRef<HTMLDivElement>(null);
   const [frame, setFrame] = useState<Frame>(empty);
@@ -71,7 +73,7 @@ export function BrowserFrame({ viewId, children, modalOwner, status, hideContent
   return <>
     <span ref={owner} className="vua-browser-owner" aria-hidden="true" />
     {createPortal(<div ref={portal} className="vua-browser-frame" data-module={owner.current?.closest<HTMLElement>("[data-module]")?.dataset.module} data-vua-browser-frame data-vua-browser-active={frame.visible ? "true" : undefined}
-      data-vua-modal-owner={modalOwner} hidden={!frame.visible}
+      data-vua-modal-owner={modalOwner} data-vua-shape-scope={shapeScope} hidden={!frame.visible}
       style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
       {children}
       <div ref={viewport} className="vua-browser-frame__viewport">{status}</div>

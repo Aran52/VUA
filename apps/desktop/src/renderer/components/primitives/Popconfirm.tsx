@@ -4,6 +4,7 @@ import { Button } from "./Button.tsx";
 import { useModalOwner } from "./modal-layer.tsx";
 import { usePresenceMotion } from "./motion.ts";
 import "./popconfirm.css";
+import { useShapeScope } from "./ShapeScope.tsx";
 
 /**
  * Tier 4, popconfirm: a small bubble beside the button that asks once before an everyday action
@@ -27,6 +28,7 @@ export function Popconfirm({ title, description, confirmLabel, cancelLabel, dang
 }) {
   const id = useId();
   const owner = useModalOwner();
+  const shapeScope = useShapeScope();
   const anchor = useRef<HTMLSpanElement>(null);
   const bubble = useRef<HTMLDivElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -80,7 +82,7 @@ export function Popconfirm({ title, description, confirmLabel, cancelLabel, dang
     <span ref={anchor} className="vua-popconfirm-anchor">{trigger}</span>
     {shown ? createPortal(<div ref={bubble} role="alertdialog" aria-modal="false" aria-labelledby={`${id}-title`}
       aria-describedby={description ? `${id}-body` : undefined} className="vua-popconfirm" data-side={position?.side ?? "bottom"}
-      data-vua-modal-owner={owner} data-module={module} data-vua-esc-local="" data-closing={open ? undefined : true}
+      data-vua-modal-owner={owner} data-module={module} data-vua-shape-scope={shapeScope} data-vua-esc-local="" data-closing={open ? undefined : true}
       style={position ? { left: position.left, top: position.top } : { left: -9999, top: -9999 }}
       onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); close(true); } }}>
       <strong id={`${id}-title`} className="vua-popconfirm__title" data-danger={danger || undefined}>{title}</strong>

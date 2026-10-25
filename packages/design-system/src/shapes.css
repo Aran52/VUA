@@ -5,9 +5,23 @@
   initial-value: none;
 }
 
+.vua-shape-scope { display: contents; }
+[data-vua-shape-scope="amf"] {
+  --vua-corner-style: bevel;
+  --vua-radius-pill: 0px;
+  --vua-radius-control: 0px;
+  --vua-radius-card: 0px;
+  --vua-radius-badge: 0px;
+  --vua-radius-overlay: 0px;
+  --vua-radius-sm: 0px;
+}
+
+/* Grid's industrial language belongs to AMF content, including its owned portals. */
+@scope ([data-vua-shape-scope="amf"]) {
+
 /* Shape is owned by the theme. Important geometry prevents a feature's legacy radius or
  * clip-path from cutting away the native diagonal border, focus outline or elevation. */
-:where(button:not(.vua-library-corner):not(.vua-status-light):not(.vua-shell__logo),
+:where(:scope, :scope *):where(button:not(.vua-library-corner):not(.vua-status-light):not(.vua-shell__logo),
   a[role="button"], [role="tab"], [role="menuitem"], .vua-grid-cut) {
   --vua-shape-role: action;
   --vua-shape-corners: var(--vua-corners-action);
@@ -16,7 +30,7 @@
   clip-path: none !important;
 }
 
-:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
+:where(:scope, :scope *):where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
   --vua-shape-role: field;
   --vua-shape-corners: var(--vua-corners-field);
   corner-shape: var(--vua-corner-style) !important;
@@ -24,7 +38,7 @@
   clip-path: none !important;
 }
 
-:where(.vua-badge, .vua-n3__tag, .vua-line__status, .vua-factory__alert, .vua-start__fits,
+:where(:scope, :scope *):where(.vua-badge, .vua-n3__tag, .vua-line__status, .vua-factory__alert, .vua-start__fits,
   .vua-control__shared-dot, .vua-control__chips span, .vua-control__badge,
   .vua-album__views span, .vua-album__stage-progress small, .vua-sdk-review__fix,
   .vua-compatible-items__kind, .preview-lab__kind, .vua-skeleton) {
@@ -35,7 +49,7 @@
   clip-path: none !important;
 }
 
-:where(.vua-card, .vua-alert, .vua-control__panel, .vua-control__project, .vua-control__switch,
+:where(:scope, :scope *):where(.vua-card, .vua-alert, .vua-control__panel, .vua-control__project, .vua-control__switch,
   .vua-factory__room, .vua-factory__panel, .vua-workshop__line, .vua-line__station,
   .vua-start__avatar, .vua-start__browse, .vua-recipe-graph__node,
   .vua-release-room__tabs, .vua-packages__sections, .vua-packages__repo-row) {
@@ -46,7 +60,7 @@
   clip-path: none !important;
 }
 
-:where([role="dialog"], [role="alertdialog"], .vua-drawer, .vua-toast, .vua-folder-picker) {
+:where(:scope, :scope *):where([role="dialog"], [role="alertdialog"], .vua-drawer, .vua-toast, .vua-folder-picker) {
   --vua-shape-role: overlay;
   --vua-shape-corners: var(--vua-corners-overlay);
   corner-shape: var(--vua-corner-style) !important;
@@ -54,7 +68,7 @@
   clip-path: none !important;
 }
 
-:where([role="menu"], .vua-context-menu, .vua-tooltip, .vua-popconfirm, .vua-mode-picker__card) {
+:where(:scope, :scope *):where([role="menu"], .vua-context-menu, .vua-tooltip, .vua-popconfirm, .vua-mode-picker__card) {
   --vua-shape-role: menu;
   --vua-shape-corners: var(--vua-corners-menu);
   corner-shape: var(--vua-corner-style) !important;
@@ -62,7 +76,7 @@
   clip-path: none !important;
 }
 
-:where(.vua-turntable__progress-track, .vua-line__bar, .vua-album__stage-progress > span,
+:where(:scope, :scope *):where(.vua-turntable__progress-track, .vua-line__bar, .vua-album__stage-progress > span,
   .vua-release-upload__stages li, .vua-release-upload__bar,
   .vua-workshop__replay-progress, .vua-workshop__replay-progress-fill) {
   --vua-shape-role: progress;
@@ -70,4 +84,10 @@
   corner-shape: var(--vua-corner-style) !important;
   border-radius: var(--vua-shape-corners) !important;
   clip-path: none !important;
+}
+
+.vua-toggle::after {
+  corner-shape: var(--vua-corner-style);
+  border-radius: var(--vua-corners-indicator);
+}
 }

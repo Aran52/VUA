@@ -21,7 +21,7 @@
   max-width: min(480px, calc(100vw - 32px));
   padding: var(--vua-space-2) var(--vua-space-4);
   border: 1px solid var(--vua-border-strong);
-  border-radius: 0;
+  border-radius: var(--vua-radius-overlay);
   background: var(--vua-bg-elevated);
   box-shadow: var(--vua-shadow-elevated);
   color: var(--vua-text-strong);

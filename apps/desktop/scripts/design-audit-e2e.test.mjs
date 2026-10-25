@@ -298,7 +298,12 @@ test("actual Grid controls paint and hit-test a stroked upper-left 120-degree be
     return { supported: CSS.supports('corner-shape','bevel'), rect:{x:r.x,y:r.y,w:r.width,h:r.height},
       viewport:{w:innerWidth,h:innerHeight}, clipped:!hit(1,1), inside:hit(1,10),
       right:hit(r.width-1,1), bottom:hit(1,r.height-1),
-      childRole:getComputedStyle(document.querySelector('#grid-label')).getPropertyValue('--vua-shape-role').trim() };
+      childRole:getComputedStyle(document.querySelector('#grid-label')).getPropertyValue('--vua-shape-role').trim(),
+      host:['host-button','host-sidebar','host-settings'].map(id => { const s=getComputedStyle(document.getElementById(id));
+        return {role:s.getPropertyValue('--vua-shape-role').trim(),corner:s.getPropertyValue('corner-top-left-shape'),radius:s.borderTopLeftRadius,
+          corners:[s.borderTopLeftRadius,s.borderTopRightRadius,s.borderBottomRightRadius,s.borderBottomLeftRadius]}; }),
+      portal:{role:getComputedStyle(document.getElementById('owned-portal')).getPropertyValue('--vua-shape-role').trim(),
+        radius:getComputedStyle(document.getElementById('owned-portal')).borderTopLeftRadius} };
   })()`, true);
   assert.equal(geometry.supported, true);
   assert.equal(geometry.clipped, true);
@@ -306,6 +311,11 @@ test("actual Grid controls paint and hit-test a stroked upper-left 120-degree be
   assert.equal(geometry.right, true);
   assert.equal(geometry.bottom, true);
   assert.equal(geometry.childRole, "none", "text never inherits its parent's control role");
+  assert.ok(geometry.host.every(style => style.role === "none" && style.corner !== "superellipse(0)" && new Set(style.corners).size === 1),
+    "header, sidebar and settings retain host corners even in the production jurisdiction");
+  assert.equal(geometry.host[0].radius, "6px", "the shared host button retains its rounded rectangle");
+  assert.equal(geometry.portal.role, "menu", "an AMF-owned portal retains its own scope");
+  assert.ok(geometry.portal.radius.startsWith("8px "));
   const capture = await captureAuditPage(win, false, 40);
   const pixels = capture.toBitmap(); const size = capture.getSize();
   const scaleX = size.width / geometry.viewport.w, scaleY = size.height / geometry.viewport.h;
@@ -333,12 +343,15 @@ async function main() {
     gridPage = `<!doctype html><html data-theme="dark"><head><style>${css}
       body{padding:32px}#grid-button{width:160px;height:40px;border-color:rgb(255,0,0)}
       .vua-line__stations{margin-top:24px;width:500px}.broken-grid{border-radius:999px!important}
-    </style></head><body>
+    </style></head><body><div data-vua-shape-scope="amf">
       <button id="grid-button" class="vua-button vua-button--default"><span id="grid-label">Grid action</span></button>
       <span class="vua-badge" data-tone="neutral">Status</span><input aria-label="Field"><button class="vua-toggle" aria-label="Switch"></button>
       <ol class="vua-line__stations"><li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="true">Active</button></li>
       <li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="false">Rest</button></li></ol>
-      <button class="broken-grid">Capsule regression</button></body></html>`;
+      <button class="broken-grid">Capsule regression</button></div>
+      <div class="vua-shell" data-module="production"><header><button id="host-button" class="vua-button">Host action</button></header>
+        <aside><button id="host-sidebar">Host sidebar</button></aside><section><input id="host-settings" aria-label="Host settings"></section></div>
+      <div id="owned-portal" class="vua-tooltip" data-vua-shape-scope="amf">Owned portal</div></body></html>`;
     server = createServer((req, res) => {
       res.setHeader("Content-Type", "text/html");
       res.end(req.url === "/overlay" ? OVERLAY_PAGE : req.url === "/calibration" ? CALIBRATION_PAGE : req.url === "/grid" ? gridPage : PAGE);

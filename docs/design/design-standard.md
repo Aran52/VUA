@@ -300,8 +300,9 @@ tabular numerals.
   [controls and motion](controls-and-motion.md) and hold in every theme.
 - Shapes belong to the theme (author ruling, 2026-10-25): each theme sets one corner style and
   size per role group, and every control of that group follows it. The default theme, **Grid**,
-  uses an upper-left 120-degree cut matching the VUA mark throughout, including former capsule
-  controls (author review, 2026-10-25). An inner corner is never larger than the corner
+  uses an upper-left 120-degree cut matching the VUA mark **inside AMF only**, including former
+  capsule controls. The host top bar, sidebar, Settings, notifications and other host pages
+  use rectangles and rounded rectangles (author correction, 2026-10-25). An inner corner is never larger than the corner
   around it. Layout wrappers without their own surface do not count as a level.
 - Bordered or filled surfaces nest at most two levels; deeper structure uses spacing and type
   instead of another box.

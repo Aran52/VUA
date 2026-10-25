@@ -8,7 +8,7 @@
   min-width: calc(var(--vua-control-height) * 2);
   padding: 0 var(--vua-space-3);
   border: 1px solid transparent;
-  border-radius: 0;
+  border-radius: var(--vua-radius-control);
   font: var(--vua-font-body);
   font-weight: var(--vua-weight-strong);
   cursor: pointer;

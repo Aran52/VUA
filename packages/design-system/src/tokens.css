@@ -120,9 +120,9 @@
   --vua-space-5: 24px;
   --vua-space-6: 32px;
 
-  /* Grid's upper-left bevel follows the wordmark: vertical / horizontal = sqrt(3).
+  /* AMF's upper-left bevel follows the wordmark: vertical / horizontal = sqrt(3).
    * The slanted edge meets the horizontal at 120 degrees. Role sizes are horizontal cuts. */
-  --vua-corner-style: bevel;
+  --vua-corner-style: round;
   --vua-corner-ratio: 1.732050808;
   --vua-corner-action: 6px;
   --vua-corner-field: 4px;
@@ -138,16 +138,16 @@
   --vua-corners-overlay: var(--vua-corner-overlay) 0 0 0 / calc(var(--vua-corner-overlay) * var(--vua-corner-ratio)) 0 0 0;
   --vua-corners-menu: var(--vua-corner-menu) 0 0 0 / calc(var(--vua-corner-menu) * var(--vua-corner-ratio)) 0 0 0;
   --vua-corners-progress: var(--vua-corner-progress) 0 0 0 / calc(var(--vua-corner-progress) * var(--vua-corner-ratio)) 0 0 0;
-  /* Compatibility names no longer introduce rounded or capsule silhouettes in Grid. */
-  --vua-radius-pill: 0px;
-  --vua-radius-control: 0px;
-  --vua-radius-card: 0px;
-  --vua-radius-badge: 0px;
-  --vua-radius-overlay: 0px;
+  /* Host rectangles and rounded rectangles; AMF overrides these inside its shape scope. */
+  --vua-radius-pill: var(--vua-radius-control);
+  --vua-radius-control: 6px;
+  --vua-radius-card: 10px;
+  --vua-radius-badge: 4px;
+  --vua-radius-overlay: 12px;
   --vua-radius-xl: var(--vua-radius-overlay);
   --vua-radius-lg: var(--vua-radius-card);
   --vua-radius-md: var(--vua-radius-control);
-  --vua-radius-sm: 0px;
+  --vua-radius-sm: 4px;
 
   /* ---- 控件尺寸 ---- */
   --vua-control-height-sm: 28px;
@@ -182,6 +182,7 @@
   --vua-scene-fps: 30;
 
   /* ---- Layers: the feedback tiers stack in this order; anything that opens from inside a dialog sits above it ---- */
+  --vua-z-browser: 500;
   --vua-z-drawer: 600;
   --vua-z-dialog: 800;
   --vua-z-popover: 900;

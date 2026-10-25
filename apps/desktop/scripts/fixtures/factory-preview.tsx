@@ -28,6 +28,7 @@ import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/app-shell.css";
 import "../../src/renderer/features/settings/settings.css";
+import { ShapeScope } from "../../src/renderer/components/primitives/ShapeScope.tsx";
 
 const view = location.hash.slice(1) || "map";
 const sources = [
@@ -326,7 +327,7 @@ function NetworkPreview({ details }: { details: boolean }) {
   }, [details]);
   return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
 }
-createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
+const content = view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
   <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
   </div></aside></div>
@@ -348,7 +349,8 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api, libraryBrowser: libraryApi }}>
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
-</GatewayProvider>);
+</GatewayProvider>;
+createRoot(document.getElementById("root")!).render(<ShapeScope value={/^(map|workshop-|control-|release-|materials-|terms-)/.test(view) ? "amf" : undefined}>{content}</ShapeScope>);
 
 // The items view opens the list of every VN3 item the way the player does.
 if (view === "terms-items") setTimeout(() => document.querySelector<HTMLElement>(".vua-terms__items summary")?.click(), 1200);

@@ -15,7 +15,7 @@ The author's ruling of 2026-10-25 replaces fixed shape rules with two requiremen
 
 1. **Every control has a size specification** that holds in every theme: height, padding, icon
    size, gap, minimum width and hit area per size step.
-2. **Within one theme, every control speaks the same language**: one corner style, one stroke,
+2. **Within one theme's declared scope, every control speaks the same language**: one corner style, one stroke,
    one fill logic, one state ladder and one motion feel, applied to all controls.
 
 Which control is square, rounded or a special shape is the theme's decision, not the standard's.
@@ -69,7 +69,12 @@ A theme defines the following token groups. Components only consume them.
 
 ### Corners
 
-Corners are set per **role group**, each with a style and a size:
+Grid has two explicit geometry scopes (author correction, 2026-10-25): the VUA host uses
+rectangles and rounded rectangles; only **AMF content** uses the industrial cut. The top bar,
+sidebar, Settings, global notifications and other host pages keep host geometry even while
+an AMF page is selected. Module accent colour does not change shape ownership.
+
+Inside AMF, corners are set per **role group**, each with a style and a size:
 
 | Role group | Members | Grid |
 | --- | --- | --- |
@@ -82,7 +87,7 @@ Corners are set per **role group**, each with a style and a size:
 - Styles a theme may choose: `cut` (a chamfer on the upper-left corner), `cut-2` (top-right and
   bottom-left), `round` (a radius of that size), `square` (none), `pill` (fully round ends, for
   actions and indicators only) and `mask` (a named mask image such as a lace edge, from the skin).
-- **Grid** uses `cut` throughout: one chamfer on the upper-left corner with a **120-degree
+- **Grid inside AMF** uses `cut`: one chamfer on the upper-left corner with a **120-degree
   interior angle at the top edge**, matching the VUA mark (author review, 2026-10-25). The
   table's size is the horizontal cut; its vertical depth is that size × √3. The other three
   corners stay square. All former capsule actions, choices, tags, badges and progress tracks
@@ -98,7 +103,11 @@ Implementation. The bundled Chromium supports native `corner-shape: bevel`. The 
 `border-radius` (x / x × √3), with zero radius elsewhere. Native geometry paints the diagonal
 border, focus outline and cast shadow without clipping them away. The custom role property
 does not inherit into text or icon children. Themes own these values; features do not write
-their own polygons. The [CSS borders specification](https://drafts.csswg.org/css-borders-4/)
+their own polygons. `ShapeScope` applies this language only to AMF content and passes its
+ownership to menus, tooltips, drawers and browser frames rendered in body portals. CSS scopes
+include the portal root itself. Host corners remain 6 px for controls, 10 px for cards and
+12 px for overlays, with square variants where the existing component uses them.
+The [CSS borders specification](https://drafts.csswg.org/css-borders-4/)
 defines the native corner geometry.
 
 ### Stroke and fill

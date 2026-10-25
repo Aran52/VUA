@@ -27,7 +27,7 @@ export const FIXTURES = {
   "library-navigation": {
     prefix: "/__library-navigation",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-navigation.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -37,7 +37,7 @@ export const FIXTURES = {
   "library-bulk": {
     prefix: "/__library-bulk",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-bulk.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -47,7 +47,7 @@ export const FIXTURES = {
   "library-corners": {
     prefix: "/__library-corners",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-corners.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -57,7 +57,7 @@ export const FIXTURES = {
   "library-entries": {
     prefix: "/__library-entries",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-entries.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -67,7 +67,7 @@ export const FIXTURES = {
   "library-maintenance": {
     prefix: "/__library-maintenance",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-maintenance.tsx"></script></body></html>`,
     themeMode: "attribute",

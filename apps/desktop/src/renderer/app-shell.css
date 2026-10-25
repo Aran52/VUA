@@ -50,7 +50,7 @@
   height: 30px;
 }
 
-/* Top-level tabs share the Grid bevel; selection retains its inset and shift. */
+/* Host tabs keep rounded rectangles; selection retains its inset and shift. */
 .vua-shell__tabs {
   /* relative:量尺行(绝对定位)的锚点 */
   position: relative;
@@ -79,7 +79,7 @@
   pointer-events: none;
 }
 
-/* Navigation uses the shared Grid bevel; selection stays on its own control. */
+/* Host navigation keeps its rectangular silhouette and per-control selection. */
 .vua-shell__tab {
   position: relative;
   display: inline-flex;

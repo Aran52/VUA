@@ -147,9 +147,9 @@ controls remained, station cards lacked mass, and absent refresh actions shifted
 columns. The ruling now owned by [controls and motion](../design/controls-and-motion.md)
 requires the following concrete revision:
 
-- Every former capsule control consumes the shared role bevel. The cut is upper-left with
+- Every former AMF capsule control consumes the shared role bevel. The cut is upper-left with
   a 120-degree interior angle matching the VUA mark; vertical cut depth is √3 × horizontal.
-  Shell tabs lose their skew transform so it cannot change that angle.
+  The later scope correction below confines this geometry to AMF content.
 - Workshop stations consume the larger container bevel. The selected station has a solid
   lower edge and `--vua-shadow-workshop-active`; resting stations stay flat. This is a named
   author exception to ordinary flat cards.
@@ -181,3 +181,27 @@ waiting line in the native dev app now displays its real station cards and selec
 A final repository-only run completes 4/4 dark/light states with zero findings, including
 text-range right-edge assertions for the longer unavailable label. Author acceptance remains
 pending in the open dev app.
+
+## Author scope correction and browser notification review, 2026-10-25
+
+The author accepted the package manager layout and clarified that Grid's cut language belongs
+only to AMF content. The VUA sidebar, top bar, Settings and other host surfaces retain
+rectangles and rounded rectangles, including when the selected module uses the production
+accent. Shared host radius tokens are restored; an explicit AMF `ShapeScope` owns the bevel
+and carries it through AMF body portals. The accepted refresh slots, text alignment and heavier
+selected workshop station remain in place.
+
+The BOOTH browsing review also exposed two overlapping layers: browser chrome was above the
+notification DOM, and the native webpage did not yield to notifications. Browser chrome now
+sits below host overlays; notification presence participates in the existing native-occluder
+mechanism until its closing animation ends. Browser-owned import modals keep notification
+controls in their allowed focus roots. Focused rendered regressions cover both browsing
+contexts, retained browser identity/restoration, host geometry and AMF-owned portals.
+
+Verification of this correction: the complete desktop check passes (1,470 tests, one existing
+skip, production build, module isolation, boundary/i18n/contrast/leak checks), as do 55 audit
+regressions and three focused browser-shell cases. A filtered audit of workshop, repository
+states, Home, Settings and Play completes 12/12 dark/light states with zero findings. In the
+native dev app, Settings and shell corners retain host geometry; the notification panel can
+open and close over the existing BOOTH page, and the page resumes. This records the agent's
+checks; the author retains the next interactive review.

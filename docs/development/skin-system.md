@@ -85,7 +85,7 @@ frame. A pack that fails validation falls back to the default scene for that roo
 
 | Skin | Color | Shape and motifs | Motion |
 | --- | --- | --- | --- |
-| **Grid** (default) | the current purple and orange | one upper-left 120-degree cut matching the VUA mark on every control and container; thin strokes, grid canvas; heavier selected workshop station | crisp; press is a 1 px inset shift |
+| **Grid** (default) | the current purple and orange | host rectangles and rounded rectangles; AMF content alone uses the upper-left 120-degree cut matching the VUA mark, with a heavier selected workshop station; thin strokes, grid canvas | crisp; press is a 1 px inset shift |
 | **天使界隈 (Tenshi)** | sky blue and white | flat, rounded pill shapes; wings, halos, bandages, pills | light, bouncy |
 | **地雷系 (Jirai)** | pink and black | lace edges, bows, leather textures, energy drinks; dimensional | slower, softer |
 

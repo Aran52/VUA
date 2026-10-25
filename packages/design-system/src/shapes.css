@@ -4,6 +4,11 @@
   inherits: false;
   initial-value: none;
 }
+@property --vua-shape-treatment {
+  syntax: "*";
+  inherits: false;
+  initial-value: none;
+}
 
 .vua-shape-scope { display: contents; }
 [data-vua-shape-scope="amf"] {
@@ -19,22 +24,29 @@
 /* Grid's industrial language belongs to AMF content, including its owned portals. */
 @scope ([data-vua-shape-scope="amf"]) {
 
-/* Shape is owned by the theme. Important geometry prevents a feature's legacy radius or
- * clip-path from cutting away the native diagonal border, focus outline or elevation. */
+/* Quiet controls and brand surfaces share a scope, not a mandatory silhouette.
+ * Local metadata lets the audit distinguish intentional rectangles from lost bevels. */
 :where(:scope, :scope *):where(button:not(.vua-library-corner):not(.vua-status-light):not(.vua-shell__logo),
   a[role="button"], [role="tab"], [role="menuitem"], .vua-grid-cut) {
   --vua-shape-role: action;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+}
+/* Primary actions retain the logo's 120-degree top-left cut. */
+:where(:scope, :scope *):where(.vua-button--primary, .vua-grid-cut) {
+  --vua-shape-treatment: bevel;
   --vua-shape-corners: var(--vua-corners-action);
   corner-shape: var(--vua-corner-style) !important;
   border-radius: var(--vua-shape-corners) !important;
-  clip-path: none !important;
 }
 
 :where(:scope, :scope *):where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
   --vua-shape-role: field;
-  --vua-shape-corners: var(--vua-corners-field);
-  corner-shape: var(--vua-corner-style) !important;
-  border-radius: var(--vua-shape-corners) !important;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: 0 !important;
   clip-path: none !important;
 }
 
@@ -43,17 +55,17 @@
   .vua-album__views span, .vua-album__stage-progress small, .vua-sdk-review__fix,
   .vua-compatible-items__kind, .preview-lab__kind, .vua-skeleton) {
   --vua-shape-role: indicator;
-  --vua-shape-corners: var(--vua-corners-indicator);
-  corner-shape: var(--vua-corner-style) !important;
-  border-radius: var(--vua-shape-corners) !important;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: 0 !important;
   clip-path: none !important;
 }
 
-:where(:scope, :scope *):where(.vua-card, .vua-alert, .vua-control__panel, .vua-control__project, .vua-control__switch,
-  .vua-factory__room, .vua-factory__panel, .vua-workshop__line, .vua-line__station,
-  .vua-start__avatar, .vua-start__browse, .vua-recipe-graph__node,
-  .vua-release-room__tabs, .vua-packages__sections, .vua-packages__repo-row) {
+:where(:scope, :scope *):where(.vua-card, .vua-alert, .vua-control__panel,
+  .vua-factory__room, .vua-factory__panel, .vua-line__station,
+  .vua-start__avatar, .vua-start__browse, .vua-recipe-graph__node) {
   --vua-shape-role: container;
+  --vua-shape-treatment: bevel;
   --vua-shape-corners: var(--vua-corners-container);
   corner-shape: var(--vua-corner-style) !important;
   border-radius: var(--vua-shape-corners) !important;
@@ -62,6 +74,7 @@
 
 :where(:scope, :scope *):where([role="dialog"], [role="alertdialog"], .vua-drawer, .vua-toast, .vua-folder-picker) {
   --vua-shape-role: overlay;
+  --vua-shape-treatment: bevel;
   --vua-shape-corners: var(--vua-corners-overlay);
   corner-shape: var(--vua-corner-style) !important;
   border-radius: var(--vua-shape-corners) !important;
@@ -70,9 +83,9 @@
 
 :where(:scope, :scope *):where([role="menu"], .vua-context-menu, .vua-tooltip, .vua-popconfirm, .vua-mode-picker__card) {
   --vua-shape-role: menu;
-  --vua-shape-corners: var(--vua-corners-menu);
-  corner-shape: var(--vua-corner-style) !important;
-  border-radius: var(--vua-shape-corners) !important;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: 0 !important;
   clip-path: none !important;
 }
 
@@ -80,14 +93,14 @@
   .vua-release-upload__stages li, .vua-release-upload__bar,
   .vua-workshop__replay-progress, .vua-workshop__replay-progress-fill) {
   --vua-shape-role: progress;
-  --vua-shape-corners: var(--vua-corners-progress);
-  corner-shape: var(--vua-corner-style) !important;
-  border-radius: var(--vua-shape-corners) !important;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: 0 !important;
   clip-path: none !important;
 }
 
 .vua-toggle::after {
-  corner-shape: var(--vua-corner-style);
-  border-radius: var(--vua-corners-indicator);
+  corner-shape: round;
+  border-radius: 2px;
 }
 }

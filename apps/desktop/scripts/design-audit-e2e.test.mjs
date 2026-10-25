@@ -315,7 +315,7 @@ test("actual Grid controls paint and hit-test a stroked upper-left 120-degree be
     "header, sidebar and settings retain host corners even in the production jurisdiction");
   assert.equal(geometry.host[0].radius, "6px", "the shared host button retains its rounded rectangle");
   assert.equal(geometry.portal.role, "menu", "an AMF-owned portal retains its own scope");
-  assert.ok(geometry.portal.radius.startsWith("8px "));
+  assert.equal(geometry.portal.radius, "0px", "small owned menus stay quiet rectangles");
   const capture = await captureAuditPage(win, false, 40);
   const pixels = capture.toBitmap(); const size = capture.getSize();
   const scaleX = size.width / geometry.viewport.w, scaleY = size.height / geometry.viewport.h;
@@ -329,7 +329,7 @@ test("actual Grid controls paint and hit-test a stroked upper-left 120-degree be
   const snapshot = await win.webContents.executeJavaScript(`${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed:true, overflowChecks:true })`, true);
   const findings = evaluateSnapshot(snapshot, { rules:["grid-shape", "shadow-panel"] });
   assert.deepEqual(findings.filter(f => f.rule === "grid-shape").map(f => f.cls[0]), ["broken-grid"]);
-  assert.equal(findings.filter(f => f.rule === "shadow-panel").length, 0, "only the active step has approved cast elevation");
+  assert.equal(findings.filter(f => f.rule === "shadow-panel").length, 0, "selected and resting steps both stay flat");
 });
 
 async function main() {
@@ -344,11 +344,11 @@ async function main() {
       body{padding:32px}#grid-button{width:160px;height:40px;border-color:rgb(255,0,0)}
       .vua-line__stations{margin-top:24px;width:500px}.broken-grid{border-radius:999px!important}
     </style></head><body><div data-vua-shape-scope="amf">
-      <button id="grid-button" class="vua-button vua-button--default"><span id="grid-label">Grid action</span></button>
+      <button id="grid-button" class="vua-button vua-button--primary"><span id="grid-label">Grid action</span></button>
       <span class="vua-badge" data-tone="neutral">Status</span><input aria-label="Field"><button class="vua-toggle" aria-label="Switch"></button>
       <ol class="vua-line__stations"><li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="true">Active</button></li>
       <li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="false">Rest</button></li></ol>
-      <button class="broken-grid">Capsule regression</button></div>
+      <button class="broken-grid vua-button--primary">Capsule regression</button></div>
       <div class="vua-shell" data-module="production"><header><button id="host-button" class="vua-button">Host action</button></header>
         <aside><button id="host-sidebar">Host sidebar</button></aside><section><input id="host-settings" aria-label="Host settings"></section></div>
       <div id="owned-portal" class="vua-tooltip" data-vua-shape-scope="amf">Owned portal</div></body></html>`;

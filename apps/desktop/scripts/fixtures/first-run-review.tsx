@@ -8,6 +8,8 @@ import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 
 const copy = strings.journey;
+// Capture the shell's requested theme before App mounting can resolve or persist a default.
+const previewTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
 let root: Root | undefined;
 let scenario: "installed" | "missing" | "restored" = "installed";
 let guideId: string | null = null;
@@ -91,9 +93,10 @@ window.vua = {
   remoteContent: { openAccountGuideInBrowser: async (id: string) => { guideId = id; }, authProbe: async () => ({ authOk: false, accountName: null }) },
 } as unknown as VuaDesktopApiV2;
 
-async function mount(mode: typeof scenario = "installed", legacyMode = "desktop") {
+async function mount(mode: typeof scenario = "installed", legacyMode = "desktop", theme?: "dark" | "light") {
   root?.unmount(); localStorage.clear(); location.hash = ""; scenario = mode; playUnavailable = false; installationRunning = false; websiteCalls = 0; borrowedSteam = true; playStates.desktop_play = "idle"; playStates.pico_pcvr = "idle"; playCalls.length = 0;
   localStorage.setItem(storageKeys.locale, currentLocale);
+  if (theme) localStorage.setItem(storageKeys.theme, theme);
   localStorage.setItem(storageKeys.retiredDisplayMode, legacyMode);
   localStorage.setItem(storageKeys.tourProgress, JSON.stringify({ v: 1, status: "skipped", step: 0 }));
   if (mode === "restored") {
@@ -289,9 +292,34 @@ const review = {
     return checks.slice(startAt);
   },
   async previewEnvironment(page: "play" | "create") {
-    await mount("installed"); await step("goal"); document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-wizard-step]"));
+    await mount("installed", "desktop", previewTheme); await step("goal"); document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-wizard-step]"));
     await click(copy[page]);
     await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
+    await settlePage();
+  },
+  async previewSettings() {
+    await mount("installed", "desktop", previewTheme); await step("goal");
+    document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
+    await wait(() => !document.querySelector("[data-wizard-step]"));
+    document.querySelector<HTMLButtonElement>('[data-nav-id="shell-settings"]')!.click();
+    await wait(() => location.hash === "#settings-theme" && document.querySelector(".vua-theme-choice"));
+    await settlePage();
+    check("settings capture owns the settings-theme route and actual appearance controls",
+      location.hash === "#settings-theme" && document.querySelectorAll(".vua-theme-choice__button").length === 3
+      && !document.querySelector("[data-wizard-step]"));
+    check("settings capture preserves its requested appearance preference",
+      document.documentElement.dataset.theme === previewTheme
+      && document.querySelector(`[data-nav-id="theme-${previewTheme}"][aria-pressed="true"]`));
+    check("theme settings group three preference rows without a primary task button",
+      document.querySelectorAll(".vua-settings-group .vua-preference-row").length === 3
+      && document.querySelectorAll('.vua-settings-group [role="switch"]').length === 1
+      && !document.querySelector(".vua-settings-group .vua-button--primary"));
+    const toggle = document.querySelector<HTMLButtonElement>('.vua-settings-group [role="switch"]')!;
+    const previous = toggle.getAttribute("aria-checked");
+    toggle.click();
+    await wait(() => toggle.getAttribute("aria-checked") !== previous);
+    toggle.click();
+    await wait(() => toggle.getAttribute("aria-checked") === previous);
     await settlePage();
   },
   settlePage,
@@ -322,7 +350,9 @@ const review = {
     }, "appearance selection frame matches its button");
   },
   async setResourceSaver(enabled: boolean) {
-    await click(enabled ? strings.settings.theme.saverTurnOn : strings.settings.theme.saverTurnOff);
+    const toggle = document.querySelector<HTMLButtonElement>('.vua-preference-row [role="switch"]');
+    if (!toggle) throw new Error("Resource-saving preference switch is missing");
+    if ((toggle.getAttribute("aria-checked") === "true") !== enabled) toggle.click();
     await wait(() => (document.documentElement.dataset.effects === "off") === enabled);
   },
   expectFlattenedThemeMotion(mode: "reduced-motion" | "resource-saving") {

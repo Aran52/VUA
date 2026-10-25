@@ -74,7 +74,9 @@ function Review({ modal }: { modal: boolean }) {
   await until(() => !!document.querySelector(".vua-popconfirm"), "AMF portal did not open");
   const portal = document.querySelector<HTMLElement>(".vua-popconfirm")!;
   check(portal.parentElement === document.body && portal.dataset.vuaShapeScope === "amf", "AMF scope follows React ownership through body portals");
-  check(getComputedStyle(portal).getPropertyValue("--vua-shape-role").trim() === "menu", "AMF portal keeps its bevel role");
+  check(getComputedStyle(portal).getPropertyValue("--vua-shape-role").trim() === "menu"
+    && getComputedStyle(portal).getPropertyValue("--vua-shape-treatment").trim() === "quiet"
+    && getComputedStyle(portal).borderTopLeftRadius === "0px", "small AMF portal keeps its menu role and quiet rectangular treatment");
   checks.push("AMF portal keeps its scope independently of the host shell");
   root.unmount(); await delay(); return checks;
 } };

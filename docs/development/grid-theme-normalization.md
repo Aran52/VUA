@@ -1,7 +1,7 @@
 # Grid theme normalization
 
 > Updated: 2026-10-25
-> Status: calibrated repairs delivered; Grid geometry revision awaiting author review in the dev app
+> Status: hierarchy revision implements the adopted third-party review; author dev-app review pending
 > Scope: reliable design auditing, the default Grid theme and verified interface defects
 
 The author requested audit reliability and false-positive calibration first, this plan after
@@ -142,6 +142,9 @@ before the geometry revision below. They do not establish acceptance of the late
 
 ## Author geometry review, 2026-10-25
 
+Historical iteration: its blanket AMF cuts and selected-station elevation are superseded
+by the adopted third-party review below. Refresh-slot alignment remains required.
+
 The author rejected the earlier visual completion: industrial cuts were too weak, capsule
 controls remained, station cards lacked mass, and absent refresh actions shifted repository
 columns. The ruling now owned by [controls and motion](../design/controls-and-motion.md)
@@ -200,8 +203,29 @@ contexts, retained browser identity/restoration, host geometry and AMF-owned por
 
 Verification of this correction: the complete desktop check passes (1,470 tests, one existing
 skip, production build, module isolation, boundary/i18n/contrast/leak checks), as do 55 audit
-regressions and three focused browser-shell cases. A filtered audit of workshop, repository
-states, Home, Settings and Play completes 12/12 dark/light states with zero findings. In the
+regressions and three focused browser-shell cases. A filtered audit completed its 12/12
+labelled states, but its Settings endpoint actually captured the goal wizard; that state
+provides no Settings acceptance evidence. In the
 native dev app, Settings and shell corners retain host geometry; the notification panel can
 open and close over the existing BOOTH page, and the page resumes. This records the agent's
 checks; the author retains the next interactive review.
+
+## Adopted hierarchy review, 2026-10-25
+
+The author adopted the third-party review of `c1498a3` and gave it precedence over the earlier
+shadow and blanket-cut requests. The delivered revision separates station viewing from
+execution, keeps future steps neutral, retires the heavy station shadow, and limits AMF
+cuts to major surfaces and primary actions. Theme preferences share one settings-row group;
+repositories use labelled bounded columns and one primary Add action. Home utilities are
+compact and Play actions sit closer to their observed state.
+
+Settings evidence is also corrected: the former endpoint captured the goal wizard. Its
+zero count never proved Settings acceptance. A dedicated endpoint now asserts the Settings
+route and actual controls, then exercises and restores the resource-saving switch. Preview
+mounts preserve the requested theme, and the runner refuses a label/theme mismatch. Earlier
+Light-labelled whole-App captures must not be used as proof of light-theme acceptance.
+
+The [hierarchy report](../research/grid-hierarchy-review-2026-10-25.md) includes a dark/light
+before/after sheet for each priority page, the current 54-state filtered audit, interaction
+checks and native dev-app review limits. This is not a new full-matrix baseline, and visual
+acceptance remains with the author in the open dev app.

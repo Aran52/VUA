@@ -10,6 +10,16 @@ The [Grid normalization plan](../development/grid-theme-normalization.md) follow
 direction in [PR #67](https://github.com/Aran52/VUA/pull/67). This record separates calibration
 from corrections to the interface.
 
+Evidence correction after the adopted third-party review: the old `first-run-settings`
+endpoint ended on the onboarding goal wizard. No Settings-labelled screenshot or zero count
+from that endpoint proves Settings acceptance. The dedicated route/control-asserted endpoint
+and the subsequent hierarchy revision are recorded in
+[the follow-up report](grid-hierarchy-review-2026-10-25.md). Historical counts below keep their
+original scope and must not be presented as current-page acceptance.
+Whole-App preview mounts also cleared the requested theme: old Light-labelled Home,
+Settings and environment captures could remain dark. Those labelled historical state counts
+do not certify actual light-theme coverage; the follow-up recollects them with a theme guard.
+
 ## Evidence and comparison method
 
 | Input | Revision | Run |

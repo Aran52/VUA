@@ -40,8 +40,9 @@ import { ForestVariantRoot } from "./app/ForestVariantRoot.tsx";
 import { Button } from "./components/primitives/Button.tsx";
 import { BrandMark } from "./components/BrandMark.tsx";
 import { Card } from "./components/primitives/Card.tsx";
+import { Toggle } from "./components/primitives/Toggle.tsx";
 import { Icon } from "@vua/design-system";
-import { format, strings, termLabel, termSequence, TERMS } from "./i18n/index.ts";
+import { format, presentationCopy, strings, termLabel, termSequence, TERMS } from "./i18n/index.ts";
 import { currentLocale, localeRegistry } from "./i18n/index.ts";
 import { creatorEnvReady } from "./features/deployer/deployer-model.ts";
 import { OnboardingPage, type OnboardingResult } from "./features/onboarding/OnboardingPage.tsx";
@@ -236,13 +237,14 @@ function ThemeSettingsPage({
     steamVRRunning,
   });
   return (
-    <div className="vua-page">
+    <div className="vua-page vua-theme-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">{strings.nav.pages.settingsTheme}</h1>
       </section>
-      <Card>
-        <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.appearanceHeading}</h2>
+      <Card className="vua-settings-group">
+        <h2>{presentationCopy.settings.group}</h2>
+        <div className="vua-preference-row">
+          <div><h3>{copy.appearanceHeading}</h3><p>{presentationCopy.settings.appearanceHint}</p></div>
           <div className="vua-theme-choice" role="group" aria-label={copy.appearanceAria}>
             <span
               className="vua-theme-choice__selection"
@@ -263,10 +265,8 @@ function ThemeSettingsPage({
             ))}
           </div>
         </div>
-      </Card>
-      <Card>
-        <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.hcHeading}</h2>
+        <div className="vua-preference-row">
+          <div><h3>{copy.hcHeading}</h3><p>{presentationCopy.settings.contrastHint}</p></div>
           <div>
             <select
               className="vua-settings-select"
@@ -279,18 +279,10 @@ function ThemeSettingsPage({
             </select>
           </div>
         </div>
-      </Card>
-      <Card>
-        <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.saverHeading}</h2>
-          <p className="vua-text-secondary">{copy.saverDescription}</p>
+        <div className="vua-preference-row">
+          <div><h3>{copy.saverHeading}</h3><p>{copy.saverDescription}</p></div>
           <div className="vua-settings-row">
-            <Button
-              variant={saverOn ? "default" : "primary"}
-              onClick={onSaverToggle}
-            >
-              {saverOn ? copy.saverTurnOff : copy.saverTurnOn}
-            </Button>
+            <Toggle on={saverOn} onToggle={onSaverToggle} label={saverOn ? copy.saverTurnOff : copy.saverTurnOn} />
             {saverSource === "auto" ? <span className="vua-text-secondary">{copy.saverStateAuto}</span> : null}
           </div>
           {/* The SteamVR option shows once VUA can tell that SteamVR is running (issue #27). */}

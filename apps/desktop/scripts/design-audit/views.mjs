@@ -220,7 +220,7 @@ export const VIEWS = [
   // exported previewEnvironment()/run() end states.
   { id: "first-run-home", fixture: "first-run", area: "first-run",
     steps: ["await window.firstRunReview.previewEnvironment(\"play\")", "document.querySelector('[data-nav-id=\"logo-home\"]').click()"], settleMs: 600 },
-  { id: "first-run-settings", fixture: "first-run", area: "settings", steps: ["await window.firstRunReview.run()"], settleMs: 600 },
+  { id: "first-run-settings", fixture: "first-run", area: "settings", steps: ["await window.firstRunReview.previewSettings()"], settleMs: 600 },
   { id: "env-play", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("play")'], settleMs: 600 },
   { id: "env-create", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("create")'], settleMs: 600 },
 

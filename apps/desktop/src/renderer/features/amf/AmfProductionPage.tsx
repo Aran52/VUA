@@ -13,7 +13,8 @@ import { Alert } from "../../components/primitives/Alert.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
-import { strings, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { compactSourceLabel } from "./line-presentation.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
@@ -30,11 +31,11 @@ import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey } from "./factory-model.ts";
+import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey } from "./factory-model.ts";
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
-import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
+import { formatDuration, lineLabels, queueAhead, runStartedAt } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
@@ -253,7 +254,6 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const states = run ? lineStations(run) : null;
   const status: LineStatus | null = run ? lineStatus(run) : null;
   const effective: AutomationLevel = level;
-  const stops = stopsAt(effective);
   // One layout for every mode; the modes differ in where the line stops.
   const showDetails = adjusting;
   const chosen = !!selection.avatarPrefab && selection.outfits.length > 0;
@@ -265,7 +265,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     unattended.current.add(key);
     void assembleNow();
   });
-  const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
+  const ui = presentationCopy.workshop;
+  const objectName = run?.result?.facts?.avatarName?.trim() || avatar?.name || (avatars.length === 1 ? avatars[0]?.name : null) || ui.unknownAvatar;
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
   // A creator-patched line locks the operations that cannot replay its manual steps (face_tracking_manual_replay).
@@ -286,11 +287,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const panels = factory.panels;
   // One card per run, even if a list read ever repeats an entry.
-  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
-    extra: labels.get(recent.runId)?.extra ?? null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: recent.runId === run?.runId ? objectName : compactSourceLabel(recent.sourceNames[0] ?? "") || ui.unknownAvatar,
+    extra: runStartedAt(recent.runId) ? labels.get(recent.runId)?.extra ?? null : null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
     : !lineBusy(run) && run.phase === "succeeded" ? "check" : !lineBusy(run) && run.phase === "ready" ? "plan" : currentStation(states));
+  const executing = states ? STATIONS.find(key => states[key] === "running") : undefined;
   const observed = run?.result?.facts?.observedSelection ?? null;
   const planOpen = run !== null && !busy && restorePlan === null && (run.phase === "ready" || run.phase === "succeeded");
   const unchangedPlan = run?.phase === "succeeded" && observed !== null && sameSelection(selection, observed);
@@ -340,18 +342,18 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>)}
     </> : <>
       <header className="vua-line__header">
-        <h1 className="vua-title">{lineName(run.sources.map(source => source.itemName)) || run.runId}</h1>
-        {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
+        <div className="vua-line__object"><h1 className="vua-title">{objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
         {status && <StatusChip status={status}/>}
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
-      {states && <ol className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key}>
-        <button type="button" className="vua-line__station" data-vua-surface-role="workshop-step" data-state={states[key]} aria-pressed={shown === key} aria-current={currentStation(states) === key ? "step" : undefined}
+      {states && <ol className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key} data-state={states[key]}>
+        <button type="button" className="vua-line__station" data-vua-surface-role="workshop-step" data-state={states[key]} aria-pressed={shown === key} aria-current={executing === key ? "step" : undefined}
           onClick={() => setChosenStation(key)} data-nav-id={`workshop-station-${key}`}>
           <Icon name={STATION_ICONS[key]} size={20}/>
           <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>
-          {stops.has(key) && ["todo", "waiting"].includes(states[key]) && <span className="vua-line__stop">{factory.stopsHere}</span>}
         </button></li>)}</ol>}
+      <div className="vua-line__context" role="status"><strong>{format(ui.viewing, { step: factory.stations[shown] })}</strong><span>{executing ? format(ui.executing, { step: factory.stations[executing] }) : ui.idle}</span></div>
+      <details className="vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd></dl><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
       {lineBusy(run) && <Card className="vua-line__live" aria-live="polite">
         <div className="vua-line__live-head"><span className="vua-n3__spinner" aria-hidden="true"/>
           <strong>{runningStep ? copy.step[runningStep.key as keyof typeof copy.step] ?? runningStep.name : run.phase === "assembling" ? copy.assembling : run.phase === "restoring" ? copy.restoring : copy.preparing}</strong></div>

@@ -308,9 +308,9 @@ tabular numerals.
   instead of another box.
 - Cards are solid (author ruling, 2026-10-25): an opaque panel colour and a 1 px border, without
   blur, glow or shadow. Default 1 px borders; subtle shadow only for elevated surfaces.
-  The selected workshop station card is the author's explicit exception: the same container
-  cut with a heavier cast shadow and solid lower edge, defined in
-  [controls and motion](controls-and-motion.md#elevation-and-glass). Resting stations stay flat.
+  Workshop viewing and execution both stay flat; the adopted third-party review (2026-10-25)
+  retires the selected-station shadow exception. Their independent state and selective AMF
+  geometry are defined in [controls and motion](controls-and-motion.md#elevation-and-glass).
 - Blur is limited to top/side/task/elevated structure and to labels floating over scene art,
   never card walls, tables, or long lists.
 - The [design audit](design-audit.md) checks these rules on every preview view.

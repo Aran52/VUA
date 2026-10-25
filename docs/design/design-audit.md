@@ -60,6 +60,9 @@ The overview, summary and run record show planned and audited state counts. A fi
 navigation, annotation or capture failure fails the run even when other pages rendered. Missing,
 duplicate or unplanned state records also fail. Failed states are listed separately from design
 findings; a successfully generated report does not make an incomplete collection successful.
+The collected `data-theme` must equal the requested theme; a mismatch is a capture failure,
+not a passing light/dark state. Whole-App preview mounts preserve the shell's requested
+theme even though the first-run smoke deliberately clears storage to test the Dark default.
 Per-state JSON contains that state's raw findings and grouped element details, never its run plan.
 Filtered reports list only the requested language/theme passes and label completion as applying
 to that selected plan. Their completion never authorizes a full gate-baseline update.
@@ -101,8 +104,8 @@ layout), **warning** = violates the current standard's token discipline,
 | `contrast` | Text or icon foreground vs its effective background | Body 4.5:1; large text (≥ 24px, or ≥ 18.66px at weight ≥ 600) and icons 3:1. The background walks ancestors to the first opaque fill and alpha-composites translucent layers in between. Disabled controls exempt |
 | `spacing-grid` | `padding`/`margin`/`gap` off the 4 px grid | Values with `v mod 4 ∈ {0, 1, 3}` pass: multiples of 4 plus ±1 px border compensation. Actual `auto` margins and unused gaps are excluded; equal fixed margins are still checked |
 | `radius-token` | Border radius matches neither the resolved radius/corner tokens nor an allowed circle | Resolves role-group cut sizes as well as compatibility radius tokens; a legacy pill allowance in this generic rule does not bypass `grid-shape` |
-| `grid-shape` | An AMF-scoped Grid role does not use its upper-left 120-degree native bevel | Checks non-inherited `--vua-shape-role`, role cut size, vertical/horizontal ratio √3 and three square corners. Host controls retain rectangular/rounded geometry even in the production colour jurisdiction. Wrong-corner cuts, 45-degree cuts and capsule overrides fail. Named brand/status symbols have their own roles |
-| `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt. Only a selected `data-vua-surface-role="workshop-step"` using `--vua-shadow-workshop-active` may carry the approved heavier cast shadow; other shadows and resting stations still fail |
+| `grid-shape` | An AMF role violates its quiet or brand-surface geometry | Checks non-inherited role and treatment metadata. Quiet fields, badges, secondary actions, progress and small menus require square corners. Primary actions, station cards, major containers and large overlays require their role's upper-left 120-degree cut (vertical/horizontal ratio √3, three square corners). Host geometry stays rectangular/rounded. Capsules and wrong-corner/angle overrides fail |
+| `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt. Workshop steps stay flat, including viewed and executing steps; the earlier selected-step shadow exception is retired |
 | `blur-scope` | `backdrop-filter` outside top/side/task/elevated structure | Same floating/structure exemptions as `shadow-panel` |
 | `one-accent` | Two jurisdiction accent families (purple + orange) in one view, or more than one filled accent control | Family = opaque fill or text within RGB distance 12 of the purple or orange token family. The base map composes four room colors by design and is exempt in the registry |
 | `target-size` | Interactive target below 24×24 (error); primary action below 32×32 (reported as an error with `floor: 32`) | Checkbox/radio targets include a visible, associated label fragment that actually activates the input. Separate fragments are never joined into an invented target. Inline text links and disabled controls are exempt |
@@ -189,12 +192,18 @@ than container layers; their other applicable checks remain active. Synthetic ca
 use the runner's same repaint/retry path and still require the annotation legend in the pixels.
 Selection controls (native choices and ARIA pressed/selected/switch/tab roles) retain the
 general hit-area floor and do not compete as primary commands merely because they use accent fill.
-The factory fixture checks the native bevel on every workshop station and verifies that only
-the selected station carries the heavier shadow. Repository fixtures include rows without an
+The factory fixture checks the native bevel and absence of cast shadows on workshop stations.
+It clicks a future and then a running step, verifies independent viewing/execution state and
+the explicit detail context, and restores the running selection before capture. Repository fixtures include rows without an
 identifier and a separate unavailable-lifecycle state; both retain visible disabled refresh
 buttons and fixed action slots, with aligned package-count right edges. These are assertions
-against the rendered components, not audit exclusions. This additional state brings the full
+against the rendered components, not audit exclusions. The add action opens its real form,
+asserts that empty input cannot advance, and cancels without a write. This additional state brings the full
 registry to 100 views / 600 locale/theme states; earlier 99-view reports remain historical.
+`first-run-settings` uses `firstRunReview.previewSettings()`, not the onboarding review's
+`run()` endpoint. It asserts `#settings-theme`, three appearance choices and the actual
+preference switch, then toggles and restores resource saving. The older endpoint ended on
+the goal wizard, so earlier captures under this ID do not prove Settings was reviewed.
 Typography checks apply to rendered text and native text fields; an icon's zero-height line-box
 wrapper is not a text sample. Shared split actions declare `data-vua-primary-group`, so their
 command and menu half count once. `data-vua-control-role="indicator"` declares a status control,

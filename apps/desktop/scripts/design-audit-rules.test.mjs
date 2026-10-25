@@ -299,12 +299,18 @@ test("Grid rejects capsules, the wrong corner and a 45-degree bevel", () => {
   assert.deepEqual(evaluateSnapshot(snapshot(elements), { rules: ["grid-shape"] }).map(f => f.index), [1, 2, 3]);
 });
 
-test("only the active workshop step receives its approved heavy elevation", () => {
+test("selection never grants a workshop step cast elevation", () => {
   const approved = "rgba(0, 0, 0, 0.65) 0px 4px 0px 0px, rgba(0, 0, 0, 0.5) 0px 12px 20px 0px";
   const elements = [el({ workshopStepActive: true, boxShadow: approved }), el({ boxShadow: approved }),
     el({ workshopStepActive: true, boxShadow: "rgba(0,0,0,.5) 0px 8px 24px" })];
   const result = evaluateSnapshot(snapshot(elements, { shadowTokens: { "--vua-shadow-workshop-active": approved } }), { rules: ["shadow-panel"] });
-  assert.deepEqual(result.map(f => f.index), [1, 2]);
+  assert.deepEqual(result.map(f => f.index), [0, 1, 2]);
+});
+
+test("quiet AMF controls are rectangles while primary brand surfaces remain beveled", () => {
+  const quiet = { shapeRole: "field", shapeTheme: "bevel", shapeTreatment: "quiet", cornerPairs: [[0,0],[0,0],[0,0],[0,0]] };
+  const result = evaluateSnapshot(snapshot([el(quiet), el({ ...quiet, cornerPairs: [[999,999],[999,999],[999,999],[999,999]] })]), { rules: ["grid-shape"] });
+  assert.deepEqual(result.map(f => f.index), [1]);
 });
 
 test("capture failures: vite error overlay and near-empty pages are unusable", () => {
@@ -314,6 +320,13 @@ test("capture failures: vite error overlay and near-empty pages are unusable", (
   assert.equal(classifyCapture({ errorOverlay: false, elementCount: 28 }, 6), null);
   assert.match(classifyCapture({ elementCount: 40 }, 6, { requireFoundation: true }), /foundation/);
   assert.equal(classifyCapture({ elementCount: 40, tokenRaw: { "--vua-font-body": "400 14px/20px sans-serif" }, palette: [{ name: "--vua-text-strong" }] }, 6, { requireFoundation: true }), null);
+});
+
+test("capture rejects a theme label that disagrees with the rendered App", () => {
+  const painted = { elementCount: 76, theme: "dark" };
+  assert.match(classifyCapture(painted, 6, { requestedTheme: "light" }), /requested theme light, collected dark/);
+  assert.match(classifyCapture({ elementCount: 76 }, 6, { requestedTheme: "light" }), /no theme/);
+  assert.equal(classifyCapture(painted, 6, { requestedTheme: "dark" }), null);
 });
 
 test("theme-invariant findings aggregate once: the light state drops layout rules", () => {

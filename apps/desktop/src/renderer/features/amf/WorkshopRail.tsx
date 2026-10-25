@@ -114,7 +114,7 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDele
       {lines.filter(line => showHidden || !hidden.has(line.runId)).map(line => {
         const removing = deleting.has(line.runId);
         const isHidden = hidden.has(line.runId);
-        return <li key={line.runId} className="vua-workshop__line-item" data-line-menu={line.runId} data-hidden={isHidden || undefined}>
+        return <li key={line.runId} className="vua-workshop__line-item" data-line-menu={line.runId} data-hidden={isHidden || undefined} data-selected={line.runId === current || undefined}>
           <button type="button" className="vua-workshop__line" aria-current={line.runId === current || undefined} disabled={removing} onClick={() => onSelect(line.runId)}>
             <span>{line.name}</span>
             {line.extra && <small className="vua-workshop__line-extra">{line.extra}</small>}

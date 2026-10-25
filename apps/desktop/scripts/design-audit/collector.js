@@ -215,7 +215,7 @@ export function collectAuditSnapshot(options) {
 
   // Resolved shadow/glow tokens for shadow-panel classification.
   const shadowTokens = {};
-  for (const name of ["--vua-shadow-elevated", "--vua-shadow-workshop-active", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
+  for (const name of ["--vua-shadow-elevated", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
     const probe = document.createElement("div");
     probe.style.position = "absolute";
     probe.style.display = "none";
@@ -454,8 +454,8 @@ export function collectAuditSnapshot(options) {
       opacity: parseFloat(cs.opacity),
       inlineStyle: Boolean(el.getAttribute("style")),
       interactive, isControl, isChoice, isTextField, indicatorRole, disabled, primary,
-      workshopStepActive: el.getAttribute("data-vua-surface-role") === "workshop-step" && el.getAttribute("aria-pressed") === "true",
       shapeRole: cs.getPropertyValue("--vua-shape-role").trim(),
+      shapeTreatment: cs.getPropertyValue("--vua-shape-treatment").trim(),
       shapeTheme: cs.getPropertyValue("--vua-corner-style").trim(),
       shapeExpectedX: parseFloat(cs.getPropertyValue("--vua-corner-" + cs.getPropertyValue("--vua-shape-role").trim())) || 0,
       cornerShapes: ["top-left", "top-right", "bottom-right", "bottom-left"].map(corner => cs.getPropertyValue("corner-" + corner + "-shape")),

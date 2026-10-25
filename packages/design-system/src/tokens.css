@@ -167,7 +167,6 @@
   --vua-shape-cut-md: polygon(0 calc(var(--vua-corner-container) * var(--vua-corner-ratio)), var(--vua-corner-container) 0, 100% 0, 100% 100%, 0 100%);
   --vua-shape-cut-lg: polygon(0 calc(var(--vua-corner-overlay) * var(--vua-corner-ratio)), var(--vua-corner-overlay) 0, 100% 0, 100% 100%, 0 100%);
   --vua-shape-step: var(--vua-shape-cut-md);
-  --vua-shadow-workshop-active: 0 4px 0 rgb(0 0 0 / 65%), 0 12px 20px rgb(0 0 0 / 50%);
 
   /* ---- Motion: durations and easing; scripted motion reads the same values ---- */
   --vua-motion-instant: 0ms;
@@ -282,7 +281,6 @@
   --vua-shadow-elevated:
     0 4px 16px rgb(25 24 36 / 0.1),
     0 0 20px rgb(101 87 210 / 0.05);
-  --vua-shadow-workshop-active: 0 4px 0 rgb(25 24 36 / 24%), 0 12px 20px rgb(25 24 36 / 24%);
   --vua-glow-accent: 0 0 12px rgb(101 87 210 / 0.3);
   --vua-glow-accent-soft: 0 0 20px rgb(101 87 210 / 0.14);
 
@@ -353,7 +351,6 @@
     --vua-on-status: Canvas;
     --vua-on-error: Canvas;
     --vua-shadow-elevated: none;
-    --vua-shadow-workshop-active: none;
     --vua-glow-accent: none;
     --vua-glow-accent-soft: none;
     --vua-accent-gradient: none;
@@ -400,7 +397,6 @@
   --vua-room-workshop: #ffd600;
   --vua-room-release: #ffd600;
   --vua-shadow-elevated: none;
-  --vua-shadow-workshop-active: none;
   --vua-glow-accent: none;
   --vua-glow-accent-soft: none;
   --vua-accent-gradient: none;

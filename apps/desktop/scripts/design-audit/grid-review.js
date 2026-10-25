@@ -20,8 +20,23 @@ export async function verifyGridFactoryState(view) {
     const steps = [...document.querySelectorAll(".vua-line__station")];
     check(steps.every(bevel), "Every workshop step uses the upper-left 120-degree bevel");
     const active = steps.find(step => step.getAttribute("aria-pressed") === "true");
-    check(active && getComputedStyle(active).boxShadow !== "none", "The selected workshop step keeps its heavier elevation");
-    check(steps.filter(step => step !== active).every(step => getComputedStyle(step).boxShadow === "none"), "Resting workshop steps stay flat");
+    check(active && steps.every(step => getComputedStyle(step).boxShadow === "none"), "Viewing and execution never grant step cards cast elevation");
+    if (view === "workshop-running") {
+      const selectedBackground = getComputedStyle(active).backgroundColor;
+      const running = steps.find(step => step.dataset.state === "running");
+      const future = steps.find(step => step.dataset.state === "todo");
+      check(running && future, "Running fixture has current and future steps");
+      future.click();
+      await until(() => future.getAttribute("aria-pressed") === "true");
+      await until(() => getComputedStyle(future).backgroundColor === selectedBackground);
+      check(running.getAttribute("aria-current") === "step" && future.getAttribute("aria-current") === null, "Viewing a future step cannot move execution");
+      check(getComputedStyle(future).backgroundColor === selectedBackground, "Future selection uses the same neutral viewing treatment as the current step");
+      check(document.querySelector(".vua-line__context").textContent.includes(future.querySelector("strong").textContent)
+        && document.querySelector(".vua-line__context").textContent.includes(running.querySelector("strong").textContent), "Detail names both viewed and executing steps");
+      running.click();
+      await until(() => running.getAttribute("aria-pressed") === "true");
+      await until(() => getComputedStyle(running).backgroundColor === selectedBackground);
+    }
   } else {
     await until(() => document.querySelectorAll(".vua-control__repo").length >= 2);
     const rows = [...document.querySelectorAll(".vua-control__repo")];
@@ -38,5 +53,18 @@ export async function verifyGridFactoryState(view) {
     if (view.endsWith("-disabled")) check(refresh.every(button => button.disabled), "Unavailable lifecycle keeps visible disabled refresh controls");
     const local = rows.findIndex(row => row.textContent.includes("Local preview"));
     check(local >= 0 && refresh[local].disabled, "A missing repository identifier keeps the refresh slot disabled");
+    refresh[local].click();
+    check(rows[local].isConnected && refresh[local].disabled, "Clicking a disabled refresh leaves the repository row intact");
+    check(document.querySelectorAll(".vua-control__repo-columns > span").length === 5, "Repository list labels its five columns");
+    const add = document.querySelector(".vua-control__head .vua-button--primary");
+    if (add) {
+      check(document.querySelectorAll(".vua-control .vua-button--primary").length === 1, "Adding is the only repository primary action");
+      add.click();
+      await until(() => document.querySelector(".vua-control__add"));
+      const form = document.querySelector(".vua-control__add");
+      check(form.querySelector('button[type="submit"]').disabled, "Empty repository form cannot advance");
+      form.querySelector('button[type="button"]').click();
+      await until(() => !document.querySelector(".vua-control__add"));
+    }
   }
 }

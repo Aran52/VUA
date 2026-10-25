@@ -40,8 +40,9 @@ export function isThemeInvariant(ruleId) {
 }
 
 /** Why this snapshot is not auditable content, or null when it is usable. */
-export function classifyCapture(snapshot, perStateElementFloor, { requireFoundation = false } = {}) {
+export function classifyCapture(snapshot, perStateElementFloor, { requireFoundation = false, requestedTheme = null } = {}) {
   if (snapshot.errorOverlay) return "vite error overlay (page did not render)";
+  if (requestedTheme && snapshot.theme !== requestedTheme) return `requested theme ${requestedTheme}, collected ${snapshot.theme || "no theme"}`;
   if (requireFoundation && (!snapshot.tokenRaw?.["--vua-font-body"] || !snapshot.palette?.some(token => token.name === "--vua-text-strong"))) {
     return "shared design foundation did not load";
   }
@@ -194,10 +195,13 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       const pairs = el.cornerPairs ?? [];
       const [x = 0, y = 0] = pairs[0] ?? [];
       const bevel = el.cornerShapes?.[0] === "bevel" || el.cornerShapes?.[0] === "superellipse(0)";
-      if (!bevel || !x || Math.abs(y / x - Math.sqrt(3)) > 0.01 || Math.abs(x - el.shapeExpectedX) > 0.1
-        || pairs.slice(1).some(pair => pair.some(value => value > 0.1))) {
-        push(makeFinding("grid-shape", el, index, { role: el.shapeRole, expectedX: el.shapeExpectedX, cornerPairs: pairs, cornerShapes: el.cornerShapes },
-          "Grid requires the role's upper-left 120-degree bevel and three square corners", "radius"));
+      const quiet = el.shapeTreatment === "quiet";
+      const invalid = quiet ? pairs.some(pair => pair.some(value => value > 0.1))
+        : !bevel || !x || Math.abs(y / x - Math.sqrt(3)) > 0.01 || Math.abs(x - el.shapeExpectedX) > 0.1
+          || pairs.slice(1).some(pair => pair.some(value => value > 0.1));
+      if (invalid) {
+        push(makeFinding("grid-shape", el, index, { role: el.shapeRole, treatment: quiet ? "quiet" : "bevel", expectedX: el.shapeExpectedX, cornerPairs: pairs, cornerShapes: el.cornerShapes },
+          quiet ? "Quiet AMF controls require square corners" : "Brand surfaces require the role's upper-left 120-degree bevel and three square corners", "radius"));
       }
     }
     if (active.has("shadow-panel")) {
@@ -205,11 +209,9 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       if (shadow && shadow !== "none" && !isLineShadow(shadow)) {
         const glow = Object.entries(snapshot.shadowTokens ?? {}).some(([name, value]) => name.startsWith("--vua-glow-") && shadow === value);
         const elevated = shadow === (snapshot.shadowTokens ?? {})["--vua-shadow-elevated"];
-        const stepShadow = snapshot.shadowTokens?.["--vua-shadow-workshop-active"];
-        const activeStep = el.workshopStepActive && stepShadow && stepShadow !== "none" && shadow.endsWith(stepShadow);
         const floating = el.overlayContext || el.shellStructure
           || el.position === "fixed" || (el.position === "absolute" && el.zIndex >= 600);
-        if (!floating && !glow && !activeStep) {
+        if (!floating && !glow) {
           push(makeFinding("shadow-panel", el, index, { shadow, elevatedShadow: elevated },
             elevated ? "elevated surface shadow on an ordinary panel/card" : "shadow on an ordinary panel/card", "box-shadow"));
         }

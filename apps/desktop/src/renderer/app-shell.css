@@ -204,17 +204,15 @@
   transform: translateY(1px);
 }
 
-/* 选中=按下:辖区色深底 + 顶部内阴影(压入感)+ 1px 下沉;文字辖区色加粗 */
+/* Persistent navigation selection keeps readable semantic text on a token tint. */
 .vua-shell__tab[aria-current="page"],
 .vua-shell__tab[aria-current="page"]:hover {
   color: var(--vua-accent-text);
   font-weight: 600;
-  background: color-mix(in srgb, var(--vua-accent) 28%, var(--vua-bg-panel));
+  background: var(--vua-accent-tint);
   border-color: var(--vua-accent);
-  box-shadow:
-    inset 0 2px 8px color-mix(in srgb, var(--vua-text-strong) 32%, transparent),
-    inset 0 -1px 0 var(--vua-accent);
-  transform: translateY(1px);
+  box-shadow: inset 0 -1px 0 var(--vua-accent);
+  transform: none;
 }
 
 .vua-shell__utility {

@@ -259,3 +259,17 @@
   .vua-vrchat__method[data-active="true"] { border-color: Highlight; }
   .vua-vrchat__thumb--empty { border-color: CanvasText; }
 }
+.vua-theme-page { max-width: 960px; }
+.vua-theme-page .vua-page__hero h1 { font: var(--vua-font-display); }
+.vua-settings-group.vua-card { padding: 0; overflow: hidden; }
+.vua-settings-group > h2 { margin: 0; padding: 20px 24px; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-preference-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 20px 24px; border-top: 1px solid var(--vua-border); }
+.vua-preference-row h3 { margin: 0; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-preference-row p { margin: 4px 0 0; max-width: 48ch; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-preference-row .vua-settings-row { justify-content: flex-end; }
+.vua-preference-row .vua-theme-choice { width: 300px; }
+@media (max-width: 760px) {
+  .vua-preference-row { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; }
+  .vua-preference-row .vua-theme-choice { width: min(100%, 300px); }
+  .vua-preference-row .vua-settings-row { justify-content: flex-start; }
+}

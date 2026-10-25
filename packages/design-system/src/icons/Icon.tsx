@@ -39,9 +39,15 @@ export type IconName =
   | "hand"
   | "square-check"
   | "shield"
+  | "tools"
+  | "modules"
+  | "settings"
   | "info";
 
 const paths: Record<IconName, string> = {
+  tools: "M14 4a5 5 0 0 0-6 6L3 15a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-3-3 3-3ZM5 17l1-1",
+  modules: "M4 4h6v6H4ZM14 4h6v6h-6ZM4 14h6v6H4ZM14 14h6v6h-6Z",
+  settings: "M10 3h4l.6 2.4 2 .9L19 5l2 3.5-1.8 1.8v2.3L21 15l-2 3.5-2.4-.8-2 .9L14 21h-4l-.6-2.4-2-.9-2.4.8L3 15l1.8-2.4v-2.3L3 8.5 5 5l2.4 1.3 2-.9ZM15.5 12a3.5 3.5 0 1 0-7 0 3.5 3.5 0 0 0 7 0Z",
   file: "M6 3h8l4 4v14H6ZM14 3v5h4M9 12h6M9 16h6",
   download: "M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4",
   check: "M5 12.5l4.5 4.5L19 7.5",

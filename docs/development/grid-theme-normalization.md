@@ -132,3 +132,8 @@ surfaces that lack settled audit fixtures; its completion is tracked separately.
 The implementation PR records revisions, complete-run coverage, remaining findings and the
 location of its before/after evidence. This plan reserves no product version and changes no
 published release record.
+
+The [calibration and repair comparison](../research/design-audit-calibration-2026-10-25.md)
+records both complete 594-state runs: current-rule instances fall from 8,523 to zero, with
+eight unchanged advisory hints. This completes the measured repair slice; catalogue migration
+and the author's visual/keyboard acceptance remain scheduled above.

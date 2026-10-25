@@ -1021,6 +1021,9 @@ inconsistency, more than any single page, is what reads as unrefined.
    PR #67 delivered the first token pass and approved control direction. The
    [Grid normalization plan](grid-theme-normalization.md) orders audit calibration, the remaining
    shared-control migration and correction of verified findings (author request, 2026-10-25).
+   The [calibrated comparison](../research/design-audit-calibration-2026-10-25.md) records complete
+   before/after coverage and the verified repair slice. The shared catalogue migration and the
+   author's visual/keyboard acceptance remain open.
 3. Agents migrate one functional area per pull request onto those components; each pull request
    lowers the area's findings and shows its before-and-after contact sheet, and CI then refuses
    findings beyond the baseline.

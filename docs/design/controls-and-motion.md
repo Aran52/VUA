@@ -186,7 +186,7 @@ factory scenes, album, camera) reads the same tokens through the motion hook.
 
 ## Checking
 
-The design audit checks, per theme:
+The completed control catalogue requires these checks per theme:
 
 - control heights on the three steps, and indicators at their fixed heights;
 - one corner style and size per role group and size step (a "language" check: every button of a
@@ -194,6 +194,12 @@ The design audit checks, per theme:
 - inner corners not larger than outer ones;
 - durations and easings from the motion tokens (static scan for literal `ms` and `cubic-bezier`);
 - bespoke controls: a `<button>` outside the primitives that draws its own border or fill.
+
+The current [audit implementation](design-audit.md) measures hit-area floors, typography,
+spacing, colours, contrast, painted overflow and surface/corner nesting. Role-specific size
+steps, a common cut-corner language and complete motion/bespoke-control checks remain scheduled
+in the [Grid normalization plan](../development/grid-theme-normalization.md). A complete run
+with no current-rule findings does not establish those remaining catalogue requirements.
 
 ## Grid migration
 

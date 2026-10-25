@@ -39,6 +39,11 @@ local Vite dev server on 127.0.0.1; no external requests are made. A full run
 takes roughly 30–60 minutes and about 100–200 MB of disk under
 `apps/desktop/_local_design_audit/<timestamp>/` (git-ignored local evidence).
 
+The hidden window uses offscreen rendering so Windows keeps the compositor and scripted
+dialog exits advancing. Font layout settles before interaction steps. Fixture query parameters
+select the intended surface; the task-window fixture explicitly selects Tasks and exercises its
+task assertions rather than collecting the default compatibility guide.
+
 Output directory contents:
 
 | Artifact | What it is |

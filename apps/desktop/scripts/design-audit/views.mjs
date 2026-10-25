@@ -126,6 +126,7 @@ export const FIXTURES = {
   },
   "task-window": {
     prefix: "/__task-window-review",
+    query: { view: "tasks" },
     shell: ({ locale, theme }) =>
       `<html data-theme="${theme}"><head>`
       + `<script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});localStorage.setItem("vua-theme", ${JSON.stringify(theme)});</script></head>`
@@ -225,7 +226,7 @@ export const VIEWS = [
   { id: "import-dialog", fixture: "import-dialog", area: "import-dialog", steps: ["await window.importDialog.run()", "window.__setImportOpen(true)"], settleMs: 600 },
   { id: "resource-monitor", fixture: "resource-monitor", area: "resource-monitor",
     steps: ["await window.resourceMonitorSmoke.base()", "document.querySelector('[data-nav-id=\"system-resources\"]').click()"], settleMs: 600 },
-  { id: "task-window", fixture: "task-window", area: "task-window" },
+  { id: "task-window", fixture: "task-window", area: "task-window", steps: ["await window.taskWindowReview.run()"] },
   { id: "ai-preparation", fixture: "ai-preparation", area: "ai-preparation", steps: ["await window.agentUiReview.previewPreparation()"] },
 ];
 

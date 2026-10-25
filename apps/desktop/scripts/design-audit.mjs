@@ -170,11 +170,11 @@ async function main() {
   let recentConsoleErrors = [];
   function ensureWindow() {
     if (!window || window.isDestroyed()) {
-      // Hidden (not offscreen) like the smoke harnesses: some dialog focus
-      // assertions and captures behave closer to the real shell this way.
+      // Offscreen rendering keeps the compositor advancing on Windows while
+      // this audit window stays hidden, including scripted dialog exits.
       window = new BrowserWindow({
         show: false, width: 1280, height: 860,
-        webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false },
+        webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, offscreen: true },
       });
       window.webContents.on("console-message", event => {
         if (event.level === "error") {
@@ -201,7 +201,11 @@ async function main() {
       return `${origin}/__factory?${feedback}r=${loadCounter}#${view.id}`;
     }
     // Fixtures read their state from the shell itself; the hash is for humans.
-    return `${origin}${FIXTURES[view.fixture].prefix}?r=${loadCounter}`;
+    const fixture = FIXTURES[view.fixture];
+    const url = new URL(fixture.prefix, origin);
+    for (const [name, value] of Object.entries(fixture.query ?? {})) url.searchParams.set(name, value);
+    url.searchParams.set("r", String(loadCounter));
+    return url.href;
   };
 
   function pollReady(fixture, win) {
@@ -263,6 +267,7 @@ async function main() {
         }).catch(() => {});
       }
       if (!(await pollReady(fixture, win))) throw new Error(`fixture readiness timeout (${fixture.readyGlobal ?? "no signal"})`);
+      await win.webContents.executeJavaScript("document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))", true);
       await runSteps(win, view);
       if (fixture.settleFor) await sleep(fixture.settleFor(view.id));
       else await settle(win, view.settleMs ?? 400);

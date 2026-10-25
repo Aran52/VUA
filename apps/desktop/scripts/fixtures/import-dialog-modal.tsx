@@ -208,7 +208,12 @@ const dialogOpen = () => document.querySelector('[role="dialog"]') !== null;
 async function waitForClosed() {
   const deadline = performance.now() + 2000;
   while (dialogOpen()) {
-    if (performance.now() > deadline) throw new Error("The import dialog did not finish closing.");
+    if (performance.now() > deadline) throw new Error(`The import dialog did not finish closing: ${JSON.stringify({
+      checks: results.slice(-3), closeCount,
+      focus: document.activeElement?.outerHTML.slice(0, 400),
+      dialogs: [...document.querySelectorAll('[role="dialog"]')].map(node => ({ class: node.className, closing: node.parentElement?.dataset.closing })),
+      animations: document.getAnimations().map(animation => ({ state: animation.playState, time: animation.currentTime, timing: animation.effect?.getComputedTiming() })),
+    })}`);
     await wait();
   }
 }

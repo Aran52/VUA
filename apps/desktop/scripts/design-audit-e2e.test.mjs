@@ -272,6 +272,22 @@ test("e2e page CSS parses with the static block parser", () => {
   });
 });
 
+test("hidden compositor advances scripted exits across repeated opens", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
+  const completed = await win.webContents.executeJavaScript(`(async () => {
+    for (let index = 0; index < 2; index += 1) {
+      const panel = document.createElement('div');
+      panel.textContent = 'closing dialog';
+      document.body.append(panel);
+      const exit = panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' });
+      await Promise.race([exit.finished, new Promise((_, reject) => setTimeout(() => reject(new Error('hidden exit stopped advancing')), 2000))]);
+      panel.remove();
+    }
+    return true;
+  })()`, true);
+  assert.equal(completed, true);
+});
+
 async function main() {
   try {
     await app.whenReady();
@@ -282,7 +298,7 @@ async function main() {
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const win = new BrowserWindow({
       show: false, width: 800, height: 600,
-      webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false },
+      webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, offscreen: true },
     });
     await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
     let failed = 0;

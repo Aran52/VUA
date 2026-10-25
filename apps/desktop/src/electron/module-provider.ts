@@ -52,6 +52,8 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   #changing = false;
   #unhealthy = false;
   #mutations = 0;
+  #dataTrial = false;
+  #dataTrialInvalid = false;
   #revision = 0;
   #moduleRevision = 0;
   #snapshotKey = "";
@@ -76,13 +78,20 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   moduleSnapshot(): AmfModuleSnapshotV01 {
     const state = this.#amf?.status().state;
     return { schemaVersion: "0.1", moduleId: "amf", installed: this.#enabled,
-      state: !this.#enabled ? "absent" : this.#unhealthy ? "failed" : state === "ready" ? "ready" : state === "starting" ? "starting" : state === "stopping" ? "stopping" : "failed" };
+      state: !this.#enabled ? "absent" : this.#unhealthy ? "failed" : this.#dataTrial ? "starting" : state === "ready" ? "ready" : state === "starting" ? "starting" : state === "stopping" ? "stopping" : "failed" };
   }
 
-  amfReady(): boolean { return this.#enabled && !this.#changing && !this.#unhealthy && this.#amf?.status().acceptingCalls === true; }
+  setDataTrial(pending: boolean): void {
+    if (pending === this.#dataTrial) return;
+    this.#dataTrial = pending; this.#lastModuleKey = ""; this.#publishModule();
+  }
+  refuseDataTrial(): void { this.#dataTrialInvalid = true; this.#unhealthy = true; this.setDataTrial(true); }
+  get dataTrialPending(): boolean { return this.#dataTrial; }
+  amfHealthReady(): boolean { return this.#enabled && !this.#unhealthy && this.#amf?.status().state === "ready"; }
+  amfReady(): boolean { return this.#enabled && !this.#changing && !this.#dataTrial && !this.#unhealthy && this.#amf?.status().acceptingCalls === true; }
   /** Transient replacement never changes the saved enabled choice or stops the host. */
   async replaceAmf(transaction: AmfReplacement): Promise<"updated" | "busy" | "failed"> {
-    if (this.#changing || this.#mutations || this.#shutdown.length || this.options.shellBusy?.()
+    if (this.#changing || this.#dataTrial || this.#mutations || this.#shutdown.length || this.options.shellBusy?.()
         || this.#amf?.status().state === "starting" || this.#amf?.status().state === "stopping") return "busy";
     this.#changing = true;
     let activated = false;
@@ -123,7 +132,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
   /** Update activation is a user-requested restart. Never force a live task. */
   async prepareForUpdate(): Promise<boolean> {
-    if (this.#changing || this.#mutations > 0 || this.#shutdown.length > 0 || this.options.shellBusy?.()) return false;
+    if (this.#changing || this.#dataTrial || this.#mutations > 0 || this.#shutdown.length > 0 || this.options.shellBusy?.()) return false;
     this.#changing = true;
     try {
       const tasks = await this.#aggregate(this.#query("task.list"));
@@ -139,7 +148,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
 
   async setAmfEnabled(enabled: boolean): Promise<AmfModuleChangeResultV01> {
     const result = (outcome: AmfModuleChangeResultV01["outcome"]): AmfModuleChangeResultV01 => ({ outcome, snapshot: this.moduleSnapshot() });
-    if (this.#changing || this.#amf?.status().state === "starting" || this.#shutdown.length > 0) return result("busy");
+    if (this.#changing || this.#dataTrial || this.#amf?.status().state === "starting" || this.#shutdown.length > 0) return result("busy");
     if (enabled && this.amfReady()) return result("updated");
     if (!enabled && !this.#enabled) return result("updated");
     this.#changing = true;
@@ -173,6 +182,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
   }
 
   async #startAmf(): Promise<void> {
+    if (this.#dataTrialInvalid) return;
     const previous = this.#amf;
     this.#detachAmf();
     // A failed start can leave its process exiting while it still holds module data.
@@ -241,7 +251,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
    * project (a Recipe save fingerprints it), so it waits up to two minutes. */
   async #optionalInvoke(request: ApplicationRequestV01, timeoutMs = 3_000): Promise<ApplicationResponseV01 | undefined> {
     const amf = this.#amf;
-    if (!this.#enabled || amf?.status().state !== "ready") return undefined;
+    if (!this.#enabled || this.#dataTrial || this.#unhealthy || amf?.status().state !== "ready") return undefined;
     let timeout: NodeJS.Timeout | undefined;
     try {
       return await Promise.race([amf.invoke(request), new Promise<undefined>(resolve => { timeout = setTimeout(() => resolve(undefined), timeoutMs); })]);

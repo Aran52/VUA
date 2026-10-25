@@ -30,7 +30,8 @@ if (component === "amf") {
   const nativeIdentity = JSON.parse(execFileSync(path.join(payload, "provider/vua-amf-provider.exe"), ["--component-identity"], { encoding: "utf8", windowsHide: true, env: componentProbeEnvironment() }));
   if (uiIdentity.schemaVersion !== "0.1" || nativeIdentity.schemaVersion !== "0.1" || uiIdentity.component !== "amf" || nativeIdentity.component !== "amf"
       || uiIdentity.version !== amf.version || nativeIdentity.version !== amf.version || uiIdentity.build !== build || nativeIdentity.build !== build
-      || uiIdentity.bdlWrite !== amf.bdlWrite || nativeIdentity.bdlWrite !== amf.bdlWrite || uiIdentity.hotReloadAbi !== "amf-hot/0.1") throw Error("AMF UI/provider source or data identity differs from this assembly");
+      || uiIdentity.bdlWrite !== amf.bdlWrite || nativeIdentity.bdlWrite !== amf.bdlWrite || uiIdentity.hotReloadAbi !== "amf-hot/0.1"
+      || uiIdentity.dataRecoveryAbi !== "amf-data/0.1" || nativeIdentity.dataRecoveryAbi !== "amf-data/0.1") throw Error("AMF UI/provider source or data identity differs from this assembly");
 } else {
   copy(path.join(desktop, "dist/packaged-electron"), "dist/electron");
   copy(path.join(desktop, "dist/components/host-renderer"), "dist/renderer");

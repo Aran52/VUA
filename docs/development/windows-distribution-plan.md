@@ -284,8 +284,16 @@ controls, with synthetic code/ports. The separate real-artifact native test uses
 built AMF UI/provider artifacts under an installation lock. This is not a live host update.
 [AMF UI runtime v0.1](../protocols/amf-ui-runtime-v0.1.md) owns the lifecycle rules.
 
-Module-owned backup/restore and migration trials remain a required U5 follow-up; writer changes
-currently fail closed before activation. U6's real signed remote publication, host restart,
+U5 data protection adds AMF-owned SQLite snapshots, native manifest/profile/receipt binding,
+offline migration and a startup fence until provider/UI health commits. Five backup checks cover
+WAL, corrupted inventory/payload, absent databases, committed snapshots and a real 0.10-to-0.11
+SQL migration/restore. The focused desktop suite now has 45 passing checks; the module isolation
+check uses both real providers. Writer-changing updates require a capable root, host and AMF;
+older combinations require the installer. The separate native artifact trial verifies migration,
+pre-health restore and refusal to erase post-health work. Those controlled runs use synthetic
+inventories/data and do not claim a live host process update.
+
+U6's real signed remote publication, host restart,
 process-preserving AMF update, failure recovery, transition installer, clean Windows and human
 review remain open. No production channel or release has been published. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot

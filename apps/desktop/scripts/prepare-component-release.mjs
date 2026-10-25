@@ -162,7 +162,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const native = JSON.parse(execFileSync(provider, ["--component-identity"], { encoding: "utf8", windowsHide: true, env: componentProbeEnvironment() }));
     const ui = JSON.parse(fs.readFileSync(path.join(path.resolve(componentRoot), "ui/component.json")));
     if (native.schemaVersion !== "0.1" || ui.schemaVersion !== "0.1" || native.component !== "amf" || ui.component !== "amf" || native.version !== version || ui.version !== version
-        || native.build !== receipt.build || ui.build !== receipt.build || native.bdlWrite !== amf.bdlWrite || ui.bdlWrite !== amf.bdlWrite || ui.hotReloadAbi !== "amf-hot/0.1") throw Error("AMF UI/provider source or data identity differs from its receipt");
+        || native.build !== receipt.build || ui.build !== receipt.build || native.bdlWrite !== amf.bdlWrite || ui.bdlWrite !== amf.bdlWrite || ui.hotReloadAbi !== "amf-hot/0.1"
+        || native.dataRecoveryAbi !== "amf-data/0.1" || ui.dataRecoveryAbi !== "amf-data/0.1") throw Error("AMF UI/provider source or data identity differs from its receipt");
   }
   if (component === "host" && original.runtime.version !== pkg.devDependencies.electron) throw Error("Provide a signed baseline with the exact configured Electron runtime");
   const previousPath = process.argv.find(value => value.startsWith("--previous="))?.slice(11);

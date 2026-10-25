@@ -2,6 +2,7 @@ pub mod commands;
 pub mod component_feed;
 pub mod component_stage;
 pub mod component_update;
+pub mod data_recovery;
 pub mod feed;
 pub mod layout;
 pub mod manifest;

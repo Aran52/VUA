@@ -102,8 +102,10 @@ links and idempotent retries. These tests publish only into isolated temporary r
 The new official routes and channel contents are not declared deployed by the tooling tests.
 The [AMF runtime handshake](../protocols/amf-ui-runtime-v0.1.md) implements generation-bound
 provider/UI replacement and safe refusal for busy or older modules. It does not pass a delivery
-gate by itself. Writer-changing updates currently require data protection and fail closed before
-activation; backup/migration recovery is a required follow-up.
+gate by itself. [AMF data recovery](../protocols/amf-data-recovery-v0.1.md) snapshots only the
+module's databases, migrates offline and fences user work until exact provider/UI health commits.
+Writer-changing updates require compatible root, host and module recovery capabilities; older
+combinations fail closed before activation and require the transition installer.
 
 Actual signed test publication, blocked-GitHub transfer, process-preserving AMF activation,
 host restart/recovery, transition installation and clean-Windows/human acceptance remain the

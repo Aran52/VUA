@@ -5,6 +5,8 @@ use std::{
     io::Write,
     sync::{atomic::AtomicBool, Arc},
 };
+#[path = "data_recovery_tests.rs"]
+mod actual_data;
 fn pack(files: &[(&str, &[u8])]) -> (Vec<FileObject>, Vec<u8>, Pack) {
     let mut data = Vec::new();
     let mut inventory = Vec::new();

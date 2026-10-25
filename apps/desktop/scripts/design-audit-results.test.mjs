@@ -104,3 +104,16 @@ test("the baseline retains the worst locale and rejects count or severity regres
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("filtered reports describe only their selected locale and theme passes", () => {
+  const summary = buildSummary({
+    meta: { date: "2026-10-25", viewCount: 1, viewLocaleStates: 1, elementTotal: 100,
+      defaultLocale: "zh-CN", overflowLocales: ["en", "ja", "ko", "zh-TW"], filtered: true,
+      requestedScope: [{ locale: "en", themes: ["dark"], rules: "overflow", states: 1 }] },
+    viewResults: [], groups: [], rootCauses: [], staticScan: { css: [], tsx: [] },
+    cards: { cards: [] }, cardImports: [], uncovered: [], rulesMeta: {}, checkOutcome: { mode: "skip" }, limitations: [],
+  });
+  assert.match(summary, /filtered run; completion applies to the selected plan/);
+  assert.match(summary, /Requested pass: en x dark, overflow rule only; 1 planned states/);
+  assert.doesNotMatch(summary, /dark \+ light|every view x|ja, ko/);
+});

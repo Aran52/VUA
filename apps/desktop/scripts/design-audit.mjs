@@ -483,6 +483,12 @@ async function main() {
     themeInvariantRules: [...THEME_INVARIANT_RULES].sort().join(", "),
     perStateElementFloor: PER_STATE_ELEMENT_FLOOR,
     plannedStates: coverage.planned, usable,
+    filtered: PARTIAL_PLAN,
+    requestedScope: [...new Set(groups.map(group => group.locale))].map(locale => {
+      const selected = groups.filter(group => group.locale === locale);
+      return { locale, themes: [...new Set(selected.flatMap(group => group.states.map(state => state.theme)))],
+        rules: locale === DEFAULT_LOCALE ? "all" : "overflow", states: selected.reduce((sum, group) => sum + group.states.length, 0) };
+    }),
   };
 
   const overviewHtml = buildOverviewHtml({

@@ -61,6 +61,8 @@ navigation, annotation or capture failure fails the run even when other pages re
 duplicate or unplanned state records also fail. Failed states are listed separately from design
 findings; a successfully generated report does not make an incomplete collection successful.
 Per-state JSON contains that state's raw findings and grouped element details, never its run plan.
+Filtered reports list only the requested language/theme passes and label completion as applying
+to that selected plan. Their completion never authorizes a full gate-baseline update.
 
 ## View registry
 

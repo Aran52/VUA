@@ -99,7 +99,7 @@ export function buildSummary(data) {
   const push = (...xs) => lines.push(...xs);
 
   push(`# VUA design audit — ${meta.date}`, "");
-  push(`Tool: \`pnpm audit:design\` at commit \`${meta.commit ?? "(local)"}\`. Full machine output lives in the run directory (screenshots, annotated screenshots, per-view JSON, \`baseline.json\`); this file is the human report and is committed under \`docs/research/\`.`, "");
+  push(`Tool: \`pnpm audit:design\` at commit \`${meta.commit ?? "(local)"}\`. Machine output stays in the ignored run directory (screenshots, annotated screenshots, snapshots, per-view JSON, \`baseline.json\`). A reviewed, sanitized comparison may be committed under \`docs/research/\`.`, "");
   push(`## Scope`, "");
   push(`- Views: ${meta.viewCount} (${meta.viewLocaleStates} view/locale/theme states; ${meta.elementTotal.toLocaleString("en-US")} elements inspected).`);
   if (coverage) {
@@ -108,8 +108,13 @@ export function buildSummary(data) {
       push(`- Accounting errors: ${coverage.missing.length} missing, ${coverage.duplicates.length} duplicate, ${coverage.unexpected.length} unexpected states.`);
     }
   }
-  push(`- Default pass: every view x ${meta.defaultLocale} x dark + light, all rules.`);
-  push(`- Overflow pass: every view x ${meta.overflowLocales.join(", ")} x dark, overflow rule only.`);
+  if (meta.requestedScope) {
+    push(`- Scope: ${meta.filtered ? "filtered run; completion applies to the selected plan" : "full registered plan"}.`);
+    for (const pass of meta.requestedScope) push(`- Requested pass: ${pass.locale} x ${pass.themes.join(" + ")}, ${pass.rules === "all" ? "all rules" : "overflow rule only"}; ${pass.states} planned states.`);
+  } else {
+    push(`- Default pass: every view x ${meta.defaultLocale} x dark + light, all rules.`);
+    push(`- Overflow pass: every view x ${meta.overflowLocales.join(", ")} x dark, overflow rule only.`);
+  }
   push(`- Theme-invariant rules (${meta.themeInvariantRules}) are counted once per view (dark state); color rules are counted per theme.`);
   push(`- Uncovered pages and reasons:`);
   if (uncovered.length) {

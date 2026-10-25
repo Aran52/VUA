@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod component_feed;
 pub mod feed;
 pub mod layout;
 pub mod manifest;

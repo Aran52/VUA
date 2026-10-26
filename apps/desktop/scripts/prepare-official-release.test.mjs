@@ -73,4 +73,9 @@ test("future signed packs include official and GitHub sources with fixed immutab
   ]);
   assert.throws(() => componentSources("0.6.8", "../private.bin"));
   assert.throws(() => officialReleaseUrl("0.6.8/../../"));
+  assert.equal(canonicalReleaseUrl("0.8.0-qa.1"), "https://github.com/VUA-Project/VUA/releases/tag/v0.8.0-qa.1");
+  assert.equal(componentSources("0.8.0-qa.1", "vua-amf-0.2.1-qa.2.bin")[0], "https://ph-r.com/vua/releases/v0.8.0-qa.1/vua-amf-0.2.1-qa.2.bin");
+  assert.equal(officialReleaseUrl("0.8.0-qa.1+test"), "https://ph-r.com/vua/releases/v0.8.0-qa.1%2Btest/");
+  assert.throws(() => componentSources("0.8.0-qa.1", "vua-amf-0.2.1-qa/../../private.bin"));
+  assert.throws(() => officialReleaseUrl("00.8.0"));
 });

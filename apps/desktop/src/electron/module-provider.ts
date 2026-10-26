@@ -216,7 +216,9 @@ export class ModuleProvider implements OrchestratorProviderV01 {
 
   #publishModule(): void {
     const snapshot = this.moduleSnapshot();
-    const key = JSON.stringify(snapshot);
+    // Process readiness can arrive while replacement still fences calls. Main
+    // must get another fact when that gate opens to reactivate module services.
+    const key = JSON.stringify([snapshot, this.amfReady()]);
     if (key === this.#lastModuleKey) return;
     this.#lastModuleKey = key;
     this.#moduleRevision += 1;

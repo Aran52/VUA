@@ -6,13 +6,24 @@ import os from "node:os";
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { digest, sealEnvelope, verifyIndex, verifyInventory } from "../distribution/component-index.mjs";
-import { prepareComponentRelease, verifyBuildReceipt, fileDigest } from "./prepare-component-release.mjs";
+import { prepareComponentRelease, verifyBuildReceipt, fileDigest, verifyAmfIdentity, verifyHostRuntimeIdentity } from "./prepare-component-release.mjs";
 import { publishComponentRelease } from "./publish-component-release.mjs";
 import { exportComponentPublisher } from "./export-component-publisher.mjs";
 
 const privateKey = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.alloc(32, 7)]), format: "der", type: "pkcs8" });
 const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).subarray(-32).toString("hex");
 const vectors = JSON.parse(fs.readFileSync(new URL("../../../schemas/windows-distribution/v0.1/vectors/cases.json", import.meta.url)));
+test("Full installers and component exports reject different UI/provider/runtime identities", () => {
+  const expected = { version: "0.2.1-qa.1", build: "a".repeat(40), bdlWrite: "0.11", uiAbi: "amf-ui/0.1" };
+  const native = { schemaVersion: "0.1", component: "amf", ...expected, serviceBuildId: `amf/${expected.version}@${expected.build}`, dataRecoveryAbi: "amf-data/0.1" };
+  const ui = { schemaVersion: "0.1", component: "amf", ...expected, hotReloadAbi: "amf-hot/0.1", dataRecoveryAbi: "amf-data/0.1" };
+  verifyAmfIdentity(native, ui, expected);
+  for (const field of ["version", "build", "bdlWrite", "uiAbi", "hotReloadAbi", "dataRecoveryAbi"]) assert.throws(() => verifyAmfIdentity(native, { ...ui, [field]: "mismatch" }, expected));
+  for (const field of ["version", "build", "bdlWrite", "serviceBuildId", "dataRecoveryAbi"]) assert.throws(() => verifyAmfIdentity({ ...native, [field]: "mismatch" }, ui, expected));
+  verifyHostRuntimeIdentity({ schemaVersion: "0.1", build: expected.build, dataTrialAbi: "amf-data/0.1" }, expected);
+  assert.throws(() => verifyHostRuntimeIdentity({ schemaVersion: "0.1", build: "b".repeat(40), dataTrialAbi: "amf-data/0.1" }, expected));
+  assert.throws(() => verifyHostRuntimeIdentity({ schemaVersion: "0.1", build: expected.build }, expected));
+});
 function baseline() { return structuredClone(vectors.find(v => v.schema === "manifest" && v.valid).value); }
 function fixture(component = "amf") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vua-component-publication-"));

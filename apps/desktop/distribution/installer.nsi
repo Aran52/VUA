@@ -15,7 +15,10 @@ RequestExecutionLevel user
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 BrandingText "VUA · Ibis Beta"
-VIProductVersion "${VERSION}.0"
+!ifndef VERSION_NUMBER
+  !define VERSION_NUMBER "${VERSION}.0"
+!endif
+VIProductVersion "${VERSION_NUMBER}"
 VIAddVersionKey /LANG=1033 "ProductName" "VUA"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"

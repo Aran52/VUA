@@ -1,7 +1,7 @@
 # Versioning policy
 
 > Scope: VUA product releases, tags, packages, and public contracts
-> Updated: 2026-10-22
+> Updated: 2026-10-26
 
 ## Product version
 
@@ -82,6 +82,11 @@ Protocol, schema, persistence and document versions remain independent; product 
 not authorize editing a frozen format in place.
 
 ## What is independently versioned
+
+Windows installer resources use the numeric `major.minor.patch.revision` file version required
+by Windows. The final numeric prerelease identifier supplies `revision` when present, otherwise
+it is zero. The installer name, displayed version and signed inventory retain the complete
+SemVer, including a QA suffix; this conversion does not create a separate product version.
 
 Product SemVer does not replace protocol or storage versions:
 

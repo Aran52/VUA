@@ -1,6 +1,6 @@
 {
   "name": "@vua/desktop",
-  "version": "0.7.0",
+  "version": "0.8.0-qa.1",
   "private": true,
   "description": "A local-first desktop assistant for VRChat play and avatar workflows.",
   "author": "VUA Project contributors",

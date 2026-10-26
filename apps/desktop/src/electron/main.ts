@@ -575,7 +575,7 @@ function registerIpc(provider: ModuleProvider): void {
     const context = installedContext();
     // A successful Gateway round trip from the mounted main renderer plus the
     // real host handshake acknowledges this exact installed pair, never a URL.
-    if (!launchAcknowledged && context && response.ok && provider.status().state === "ready"
+    if (!launchAcknowledged && context && response.ok && provider.status().state === "ready" && packagedSmoke?.allowsLaunchHealth() !== false
         && context.host.host.files.some(file => file.path === "launcher/VUA.exe")
         && (!provider.moduleSnapshot().installed || provider.amfHealthReady())
         && event.sender === mainWindow?.webContents && event.senderFrame === event.sender.mainFrame) {
@@ -1911,7 +1911,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  installAmfUiProtocol(amfGenerations);
+  installAmfUiProtocol(amfGenerations, packagedSmoke ? url => packagedSmoke.blocksAmfUi(url) : undefined);
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {

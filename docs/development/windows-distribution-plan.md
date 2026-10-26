@@ -299,6 +299,9 @@ review remain open. No production channel or release has been published. Use seq
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
 
+The [installed update acceptance procedure](windows-update-acceptance.md) records U6's exact
+matrix and isolated operator/diagnostic controls. Its presence does not pass the matrix.
+
 ## Technical references
 
 - [Electron binary mirrors and caches](https://www.electronjs.org/docs/latest/tutorial/installation#custom-mirrors-and-caches)

@@ -3292,6 +3292,7 @@ dependencies = [
 name = "vua-amf-provider"
 version = "0.2.0"
 dependencies = [
+ "serde_json",
  "vua-bdl-store",
  "vua-orchestrator",
  "vua-project-manager",
@@ -3307,6 +3308,8 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
 ]
 
 [[package]]
@@ -3316,6 +3319,7 @@ dependencies = [
  "ed25519-dalek",
  "jsonschema",
  "reqwest",
+ "rusqlite",
  "semver",
  "serde",
  "serde_json",

@@ -1,5 +1,5 @@
 import { formatDateTime } from "./i18n/index.ts";
-import { lazy, Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DesktopShellCommandV1, GuideTargetV1 } from "@vua/contracts";
 import { saveDebugMode, useDebugMode } from "./app/debug-mode.ts";
 import {
@@ -86,6 +86,7 @@ import {
   useUpdateCheckEnabled,
 } from "./app/update-check-store.ts";
 import { appMeta } from "./app/app-meta.ts";
+import { checkComponents, useComponentUpdate } from "./app/component-update-store.ts";
 
 import { openExternalUrl } from "./app/open-external.ts";
 import { isPaletteToggle } from "./app/shortcuts.ts";
@@ -105,11 +106,11 @@ import {
   type VuaGateway,
 } from "./gateway/index.ts";
 import { ModulesPage } from "./features/modules/ModulesPage.tsx";
-import { DistributionPanel } from "./features/modules/DistributionPanel.tsx";
+import { ComponentUpdatePanel } from "./features/modules/ComponentUpdatePanel.tsx";
+import { UpdatePlanPanel } from "./features/modules/UpdatePlanPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
-import { loadAmfPages } from "./features/modules/amf-ui-loader.ts";
-const AmfPages = lazy(loadAmfPages);
+import { AmfSurface as AmfPages, AmfUiRuntimeBridge } from "./features/modules/AmfSurface.tsx";
 import { HomePage, directory } from "./features/home/HomePage.tsx";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
 import "./app-shell.css";
@@ -387,8 +388,9 @@ function VersionDetails() {
   const settings = useSettingsView();
   const dataSource = useDataSource();
   const [exportFailed, setExportFailed] = useState(false);
-  // 版本检测(2026-09-19 裁决:默认开启、设置可关;只读探测,Phase C
-  // 下载/应用更新独立提案):开关与缓存经 update-check-store,三态如实呈现
+  const { view: hostUpdate } = useComponentUpdate("host");
+  // Legacy ZIP/installer transition keeps the old read-only release check.
+  // Verified component installations use the independent panel above.
   const updateEnabled = useUpdateCheckEnabled();
   const updateCache = useUpdateCheckCache();
   const [updateChecking, setUpdateChecking] = useState(false);
@@ -415,7 +417,7 @@ function VersionDetails() {
           <p className="vua-page__version">{format(copy.versionLine, { version: __VUA_BUILD_INFO__.version })}</p>
         </div>
       </Card>
-      <Card>
+      {!hostUpdate.available ? <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.updateHeading}</h2>
           <label className="vua-settings-toggle">
@@ -453,7 +455,7 @@ function VersionDetails() {
             ) : null}
           </div>
         </div>
-      </Card>
+      </Card> : null}
       <Card>
         <div className="vua-page__stack">
           <h2 className="vua-title">{copy.debugHeading}</h2>
@@ -492,7 +494,8 @@ function AboutPage() {
       <section className="vua-page__hero">
         <h1 className="vua-title">{strings.nav.pages.settingsAbout}</h1>
       </section>
-      <DistributionPanel host />
+      <ComponentUpdatePanel component="host" />
+      <UpdatePlanPanel />
       <VersionDetails />
       <Card>
         <div className="vua-page__stack">
@@ -626,7 +629,8 @@ function AppShell({
   const guideRequestNonce = useRef(0);
   const acknowledgeGuide = (nonce: number) => setGuideRequest(current => shouldClearGuideRequest(current, nonce) ? null : current);
   useAutoDeleteOriginals();
-  const aiPort = useGateway().aiTools;
+  const gateway = useGateway();
+  const aiPort = gateway.aiTools;
   // 启动里程碑 paint:AppShell 首帧提交(Phase A 开屏牵线)
   useEffect(() => {
     bootProgress.report("paint");
@@ -710,7 +714,10 @@ function AppShell({
   const onShellCommand = useEffectEvent((command: DesktopShellCommandV1) => {
     if (command === "check-updates") {
       navigate("settings-about");
-      void runUpdateCheck({ manual: true });
+      void (async () => {
+        if ((await gateway.componentUpdates?.snapshot("host"))?.available) await checkComponents(gateway.componentUpdates, true);
+        else await runUpdateCheck({ manual: true });
+      })();
     }
   });
   useEffect(() => window.vua?.window.shellCommandEvents?.subscribe(onShellCommand), []);
@@ -1068,6 +1075,7 @@ function AppShell({
         </main>
       </div>
       <NavigationConfirmOverlay />
+      <AmfUiRuntimeBridge />
       <FileDropImporter onOpenLibrary={() => navigate("warehouse")} />
       <ContextGuidance page={page} startTour={startTour} replayToken={contextGuideReplay} suppressed={!startupComplete || showOnboarding || settingsOpen || tourActive} />
       {!showOnboarding && startupComplete ? <AppTour page={page} navigate={navigate} startRequest={tourStartRequest} onActiveChange={setTourActive} /> : null}
@@ -1119,9 +1127,14 @@ export function App() {
   // 结果落缓存供设置页呈现;延迟 2.5s 让启动链路先行,失败
   // 恒落 check-failed 缓存(不弹打扰、不猜态)
   useEffect(() => {
-    const timer = window.setTimeout(() => void runUpdateCheck(), 2500);
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        if ((await gateway.componentUpdates?.snapshot("host"))?.available) await checkComponents(gateway.componentUpdates);
+        else await runUpdateCheck();
+      })();
+    }, 2500);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [gateway.componentUpdates]);
   // 深链接(C-EFFICIENCY):#<pageId> 优先于 ?page= 与历史落点
   const [page, setPage] = useState<PageId>(() => {
     const hashPage = readHashPage();

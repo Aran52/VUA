@@ -41,6 +41,7 @@ import {
 import { format, strings, termLabel } from "../../i18n/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { MaterialsStartDialog } from "../amf/MaterialsStartDialog.tsx";
+import type { MaterialsStartAvatar } from "../amf/materials-start-model.ts";
 import { useAmfModule } from "../../gateway/index.ts";
 import { useDebugMode } from "../../app/debug-mode.ts";
 import { useCardSpotlight } from "./use-card-spotlight.ts";
@@ -825,11 +826,11 @@ export function WarehousePage({
   // ——终态任务按通知中心纪律默认不再显示,完成反馈必须发生在用户正看
   // 着的地方(按钮旁),页面同时刷新让卡片立即可见
   const gateway = useGateway();
-  // 从素材间开始制作(计划 20):AMF 模块就绪且详情认定是 Avatar 商品时,侧栏
-  // 给出「开始制作」;未就绪整段不出现(沿用发起位诚实隐藏纪律,不占视觉位)
+  // The player chooses a material's Avatar role; missing catalog classification
+  // is not a capability gate. Preparation still checks actual admitted sources.
   const amfModule = useAmfModule();
   const amfStartReady = amfModule.state === "ready" && gateway.amfProduction !== undefined;
-  const [startAvatar, setStartAvatar] = useState<{ productId: string; title: string | null; imageUrl: string | null } | null>(null);
+  const [startAvatar, setStartAvatar] = useState<MaterialsStartAvatar | null>(null);
   // 统一卡片墙数据源:本地条目(经 acquire 快照,与云端卡同一墙渲染)
   const acquireView = useAcquireView();
   const localEntries = dataSource === "fixture"
@@ -1568,7 +1569,7 @@ export function WarehousePage({
           }
         /></>
       ) : (
-        <div className="vua-warehouse__content" data-drawer-open={selectedId !== null || undefined}>
+        <div className="vua-warehouse__content" data-drawer-open={selectedId !== null || selectedLocalEntry !== null || undefined}>
           <div className="vua-warehouse__main">
             <div className="vua-warehouse__toolbar">
               {resultsView !== null ? (
@@ -1832,8 +1833,8 @@ export function WarehousePage({
               ) : detailState.view.kind === "detail" ? (
                 /* key=productId:切换商品时重置组件内状态(如来源跳转失败标记) */
                 <><div className="vua-warehouse-detail__content">
-                  {/* Avatar 商品的醒目发起位(计划 20):打开「开始制作」确认面板 */}
-                  {amfStartReady && detailState.view.product.entities.some((entity) => entity.entityType === "avatar") ? (
+                  {/* The player assigns the Avatar role before choosing usable materials. */}
+                  {amfStartReady ? (
                     <Button
                       variant="primary"
                       className="vua-warehouse-detail__start"
@@ -1875,9 +1876,6 @@ export function WarehousePage({
               )}
             </aside>
           ) : null}
-        </div>
-        )}
-
         {selectedLocalEntry !== null ? (
           <aside
             className="vua-warehouse__drawer"
@@ -1898,22 +1896,29 @@ export function WarehousePage({
                 {copy.detail.close}
               </Button>
             </div>
+            <div className="vua-warehouse-detail__content">
+              {amfStartReady ? <Button variant="primary" className="vua-warehouse-detail__start" onClick={() => {
+                const facts = libraryPage?.facts.get(selectedLocalEntry.warehouseItemId);
+                setStartAvatar({ entryId: selectedLocalEntry.warehouseItemId, title: facts?.metadata?.displayName ?? selectedLocalEntry.displayName,
+                  imageUrl: facts?.metadata?.thumbnailRef ?? facts?.sourceMatch?.product.imageUrl ?? null });
+              }}>{strings.factory.materialsStart.startCta}</Button> : null}
+              <LibraryBadges facts={libraryPage?.facts.get(selectedLocalEntry.warehouseItemId)} />
+              <Button disabled={knownLocalProduct(selectedLocalEntry.warehouseItemId) == null} onClick={() => { const id = knownLocalProduct(selectedLocalEntry.warehouseItemId); if (id) void openBooth(id); }}>{copy.sourceSearch.openBooth}</Button>
+              <Button disabled={cornerBusy.has(selectedLocalEntry.warehouseItemId)} onClick={() => void searchBoothSource(selectedLocalEntry.warehouseItemId, selectedLocalEntry.displayName)}>{copy.sourceSearch.title}</Button>
+            </div>
             <EntryDetail
               key={selectedLocalEntry.warehouseItemId}
               entryId={selectedLocalEntry.warehouseItemId}
               globalDefault={inferGlobalDefaultMode(localEntries)}
+              facts={libraryPage?.facts.get(selectedLocalEntry.warehouseItemId)}
             />
-            <div className="vua-warehouse-detail__content">
-              <Button disabled={knownLocalProduct(selectedLocalEntry.warehouseItemId) == null} onClick={() => { const id = knownLocalProduct(selectedLocalEntry.warehouseItemId); if (id) void openBooth(id); }}>{copy.sourceSearch.openBooth}</Button>
-              <Button disabled={cornerBusy.has(selectedLocalEntry.warehouseItemId)} onClick={() => void searchBoothSource(selectedLocalEntry.warehouseItemId, selectedLocalEntry.displayName)}>{copy.sourceSearch.title}</Button>
-            </div>
           </aside>
         ) : null}
+        </div>
+        )}
         </>
       ) : null}
-      {/* 素材直产链发起位(029 A6)已由「开始制作」确认面板接替(计划 20,单一
-          发起位):Avatar 商品详情出发,经同一条 amf.production.prepare 路径
-          在车间开工;旧 ProductionFlowSectionHost 不再挂载 */}
+      {/* Local entries and observed products share the same preparation confirmation. */}
       {startAvatar !== null ? (
         <MaterialsStartDialog
           avatar={startAvatar}

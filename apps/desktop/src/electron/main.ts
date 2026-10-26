@@ -115,6 +115,10 @@ import { createStartupWindow } from "./startup-window.js";
 import { registerAmfUiScheme, installAmfUiProtocol } from "./amf-ui-protocol.js";
 import { installedContext } from "./installed-context.js";
 import { DistributionUpdater } from "./distribution-updater.js";
+import { ComponentUpdater, componentHelper, isUpdateComponent, runComponentHelper, type ComponentRun } from "./component-updater.js";
+import { UpdatePlanUpdater } from "./update-plan-updater.js";
+import { AmfGenerations } from "./amf-generations.js";
+import { AmfHotUpdater } from "./amf-hot-updater.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -134,6 +138,7 @@ const desktopRuntime = resolveDesktopRuntime({
   env: process.env,
 });
 const rendererUrl = desktopRuntime.rendererUrl;
+const amfGenerations = new AmfGenerations(installedContext());
 // Resolve all persistence before app.ready/Session/Provider initialization. Resolve
 // symlinks in development so a second spelling of one checkout retains its identity.
 const desktopProfile = resolveDesktopProfile({
@@ -400,7 +405,7 @@ function resolveAmfEndpoint(): DesktopProviderEndpoint {
   const projectRoot = path.join(providerDataRoot, "production", "synthetic-avatar-project");
   for (const directory of [warehouseRoot, projectRoot]) fs.mkdirSync(directory, { recursive: true });
   loadMaterialSourcesFromDisk();
-  return { role: "amf", executablePath: desktopRuntime.amfExecutable, profileRoots: profileRoots(),
+  return { role: "amf", executablePath: amfGenerations.executable() ?? desktopRuntime.amfExecutable, profileRoots: profileRoots(),
     databasePath: path.join(app.getPath("userData"), "modules", "amf", "tasks.db"),
     legacyDatabasePath: path.join(app.getPath("userData"), "orchestrator", "provider.db"),
     providerDataRoot, warehouseRoot, projectRoot,
@@ -480,6 +485,67 @@ function registerIpc(provider: ModuleProvider): void {
   ipcMain.handle("vua:distribution:stage", (event, id: unknown) => {
     assertLocalSender(senderFrameUrl(event)); if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity"); return updates.stage(id);
   });
+  const updateContext = installedContext();
+  const updateLaunchArgs = () => app.commandLine.hasSwitch("vua-smoke-test")
+    ? [`--vua-smoke-test=${app.commandLine.getSwitchValue("vua-smoke-test")}`] : [];
+  const profiledUpdates = updateContext?.host.host.files.some(file => file.path === "launcher/VUA.exe")
+    ? { run: ((command, args, report, child) => runComponentHelper(updateContext, command,
+      [...args, "--profile", app.getPath("userData")], report, child)) as ComponentRun } : {};
+  const amfHot = new AmfHotUpdater({ context: updateContext, generations: amfGenerations, provider, ...profiledUpdates });
+  amfHot.subscribe(value => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:amf-ui-runtime:changed", value); });
+  ipcMain.handle("vua:amf-ui-runtime:snapshot", event => { assertAiSender(event); return amfHot.snapshot(); });
+  ipcMain.handle("vua:amf-ui-runtime:respond", (event, id: unknown, phase: unknown, accepted: unknown, reason: unknown) => {
+    assertAiSender(event);
+    if (typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id) || (phase !== "quiescing" && phase !== "loading") || typeof accepted !== "boolean"
+        || (reason !== undefined && reason !== "busy" && reason !== "restart_required" && reason !== "failed")) throw Error("invalid_amf_transition");
+    return amfHot.respond(id, phase, accepted, reason);
+  });
+  let updatePlans: UpdatePlanUpdater | undefined;
+  const componentUpdates = new ComponentUpdater({ context: installedContext(), ...profiledUpdates,
+    applyAmf: (restore, id) => amfHot.apply(restore, id),
+    externalBusy: () => updatePlans?.busy ?? false,
+    prepareRestart: () => provider.prepareForUpdate(),
+    restart: (component, restore) => {
+      const context = installedContext()!;
+      const executable = componentHelper(context);
+      app.relaunch({ execPath: executable, args: [restore ? "component-restore" : "component-apply", "--component", component, "--root", context.root, "--profile", app.getPath("userData"), ...updateLaunchArgs()] });
+      shutdownStarted = true; app.quit();
+    },
+  });
+  updatePlans = new UpdatePlanUpdater({ context: installedContext(), ...profiledUpdates, externalBusy: () => componentUpdates.busy,
+    prepareRestart: () => provider.prepareForUpdate(),
+    restart: (command, id) => {
+      const context = installedContext()!;
+      app.relaunch({ execPath: componentHelper(context), args: [command, "--root", context.root, "--profile", app.getPath("userData"), ...(id ? ["--plan", id] : []), ...updateLaunchArgs()] });
+      shutdownStarted = true; app.quit();
+    },
+  });
+  updatePlans.subscribe(value => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:update-plans:changed", value); });
+  for (const method of ["snapshot", "propose", "cancel", "restore"] as const) {
+    ipcMain.handle(`vua:update-plans:${method}`, event => { assertAiSender(event); return updatePlans![method](); });
+  }
+  for (const method of ["stage", "apply"] as const) {
+    ipcMain.handle(`vua:update-plans:${method}`, (event, id: unknown) => {
+      assertAiSender(event);
+      if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity");
+      return updatePlans![method](id);
+    });
+  }
+  componentUpdates.subscribe(value => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:component-updates:changed", value);
+  });
+  for (const method of ["snapshot", "check", "cancel", "apply", "restore"] as const) {
+    ipcMain.handle(`vua:component-updates:${method}`, (event, component: unknown) => {
+      assertAiSender(event);
+      if (!isUpdateComponent(component)) throw Error("invalid_update_component");
+      return componentUpdates[method](component);
+    });
+  }
+  ipcMain.handle("vua:component-updates:stage", (event, component: unknown, id: unknown) => {
+    assertAiSender(event);
+    if (!isUpdateComponent(component) || typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity");
+    return componentUpdates.stage(component, id);
+  });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));
     return provider.moduleSnapshot();
@@ -491,7 +557,9 @@ function registerIpc(provider: ModuleProvider): void {
     if (result.snapshot.state === "ready") await ensureAmfShell();
     return result;
   });
-  ipcMain.handle("vua:gateway:invoke", (event, request: unknown) => routeDesktopGatewayInvoke(
+  let launchAcknowledged = false;
+  ipcMain.handle("vua:gateway:invoke", async (event, request: unknown) => {
+    const response = await routeDesktopGatewayInvoke(
     {
       provider,
       productVersion: app.getVersion(),
@@ -503,7 +571,24 @@ function registerIpc(provider: ModuleProvider): void {
     },
     senderFrameUrl(event),
     request,
-  ));
+    );
+    const context = installedContext();
+    // A successful Gateway round trip from the mounted main renderer plus the
+    // real host handshake acknowledges this exact installed pair, never a URL.
+    if (!launchAcknowledged && context && response.ok && provider.status().state === "ready" && packagedSmoke?.allowsLaunchHealth() !== false
+        && context.host.host.files.some(file => file.path === "launcher/VUA.exe")
+        && (!provider.moduleSnapshot().installed || provider.amfHealthReady())
+        && event.sender === mainWindow?.webContents && event.senderFrame === event.sender.mainFrame) {
+      launchAcknowledged = true;
+      void (async () => {
+        if (provider.dataTrialPending && !(await amfHot.verifyInitialUi())) throw Error("amf_ui_health_failed");
+        await runComponentHelper(context, "acknowledge-launch", ["--host-build", context.host.host.build, "--amf-build", context.amf.amf.build,
+          "--profile", app.getPath("userData")], () => {}, () => {});
+        provider.setDataTrial(false);
+      })().catch(() => { launchAcknowledged = false; });
+    }
+    return response;
+  });
 
   // 素材来源对话框(生产用例契约草案"双素材入口"):两个 intake 均为文件夹选择器
   // (W25 真机第四批:provider 端 inspect_folder 对 sourceFolder 做
@@ -1826,7 +1911,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  installAmfUiProtocol();
+  installAmfUiProtocol(amfGenerations, packagedSmoke ? url => packagedSmoke.blocksAmfUi(url) : undefined);
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);
   if (!packagedSmoke) {
@@ -1837,8 +1922,17 @@ app.whenReady().then(async () => {
     });
     startupWindow.on("close", () => app.quit());
   }
+  let dataTrialPending = false; let dataTrialValid = true;
+  const trialContext = installedContext();
+  if (trialContext && fs.existsSync(path.join(trialContext.root, "updates-v02", "data-intent.json"))) {
+    try {
+      const trial = await runComponentHelper(trialContext, "component-data-status", ["--profile", app.getPath("userData")], () => {}, () => {});
+      if (typeof trial.pending !== "boolean") throw Error("invalid_data_trial_status");
+      dataTrialPending = trial.pending;
+    } catch { dataTrialValid = false; console.error("[vua] AMF data trial requires recovery; module startup remains blocked"); }
+  }
   amfRegistry = new AmfRegistry(app.getPath("userData"));
-  if (amfRegistry.needsRegistration) {
+  if (amfRegistry.needsRegistration && dataTrialValid) {
     // Record the fresh-user default before either provider creates its DB.
     // A later launch must retain this choice, including an explicit disable.
     try { amfRegistry.save(amfRegistry.registration.enabled); }
@@ -1848,18 +1942,26 @@ app.whenReady().then(async () => {
     host: createDesktopOrchestratorProvider(resolveProviderEndpoint()),
     enabled: amfRegistry.registration.enabled,
     persist: enabled => amfRegistry!.save(enabled),
+    expectedAmfBuild: () => {
+      const generation = amfGenerations.backend;
+      return generation?.files.some(file => file.path === "ui/component.json")
+        ? `amf/${generation.version}@${generation.build}` : undefined;
+    },
     createAmf: () => {
-      if (installedContext()?.amfAvailable === false) throw new Error("AMF program files need repair");
+      if (amfGenerations.backend?.available === false) throw new Error("AMF program files need repair");
       return createDesktopOrchestratorProvider(resolveAmfEndpoint());
     },
     shellBusy: () => catalogSyncRun !== null || (silentDownloadQueue?.pending() ?? 0) > 0
       || downloadPort?.hasActiveTransfers() === true || amfIngestSink?.pending() === true,
   });
+  if (!dataTrialValid) provider.refuseDataTrial();
+  else provider.setDataTrial(dataTrialPending);
   provider.subscribeModule(snapshot => {
     void (async () => {
       if (snapshot.state === "ready") await ensureAmfShell();
       else if (snapshot.state === "absent") { disposeAmfShell?.(); disposeAmfShell = null; }
       else deactivateImageCache();
+      packagedSmoke?.observeAmfReadiness(snapshot.state, provider?.amfReady() === true, disposeAmfShell !== null);
       for (const window of BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) window.webContents.send("vua:amf-module:changed", snapshot);
       }

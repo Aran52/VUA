@@ -50,6 +50,7 @@ export const emptyComposeDraft: ComposeDraftState = {
 
 /** 共享容器层草稿 signal(UI 根切换不触碰) */
 const draftSignal = createSignal<ComposeDraftState>(emptyComposeDraft);
+export function readComposeDraft(): ComposeDraftState { return draftSignal.get(); }
 
 /** 纯函数语义的状态转换(共享 signal 落地) */
 function apply(next: ComposeDraftState): void {

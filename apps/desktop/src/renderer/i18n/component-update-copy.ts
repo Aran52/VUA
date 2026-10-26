@@ -1,0 +1,14 @@
+export const componentUpdateCopy = {
+  en: { host: "VUA updates", amf: "AMF updates", automatic: "Check this component automatically", installed: "Installed: {version}", notChecked: "Not checked this session", current: "No compatible update is available.", empty: "No releases are published in this channel yet.", available: "{version} is available", incompatible: "A newer version is published, but its compatibility requirements are not met.", requiresHost: "Requires VUA {range}", source: "Updates from PH-R.COM", unavailable: "Use the latest VUA installer to enable in-app updates.", cancelled: "Check cancelled", downloadLater: "Download and activation are not available in this build yet.", release: "Release details" },
+  "zh-CN": { host: "VUA 本体更新", amf: "AMF 更新", automatic: "自动检查此组件更新", installed: "已安装：{version}", notChecked: "本次启动尚未检查", current: "暂无兼容的可用更新。", empty: "此更新频道尚未发布版本。", available: "有可用版本 {version}", incompatible: "已发布新版本，但当前环境尚不符合兼容要求。", requiresHost: "需要 VUA {range}", source: "从 PH-R.COM 获取更新", unavailable: "请使用最新版 VUA 安装器以启用程序内更新。", cancelled: "已取消检查", downloadLater: "此构建尚未开放下载和应用更新。", release: "版本详情" },
+  "zh-TW": { host: "VUA 本體更新", amf: "AMF 更新", automatic: "自動檢查此元件更新", installed: "已安裝：{version}", notChecked: "本次啟動尚未檢查", current: "暫無相容的可用更新。", empty: "此更新頻道尚未發佈版本。", available: "有可用版本 {version}", incompatible: "已發佈新版本，但目前環境尚不符合相容要求。", requiresHost: "需要 VUA {range}", source: "從 PH-R.COM 取得更新", unavailable: "請使用最新版 VUA 安裝程式以啟用程式內更新。", cancelled: "已取消檢查", downloadLater: "此組建尚未開放下載與套用更新。", release: "版本詳情" },
+  ja: { host: "VUA の更新", amf: "AMF の更新", automatic: "このコンポーネントの更新を自動確認", installed: "インストール済み：{version}", notChecked: "今回の起動では未確認です", current: "互換性のある更新はありません。", empty: "このチャンネルにはまだリリースがありません。", available: "{version} が利用できます", incompatible: "新しいバージョンがありますが、互換性の条件を満たしていません。", requiresHost: "VUA {range} が必要です", source: "PH-R.COM から更新", unavailable: "アプリ内更新を有効にするには、最新の VUA インストーラーを使用してください。", cancelled: "確認を中止しました", downloadLater: "このビルドでは更新のダウンロードと適用はまだ利用できません。", release: "リリース情報" },
+  ko: { host: "VUA 업데이트", amf: "AMF 업데이트", automatic: "이 구성 요소의 업데이트 자동 확인", installed: "설치됨: {version}", notChecked: "이번 실행에서 아직 확인하지 않았어요", current: "호환되는 업데이트가 없어요.", empty: "이 채널에는 아직 릴리스가 없어요.", available: "{version} 사용 가능", incompatible: "새 버전이 있지만 호환 조건을 충족하지 못해요.", requiresHost: "VUA {range} 필요", source: "PH-R.COM에서 업데이트", unavailable: "앱 내 업데이트를 사용하려면 최신 VUA 설치 프로그램을 사용하세요.", cancelled: "확인을 취소했어요", downloadLater: "이 빌드에서는 아직 업데이트 다운로드와 적용을 사용할 수 없어요.", release: "릴리스 정보" },
+} as const;
+export const updateRecoveryCopy = {
+  en: "The update did not start successfully. Your previous version was restored.",
+  "zh-CN": "更新后的程序未能正常启动，已恢复上一版本。",
+  "zh-TW": "更新後的程式未能正常啟動，已恢復上一版本。",
+  ja: "更新後の起動に失敗したため、前のバージョンを復元しました。",
+  ko: "업데이트 후 정상적으로 시작되지 않아 이전 버전을 복원했어요.",
+} as const;

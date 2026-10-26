@@ -422,6 +422,13 @@ remain required. The [Windows distribution plan](development/windows-distributio
 proposes the sequential slices; [N7](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide)
 owns acceptance. This is a delivery decision, not installer/update evidence or N-stage completion.
 
+The author's 2026-10-26 follow-up approves separate PH-R.COM version discovery for VUA and AMF,
+in-app incremental host acquisition with explicit restart activation, and idle AMF UI/backend
+replacement while the compatible host keeps running. The existing signed-content, active-work,
+data-compatibility and recovery boundaries still apply. The
+[independent update sequence](development/windows-distribution-plan.md#9-independent-component-update-sequence)
+owns delivery; planning or a contract pass does not establish completed hot-update acceptance.
+
 On 2026-10-13 the author required multiple built-in usable runtime mirrors, selected by actual
 reachability, primarily for mainland China. The author then authorized PH-R.COM deployment on
 2026-10-13: serve the published installers from the official website and support official-site

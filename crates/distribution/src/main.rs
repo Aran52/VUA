@@ -56,7 +56,15 @@ fn main() {
                 serde_json::json!({"schemaVersion":"0.1","kind":"error","code":code})
             );
             #[cfg(windows)]
-            if (args[0] == "launch" || args[0] == "apply-update")
+            if [
+                "launch",
+                "apply-update",
+                "component-apply",
+                "component-restore",
+                "plan-apply",
+                "plan-restore",
+            ]
+            .contains(&args[0].as_str())
                 && !args.iter().any(|a| a.starts_with("--vua-smoke-test="))
             {
                 gui::failure(&code);

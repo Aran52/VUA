@@ -3,12 +3,21 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { installedContext } from "./installed-context.js";
+import type { AmfGenerations } from "./amf-generations.js";
 
 export function registerAmfUiScheme(): void {
   protocol.registerSchemesAsPrivileged([{ scheme: "vua-module", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 }
-export function installAmfUiProtocol(): void {
+export function installAmfUiProtocol(generations?: AmfGenerations, rejectGeneration?: (url: string) => boolean): void {
   protocol.handle("vua-module", request => {
+    if (/^vua-module:\/\/amf\/[a-f0-9]{32}\//.test(request.url)) {
+      if (request.method !== "GET") return new Response(null, { status: 405 });
+      if (rejectGeneration?.(request.url)) return new Response(null, { status: 404 });
+      try {
+        const file = generations?.read(request.url);
+        return file ? new Response(new Uint8Array(file.bytes), { headers: { "Content-Type": file.type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" } }) : new Response(null, { status: 404 });
+      } catch { return new Response(null, { status: 409 }); }
+    }
     const context = installedContext();
     const url = new URL(request.url);
     const name = decodeURIComponent(url.pathname).slice(1);

@@ -26,6 +26,11 @@ pub async fn execute(
     progress: impl Fn(Progress) + Send + Sync + 'static,
 ) -> Result<Value> {
     let command = args.first().map_or("launch", String::as_str);
+    if command == "capabilities" {
+        return Ok(
+            json!({"componentUpdates":"0.2", "recovery":"0.2", "updatePlans":"0.1", "dataRecovery":"0.1"}),
+        );
+    }
     let root = option(args, "--root").map(PathBuf::from).unwrap_or(
         std::env::current_exe()?
             .parent()
@@ -33,8 +38,140 @@ pub async fn execute(
             .to_path_buf(),
     );
     let installation = Installation::open(&root, command == "install")?;
+    if command.starts_with("component-") || command.starts_with("plan-") {
+        installation.require_component_launcher()?;
+    }
+    if matches!(
+        command,
+        "component-request"
+            | "component-restore"
+            | "component-amf-begin"
+            | "plan-request"
+            | "plan-restore"
+    ) {
+        if let Some(profile) = option(args, "--profile") {
+            installation.register_data_profile(Path::new(profile))?;
+        }
+    }
     let mut transfer = Transfer::new(cancel, progress)?;
     match command {
+        "component-data-status" => installation.data_trial_status(Path::new(
+            option(args, "--profile").ok_or_else(|| Error("invalid_data_profile".into()))?,
+        )),
+        "component-amf-preflight" => installation.amf_hot_preflight(
+            option(args, "--manifest").unwrap_or(""),
+            args.iter().any(|value| value == "--restore"),
+        ),
+        "component-amf-begin" => installation.begin_amf_hot(
+            option(args, "--manifest").ok_or_else(|| Error("invalid_update_identity".into()))?,
+            args.iter().any(|value| value == "--restore"),
+        ),
+        "component-amf-finish" => installation.finish_amf_hot(
+            option(args, "--manifest").ok_or_else(|| Error("invalid_update_identity".into()))?,
+        ),
+        "component-amf-recover" => installation.recover_amf_hot(),
+        "plan-snapshot" => installation.update_plan_snapshot(),
+        "plan-propose" => installation.propose_update_plan(&transfer).await,
+        "plan-stage" => {
+            installation
+                .stage_update_plan(
+                    option(args, "--plan").ok_or_else(|| Error("update_plan_required".into()))?,
+                    &mut transfer,
+                    option(args, "--host-pack").map(Path::new),
+                    option(args, "--amf-pack").map(Path::new),
+                )
+                .await
+        }
+        "plan-request" => {
+            installation.request_update_plan(
+                option(args, "--plan").ok_or_else(|| Error("update_plan_required".into()))?,
+            )?;
+            Ok(json!({"requested":true}))
+        }
+        "plan-apply" | "plan-restore" => {
+            for attempt in 0..300 {
+                let result = if command == "plan-apply" {
+                    installation
+                        .activate_update_plan(
+                            option(args, "--plan")
+                                .ok_or_else(|| Error("update_plan_required".into()))?,
+                            &mut transfer,
+                        )
+                        .await
+                } else {
+                    installation.restore_update_plan()
+                };
+                match result {
+                    Ok(()) => break,
+                    Err(error) if error.0 == "installation_busy" && attempt < 299 => {
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+            launch_trial(&installation, args)?;
+            Ok(json!({"launched":true}))
+        }
+        "component-stage" | "component-request" | "component-apply" | "component-restore" => {
+            let kind = component(args)?;
+            match command {
+                "component-stage" => {
+                    installation
+                        .stage_component(
+                            kind,
+                            option(args, "--manifest")
+                                .ok_or_else(|| Error("missing_update_identity".into()))?,
+                            &mut transfer,
+                            option(args, "--pack").map(Path::new),
+                        )
+                        .await
+                }
+                "component-request" => {
+                    installation.request_component_activation(kind)?;
+                    Ok(json!({"requested":true}))
+                }
+                _ => {
+                    for attempt in 0..300 {
+                        let result = if command == "component-apply" {
+                            installation.activate_component(kind, &mut transfer).await
+                        } else {
+                            installation.restore_component(kind)
+                        };
+                        match result {
+                            Ok(()) => break,
+                            Err(error) if error.0 == "installation_busy" && attempt < 299 => {
+                                tokio::time::sleep(std::time::Duration::from_millis(100)).await
+                            }
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    launch_trial(&installation, args)?;
+                    Ok(json!({"launched":true}))
+                }
+            }
+        }
+        "acknowledge-launch" => {
+            installation.data_trial_status(Path::new(option(args, "--profile").unwrap_or("")))?;
+            installation.acknowledge_component_health(
+                option(args, "--host-build")
+                    .ok_or_else(|| Error("update_health_identity_mismatch".into()))?,
+                option(args, "--amf-build")
+                    .ok_or_else(|| Error("update_health_identity_mismatch".into()))?,
+            )?;
+            Ok(json!({"acknowledged":true}))
+        }
+        "component-snapshot" | "component-check" => {
+            let component = match option(args, "--component") {
+                Some("host") => crate::component_feed::ComponentKind::Host,
+                Some("amf") => crate::component_feed::ComponentKind::Amf,
+                _ => return Err(Error("invalid_update_component".into())),
+            };
+            if command == "component-check" {
+                installation.check_component(component, &transfer).await
+            } else {
+                installation.component_snapshot(component)
+            }
+        }
         "install" => {
             let input = PathBuf::from(
                 option(args, "--input").ok_or_else(|| Error("missing_install_input".into()))?,
@@ -112,7 +249,7 @@ pub async fn execute(
                     Err(error) => return Err(error),
                 }
             }
-            launch(&installation, args)?;
+            launch(&installation, args, false)?;
             Ok(json!({"launched":true}))
         }
         "rollback" => {
@@ -129,7 +266,7 @@ pub async fn execute(
                     Err(error) => return Err(error),
                 }
             }
-            launch(&installation, args)?;
+            launch(&installation, args, false)?;
             Ok(json!({"launched":true}))
         }
         "remove" => {
@@ -137,7 +274,7 @@ pub async fn execute(
             Ok(json!({"removed":true}))
         }
         "launch" => {
-            launch(&installation, args)?;
+            launch(&installation, args, false)?;
             Ok(json!({"launched":true}))
         }
         _ => Err(Error("unknown_distribution_command".into())),
@@ -149,7 +286,33 @@ pub fn option<'a>(args: &'a [String], key: &str) -> Option<&'a str> {
         .and_then(|index| args.get(index + 1))
         .map(String::as_str)
 }
-fn launch(installation: &Installation, args: &[String]) -> Result<()> {
+fn component(args: &[String]) -> Result<crate::component_feed::ComponentKind> {
+    match option(args, "--component") {
+        Some("host") => Ok(crate::component_feed::ComponentKind::Host),
+        Some("amf") => Ok(crate::component_feed::ComponentKind::Amf),
+        _ => Err(Error("invalid_update_component".into())),
+    }
+}
+fn launch_trial(installation: &Installation, args: &[String]) -> Result<()> {
+    match launch(installation, args, true) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            if installation.recover_component_activation()? {
+                launch(installation, args, false)
+            } else {
+                Err(error)
+            }
+        }
+    }
+}
+fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<()> {
+    if !trial {
+        match installation.recover_component_activation() {
+            Ok(_) => {}
+            Err(error) if error.0 == "installation_busy" => {}
+            Err(error) => return Err(error),
+        }
+    }
     let active = installation.active()?;
     let host = installation.manifest(&active.host_manifest)?;
     let amf = installation.manifest(&active.amf_manifest)?;
@@ -171,18 +334,22 @@ fn launch(installation: &Installation, args: &[String]) -> Result<()> {
     ) {
         return Err(Error("bootstrap_integrity_failed".into()));
     }
-    let running = installation.lock("running.lock").ok();
+    let running = if trial {
+        Some(installation.lock("running.lock")?)
+    } else {
+        installation.lock("running.lock").ok()
+    };
     let executable = host
         .runtime
         .files
         .iter()
         .find(|file| file.path == "electron.exe")
         .ok_or_else(|| Error("incomplete_runtime".into()))?;
-    let launch = owned_path(&runtime_root, "VUA.Runtime.exe")?;
-    if !crate::transfer::verified_file(&launch, executable.bytes, &executable.sha256) {
+    let runtime_executable = owned_path(&runtime_root, "VUA.Runtime.exe")?;
+    if !crate::transfer::verified_file(&runtime_executable, executable.bytes, &executable.sha256) {
         return Err(Error("runtime_launch_alias_needs_repair".into()));
     }
-    let mut child = Command::new(launch);
+    let mut child = Command::new(runtime_executable);
     child.current_dir(&installation.root);
     for (name, _) in std::env::vars_os() {
         let name_text = name.to_string_lossy();
@@ -202,7 +369,43 @@ fn launch(installation: &Installation, args: &[String]) -> Result<()> {
             child.arg(arg);
         }
     }
-    let status = child.spawn()?.wait()?;
+    let mut child = match child.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            drop(running);
+            if trial {
+                installation.recover_component_activation()?;
+                return launch(installation, args, false);
+            }
+            return Err(error.into());
+        }
+    };
+    if trial {
+        let started = std::time::Instant::now();
+        loop {
+            if installation
+                .activation_journal()
+                .ok()
+                .flatten()
+                .is_some_and(|journal| journal.state == "healthy" && journal.next == active)
+            {
+                break;
+            }
+            let child_finished = match child.try_wait() {
+                Ok(status) => status.is_some(),
+                Err(_) => true,
+            };
+            if child_finished || started.elapsed() > std::time::Duration::from_secs(45) {
+                let _ = child.kill();
+                let _ = child.wait();
+                drop(running);
+                installation.recover_component_activation()?;
+                return launch(installation, args, false);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+    let status = child.wait()?;
     drop(running);
     if !status.success() {
         return Err(Error("installed_application_failed".into()));

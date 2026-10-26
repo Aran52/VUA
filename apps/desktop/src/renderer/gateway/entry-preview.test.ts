@@ -9,6 +9,12 @@ import type {
   CatalogDetailView,
   CatalogProductDetail,
 } from "./catalog-browser-port.ts";
+import type { LibraryCardFacts } from "./library-browser-port.ts";
+
+const linkedSource = (productId: string): Pick<LibraryCardFacts, "metadata"> => ({
+  metadata: { schemaVersion: "0.1", entryId: "wh-item-1", revision: 1,
+    displayName: "Package 1", productId, thumbnailRef: null },
+});
 
 /**
  * D-6 条目详情预览组合读(019 批 D,核心裁决方案 c 零新契约):
@@ -110,6 +116,28 @@ function stubCatalog(
 }
 
 describe("entryPreviewProductIds (pure association facts)", () => {
+  it("uses the saved entry source when imported files have no artifact mappings", () => {
+    expect(entryPreviewProductIds(entryDetail([fact([])]), linkedSource("booth:90"))).toEqual(["booth:90"]);
+  });
+
+  it("lets a corrected entry source override historical file mappings", () => {
+    expect(entryPreviewProductIds(entryDetail([fact(["booth:1"])]), linkedSource("booth:90"))).toEqual(["booth:90"]);
+  });
+
+  it("does not treat source suggestions as a saved association", () => {
+    for (const basis of ["name", "product_id"] as const) {
+      const facts = { sourceMatch: { product: { productId: "booth:90" }, basis, content: "unverified" } } as LibraryCardFacts;
+      expect(entryPreviewProductIds(entryDetail([fact([])]), facts)).toEqual([]);
+    }
+  });
+
+  it("uses the current confirmed library mapping without changing file verification", () => {
+    const facts = { sourceMatch: { product: { productId: "booth:90" }, basis: "mapping", content: "different" } } as LibraryCardFacts;
+    const entry = entryDetail([fact([])]);
+    expect(entryPreviewProductIds(entry, facts)).toEqual(["booth:90"]);
+    expect(entry.artifacts[0]?.sourceCorrelated).toBe(false);
+    expect(facts.sourceMatch?.content).toBe("different");
+  });
   it("returns an empty list when no artifact carries mapped product ids", () => {
     const entry = entryDetail([fact([]), fact([])]);
     expect(entryPreviewProductIds(entry)).toEqual([]);
@@ -125,6 +153,11 @@ describe("entryPreviewProductIds (pure association facts)", () => {
 });
 
 describe("readEntryPreview (composed read, option c)", () => {
+  it("reports an associated item without pictures instead of denying the saved source", async () => {
+    const catalog = stubCatalog({});
+    expect(await readEntryPreview(catalog, entryDetail([fact([])]), linkedSource("booth:90"))).toEqual({ kind: "no-images" });
+    expect(catalog.calledIds).toEqual(["booth:90"]);
+  });
   it("reports no-association and never queries the catalog when nothing is mapped", async () => {
     const catalog = stubCatalog({});
     const view = await readEntryPreview(catalog, entryDetail([fact([])]));

@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-26
+> Updated: 2026-10-27
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -83,7 +83,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 17 | Complex production and Recipe reproduction | P-03, P-04 | |
 | 18 | Tool and package delivery by license | C-01, C-02 | |
 | 19 | Experimental VRChat sign-in | P-02 | merged (Aran52/VUA#5); the upload check reads VRChat's real list shape since slice 26; awaits the real-account checks |
-| 20 | Start production from the materials room | P-02 | built (Aran52/VUA#19); awaits the author's real-run check |
+| 20 | Start production from the materials room | P-02 | built (Aran52/VUA#19); local entry and saved-source display defects reproduced and corrected on 2026-10-27, with synthetic Chromium regression; the author's real-material run remains |
 | 21 | Faster project fingerprints | — | done (Aran52/VUA#7) |
 | 22 | Motion setting | — | needs the author's decision |
 | 23 | Base map art | — | with slice 13 |
@@ -378,6 +378,10 @@ the upload check finds "AMF test1".
 
 1. Choosing an Avatar in the library offers "Start production", with the outfits that fit it
    marked, and opens a new production line with them selected.
+   Local entries offer "Use as Avatar" without requiring a BOOTH association or catalog
+   classification. This selects the exact local entry; the confirmation still requires usable
+   material sources and an Editor. Saved source associations guide previews, while local content
+   remains unverified until independently checked.
 
 **Done when** P-02 starts from the materials room without visiting the workshop's selection.
 

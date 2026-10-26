@@ -12,7 +12,12 @@ import type {
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
-  VuaDesktopApiV4,
+  VuaDesktopApiV7,
+  AmfUiRuntimeSnapshotV01,
+  AmfUiTransitionV01,
+  UpdateComponentV02,
+  ComponentUpdateSnapshotV02,
+  UpdatePlanSnapshotV01,
   AiConnectionLocale,
   AiToolsSnapshotV01,
 } from "@vua/contracts";
@@ -71,7 +76,42 @@ try {
   if (Array.isArray(decoded) && decoded.length <= 32 && decoded.every(language => typeof language === "string" && language.length <= 64)) systemLanguages = decoded;
 } catch { /* Missing OS languages use the source-language fallback. */ }
 
-const api: VuaDesktopApiV4 = Object.freeze({
+const api: VuaDesktopApiV7 = Object.freeze({
+  amfUiRuntime: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:amf-ui-runtime:snapshot"),
+    respond: (id: string, phase: AmfUiTransitionV01, accepted: boolean, reason?: "busy" | "restart_required" | "failed") => ipcRenderer.invoke("vua:amf-ui-runtime:respond", id, phase, accepted, reason),
+    subscribe: (listener: (value: AmfUiRuntimeSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: AmfUiRuntimeSnapshotV01) => listener(value);
+      ipcRenderer.on("vua:amf-ui-runtime:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:amf-ui-runtime:changed", wrapped);
+    },
+  }),
+  updatePlans: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:update-plans:snapshot"),
+    propose: () => ipcRenderer.invoke("vua:update-plans:propose"),
+    stage: (id: string) => ipcRenderer.invoke("vua:update-plans:stage", id),
+    cancel: () => ipcRenderer.invoke("vua:update-plans:cancel"),
+    apply: (id: string) => ipcRenderer.invoke("vua:update-plans:apply", id),
+    restore: () => ipcRenderer.invoke("vua:update-plans:restore"),
+    subscribe: (listener: (value: UpdatePlanSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: UpdatePlanSnapshotV01) => listener(value);
+      ipcRenderer.on("vua:update-plans:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:update-plans:changed", wrapped);
+    },
+  }),
+  componentUpdates: Object.freeze({
+    snapshot: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:snapshot", component),
+    check: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:check", component),
+    stage: (component: UpdateComponentV02, id: string) => ipcRenderer.invoke("vua:component-updates:stage", component, id),
+    cancel: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:cancel", component),
+    apply: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:apply", component),
+    restore: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:restore", component),
+    subscribe: (listener: (value: ComponentUpdateSnapshotV02) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: ComponentUpdateSnapshotV02) => listener(value);
+      ipcRenderer.on("vua:component-updates:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:component-updates:changed", wrapped);
+    },
+  }),
   aiTools: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:ai-tools:snapshot"),
     setEnabled: (enabled: boolean) => ipcRenderer.invoke("vua:ai-tools:set-enabled", enabled),

@@ -9,9 +9,8 @@ import { useAmfModule, useGateway } from "../../gateway/index.ts";
 import { boothSourceId } from "../warehouse/booth-source.ts";
 import { MaterialsStartDialog } from "./MaterialsStartDialog.tsx";
 
-/** The materials room's browse tab. Watching a BOOTH Avatar item page offers the
- * same "Start production" the library detail gives; anything VUA cannot confirm
- * as an Avatar stays out of the way. */
+/** The player may choose an observed BOOTH product as the Avatar input.
+ * Actual usable local packages are checked by the shared preparation dialog. */
 export function AssetBrowserPage({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const [open, setOpen] = useState(true);
   const copy = strings.browser;
@@ -30,16 +29,14 @@ export function AssetBrowserPage({ onNavigate }: { onNavigate: (page: PageId) =>
     let alive = true; setOffer(null);
     if (productId === null || !amfReady) return;
     const face = window.vua?.catalogSync;
-    // Observe the page first so a product the library has not enriched yet still
-    // reports its entities; a failed observation falls back to what is stored.
+    // Observe title/images first; a failed observation falls back to stored facts.
     void (face?.fetchProduct(productId) ?? Promise.resolve({ ok: false }))
       .then(() => catalogBrowser.detail(productId))
       .then(view => {
         if (!alive || view.kind !== "detail") return;
-        if (!view.product.entities.some(entity => entity.entityType === "avatar")) return;
         setOffer({ productId, title: view.product.title, imageUrl: view.product.imageUrl });
       })
-      .catch(() => { /* No confirmed Avatar facts, no offer. */ });
+      .catch(() => { /* No observed product, no offer. */ });
     return () => { alive = false; };
   }, [productId, amfReady]);
   return <div className="vua-page" data-focus-scope>

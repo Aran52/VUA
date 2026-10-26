@@ -8,12 +8,13 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { Skeleton } from "../../components/primitives/Skeleton.tsx";
-import { useGateway, type AmfProductionList, type AmfProductionSource, type LibraryBrowserPort, type LibraryCardFacts } from "../../gateway/index.ts";
+import { useGateway, type AmfProductionList, type AmfProductionSource } from "../../gateway/index.ts";
 import { strings } from "../../i18n/index.ts";
 import { buildStartChoices, groupOutfitsByFit } from "./materials-fit-model.ts";
 import { rememberAutomationLevel, storedAutomationLevel, type AutomationLevel } from "./factory-model.ts";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
+import { readStartLibrary, type MaterialsStartAvatar } from "./materials-start-model.ts";
 import "./factory.css";
 
 const copy = strings.factory.materialsStart;
@@ -34,31 +35,8 @@ type LoadState =
   | { kind: "failed" }
   | { kind: "ready"; list: AmfProductionList; avatarEntryIds: readonly string[]; avatarMaterialNames: readonly string[]; items: readonly StartItem[] };
 
-/** Library rows carry the product → entry mapping the panel needs; read the
- * pages once (libraries are small) and keep only the links. */
-async function readLibrary(library: LibraryBrowserPort, avatarProductId: string): Promise<{ avatarEntryIds: string[]; avatarMaterialNames: string[]; titles: Map<string, string | null> }> {
-  const avatarEntryIds: string[] = []; const avatarMaterialNames: string[] = []; const titles = new Map<string, string | null>();
-  let offset = 0; let total = Number.POSITIVE_INFINITY;
-  while (offset < total && offset < 1000) {
-    const page = await library.list({ schemaVersion: "0.1", limit: 200, offset });
-    total = page.total; offset += page.limit > 0 ? page.limit : 200;
-    for (const product of page.catalog.kind === "results" ? page.catalog.items : []) {
-      const facts: LibraryCardFacts | undefined = page.facts.get(product.productId);
-      const entries = facts?.localEntries ?? [];
-      for (const entry of entries) if (!titles.has(entry.entryId)) titles.set(entry.entryId, product.title);
-      if (product.productId === avatarProductId) { avatarEntryIds.push(...entries.map(entry => entry.entryId)); avatarMaterialNames.push(...entries.map(entry => entry.displayName)); }
-    }
-    for (const entry of page.localEntries) {
-      const match = page.facts.get(entry.warehouseItemId)?.sourceMatch;
-      if (match?.product.productId === avatarProductId) { avatarEntryIds.push(entry.warehouseItemId); avatarMaterialNames.push(entry.displayName); }
-      if (!titles.has(entry.warehouseItemId)) titles.set(entry.warehouseItemId, match?.product.title ?? null);
-    }
-  }
-  return { avatarEntryIds: [...new Set(avatarEntryIds)], avatarMaterialNames: [...new Set(avatarMaterialNames)], titles };
-}
-
 export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
-  avatar: { readonly productId: string; readonly title: string | null; readonly imageUrl: string | null };
+  avatar: MaterialsStartAvatar;
   onNavigate: (page: PageId) => void;
   onClose: () => void;
 }) {
@@ -81,7 +59,7 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
   useEffect(() => {
     if (port === undefined) { setLoad({ kind: "failed" }); return; }
     let alive = true; setLoad({ kind: "loading" }); setChecked(new Set()); setStartError(null);
-    void Promise.all([port.list(), readLibrary(library, avatar.productId)])
+    void port.list().then(async list => [list, await readStartLibrary(library, avatar, list.sources)] as const)
       .then(([list, library]) => {
         if (!alive) return;
         const avatarIds = new Set(library.avatarEntryIds);
@@ -98,7 +76,7 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
       })
       .catch(() => { if (alive) setLoad({ kind: "failed" }); });
     return () => { alive = false; };
-  }, [port, library, avatar.productId, retry]);
+  }, [port, library, avatar.entryId, avatar.productId, retry]);
 
   const ready = load.kind === "ready" ? load : null;
   const avatarSources = useMemo(() => ready ? ready.list.sources.filter(source => ready.avatarEntryIds.includes(source.itemId)) : [], [ready]);
@@ -148,7 +126,7 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
           : <span className="vua-start__thumb vua-start__thumb--empty" aria-hidden="true" />}
         <div>
           <span className="vua-start__avatar-kind">{copy.avatarLabel}</span>
-          <strong className="vua-start__avatar-name" title={avatar.title ?? avatar.productId}>{avatar.title ?? avatar.productId}</strong>
+          <strong className="vua-start__avatar-name" title={avatar.title ?? avatar.entryId ?? avatar.productId}>{avatar.title ?? avatar.entryId ?? avatar.productId}</strong>
         </div>
       </div>
       {load.kind === "loading" ? <div className="vua-start__loading" role="status"><Skeleton width="40%" height={16} /><Skeleton width="100%" height={48} /><Skeleton width="100%" height={48} /></div> :

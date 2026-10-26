@@ -167,6 +167,7 @@ impl Installation {
         };
         self.save_update("updates-v02/activation.json", &journal)?;
         self.save_update("updates-v02/hot-intent.json", &journal)?;
+        self.prepare_data_recovery(&active, &next)?;
         self.save_update(
             &name(ComponentKind::Amf, "previous"),
             &Retained {
@@ -199,6 +200,7 @@ impl Installation {
         journal.state = "healthy".into();
         self.save_update("updates-v02/activation.json", &journal)?;
         // Health is the commit point. Cleanup cannot turn a committed generation into failure.
+        self.commit_data_recovery(&journal.before, &journal.next)?;
         if self
             .component_pending(ComponentKind::Amf)
             .ok()
@@ -226,6 +228,9 @@ impl Installation {
             return snapshot(true);
         };
         if journal.state == "healthy" || journal.state == "recovered" {
+            if journal.state == "healthy" {
+                self.commit_data_recovery(&journal.before, &journal.next)?;
+            }
             return snapshot(journal.state == "healthy");
         }
         let active = self.active()?;
@@ -240,12 +245,22 @@ impl Installation {
             return Err(Error("rollback_requires_data_repair".into()));
         }
         self.verify_files(&self.amf_root(&old)?, &old.amf.files)?;
+        self.recover_data_recovery(&journal.before, &journal.next)?;
         atomic_json(&owned_path(&self.root, "active.json")?, &journal.before)?;
         journal.state = "recovered".into();
         self.save_update("updates-v02/activation.json", &journal)?;
         snapshot(false)
     }
     pub fn require_component_launcher(&self) -> Result<()> {
+        self.launcher_capabilities().map(|_| ())
+    }
+    pub(crate) fn require_data_launcher(&self) -> Result<()> {
+        if self.launcher_capabilities()?["dataRecovery"] != "0.1" {
+            return Err(Error("installer_required".into()));
+        }
+        Ok(())
+    }
+    fn launcher_capabilities(&self) -> Result<Value> {
         let launcher = owned_path(&self.root, "VUA.exe")?;
         if !launcher.is_file() {
             return Err(Error("installer_required".into()));
@@ -290,7 +305,7 @@ impl Installation {
         {
             return Err(Error("installer_required".into()));
         }
-        Ok(())
+        Ok(value["value"].clone())
     }
     pub(crate) fn commit_restart(&self, before: &Active, next: &Active) -> Result<()> {
         self.admit_data_update(before, next)?;
@@ -310,6 +325,7 @@ impl Installation {
             state: "prepared".into(),
         };
         self.save_update("updates-v02/activation.json", &journal)?;
+        self.prepare_data_recovery(before, next)?;
         for kind in [ComponentKind::Host, ComponentKind::Amf] {
             if selected(before, kind) != selected(next, kind) {
                 self.save_update(
@@ -344,19 +360,16 @@ impl Installation {
         Ok(Some(journal))
     }
     pub(crate) fn admit_data_update(&self, before: &Active, next: &Active) -> Result<()> {
-        let (_, old) = self.validate_pair(before)?;
-        let (_, target) = self.validate_pair(next)?;
-        if target.compatibility.bdl_write != old.compatibility.bdl_write {
-            // A separate module-owned backup/recovery slice must authorize this first.
-            return Err(Error("data_migration_requires_installer".into()));
-        }
-        Ok(())
+        self.admit_data_recovery(before, next)
     }
     pub fn acknowledge_component_health(&self, host_build: &str, amf_build: &str) -> Result<()> {
         let _operation = self.lock("operation.lock")?;
         let Some(mut journal) = self.activation_journal()? else {
             return Ok(());
         };
+        if journal.state == "healthy" {
+            return self.commit_data_recovery(&journal.before, &journal.next);
+        }
         if journal.state != "verifying" {
             return Ok(());
         }
@@ -372,7 +385,8 @@ impl Installation {
             return Err(Error("update_health_identity_mismatch".into()));
         }
         journal.state = "healthy".into();
-        self.save_update("updates-v02/activation.json", &journal)
+        self.save_update("updates-v02/activation.json", &journal)?;
+        self.commit_data_recovery(&journal.before, &journal.next)
     }
     pub fn recover_component_activation(&self) -> Result<bool> {
         let _operation = self.lock("operation.lock")?;
@@ -389,10 +403,12 @@ impl Installation {
         }
         let (host, amf) = self.validate_pair(&journal.before)?;
         let (_, current_amf) = self.validate_pair(&active)?;
-        if !amf
-            .compatibility
-            .bdl_read
-            .contains(&current_amf.compatibility.bdl_write)
+        let data_restored = self.recover_data_recovery(&journal.before, &journal.next)?;
+        if !data_restored
+            && !amf
+                .compatibility
+                .bdl_read
+                .contains(&current_amf.compatibility.bdl_write)
         {
             return Err(Error("rollback_requires_data_repair".into()));
         }

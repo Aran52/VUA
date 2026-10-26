@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+mod data_recovery;
 
 fn main() {
     if std::env::args().nth(1).as_deref() == Some("--component-identity") {
@@ -6,8 +7,13 @@ fn main() {
             "{}",
             serde_json::json!({"schemaVersion":"0.1", "component":"amf", "version":env!("CARGO_PKG_VERSION"),
             "build":option_env!("VUA_SOURCE_COMMIT"), "bdlWrite":vua_bdl_store::bdl_store::BDL_FORMAT_VERSION,
+            "dataRecoveryAbi":vua_bdl_store::recovery::DATA_RECOVERY_ABI,
             "serviceBuildId":vua_provider_host::provider_host::amf_build_identity(env!("CARGO_PKG_VERSION"), option_env!("VUA_SOURCE_COMMIT"))})
         );
+        return;
+    }
+    if let Some(result) = data_recovery::run() {
+        if let Err(error) = result { eprintln!("AMF data recovery failed: {error}"); std::process::exit(1); }
         return;
     }
     if std::env::args().nth(1).as_deref() == Some("--version") {

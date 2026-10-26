@@ -96,6 +96,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/windows-distribution-v0.2.md | 0.2 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/windows-update-plans-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-ui-runtime-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
+| docs/protocols/amf-data-recovery-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
 | schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-24 |

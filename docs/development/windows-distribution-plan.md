@@ -284,12 +284,29 @@ controls, with synthetic code/ports. The separate real-artifact native test uses
 built AMF UI/provider artifacts under an installation lock. This is not a live host update.
 [AMF UI runtime v0.1](../protocols/amf-ui-runtime-v0.1.md) owns the lifecycle rules.
 
-Module-owned backup/restore and migration trials remain a required U5 follow-up; writer changes
-currently fail closed before activation. U6's real signed remote publication, host restart,
-process-preserving AMF update, failure recovery, transition installer, clean Windows and human
-review remain open. No production channel or release has been published. Use sequential `slice/*`
+U5 data protection adds AMF-owned SQLite snapshots, native manifest/profile/receipt binding,
+offline migration and a startup fence until provider/UI health commits. Five backup checks cover
+WAL, corrupted inventory/payload, absent databases, committed snapshots and a real 0.10-to-0.11
+SQL migration/restore. The focused desktop suite now has 45 passing checks; the module isolation
+check uses both real providers. Writer-changing updates require a capable root, host and AMF;
+older combinations require the installer. The separate native artifact trial verifies migration,
+pre-health restore and refusal to erase post-health work. Those controlled runs use synthetic
+inventories/data and do not claim a live host process update.
+
+U6 now has a real signed, restricted ph-r.com QA publication and installed-process evidence for
+the legacy bridge, independent discovery/deltas, Host restart/health recovery, process-preserving
+AMF provider/UI replacement, disabled activation, data retention, cancellation, helper interruption,
+corrupt responses and 200 full-pack fallback. Main's readiness subscription now resumes module
+shell/image-cache services after successful replacement and recovery. The author accepted the
+opened About/Modules pages and their theme/check/disable/restore review on 2026-10-26. Clean
+Windows and bounded-volume low-space acceptance remain pending by the author's explicit ruling;
+the exact evidence scope and further limits are recorded below. No production channel or release
+has been published. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
+
+The [installed update acceptance procedure](windows-update-acceptance.md) records U6's exact
+matrix and isolated operator/diagnostic controls. Its presence does not pass the matrix.
 
 ## Technical references
 

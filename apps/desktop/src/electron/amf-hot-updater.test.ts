@@ -39,6 +39,16 @@ async function setup(options: { enabled?: boolean; rejectUi?: boolean; rejectQui
   return { fixture, generations, host, old, next, persist, provider, updater, commands, selected: () => selected };
 }
 describe("AMF provider/UI generation transaction", () => {
+  it("verifies the startup UI before a data trial commits without selecting or stopping providers", async () => {
+    for (const rejectUi of [false, true]) {
+      const state = await setup({ rejectUi });
+      try {
+        expect(await state.updater.verifyInitialUi()).toBe(!rejectUi);
+        expect(state.commands).toEqual([]); expect(state.old.stops).toBe(0); expect(state.host.stops).toBe(0);
+        expect(state.generations.active?.id).toBe(state.fixture.old.id); expect((await state.updater.snapshot()).phase).toBe("idle");
+      } finally { await state.provider.prepareShutdown({ timeoutMs: 100 }); state.fixture.dispose(); }
+    }
+  });
   it("commits one verified generation and keeps host provider and preference alive", async () => {
     const state = await setup();
     try {

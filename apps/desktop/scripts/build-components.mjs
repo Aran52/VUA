@@ -44,13 +44,16 @@ const sharedBindings = {
     return `const host = globalThis.__VUA_AMF_UI_HOST_V01__; if (host?.abi !== "amf-ui/0.1") throw new Error("amf_host_binding_unavailable"); const value = host.${name};\n${names.map(key => `export const ${key} = value.${key};`).join("\n")}\nexport default value;`;
   },
 };
-if (component !== "amf") await build(mergeConfig(hostConfig, { root: desktop, configFile: false,
+if (component !== "amf") {
+await build(mergeConfig(hostConfig, { root: desktop, configFile: false,
   plugins: [{ name: "vua-module-csp", transformIndexHtml: html => html.replace("script-src 'self'", "script-src 'self' vua-module:").replace("style-src 'self'", "style-src 'self' vua-module:").replace("connect-src 'self'", "connect-src 'self' vua-module:") }],
   define: { __VUA_SPLIT_AMF__: "true" }, build: { outDir: "dist/components/host-renderer" } }));
+writeFileSync(path.join(desktop, "dist/components/host-renderer/update-runtime.json"), JSON.stringify({ schemaVersion: "0.1", dataTrialAbi: "amf-data/0.1", build: amfBuild }) + "\n");
+}
 if (component !== "host") {
 await build({ root: desktop, configFile: false, base: "./", plugins: [sharedBindings, react()],
   define: { ...hostConfig.define, __VUA_AMF_VERSION__: JSON.stringify(amfVersion), __VUA_AMF_BUILD__: JSON.stringify(amfBuild), "process.env.NODE_ENV": JSON.stringify("production") }, build: { outDir: "dist/components/amf-ui", emptyOutDir: true,
     lib: { entry: path.join(renderer, "features/amf/amf-entry.ts"), formats: ["es"], fileName: () => "amf-entry.js", cssFileName: "style" },
     rolldownOptions: { output: { codeSplitting: false } }, sourcemap: false } });
-writeFileSync(path.join(desktop, "dist/components/amf-ui/component.json"), JSON.stringify({ schemaVersion: "0.1", component: "amf", version: amfVersion, build: amfBuild, uiAbi: amfMetadata.uiAbi, hotReloadAbi: "amf-hot/0.1", bdlWrite: amfMetadata.bdlWrite }) + "\n");
+writeFileSync(path.join(desktop, "dist/components/amf-ui/component.json"), JSON.stringify({ schemaVersion: "0.1", component: "amf", version: amfVersion, build: amfBuild, uiAbi: amfMetadata.uiAbi, hotReloadAbi: "amf-hot/0.1", dataRecoveryAbi: "amf-data/0.1", bdlWrite: amfMetadata.bdlWrite }) + "\n");
 }

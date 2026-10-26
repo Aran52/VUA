@@ -39,6 +39,17 @@ export class AmfHotUpdater implements DesktopAmfUiRuntimeApiV01 {
       this.set({ phase, transactionId: id, candidate: projection(candidate), error: undefined });
     });
   }
+  async verifyInitialUi(): Promise<boolean> {
+    const active = this.options.generations.active;
+    if (!active || this.applying) return false;
+    this.applying = true;
+    try { return (await this.request("loading", randomBytes(16).toString("hex"), active)).accepted; }
+    finally {
+      this.pending?.resolve({ accepted: false, reason: "failed" });
+      this.set({ phase: "idle", transactionId: undefined, candidate: undefined });
+      this.applying = false;
+    }
+  }
   async apply(restore: boolean, id?: string): Promise<"updated" | "busy" | "failed" | "restart_required"> {
     if (!this.view.available || this.applying) return "busy";
     if (!digest(this.options.context?.amfManifestId) || !digest(this.options.context?.hostManifestId)) return "restart_required";

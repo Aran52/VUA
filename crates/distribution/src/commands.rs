@@ -27,7 +27,9 @@ pub async fn execute(
 ) -> Result<Value> {
     let command = args.first().map_or("launch", String::as_str);
     if command == "capabilities" {
-        return Ok(json!({"componentUpdates":"0.2", "recovery":"0.2", "updatePlans":"0.1"}));
+        return Ok(
+            json!({"componentUpdates":"0.2", "recovery":"0.2", "updatePlans":"0.1", "dataRecovery":"0.1"}),
+        );
     }
     let root = option(args, "--root").map(PathBuf::from).unwrap_or(
         std::env::current_exe()?
@@ -39,8 +41,23 @@ pub async fn execute(
     if command.starts_with("component-") || command.starts_with("plan-") {
         installation.require_component_launcher()?;
     }
+    if matches!(
+        command,
+        "component-request"
+            | "component-restore"
+            | "component-amf-begin"
+            | "plan-request"
+            | "plan-restore"
+    ) {
+        if let Some(profile) = option(args, "--profile") {
+            installation.register_data_profile(Path::new(profile))?;
+        }
+    }
     let mut transfer = Transfer::new(cancel, progress)?;
     match command {
+        "component-data-status" => installation.data_trial_status(Path::new(
+            option(args, "--profile").ok_or_else(|| Error("invalid_data_profile".into()))?,
+        )),
         "component-amf-preflight" => installation.amf_hot_preflight(
             option(args, "--manifest").unwrap_or(""),
             args.iter().any(|value| value == "--restore"),
@@ -134,6 +151,7 @@ pub async fn execute(
             }
         }
         "acknowledge-launch" => {
+            installation.data_trial_status(Path::new(option(args, "--profile").unwrap_or("")))?;
             installation.acknowledge_component_health(
                 option(args, "--host-build")
                     .ok_or_else(|| Error("update_health_identity_mismatch".into()))?,

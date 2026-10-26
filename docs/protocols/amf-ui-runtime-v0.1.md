@@ -45,10 +45,10 @@ which generation to serve. Ordinary root launch recovers an interrupted transact
 
 ## Data and evidence limits
 
-This core slice permits hot replacement only with an unchanged BDL writer. Component and pair
-restart requests currently reject writer changes before stopping providers. Module-owned data
-backup, migration trial and restore must precede enabling that path; installer guidance is an
-honest interim outcome, not evidence that migration recovery is implemented.
+Hot replacement requires an unchanged BDL writer. Writer-changing component or pair requests
+require the [AMF data recovery v0.1](amf-data-recovery-v0.1.md) snapshot, offline migration and
+restart trial. The root launcher, host trial fence and target module must all support that
+protocol. Older combinations require the transition installer before activation.
 
 Controller and actual Chromium checks cover version mismatch, busy/disabled admission, dirty
 state, failed import, cleanup, retry and relative chunks. The ignored native artifact test uses

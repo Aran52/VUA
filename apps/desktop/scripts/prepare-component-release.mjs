@@ -69,6 +69,16 @@ export function componentPage(component, entry) {
   return `<!doctype html><html lang="en"><meta charset="utf-8"><title>VUA ${escape(component)} ${escape(entry.version)}</title><main><h1>${escape(component === "host" ? "VUA" : "AMF")} ${escape(entry.version)}</h1><p>Build ${escape(entry.build)}. Update from inside VUA.</p><p>Manifest SHA-256: <code>${entry.manifest.sha256}</code></p><p><a href="/vua/downloads/">VUA installation and recovery</a></p></main></html>\n`;
 }
 export function componentProbeEnvironment() { return Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.toUpperCase().startsWith("VUA_"))); }
+export function verifyAmfIdentity(native, ui, expected) {
+  if (native.schemaVersion !== "0.1" || ui.schemaVersion !== "0.1" || native.component !== "amf" || ui.component !== "amf"
+      || native.version !== expected.version || ui.version !== expected.version || native.build !== expected.build || ui.build !== expected.build
+      || native.bdlWrite !== expected.bdlWrite || ui.bdlWrite !== expected.bdlWrite || ui.uiAbi !== expected.uiAbi
+      || native.serviceBuildId !== `amf/${expected.version}@${expected.build}` || ui.hotReloadAbi !== "amf-hot/0.1"
+      || native.dataRecoveryAbi !== "amf-data/0.1" || ui.dataRecoveryAbi !== "amf-data/0.1") throw Error("AMF UI/provider source or data identity differs from this build");
+}
+export function verifyHostRuntimeIdentity(value, expected) {
+  if (value.schemaVersion !== "0.1" || value.build !== expected.build || value.dataTrialAbi !== "amf-data/0.1") throw Error("Host data-trial identity differs from this build");
+}
 export function verifyBuildReceipt(componentRoot, receipt, expected) {
   if (receipt.schemaVersion !== "0.2" || receipt.component !== expected.component || receipt.version !== expected.version || receipt.build !== expected.build
       || receipt.dirty !== false || !Array.isArray(receipt.files)) throw Error("Component build receipt does not match the clean source revision");
@@ -161,9 +171,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (component === "amf") {
     const native = JSON.parse(execFileSync(provider, ["--component-identity"], { encoding: "utf8", windowsHide: true, env: componentProbeEnvironment() }));
     const ui = JSON.parse(fs.readFileSync(path.join(path.resolve(componentRoot), "ui/component.json")));
-    if (native.schemaVersion !== "0.1" || ui.schemaVersion !== "0.1" || native.component !== "amf" || ui.component !== "amf" || native.version !== version || ui.version !== version
-        || native.build !== receipt.build || ui.build !== receipt.build || native.bdlWrite !== amf.bdlWrite || ui.bdlWrite !== amf.bdlWrite || ui.hotReloadAbi !== "amf-hot/0.1") throw Error("AMF UI/provider source or data identity differs from its receipt");
+    verifyAmfIdentity(native, ui, { ...amf, build: receipt.build });
   }
+  if (component === "host") verifyHostRuntimeIdentity(JSON.parse(fs.readFileSync(path.join(path.resolve(componentRoot), "dist/renderer/update-runtime.json"))), { build: receipt.build });
   if (component === "host" && original.runtime.version !== pkg.devDependencies.electron) throw Error("Provide a signed baseline with the exact configured Electron runtime");
   const previousPath = process.argv.find(value => value.startsWith("--previous="))?.slice(11);
   const privateKeyPath = process.env.VUA_RELEASE_KEY ?? path.join(process.env.USERPROFILE, ".codex/private/vua-release-ed25519.pem");

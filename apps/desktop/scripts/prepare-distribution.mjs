@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { canonicalReleaseUrl, componentSources } from "../distribution/release-sources.mjs";
+import { componentProbeEnvironment, verifyAmfIdentity, verifyHostRuntimeIdentity } from "./prepare-component-release.mjs";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.resolve(desktop, "../..");
@@ -26,11 +27,14 @@ const hostRoot = path.join(output, "host"); const amfRoot = path.join(output, "a
 function copy(source, target) { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.cpSync(source, target, { recursive: true, dereference: false }); }
 copy(path.join(desktop, "dist/packaged-electron"), path.join(hostRoot, "dist/electron"));
 copy(path.join(desktop, "dist/components/host-renderer"), path.join(hostRoot, "dist/renderer"));
+verifyHostRuntimeIdentity(JSON.parse(fs.readFileSync(path.join(hostRoot, "dist/renderer/update-runtime.json"))), { build });
 copy(path.join(desktop, "dist/components/amf-ui"), path.join(amfRoot, "ui"));
 const native = path.resolve(workspace, process.env.CARGO_TARGET_DIR ?? "target", "x86_64-pc-windows-msvc/release");
 copy(path.join(native, "vua-orchestrator-provider.exe"), path.join(hostRoot, "provider/vua-orchestrator-provider.exe"));
 copy(path.join(native, "vua-amf-provider.exe"), path.join(amfRoot, "provider/vua-amf-provider.exe"));
 if (execFileSync(path.join(amfRoot, "provider/vua-amf-provider.exe"), ["--version"], { windowsHide: true, encoding: "utf8" }).trim() !== amf.version) throw Error("AMF UI and native versions disagree");
+verifyAmfIdentity(JSON.parse(execFileSync(path.join(amfRoot, "provider/vua-amf-provider.exe"), ["--component-identity"], { windowsHide: true, encoding: "utf8", env: componentProbeEnvironment() })),
+  JSON.parse(fs.readFileSync(path.join(amfRoot, "ui/component.json"))), { ...amf, build });
 copy(path.join(native, "vua-distribution.exe"), path.join(output, "VUA.exe"));
 copy(path.join(native, "vua-distribution.exe"), path.join(hostRoot, "launcher/VUA.exe"));
 for (const root of [hostRoot, amfRoot]) {

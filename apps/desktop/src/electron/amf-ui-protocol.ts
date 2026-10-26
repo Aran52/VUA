@@ -8,10 +8,11 @@ import type { AmfGenerations } from "./amf-generations.js";
 export function registerAmfUiScheme(): void {
   protocol.registerSchemesAsPrivileged([{ scheme: "vua-module", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 }
-export function installAmfUiProtocol(generations?: AmfGenerations): void {
+export function installAmfUiProtocol(generations?: AmfGenerations, rejectGeneration?: (url: string) => boolean): void {
   protocol.handle("vua-module", request => {
     if (/^vua-module:\/\/amf\/[a-f0-9]{32}\//.test(request.url)) {
       if (request.method !== "GET") return new Response(null, { status: 405 });
+      if (rejectGeneration?.(request.url)) return new Response(null, { status: 404 });
       try {
         const file = generations?.read(request.url);
         return file ? new Response(new Uint8Array(file.bytes), { headers: { "Content-Type": file.type, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" } }) : new Response(null, { status: 404 });

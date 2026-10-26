@@ -46,6 +46,27 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("does not construct AMF or open its data after invalid profile admission", async () => {
+    const { provider, activations, host } = setup({ enabled: true }); provider.refuseDataTrial();
+    await provider.start();
+    expect(activations()).toBe(0); expect(provider.moduleSnapshot().state).toBe("failed");
+    expect((await provider.invoke(query("application.getSnapshot"))).ok).toBe(true); expect(host.status().state).toBe("ready");
+    expect((await provider.setAmfEnabled(true)).outcome).toBe("busy");
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it("fences AMF user work until migrated data and provider/UI health commit", async () => {
+    const { provider, host, amf } = setup(); await provider.start(); await provider.setAmfEnabled(true);
+    amf.calls = []; provider.setDataTrial(true);
+    expect(provider.amfHealthReady()).toBe(true); expect(provider.amfReady()).toBe(false);
+    expect(provider.moduleSnapshot().state).toBe("starting");
+    const request = { contractVersion: "0.1", requestId: "blocked-trial", correlationId: "trial", kind: "query", method: "recipe.list", params: {} } as const;
+    expect(await provider.invoke(request)).toMatchObject({ ok: false, error: { code: "vua.amf.unavailable" } });
+    expect((await provider.invoke(query("application.getSnapshot"))).ok).toBe(true);
+    expect((await provider.setAmfEnabled(false)).outcome).toBe("busy"); expect(amf.calls).toHaveLength(0);
+    expect(host.shutdownCalls).toBe(0); provider.setDataTrial(false);
+    await provider.invoke(request); expect(amf.calls.at(-1)?.method).toBe("recipe.list");
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
   it("rejects a running candidate with the wrong service build and restores only AMF", async () => {
     class IdentityPort extends Port {
       constructor(private readonly buildId: string) { super(); }
@@ -70,6 +91,22 @@ describe("host / optional AMF process boundary", () => {
     expect(await provider.replaceAmf({ activate: async () => { selected = next; }, verifyUi: async () => true, complete, restore: async () => { selected = old; } })).toBe("updated");
     expect(host.shutdownCalls).toBe(0); expect(host.status().state).toBe("ready"); expect(old.shutdownCalls).toBe(1);
     expect(next.status().state).toBe("ready"); expect(saved).toEqual([true]); expect(complete).toHaveBeenCalledOnce();
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it.each([true, false])("publishes usable readiness after the replacement gate reopens (UI health %s)", async healthy => {
+    const old = new Port(); const next = new Port(); let selected = old;
+    const { provider } = setup({ factory: () => selected });
+    await provider.start(); await provider.setAmfEnabled(true);
+    const readiness: boolean[] = [];
+    provider.subscribeModule(snapshot => { if (snapshot.state === "ready") readiness.push(provider.amfReady()); });
+    expect(await provider.replaceAmf({
+      activate: async () => { selected = next; },
+      verifyUi: async () => { expect(provider.amfReady()).toBe(false); return healthy; },
+      complete: async () => {}, restore: async () => { selected = old; },
+    })).toBe(healthy ? "updated" : "failed");
+    // Main's shell/image-cache subscription must see calls admitted again, on
+    // both successful replacement and recovery of the previous generation.
+    expect(readiness.at(-1)).toBe(true);
     await provider.prepareShutdown({ timeoutMs: 100 });
   });
   it("refuses a live AMF task before stopping either process", async () => {

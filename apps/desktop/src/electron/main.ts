@@ -115,7 +115,8 @@ import { createStartupWindow } from "./startup-window.js";
 import { registerAmfUiScheme, installAmfUiProtocol } from "./amf-ui-protocol.js";
 import { installedContext } from "./installed-context.js";
 import { DistributionUpdater } from "./distribution-updater.js";
-import { ComponentUpdater, isUpdateComponent } from "./component-updater.js";
+import { ComponentUpdater, componentHelper, isUpdateComponent, runComponentHelper } from "./component-updater.js";
+import { UpdatePlanUpdater } from "./update-plan-updater.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -481,7 +482,36 @@ function registerIpc(provider: ModuleProvider): void {
   ipcMain.handle("vua:distribution:stage", (event, id: unknown) => {
     assertLocalSender(senderFrameUrl(event)); if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity"); return updates.stage(id);
   });
-  const componentUpdates = new ComponentUpdater({ context: installedContext() });
+  let updatePlans: UpdatePlanUpdater | undefined;
+  const componentUpdates = new ComponentUpdater({ context: installedContext(),
+    externalBusy: () => updatePlans?.busy ?? false,
+    prepareRestart: () => provider.prepareForUpdate(),
+    restart: (component, restore) => {
+      const context = installedContext()!;
+      const executable = componentHelper(context);
+      app.relaunch({ execPath: executable, args: [restore ? "component-restore" : "component-apply", "--component", component, "--root", context.root] });
+      shutdownStarted = true; app.quit();
+    },
+  });
+  updatePlans = new UpdatePlanUpdater({ context: installedContext(), externalBusy: () => componentUpdates.busy,
+    prepareRestart: () => provider.prepareForUpdate(),
+    restart: (command, id) => {
+      const context = installedContext()!;
+      app.relaunch({ execPath: componentHelper(context), args: [command, "--root", context.root, ...(id ? ["--plan", id] : [])] });
+      shutdownStarted = true; app.quit();
+    },
+  });
+  updatePlans.subscribe(value => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:update-plans:changed", value); });
+  for (const method of ["snapshot", "propose", "cancel", "restore"] as const) {
+    ipcMain.handle(`vua:update-plans:${method}`, event => { assertAiSender(event); return updatePlans![method](); });
+  }
+  for (const method of ["stage", "apply"] as const) {
+    ipcMain.handle(`vua:update-plans:${method}`, (event, id: unknown) => {
+      assertAiSender(event);
+      if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity");
+      return updatePlans![method](id);
+    });
+  }
   componentUpdates.subscribe(value => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:component-updates:changed", value);
   });
@@ -508,7 +538,9 @@ function registerIpc(provider: ModuleProvider): void {
     if (result.snapshot.state === "ready") await ensureAmfShell();
     return result;
   });
-  ipcMain.handle("vua:gateway:invoke", (event, request: unknown) => routeDesktopGatewayInvoke(
+  let launchAcknowledged = false;
+  ipcMain.handle("vua:gateway:invoke", async (event, request: unknown) => {
+    const response = await routeDesktopGatewayInvoke(
     {
       provider,
       productVersion: app.getVersion(),
@@ -520,7 +552,19 @@ function registerIpc(provider: ModuleProvider): void {
     },
     senderFrameUrl(event),
     request,
-  ));
+    );
+    const context = installedContext();
+    // A successful Gateway round trip from the mounted main renderer plus the
+    // real host handshake acknowledges this exact installed pair, never a URL.
+    if (!launchAcknowledged && context && response.ok && provider.status().state === "ready"
+        && context.host.host.files.some(file => file.path === "launcher/VUA.exe")
+        && (!provider.moduleSnapshot().installed || provider.amfReady())
+        && event.sender === mainWindow?.webContents && event.senderFrame === event.sender.mainFrame) {
+      launchAcknowledged = true;
+      void runComponentHelper(context, "acknowledge-launch", ["--host-build", context.host.host.build, "--amf-build", context.amf.amf.build], () => {}, () => {}).catch(() => { launchAcknowledged = false; });
+    }
+    return response;
+  });
 
   // 素材来源对话框(生产用例契约草案"双素材入口"):两个 intake 均为文件夹选择器
   // (W25 真机第四批:provider 端 inspect_folder 对 sourceFolder 做

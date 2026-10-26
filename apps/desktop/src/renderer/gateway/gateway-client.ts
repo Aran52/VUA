@@ -31,6 +31,7 @@ export interface DesktopGatewayHost {
   readonly aiTools?: import("@vua/contracts").DesktopAiToolsApiV01;
   readonly distribution?: import("@vua/contracts").DesktopDistributionApiV01;
   readonly componentUpdates?: import("@vua/contracts").DesktopComponentUpdatesApiV02;
+  readonly updatePlans?: import("@vua/contracts").DesktopUpdatePlansApiV01;
   gateway: { invoke(request: DesktopGatewayRequestV1): Promise<unknown> };
   events: { subscribe(listener: (event: ApplicationEventV01) => void): Unsubscribe };
 }

@@ -5,6 +5,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Badge } from "../../components/primitives/Badge.tsx";
 import { ComponentUpdatePanel } from "./ComponentUpdatePanel.tsx";
+import { UpdatePlanPanel } from "./UpdatePlanPanel.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 
 export function ModulesPage({ onOpen, embedded = false, activationSwitch = false }: { onOpen: () => void; embedded?: boolean; activationSwitch?: boolean }) {
@@ -40,5 +41,6 @@ export function ModulesPage({ onOpen, embedded = false, activationSwitch = false
       </div>
     </Card>
     {!embedded ? <ComponentUpdatePanel component="amf" /> : null}
+    {!embedded ? <UpdatePlanPanel /> : null}
   </div>;
 }

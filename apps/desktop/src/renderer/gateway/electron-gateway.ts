@@ -236,6 +236,7 @@ export function createElectronGateway(
     terms: createTermsPort(client),
     distribution: createDistributionPort(host?.distribution),
     componentUpdates: host?.componentUpdates,
+    updatePlans: host?.updatePlans,
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

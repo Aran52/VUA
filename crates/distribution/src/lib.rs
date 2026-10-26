@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod component_feed;
+pub mod component_stage;
 pub mod component_update;
 pub mod feed;
 pub mod layout;
@@ -8,6 +9,7 @@ pub mod paths;
 #[cfg(test)]
 mod tests;
 pub mod transfer;
+pub mod update_plan;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

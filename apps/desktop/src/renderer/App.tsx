@@ -100,6 +100,7 @@ import {
 } from "./gateway/index.ts";
 import { ModulesPage } from "./features/modules/ModulesPage.tsx";
 import { ComponentUpdatePanel } from "./features/modules/ComponentUpdatePanel.tsx";
+import { UpdatePlanPanel } from "./features/modules/UpdatePlanPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
 import { loadAmfPages } from "./features/modules/amf-ui-loader.ts";
@@ -458,6 +459,7 @@ function AboutPage() {
         <h1 className="vua-title">{strings.nav.pages.settingsAbout}</h1>
       </section>
       <ComponentUpdatePanel component="host" />
+      <UpdatePlanPanel />
       <VersionDetails />
       <Card>
         <div className="vua-page__stack">

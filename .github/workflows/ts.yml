@@ -56,6 +56,8 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:system-tray
       - name: First-run UI and scenario receipt continuity (synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:first-run-ui
+      - name: Independent component and pair update controls (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:component-updates
       - name: AMF activation and isolation (isolated profile, native providers)
         run: pnpm --filter @vua/desktop smoke:amf-module
       - name: Help, knowledge and compact Play navigation (isolated profile)

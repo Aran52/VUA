@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vua-project.org/schemas/windows-update-plans/v0.1/snapshot.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "available", "state", "rollbackAvailable"],
+  "allOf": [{ "if": { "properties": { "state": { "enum": ["proposed", "downloading", "staged", "waiting-for-idle", "activating", "interrupted"] } }, "required": ["state"] }, "then": { "required": ["plan"] } }],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "available": { "type": "boolean" },
+    "state": { "enum": ["idle", "checking", "proposed", "downloading", "staged", "waiting-for-idle", "activating", "interrupted", "failed"] },
+    "rollbackAvailable": { "type": "boolean" },
+    "error": { "type": "string", "pattern": "^[a-z_]{1,80}$" },
+    "plan": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "installed", "targets", "activation"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "activation": { "const": "restart" },
+        "installed": { "type": "object", "additionalProperties": false, "required": ["host", "amf"], "properties": { "host": { "$ref": "#/$defs/version" }, "amf": { "$ref": "#/$defs/version" } } },
+        "targets": { "type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [
+          { "type": "object", "additionalProperties": false, "required": ["component", "target"], "properties": { "component": { "const": "host" }, "target": { "allOf": [{ "$ref": "#/$defs/target" }, { "properties": { "releaseUrl": { "pattern": "^https://ph-r\\.com/vua/components/host/v[^/]+/$" } } }] } } },
+          { "type": "object", "additionalProperties": false, "required": ["component", "target"], "properties": { "component": { "const": "amf" }, "target": { "allOf": [{ "$ref": "#/$defs/target" }, { "properties": { "runtimeBytes": { "const": 0 }, "releaseUrl": { "pattern": "^https://ph-r\\.com/vua/components/amf/v[^/]+/$" } } }] } } }
+        ] }
+      }
+    },
+    "progress": {
+      "type": "object", "additionalProperties": false,
+      "required": ["component", "completed", "total", "bytesPerSecond", "reusedBytes", "fullPack"],
+      "properties": { "component": { "enum": ["host", "amf"] }, "completed": { "$ref": "#/$defs/bytes" }, "total": { "$ref": "#/$defs/bytes" }, "bytesPerSecond": { "$ref": "#/$defs/bytes" }, "reusedBytes": { "$ref": "#/$defs/bytes" }, "fullPack": { "type": "boolean" } }
+    }
+  },
+  "$defs": {
+    "bytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$", "maxLength": 160 },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manifestId", "version", "build", "releaseUrl", "activation", "downloadBytes", "reusedBytes", "runtimeBytes"],
+      "properties": {
+        "manifestId": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "version": { "$ref": "#/$defs/version" }, "build": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "releaseUrl": { "type": "string", "pattern": "^https://", "maxLength": 2048 }, "activation": { "const": "restart" },
+        "downloadBytes": { "$ref": "#/$defs/bytes" }, "reusedBytes": { "$ref": "#/$defs/bytes" }, "runtimeBytes": { "$ref": "#/$defs/bytes" }
+      }
+    }
+  }
+}

@@ -31,9 +31,21 @@ export class InstalledUpdateQa {
     return new InstalledUpdateQa(directory, value);
   }
   allowsLaunchHealth(): boolean { return this.config.failHostBuild !== installedContext()?.host.host.build; }
+  observeAmfReadiness(state: string, acceptingCalls: boolean, shellMounted: boolean): void {
+    this.trace("amf-readiness", { state, acceptingCalls, shellMounted });
+  }
+  private trace(kind: string, facts: Record<string, unknown>): void {
+    try {
+      fs.appendFileSync(path.join(this.directory, "component-update-trace.jsonl"),
+        `${JSON.stringify({ at: new Date().toISOString(), runId: this.config.runId, pid: process.pid, kind, ...facts })}\n`, { mode: 0o600 });
+    } catch { /* Diagnostics must not change low-space recovery behavior. */ }
+  }
   blocksAmfUi(url: string): boolean {
     if (!this.blockedUi) return false;
-    const value = new URL(url); return value.protocol === "vua-module:" && value.hostname === "amf" && value.pathname.split("/")[2] === this.blockedUi;
+    const value = new URL(url);
+    const blocked = value.protocol === "vua-module:" && value.hostname === "amf" && value.pathname.split("/")[2] === this.blockedUi;
+    if (blocked) this.trace("amf-ui-request-blocked", { manifestId: this.blockedUi, pathname: value.pathname });
+    return blocked;
   }
   async start(window: BrowserWindow): Promise<void> {
     const seeded = await window.webContents.executeJavaScript(`localStorage.getItem('vua.component-update-qa') === ${JSON.stringify(this.config.runId)}`) as boolean;
@@ -48,6 +60,7 @@ export class InstalledUpdateQa {
     }
     await window.webContents.session.flushStorageData();
     const installed = installedContext();
+    this.trace("main-ready", { hostBuild: installed?.host.host.build, allowsLaunchHealth: this.allowsLaunchHealth() });
     atomic(path.join(this.directory, "component-update-ready.json"), { schemaVersion: "0.1", runId: this.config.runId, status: "ready", pid: process.pid,
       host: { version: installed?.host.host.version, build: installed?.host.host.build }, amf: { version: installed?.amf.amf.version, build: installed?.amf.amf.build },
       allowsLaunchHealth: this.allowsLaunchHealth(), scope: "Real installed Main/preload/native providers and update APIs; no UI or clean-Windows acceptance claim" });
@@ -102,6 +115,7 @@ export class InstalledUpdateQa {
         const file = path.join(this.directory, `component-update-${process.pid}-${Date.now()}.png`);
         fs.writeFileSync(file, (await window.webContents.capturePage()).toPNG()); return { file };
       }
+      case "show": window.show(); window.focus(); return { visible: window.isVisible() };
       case "quit": app.quit(); return { quitting: true };
       default: throw Error("Unknown installed-update diagnostic action");
     }

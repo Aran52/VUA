@@ -67,7 +67,7 @@ function request(method, first, second) {
     if (method === "stage" && !/^[a-f0-9]{64}$/.test(second ?? "")) throw Error("Stage requires a manifest digest");
     return { method, component: first, ...(method === "stage" ? { manifestId: second } : {}) };
   }
-  if (method === "snapshot" || method === "capture" || method === "quit") return { method };
+  if (["snapshot", "capture", "show", "quit"].includes(method)) return { method };
   if (method === "navigate") return { method, page: first };
   if (method === "set-enabled") { if (!["true", "false"].includes(first)) throw Error("Choose true or false"); return { method, enabled: first === "true" }; }
   if (method === "fail-ui") return { method, manifestId: first === "clear" ? null : first };

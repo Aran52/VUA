@@ -34,6 +34,9 @@ class PackagedSmoke {
   }
   allowsLaunchHealth(): boolean { return this.updateQa?.allowsLaunchHealth() ?? true; }
   blocksAmfUi(url: string): boolean { return this.updateQa?.blocksAmfUi(url) ?? false; }
+  observeAmfReadiness(state: string, acceptingCalls: boolean, shellMounted: boolean): void {
+    this.updateQa?.observeAmfReadiness(state, acceptingCalls, shellMounted);
+  }
 
   fail(error: unknown): void {
     clearTimeout(this.timeout);

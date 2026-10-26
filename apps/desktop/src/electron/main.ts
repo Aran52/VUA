@@ -1961,6 +1961,7 @@ app.whenReady().then(async () => {
       if (snapshot.state === "ready") await ensureAmfShell();
       else if (snapshot.state === "absent") { disposeAmfShell?.(); disposeAmfShell = null; }
       else deactivateImageCache();
+      packagedSmoke?.observeAmfReadiness(snapshot.state, provider?.amfReady() === true, disposeAmfShell !== null);
       for (const window of BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed() && isAllowedLocalSender(window.webContents.getURL(), rendererUrl)) window.webContents.send("vua:amf-module:changed", snapshot);
       }

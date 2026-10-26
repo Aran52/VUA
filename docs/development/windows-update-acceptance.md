@@ -35,7 +35,7 @@ dependency, never an end-user requirement. Keep it in its own private directory.
 
 `ready <root> <case>` observes a live Main process. `send <root> <case> <action>` supports snapshot,
 check/stage/cancel/apply/restore for a named component, module enable/disable, bounded navigation,
-captures and quit. Long actions run through the actual preload and Main/native update services.
+captures, show and quit. Long actions run through the actual preload and Main/native update services.
 Claims are persisted before dispatch, so a restart cannot replay a pending action implicitly.
 The driver accepts no URL, executable or arbitrary JavaScript. Its API-driven results do not
 replace the separate button/human UI gate.
@@ -43,6 +43,8 @@ replace the separate button/human UI gate.
 The diagnostic can reject one exact AMF manifest's custom-protocol requests, or withhold launch
 health from one exact Host build. Reports must identify these as injected failures. They exercise
 real Chromium/native recovery rather than replacing Gateway or provider facts with mock results.
+The profile-local trace records rejected module requests and whether the ready module's calls
+and shell services have resumed. `show` exposes this same isolated installation for human review.
 Default packaged smoke behavior is retained when the QA configuration is absent.
 
 ## Required observations

@@ -1,7 +1,7 @@
 {
   "name": "vua-workspace",
   "private": true,
-  "version": "0.8.0-qa.1",
+  "version": "0.8.0-qa.2",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
     "build": "pnpm -r --if-present build",

@@ -93,6 +93,22 @@ describe("host / optional AMF process boundary", () => {
     expect(next.status().state).toBe("ready"); expect(saved).toEqual([true]); expect(complete).toHaveBeenCalledOnce();
     await provider.prepareShutdown({ timeoutMs: 100 });
   });
+  it.each([true, false])("publishes usable readiness after the replacement gate reopens (UI health %s)", async healthy => {
+    const old = new Port(); const next = new Port(); let selected = old;
+    const { provider } = setup({ factory: () => selected });
+    await provider.start(); await provider.setAmfEnabled(true);
+    const readiness: boolean[] = [];
+    provider.subscribeModule(snapshot => { if (snapshot.state === "ready") readiness.push(provider.amfReady()); });
+    expect(await provider.replaceAmf({
+      activate: async () => { selected = next; },
+      verifyUi: async () => { expect(provider.amfReady()).toBe(false); return healthy; },
+      complete: async () => {}, restore: async () => { selected = old; },
+    })).toBe(healthy ? "updated" : "failed");
+    // Main's shell/image-cache subscription must see calls admitted again, on
+    // both successful replacement and recovery of the previous generation.
+    expect(readiness.at(-1)).toBe(true);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
   it("refuses a live AMF task before stopping either process", async () => {
     const { provider, host, amf } = setup(); await provider.start(); await provider.setAmfEnabled(true); amf.tasks = [task("inspection", "running")];
     const activate = vi.fn(async () => {});

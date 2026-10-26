@@ -41,7 +41,7 @@ pub struct Runtime {
     pub files: Vec<FileObject>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Compatibility {
     pub host: String,

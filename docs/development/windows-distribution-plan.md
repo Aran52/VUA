@@ -1,7 +1,7 @@
 # Windows distribution and independent AMF updates
 
 > Status: Draft
-> Updated: 2026-10-13
+> Updated: 2026-10-26
 > Scope: NSIS installation, mirrored Electron runtime acquisition and bundled AMF incremental updates
 
 The author approved the delivery direction on 2026-10-11: use NSIS for VUA, automatically
@@ -229,8 +229,32 @@ authorized by this planning request. The author can supply the later test enviro
   release configuration. Prepare artifacts and tests before requesting publication-specific input.
 - Initially use file-level AMF incremental delivery. Consider chunk/binary delta only if measured
   changed-file sizes justify it; always retain a verified full-file/package fallback.
-- Host-wide differential download, cross-application runtime sharing, automatic module hot swap
-  and a generic plugin update platform are outside the first delivery.
+- Host-wide differential download and module hot replacement extend the original D sequence
+  through the author-approved U sequence below. Cross-application runtime sharing and a generic
+  plugin update platform remain outside this delivery.
+
+## 9. Independent component update sequence
+
+The author approved implementation on 2026-10-26: use PH-R.COM for independent VUA/AMF
+discovery, in-app host download with restart activation, and idle AMF UI/backend replacement
+without restarting VUA. Reuse the existing trusted distribution engine and exact runtime.
+This extends the first delivery; it does not declare a new published product version or pass N7.
+
+| Slice | Deliverable | Acceptance |
+| --- | --- | --- |
+| U1 — independent contracts | Signed component indexes, compatible-version selection, immutable inventory binding and additive typed API; keep old client formats | Schema/negative/signature vectors; old v0.1 tests still pass; incompatible latest AMF does not hide a compatible update |
+| U2 — publishing | Independently build/export host or AMF artifacts and complete immutable objects before switching either official Beta index | Host-only and AMF-only publications; exact hashes and byte-range delivery; old joint feed still works |
+| U3 — detection and UI | Separate checks, targets, preferences, progress and errors in About / Modules; disabled AMF can be checked | One component's failure/cancel does not overwrite the other; absent/failed feeds do not claim latest |
+| U4 — host update | Verify/reuse files and runtime, stage into owned payload directories, atomically select and restart with health/recovery support | Compatible AMF retains its version; unchanged runtime transfers zero bytes; failed launch has a usable restore path |
+| U5 — AMF hot activation | Quiesce module work, replace only its provider/UI generation, validate both and commit or restore | Host process remains alive; UI/provider build identities agree; busy/disabled/data-migration cases preserve data and choices |
+| U6 — transition and real acceptance | Bridge installer for legacy helpers, fault injection, real signed test publication and clean-Windows/human review | GitHub-blocked discovery/object transfer; interruption/low-disk/corruption/rollback; existing profiles and production paths remain usable |
+
+U1 now has a native consumer, typed API and 23 positive/negative vectors. All 17 distribution
+tests, native Clippy with warnings denied, contract/provider builds and desktop type checks pass.
+The new API is not yet exposed by Main, and the component endpoints are not yet published.
+U2–U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
+branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
+updating from a passing contract or staged-download test.
 
 ## Technical references
 

@@ -76,3 +76,8 @@ For upstream-driven changes, follow the [third-party compatibility and licensing
 face for host-owned selection/readiness. It does not replace or edit frozen Provider frames, task
 rows, Recipe/BDL families or Unity Bridge contracts. [Module architecture](../architecture/modules.md)
 owns routing and legacy-data migration.
+
+[Windows component updates v0.2](windows-distribution-v0.2.md) defines independent signed
+host/AMF Beta indexes and the additive Desktop v5 update face. Its native consumer and schema
+vectors are in `crates/distribution/src/component_feed/` and `schemas/windows-distribution/v0.2/`.
+The v0.1 inventory and existing installed-client API remain available during migration.

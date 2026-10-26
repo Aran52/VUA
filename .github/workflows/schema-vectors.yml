@@ -95,3 +95,5 @@ jobs:
         run: cargo test -p vua-unity-bridge --test material_intake --test bridge_v2_vectors --test inspection_evidence_vectors --test bridge_v5_vectors
       - name: Windows signed distribution and installed/update pointers
         run: cargo test -p vua-distribution --lib schema_vectors_and_javascript_signature_agree_with_the_native_consumer
+      - name: Independent component update index vectors
+        run: cargo test -p vua-distribution --lib component_feed

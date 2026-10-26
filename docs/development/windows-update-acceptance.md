@@ -69,3 +69,62 @@ Default packaged smoke behavior is retained when the QA configuration is absent.
 Record each case's date, source/artifact identities, environment, procedure, measured outcome and
 limits. A synthetic inventory test, imported-module check, successful build, screenshot or ready
 marker alone does not prove this matrix. Keep U6 open for every missing real observation.
+
+## Recorded installed QA run — 2026-10-26
+
+The real run used Windows 11 Pro x64, build 26200, an owned installation/profile and the
+production Ed25519 trust anchor. All updater calls crossed the real preload, Main and native
+helpers. No source checkout or development dependencies were needed by the installed process.
+The profile held synthetic sentinel rows in the actual BDL, Host-task and AMF-task databases
+and a user-file sentinel; this was not a paid-material or signed-in account fixture.
+
+| Artifact | Version | Source commit |
+| --- | --- | --- |
+| Actual prior public installer | Host 0.7.0 / AMF 0.2.0 | `32a2c9705394e2470e9c0ebccdaa88c949b20ce8` |
+| Signed bridge/baseline installer | Host 0.8.0-qa.1 / AMF 0.2.1-qa.1 | `21abe8c391d0a8254405810bd8dd03903caf8635` |
+| Independent AMF target | 0.2.1-qa.2 | `34ba2aecc0245d46388f06a8f797829a81098761` |
+| Independent Host target | 0.8.0-qa.2 | `2235b9292d0fd2da8093fe15d1ec61c5d2fb5978` |
+
+The AMF inventory digest is
+`941a807388287e1a8a507ee2d60d4b9c87bb6be6eb8e4a4ab72bf90a000032d4`; the Host
+inventory digest is `a0945bbbba5ff5fb35db27da3d3646735f0f282797ba6b0dcbe565f7691d638c`.
+These exact QA versions identify retained immutable artifacts, not production version changes.
+
+| Observation | Measured result |
+| --- | --- |
+| Legacy bridge | Installed the actual prior public offline installer, then the signed QA bridge over it; root capabilities changed and all three database sentinels, module preference and user file survived startup |
+| Official independent publication | AMF and Host were exported and atomically published separately to the restricted ph-r.com feeds; signatures, exact inventory digests and a 206 range were verified; publishing Host retained the AMF feed |
+| Independent failure | Before the Host feed existed, its check failed while AMF discovery and staging succeeded |
+| AMF delta | Native discovery planned 29,681,263 downloaded bytes and 5,437,644 reused bytes; staging and actual provider/UI activation succeeded |
+| Host delta | Seven actual 206 responses transferred 3,481,120 bytes for a 60,875,424-byte Host payload; staging preserved loaded code |
+| Runtime/network | Electron 44.9.3 was reused; runtime download was zero. A process-scoped TLS proxy permitted only ph-r.com, rejected an actual GitHub negative probe and recorded no additional denied upstream attempts; all signed runtime sources were outside that allowlist |
+| AMF hot activation | Main and the core Host provider kept their process identities while the AMF provider and actual rendered Materials generation changed to the exact signed target |
+| Open-page protection | Applying with the actual AMF Materials page open refused before stopping either provider; the page remained mounted |
+| AMF UI failure/retry | An exact target custom-protocol request was rejected and recorded; the previous provider/UI and uncommitted data were restored, then the same target succeeded with a fresh import graph after clearing the fault |
+| Shell readiness | The real trace confirmed calls were admitted and module shell/image-cache services resumed after both restore and successful replacement; two regression tests first reproduced the missing readiness notification |
+| Disabled AMF | Check, restore, stage and apply completed with the saved preference disabled and no regular AMF service process; enabling afterward rendered the new generation without a Host restart |
+| Host failure/retry | Withheld health for the exact Host target; the root stopped its trial processes and restored the old Host while retaining the independently updated AMF. Clearing the fault and retrying committed a healthy new Host |
+| In-transfer cancellation | Cancelled after more than 256 KiB of encrypted response traffic arrived; the app reported interrupted/cancelled and retained the active pair |
+| Helper interruption | Terminated the real staging helper during transfer; Main/provider continued, the active pair stayed unchanged, and the subsequent application restart did not apply the partial update |
+| Corruption | Verified a flipped byte inside the served AMF provider range. Both range delivery and full retry were refused with the public `sources_failed_retry_or_offline` error; the original immutable object and installed selection were retained |
+| Full fallback | The exact QA object ignored Range and returned 200; native progress reported `fullPack: true`, the correct full pack staged successfully and the active pair stayed unchanged |
+| Data retention | All baseline database and user-file sentinels survived Host failure/retry, AMF failure/retry, hot restore and disabled activation; the writer remained BDL 0.11 |
+| Human review | On 2026-10-26 the author accepted About/Modules, dark/light display and check/disable/restore behavior in the opened isolated QA installation |
+
+Temporary server rate, corruption and Range faults were cleared. The actual product's latest
+selection remains 0.7.0; no production tag, product release or public component-channel promotion
+was made. QA discovery remains restricted to the test client, with an independent client's 403
+verified. The other UI-development checkout was not changed or stopped.
+
+Raw receipts, process records, profiles, traces and captures are retained locally under the owned
+`_local_ops/component-updates/qa-20261026/` tree: in particular `evidence/host-healthy-journal.json`,
+`host-failed-trial-recovered-journal.json`, `amf-lifecycle-regression.json`,
+`amf-disabled-activation.json`, `transport-cancel.json`, `transport-helper-interrupted.json`,
+`transport-corrupt.json`, `transport-full.json` and `transport-server-sanitized.json`.
+They are not repository fixtures or release attachments.
+
+Clean-Windows and real bounded-volume low-space acceptance remain unperformed. The author
+explicitly retained both as pending on 2026-10-26 because no suitable test environment was
+available. This run also does not claim a live cross-writer migration, paid-material production
+or real-account regression; the separate controlled migration tests retain their stated scope.
+Do not convert these remaining limits into a full U6/N7 or production-release acceptance claim.

@@ -293,9 +293,15 @@ older combinations require the installer. The separate native artifact trial ver
 pre-health restore and refusal to erase post-health work. Those controlled runs use synthetic
 inventories/data and do not claim a live host process update.
 
-U6's real signed remote publication, host restart,
-process-preserving AMF update, failure recovery, transition installer, clean Windows and human
-review remain open. No production channel or release has been published. Use sequential `slice/*`
+U6 now has a real signed, restricted ph-r.com QA publication and installed-process evidence for
+the legacy bridge, independent discovery/deltas, Host restart/health recovery, process-preserving
+AMF provider/UI replacement, disabled activation, data retention, cancellation, helper interruption,
+corrupt responses and 200 full-pack fallback. Main's readiness subscription now resumes module
+shell/image-cache services after successful replacement and recovery. The author accepted the
+opened About/Modules pages and their theme/check/disable/restore review on 2026-10-26. Clean
+Windows and bounded-volume low-space acceptance remain pending by the author's explicit ruling;
+the exact evidence scope and further limits are recorded below. No production channel or release
+has been published. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
 

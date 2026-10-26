@@ -38,6 +38,7 @@ function assembleDevGateway(
   return {
     amfModule: anyFixturePort(selection.targets) ? fixture.amfModule : live.amfModule,
     distribution: live.distribution,
+    componentUpdates: live.componentUpdates,
     aiTools: live.aiTools,
     environment: selection.targets.environment === "fixture" ? fixture.environment : live.environment,
     tutorial: selection.targets.tutorial === "fixture" ? fixture.tutorial : live.tutorial,

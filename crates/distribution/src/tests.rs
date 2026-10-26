@@ -113,6 +113,163 @@ fn transfer() -> Transfer {
     Transfer::new(Arc::new(AtomicBool::new(false)), |_| {}).unwrap()
 }
 
+fn component_index(
+    manifest: &Manifest,
+    kind: crate::component_feed::ComponentKind,
+    sequence: u64,
+) -> Vec<u8> {
+    use crate::component_feed::*;
+    let raw = signed(manifest).0;
+    let component = match kind {
+        ComponentKind::Host => &manifest.host,
+        ComponentKind::Amf => &manifest.amf,
+    };
+    let index = ComponentFeed {
+        schema_version: "0.2".into(),
+        product: "VUA".into(),
+        platform: "windows".into(),
+        arch: "x64".into(),
+        channel: "beta".into(),
+        component: kind,
+        sequence,
+        releases: vec![Release {
+            version: component.version.clone(),
+            build: component.build.clone(),
+            release_url: format!(
+                "https://ph-r.com/vua/components/{}/v{}/",
+                kind.name(),
+                component.version
+            ),
+            manifest: ManifestObject {
+                sha256: digest(&raw),
+                bytes: raw.len() as u64,
+                sources: vec!["https://example.test/manifest.json".into()],
+            },
+            compatibility: manifest.compatibility.clone(),
+            activation: if kind == ComponentKind::Host {
+                Activation::Restart
+            } else {
+                Activation::Reload
+            },
+            runtime_version: if kind == ComponentKind::Host {
+                Some(manifest.runtime.version.clone())
+            } else {
+                None
+            },
+        }],
+    };
+    let payload = serde_json::to_string(&index).unwrap();
+    serde_json::to_vec(&SignedManifest {
+        schema_version: "0.2".into(),
+        algorithm: "ed25519".into(),
+        signature: hex(&SigningKey::from_bytes(&[7; 32])
+            .sign(payload.as_bytes())
+            .to_bytes()),
+        payload,
+    })
+    .unwrap()
+}
+
+#[test]
+fn independent_discovery_persists_separate_authenticated_high_water_marks() {
+    use crate::component_feed::ComponentKind::{Amf, Host};
+    let temporary = tempfile::tempdir().unwrap();
+    let (manifest, _, key) = fixture(&temporary.path().join("input"));
+    let root = temporary.path().join("installation");
+    let installation = Installation::with_key(&root, true, key).unwrap();
+    installation
+        .accept_component_index(Host, &component_index(&manifest, Host, 5))
+        .unwrap();
+    installation
+        .accept_component_index(Amf, &component_index(&manifest, Amf, 2))
+        .unwrap();
+    let reopened = Installation::with_key(&root, false, key).unwrap();
+    assert_eq!(
+        reopened
+            .accept_component_index(Host, &component_index(&manifest, Host, 4))
+            .unwrap_err()
+            .0,
+        "component_feed_replayed"
+    );
+    assert_eq!(
+        reopened
+            .accept_component_index(Amf, &component_index(&manifest, Host, 6))
+            .unwrap_err()
+            .0,
+        "wrong_component_feed"
+    );
+    let mut changed = manifest.clone();
+    changed.amf.version = "0.1.1".into();
+    assert_eq!(
+        reopened
+            .accept_component_index(Amf, &component_index(&changed, Amf, 2))
+            .unwrap_err()
+            .0,
+        "component_feed_equivocation"
+    );
+    reopened
+        .accept_component_index(Amf, &component_index(&changed, Amf, 3))
+        .unwrap();
+    reopened
+        .accept_component_index(Host, &component_index(&manifest, Host, 5))
+        .unwrap();
+    fs::write(root.join("updates-v02/amf-index.json"), b"damaged").unwrap();
+    assert!(reopened
+        .accept_component_index(Amf, &component_index(&changed, Amf, 4))
+        .is_err());
+    reopened
+        .accept_component_index(Host, &component_index(&manifest, Host, 5))
+        .unwrap();
+}
+
+#[tokio::test]
+async fn independent_discovery_binds_objects_and_counts_zero_runtime_bytes_for_reuse() {
+    use crate::component_feed::{
+        self,
+        ComponentKind::{Amf, Host},
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let input = temporary.path().join("input");
+    let (manifest, raw, key) = fixture(&input);
+    let installation =
+        Installation::with_key(&temporary.path().join("installation"), true, key).unwrap();
+    installation
+        .install(&raw, &input, &mut transfer())
+        .await
+        .unwrap();
+    let mut updated = manifest.clone();
+    updated.host.version = "0.6.8".into();
+    updated.release_version = "0.6.8".into();
+    let index = component_feed::verify(&component_index(&updated, Host, 1), &key, Host, 0).unwrap();
+    let target = installation
+        .component_target(Host, &index.releases[0], &signed(&updated).0)
+        .unwrap();
+    assert_eq!(target["runtimeBytes"], 0);
+    assert_eq!(target["downloadBytes"], 0);
+    assert_eq!(target["activation"], "restart");
+    let mut updated_amf = manifest.clone();
+    updated_amf.amf.version = "0.1.1".into();
+    let index =
+        component_feed::verify(&component_index(&updated_amf, Amf, 1), &key, Amf, 0).unwrap();
+    assert_eq!(
+        installation
+            .component_target(Amf, &index.releases[0], &signed(&updated_amf).0)
+            .unwrap()["runtimeBytes"],
+        0
+    );
+    assert!(installation
+        .component_target(Amf, &index.releases[0], &raw)
+        .is_err());
+    assert_eq!(
+        installation.snapshot().unwrap().amf_version,
+        manifest.amf.version
+    );
+    assert_eq!(
+        installation.snapshot().unwrap().host_version,
+        manifest.host.version
+    );
+}
+
 #[tokio::test]
 async fn mirrored_feeds_authenticate_both_and_select_the_newer_release_or_amf() {
     use crate::feed::{latest_manifest, select_manifest};

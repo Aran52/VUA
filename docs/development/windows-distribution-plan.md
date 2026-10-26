@@ -257,8 +257,15 @@ actual child-process exit immediately before channel promotion. The AMF-only nat
 0.2.0; its renderer, provider and fresh notices assemble without building host binaries/renderer
 or acquiring an Electron distribution. The local diagnostic receipt is labelled dirty and is
 not a publication artifact. CI separately builds host/AMF artifacts and an operator-tool export.
-The new API is not yet exposed by Main, and the component endpoints are not yet published.
-U3–U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
+U3 exposes independent native checks through Main/preload and Gateway panels in About and
+Modules. Fixed official feeds are authenticated before selection; per-component durable signed
+indexes reject replay and equal-sequence equivocation. Independent jobs/preferences keep one
+channel's failure or cancellation from replacing the other, including checks while AMF is disabled.
+The legacy read-only host check remains an installer-transition fallback. All 19 native tests,
+Clippy, desktop type checks, 13 update-controller/preference checks, UI boundary and five-language
+table checks pass. This slice deliberately has no download/apply button; U4/U5 own activation.
+The component endpoints are not yet published. Live discovery and UI acceptance remain U6 gates.
+U4–U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
 

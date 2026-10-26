@@ -115,6 +115,7 @@ import { createStartupWindow } from "./startup-window.js";
 import { registerAmfUiScheme, installAmfUiProtocol } from "./amf-ui-protocol.js";
 import { installedContext } from "./installed-context.js";
 import { DistributionUpdater } from "./distribution-updater.js";
+import { ComponentUpdater, isUpdateComponent } from "./component-updater.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -479,6 +480,22 @@ function registerIpc(provider: ModuleProvider): void {
   }
   ipcMain.handle("vua:distribution:stage", (event, id: unknown) => {
     assertLocalSender(senderFrameUrl(event)); if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity"); return updates.stage(id);
+  });
+  const componentUpdates = new ComponentUpdater({ context: installedContext() });
+  componentUpdates.subscribe(value => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("vua:component-updates:changed", value);
+  });
+  for (const method of ["snapshot", "check", "cancel", "apply", "restore"] as const) {
+    ipcMain.handle(`vua:component-updates:${method}`, (event, component: unknown) => {
+      assertAiSender(event);
+      if (!isUpdateComponent(component)) throw Error("invalid_update_component");
+      return componentUpdates[method](component);
+    });
+  }
+  ipcMain.handle("vua:component-updates:stage", (event, component: unknown, id: unknown) => {
+    assertAiSender(event);
+    if (!isUpdateComponent(component) || typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity");
+    return componentUpdates.stage(component, id);
   });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));

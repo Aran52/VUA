@@ -11,6 +11,7 @@
  * 不经过本入口。
  */
 export { currentLocale, currentStrings as strings } from "./current-table.ts";
+export { componentUpdateCopy } from "./component-update-copy.ts";
 export type { Strings } from "./strings.en.ts";
 export {
   defaultLocale,

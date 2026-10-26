@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-24
+> Updated: 2026-10-26
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
@@ -76,7 +76,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 10 | Face tracking add-on | P-03 | built: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52), and the workshop station (Aran52/VUA#62); the Meiyun run in VRChat remains |
 | 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
-| 13 | Appearance and one-click styles | — | after the AMF operations settle (author, 2026-10-23); needs a design session |
+| 13 | Appearance and one-click styles | — | in progress: Grid/Aero and Tenshi/Jirai presets with the first original motif set in PR #68; extended scene art, custom fonts and package loader remain |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
 | 16 | Eval runs | all `ready` cases | when a concrete need arises (author, 2026-10-23) |

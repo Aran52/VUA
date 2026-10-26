@@ -19,21 +19,25 @@ export type GuideTopicId =
   | "guide-start"
   | "guide-basics"
   | "guide-safety"
+  | "guide-creator"
   | "guide-devices"
   | "guide-tutorials"
   | "guide-vua";
 
-/** 主题顺序即阅读器/覆盖层主题切换条的展示顺序(房间准备殿先,VUA 使用教程殿后) */
+/** All IDs remain valid for bookmarks, including the separate VUA guide. */
 export const GUIDE_TOPIC_IDS: readonly GuideTopicId[] = [
   "guide-hardware",
   "guide-room",
   "guide-start",
   "guide-basics",
   "guide-safety",
+  "guide-creator",
   "guide-devices",
   "guide-tutorials",
   "guide-vua",
 ];
+
+export const ENCYCLOPEDIA_TOPIC_IDS: readonly GuideTopicId[] = GUIDE_TOPIC_IDS.filter(topic => topic !== "guide-vua" && topic !== "guide-tutorials");
 
 /** 主题 id → strings.guide.pages 键(主题内容与 i18n 的接缝) */
 export const GUIDE_TOPIC_COPY_KEY: Record<GuideTopicId, keyof typeof strings.guide.pages> = {
@@ -42,15 +46,21 @@ export const GUIDE_TOPIC_COPY_KEY: Record<GuideTopicId, keyof typeof strings.gui
   "guide-start": "start",
   "guide-basics": "basics",
   "guide-safety": "safety",
+  "guide-creator": "creator",
   "guide-devices": "devices",
   "guide-tutorials": "tutorials",
   "guide-vua": "vua",
 };
 
+export const GUIDE_SOURCE_LINKS: Partial<Record<GuideTopicId, string>> = {
+  "guide-creator": "https://creators.vrchat.com/avatars/creating-your-first-avatar/",
+  "guide-safety": "https://docs.vrchat.com/docs/vrchat-safety-and-trust-system",
+};
+
 /** 教程支撑子集:主题 → 内容包教程 id(教程 id 与主题 id 同名是约定)。
  *  guide-vua 与 guide-room 是阅读型主题,无教程支撑——教程端口未接入前
  *  不伪造内容包行。 */
-export type GuideTutorialTopicId = Exclude<GuideTopicId, "guide-vua" | "guide-room" | "guide-hardware">;
+export type GuideTutorialTopicId = Exclude<GuideTopicId, "guide-vua" | "guide-room" | "guide-hardware" | "guide-creator">;
 
 export const GUIDE_PAGE_TUTORIAL: Record<GuideTutorialTopicId, string> = {
   "guide-start": "guide-start",

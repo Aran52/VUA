@@ -8,10 +8,15 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 import {
+  fixedThemeForFamily,
+  isThemeFamily,
   isThemePreference,
+  loadThemeFamily,
   loadThemePreference,
   resolveTheme,
+  saveThemeFamily,
   saveThemePreference,
+  themeFamilyStorageKey,
   themePreferenceStorageKey,
   toggledPreference,
 } from "./theme-preference.ts";
@@ -75,4 +80,42 @@ test("saveThemePreference: a throwing writer is swallowed (session-only effect)"
 test("toggledPreference lands on the opposite of the current resolved theme", () => {
   assert.equal(toggledPreference("dark"), "light");
   assert.equal(toggledPreference("light"), "dark");
+});
+
+test("theme family guards the closed preset set", () => {
+  assert.equal(isThemeFamily("grid"), true);
+  assert.equal(isThemeFamily("frutiger-aero"), true);
+  assert.equal(isThemeFamily("tenshi"), true);
+  assert.equal(isThemeFamily("jirai"), true);
+  assert.equal(isThemeFamily(""), false);
+  assert.equal(isThemeFamily(null), false);
+});
+
+test("single-mode presets lock the effective appearance; Grid and Aero retain independent modes", () => {
+  assert.equal(fixedThemeForFamily("tenshi"), "light");
+  assert.equal(fixedThemeForFamily("jirai"), "dark");
+  assert.equal(fixedThemeForFamily("grid"), null);
+  assert.equal(fixedThemeForFamily("frutiger-aero"), null);
+});
+
+test("theme family loads saved presets and falls back to Grid", () => {
+  for (const family of ["frutiger-aero", "tenshi", "jirai", "grid"]) {
+    assert.equal(loadThemeFamily(() => family), family);
+  }
+  assert.equal(loadThemeFamily(() => null), "grid");
+  assert.equal(loadThemeFamily(() => "invalid"), "grid");
+  assert.equal(loadThemeFamily(() => { throw new Error("storage unavailable"); }), "grid");
+});
+
+test("theme family saves its own key and tolerates unavailable storage", () => {
+  const writes: Array<{ key: string; value: string }> = [];
+  for (const family of ["frutiger-aero", "tenshi", "jirai"] as const) {
+    saveThemeFamily((key, value) => writes.push({ key, value }), family);
+  }
+  assert.deepEqual(writes, [
+    { key: themeFamilyStorageKey, value: "frutiger-aero" },
+    { key: themeFamilyStorageKey, value: "tenshi" },
+    { key: themeFamilyStorageKey, value: "jirai" },
+  ]);
+  assert.doesNotThrow(() => saveThemeFamily(() => { throw new Error("storage unavailable"); }, "grid"));
 });

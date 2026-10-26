@@ -215,7 +215,7 @@ export function collectAuditSnapshot(options) {
 
   // Resolved shadow/glow tokens for shadow-panel classification.
   const shadowTokens = {};
-  for (const name of ["--vua-shadow-elevated", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
+  for (const name of ["--vua-shadow-elevated", "--vua-action-shadow", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
     const probe = document.createElement("div");
     probe.style.position = "absolute";
     probe.style.display = "none";

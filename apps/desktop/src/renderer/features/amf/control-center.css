@@ -33,7 +33,7 @@
 
 .vua-control__panel {
   position: relative; display: flex; flex-direction: column; gap: var(--vua-space-2); padding: 16px var(--vua-space-4); min-width: 0;
-  background: var(--vua-bg-panel); border: 1px solid var(--vua-border); clip-path: var(--vua-shape-cut-md);
+  background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); border: 1px solid var(--vua-border); clip-path: var(--vua-shape-cut-md);
 }
 .vua-control__panel h2 { margin: 0; font: var(--vua-font-title); overflow-wrap: anywhere; }
 .vua-control__panel h3 { margin: var(--vua-space-2) 0 0; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); letter-spacing: 0.04em; color: var(--vua-text-secondary); }

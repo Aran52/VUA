@@ -209,9 +209,11 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       if (shadow && shadow !== "none" && !isLineShadow(shadow)) {
         const glow = Object.entries(snapshot.shadowTokens ?? {}).some(([name, value]) => name.startsWith("--vua-glow-") && shadow === value);
         const elevated = shadow === (snapshot.shadowTokens ?? {})["--vua-shadow-elevated"];
+        const actionMaterial = el.tag === "button" && el.cls.includes("vua-button--primary")
+          && shadow === (snapshot.shadowTokens ?? {})["--vua-action-shadow"];
         const floating = el.overlayContext || el.shellStructure
           || el.position === "fixed" || (el.position === "absolute" && el.zIndex >= 600);
-        if (!floating && !glow) {
+        if (!floating && !glow && !actionMaterial) {
           push(makeFinding("shadow-panel", el, index, { shadow, elevatedShadow: elevated },
             elevated ? "elevated surface shadow on an ordinary panel/card" : "shadow on an ordinary panel/card", "box-shadow"));
         }

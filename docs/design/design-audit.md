@@ -21,6 +21,7 @@ pnpm --filter @vua/desktop audit:design
 # common filters
 pnpm --filter @vua/desktop audit:design -- --only=workshop        # view-id prefix (comma-separated list works)
 pnpm --filter @vua/desktop audit:design -- --locale=zh-CN --theme=dark
+pnpm --filter @vua/desktop audit:design -- --themeFamily=frutiger-aero # Aero preset (Grid is default)
 pnpm --filter @vua/desktop audit:design -- --no-screens           # findings only, faster
 
 # compare against the committed baseline (CI gate mode; exit 1 on new findings)
@@ -43,6 +44,11 @@ The hidden window uses offscreen rendering so Windows keeps the compositor and s
 dialog exits advancing. Font layout settles before interaction steps. Fixture query parameters
 select the intended surface; the task-window fixture explicitly selects Tasks and exercises its
 task assertions rather than collecting the default compatibility guide.
+
+`--themeFamily=frutiger-aero|tenshi|jirai` runs the same fixtures with the selected tokens and
+shape assertions. Aero runs both modes; Tenshi runs Light and Jirai runs Dark, with incompatible
+`--theme` combinations rejected. The family is recorded in `run-summary.json`. A non-default family
+counts as a filtered run and cannot refresh the Grid baseline.
 
 Output directory contents:
 
@@ -105,7 +111,7 @@ layout), **warning** = violates the current standard's token discipline,
 | `spacing-grid` | `padding`/`margin`/`gap` off the 4 px grid | Values with `v mod 4 ∈ {0, 1, 3}` pass: multiples of 4 plus ±1 px border compensation. Actual `auto` margins and unused gaps are excluded; equal fixed margins are still checked |
 | `radius-token` | Border radius matches neither the resolved radius/corner tokens nor an allowed circle | Resolves role-group cut sizes as well as compatibility radius tokens; a legacy pill allowance in this generic rule does not bypass `grid-shape` |
 | `grid-shape` | An AMF role violates its quiet or brand-surface geometry | Checks non-inherited role and treatment metadata. Quiet fields, badges, secondary actions, progress and small menus require square corners. Primary actions, station cards, major containers and large overlays require their role's upper-left 120-degree cut (vertical/horizontal ratio √3, three square corners). Host geometry stays rectangular/rounded. Capsules and wrong-corner/angle overrides fail |
-| `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt. Workshop steps stay flat, including viewed and executing steps; the earlier selected-step shadow exception is retired |
+| `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt. A primary button's declared `--vua-action-shadow` is control material, not a panel shadow; the same token does not exempt a card. Workshop steps stay flat, including viewed and executing steps; the earlier selected-step shadow exception is retired |
 | `blur-scope` | `backdrop-filter` outside top/side/task/elevated structure | Same floating/structure exemptions as `shadow-panel` |
 | `one-accent` | Two jurisdiction accent families (purple + orange) in one view, or more than one filled accent control | Family = opaque fill or text within RGB distance 12 of the purple or orange token family. The base map composes four room colors by design and is exempt in the registry |
 | `target-size` | Interactive target below 24×24 (error); primary action below 32×32 (reported as an error with `floor: 32`) | Checkbox/radio targets include a visible, associated label fragment that actually activates the input. Separate fragments are never joined into an invented target. Inline text links and disabled controls are exempt |

@@ -258,31 +258,24 @@ and task/diagnostic surface. Messages, confirmations and side panels follow the 
 ## 4. Design tokens
 
 Business components use semantic tokens rather than literal colors, shadows, or arbitrary spacing.
-`packages/design-system` (`src/tokens.css`) is the machine-readable mirror of this section's palette
-and typography/spacing tokens; the mirror is maintained manually — the automated check
-(`apps/desktop/scripts/check-contrast.mjs`) verifies the tokens' WCAG contrast ratios, not their
-identity with the tables below.
+`packages/design-system/src/tokens.css` holds shared defaults and Grid. `themes/` holds additional
+presets, and `accessibility.css` holds the final high-contrast, forced-color and resource-saving
+overrides. `apps/desktop/scripts/check-contrast.mjs` checks every mode a built-in preset supports,
+both module jurisdictions and manual high contrast.
 
 ### Color
 
-| Semantic | Dark | Light | Use |
-| --- | --- | --- | --- |
-| Canvas | `#0B0A12` | `#F6F6F9` | application canvas |
-| Panel | `#151322` | `#FFFFFF` | ordinary surface |
-| Elevated | `#1E1B30` | `#FFFFFF` | menu, dialog, flyout |
-| Strong text | `#F5F3FF` | `#191824` | heading and body |
-| Secondary text | `#B3B0C8` | `#565470` | secondary information |
-| Border | `#2E2A45` | `#DAD9E2` | 1 px separation/control boundary |
-| VUA accent | `#A78BFA` | `#6557D2` | environment, navigation, settings, general app |
-| AMF accent | `#FF7A45` | `#BB4A10` | five AMF stages |
-| Success | `#4ADE80` | `#107C10` | success, pass, available |
-| Warning | `#FDE047` | `#9C6D00` | attention, confirmation, non-blocking risk |
-| Error | `#FB7185` | `#D13438` | failure, blocker, quarantine |
-| Info | `#94A3FF` | `#5F6B8A` | neutral information |
+A theme owns its actual palette. The shared contract is semantic: canvas, panel and elevated
+surfaces; strong, secondary and disabled text; border and focus; separate VUA and AMF accents;
+success, warning, error and info. Each theme supplies both module accents and defines each mode it
+supports. Display names stay English in every UI language: Grid, Frutiger Aero, Tenshi Kaiwai and
+Jirai Kei. Grid uses purple and orange on neutral flat surfaces. Frutiger Aero uses blue, cyan and
+green; Tenshi Kaiwai uses blue/white with lavender, and Jirai Kei uses pink/black with lavender.
+A preset may not borrow another preset's identity to fill a missing token.
 
-Purple and orange communicate jurisdiction, selection, and primary action—not success or failure.
+Accent colors communicate jurisdiction, selection and primary action, not success or failure.
 Semantic states always include text or icon. One page has one primary jurisdiction color. Body text
-meets 4.5:1; large text, focus, icons, and control boundaries meet 3:1; forced colors map to system
+meets 4.5:1; large text, focus, icons and control boundaries meet 3:1; forced colors map to system
 colors.
 
 ### Typography, spacing, and elevation
@@ -302,16 +295,17 @@ tabular numerals.
 - Grid: 4 / 8 / 12 / 16 / 24 / 32 px.
 - Control sizes (three steps: 28 / 32 / 40 px), hit areas and indicator heights are set in
   [controls and motion](controls-and-motion.md) and hold in every theme.
-- Shapes belong to the theme (author ruling, 2026-10-25): each theme sets one corner style and
-  size per role group, and every control of that group follows it. The default theme, **Grid**,
-  uses an upper-left 120-degree cut matching the VUA mark **inside AMF only**, including former
-  capsule controls. The host top bar, sidebar, Settings, notifications and other host pages
-  use rectangles and rounded rectangles (author correction, 2026-10-25). An inner corner is never larger than the corner
-  around it. Layout wrappers without their own surface do not count as a level.
+- Shapes belong to the theme: each theme assigns a corner style and size to each control role;
+  the standard does not impose one silhouette on every control. Grid reserves the VUA-mark
+  120-degree cut for primary actions, station cards, major containers and large overlays inside
+  AMF; quiet controls and repeated rows stay rectangular. The host uses rectangles and rounded
+  rectangles. Frutiger Aero uses rounded and pill shapes instead. An inner corner is never larger
+  than the corner around it, and layout wrappers without their own surface do not count as a level.
 - Bordered or filled surfaces nest at most two levels; deeper structure uses spacing and type
   instead of another box.
 - Cards are solid (author ruling, 2026-10-25): an opaque panel colour and a 1 px border, without
-  blur, glow or shadow. Default 1 px borders; subtle shadow only for elevated surfaces.
+  blur, glow or cast shadow. Default 1 px borders; subtle shadow only for elevated surfaces.
+  A theme's inner rim is material, not elevation.
   Workshop viewing and execution both stay flat; the adopted third-party review (2026-10-25)
   retires the selected-station shadow exception. Their independent state and selective AMF
   geometry are defined in [controls and motion](controls-and-motion.md#elevation-and-glass).

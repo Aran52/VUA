@@ -110,7 +110,7 @@ Inside AMF, corners are set per **role group**, each with a style and a size:
   its own shape.
 
 Implementation. The bundled Chromium supports native `corner-shape: bevel`. The shared
-`packages/design-system/src/shapes.css` maps role tokens to an elliptical upper-left
+`packages/design-system/src/shapes.css` maps Grid's role tokens to an elliptical upper-left
 `border-radius` (x / x × √3), with zero radius elsewhere. Native geometry paints the diagonal
 border and focus outline without clipping them away. Non-inherited role and treatment
 metadata distinguish quiet controls from brand surfaces. Themes own these values; features do not write
@@ -120,6 +120,10 @@ include the portal root itself. Host corners remain 6 px for controls, 10 px for
 12 px for overlays, with square variants where the existing component uses them.
 The [CSS borders specification](https://drafts.csswg.org/css-borders-4/)
 defines the native corner geometry.
+
+Frutiger Aero uses `corner-shape: round` instead: pill actions, indicators and progress, 12 px
+fields, 20 px containers, 24 px large overlays and 14 px small overlays. The same renderer and
+role attributes consume those radii. It does not inherit Grid's cut tokens.
 
 ### Stroke and fill
 
@@ -132,6 +136,13 @@ defines the native corner geometry.
 | subtle | low-emphasis actions | text only, tint on hover |
 | selected | chosen tab, segment, row | accent tint fill, accent text, 2 px accent bar on the leading or bottom edge |
 | container fill | cards and panels | solid panel colour |
+
+Aero may use a restrained gradient on primary actions. Every gradient stop must meet the same text
+contrast requirement as its solid accent tokens. Ordinary cards stay readable and solid in both
+themes; atmospheric fills belong to the canvas and allowed overlay structure. A theme can give
+primary buttons a declared material through `--vua-action-shadow`; `--vua-card-inset` supplies only
+an inner rim, and `--vua-header-sheen` supplies the shell's glass finish. These are not permission
+for arbitrary card shadows. Accessibility and resource-saving overrides remove all three effects.
 
 ### State ladder
 
@@ -183,6 +194,7 @@ of the design standard's earlier §7:
 | `--vua-motion-normal` | 180 ms | menus, popovers, tooltips, local reveal, page content swap |
 | `--vua-motion-slow` | 360 ms | dialogs, drawers, cards entering, staged entrances |
 | `--vua-motion-camera` | 650 ms | base-map camera flight, album page turns |
+| `--vua-motion-station` | 240 ms | viewing indicator travel between workshop stations |
 
 - **Easing:** entrances use `--vua-motion-ease-enter` (`cubic-bezier(0.2, 0.9, 0.25, 1)`); exits use
   `--vua-motion-ease-exit` (`cubic-bezier(0.4, 0, 1, 1)`) and take two thirds of the entrance time.
@@ -207,11 +219,11 @@ of the design standard's earlier §7:
 | page change | content fades over normal; no sliding pages |
 | row added or removed | fade over normal; neighbours move over normal |
 | progress | determinate bars move over normal; indeterminate shimmer only while active |
-| stepper | the active station's stroke pulses only while its work runs |
+| stepper | one shared viewing indicator slides to the selected station over 240 ms with `--vua-motion-ease-station` (`cubic-bezier(0.55, 0, 1, 0.45)`), an ease-in/accelerating curve; execution state does not move |
 
 A theme may set a **motion feel**: a duration scale (0.75–1.5 applied to fast, normal and slow),
-its own easing pair and its press feedback (Grid: inset shift; Tenshi: a slight bounce; Jirai:
-slower, softer). Reduced motion, `data-effects="off"` and resource-saving mode override every
+its own easing pair and its press feedback (Grid: inset shift; Tenshi Kaiwai: a slight bounce;
+Jirai Kei: slower, softer). Reduced motion, `data-effects="off"` and resource-saving mode override every
 theme: they keep at most a fast opacity change and still every loop. Scripted motion (the
 factory scenes, album, camera) reads the same tokens through the motion hook.
 
@@ -233,16 +245,27 @@ steps and complete motion/bespoke-control checks remain scheduled
 in the [Grid normalization plan](../development/grid-theme-normalization.md). A complete run
 with no current-rule findings does not establish those remaining catalogue requirements.
 
-## Grid migration
+## Current theme presets
 
-Before this migration the default theme mixed pill buttons and chips, skewed shell tabs,
-factory cut corners and rounded fields/cards. The shared upper-left bevel now replaces those
-recipes; the complete role/size/state primitive catalogue continues in this order:
+Control sizes and the state ladder stay shared. Shape, color, texture and motion values are
+selected by `data-theme-family`. Grid and Aero keep `dark`, `light` and `system` independent;
+Tenshi Kaiwai locks Light and Jirai Kei locks Dark, so those choices cannot contradict the preset.
+Missing or invalid stored families resolve to Grid. All four display names stay English in every
+UI language.
 
-1. Shape mixin, corner tokens per role group and motion tokens in `packages/design-system`.
-2. Primitives: `Button`, `IconButton`, `Segmented`, `Tabs`, `Tag`, `StatusChip`, `Badge`, `Card`,
-   `TextField`, `Select`, `Menu`, `Dialog`, `Drawer`, `Toast`, `Tooltip`, `Stepper` in the three
-   steps with the state ladder.
-3. Shell: the skewed tabs and title-bar buttons become `Tabs` and `IconButton` with cut corners.
-4. Feature areas move their bespoke controls onto the primitives one area per pull request, each
-   with the audit's before-and-after sheet.
+- **Grid** supports dark and light modes. Neutral surfaces, low-contrast structural lines and
+  orange/purple jurisdictions carry the futuristic composition. It uses flat fills, selective
+  bevels and no purple/orange gradients, neon glow or synthwave treatment.
+- **Frutiger Aero** supports dark and light modes. Blue/cyan and green jurisdictions, rounded or
+  pill shapes, original bubble/leaf motifs and restrained specular highlights replace Grid's
+  geometry and palette. Water and glass motifs stay behind readable content, with solid list
+  surfaces and the common accessibility overrides removing decorative effects when required.
+- **Tenshi Kaiwai** locks light mode. White, sky blue and lavender use pill actions, 14 px cards,
+  original wing/halo/bandage motifs and a light overshoot entrance.
+- **Jirai Kei** locks dark mode. Dusty pink and lavender sit on black-plum surfaces, with
+  rounded containers, original bow/stitched-heart motifs, a low-contrast lace canvas and satin
+  action highlights. Neon glow is absent and accessibility overrides remove patterns and highlights.
+
+The complete role/size/state primitive catalogue still migrates feature controls onto shared
+primitives. New themes consume that catalogue through tokens rather than adding feature-level
+color or shape recipes.

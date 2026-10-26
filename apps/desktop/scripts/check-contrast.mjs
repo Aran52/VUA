@@ -1,9 +1,8 @@
 /**
- * 对比度核对(美术方案验收 §12-2/§12-3、§3.2.2):直接解析
- * src/design-system/tokens/tokens.css 的实际 Token 值,在 5 个上下文
- * (深色/浅色 × 紫辖区/橙辖区 + 手动高对比度 [data-hc="on"])下计算
- * WCAG 2.x 对比度,文字对低于 4.5:1、非文字对低于 3:1 即非零退出;
- * forced-colors 系统色映射不可算对比度,另做结构守卫(§2.6)。
+ * 对比度核对(美术方案验收 §12-2/§12-3、§3.2.2):直接解析共享令牌和
+ * 主题预设,检查每个主题支持的模式和双辖区,以及手动高对比度
+ * [data-hc="on"] 下的 WCAG 2.x 对比度。文字对低于 4.5:1、非文字对
+ * 低于 3:1 即非零退出;forced-colors 系统色映射不可算对比度,另做结构守卫。
  *
  * 辖区必须使用真实模块标识(§3.2.2):紫辖区 = env /
  * settings(:root 默认),橙辖区 = production([data-module="production"]);
@@ -17,10 +16,17 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const tokensPath = fileURLToPath(
-  new URL("../../../packages/design-system/src/tokens.css", import.meta.url),
-);
-const rawSource = readFileSync(tokensPath, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+import { THEME_FAMILIES, THEME_FAMILY_MODES } from "./theme-presets.mjs";
+
+const themePaths = [
+  "../../../packages/design-system/src/tokens.css",
+  ...THEME_FAMILIES.filter(family => family !== "grid").map(family => `../../../packages/design-system/src/themes/${family}.css`),
+  "../../../packages/design-system/src/accessibility.css",
+].map(path => fileURLToPath(new URL(path, import.meta.url)));
+const rawSource = themePaths
+  .map(path => readFileSync(path, "utf8"))
+  .join("\n")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
 
 /* ---- 0. @media 块(C-I18N 高对比度):内层选择器不参与普通桶解析,
  *   forced-colors 块另做系统色关键字结构守卫(系统色运行时决定,不可算对比度) ---- */
@@ -56,12 +62,15 @@ const { stripped: source, blocks: forcedColorsBlocks } = extractAtBlocks(rawSour
 
 /* ---- 1. 解析选择器块,按用途归类 ---- */
 const buckets = {
-  base: {}, // :root(深色主题基准;紫辖区为默认,无需逐模块列出)
-  darkProduction: {}, // [data-module="production"](无主题限定)
-  lightBase: {}, // [data-theme="light"]
-  lightProduction: {}, // [data-theme="light"] + [data-module="production"]
-  hc: {}, // [data-hc="on"](C-I18N 手动高对比度)
+  base: {},
+  darkProduction: {},
+  lightBase: {},
+  lightProduction: {},
+  hc: {},
 };
+for (const family of THEME_FAMILIES) {
+  for (const key of ["Base", "Production", "LightBase", "LightProduction"]) buckets[`${family}${key}`] = {};
+}
 
 for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
   const selectors = match[1].split(",").map((s) => s.trim());
@@ -69,26 +78,23 @@ for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     [...match[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((d) => [d[1], d[2].trim()]),
   );
   for (const selector of selectors) {
+    const family = /data-theme-family="([^"]+)"/.exec(selector)?.[1];
+    if (family !== undefined && !THEME_FAMILIES.includes(family)) throw new Error(`未知主题:${family}`);
     const light = selector.includes('data-theme="light"');
     const production = selector.includes('data-module="production"');
     const hc = selector.includes('data-hc="on"');
-    const bucket =
-      hc
-        ? "hc"
-        : selector === ":root"
-          ? "base"
-          : light && production
-            ? "lightProduction"
-            : light
-              ? "lightBase"
-              : production
-                ? "darkProduction"
+    const bucket = hc ? "hc"
+      : family ? `${family}${light ? "Light" : ""}${production ? "Production" : "Base"}`
+        : selector === ":root" ? "base"
+          : light && production ? "lightProduction"
+            : light ? "lightBase"
+              : production ? "darkProduction"
                 : null;
     if (bucket) Object.assign(buckets[bucket], declarations);
   }
 }
 
-/* ---- 2. 合成 4 个上下文并解析 var() 别名 ---- */
+/* ---- 2. 合成每个预设支持的模式和两个辖区,解析 var() 别名 ---- */
 function makeContext(...layers) {
   const merged = Object.assign({}, ...layers);
   return (name, seen = new Set()) => {
@@ -101,20 +107,27 @@ function makeContext(...layers) {
   };
 }
 
-const contexts = {
-  "深色·紫辖区(env/settings)": makeContext(buckets.base),
-  "深色·橙辖区(production)": makeContext(buckets.base, buckets.darkProduction),
-  "浅色·紫辖区(env/settings)": makeContext(buckets.base, buckets.lightBase),
-  "浅色·橙辖区(production)": makeContext(
+function familyContext(family, mode, production) {
+  return makeContext(
     buckets.base,
-    buckets.darkProduction,
-    buckets.lightBase,
-    buckets.lightProduction,
-  ),
-  // C-I18N 手动高对比度:只覆盖 base 桶,不叠辖区([data-hc] 块已把
-  // purple/orange 与 accent 抹平为同色,辖区守卫天然成立)
-  "高对比度·手动(data-hc=on)": makeContext(buckets.base, buckets.hc),
-};
+    ...(production ? [buckets.darkProduction] : []),
+    ...(mode === "light" ? [buckets.lightBase] : []),
+    ...(production && mode === "light" ? [buckets.lightProduction] : []),
+    buckets[`${family}Base`],
+    ...(production ? [buckets[`${family}Production`]] : []),
+    ...(mode === "light" ? [buckets[`${family}LightBase`]] : []),
+    ...(production && mode === "light" ? [buckets[`${family}LightProduction`]] : []),
+  );
+}
+
+const contexts = Object.fromEntries(THEME_FAMILIES.flatMap(family =>
+  THEME_FAMILY_MODES[family].flatMap(mode => [
+    [`${family} ${mode} · env/settings`, familyContext(family, mode, false)],
+    [`${family} ${mode} · production`, familyContext(family, mode, true)],
+  ]),
+));
+// Manual high contrast flattens both module accents onto one system-facing palette.
+contexts["高对比度·手动(data-hc=on)"] = makeContext(buckets.base, buckets.hc);
 
 /* ---- 2.5 防回退守卫(§3.2.2):辖区必须解析到各自品牌色,否则响亮失败 ---- */
 let guardFailed = 0;

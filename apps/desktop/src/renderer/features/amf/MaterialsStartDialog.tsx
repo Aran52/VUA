@@ -6,10 +6,13 @@ import type { PageId } from "../../app/nav-model.ts";
 import { libraryBrowser } from "../../app/library-browser-instance.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
+import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { Skeleton } from "../../components/primitives/Skeleton.tsx";
 import { useGateway, type AmfProductionList, type AmfProductionSource, type LibraryBrowserPort, type LibraryCardFacts } from "../../gateway/index.ts";
 import { strings } from "../../i18n/index.ts";
 import { buildStartChoices, groupOutfitsByFit } from "./materials-fit-model.ts";
+import { rememberAutomationLevel, storedAutomationLevel, type AutomationLevel } from "./factory-model.ts";
+import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import "./factory.css";
 
@@ -67,6 +70,13 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
+  const [confirmFull, setConfirmFull] = useState(false);
+  const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
+  const chooseLevel = (next: AutomationLevel) => {
+    if (next === "full" && level !== "full") setConfirmFull(true);
+    else applyLevel(next);
+  };
 
   useEffect(() => {
     if (port === undefined) { setLoad({ kind: "failed" }); return; }
@@ -156,11 +166,19 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
             {ready.list.editors.length === 0 && <Alert tone="warning">{production.editorMissing}</Alert>}
           </>}
           {startError !== null && <Alert tone="error">{copy.startFailed} {startError}</Alert>}
+          <fieldset className="vua-start__automation" disabled={starting}>
+            <PermissionModePicker value={level} onChoose={chooseLevel} />
+            <p className="vua-start__auto-note">{level === "full" ? copy.fullNote : strings.factory.levels[level].hint}</p>
+          </fieldset>
           <div className="vua-start__actions">
             <Button variant="subtle" disabled={starting} onClick={onClose}>{production.back}</Button>
-            <Button variant="primary" disabled={!canStart} onClick={() => { void start(); }}>{starting ? copy.starting : copy.start}</Button>
+            <Button variant="primary" disabled={!canStart} onClick={() => { void start(); }}>{starting ? copy.starting : level === "full" ? copy.startFull : copy.start}</Button>
           </div>
         </>}
+      <ConfirmDialog open={confirmFull} danger title={strings.factory.fullAccess.title} cancelLabel={strings.factory.fullAccess.cancel} confirmLabel={strings.factory.fullAccess.confirm}
+        onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
+        <p className="vua-confirm-dialog__text">{strings.factory.fullAccess.body}</p>
+      </ConfirmDialog>
     </div>
   </ContentDialog>;
 }

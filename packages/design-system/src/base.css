@@ -1,3 +1,8 @@
+@import "./themes/frutiger-aero.css";
+@import "./themes/tenshi.css";
+@import "./themes/jirai.css";
+@import "./motifs/motifs.css";
+@import "./accessibility.css";
 @import "./shapes.css";
 
 /* 全局基础样式:只消费 Token,不引入新的视觉值 */
@@ -19,25 +24,11 @@ body {
   font: var(--vua-font-body);
   color: var(--vua-text-strong);
   -webkit-font-smoothing: antialiased;
-  /* 深邃空间画布:近黑紫基底 + 极淡网格纹理(color-mix 自文字色,深浅主题
-   * 自适应);辉光斑层(--vua-aurora-*)基线为 none(2026-09-25 性能简化,
-   * 用户裁决),消费层保留以便氛围层未来回归时零改动接入;
-   * forced-colors 由 UA 抹除背景图,全局网格只保留极淡纹理,
-   * 均安全降级 */
   background-color: var(--vua-bg-canvas);
   background-image:
     var(--vua-aurora-1),
     var(--vua-aurora-2),
-    repeating-linear-gradient(
-      0deg,
-      color-mix(in srgb, var(--vua-text-strong) 1.5%, transparent) 0 1px,
-      transparent 1px 44px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--vua-text-strong) 1.5%, transparent) 0 1px,
-      transparent 1px 44px
-    );
+    var(--vua-canvas-pattern);
 }
 
 /* 选中区:辖区色淡底(模型生产自动变橙);forced-colors 由 UA 映射系统 Highlight */

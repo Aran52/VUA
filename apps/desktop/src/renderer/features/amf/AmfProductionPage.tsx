@@ -1,8 +1,8 @@
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
 import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
-import { Icon } from "@vua/design-system";
+import { Icon, SkinMotif } from "@vua/design-system";
 import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -292,6 +292,40 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
     : !lineBusy(run) && run.phase === "succeeded" ? "check" : !lineBusy(run) && run.phase === "ready" ? "plan" : currentStation(states));
+  const stationsRef = useRef<HTMLOListElement | null>(null);
+  const [stationIndicator, setStationIndicator] = useState<{ x: number; y: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const list = stationsRef.current;
+    if (!list) return;
+    let active = true;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!active) return;
+        const selected = list.querySelector<HTMLElement>(".vua-line__station[aria-pressed='true']");
+        if (!selected) { setStationIndicator(null); return; }
+        const listRect = list.getBoundingClientRect();
+        const rect = selected.getBoundingClientRect();
+        const next = {
+          x: rect.left - listRect.left + list.scrollLeft + 12,
+          y: rect.bottom - listRect.top + list.scrollTop - 2,
+          width: Math.max(0, rect.width - 24),
+        };
+        setStationIndicator(previous => previous?.x === next.x && previous.y === next.y && previous.width === next.width ? previous : next);
+      });
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    list.querySelectorAll(".vua-line__station").forEach(element => observer.observe(element));
+    update();
+    void document.fonts.ready.then(update);
+    return () => {
+      active = false;
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [shown, runId]);
   const executing = states ? STATIONS.find(key => states[key] === "running") : undefined;
   const observed = run?.result?.facts?.observedSelection ?? null;
   const planOpen = run !== null && !busy && restorePlan === null && (run.phase === "ready" || run.phase === "succeeded");
@@ -344,14 +378,18 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       <header className="vua-line__header">
         <div className="vua-line__object"><h1 className="vua-title">{objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
         {status && <StatusChip status={status}/>}
+        <SkinMotif slot="control-panel-corner" className="vua-line__skin-motif" />
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
-      {states && <ol className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key} data-state={states[key]}>
+      {states && <ol ref={stationsRef} className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key} data-state={states[key]}>
         <button type="button" className="vua-line__station" data-vua-surface-role="workshop-step" data-state={states[key]} aria-pressed={shown === key} aria-current={executing === key ? "step" : undefined}
           onClick={() => setChosenStation(key)} data-nav-id={`workshop-station-${key}`}>
           <Icon name={STATION_ICONS[key]} size={20}/>
           <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>
-        </button></li>)}</ol>}
+        </button></li>)}
+        {stationIndicator && <span key={runId} className="vua-line__station-indicator" aria-hidden="true"
+          style={{ width: stationIndicator.width, transform: `translate(${stationIndicator.x}px, ${stationIndicator.y}px)` }} />}
+      </ol>}
       <div className="vua-line__context" role="status"><strong>{format(ui.viewing, { step: factory.stations[shown] })}</strong><span>{executing ? format(ui.executing, { step: factory.stations[executing] }) : ui.idle}</span></div>
       <details className="vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd></dl><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
       {lineBusy(run) && <Card className="vua-line__live" aria-live="polite">

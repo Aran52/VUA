@@ -103,6 +103,12 @@ export const GUIDE_TARGETS = {
   picoUsb: { topic: "guide-devices", section: "pico-usb" },
   picoWifi: { topic: "guide-devices", section: "pico-wifi" },
   eyeTracking: { topic: "guide-devices", section: "eye-tracking" },
+  uploadEligibility: { topic: "guide-creator", section: "upload-eligibility" },
+  trustRank: { topic: "guide-creator", section: "trust-rank" },
+  improveTrust: { topic: "guide-creator", section: "improve-trust" },
+  shield: { topic: "guide-safety", section: "trust" },
+  personalSpace: { topic: "guide-safety", section: "personal-space" },
+  untrustedUrls: { topic: "guide-safety", section: "open-urls" },
 } as const satisfies Record<string, GuideTarget>;
 
 /**
@@ -131,9 +137,9 @@ export function guideTargetForComponent(component: string): GuideTarget | null {
 
 /** 读取上次阅读位置:存储缺席/损坏/词表外 → null(调用方回落默认开始页);
  *  存储值经 normalizeGuideTarget 校验,旧词表的失效分节安全落回主题开头 */
-export function loadGuideReading(): GuideTarget | null {
+export function loadGuideReading(key: string = storageKeys.guideReading): GuideTarget | null {
   try {
-    const stored = localStorage.getItem(storageKeys.guideReading);
+    const stored = localStorage.getItem(key);
     if (stored === null) return null;
     const parsed: unknown = JSON.parse(stored);
     const normalized = normalizeGuideTarget(parsed);
@@ -146,10 +152,10 @@ export function loadGuideReading(): GuideTarget | null {
 }
 
 /** 保存阅读位置(只写 {topic, section?};存储不可用静默降级为本次内存) */
-export function saveGuideReading(position: GuideTarget): void {
+export function saveGuideReading(position: GuideTarget, key: string = storageKeys.guideReading): void {
   try {
     localStorage.setItem(
-      storageKeys.guideReading,
+      key,
       JSON.stringify(
         position.section === undefined
           ? { topic: position.topic }

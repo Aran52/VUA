@@ -60,3 +60,42 @@ export function saveThemePreference(
     /* localStorage 不可用时仅本次会话生效 */
   }
 }
+
+export type ThemeFamily = "grid" | "frutiger-aero" | "tenshi" | "jirai";
+
+export const themeFamilyStorageKey = storageKeys.themeFamily;
+
+const THEME_FAMILIES: readonly ThemeFamily[] = ["grid", "frutiger-aero", "tenshi", "jirai"];
+const FIXED_FAMILY_THEMES: Partial<Record<ThemeFamily, ResolvedTheme>> = {
+  tenshi: "light",
+  jirai: "dark",
+};
+
+export function fixedThemeForFamily(family: ThemeFamily): ResolvedTheme | null {
+  return FIXED_FAMILY_THEMES[family] ?? null;
+}
+
+export function isThemeFamily(value: unknown): value is ThemeFamily {
+  return typeof value === "string" && (THEME_FAMILIES as readonly string[]).includes(value);
+}
+
+export function loadThemeFamily(read: (key: string) => string | null): ThemeFamily {
+  try {
+    const stored = read(themeFamilyStorageKey);
+    if (isThemeFamily(stored)) return stored;
+  } catch {
+    /* Keep the session default when storage is unavailable. */
+  }
+  return "grid";
+}
+
+export function saveThemeFamily(
+  write: (key: string, value: string) => void,
+  family: ThemeFamily,
+): void {
+  try {
+    write(themeFamilyStorageKey, family);
+  } catch {
+    /* Keep the session selection when storage is unavailable. */
+  }
+}

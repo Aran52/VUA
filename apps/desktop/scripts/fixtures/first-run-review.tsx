@@ -313,16 +313,83 @@ const review = {
     check("settings capture preserves its requested appearance preference",
       document.documentElement.dataset.theme === previewTheme
       && document.querySelector(`[data-nav-id="theme-${previewTheme}"][aria-pressed="true"]`));
-    check("theme settings group three preference rows without a primary task button",
-      document.querySelectorAll(".vua-settings-group .vua-preference-row").length === 3
+    check("theme settings groups family, appearance, contrast and resource preferences",
+      document.querySelectorAll(".vua-settings-group .vua-preference-row").length === 4
+      && document.querySelectorAll(".vua-theme-family__option").length === 4
       && document.querySelectorAll('.vua-settings-group [role="switch"]').length === 1
       && !document.querySelector(".vua-settings-group .vua-button--primary"));
+    const previews = [...document.querySelectorAll<HTMLImageElement>(".vua-theme-family__preview .vua-skin-motif")];
+    await wait(() => previews.every(image => image.complete && image.naturalWidth > 0), "skin preview assets");
+    check("each non-Grid preset renders its own motif and Grid keeps its color swatches",
+      previews.length === 3 && previews.every(image => image.complete && image.naturalWidth > 0)
+      && new Set(previews.map(image => image.dataset.motifFamily)).size === 3
+      && document.querySelectorAll('.vua-theme-family__preview[data-theme-family="grid"] > span').length === 3);
+    const initialFamily = document.documentElement.dataset.themeFamily === "frutiger-aero" ? "frutiger-aero" : "grid";
+    const nextFamily = initialFamily === "grid" ? "frutiger-aero" : "grid";
+    const initialMode = document.documentElement.dataset.theme;
+    const storedFamily = localStorage.getItem(storageKeys.themeFamily);
+    const storedMode = localStorage.getItem(storageKeys.theme);
+    const familyOverride = new URLSearchParams(location.search).has("themeFamily");
+    document.querySelector<HTMLButtonElement>(`[data-nav-id="theme-family-${nextFamily}"]`)!.click();
+    await wait(() => document.documentElement.dataset.themeFamily === nextFamily
+      && document.querySelector(`[data-nav-id="theme-family-${nextFamily}"][aria-pressed="true"]`));
+    const storedFamilyMatches = familyOverride
+      ? localStorage.getItem(storageKeys.themeFamily) === storedFamily
+      : localStorage.getItem(storageKeys.themeFamily) === nextFamily;
+    check("theme family switches independently and preserves preview and storage semantics",
+      storedFamilyMatches && document.documentElement.dataset.theme === initialMode);
+    document.querySelector<HTMLButtonElement>(`[data-nav-id="theme-family-${initialFamily}"]`)!.click();
+    await wait(() => document.documentElement.dataset.themeFamily === initialFamily
+      && document.querySelector(`[data-nav-id="theme-family-${initialFamily}"][aria-pressed="true"]`));
+    for (const [family, expectedMode] of [["tenshi", "light"], ["jirai", "dark"]] as const) {
+      document.querySelector<HTMLButtonElement>(`[data-nav-id="theme-family-${family}"]`)!.click();
+      await wait(() => document.documentElement.dataset.themeFamily === family
+        && document.documentElement.dataset.theme === expectedMode
+        && document.querySelector(`[data-nav-id="theme-${expectedMode}"][aria-pressed="true"]`)
+        && localStorage.getItem(storageKeys.theme) === (familyOverride ? storedMode : expectedMode)
+        && localStorage.getItem(storageKeys.themeFamily) === (familyOverride ? storedFamily : family),
+        `${family} appearance and storage`);
+      check(`${family} locks its supported appearance without changing unrelated preferences`,
+        [...document.querySelectorAll<HTMLButtonElement>(".vua-theme-choice__button")].every(button => button.disabled)
+        && document.querySelector(".vua-theme-choice")?.getAttribute("aria-disabled") === "true"
+        && localStorage.getItem(storageKeys.theme) === (familyOverride ? storedMode : expectedMode)
+        && localStorage.getItem(storageKeys.themeFamily) === (familyOverride ? storedFamily : family));
+      await wait(() => {
+        const motif = document.querySelector<HTMLImageElement>(".vua-shell__skin-motif");
+        return motif?.dataset.motifFamily === family && motif.complete && motif.naturalWidth > 0;
+      }, `${family} shell motif`);
+    }
+    document.querySelector<HTMLButtonElement>(`[data-nav-id="theme-family-${initialFamily}"]`)!.click();
+    await wait(() => document.documentElement.dataset.themeFamily === initialFamily
+      && [...document.querySelectorAll<HTMLButtonElement>(".vua-theme-choice__button")].every(button => !button.disabled));
+    if (initialMode === "light" || initialMode === "dark") await review.setThemePreference(initialMode);
+    await wait(() => {
+      const motif = document.querySelector<HTMLImageElement>(".vua-shell__skin-motif");
+      return initialFamily === "grid" ? motif === null
+        : motif?.dataset.motifFamily === initialFamily && motif.complete && motif.naturalWidth > 0;
+    }, "restored shell motif");
     const toggle = document.querySelector<HTMLButtonElement>('.vua-settings-group [role="switch"]')!;
+    const activeMotif = document.querySelector<HTMLImageElement>(".vua-shell__skin-motif");
     const previous = toggle.getAttribute("aria-checked");
     toggle.click();
     await wait(() => toggle.getAttribute("aria-checked") !== previous);
+    check("resource-saving removes skin motifs and decorative canvas textures",
+      (!activeMotif || getComputedStyle(activeMotif).display === "none")
+      && !getComputedStyle(document.body).backgroundImage.includes("url(")
+      && !getComputedStyle(document.body).backgroundImage.includes("gradient"));
     toggle.click();
     await wait(() => toggle.getAttribute("aria-checked") === previous);
+    const contrast = document.querySelector<HTMLSelectElement>(`select[aria-label="${CSS.escape(strings.settings.theme.hcAria)}"]`)!;
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(contrast, "on");
+    contrast.dispatchEvent(new Event("change", { bubbles: true }));
+    await wait(() => document.documentElement.dataset.hc === "on");
+    check("high contrast removes skin motifs and decorative canvas textures",
+      (!activeMotif || getComputedStyle(activeMotif).display === "none")
+      && !getComputedStyle(document.body).backgroundImage.includes("url(")
+      && !getComputedStyle(document.body).backgroundImage.includes("gradient"));
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(contrast, "auto");
+    contrast.dispatchEvent(new Event("change", { bubbles: true }));
+    await wait(() => !document.documentElement.dataset.hc);
     await settlePage();
   },
   async previewTools() {

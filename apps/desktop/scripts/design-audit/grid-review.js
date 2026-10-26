@@ -15,10 +15,34 @@ export async function verifyGridFactoryState(view) {
       && Math.abs(y / x - Math.sqrt(3)) < 0.01 && style.borderTopRightRadius === "0px"
       && style.borderBottomRightRadius === "0px" && style.borderBottomLeftRadius === "0px";
   };
+  const roundedContainer = radius => element => {
+    const style = getComputedStyle(element);
+    return style.getPropertyValue("corner-top-left-shape") === "superellipse(1)"
+      && style.borderTopLeftRadius === radius && style.borderTopRightRadius === radius
+      && style.borderBottomRightRadius === radius && style.borderBottomLeftRadius === radius;
+  };
+  const family = document.documentElement.dataset.themeFamily ?? "missing";
+  const container = {
+    grid: bevel,
+    "frutiger-aero": roundedContainer("20px"),
+    tenshi: roundedContainer("14px"),
+    jirai: roundedContainer("10px"),
+  }[family];
+  check(container, `Workshop review has a known theme family: ${family}`);
   if (view.startsWith("workshop-")) {
     await until(() => document.querySelectorAll(".vua-line__station").length >= 6);
     const steps = [...document.querySelectorAll(".vua-line__station")];
-    check(steps.every(bevel), "Every workshop step uses the upper-left 120-degree bevel");
+    check(steps.every(container), `Every workshop step uses the ${family} container shape`);
+    if (family === "grid") {
+      check(!document.querySelector(".vua-line__skin-motif"), "Grid keeps the workshop free of skin motifs");
+    } else {
+      await until(() => {
+        const motif = document.querySelector(".vua-line__skin-motif");
+        return motif?.complete && motif.naturalWidth > 0;
+      });
+      check(document.querySelector(".vua-line__skin-motif")?.dataset.motifFamily === family,
+        `Workshop motif loads from the ${family} preset`);
+    }
     const active = steps.find(step => step.getAttribute("aria-pressed") === "true");
     check(active && steps.every(step => getComputedStyle(step).boxShadow === "none"), "Viewing and execution never grant step cards cast elevation");
     if (view === "workshop-running") {
@@ -26,9 +50,18 @@ export async function verifyGridFactoryState(view) {
       const running = steps.find(step => step.dataset.state === "running");
       const future = steps.find(step => step.dataset.state === "todo");
       check(running && future, "Running fixture has current and future steps");
+      await until(() => document.querySelector(".vua-line__station-indicator"));
+      const indicator = document.querySelector(".vua-line__station-indicator");
+      check(document.querySelectorAll(".vua-line__station-indicator").length === 1, "One shared indicator marks the viewed station");
+      const motion = getComputedStyle(indicator);
+      check(motion.transitionProperty.includes("transform") && motion.transitionTimingFunction.includes("0.55") && parseFloat(motion.transitionDuration) > 0,
+        "Station indicator uses an accelerated transform transition");
+      const indicatorAt = step => Math.abs(indicator.getBoundingClientRect().left - (step.getBoundingClientRect().left + 12)) <= 1;
       future.click();
       await until(() => future.getAttribute("aria-pressed") === "true");
       await until(() => getComputedStyle(future).backgroundColor === selectedBackground);
+      await until(() => indicatorAt(future));
+      check(indicator === document.querySelector(".vua-line__station-indicator"), "The same indicator moves instead of being recreated");
       check(running.getAttribute("aria-current") === "step" && future.getAttribute("aria-current") === null, "Viewing a future step cannot move execution");
       check(getComputedStyle(future).backgroundColor === selectedBackground, "Future selection uses the same neutral viewing treatment as the current step");
       check(document.querySelector(".vua-line__context").textContent.includes(future.querySelector("strong").textContent)
@@ -36,6 +69,7 @@ export async function verifyGridFactoryState(view) {
       running.click();
       await until(() => running.getAttribute("aria-pressed") === "true");
       await until(() => getComputedStyle(running).backgroundColor === selectedBackground);
+      await until(() => indicatorAt(running));
     }
   } else {
     await until(() => document.querySelectorAll(".vua-control__repo").length >= 2);

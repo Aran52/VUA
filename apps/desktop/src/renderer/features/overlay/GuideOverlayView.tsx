@@ -45,10 +45,13 @@ import type { GuideTargetV1 } from "@vua/contracts";
 import { MediaSlot } from "../../components/primitives/MediaSlot.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { strings } from "../../i18n/index.ts";
+import { openExternalUrl } from "../../app/open-external.ts";
+import { storageKeys } from "../../app/storage-keys.ts";
 import { readEncyclopediaHash, recordEncyclopediaTarget } from "../help/encyclopedia-navigation.ts";
 import {
+  ENCYCLOPEDIA_TOPIC_IDS,
+  GUIDE_SOURCE_LINKS,
   GUIDE_TOPIC_COPY_KEY,
-  GUIDE_TOPIC_IDS,
   resolveGuideMedia,
   type GuideTopicId,
 } from "../guide/guide-content.ts";
@@ -79,8 +82,8 @@ export interface GuideRequest {
 }
 
 /** 初始落点判定(纯函数,可测):明确定位(加载查询)> 上次阅读位置 > 开始页 */
-export function initialGuideTarget(search: string, stored: GuideTarget | null): GuideTarget {
-  return parseGuideTargetFromSearch(search) ?? stored ?? { topic: "guide-start" };
+export function initialGuideTarget(search: string, stored: GuideTarget | null, fallback: GuideTarget = { topic: "guide-start" }): GuideTarget {
+  return parseGuideTargetFromSearch(search) ?? stored ?? fallback;
 }
 
 /** 定位请求回执清除判定(纯函数,可测):只清除已被应用的那一条,
@@ -96,32 +99,45 @@ export function GuideOverlayView({
   guideRequest,
   onGuideRequestApplied,
   embedded = false,
+  topicIds = ENCYCLOPEDIA_TOPIC_IDS,
+  initialTopic = "guide-start",
+  initialPosition,
+  readingKey = storageKeys.guideReading,
+  historyEnabled = true,
 }: {
   guideRequest?: GuideRequest | null;
   embedded?: boolean;
+  topicIds?: readonly GuideTopicId[];
+  initialTopic?: GuideTopicId;
+  initialPosition?: GuideTarget;
+  readingKey?: string;
+  historyEnabled?: boolean;
   /** 定位请求已应用的回执(按 nonce 清除,防重挂载重放) */
   onGuideRequestApplied?: (nonce: number) => void;
 }) {
   const copy = strings.guide;
-  const [initialTarget] = useState(() =>
-    guideRequest != null
-      ? guideRequest.target === null ? loadGuideReading() ?? { topic: "guide-start" } as GuideTarget : normalizeGuideTarget(guideRequest.target)
-      : (embedded ? readEncyclopediaHash(window.location.hash) : null) ?? initialGuideTarget(window.location.search, loadGuideReading()),
-  );
+  const fallbackTarget = initialPosition ?? { topic: initialTopic };
+  const [initialTarget] = useState(() => {
+    const requested = guideRequest != null
+      ? guideRequest.target === null ? loadGuideReading(readingKey) ?? fallbackTarget : normalizeGuideTarget(guideRequest.target)
+      : (embedded && historyEnabled ? readEncyclopediaHash(window.location.hash) : null)
+        ?? initialGuideTarget(window.location.search, loadGuideReading(readingKey), fallbackTarget);
+    return topicIds.includes(requested.topic) ? requested : { topic: initialTopic };
+  });
   const [topic, setTopic] = useState<GuideTopicId>(initialTarget.topic);
-  // 滚动触发序号:同主题内换分节时 setTopic 不产生渲染,滚动副作用
-  // 必须另有触发源(首玩 B 切片真机演示发现的同主题定位缺陷)
   const [scrollNonce, setScrollNonce] = useState(0);
   const tabRefs = useRef<Partial<Record<GuideTopicId, HTMLButtonElement | null>>>({});
   const stripRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  /** 待执行滚动:主题渲染提交后生效("top" = 主题开头;否则分节 id) */
   const pendingScroll = useRef<string | null>(initialTarget.section ?? null);
   const appliedNonce = useRef(0);
   const topicCopy = copy.pages[GUIDE_TOPIC_COPY_KEY[topic]];
   const openXrSection = copy.pages.devices.sections.find(section => section.id === "steamvr-openxr");
   const TopicHeading = embedded ? "h2" : "h1";
   const SectionHeading = embedded ? "h3" : "h2";
+  const recordTarget = historyEnabled ? recordEncyclopediaTarget : () => {};
+  const saveReading = (target: GuideTarget) => saveGuideReading(target, readingKey);
+  const sourceLink = historyEnabled ? GUIDE_SOURCE_LINKS[topic] : undefined;
 
   const scroller = () => panelRef.current?.closest(".vua-overlay__body");
 
@@ -178,26 +194,27 @@ export function GuideOverlayView({
     pendingScroll.current = target.section ?? "top";
     setTopic(target.topic);
     setScrollNonce((nonce) => nonce + 1);
-    saveGuideReading(target);
+    saveReading(target);
   };
 
   const selectTopic = (next: GuideTopicId, moveFocus: boolean) => {
-    // 手动切主题 = 从该主题开头阅读(首玩 B 切片导航纪律)
+    if (!topicIds.includes(next)) return;
     applyGuideTarget({ topic: next });
-    if (embedded) recordEncyclopediaTarget({ topic: next });
+    if (embedded) recordTarget({ topic: next });
     if (moveFocus) tabRefs.current[next]?.focus();
   };
 
   const onTopicsKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const index = GUIDE_TOPIC_IDS.indexOf(topic);
+    const index = topicIds.indexOf(topic);
+    if (index < 0) return;
     let nextIndex: number | null = null;
-    if (event.key === "ArrowRight") nextIndex = (index + 1) % GUIDE_TOPIC_IDS.length;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % topicIds.length;
     else if (event.key === "ArrowLeft")
-      nextIndex = (index - 1 + GUIDE_TOPIC_IDS.length) % GUIDE_TOPIC_IDS.length;
+      nextIndex = (index - 1 + topicIds.length) % topicIds.length;
     else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = GUIDE_TOPIC_IDS.length - 1;
+    else if (event.key === "End") nextIndex = topicIds.length - 1;
     if (nextIndex === null) return;
-    const next = GUIDE_TOPIC_IDS[nextIndex];
+    const next = topicIds[nextIndex];
     if (next === undefined) return;
     event.preventDefault();
     selectTopic(next, true);
@@ -206,21 +223,21 @@ export function GuideOverlayView({
   // 首帧一次:初始落点记为当前阅读位置;明确定位查询段单次消费——
   // 落位后从地址栏剥离,之后的状态页往返/重挂载按最新阅读位置恢复
   useEffect(() => {
-    saveGuideReading(initialTarget);
-    if (embedded) recordEncyclopediaTarget(initialTarget, true);
+    saveReading(initialTarget);
+    if (embedded) recordTarget(initialTarget, true);
     else stripGuideTargetFromLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅首帧一次
   }, []);
 
   useEffect(() => {
-    if (!embedded) return;
+    if (!embedded || !historyEnabled) return;
     const onHistory = () => {
       const target = readEncyclopediaHash(window.location.hash);
       if (target) applyGuideTarget(target);
     };
     window.addEventListener("hashchange", onHistory);
     return () => window.removeEventListener("hashchange", onHistory);
-  }, [embedded]);
+  }, [embedded, historyEnabled]);
 
   // 渲染提交后执行待滚动(初始分节 / 定位 / 手动切主题开头);
   // 依赖 scrollNonce:同主题内换分节(setTopic 同值不重渲染)也必然触发;
@@ -259,10 +276,10 @@ export function GuideOverlayView({
     if (guideRequest == null || guideRequest.nonce === appliedNonce.current) return;
     appliedNonce.current = guideRequest.nonce;
     const target = guideRequest.target === null
-        ? (loadGuideReading() ?? { topic: "guide-start" })
+        ? (loadGuideReading(readingKey) ?? fallbackTarget)
         : normalizeGuideTarget(guideRequest.target);
     applyGuideTarget(target);
-    if (embedded) recordEncyclopediaTarget(target);
+    if (embedded) recordTarget(target);
     onGuideRequestApplied?.(guideRequest.nonce);
   }, [guideRequest, onGuideRequestApplied]);
 
@@ -294,7 +311,7 @@ export function GuideOverlayView({
           if (anchor.getBoundingClientRect().top - bodyTop > 96) break;
           current = anchor.getAttribute("data-guide-section") ?? undefined;
         }
-        saveGuideReading(current === undefined ? { topic } : { topic, section: current });
+        saveReading(current === undefined ? { topic } : { topic, section: current });
       }, 150);
     };
     body.addEventListener("scroll", onScroll, { passive: true });
@@ -302,18 +319,18 @@ export function GuideOverlayView({
       body.removeEventListener("scroll", onScroll);
       window.clearTimeout(timer);
     };
-  }, [topic]);
+  }, [topic, readingKey]);
 
   return (
     <div className="vua-overlay-guide">
-      <div
+      {topicIds.length > 1 ? <div
         className="vua-overlay-guide__topics"
         role="tablist"
         aria-label={copy.topicsAria}
         onKeyDown={onTopicsKeyDown}
         ref={stripRef}
       >
-        {GUIDE_TOPIC_IDS.map((id) => (
+        {topicIds.map((id) => (
           <button
             key={id}
             ref={(element) => {
@@ -332,17 +349,19 @@ export function GuideOverlayView({
             {copy.pages[GUIDE_TOPIC_COPY_KEY[id]].title}
           </button>
         ))}
-      </div>
+      </div> : null}
       <div
         className="vua-overlay-guide__content"
         role="tabpanel"
         id={GUIDE_PANEL_ID}
-        aria-labelledby={guideTabId(topic)}
+        aria-label={topicIds.length === 1 ? topicCopy.title : undefined}
+        aria-labelledby={topicIds.length > 1 ? guideTabId(topic) : undefined}
         tabIndex={0}
         ref={panelRef}
       >
         <TopicHeading className="vua-overlay-guide__title">{topicCopy.title}</TopicHeading>
         <p className="vua-overlay-guide__intro">{topicCopy.intro}</p>
+        {sourceLink ? <p><Button variant="subtle" data-guide-source={topic} title={sourceLink} onClick={() => void openExternalUrl(sourceLink)}>{strings.helpFaq.readMore}</Button></p> : null}
         {topicCopy.sections.map((section) => {
           const media =
             "media" in section && typeof section.media === "string"

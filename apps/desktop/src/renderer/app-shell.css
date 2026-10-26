@@ -19,6 +19,7 @@
   gap: var(--vua-space-6);
   padding: var(--vua-space-3) var(--vua-space-5);
   background: color-mix(in srgb, var(--vua-bg-panel) 68%, transparent);
+  background-image: var(--vua-header-sheen, none);
   backdrop-filter: blur(24px) saturate(1.6);
   -webkit-backdrop-filter: blur(24px) saturate(1.6);
   border-bottom: 1px solid var(--vua-border);
@@ -526,4 +527,28 @@
   display: flex;
   gap: var(--vua-space-2);
   justify-content: flex-end;
+}
+
+.vua-shell__skin-motif {
+  position: absolute;
+  z-index: 0;
+  inset-inline: 10px;
+  bottom: 40px;
+  width: calc(100% - 20px);
+  max-height: 128px;
+  opacity: 0.88;
+}
+
+.vua-shell__sidebar-group,
+.vua-shell__sidebar-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.vua-shell__sidebar--settings .vua-shell__skin-motif {
+  bottom: 96px;
+}
+
+@media (max-height: 720px) {
+  .vua-shell__skin-motif { display: none; }
 }

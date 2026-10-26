@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildInfo } from "./build-info.mjs";
+import { THEME_FAMILIES, THEME_FAMILY_MODES } from "./theme-presets.mjs";
 
 import {
   FIXTURES, VIEWS, OVERFLOW_LOCALES, DEFAULT_LOCALE, THEMES,
@@ -50,6 +51,11 @@ const hasFlag = name => args.includes(`--${name}`);
 const ONLY = argValue("only", "");
 const LOCALE_FILTER = argValue("locale", null);
 const THEME_FILTER = argValue("theme", null);
+const THEME_FAMILY = argValue("themeFamily", "grid");
+if (!THEME_FAMILIES.includes(THEME_FAMILY)) throw new Error(`Unknown theme family: ${THEME_FAMILY}`);
+if (THEME_FILTER && !THEME_FAMILY_MODES[THEME_FAMILY].includes(THEME_FILTER)) {
+  throw new Error(`${THEME_FAMILY} does not provide ${THEME_FILTER} mode`);
+}
 const OUT = argValue("out", path.join(desktopRoot, "_local_design_audit", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)));
 const MAX_VIEWS = Number(argValue("max", "0"));
 const NO_SCREENS = hasFlag("no-screens");
@@ -62,7 +68,7 @@ const BASELINE_PATH = path.join(scriptDir, "design-audit", "baseline.json");
 // floor is passed explicitly.
 // Vite debris pages collect ~3 elements; the sparsest real view collects 10.
 const PER_STATE_ELEMENT_FLOOR = Number(argValue("per-state-elements", "6"));
-const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER);
+const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER || THEME_FAMILY !== "grid");
 const TOTAL_ELEMENT_FLOOR = Number(argValue("min-total-elements", PARTIAL_PLAN ? "0" : "30000"));
 
 if (hasFlag("list")) {
@@ -77,14 +83,14 @@ const selectedViews = MAX_VIEWS > 0
   ? VIEWS.slice(0, MAX_VIEWS)
   : VIEWS.filter(v => ONLY_PREFIXES.length === 0 || ONLY_PREFIXES.some(p => v.id.startsWith(p)));
 const locales = LOCALE_FILTER ? [LOCALE_FILTER] : [DEFAULT_LOCALE, ...OVERFLOW_LOCALES];
-const themes = THEMES.filter(t => !THEME_FILTER || t === THEME_FILTER);
+const themes = THEMES.filter(t => THEME_FAMILY_MODES[THEME_FAMILY].includes(t) && (!THEME_FILTER || t === THEME_FILTER));
 
 function planGroups() {
   const groups = [];
   for (const view of selectedViews) {
     for (const locale of locales) {
       const isDefaultLocale = locale === DEFAULT_LOCALE;
-      const themeList = isDefaultLocale ? themes : themes.filter(t => t === "dark");
+      const themeList = isDefaultLocale ? themes : themes.filter(t => t === THEME_FAMILY_MODES[THEME_FAMILY][0]);
       if (!themeList.length) continue;
       groups.push({
         view, locale, themes: themeList,
@@ -118,7 +124,7 @@ const LIMITATIONS = [
   "Computed-style analysis sees one state per view. Hover, focus, pressed and disabled interactions, and states that require live Gateway traffic, are not exercised unless a fixture mounts them.",
   "Contrast is computed against alpha-composited backgrounds; gradient and image backgrounds fall back to their background-color layer, so text over busy art may be mis-graded.",
   "Attribution prefers the CDP cascade winner; hover-only rules (:hover) cannot be matched from the static state, so those findings fall back to class+area attribution.",
-  "Overflow checks see the zh-CN layout for all views plus four extra locales in dark theme; light-theme text growth in other locales is not measured. The viewport branch reports horizontal overflow only — vertical growth beyond the fold is normal document scrolling.",
+  "Overflow checks see zh-CN for all views plus four extra locales in the preset's first supported mode. Dual-mode presets therefore cover dark overflow only; a light-only preset uses light instead of dropping those states. The viewport branch reports horizontal overflow only — vertical growth beyond the fold is normal document scrolling.",
   "Primary-action detection is heuristic (opaque accent-filled controls); custom-selected states can inflate the one-accent count.",
   "data-audit-skip regions (base-map scene canvas, turntable frames, WebGL scenes, product imagery) are excluded by design and not audited.",
 ];
@@ -160,8 +166,12 @@ async function main() {
     const hit = fixturesByPrefix.find(([, fixture]) => req.url?.startsWith(fixture.prefix));
     if (!hit) return next();
     const [, fixture] = hit;
+    const shellHtml = fixture.shell(shellParams);
+    const themedHtml = shellHtml.includes("data-theme-family=")
+      ? shellHtml
+      : shellHtml.replace("<html", `<html data-theme-family="${THEME_FAMILY}"`);
     res.setHeader("Content-Type", "text/html");
-    res.end(await server.transformIndexHtml(req.url, fixture.shell(shellParams)));
+    res.end(await server.transformIndexHtml(req.url, themedHtml));
   });
   await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -198,12 +208,13 @@ async function main() {
     loadCounter += 1;
     if (view.fixture === "factory") {
       const feedback = view.id.startsWith("feedback-") ? "feedback=1&" : "";
-      return `${origin}/__factory?${feedback}r=${loadCounter}#${view.id}`;
+      return `${origin}/__factory?${feedback}themeFamily=${encodeURIComponent(THEME_FAMILY)}&r=${loadCounter}#${view.id}`;
     }
     // Fixtures read their state from the shell itself; the hash is for humans.
     const fixture = FIXTURES[view.fixture];
     const url = new URL(fixture.prefix, origin);
     for (const [name, value] of Object.entries(fixture.query ?? {})) url.searchParams.set(name, value);
+    url.searchParams.set("themeFamily", THEME_FAMILY);
     url.searchParams.set("r", String(loadCounter));
     return url.href;
   };
@@ -248,7 +259,7 @@ async function main() {
 
     const load = async theme => {
       recentConsoleErrors = [];
-      shellParams = { locale, theme };
+      shellParams = { locale, theme, themeFamily: THEME_FAMILY };
       const url = viewUrl(view, theme);
       // A Vite re-optimization reloads the page mid-navigation and aborts the
       // load (ERR_ABORTED); one retry after the dust settles.
@@ -475,6 +486,7 @@ async function main() {
     date: new Date().toISOString().slice(0, 10),
     generatedAt: new Date().toISOString(),
     commit,
+    themeFamily: THEME_FAMILY,
     viewCount: selectedViews.length,
     viewLocaleStates: collected.length,
     elementTotal: collected.reduce((sum, c) => sum + c.elementCount, 0),

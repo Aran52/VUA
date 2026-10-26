@@ -91,10 +91,3 @@ export function serializeTourProgress(progress: TourProgressV2): string {
     step: progress.status === "active" ? progress.step : 0,
   });
 }
-
-/** Automatic first-use tour never overwrites completed/skipped or onboarded profiles. */
-export function firstTourRequired(onboarded: boolean, rawProgress: string | null): boolean {
-  if (onboarded) return false;
-  const progress = parseTourProgress(rawProgress);
-  return progress === null || progress.status === "active";
-}

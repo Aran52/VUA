@@ -171,6 +171,16 @@ test("shadow-panel distinguishes cast shadows from selection and focus edges", (
   assert.equal(evaluateSnapshot(elevated).filter(f => f.rule === "shadow-panel").length, 1, "an elevation token does not authorize an ordinary panel's cast shadow");
 });
 
+test("shadow-panel accepts declared action material but not an arbitrary panel shadow", () => {
+  const material = "0 3px 0 #46192f";
+  const action = snapshot([el({ tag: "button", cls: ["vua-button", "vua-button--primary"], boxShadow: material })]);
+  action.shadowTokens["--vua-action-shadow"] = material;
+  assert.equal(evaluateSnapshot(action).filter(f => f.rule === "shadow-panel").length, 0);
+  const panel = snapshot([el({ boxShadow: material })]);
+  panel.shadowTokens["--vua-action-shadow"] = material;
+  assert.equal(evaluateSnapshot(panel).filter(f => f.rule === "shadow-panel").length, 1);
+});
+
 test("blur-scope flags card walls, exempts shell structure and overlays", () => {
   const wall = evaluateSnapshot(snapshot([el({ backdropFilter: "blur(10px)" })]));
   assert.equal(wall.filter(f => f.rule === "blur-scope").length, 1);

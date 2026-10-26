@@ -9,9 +9,9 @@ export type LineStatus = "running" | "waiting" | "attention" | "finished" | "sto
  * steps itself, or VUA changes the work project without asking. It is about what the player wants to hand over,
  * not how well they know Unity (author ruling 2026-10-18). */
 export type AutomationLevel = "ask" | "smart" | "full";
-/** Listed in this order; asking before changes is the default. */
+/** Listed in this order; new and invalid preferences default to full auto. */
 export const AUTOMATION_LEVELS: readonly AutomationLevel[] = ["ask", "smart", "full"];
-export const DEFAULT_AUTOMATION_LEVEL: AutomationLevel = "ask";
+export const DEFAULT_AUTOMATION_LEVEL: AutomationLevel = "full";
 
 interface Step { readonly key: string; readonly state: string }
 export interface LineFacts { readonly phase: AmfRunPhase; readonly steps: readonly Step[] }
@@ -97,7 +97,7 @@ export function queueAhead(lane: { readonly running: readonly unknown[]; readonl
   return Math.max(1, lane.running.length + Math.max(0, index));
 }
 
-// A new key: every player starts asking before changes, whatever the earlier familiarity choice was.
+// Keep the existing key so ask/smart choices survive the full-auto default change.
 const levelKey = "vua-amf-permission-mode-v01";
 export function storedAutomationLevel(): AutomationLevel {
   try { const value = localStorage.getItem(levelKey); return AUTOMATION_LEVELS.includes(value as AutomationLevel) ? value as AutomationLevel : DEFAULT_AUTOMATION_LEVEL; } catch { return DEFAULT_AUTOMATION_LEVEL; }

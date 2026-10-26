@@ -20,6 +20,8 @@ import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
+import { contextGuideCopy } from "./context-guide-copy.ts";
+import { helpFaqCopy } from "./help-faq-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -41,6 +43,8 @@ export const strings: Strings = {
   browser: browserCopy["zh-CN"],
   fileDrop: fileDropCopy["zh-CN"],
   helpUi: helpCopy["zh-CN"],
+  helpFaq: helpFaqCopy["zh-CN"],
+  contextGuide: contextGuideCopy["zh-CN"],
   distribution: distributionCopy["zh-CN"],
   amfModule: moduleCopy["zh-CN"],
   amfProduction: amfProductionCopy["zh-CN"],
@@ -497,6 +501,8 @@ demoTaskTitle: "演示任务",
   },
   /** 首次目标引导(美术方案 v0.3.3 §2.2 / §4.3) */
   onboarding: {
+    firstRunTitle: "选择界面语言",
+    firstRunBody: "之后可在设置中更改。其他功能用到时再了解即可。",
     /** 步骤指示(v0.3.3 §2.5:文字+图标+位置同显,不只靠颜色) */
     steps: {
       goals: "选择目标",
@@ -1057,172 +1063,173 @@ rolled_back: "已回滚",
       hardware: hardwareCopy["zh-CN"],
       room: {
         title: "房间与游玩空间",
-        intro: "先整理物理空间再装软件——一个安全舒适的空间,让之后的每一步都更省心。",
+        intro: "安装软件前，先检查游玩区域、光线和网络。",
         sections: [
           {
             id: "space",
             title: "清出游玩空间",
             paragraphs: [
-              "站立游玩建议留出约 2×2 米的空地;坐着或原地游玩可以更小。把散落的线缆、带硬角的椅子和易碎物品移出可及范围。",
-              "头显或 SteamVR 提示时认真设置游玩边界——共用房间里更要当心,孩子和宠物是最常见的意外访客。",
+              "按头显说明设置游玩边界。清走边界内的桌椅、线缆和易碎物品，坐着玩也要留出手臂活动空间。",
+              "共用房间要留意儿童和宠物。头显或 SteamVR 提示时，按实际环境重新设置边界，不要沿用旧位置。",
             ],
           },
           {
             id: "lighting",
             title: "房间光线",
             paragraphs: [
-              "头显靠摄像头识别房间:普通、均匀的室内光最合适。避免阳光直射游玩区域,也避免正后方强逆光。",
-              "头显的摄像头区域保持清洁、不要遮挡——镜头脏污或被覆盖会明显降低追踪质量。",
+              "保持室内光线均匀，避免阳光直射游玩区域。不同头显的追踪方式不同，按设备说明调整环境。",
+              "保持定位摄像头和传感器清洁，不要遮挡。追踪突然变差时，先检查污渍、遮挡和光线变化。",
             ],
           },
           {
             id: "network",
             title: "串流网络",
             paragraphs: [
-              "PICO Wi-Fi 串流希望头显与电脑连在同一路由器上,优先 5 GHz 频段,路由器最好就在游玩房间或近旁。路由器与头显之间的墙体和家电都会明显拉低画质。",
-              "如果画面持续不稳定,USB 线连接是稳妥的替代——设备章节有具体的连接步骤。",
+              "Wi-Fi 串流时，头显和电脑应连到同一局域网，优先使用 5 GHz。电脑尽量用网线接路由器，减少墙体和远距离造成的丢包。",
+              "Wi-Fi 串流频繁卡顿时，可改用支持数据传输的 USB 线；仍卡顿，再检查路由器和电脑的连接。",
             ],
           },
           {
             id: "comfort",
             title: "舒适与休息",
             paragraphs: [
-              "调整头带让重量落在头顶而不是脸上;佩戴过松会让画面发虚,也更累脖子。",
-              "手边放杯水,按习惯定时休息——VR 的疲劳是悄悄累积的,前几次游玩宁短勿长。",
+              "按头显说明调整头带，让画面清晰且鼻梁、脸部不受压。佩戴过松或位置不正都可能让画面发虚。",
+              "第一次使用 VR 时先短时间体验，感到头晕、眼酸或恶心就摘下头显休息，不要硬撑到症状加重。",
             ],
           },
         ],
       },
       start: {
         title: "开始游玩",
-        intro: "从 Steam 账号到第一个世界——首次游玩的完整路径。",
+        intro: "从 Steam 安装、首次登录到进入世界。",
         sections: [
           {
             id: "prepare",
             title: "开始前准备",
             paragraphs: [
-              "位置:VUA 的环境部署页。先运行环境检测与网络检测;缺 Steam 或 VRChat 时,页面会给出官方安装路线。",
-              "桌面游玩只需要 Steam 与 VRChat,VRChat 免费。PICO 串流在此之上再加 SteamVR 与 PICO Connect。",
-              "若检测失败:网络检测会按服务分别报告,按建议处理后再重查。",
+              "在 VUA 的“游玩”页检查软件和网络。缺少 Steam 或 VRChat 时，按页面给出的官方入口准备。",
+              "桌面游玩需要 Steam 和 VRChat；PICO 串流还需要 SteamVR 和 PICO Connect。VRChat 免费下载。",
+              "检测失败时，先按页面显示的具体项目处理，再重新检查。",
             ],
           },
           {
             id: "steam-account",
             title: "Steam 账号(注册或登录)",
             paragraphs: [
-              "位置:Steam 官网的「加入 Steam」注册页,或 Steam 客户端登录窗。新玩家用邮箱注册,并亲自完成邮箱验证与人机验证;已有账号直接登录。",
-              "应看到:登录后客户端内显示你的 Steam 昵称。",
-              "若失败:验证邮件可能在垃圾箱;注册页打不开通常是线路问题——先查垃圾箱,再回 VUA 网络检测按建议处理。",
+              "已有 Steam 账号就直接登录。新账号在 Steam 官网注册，由你完成邮箱验证和人机验证。",
+              "登录成功后，客户端会显示你的 Steam 昵称。",
+              "收不到验证邮件时先查垃圾邮件。注册页打不开时，再检查网络；仅凭页面打不开不能判断是哪里的故障。",
             ],
           },
           {
             id: "install-vrchat",
             title: "通过 Steam 安装 VRChat",
             paragraphs: [
-              "位置:Steam 商店的 VRChat 页面。点「开始游戏」——VRChat 免费——Steam 会把它加入库并开始下载。",
-              "应看到:下载完成后,库中的 VRChat 出现绿色「开始游戏」按钮。",
-              "若失败:下载慢或卡住,可在 Steam 设置里更换下载地区或清理磁盘空间;报库文件夹错误就换一个安装位置。",
+              "在 Steam 商店打开 VRChat，点击“开始游戏”。Steam 会把它加入库并下载。",
+              "下载完成后，在库中选择 VRChat 就能启动。",
+              "下载卡住时，先检查磁盘空间和 Steam 的下载状态。库文件夹报错时，在 Steam 设置里检查安装位置。",
             ],
           },
           {
             id: "first-launch",
             title: "首次启动与登录",
             paragraphs: [
-              "桌面游玩时,在 Steam 选择非 VR 启动方式。若仍自动进入 VR,在 Steam 的 VRChat 属性中,向已有启动选项追加 --no-vr 后重新启动。切换到 PICO 时只移除 --no-vr,保留你的其他选项。",
-              "位置:在 Steam 库中点 VRChat 的「开始游戏」。出现登录界面时,选择用 Steam 账号登录——开始游玩不需要另外注册。",
-              "应看到:加载完成后进入一个世界,此时可以移动(W/A/S/D)、可以按 Esc 打开快捷菜单。Home 可能是没有其他人的私人实例,这属正常——想见其他玩家,从菜单加入公开世界。",
-              "若失败:加载或登录转圈,通常是到 VRChat 服务器的线路不健康——重跑 VUA 网络检测;启动即闪退,先更新显卡驱动再重试。",
-              "可选:需要完整 VRChat 账号时,先用 Steam 登录游戏,打开主菜单 → 设置 →「Link Account」(关联账号)。选择「Upgrade to a VRChat Account」可升级当前平台账号,保留好友、收藏和其他数据;选择「Link to an Existing Account」可合并进已有 VRChat 账号。有 Creator Economy 或 Shop 购买记录的平台账号应选择升级,此时不能合并进已有账号。选好后按画面提示继续。",
+              "桌面游玩时，在 Steam 选择非 VR 启动方式。如果仍进入 VR，在 Steam 的 VRChat 属性里向已有启动选项追加 --no-vr。改用 VR 前移除这一项，保留其他启动选项。",
+              "在 Steam 库中启动 VRChat，登录时选择 Steam 账号。开始游玩不要求另外注册完整 VRChat 账号；上传自定义 Avatar 另有账号和等级要求。",
+              "进入世界后，用 W/A/S/D 移动，按 Esc 打开快捷菜单。首次进入的 Home 可能是私人实例，想加入其他玩家可从菜单选择世界。",
+              "登录一直转圈时，先检查 VRChat 服务和本机网络。仅凭转圈无法确定是网络、账号还是客户端问题；启动即闪退则先查看显卡驱动和客户端报错。",
+              "需要完整 VRChat 账号时，先用 Steam 登录游戏，再打开主菜单 → 设置 → Link Account。按官方页面选择升级当前账号或关联已有账号；有 Creator Economy 或 Shop 购买记录时，按页面提示选择升级，不要自行合并账号。",
             ],
           },
           {
             id: "first-steps",
-            title: "进世界后的第一件事",
+            title: "先熟悉移动和菜单",
             paragraphs: [
-              "先学会三件事:在镜子前挑一个公共模型换上;按 Esc 打开快捷菜单,找到回 Home 世界的路;然后跟好友过传送门,或从菜单里挑另一个世界。",
+              "先在镜子前更换公共 Avatar，再按 Esc 找到回 Home 的入口。之后可以通过世界菜单或传送门去其他世界。",
             ],
           },
         ],
       },
       basics: {
         title: "基础操作",
-        intro: "桌面模式的移动、菜单、声音与麦克风,附串流用的 VR 手柄速查。",
+        intro: "桌面键鼠、麦克风和 VR 手柄的基本操作。",
         sections: [
           {
             id: "movement",
             title: "移动与视角(桌面)",
             paragraphs: [
-              "W/A/S/D 移动,鼠标转视角,Shift 冲刺,空格在世界允许时跳跃,C 蹲下,Z 趴下。左键交互或拾取;按住右键显示交互光标。",
+              "W/A/S/D 移动，鼠标转视角，Shift 冲刺，空格在世界允许时跳跃，C 蹲下，Z 趴下。左键交互或拾取；按住右键显示交互光标。",
             ],
           },
           {
             id: "menu",
             title: "菜单在哪里",
             paragraphs: [
-              "Esc 打开快捷菜单——回出生点、设置与玩家列表都在这里,并可展开成主菜单(世界、模型与社交)。R 打开动作菜单,表情与眼追要用的 OSC 开关在那里。",
+              "Esc 打开快捷菜单，可回出生点、调整设置或查看玩家列表，也可展开主菜单。R 打开动作菜单，表情和 OSC 开关在这里。",
             ],
           },
           {
             id: "keys-pc",
             title: "PC 按键速查",
             media: "pc-keys",
-            caption: "示意图,非游戏实拍:日常最常用的 PC 键——说话、聊天、菜单与跳跃。",
+            caption: "示意图，不是游戏截图：说话、聊天、菜单和跳跃的常用按键。",
             paragraphs: [
-              "先记住:按住 V 说话(默认按键发言),Y 打开聊天框,Esc 快捷菜单,空格跳跃。完整列表见 VRChat 官方按键文档。",
+              "先记住：V 说话（默认按键发言）、Y 打开聊天框、Esc 快捷菜单、空格跳跃。完整按键以 VRChat 官方控制说明为准。",
             ],
           },
           {
             id: "sound-mic",
             title: "声音与麦克风",
             paragraphs: [
-              "麦克风默认按键发言:按住 V 说话。注意 HUD 上的麦克风图标——带斜线就是静音中。",
-              "位置:设置的音频部分选择麦克风设备、调节音量。",
-              "若别人听不到你:按顺序查 Windows 默认录音设备、VRChat 内所选设备、以及是否静音。",
+              "默认按住 V 说话。HUD 麦克风图标带斜线表示静音。",
+              "在设置的音频部分选择麦克风、调整音量。",
+              "别人听不到你时，依次检查 Windows 录音设备、VRChat 选择的设备和静音状态。",
             ],
           },
           {
             id: "keys-vr",
             title: "VR 手柄速查",
             media: "vr-controller",
-            caption: "示意图,非游戏实拍:VR 手柄的扳机与握持区。",
+            caption: "示意图，不是设备实拍：扳机和握持区。",
             paragraphs: [
-              "VR 中扳机交互、侧握键抓取;摇杆移动与转向,菜单键打开游戏内菜单。VRChat 官方没有 PICO 键位表——PICO 键位以 SteamVR 的控制器绑定设置为准。",
+              "VR 中通常用扳机交互、侧握键抓取，摇杆移动和转向，菜单键打开菜单。具体键位以 SteamVR 的控制器绑定为准。",
             ],
           },
         ],
       },
       safety: {
         title: "安全设置",
-        intro: "进入人多的世界之前,先花两分钟完成这些设置。",
+        intro: "这些设置控制你看到的 Avatar、声音和外部内容。",
         sections: [
           {
             id: "open-urls",
-            title: "允许不受信任的网址",
+            title: "未知链接与媒体播放",
             paragraphs: [
-              "位置:设置里的「舒适与安全」。「允许不受信任的网址」默认关闭;不开它,很多世界的视频、图片和音乐无法加载。",
-              "想播放世界媒体时再开启,并且只进可信世界与可信之人给的链接。",
+              "在设置的“舒适与安全”里可以找到 Allow Untrusted URLs，默认关闭。关闭时，世界里的部分外部图片、视频和音乐不会加载。",
+              "开启前确认你理解它允许加载的来源。陌生人或熟人发来的未知链接，都不要仅凭关系判断安全。",
             ],
           },
           {
             id: "personal-space",
-            title: "个人空间与传送门确认",
+            title: "个人空间",
             paragraphs: [
-              "个人空间在同一设置页,默认开启:靠得太近的模型会被自动隐藏;进入他人丢出的传送门前,总会有确认提示。",
+              "个人空间在同一设置页，默认开启。其他玩家靠得太近时，其 Avatar 会被隐藏或淡出，只影响你的画面。",
             ],
           },
           {
             id: "trust",
-            title: "信任等级与护盾",
+            title: "Trust Rank 与 Shield Level",
             paragraphs: [
-              "快捷菜单打开时,名牌会显示信任等级(从 Visitor 到 Trusted User)。安全页的护盾级别决定各等级可见的模型与特效——默认的 Normal 就是不错的起点。",
+              "Trust Rank 是账号的信任等级；Shield Level 决定不同信任等级的玩家向你显示哪些 Avatar、声音和特效。两者和 Avatar 的性能等级无关。",
+              "在快捷菜单中查看名牌和 Shield 设置。默认 Normal 可以先保留，需要时再按房间和个人接受程度调整。",
             ],
           },
           {
             id: "mute-block",
-            title: "遇到不适:静音、隐藏与屏蔽",
+            title: "静音、隐藏与屏蔽",
             paragraphs: [
-              "位置:打开快捷菜单,点选对方。可以静音其语音、只隐藏其模型,或彻底屏蔽该用户。",
-              "感觉不对劲时离开永远可以——从快捷菜单回出生点或 Home 世界。",
+              "打开快捷菜单并选择一名玩家，可以只静音、只隐藏其 Avatar，或屏蔽该玩家。屏蔽与信任等级不是一回事。",
+              "不想继续待在当前环境时，可以从快捷菜单回出生点或 Home，不必先处理完对方的行为。",
             ],
           },
         ],
@@ -1340,50 +1347,88 @@ rolled_back: "已回滚",
           },
         ],
       },
+      creator: {
+        title: "上传与用户等级",
+        intro: "上传条件、信任等级和本地测试。",
+        sections: [
+          {
+            id: "upload-eligibility",
+            title: "上传前需要什么条件？",
+            paragraphs: [
+              "用 Unity 和 VRChat 官方 SDK 上传自定义 Avatar，需要 VRChat.com 账号，并达到 New User 或更高信任等级。使用 Steam 或 Meta 账号时，要先关联到 VRChat 账号。",
+              "暂时不能上传也可以先构建并在本地测试，测试 Avatar 只有自己能看到。VUA 不能替你提升等级，也不能跳过官方检查。",
+            ],
+          },
+          {
+            id: "trust-rank",
+            title: "用户等级是什么？",
+            paragraphs: [
+              "Trust Rank（信任等级）是 VRChat 对账号信任程度的划分。它不同于控制 Avatar 功能显示的 Shield Level，也不同于估算 Avatar 渲染开销的 Performance Rank。",
+              "打开快捷菜单可以查看名牌和等级。VUA 不会根据游玩时长、好友数量或账号名称猜测你的等级。",
+            ],
+          },
+          {
+            id: "improve-trust",
+            title: "如何达到 New User？",
+            paragraphs: [
+              "正常使用 VRChat：探索世界、与朋友游玩，在获得资格后创作内容。从 Visitor 升到 New User 时，VRChat 会发出通知。",
+              "挂机、批量加好友、批量上传低质量内容都不能提升等级。没有官方认可的捷径，也没有保证升级的时间；如果认为账号等级有误，请联系 VRChat 官方支持。",
+            ],
+          },
+        ],
+      },
       /** VUA 使用教程(2026-09-26 引导宿主裁决新增主题):阅读型,按当前真实
        *  能力编写——不承诺未接入功能 */
       vua: {
-        title: "VUA 使用教程",
-        intro: "VUA 窗口与主要流程的快速导览,按当前真实能力编写。",
+        title: "VUA 使用指南",
+        intro: "首页、素材、制作和设置的实际入口。",
         sections: [
           {
             id: "window-tour",
-            title: "认识 VUA 窗口",
+            title: "先找到入口",
             paragraphs: [
-              "顶栏从左到右是模块切换(环境部署/模型生产)、设置、功能搜索(Ctrl+P)、引导与通知;左侧栏是当前模块的功能分组。",
-              "屏幕底部是任务中心,后台任务与下载进度都收在那里;右上角铃铛打开通知列表。",
+              "点左上角 VUA 标志回 Home。左侧是当前功能的入口，顶部可以打开帮助、设置和通知；Ctrl+P 搜索功能。",
+              "下载和后台任务从顶部铃铛查看；页面底部不再显示任务栏。",
             ],
           },
           {
             id: "environment-page",
-            title: "环境部署页",
+            title: "游玩与改模准备",
             paragraphs: [
-              "游玩/生产环境页会先运行环境检测,结论不理想时会给出修复计划,按步骤完成即可。",
-              "工具合集在环境部署模块侧栏的「工具」分组里,目前尚未接入,页面会如实显示空状态。",
+              "“游玩”页检查 Steam、VRChat 和串流环境；“改模”页检查 Unity、包管理器和 AMF。检测失败时，页面会给出当前可执行的处理方式。",
+              "工具按用途分组。未接入的条目会标明开发中，不会显示成已经安装。",
             ],
           },
           {
             id: "import-paths",
-            title: "素材导入两条路",
+            title: "本地文件与 BOOTH 素材",
             paragraphs: [
-              "本地素材:在素材库选择文件夹导入。普通文件原样保留，ZIP 保留原包并自动解压；生产只使用 UnityPackage。",
-              "BOOTH 商品:在内嵌浏览窗口打开商品页,用自己的账号购买并下载,完成后将下载一键采纳进仓储。",
+              "已有文件在素材库选择“本地单品导入”。ZIP 会保留原包并自动解压；生产入口只接受支持的 UnityPackage。",
+              "BOOTH 已购素材可以在账号页登录后同步，也可以从素材库打开商品页。下载时只选需要的文件。关联商品只记录来源，不代表文件相同或兼容。",
             ],
           },
           {
             id: "production-line",
-            title: "模型生产流水线",
+            title: "素材、产线与上传",
             paragraphs: [
-              "流水线依次是仓储 → 配方 → 车间 → 出厂:素材入库后在配方页搭配,到车间生成执行计划并确认执行。",
-              "检测已并入制作记录:结果随生产记录一起呈现,不再单独占一个流程环节。",
+              "素材是制作的起点，配方用于保存和复用组合，不是每次换装的强制步骤。车间显示实际产线和自动化状态；默认全自动会为确认的素材组装一次，已有手动或有限自动偏好不变。",
+              "目前部分本地素材可能缺少制作入口，不能把关联商品当成兼容保证。上传仍需官方 SDK 和本人确认。",
             ],
           },
           {
             id: "settings-basics",
-            title: "设置里的常用项",
+            title: "主题、语言与资源节约",
             paragraphs: [
-              "外观可选深色、浅色或跟随系统;跟随系统会随 Windows 明暗模式实时切换。",
-              "资源节约模式会关闭装饰动效以降低占用,适合 VR 或低配置环境。",
+              "Grid 和 Frutiger Aero 支持深浅色；Tenshi Kaiwai 固定浅色，Jirai Kei 固定深色。语言、账号和环境路径在设置左侧的对应页面。",
+              "资源节约模式会关闭装饰动效、纹理和部分视觉特效，保留文字和操作。",
+            ],
+          },
+          {
+            id: "upload-prerequisites",
+            title: "上传前的账号条件",
+            paragraphs: [
+              "上传自定义 Avatar 需要完整 VRChat 账号和 New User 或更高信任等级。这个要求与是否安装 Unity 是两件事，等级不足仍可先本地测试。",
+              "改模准备页和上传确认处都有条件说明，可继续查看“用户等级是什么”和“如何提升”。上传由官方 SDK 完成并由你确认。",
             ],
           },
         ],

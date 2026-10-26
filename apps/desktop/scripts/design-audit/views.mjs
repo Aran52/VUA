@@ -14,8 +14,8 @@ export const FIXTURES = {
     prefix: "/__factory",
     // preview-factory.mjs shell: locale written before module load, theme on
     // <html>, AMF production jurisdiction on #root.
-    shell: ({ locale, theme }) =>
-      `<html data-theme="${theme}"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});</script>`
+    shell: ({ locale, theme, themeFamily = "grid" }) =>
+      `<html data-theme="${theme}" data-theme-family="${themeFamily}"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});</script>`
       + `<style>html,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column;padding:24px;box-sizing:border-box;background:var(--vua-bg-canvas)}</style></head>`
       + `<body><div id="root" data-module="production"></div>`
       + `<script type="module" src="/scripts/fixtures/factory-preview.tsx"></script></body></html>`,
@@ -238,7 +238,7 @@ export const VIEWS = [
 
 export const AREAS = [...new Set(VIEWS.map(v => v.area))].sort();
 
-/** Overflow pass locales: dark theme only (default pass is zh-CN dark+light). */
+/** Overflow locales use the family's first supported mode; Grid/Aero use dark, light-only presets use light. */
 export const OVERFLOW_LOCALES = ["en", "ja", "ko", "zh-TW"];
 export const DEFAULT_LOCALE = "zh-CN";
 export const THEMES = ["dark", "light"];

@@ -24,18 +24,21 @@
   opacity: 0.5;
 }
 
-/* The approved Grid fill is solid; motion represents activity in the caller. */
 .vua-button--primary {
-  background: var(--vua-accent);
+  background-color: var(--vua-accent);
+  background-image: var(--vua-shine), var(--vua-accent-gradient);
   color: var(--vua-accent-contrast);
+  box-shadow: var(--vua-action-shadow, none);
 }
 
 .vua-button--primary:hover:not(:disabled) {
-  background: var(--vua-accent-hover);
+  background-color: var(--vua-accent-hover);
+  background-image: var(--vua-shine), var(--vua-accent-gradient-hover);
 }
 
 .vua-button--primary:active:not(:disabled) {
-  background: var(--vua-accent-pressed);
+  background-color: var(--vua-accent-pressed);
+  background-image: var(--vua-shine), var(--vua-accent-gradient-pressed);
 }
 
 .vua-button:active:not(:disabled) {

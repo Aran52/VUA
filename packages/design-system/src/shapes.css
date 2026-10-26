@@ -12,16 +12,15 @@
 
 .vua-shape-scope { display: contents; }
 [data-vua-shape-scope="amf"] {
-  --vua-corner-style: bevel;
-  --vua-radius-pill: 0px;
-  --vua-radius-control: 0px;
-  --vua-radius-card: 0px;
-  --vua-radius-badge: 0px;
-  --vua-radius-overlay: 0px;
-  --vua-radius-sm: 0px;
+  --vua-corner-style: var(--vua-amf-corner-style, bevel);
+  --vua-radius-pill: var(--vua-amf-radius-pill, 0px);
+  --vua-radius-control: var(--vua-amf-radius-control, 0px);
+  --vua-radius-card: var(--vua-amf-radius-card, 0px);
+  --vua-radius-badge: var(--vua-amf-radius-badge, 0px);
+  --vua-radius-overlay: var(--vua-amf-radius-overlay, 0px);
+  --vua-radius-sm: var(--vua-amf-radius-sm, 0px);
 }
 
-/* Grid's industrial language belongs to AMF content, including its owned portals. */
 @scope ([data-vua-shape-scope="amf"]) {
 
 /* Quiet controls and brand surfaces share a scope, not a mandatory silhouette.
@@ -30,11 +29,10 @@
   a[role="button"], [role="tab"], [role="menuitem"], .vua-grid-cut) {
   --vua-shape-role: action;
   --vua-shape-treatment: quiet;
-  corner-shape: round !important;
-  border-radius: 0 !important;
+  corner-shape: var(--vua-quiet-corner-style, round) !important;
+  border-radius: var(--vua-corners-action-quiet, 0px) !important;
   clip-path: none !important;
 }
-/* Primary actions retain the logo's 120-degree top-left cut. */
 :where(:scope, :scope *):where(.vua-button--primary, .vua-grid-cut) {
   --vua-shape-treatment: bevel;
   --vua-shape-corners: var(--vua-corners-action);
@@ -45,8 +43,8 @@
 :where(:scope, :scope *):where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
   --vua-shape-role: field;
   --vua-shape-treatment: quiet;
-  corner-shape: round !important;
-  border-radius: 0 !important;
+  corner-shape: var(--vua-quiet-corner-style, round) !important;
+  border-radius: var(--vua-corners-field, 0px) !important;
   clip-path: none !important;
 }
 
@@ -56,8 +54,8 @@
   .vua-compatible-items__kind, .preview-lab__kind, .vua-skeleton) {
   --vua-shape-role: indicator;
   --vua-shape-treatment: quiet;
-  corner-shape: round !important;
-  border-radius: 0 !important;
+  corner-shape: var(--vua-quiet-corner-style, round) !important;
+  border-radius: var(--vua-corners-indicator, 0px) !important;
   clip-path: none !important;
 }
 
@@ -84,8 +82,8 @@
 :where(:scope, :scope *):where([role="menu"], .vua-context-menu, .vua-tooltip, .vua-popconfirm, .vua-mode-picker__card) {
   --vua-shape-role: menu;
   --vua-shape-treatment: quiet;
-  corner-shape: round !important;
-  border-radius: 0 !important;
+  corner-shape: var(--vua-quiet-corner-style, round) !important;
+  border-radius: var(--vua-corners-menu, 0px) !important;
   clip-path: none !important;
 }
 
@@ -94,13 +92,13 @@
   .vua-workshop__replay-progress, .vua-workshop__replay-progress-fill) {
   --vua-shape-role: progress;
   --vua-shape-treatment: quiet;
-  corner-shape: round !important;
-  border-radius: 0 !important;
+  corner-shape: var(--vua-quiet-corner-style, round) !important;
+  border-radius: var(--vua-corners-progress, 0px) !important;
   clip-path: none !important;
 }
 
 .vua-toggle::after {
-  corner-shape: round;
-  border-radius: 2px;
+  corner-shape: var(--vua-quiet-corner-style, round);
+  border-radius: var(--vua-corners-toggle, 2px);
 }
 }

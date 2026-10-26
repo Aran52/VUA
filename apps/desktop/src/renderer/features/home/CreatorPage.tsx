@@ -7,6 +7,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { DeploymentPanel } from "../deployer/DeploymentPanel.tsx";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { ModulesPage } from "../modules/ModulesPage.tsx";
+import { UploadEligibilityNote } from "../help/UploadEligibilityNote.tsx";
 const copy = strings.environmentCards;
 export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
   const port = useGateway().environment.managers;
@@ -35,6 +36,7 @@ export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
   const detailHeader = (title: string) => <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" data-back onClick={() => setDetail(null)}>{copy.closeDetails}</Button></header>;
   return <div className="vua-page vua-route-page vua-creator-page" data-route-stage={detail === "unity2022" ? "prepare" : "pick"}>
     <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.journey.create}</h1><Button variant="subtle" disabled={busy} onClick={() => void inspect()}>{busy ? copy.checking : copy.inspect}</Button></header>
+    <UploadEligibilityNote />
     <section className="vua-environment-section"><h2>{copy.editors}</h2><div className="vua-route-grid vua-route-grid--devices">
       <div className="vua-card-entry" data-card-entry="route-unity2022">
         <div className="vua-manager-card"><RouteTile title={strings.journey.unity2022} kind="unity" id="route-unity2022" selected={detail === "unity2022"} expanded={detail === "unity2022"} controls="route-unity2022-details" onClick={() => toggle("unity2022")} status={<span className="vua-manager-card__status" data-editor-status role="status">{unity2022Status}</span>} /></div>

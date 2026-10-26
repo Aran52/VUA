@@ -50,6 +50,8 @@ jobs:
         run: pnpm check
       - name: Library maintenance interaction (isolated profile, synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:library-maintenance
+      - name: Local material entry and saved source display (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:material-entry
       - name: Bundle Main and preload for module interaction
         run: node apps/desktop/scripts/build-electron.mjs
       - name: Tray updates and exit (isolated process)

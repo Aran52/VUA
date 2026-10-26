@@ -14,7 +14,7 @@ export type {
   Unsubscribe,
 } from "./types.ts";
 export { capabilityDetailKeys, capabilityStates } from "./types.ts";
-export { createLibraryBrowser, createLiveLibraryBrowserPort, type LibraryBrowserPort, type LibraryPageView, type LibraryCardFacts, type LibraryFileInventory } from "./library-browser-port.ts";
+export { createLibraryBrowser, createLiveLibraryBrowserPort, confirmedLibraryProductId, type LibraryBrowserPort, type LibraryPageView, type LibraryCardFacts, type LibraryFileInventory } from "./library-browser-port.ts";
 export { createLibraryMetadataPort, LibraryMetadataError, type LibraryMetadataPort } from "./library-metadata-port.ts";
 export { createRecipeDraftPort, RecipeDraftError, type RecipeDraftPort, type RecipeDraftSummary, type RecipeDraftRead } from "./recipe-draft-port.ts";
 export {

@@ -143,7 +143,7 @@ export const factoryCopy = {
     adjust: "Adjust",
     placeOrder: "Start production",
     materialsStart: {
-      startCta: "Start production",
+      startCta: "Use as Avatar",
       browseOffer: "Start from this Avatar",
       panelTitle: "Start a new production line",
       avatarLabel: "Avatar",
@@ -305,7 +305,7 @@ export const factoryCopy = {
     adjust: "调整",
     placeOrder: "开始生产",
     materialsStart: {
-      startCta: "开始制作",
+      startCta: "作为 Avatar 开始制作",
       browseOffer: "从该 Avatar 开始制作",
       panelTitle: "开一条新产线",
       avatarLabel: "Avatar",
@@ -467,7 +467,7 @@ export const factoryCopy = {
     adjust: "調整",
     placeOrder: "開始生產",
     materialsStart: {
-      startCta: "開始製作",
+      startCta: "作為 Avatar 開始製作",
       browseOffer: "從該 Avatar 開始製作",
       panelTitle: "開一條新產線",
       avatarLabel: "Avatar",
@@ -629,7 +629,7 @@ export const factoryCopy = {
     adjust: "調整",
     placeOrder: "生産を始める",
     materialsStart: {
-      startCta: "制作を始める",
+      startCta: "アバターとして制作を始める",
       browseOffer: "このアバターから制作",
       panelTitle: "新しい生産ラインを始める",
       avatarLabel: "アバター",
@@ -791,7 +791,7 @@ export const factoryCopy = {
     adjust: "조정",
     placeOrder: "생산 시작",
     materialsStart: {
-      startCta: "제작 시작",
+      startCta: "아바타로 제작 시작",
       browseOffer: "이 아바타로 제작 시작",
       panelTitle: "새 생산 라인 시작",
       avatarLabel: "아바타",

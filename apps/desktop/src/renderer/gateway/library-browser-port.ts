@@ -32,6 +32,13 @@ export interface LibraryPageView {
   readonly facts: ReadonlyMap<string, LibraryCardFacts>;
   readonly total: number; readonly offset: number; readonly limit: number;
 }
+
+/** A saved association is provenance, not proof of identical bytes or ownership.
+ * Name/ID hints must never become an implicit material selection. */
+export function confirmedLibraryProductId(facts: Pick<LibraryCardFacts, "metadata" | "sourceMatch"> | undefined): string | null {
+  return facts?.metadata?.productId
+    ?? (facts?.sourceMatch?.basis === "mapping" ? facts.sourceMatch.product.productId : null);
+}
 export interface LibraryFileInventory {
   readonly productId: string;
   readonly items: readonly { readonly downloadableId: number; readonly fileName: string; readonly managedCopyId: string | null;

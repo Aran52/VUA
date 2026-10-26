@@ -11,6 +11,7 @@ export interface InstalledContext {
   readonly schemaVersion: "0.1";
   readonly root: string; readonly hostRoot: string; readonly amfRoot: string; readonly runtimeRoot: string;
   readonly host: InstalledManifest; readonly amf: InstalledManifest; readonly amfAvailable: boolean;
+  readonly hostManifestId?: string; readonly amfManifestId?: string;
 }
 
 /** Set only by the verified packaged bootstrap, never by an environment variable

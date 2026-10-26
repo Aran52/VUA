@@ -272,7 +272,22 @@ Seven actual Chromium control checks pass with synthetic ports; dark/light contr
 are local diagnostic evidence. The independent host renderer builds successfully. Actual signed
 remote discovery, real restart/health/recovery, migration backups and human review remain U6
 gates; these controlled checks do not complete them. The new component endpoints are not yet
-published. U5/U6 stay open until their named code and exact-build evidence exist. Use sequential `slice/*`
+published.
+
+U5 core adds generation-bound Main/provider/UI replacement, a Desktop v7 lifecycle handshake,
+exact native/UI source identities, retry-safe relative imports, effect/style cleanup and disabled
+module preservation. An open AMF page, unsaved draft, active task or shell transfer refuses hot
+replacement before stopping it. Failed provider/UI health restores only AMF; the host continues.
+All 23 default native checks, Clippy, type/boundary/i18n checks and 42 focused desktop tests pass.
+Actual Chromium checks pass for 11 generation/import/cleanup interactions and seven update
+controls, with synthetic code/ports. The separate real-artifact native test uses independently
+built AMF UI/provider artifacts under an installation lock. This is not a live host update.
+[AMF UI runtime v0.1](../protocols/amf-ui-runtime-v0.1.md) owns the lifecycle rules.
+
+Module-owned backup/restore and migration trials remain a required U5 follow-up; writer changes
+currently fail closed before activation. U6's real signed remote publication, host restart,
+process-preserving AMF update, failure recovery, transition installer, clean Windows and human
+review remain open. No production channel or release has been published. Use sequential `slice/*`
 branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
 updating from a passing contract or staged-download test.
 

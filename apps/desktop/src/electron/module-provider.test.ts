@@ -27,7 +27,7 @@ class Port extends MockOrchestratorProviderV01 {
   crash() { this.failed = true; for (const listener of this.lifecycleListeners) listener(this.status()); }
 }
 
-function setup(options: { enabled?: boolean; factory?: () => OrchestratorProviderV01; shellBusy?: () => boolean } = {}) {
+function setup(options: { enabled?: boolean; factory?: () => OrchestratorProviderV01; shellBusy?: () => boolean; expectedAmfBuild?: () => string } = {}) {
   const host = new Port({ capabilities: [
     { operationId: "environment.getSnapshot", availability: "available" },
     { operationId: "production.recipes", availability: "unavailable" },
@@ -40,11 +40,59 @@ function setup(options: { enabled?: boolean; factory?: () => OrchestratorProvide
   let activations = 0;
   const provider = new ModuleProvider({ host, enabled: options.enabled ?? false,
     createAmf: () => { activations += 1; return options.factory?.() ?? amf; },
-    persist: enabled => saved.push(enabled), ...(options.shellBusy ? { shellBusy: options.shellBusy } : {}) });
+    persist: enabled => saved.push(enabled), ...(options.shellBusy ? { shellBusy: options.shellBusy } : {}),
+    ...(options.expectedAmfBuild ? { expectedAmfBuild: options.expectedAmfBuild } : {}) });
   return { host, amf, provider, saved, activations: () => activations };
 }
 
 describe("host / optional AMF process boundary", () => {
+  it("rejects a running candidate with the wrong service build and restores only AMF", async () => {
+    class IdentityPort extends Port {
+      constructor(private readonly buildId: string) { super(); }
+      override async start() { return { ...await super.start(), providerBuildId: this.buildId }; }
+    }
+    const old = new IdentityPort("amf/0.2.0@old"); const next = new IdentityPort("amf/0.2.0@wrong");
+    let selected = old; let expected = "amf/0.2.0@old";
+    const { provider, host } = setup({ factory: () => selected, expectedAmfBuild: () => expected });
+    await provider.start(); await provider.setAmfEnabled(true);
+    const complete = vi.fn(async () => {});
+    expect(await provider.replaceAmf({ activate: async () => { selected = next; expected = "amf/0.2.0@next"; },
+      verifyUi: async () => true, complete, restore: async () => { selected = old; expected = "amf/0.2.0@old"; } })).toBe("failed");
+    expect(complete).not.toHaveBeenCalled(); expect(next.shutdownCalls).toBeGreaterThan(0);
+    expect(provider.amfReady()).toBe(true); expect(host.shutdownCalls).toBe(0);
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it("replaces idle AMF while a host task continues, without changing the enabled choice", async () => {
+    const old = new Port(); const next = new Port(); let selected = old;
+    const { provider, host, saved } = setup({ factory: () => selected }); await provider.start(); await provider.setAmfEnabled(true);
+    host.tasks = [task("play-session", "running")];
+    const complete = vi.fn(async () => {});
+    expect(await provider.replaceAmf({ activate: async () => { selected = next; }, verifyUi: async () => true, complete, restore: async () => { selected = old; } })).toBe("updated");
+    expect(host.shutdownCalls).toBe(0); expect(host.status().state).toBe("ready"); expect(old.shutdownCalls).toBe(1);
+    expect(next.status().state).toBe("ready"); expect(saved).toEqual([true]); expect(complete).toHaveBeenCalledOnce();
+    await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it("refuses a live AMF task before stopping either process", async () => {
+    const { provider, host, amf } = setup(); await provider.start(); await provider.setAmfEnabled(true); amf.tasks = [task("inspection", "running")];
+    const activate = vi.fn(async () => {});
+    expect(await provider.replaceAmf({ activate, verifyUi: async () => true, complete: async () => {}, restore: async () => {} })).toBe("busy");
+    expect(activate).not.toHaveBeenCalled(); expect(amf.shutdownCalls).toBe(0); expect(host.shutdownCalls).toBe(0);
+    amf.tasks = []; await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it("restores both the old AMF provider and selection if candidate UI health fails", async () => {
+    const old = new Port(); const next = new Port(); let selected = old;
+    const { provider, host, saved } = setup({ factory: () => selected }); await provider.start(); await provider.setAmfEnabled(true);
+    const restore = vi.fn(async () => { selected = old; });
+    expect(await provider.replaceAmf({ activate: async () => { selected = next; }, verifyUi: async () => false, complete: async () => {}, restore })).toBe("failed");
+    expect(restore).toHaveBeenCalledOnce(); expect(next.shutdownCalls).toBe(1); expect(provider.amfReady()).toBe(true);
+    expect(saved).toEqual([true]); expect(host.shutdownCalls).toBe(0); await provider.prepareShutdown({ timeoutMs: 100 });
+  });
+  it("updates a disabled AMF without starting it or changing its saved preference", async () => {
+    const { provider, host, saved, activations } = setup(); await provider.start(); const verifyUi = vi.fn(async () => true);
+    expect(await provider.replaceAmf({ activate: async () => {}, verifyUi, complete: async () => {}, restore: async () => {} })).toBe("updated");
+    expect(activations()).toBe(0); expect(saved).toEqual([]); expect(provider.moduleSnapshot().state).toBe("absent");
+    expect(verifyUi).toHaveBeenCalledOnce(); expect(host.shutdownCalls).toBe(0); await provider.prepareShutdown({ timeoutMs: 100 });
+  });
   it("keeps terms reads and refreshes within the enabled AMF process", async () => {
     const { provider, host, amf, activations } = setup(); await provider.start();
     const read = { contractVersion: "0.1", requestId: "terms", correlationId: "terms", kind: "query", method: "terms.getProduct", params: { schemaVersion: "0.1", productId: "booth:1" } } as const;

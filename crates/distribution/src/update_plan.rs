@@ -350,6 +350,7 @@ impl Installation {
         if plan_id(&plan)? != id || plan.base != self.active()? || plan.state != "staged" {
             return Err(Error("update_plan_changed".into()));
         }
+        self.admit_data_update(&plan.base, &plan.next)?;
         plan.requested = true;
         self.save_update(PLAN, &plan)
     }

@@ -1,6 +1,6 @@
 //! Component staging and restart transactions. No live executable is overwritten.
 use crate::{
-    component_feed::{self, ComponentKind, Release},
+    component_feed::{self, Activation, ComponentKind, Release},
     layout::{Active, Installation},
     manifest::{Manifest, SignedManifest},
     paths::{atomic_json, owned_path},
@@ -57,6 +57,194 @@ fn next_pair(base: &Active, kind: ComponentKind, id: &str) -> Active {
 }
 
 impl Installation {
+    pub fn amf_hot_preflight(&self, id: &str, restore: bool) -> Result<Value> {
+        let active = self.active()?;
+        let (_, old) = self.validate_pair(&active)?;
+        let mut advertised_reload = restore;
+        let next = if restore {
+            self.component_restore_target(ComponentKind::Amf)?
+        } else {
+            let (pending, entry) = self
+                .component_pending(ComponentKind::Amf)?
+                .ok_or_else(|| Error("update_not_staged".into()))?;
+            if pending.state != "staged" || pending.base != active {
+                return Err(Error("update_not_staged".into()));
+            }
+            advertised_reload = entry.activation == Activation::Reload;
+            next_pair(&active, ComponentKind::Amf, &pending.manifest)
+        };
+        if (id.is_empty() && !restore) || (!id.is_empty() && next.amf_manifest != id) {
+            return Err(Error("invalid_update_identity".into()));
+        }
+        let id = next.amf_manifest.as_str();
+        let target = self.manifest(id)?;
+        self.verify_files(&self.amf_root(&target)?, &target.amf.files)?;
+        let metadata_file = target
+            .amf
+            .files
+            .iter()
+            .find(|file| file.path == "ui/component.json");
+        let mut activation = "restart";
+        if let Some(file) = metadata_file.filter(|file| file.bytes <= 65536) {
+            let metadata: Value = serde_json::from_slice(&fs::read(owned_path(
+                &self.amf_root(&target)?,
+                &file.path,
+            )?)?)?;
+            if metadata["schemaVersion"] != "0.1"
+                || metadata["component"] != "amf"
+                || metadata["version"] != target.amf.version
+                || metadata["build"] != target.amf.build
+                || metadata["uiAbi"] != target.compatibility.ui_abi
+                || metadata["bdlWrite"] != target.compatibility.bdl_write
+            {
+                return Err(Error("amf_generation_identity_mismatch".into()));
+            }
+            if advertised_reload
+                && metadata["hotReloadAbi"] == "amf-hot/0.1"
+                && target.compatibility.bdl_write == old.compatibility.bdl_write
+            {
+                let mut probe = std::process::Command::new(owned_path(
+                    &self.amf_root(&target)?,
+                    "provider/vua-amf-provider.exe",
+                )?);
+                probe.arg("--component-identity");
+                for (name, _) in std::env::vars_os() {
+                    if name
+                        .to_string_lossy()
+                        .to_ascii_uppercase()
+                        .starts_with("VUA_")
+                    {
+                        probe.env_remove(name);
+                    }
+                }
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    probe.creation_flags(0x08000000);
+                }
+                let result = probe.output()?;
+                let identity: Value = serde_json::from_slice(&result.stdout)
+                    .map_err(|_| Error("amf_generation_identity_mismatch".into()))?;
+                if !result.status.success()
+                    || identity["schemaVersion"] != "0.1"
+                    || identity["component"] != "amf"
+                    || identity["version"] != target.amf.version
+                    || identity["build"] != target.amf.build
+                    || identity["bdlWrite"] != target.compatibility.bdl_write
+                    || identity["serviceBuildId"]
+                        != format!("amf/{}@{}", target.amf.version, target.amf.build)
+                {
+                    return Err(Error("amf_generation_identity_mismatch".into()));
+                }
+                activation = "reload";
+            }
+        }
+        Ok(
+            json!({"schemaVersion":"0.1", "manifestId":id, "version":target.amf.version, "build":target.amf.build, "bdlWrite":target.compatibility.bdl_write, "activation":activation}),
+        )
+    }
+    pub fn begin_amf_hot(&self, id: &str, restore: bool) -> Result<Value> {
+        let _operation = self.lock("operation.lock")?;
+        let _stage = self.lock("component-stage-amf.lock")?;
+        let target = self.amf_hot_preflight(id, restore)?;
+        if target["activation"] != "reload" {
+            return Err(Error("restart_required".into()));
+        }
+        let active = self.active()?;
+        if !restore
+            && !self
+                .component_pending(ComponentKind::Amf)?
+                .is_some_and(|(pending, _)| pending.requested)
+        {
+            return Err(Error("activation_requires_choice".into()));
+        }
+        let next = next_pair(&active, ComponentKind::Amf, id);
+        let mut journal = ActivationJournal {
+            schema_version: "0.2".into(),
+            before: active.clone(),
+            next: next.clone(),
+            state: "prepared".into(),
+        };
+        self.save_update("updates-v02/activation.json", &journal)?;
+        self.save_update("updates-v02/hot-intent.json", &journal)?;
+        self.save_update(
+            &name(ComponentKind::Amf, "previous"),
+            &Retained {
+                schema_version: "0.2".into(),
+                component: ComponentKind::Amf,
+                before: active.amf_manifest.clone(),
+                after: id.into(),
+            },
+        )?;
+        atomic_json(&owned_path(&self.root, "previous.json")?, &active)?;
+        atomic_json(&owned_path(&self.root, "active.json")?, &next)?;
+        journal.state = "verifying".into();
+        self.save_update("updates-v02/activation.json", &journal)?;
+        Ok(target)
+    }
+    pub fn finish_amf_hot(&self, id: &str) -> Result<Value> {
+        let _operation = self.lock("operation.lock")?;
+        let mut journal = self
+            .activation_journal()?
+            .ok_or_else(|| Error("invalid_activation_journal".into()))?;
+        if journal.next != self.active()?
+            || journal.next.amf_manifest != id
+            || journal.before.host_manifest != journal.next.host_manifest
+            || journal.state != "verifying"
+        {
+            return Err(Error("update_health_identity_mismatch".into()));
+        }
+        let target = self.manifest(id)?;
+        self.verify_files(&self.amf_root(&target)?, &target.amf.files)?;
+        journal.state = "healthy".into();
+        self.save_update("updates-v02/activation.json", &journal)?;
+        // Health is the commit point. Cleanup cannot turn a committed generation into failure.
+        if self
+            .component_pending(ComponentKind::Amf)
+            .ok()
+            .flatten()
+            .is_some_and(|(pending, _)| pending.manifest == id)
+        {
+            let _ = fs::remove_file(owned_path(
+                &self.root,
+                &name(ComponentKind::Amf, "pending"),
+            )?);
+        }
+        let _ = fs::remove_file(owned_path(&self.root, "updates-v02/hot-intent.json")?);
+        Ok(json!({"schemaVersion":"0.1", "manifestId":id, "committed":true}))
+    }
+    pub fn recover_amf_hot(&self) -> Result<Value> {
+        let _operation = self.lock("operation.lock")?;
+        let snapshot = |healthy: bool| -> Result<Value> {
+            let active = self.active()?;
+            let amf = self.manifest(&active.amf_manifest)?;
+            Ok(
+                json!({"schemaVersion":"0.1", "manifestId":active.amf_manifest, "version":amf.amf.version, "build":amf.amf.build, "healthy":healthy}),
+            )
+        };
+        let Some(mut journal) = self.activation_journal()? else {
+            return snapshot(true);
+        };
+        if journal.state == "healthy" || journal.state == "recovered" {
+            return snapshot(journal.state == "healthy");
+        }
+        let active = self.active()?;
+        if journal.before.host_manifest != journal.next.host_manifest
+            || active != journal.next && active != journal.before
+        {
+            return Err(Error("restart_required".into()));
+        }
+        let old = self.manifest(&journal.before.amf_manifest)?;
+        let next = self.manifest(&journal.next.amf_manifest)?;
+        if old.compatibility.bdl_write != next.compatibility.bdl_write {
+            return Err(Error("rollback_requires_data_repair".into()));
+        }
+        self.verify_files(&self.amf_root(&old)?, &old.amf.files)?;
+        atomic_json(&owned_path(&self.root, "active.json")?, &journal.before)?;
+        journal.state = "recovered".into();
+        self.save_update("updates-v02/activation.json", &journal)?;
+        snapshot(false)
+    }
     pub fn require_component_launcher(&self) -> Result<()> {
         let launcher = owned_path(&self.root, "VUA.exe")?;
         if !launcher.is_file() {
@@ -105,6 +293,7 @@ impl Installation {
         Ok(())
     }
     pub(crate) fn commit_restart(&self, before: &Active, next: &Active) -> Result<()> {
+        self.admit_data_update(before, next)?;
         let (host, amf) = self.validate_pair(next)?;
         let (_, old_amf) = self.validate_pair(before)?;
         if !amf
@@ -154,6 +343,15 @@ impl Installation {
         self.validate_pair(&journal.next)?;
         Ok(Some(journal))
     }
+    pub(crate) fn admit_data_update(&self, before: &Active, next: &Active) -> Result<()> {
+        let (_, old) = self.validate_pair(before)?;
+        let (_, target) = self.validate_pair(next)?;
+        if target.compatibility.bdl_write != old.compatibility.bdl_write {
+            // A separate module-owned backup/recovery slice must authorize this first.
+            return Err(Error("data_migration_requires_installer".into()));
+        }
+        Ok(())
+    }
     pub fn acknowledge_component_health(&self, host_build: &str, amf_build: &str) -> Result<()> {
         let _operation = self.lock("operation.lock")?;
         let Some(mut journal) = self.activation_journal()? else {
@@ -161,6 +359,12 @@ impl Installation {
         };
         if journal.state != "verifying" {
             return Ok(());
+        }
+        if owned_path(&self.root, "updates-v02/hot-intent.json")?.exists() {
+            let intent: ActivationJournal = self.update_json("updates-v02/hot-intent.json")?;
+            if intent.before == journal.before && intent.next == journal.next {
+                return Err(Error("module_health_pending".into()));
+            }
         }
         let active = self.active()?;
         let (host, amf) = self.validate_pair(&active)?;
@@ -340,10 +544,15 @@ impl Installation {
         active: &Active,
     ) -> Result<()> {
         let _stage = self.lock(&format!("component-stage-{}.lock", kind.name()))?;
-        if self
-            .component_pending(kind)?
-            .is_some_and(|(pending, _)| &pending.base != active)
-        {
+        let failed = self
+            .activation_journal()?
+            .filter(|journal| journal.state == "recovered" && &journal.before == active);
+        if self.component_pending(kind)?.is_some_and(|(pending, _)| {
+            &pending.base != active
+                || failed
+                    .as_ref()
+                    .is_some_and(|journal| selected(&journal.next, kind) == pending.manifest)
+        }) {
             // Only obsolete intent is cleared; downloaded immutable files remain reusable.
             fs::remove_file(owned_path(&self.root, &name(kind, "pending"))?)?;
         }
@@ -498,6 +707,10 @@ impl Installation {
         if pending.state != "staged" || pending.base != self.active()? {
             return Err(Error("update_not_staged".into()));
         }
+        self.admit_data_update(
+            &pending.base,
+            &next_pair(&pending.base, kind, &pending.manifest),
+        )?;
         pending.requested = true;
         self.save_update(&name(kind, "pending"), &pending)
     }

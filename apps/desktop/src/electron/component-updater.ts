@@ -70,6 +70,7 @@ interface Options {
   readonly prepareRestart?: () => Promise<boolean>;
   readonly restart?: (component: UpdateComponentV02, restore: boolean) => void;
   readonly externalBusy?: () => boolean;
+  readonly applyAmf?: (restore: boolean, id?: string) => Promise<"updated" | "busy" | "failed" | "restart_required">;
 }
 /** One job/state per component. Renderer supplies a closed role and checked digest, never URLs. */
 export class ComponentUpdater implements DesktopComponentUpdatesApiV02 {
@@ -78,6 +79,7 @@ export class ComponentUpdater implements DesktopComponentUpdatesApiV02 {
   private readonly listeners = new Set<(view: ComponentUpdateSnapshotV02) => void>();
   private readonly run: ComponentRun;
   private applying = false;
+  private amfRestoreRequiresRestart = false;
   get busy(): boolean { return this.jobs.size > 0 || this.applying; }
   constructor(private readonly options: Options) {
     const context = options.context;
@@ -139,8 +141,33 @@ export class ComponentUpdater implements DesktopComponentUpdatesApiV02 {
       return this.set(component, { state: "interrupted", error: job.cancelled ? "cancelled" : error instanceof Error && /^[a-z_]{1,80}$/.test(error.message) ? error.message : "download_failed" });
     } finally { this.jobs.delete(component); }
   }
-  async apply(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { return this.restart(component, false); }
-  async restore(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> { return this.restart(component, true); }
+  async apply(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> {
+    if (component === "amf" && this.views.amf.target?.activation === "reload" && this.options.applyAmf) return this.replaceAmf(false);
+    return this.restart(component, false);
+  }
+  async restore(component: UpdateComponentV02): Promise<ComponentUpdateSnapshotV02> {
+    if (component === "amf" && !this.amfRestoreRequiresRestart && this.options.applyAmf) return this.replaceAmf(true);
+    return this.restart(component, true);
+  }
+  private async replaceAmf(restore: boolean): Promise<ComponentUpdateSnapshotV02> {
+    const view = this.views.amf;
+    if (!view.available || this.jobs.size || this.applying || (restore ? !view.rollbackAvailable : !["staged", "waiting-for-idle"].includes(view.state))) return view;
+    if (this.options.externalBusy?.()) return this.set("amf", { error: "work_is_running" });
+    this.applying = true; this.set("amf", { state: "verifying", error: undefined });
+    try {
+      const outcome = await this.options.applyAmf!(restore, restore ? undefined : view.target?.manifestId);
+      if (outcome === "busy") return this.set("amf", { state: restore ? view.state : "waiting-for-idle", error: "work_is_running" });
+      if (outcome === "restart_required") {
+        if (restore) this.amfRestoreRequiresRestart = true;
+        return this.set("amf", { state: view.state, error: restore ? "restore_requires_restart" : "restart_required", target: view.target ? { ...view.target, activation: "restart" } : undefined });
+      }
+      const native = await this.invoke("amf", "component-snapshot", [], { cancelled: false });
+      if (!validSnapshot(native, "amf")) throw Error("invalid_update_result");
+      if (outcome === "updated") { this.amfRestoreRequiresRestart = false; return this.set("amf", { ...native, state: "idle", target: undefined, error: undefined, progress: undefined }); }
+      return this.set("amf", { ...native, state: "interrupted", target: view.target, error: "amf_reload_failed" });
+    } catch { return this.set("amf", { state: "interrupted", error: "amf_reload_failed" }); }
+    finally { this.applying = false; }
+  }
   private async restart(component: UpdateComponentV02, restore: boolean): Promise<ComponentUpdateSnapshotV02> {
     const view = this.views[component];
     if (!view.available || this.jobs.size || this.applying || (restore ? !view.rollbackAvailable : !["staged", "waiting-for-idle"].includes(view.state))) return view;
@@ -154,7 +181,7 @@ export class ComponentUpdater implements DesktopComponentUpdatesApiV02 {
       if (!(await this.options.prepareRestart())) return this.set(component, { state: restore ? view.state : "waiting-for-idle", error: "work_is_running" });
       this.options.restart(component, restore);
       return this.set(component, { state: "activating", error: undefined });
-    } catch { return this.set(component, { state: view.state, error: "restart_failed" }); }
+    } catch (error) { return this.set(component, { state: view.state, error: error instanceof Error && /^[a-z_]{1,80}$/.test(error.message) ? error.message : "restart_failed" }); }
     finally { this.applying = false; }
   }
 }

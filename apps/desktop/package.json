@@ -41,6 +41,7 @@
     "smoke:first-run-ui": "electron scripts/smoke-first-run-ui.mjs",
     "smoke:amf-module": "electron scripts/smoke-amf-module.mjs",
     "smoke:component-updates": "electron scripts/smoke-component-updates.mjs",
+    "smoke:amf-generations": "electron scripts/smoke-amf-generations.mjs",
     "smoke:help-navigation": "electron scripts/smoke-help-navigation.mjs",
     "smoke:asset-browser": "electron scripts/smoke-asset-browser.mjs",
     "smoke:booth-session": "electron scripts/smoke-booth-session.mjs",

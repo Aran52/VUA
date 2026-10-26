@@ -61,7 +61,7 @@ try {
   smokePhase("amf-files-checked");
   app.setName("VUA"); app.setAppUserModelId("org.vua-project.desktop");
   Object.defineProperty(globalThis, "__VUA_DISTRIBUTION_V01__", { writable: false, configurable: false,
-    value: Object.freeze({ schemaVersion: "0.1", root, hostRoot, amfRoot, runtimeRoot, host, amf, amfAvailable }) });
+    value: Object.freeze({ schemaVersion: "0.1", root, hostRoot, amfRoot, runtimeRoot, host, amf, amfAvailable, hostManifestId: active.hostManifest, amfManifestId: active.amfManifest }) });
   smokePhase("main-entry-loading");
   require(owned(hostRoot, "dist/electron/main.js"));
 } catch (error) {

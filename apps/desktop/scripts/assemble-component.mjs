@@ -3,7 +3,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { ownedPath, fileDigest } from "./prepare-component-release.mjs";
+import { ownedPath, fileDigest, componentProbeEnvironment } from "./prepare-component-release.mjs";
 
 const [component, destination, noticeDirectory] = process.argv.slice(2);
 if (!["host", "amf"].includes(component) || !destination || !noticeDirectory) throw Error("Usage: assemble-component.mjs <host|amf> <new-output-directory> <fresh-notices-directory>");
@@ -26,6 +26,11 @@ if (component === "amf") {
   copy(path.join(desktop, "dist/components/amf-ui"), "ui");
   copy(path.join(target, "vua-amf-provider.exe"), "provider/vua-amf-provider.exe");
   if (execFileSync(path.join(payload, "provider/vua-amf-provider.exe"), ["--version"], { encoding: "utf8", windowsHide: true }).trim() !== amf.version) throw Error("AMF UI and native versions disagree");
+  const uiIdentity = JSON.parse(fs.readFileSync(path.join(payload, "ui/component.json")));
+  const nativeIdentity = JSON.parse(execFileSync(path.join(payload, "provider/vua-amf-provider.exe"), ["--component-identity"], { encoding: "utf8", windowsHide: true, env: componentProbeEnvironment() }));
+  if (uiIdentity.schemaVersion !== "0.1" || nativeIdentity.schemaVersion !== "0.1" || uiIdentity.component !== "amf" || nativeIdentity.component !== "amf"
+      || uiIdentity.version !== amf.version || nativeIdentity.version !== amf.version || uiIdentity.build !== build || nativeIdentity.build !== build
+      || uiIdentity.bdlWrite !== amf.bdlWrite || nativeIdentity.bdlWrite !== amf.bdlWrite || uiIdentity.hotReloadAbi !== "amf-hot/0.1") throw Error("AMF UI/provider source or data identity differs from this assembly");
 } else {
   copy(path.join(desktop, "dist/packaged-electron"), "dist/electron");
   copy(path.join(desktop, "dist/components/host-renderer"), "dist/renderer");

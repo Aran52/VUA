@@ -56,8 +56,18 @@ pub struct Release {
     pub manifest: ManifestObject,
     pub compatibility: Compatibility,
     pub activation: Activation,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "non_null_runtime_version",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub runtime_version: Option<String>,
+}
+
+fn non_null_runtime_version<'de, D: serde::Deserializer<'de>>(
+    value: D,
+) -> std::result::Result<Option<String>, D::Error> {
+    String::deserialize(value).map(Some)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -120,6 +130,7 @@ impl ComponentFeed {
             if !versions.insert(release_version)
                 || !hex(&release.build, 20)
                 || !https_source(&release.release_url)
+                || release.release_url.chars().count() > 2048
                 || !hex(&release.manifest.sha256, 32)
                 || release.manifest.bytes == 0
                 || release.manifest.bytes > MAX_MANIFEST_BYTES as u64
@@ -129,7 +140,7 @@ impl ComponentFeed {
                     .manifest
                     .sources
                     .iter()
-                    .all(|source| https_source(source))
+                    .all(|source| source.chars().count() <= 2048 && https_source(source))
             {
                 return Err(Error("invalid_component_release".into()));
             }

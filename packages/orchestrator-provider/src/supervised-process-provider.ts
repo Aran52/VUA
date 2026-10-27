@@ -96,8 +96,11 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
     child.stdout.on("data", (chunk: Buffer) => this.#receiveStdout(chunk));
     child.stderr.on("data", (chunk: Buffer) => this.#receiveStderr(chunk));
     child.once("error", (error) => this.#fail(error));
-    child.once("exit", (code, signal) => this.#handleExit(code, signal));
-    this.#childExit = new Promise<void>((resolve) => { child.once("exit", () => resolve()); });
+    // exit can precede the last stdout data (notably on Windows). Close admission
+    // immediately, but drain the shutdown reply before rejecting pending frames.
+    child.once("exit", () => { this.#acceptingCalls = false; });
+    child.once("close", (code, signal) => this.#handleExit(code, signal));
+    this.#childExit = new Promise<void>((resolve) => { child.once("close", () => resolve()); });
 
     try {
       const handshake = await this.#withTimeout(

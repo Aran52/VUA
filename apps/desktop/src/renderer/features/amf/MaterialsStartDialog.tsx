@@ -6,12 +6,12 @@ import type { PageId } from "../../app/nav-model.ts";
 import { libraryBrowser } from "../../app/library-browser-instance.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
-import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { Skeleton } from "../../components/primitives/Skeleton.tsx";
 import { useGateway, type AmfProductionList, type AmfProductionSource } from "../../gateway/index.ts";
 import { strings } from "../../i18n/index.ts";
 import { buildStartChoices, groupOutfitsByFit } from "./materials-fit-model.ts";
-import { rememberAutomationLevel, storedAutomationLevel, type AutomationLevel } from "./factory-model.ts";
+import { needsFullAutoNotice, rememberAutomationLevel, storedAutomationLevel, type AutomationLevel } from "./factory-model.ts";
+import { FullAutoConfirm, type FullAutoReason } from "./FullAutoConfirm.tsx";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import { readStartLibrary, type MaterialsStartAvatar } from "./materials-start-model.ts";
@@ -49,10 +49,10 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
-  const [confirmFull, setConfirmFull] = useState(false);
+  const [confirmFull, setConfirmFull] = useState<FullAutoReason | null>(null);
   const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
   const chooseLevel = (next: AutomationLevel) => {
-    if (next === "full" && level !== "full") setConfirmFull(true);
+    if (next === "full" && level !== "full") setConfirmFull("switch");
     else applyLevel(next);
   };
 
@@ -150,13 +150,11 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
           </fieldset>
           <div className="vua-start__actions">
             <Button variant="subtle" disabled={starting} onClick={onClose}>{production.back}</Button>
-            <Button variant="primary" disabled={!canStart} onClick={() => { void start(); }}>{starting ? copy.starting : level === "full" ? copy.startFull : copy.start}</Button>
+            <Button variant="primary" disabled={!canStart} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void start(); }}>{starting ? copy.starting : level === "full" ? copy.startFull : copy.start}</Button>
           </div>
         </>}
-      <ConfirmDialog open={confirmFull} danger title={strings.factory.fullAccess.title} cancelLabel={strings.factory.fullAccess.cancel} confirmLabel={strings.factory.fullAccess.confirm}
-        onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
-        <p className="vua-confirm-dialog__text">{strings.factory.fullAccess.body}</p>
-      </ConfirmDialog>
+      <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
+        onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void start(); }} />
     </div>
   </ContentDialog>;
 }

@@ -7,7 +7,6 @@ import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type Amf
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
-import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
@@ -31,7 +30,8 @@ import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey } from "./factory-model.ts";
+import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey, needsFullAutoNotice } from "./factory-model.ts";
+import { FullAutoConfirm, type FullAutoReason } from "./FullAutoConfirm.tsx";
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
@@ -110,7 +110,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [closeOffer, setCloseOffer] = useState<{ readonly message: string; readonly retry: (() => void) | null } | null>(null);
   const afterClose = useRef<(() => void) | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
-  const [confirmFull, setConfirmFull] = useState(false);
+  const [confirmFull, setConfirmFull] = useState<FullAutoReason | null>(null);
   const [adjusting, setAdjusting] = useState(false);
   // The station the player opened; without one the page follows the line.
   const [chosenStation, setChosenStation] = useState<StationKey | null>(null);
@@ -118,7 +118,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [changing, setChanging] = useState<readonly string[] | null>(null);
   const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
   // Full access changes the work project without asking, so the player reads what that means first.
-  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
+  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull("switch"); else applyLevel(next); };
   const unattended = useRef(new Set<string>());
   const initialized = useRef("");
   const refreshList = useCallback(async () => {
@@ -345,10 +345,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
     <div className="vua-workshop__main">
-    <ConfirmDialog open={confirmFull} danger title={factory.fullAccess.title} cancelLabel={factory.fullAccess.cancel} confirmLabel={factory.fullAccess.confirm}
-      onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
-      <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
-    </ConfirmDialog>
+    <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
+      onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void command("prepare"); }} />
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
     {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
       action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
@@ -370,7 +368,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {!recipePreview && (list === null ? <Card><EmptyState title={requesting ? copy.loading : unavailable} description={copy.loading} /></Card> : <Card>
         <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { void command("prepare"); }}>{copy.prepare}</Button></div>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{copy.prepare}</Button></div>
         {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label></details>}
         <Button variant="subtle" onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
       </Card>)}

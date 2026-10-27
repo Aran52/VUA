@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, expect, test, vi } from "vitest";
-import { DEFAULT_AUTOMATION_LEVEL, rememberAutomationLevel, storedAutomationLevel } from "./factory-model.ts";
+import { DEFAULT_AUTOMATION_LEVEL, fullAutoNoticeSeen, needsFullAutoNotice, rememberAutomationLevel, rememberFullAutoNotice, storedAutomationLevel } from "./factory-model.ts";
 
 const key = "vua-amf-permission-mode-v01";
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -42,4 +42,16 @@ test("a deliberate mode change is saved in the existing key", () => {
 test("unavailable storage falls back to the declared default without throwing", () => {
   vi.stubGlobal("localStorage", { getItem: () => { throw new Error("blocked"); } });
   expect(storedAutomationLevel()).toBe("full");
+});
+
+test("the full-auto warning shows once, only in full auto, and is stored apart from the mode", () => {
+  const values = new Map<string, string>();
+  vi.stubGlobal("localStorage", { getItem: (name: string) => values.get(name) ?? null, setItem: (name: string, next: string) => { values.set(name, next); } });
+  expect(needsFullAutoNotice("full")).toBe(true);
+  expect(needsFullAutoNotice("ask")).toBe(false);
+  expect(needsFullAutoNotice("smart")).toBe(false);
+  rememberFullAutoNotice();
+  expect(fullAutoNoticeSeen()).toBe(true);
+  expect(needsFullAutoNotice("full")).toBe(false);
+  expect(values.has(key)).toBe(false);
 });

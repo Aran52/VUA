@@ -55,7 +55,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__hint, .vua-factory__muted { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-factory__body { display: flex; flex-direction: column; gap: 8px; align-self: end; min-width: 0; max-width: 60%; }
 .vua-factory__room[data-wide] .vua-factory__body { max-width: 52%; }
-.vua-factory__enter { display: inline-flex; align-items: center; gap: var(--vua-space-2); justify-self: end; padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--room) 12%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; border-radius: var(--vua-radius-control); }
+.vua-factory__enter { display: inline-flex; align-items: center; gap: var(--vua-space-2); justify-self: start; padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--room) 12%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-factory__enter:hover { background: var(--room); color: var(--vua-accent-contrast); }
 
 /* The zoomed room keeps its interface at normal size above the magnified interior. */
@@ -94,12 +94,15 @@ button.vua-factory__alert { cursor: pointer; }
 
 /* Station strip, shared by the base map and the workshop. */
 .vua-factory__stations, .vua-line__stations { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--vua-space-2); }
-.vua-factory__stations > span { padding: 5px var(--vua-space-2); border: 1px solid var(--vua-border); font-size: var(--vua-text-caption-size); line-height: var(--vua-text-caption-leading); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vua-text-secondary); }
-.vua-factory__stations > [data-state="done"] { border-color: color-mix(in srgb, var(--vua-success) 60%, transparent); color: var(--vua-success-text); }
-.vua-factory__stations > [data-state="running"] { border-color: var(--vua-accent); color: var(--vua-accent-text); }
-.vua-factory__stations > [data-state="waiting"] { border-color: var(--vua-warning); color: var(--vua-warning-text); }
-.vua-factory__stations > [data-state="failed"] { border-color: var(--vua-error); color: var(--vua-error-text); }
-.vua-factory__stations > [data-current] { font-weight: var(--vua-weight-strong); }
+.vua-factory__station-now { font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); }
+/* On the base map the strip is a segmented status bar: one segment per station, the current one taller. */
+.vua-factory__stations { gap: 2px; align-items: end; }
+.vua-factory__stations > span { height: 4px; background: var(--vua-border); }
+.vua-factory__stations > [data-state="done"] { background: var(--vua-success); }
+.vua-factory__stations > [data-state="running"] { background: var(--vua-accent); }
+.vua-factory__stations > [data-state="waiting"] { background: var(--vua-warning); }
+.vua-factory__stations > [data-state="failed"] { background: var(--vua-error); }
+.vua-factory__stations > [data-current] { height: 8px; }
 
 @media (max-width: 760px) {
   .vua-factory__floor { grid-template-columns: minmax(0, 1fr); }
@@ -197,7 +200,7 @@ button.vua-factory__alert { cursor: pointer; }
 /* Stations are places on the line: each opens its own panel below the strip. */
 .vua-line__stations { position: relative; margin: 0; padding: 4px 0; list-style: none; }
 .vua-line__stations > li { display: flex; position: relative; }
-.vua-line__stations > li:not(:last-child)::after { content: ""; position: absolute; top: 28px; inset-inline-end: -8px; width: 8px; height: 1px; background: var(--vua-border); }
+.vua-line__stations > li:not(:last-of-type)::after { content: ""; position: absolute; top: 28px; inset-inline-end: -8px; width: 8px; height: 1px; background: var(--vua-border); }
 .vua-line__stations > li[data-state="done"]::after, .vua-line__stations > li[data-state="running"]::after { background: var(--vua-accent); }
 .vua-line__station { position: relative; display: grid; justify-items: start; gap: 4px; width: 100%; min-height: 80px; padding: 12px 12px 12px 16px; border: 1px solid var(--vua-border); color: var(--vua-text-secondary); background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); font: inherit; text-align: start; cursor: pointer; transition: background-color var(--vua-motion-fast), border-color var(--vua-motion-fast); }
 .vua-line__station:hover { background-color: color-mix(in srgb, currentColor 6%, var(--vua-bg-panel)); }

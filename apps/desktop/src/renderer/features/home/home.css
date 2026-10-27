@@ -130,7 +130,9 @@
 .vua-compact-environments .vua-environment-card > button { padding: var(--vua-space-2) 16px; gap: 8px; }
 .vua-compact-environments .vua-environment-card__details { flex-direction: row; }
 .vua-compact-environments .vua-environment-card__details .vua-route-tile__icon { width: 30px; height: 30px; flex-shrink: 0; }
-.vua-compact-environments .vua-environment-card strong { min-width: 0; overflow-wrap: anywhere; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
+/* Device names stay on one line: the name side takes three fifths of a compact card. */
+.vua-compact-environments .vua-environment-card { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.vua-compact-environments .vua-environment-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
 .vua-tools-hub .vua-environment-card strong { font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading); }
 .vua-compact-environments .vua-environment-card__action > svg { width: 24px; height: 24px; }
 .vua-play-page .vua-network-tile > .vua-environment-card__details { gap: var(--vua-space-2) 12px; }

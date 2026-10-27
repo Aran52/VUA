@@ -140,8 +140,9 @@ export function FactoryMap({ navigate, initialRoom = null }: { navigate: (page: 
         </span>
         {line && stations && <span className="vua-factory__line">
           <span className="vua-factory__line-name">{label(line.runId, lineName(line.sources.map(source => source.itemName)))}</span>
-          <span className="vua-factory__stations" aria-label={copy.stations[currentStation(stations)]}>
-            {STATIONS.map(key => <span key={key} data-state={stations[key]} data-current={currentStation(stations) === key || undefined}>{copy.stations[key]}</span>)}
+          <span className="vua-factory__station-now">{copy.stations[currentStation(stations)]} · {copy.stationState[stations[currentStation(stations)]]}</span>
+          <span className="vua-factory__stations" role="img" aria-label={STATIONS.map(key => `${copy.stations[key]}: ${copy.stationState[stations[key]]}`).join(", ")}>
+            {STATIONS.map(key => <span key={key} data-state={stations[key]} data-current={currentStation(stations) === key || undefined} />)}
           </span>
         </span>}
       </>,

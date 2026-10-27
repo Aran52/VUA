@@ -121,6 +121,9 @@ async function run() {
   check(calls.every(call => call.method !== "amf.production.prepare"), "opening the dialog never starts Unity work");
   document.querySelector<HTMLInputElement>('.vua-start__pick input')!.click(); await pause();
   button(strings.factory.materialsStart.startFull).click();
+  await until(() => !!button(strings.factory.fullAccess.startConfirm), "the first full-auto start shows the full-auto warning");
+  check(calls.every(call => call.method !== "amf.production.prepare"), "the warning comes before any Unity work");
+  button(strings.factory.fullAccess.startConfirm).click();
   await until(() => navigated === "workshop", "accepted preparation opens its workshop");
   const prepared = calls.find(call => call.method === "amf.production.prepare");
   check(prepared.params.sources[0].sourceId === "src-wh-imported" && prepared.params.sources[0].role === "avatar"
@@ -134,6 +137,7 @@ async function run() {
   check(navigated === "" && !!document.querySelector(".vua-start"), "failed preparation keeps the selected materials and does not navigate");
   failPrepare = false; button(strings.factory.materialsStart.startFull).click();
   await until(() => navigated === "workshop", "explicit retry succeeds");
+  check(!button(strings.factory.fullAccess.startConfirm), "the full-auto warning shows only once");
   hasEditor = false; await open(local.entry.warehouseItemId); startButton()!.click();
   await until(() => text().includes(strings.amfProduction.editorMissing), "missing Editor is explained");
   check(button(strings.factory.materialsStart.startFull).disabled, "missing Editor cannot start a line");

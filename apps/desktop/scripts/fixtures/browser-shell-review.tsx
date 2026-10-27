@@ -76,7 +76,7 @@ function Review({ modal }: { modal: boolean }) {
   check(portal.parentElement === document.body && portal.dataset.vuaShapeScope === "amf", "AMF scope follows React ownership through body portals");
   check(getComputedStyle(portal).getPropertyValue("--vua-shape-role").trim() === "menu"
     && getComputedStyle(portal).getPropertyValue("--vua-shape-treatment").trim() === "quiet"
-    && getComputedStyle(portal).borderTopLeftRadius === "0px", "small AMF portal keeps its menu role and quiet rectangular treatment");
+    && getComputedStyle(portal).borderTopLeftRadius === getComputedStyle(portal).getPropertyValue("--vua-corners-menu").trim(), "small AMF portal keeps its menu role and the theme's menu radius");
   checks.push("AMF portal keeps its scope independently of the host shell");
   root.unmount(); await delay(); return checks;
 } };

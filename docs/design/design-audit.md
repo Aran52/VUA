@@ -2,7 +2,7 @@
 
 > Scope: the automated UI design review tool, its rules, outputs and how fix
 > work consumes its reports
-> Updated: 2026-10-26
+> Updated: 2026-10-28
 
 The design audit renders every registered view through the existing preview and
 smoke fixtures, walks the rendered computed styles, and reports where the
@@ -110,7 +110,7 @@ layout), **warning** = violates the current standard's token discipline,
 | `contrast` | Text or icon foreground vs its effective background | Body 4.5:1; large text (≥ 24px, or ≥ 18.66px at weight ≥ 600) and icons 3:1. The background walks ancestors to the first opaque fill and alpha-composites translucent layers in between. Disabled controls exempt |
 | `spacing-grid` | `padding`/`margin`/`gap` off the 4 px grid | Values with `v mod 4 ∈ {0, 1, 3}` pass: multiples of 4 plus ±1 px border compensation. Actual `auto` margins and unused gaps are excluded; equal fixed margins are still checked |
 | `radius-token` | Border radius matches neither the resolved radius/corner tokens nor an allowed circle | Resolves role-group cut sizes as well as compatibility radius tokens; a legacy pill allowance in this generic rule does not bypass `grid-shape` |
-| `grid-shape` | An AMF role violates its quiet or brand-surface geometry | Checks non-inherited role and treatment metadata. Quiet fields, badges, secondary actions, progress and small menus require square corners. Primary actions, station cards, major containers and large overlays require their role's upper-left 120-degree cut (vertical/horizontal ratio √3, three square corners). Host geometry stays rectangular/rounded. Capsules and wrong-corner/angle overrides fail |
+| `grid-shape` | A control role leaves the theme's geometry | Checks non-inherited role metadata. Every corner of a role uses the theme's `--vua-corners-<role>` radius, and no element uses a cut corner (`corner-shape` other than round, or a `clip-path` polygon). Capsule overrides, uneven corners and cut corners fail |
 | `shadow-panel` | Box shadow on an ordinary panel/card | Floating structure exempt (dialog/menu/popover/toast classes or roles, shell top/sidebar/task/notification classes, `position: fixed`, absolutely positioned z ≥ 600). Accent glow tokens exempt. A primary button's declared `--vua-action-shadow` is control material, not a panel shadow; the same token does not exempt a card. Workshop steps stay flat, including viewed and executing steps; the earlier selected-step shadow exception is retired |
 | `blur-scope` | `backdrop-filter` outside top/side/task/elevated structure | Same floating/structure exemptions as `shadow-panel` |
 | `one-accent` | Two jurisdiction accent families (purple + orange) in one view, or more than one filled accent control | Family = opaque fill or text within RGB distance 12 of the purple or orange token family. The base map composes four room colors by design and is exempt in the registry |
@@ -198,7 +198,7 @@ than container layers; their other applicable checks remain active. Synthetic ca
 use the runner's same repaint/retry path and still require the annotation legend in the pixels.
 Selection controls (native choices and ARIA pressed/selected/switch/tab roles) retain the
 general hit-area floor and do not compete as primary commands merely because they use accent fill.
-The factory fixture checks the native bevel and absence of cast shadows on workshop stations.
+The factory fixture checks the theme's container radius and the absence of cast shadows on workshop stations.
 It clicks a future and then a running step, verifies independent viewing/execution state and
 the explicit detail context, and restores the running selection before capture. Repository fixtures include rows without an
 identifier and a separate unavailable-lifecycle state; both retain visible disabled refresh

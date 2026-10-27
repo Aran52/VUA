@@ -1,6 +1,6 @@
 # Skin system
 
-> Updated: 2026-10-26
+> Updated: 2026-10-28
 > Status: architecture approved by the author on 2026-10-17; slice 13 settles the native skins
 
 A skin changes how VUA looks and moves without changing what it does. **Grid** is the default.
@@ -90,7 +90,7 @@ frame. A pack that fails validation falls back to the default scene for that roo
 
 | Skin | Availability | Color and shape | Motion and effects |
 | --- | --- | --- | --- |
-| **Grid** (default) | dark and light | neutral flat surfaces, purple/orange jurisdictions, selective 120-degree cuts | crisp; no neon glow or purple/orange gradients |
+| **Grid** (default) | dark and light | neutral flat surfaces, purple/orange jurisdictions, small-radius rectangles with hairlines and accent light bars | crisp; no neon glow or purple/orange gradients |
 | **Frutiger Aero** | dark and light | blue/cyan and green, rounded or pill controls, static bubble/water motifs and glassy surfaces | restrained specular highlights and gradients; removed by accessibility overrides |
 | **Tenshi Kaiwai** | built-in preset; light | sky blue and white, flat rounded pills and a faint halo pattern | light, bouncy |
 | **Jirai Kei** | built-in preset; dark | pink and black, a low-contrast lace pattern and satin highlights | slower, softer and dimensional |

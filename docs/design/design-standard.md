@@ -306,10 +306,9 @@ tabular numerals.
 - Control sizes (three steps: 28 / 32 / 40 px), hit areas and indicator heights are set in
   [controls and motion](controls-and-motion.md) and hold in every theme.
 - Shapes belong to the theme: each theme assigns a corner style and size to each control role;
-  the standard does not impose one silhouette on every control. Grid reserves the VUA-mark
-  120-degree cut for primary actions, station cards, major containers and large overlays inside
-  AMF; quiet controls and repeated rows stay rectangular. The host uses rectangles and rounded
-  rectangles. Frutiger Aero uses rounded and pill shapes instead. An inner corner is never larger
+  the standard does not impose one silhouette on every control. Grid uses small-radius
+  rectangles and rounded rectangles in the host and in AMF alike, with no cut corners (author
+  ruling, 2026-10-28). Frutiger Aero uses rounded and pill shapes instead. An inner corner is never larger
   than the corner around it, and layout wrappers without their own surface do not count as a level.
 - Bordered or filled surfaces nest at most two levels; deeper structure uses spacing and type
   instead of another box.

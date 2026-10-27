@@ -1,8 +1,10 @@
 # Grid theme normalization
 
-> Updated: 2026-10-25
+> Updated: 2026-10-28
 > Status: hierarchy revision implements the adopted third-party review; author dev-app review pending
 > Scope: reliable design auditing, the default Grid theme and verified interface defects
+
+**Superseded geometry (author ruling, 2026-10-28):** Grid no longer uses cut corners. The host and AMF share small-radius rectangles and rounded rectangles; [controls and motion](../design/controls-and-motion.md#corners) owns the geometry. The bevel sections below record the earlier revision.
 
 The author requested audit reliability and false-positive calibration first, this plan after
 reading [Aran52/VUA#67](https://github.com/Aran52/VUA/pull/67), then correction of the real

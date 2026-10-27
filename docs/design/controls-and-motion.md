@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-10-26
+> Updated: 2026-10-28
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 
@@ -77,53 +77,46 @@ A theme defines the following token groups. Components only consume them.
 
 ### Corners
 
-Grid has two explicit geometry scopes (author correction, 2026-10-25): the VUA host uses
-rectangles and rounded rectangles; only **AMF content** uses the industrial cut. The top bar,
-sidebar, Settings, global notifications and other host pages keep host geometry even while
-an AMF page is selected. Module accent colour does not change shape ownership.
+Grid uses rectangles and rounded rectangles only, with small radii, and the same geometry in the
+VUA host and in AMF content (author ruling, 2026-10-28; it replaces the 2026-10-25 cut-corner
+direction). Only the module accent colour differs between host and AMF pages.
 
-Inside AMF, corners are set per **role group**, each with a style and a size:
+Corners are set per **role group**, one radius per group:
 
 | Role group | Members | Grid |
 | --- | --- | --- |
-| Primary actions | main task buttons | cut, 6 px |
-| Quiet actions | secondary buttons, icon buttons, segmented items, tabs, menu items | square |
-| Fields and indicators | inputs, selects, search, tags, chips, badges, checkboxes, progress | square |
-| Major containers | cards, panels, workshop station cards | cut, 12 px |
-| Repeated rows | lists, tables and compact groups | square, prefer separators and space |
-| Large overlays | dialogs, drawers, browser frames | cut, 16 px |
-| Small overlays | menus, tooltips, compact popovers | square |
+| Actions | primary and secondary buttons, icon buttons, segmented items, tabs | 4 px |
+| Fields | inputs, selects, search | 4 px |
+| Indicators | tags, status chips, count badges | 2 px |
+| Status lights | `StatusLight` | 4 px rounded square |
+| Toggles | `Toggle` track and thumb | 4 px track, 2 px thumb |
+| Progress | progress bars | square, 2 px tall |
+| Containers | cards, panels, workshop station cards, base-map rooms | 8 px |
+| Repeated rows | lists, tables, compact groups | square, separated by lines and space |
+| Large overlays | dialogs, drawers, browser frames | 8 px |
+| Small overlays | menus, tooltips, compact popovers | 4 px |
 
-- Styles a theme may choose: `cut` (a chamfer on the upper-left corner), `cut-2` (top-right and
-  bottom-left), `round` (a radius of that size), `square` (none), `pill` (fully round ends, for
-  actions and indicators only) and `mask` (a named mask image such as a lace edge, from the skin).
-- **Grid inside AMF** uses `cut`: one chamfer on the upper-left corner with a **120-degree
-  interior angle at the top edge**, matching the VUA mark (author review, 2026-10-25). The
-  table's size is the horizontal cut; its vertical depth is that size × √3. The other three
-  corners stay square. This treatment belongs to the primary actions, station cards, major
-  containers and large overlays above. Small controls stay quiet rectangles; consistency
-  means shared geometry rules, not a cut on every element. The diagonal keeps a thin stroke.
+- Styles a theme may choose: `round` (a radius per role), `square` (none), `pill` (fully round
+  ends, for actions and indicators) and `mask` (a named mask image such as a lace edge, from the
+  skin). Cut, bevel, notch and parallelogram corners are not part of any theme.
 - **Nesting:** an inner corner is never larger than the corner of the element around it.
-- **Special shapes** are allowed for named roles only and declared by the theme: the brand
-  mark, library status corner, avatar circles, activity spinners and status dots. Workshop
-  station cards use the container bevel, rather than an arrow notch. A feature does not invent
-  its own shape.
+- **Special shapes** are allowed for named roles only: the brand mark, avatar circles, activity
+  spinners and status dots. A feature does not invent its own shape.
+- **Futuristic feel without shapes.** Grid's character comes from precision and light: 1 px
+  hairlines; 2 px solid accent light bars for state (the selected tab's lower edge, the current
+  navigation item, a base-map room's leading edge, a panel's short top bar); cool near-black
+  surfaces; accent colour only on actions and states; tabular digits everywhere and
+  `--vua-font-mono` for IDs, versions, paths and URLs; label-over-value data layout; and short,
+  exact motion without bounce. Gradient buttons, neon glow and card shadows are not used.
 
-Implementation. The bundled Chromium supports native `corner-shape: bevel`. The shared
-`packages/design-system/src/shapes.css` maps Grid's role tokens to an elliptical upper-left
-`border-radius` (x / x × √3), with zero radius elsewhere. Native geometry paints the diagonal
-border and focus outline without clipping them away. Non-inherited role and treatment
-metadata distinguish quiet controls from brand surfaces. Themes own these values; features do not write
-their own polygons. `ShapeScope` applies this language only to AMF content and passes its
-ownership to menus, tooltips, drawers and browser frames rendered in body portals. CSS scopes
-include the portal root itself. Host corners remain 6 px for controls, 10 px for cards and
-12 px for overlays, with square variants where the existing component uses them.
-The [CSS borders specification](https://drafts.csswg.org/css-borders-4/)
-defines the native corner geometry.
+Implementation. Each theme sets the role radii as `--vua-corners-<role>` tokens and the host
+radii as `--vua-radius-*`; in Grid both resolve to the table above. The shared
+`packages/design-system/src/shapes.css` applies the role radii to AMF's own controls, so bespoke
+AMF buttons, fields and panels follow the theme too. Non-inherited role metadata lets the
+[design audit](design-audit.md) check one radius per role and the absence of cut corners
+(`corner-shape` other than round, or a `clip-path` polygon).
 
-Frutiger Aero uses `corner-shape: round` instead: pill actions, indicators and progress, 12 px
-fields, 20 px containers, 24 px large overlays and 14 px small overlays. The same renderer and
-role attributes consume those radii. It does not inherit Grid's cut tokens.
+Frutiger Aero, Tenshi Kaiwai and Jirai Kei set their own radii through the same tokens.
 
 ### Stroke and fill
 
@@ -239,8 +232,8 @@ The completed control catalogue requires these checks per theme:
 - bespoke controls: a `<button>` outside the primitives that draws its own border or fill.
 
 The current [audit implementation](design-audit.md) measures hit-area floors, typography,
-spacing, colours, contrast, painted overflow, surface/corner nesting and the shared Grid
-role bevel. Role-specific size
+spacing, colours, contrast, painted overflow, surface/corner nesting and one radius per role
+with no cut corners. Role-specific size
 steps and complete motion/bespoke-control checks remain scheduled
 in the [Grid normalization plan](../development/grid-theme-normalization.md). A complete run
 with no current-rule findings does not establish those remaining catalogue requirements.
@@ -254,8 +247,8 @@ Missing or invalid stored families resolve to Grid. All four display names stay 
 UI language.
 
 - **Grid** supports dark and light modes. Neutral surfaces, low-contrast structural lines and
-  orange/purple jurisdictions carry the futuristic composition. It uses flat fills, selective
-  bevels and no purple/orange gradients, neon glow or synthwave treatment.
+  orange/purple jurisdictions carry the futuristic composition: small-radius rectangles, hairlines
+  and accent light bars, flat fills, and no gradients, neon glow or synthwave treatment.
 - **Frutiger Aero** supports dark and light modes. Blue/cyan and green jurisdictions, rounded or
   pill shapes, original bubble/leaf motifs and restrained specular highlights replace Grid's
   geometry and palette. Water and glass motifs stay behind readable content, with solid list

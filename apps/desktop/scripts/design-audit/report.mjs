@@ -116,6 +116,7 @@ export function buildSummary(data) {
     push(`- Overflow pass: every view x ${meta.overflowLocales.join(", ")} x dark, overflow rule only.`);
   }
   push(`- Theme-invariant rules (${meta.themeInvariantRules}) are counted once per view (dark state); color rules are counted per theme.`);
+  if (meta.emulatedMedia) push(`- Emulated media: ${Object.entries(meta.emulatedMedia).map(([name, value]) => `${name}: ${value}`).join(", ")}.`);
   push(`- Uncovered pages and reasons:`);
   if (uncovered.length) {
     for (const item of uncovered) push(`  - ${item}`);

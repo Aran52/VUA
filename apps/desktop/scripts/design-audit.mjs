@@ -58,6 +58,11 @@ if (THEME_FILTER && !THEME_FAMILY_MODES[THEME_FAMILY].includes(THEME_FILTER)) {
 }
 const OUT = argValue("out", path.join(desktopRoot, "_local_design_audit", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)));
 const MAX_VIEWS = Number(argValue("max", "0"));
+// One call replaces every emulated feature, so all of them travel together.
+const EMULATED_MEDIA = [
+  { name: "prefers-color-scheme", value: "light" },
+  { name: "prefers-reduced-motion", value: "no-preference" },
+];
 const NO_SCREENS = hasFlag("no-screens");
 const CHECK_BASELINE = hasFlag("check-baseline");
 const UPDATE_BASELINE = hasFlag("update-baseline");
@@ -271,10 +276,13 @@ async function main() {
         await win.loadURL(url);
       }
       // Fixtures assert the system appearance resolves to light (the
-      // first-run smoke emulates the same media feature).
+      // first-run smoke emulates the same media feature). Motion is pinned to
+      // no-preference: hosted Windows runners disable system animations, which
+      // Chromium reports as reduced motion and which would remove the
+      // transitions the fixtures verify.
       if (win.webContents.debugger.isAttached()) {
         await win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
-          features: [{ name: "prefers-color-scheme", value: "light" }],
+          features: EMULATED_MEDIA,
         }).catch(() => {});
       }
       if (!(await pollReady(fixture, win))) throw new Error(`fixture readiness timeout (${fixture.readyGlobal ?? "no signal"})`);
@@ -487,6 +495,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     commit,
     themeFamily: THEME_FAMILY,
+    emulatedMedia: Object.fromEntries(EMULATED_MEDIA.map(feature => [feature.name, feature.value])),
     viewCount: selectedViews.length,
     viewLocaleStates: collected.length,
     elementTotal: collected.reduce((sum, c) => sum + c.elementCount, 0),

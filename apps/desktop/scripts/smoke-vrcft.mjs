@@ -54,8 +54,8 @@ async function run() {
     };
     await waitFor(() => js('!!document.querySelector("[data-first-run-language]")'), "first-use language");
     await js('(()=>{const select=document.querySelector(".vua-onboarding__language select");Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(select,"zh-CN");select.dispatchEvent(new Event("change",{bubbles:true}));})()');
-    await waitFor(() => js('document.documentElement.lang==="zh-CN"'), "locale"); await click('[data-nav-id=first-run-language-continue]');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-tools-discover]") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "directory");
+    await waitFor(() => js('document.querySelector(".vua-onboarding__language select").value==="zh-CN"'), "Chinese language selected"); await click('[data-nav-id=first-run-language-continue]');
+    await waitFor(() => js('document.documentElement.lang==="zh-CN" && !!document.querySelector("[data-nav-id=nav-tools-discover]") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "directory");
     nativeRead = true;
     const observed = await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"native-tool-read",method:"tools.observeConnection",params:{toolId:"vrcft"}})');
     // CI may have no vendor apps. Schema validation and the actual native gate must still work.

@@ -145,9 +145,9 @@ async function run() {
     await capture("first-run");
     assert(await js('!document.querySelector(".vua-tour")'), "No automatic app tour on fresh entry");
     await js('(()=>{const select=document.querySelector(".vua-onboarding__language select");Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(select,"zh-CN");select.dispatchEvent(new Event("change",{bubbles:true}));})()');
-    await waitFor(() => js('document.documentElement.lang==="zh-CN"'), "Chinese language selection applied");
+    await waitFor(() => js('document.querySelector(".vua-onboarding__language select").value==="zh-CN"'), "Chinese language selected");
     await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=shell-help]")'), "Help in topbar");
+    await waitFor(() => js('document.documentElement.lang==="zh-CN" && !!document.querySelector("[data-nav-id=shell-help]")'), "Chinese language applied after confirmation");
     assert(await js('(()=>{const h=document.querySelector("[data-nav-id=shell-help]"),s=document.querySelector("[data-nav-id=shell-settings]");return h.closest("header")&&h.nextElementSibling===s&&!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-help]")&&getComputedStyle(h).transform===getComputedStyle(s).transform})()'), "Help shares Settings parallelogram styling in the topbar with no sidebar duplicate");
     await js('document.querySelector("[data-nav-id=shell-help]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help for the first encyclopedia catalog");

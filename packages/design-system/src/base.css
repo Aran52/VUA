@@ -22,6 +22,8 @@ body,
 body {
   margin: 0;
   font: var(--vua-font-body);
+  /* Digits keep one width so counts, sizes and times line up. */
+  font-variant-numeric: tabular-nums;
   color: var(--vua-text-strong);
   -webkit-font-smoothing: antialiased;
   background-color: var(--vua-bg-canvas);

@@ -20,9 +20,9 @@
   width: 18px;
   height: 18px;
   margin-top: -9px;
-  border-radius: 50%;
+  border-radius: var(--vua-corners-toggle, 50%);
   background: var(--vua-text-secondary);
-  transition: transform 120ms ease, background 120ms ease;
+  transition: transform var(--vua-motion-fast) var(--vua-motion-ease), background var(--vua-motion-fast) var(--vua-motion-ease);
 }
 
 .vua-toggle[data-on] {

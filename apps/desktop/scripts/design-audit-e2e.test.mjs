@@ -33,7 +33,7 @@ body { margin: 0; background: var(--vua-bg-canvas); color: var(--vua-text-strong
 .oddweight { font-weight: 500; }
 .hardcolor { color: #ff4400; background-color: #123456; }
 .lowcontrast { color: #55555f; background-color: #151322; padding: 8px; }
-.offradius { border-radius: 8px; }
+.offradius { border-radius: 7px; }
 .shadowed { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 .glowy { box-shadow: 0 0 18px rgba(167,139,250,0.45); }
 .blurcard { backdrop-filter: blur(10px); background: rgba(21,19,34,0.8); }
@@ -142,7 +142,7 @@ test("collector and rules run end-to-end on a synthetic page", async win => {
   assert.ok(has("spacing-grid", "offscale"), "spacing-grid flags 14px padding");
   assert.ok((byRule["color-token"] ?? []).some(f => f.cls.includes("hardcolor")), "color-token flags #ff4400/#123456");
   assert.ok(has("contrast", "lowcontrast"), "contrast flags dim text");
-  assert.ok(has("radius-token", "offradius"), "radius-token flags 8px");
+  assert.ok(has("radius-token", "offradius"), "radius-token flags 7px");
   assert.ok(has("shadow-panel", "shadowed"), "shadow-panel flags ordinary panel");
   assert.ok(!has("shadow-panel", "glow"), "accent glow is exempt");
   assert.ok(has("blur-scope", "blurcard"), "blur-scope flags card-wall blur");
@@ -290,45 +290,30 @@ test("hidden compositor advances scripted exits across repeated opens", async wi
   assert.equal(completed, true);
 });
 
-test("actual Grid controls paint and hit-test a stroked upper-left 120-degree bevel", async win => {
+test("actual Grid controls are rounded rectangles in the host and in AMF alike", async win => {
   await win.loadURL(`http://127.0.0.1:${server.address().port}/grid`);
   const geometry = await win.webContents.executeJavaScript(`(() => {
-    const button = document.querySelector('#grid-button'); const r = button.getBoundingClientRect();
-    const hit = (x,y) => document.elementFromPoint(r.left+x,r.top+y)?.closest('#grid-button') !== null;
-    return { supported: CSS.supports('corner-shape','bevel'), rect:{x:r.x,y:r.y,w:r.width,h:r.height},
-      viewport:{w:innerWidth,h:innerHeight}, clipped:!hit(1,1), inside:hit(1,10),
-      right:hit(r.width-1,1), bottom:hit(1,r.height-1),
-      childRole:getComputedStyle(document.querySelector('#grid-label')).getPropertyValue('--vua-shape-role').trim(),
-      host:['host-button','host-sidebar','host-settings'].map(id => { const s=getComputedStyle(document.getElementById(id));
-        return {role:s.getPropertyValue('--vua-shape-role').trim(),corner:s.getPropertyValue('corner-top-left-shape'),radius:s.borderTopLeftRadius,
-          corners:[s.borderTopLeftRadius,s.borderTopRightRadius,s.borderBottomRightRadius,s.borderBottomLeftRadius]}; }),
-      portal:{role:getComputedStyle(document.getElementById('owned-portal')).getPropertyValue('--vua-shape-role').trim(),
-        radius:getComputedStyle(document.getElementById('owned-portal')).borderTopLeftRadius} };
+    const read = element => { const s = getComputedStyle(element);
+      return { role: s.getPropertyValue('--vua-shape-role').trim(), shape: s.getPropertyValue('corner-top-left-shape'), clip: s.clipPath,
+        corners: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius] }; };
+    return { button: read(document.querySelector('#grid-button')), host: read(document.querySelector('#host-button')),
+      badge: read(document.querySelector('#grid-badge')), station: read(document.querySelector('.vua-line__station')),
+      portal: read(document.getElementById('owned-portal')),
+      childRole: getComputedStyle(document.querySelector('#grid-label')).getPropertyValue('--vua-shape-role').trim(),
+      hostRest: ['host-sidebar','host-settings'].map(id => read(document.getElementById(id))) };
   })()`, true);
-  assert.equal(geometry.supported, true);
-  assert.equal(geometry.clipped, true);
-  assert.equal(geometry.inside, true);
-  assert.equal(geometry.right, true);
-  assert.equal(geometry.bottom, true);
-  assert.equal(geometry.childRole, "none", "text never inherits its parent's control role");
-  assert.ok(geometry.host.every(style => style.role === "none" && style.corner !== "superellipse(0)" && new Set(style.corners).size === 1),
-    "header, sidebar and settings retain host corners even in the production jurisdiction");
-  assert.equal(geometry.host[0].radius, "6px", "the shared host button retains its rounded rectangle");
+  const uniform = (style, radius) => style.corners.every(value => value === radius) && !/bevel|superellipse\(0\)/.test(style.shape) && !/polygon/.test(style.clip);
+  assert.ok(uniform(geometry.button, "4px"), "an AMF primary action is a 4 px rounded rectangle");
+  assert.ok(uniform(geometry.host, "4px"), "the host action uses the same radius");
+  assert.ok(uniform(geometry.badge, "2px"), "indicators use 2 px");
+  assert.ok(uniform(geometry.station, "8px"), "workshop station cards use the container radius");
   assert.equal(geometry.portal.role, "menu", "an AMF-owned portal retains its own scope");
-  assert.equal(geometry.portal.radius, "0px", "small owned menus stay quiet rectangles");
-  const capture = await captureAuditPage(win, false, 40);
-  const pixels = capture.toBitmap(); const size = capture.getSize();
-  const scaleX = size.width / geometry.viewport.w, scaleY = size.height / geometry.viewport.h;
-  let diagonalPixels = 0;
-  for (let y = 3; y <= 9; y += 1) for (let x = 2; x <= 5; x += 1) {
-    const px = Math.round((geometry.rect.x + x) * scaleX), py = Math.round((geometry.rect.y + y) * scaleY);
-    const index = (py * size.width + px) * 4;
-    if (pixels[index + 2] > 180 && pixels[index + 1] < 120 && pixels[index] < 120) diagonalPixels += 1;
-  }
-  assert.ok(diagonalPixels >= 2, "the slanted edge itself carries the border");
+  assert.ok(uniform(geometry.portal, "4px"), "small owned menus use the menu radius");
+  assert.equal(geometry.childRole, "none", "text never inherits its parent's control role");
+  assert.ok(geometry.hostRest.every(style => style.role === "none" && new Set(style.corners).size === 1), "host sidebar and settings keep uniform corners");
   const snapshot = await win.webContents.executeJavaScript(`${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed:true, overflowChecks:true })`, true);
   const findings = evaluateSnapshot(snapshot, { rules:["grid-shape", "shadow-panel"] });
-  assert.deepEqual(findings.filter(f => f.rule === "grid-shape").map(f => f.cls[0]), ["broken-grid"]);
+  assert.deepEqual(findings.filter(f => f.rule === "grid-shape").map(f => f.cls[0]).sort(), ["broken-cut", "broken-grid"]);
   assert.equal(findings.filter(f => f.rule === "shadow-panel").length, 0, "selected and resting steps both stay flat");
 });
 
@@ -342,13 +327,14 @@ async function main() {
     const css = (await Promise.all(files.map(file => readFile(path.join(root, file), "utf8")))).join("\n").replace(/@import\s+[^;]+;/g, "");
     gridPage = `<!doctype html><html data-theme="dark"><head><style>${css}
       body{padding:32px}#grid-button{width:160px;height:40px;border-color:rgb(255,0,0)}
-      .vua-line__stations{margin-top:24px;width:500px}.broken-grid{border-radius:999px!important}
+      .vua-line__stations{margin-top:24px;width:500px}.broken-grid{border-radius:999px!important}.broken-cut{corner-shape:bevel!important}
     </style></head><body><div data-vua-shape-scope="amf">
       <button id="grid-button" class="vua-button vua-button--primary"><span id="grid-label">Grid action</span></button>
-      <span class="vua-badge" data-tone="neutral">Status</span><input aria-label="Field"><button class="vua-toggle" aria-label="Switch"></button>
+      <span id="grid-badge" class="vua-badge" data-tone="neutral">Status</span><input aria-label="Field"><button class="vua-toggle" aria-label="Switch"></button>
       <ol class="vua-line__stations"><li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="true">Active</button></li>
       <li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="false">Rest</button></li></ol>
-      <button class="broken-grid vua-button--primary">Capsule regression</button></div>
+      <button class="broken-grid vua-button--primary">Capsule regression</button>
+      <button class="broken-cut vua-button--primary">Cut regression</button></div>
       <div class="vua-shell" data-module="production"><header><button id="host-button" class="vua-button">Host action</button></header>
         <aside><button id="host-sidebar">Host sidebar</button></aside><section><input id="host-settings" aria-label="Host settings"></section></div>
       <div id="owned-portal" class="vua-tooltip" data-vua-shape-scope="amf">Owned portal</div></body></html>`;

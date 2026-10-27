@@ -28,11 +28,10 @@ button.vua-factory__alert { cursor: pointer; }
   --room: var(--vua-accent);
   position: relative; min-height: 230px; min-width: 0; color: var(--vua-text-strong); cursor: zoom-in;
   background: var(--vua-bg-panel); border: 1px solid var(--vua-border);
-  clip-path: var(--vua-shape-cut-lg);
+  border-radius: var(--vua-radius-card); overflow: hidden;
   transition: border-color var(--vua-motion-fast), background-color var(--vua-motion-fast), opacity var(--vua-motion-base);
 }
 .vua-factory__room::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--room); z-index: 2; }
-.vua-factory__room::after { content: ""; position: absolute; top: 0; inset-inline-end: 0; width: 18px; height: 18px; background: var(--room); clip-path: polygon(0 0, 100% 100%, 100% 0); z-index: 2; }
 .vua-factory__room:hover { border-color: var(--room); background: color-mix(in srgb, var(--room) 7%, var(--vua-bg-panel)); }
 .vua-factory__room[data-room="materials"] { --room: var(--vua-room-materials); }
 .vua-factory__room[data-room="workshop"] { --room: var(--vua-room-workshop); }
@@ -56,11 +55,11 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__hint, .vua-factory__muted { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-factory__body { display: flex; flex-direction: column; gap: 8px; align-self: end; min-width: 0; max-width: 60%; }
 .vua-factory__room[data-wide] .vua-factory__body { max-width: 52%; }
-.vua-factory__enter { display: inline-flex; align-items: center; gap: var(--vua-space-2); justify-self: end; padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--room) 12%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
+.vua-factory__enter { display: inline-flex; align-items: center; gap: var(--vua-space-2); justify-self: end; padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--room) 12%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-factory__enter:hover { background: var(--room); color: var(--vua-accent-contrast); }
 
 /* The zoomed room keeps its interface at normal size above the magnified interior. */
-.vua-factory__panel { --room: var(--vua-accent); position: absolute; inset-inline: 14px; top: 14px; z-index: 3; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--vua-space-2) var(--vua-space-5); padding: 12px 16px 12px var(--vua-space-5); background: color-mix(in srgb, var(--vua-bg-panel) 92%, transparent); border: 1px solid var(--room); clip-path: var(--vua-shape-cut-md); animation: vua-factory-panel var(--vua-motion-base) var(--vua-motion-fast) both var(--vua-motion-ease); }
+.vua-factory__panel { --room: var(--vua-accent); position: absolute; inset-inline: 14px; top: 14px; z-index: 3; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--vua-space-2) var(--vua-space-5); padding: 12px 16px 12px var(--vua-space-5); background: color-mix(in srgb, var(--vua-bg-panel) 92%, transparent); border: 1px solid var(--room); border-radius: var(--vua-radius-card); animation: vua-factory-panel var(--vua-motion-base) var(--vua-motion-fast) both var(--vua-motion-ease); }
 .vua-factory__panel::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--room); }
 .vua-factory__panel[data-room="materials"] { --room: var(--vua-room-materials); }
 .vua-factory__panel[data-room="workshop"] { --room: var(--vua-room-workshop); }
@@ -117,7 +116,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-room[data-room="control"] { --room: var(--vua-room-control); }
 .vua-room[data-room="release"] { --room: var(--vua-room-release); }
 .vua-room__bar { display: flex; align-items: center; gap: var(--vua-space-4); padding: 0 0 12px; margin-bottom: var(--vua-space-4); border-bottom: 1px solid var(--vua-border); flex-wrap: wrap; }
-.vua-room__map { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-secondary); cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
+.vua-room__map { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-secondary); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-room__map:hover { color: var(--room); border-color: var(--room); }
 .vua-room__name { display: inline-flex; align-items: baseline; gap: var(--vua-space-2); font-weight: var(--vua-weight-strong); padding-inline-start: var(--vua-space-2); border-inline-start: 4px solid var(--room); }
 .vua-room__name .vua-factory__tag { color: var(--room); }
@@ -141,7 +140,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-workshop__line-close:hover, .vua-workshop__line-close:focus-visible { opacity: 1; background: color-mix(in srgb, var(--vua-text-strong) 8%, transparent); }
 .vua-workshop__line-close:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
 .vua-workshop__line-choices { display: grid; gap: 4px; animation: vua-line-choices var(--vua-motion-fast) ease-out; }
-.vua-workshop__line-choices > button { height: 26px; border: 0; font: var(--vua-font-caption); cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
+.vua-workshop__line-choices > button { height: 26px; border: 0; font: var(--vua-font-caption); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-workshop__line-hide { background: color-mix(in srgb, var(--vua-text-secondary) 16%, var(--vua-bg-panel)); color: var(--vua-text-strong); }
 .vua-workshop__line-hide:hover { background: color-mix(in srgb, var(--vua-text-secondary) 26%, var(--vua-bg-panel)); }
 .vua-workshop__line-delete { background: var(--vua-error); color: var(--vua-on-error); }
@@ -242,7 +241,7 @@ button.vua-factory__alert { cursor: pointer; }
 
 /* Start production from the materials room: the Avatar header and the outfit picks. */
 .vua-start { display: grid; gap: var(--vua-space-3); min-width: min(420px, 76vw); }
-.vua-start__avatar { display: flex; align-items: center; gap: 12px; padding: var(--vua-space-2) 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); clip-path: var(--vua-shape-cut-sm); }
+.vua-start__avatar { display: flex; align-items: center; gap: 12px; padding: var(--vua-space-2) 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); border-radius: var(--vua-radius-control); }
 .vua-start__thumb { width: 56px; height: 56px; flex: none; object-fit: cover; border: 1px solid var(--vua-border); background: var(--vua-bg-elevated); }
 .vua-start__thumb--empty { display: block; }
 .vua-start__avatar-kind { display: block; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
@@ -265,7 +264,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-start__auto-note { margin: 0; max-width: 48ch; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-start__actions { display: flex; justify-content: flex-end; gap: var(--vua-space-2); }
 .vua-start__loading { display: grid; gap: var(--vua-space-2); }
-.vua-start__browse { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: var(--vua-space-2) 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); clip-path: var(--vua-shape-cut-sm); }
+.vua-start__browse { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: var(--vua-space-2) 12px; border: 1px solid var(--vua-border); background: var(--vua-bg-panel); border-radius: var(--vua-radius-control); }
 .vua-start__browse span { flex: 1; min-width: 160px; color: var(--vua-text-strong); overflow-wrap: anywhere; }
 
 /* The lilToon brightness alignment: one row per outfit material, its limits from and to. */

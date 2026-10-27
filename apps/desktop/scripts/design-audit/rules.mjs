@@ -191,17 +191,16 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
           `border-radius ${corner}: ${value}px is not a --vua-radius-* value`, "radius"));
       }
     }
-    if (active.has("grid-shape") && el.shapeRole && el.shapeRole !== "none" && el.shapeTheme === "bevel") {
+    if (active.has("grid-shape") && el.shapeRole && el.shapeRole !== "none") {
+      // Author ruling 2026-10-28: rectangles and rounded rectangles only, one radius per role.
       const pairs = el.cornerPairs ?? [];
-      const [x = 0, y = 0] = pairs[0] ?? [];
-      const bevel = el.cornerShapes?.[0] === "bevel" || el.cornerShapes?.[0] === "superellipse(0)";
-      const quiet = el.shapeTreatment === "quiet";
-      const invalid = quiet ? pairs.some(pair => pair.some(value => value > 0.1))
-        : !bevel || !x || Math.abs(y / x - Math.sqrt(3)) > 0.01 || Math.abs(x - el.shapeExpectedX) > 0.1
-          || pairs.slice(1).some(pair => pair.some(value => value > 0.1));
-      if (invalid) {
-        push(makeFinding("grid-shape", el, index, { role: el.shapeRole, treatment: quiet ? "quiet" : "bevel", expectedX: el.shapeExpectedX, cornerPairs: pairs, cornerShapes: el.cornerShapes },
-          quiet ? "Quiet AMF controls require square corners" : "Brand surfaces require the role's upper-left 120-degree bevel and three square corners", "radius"));
+      const cut = (el.cornerShapes ?? []).some(shape => shape && !/^(round|superellipse\(1\))$/.test(shape))
+        || /polygon\(/.test(el.clipPath ?? "");
+      const expected = el.shapeExpectedRadius;
+      const uneven = typeof expected === "number" && pairs.some(pair => pair.some(value => Math.abs(value - expected) > 0.1));
+      if (cut || uneven) {
+        push(makeFinding("grid-shape", el, index, { role: el.shapeRole, expectedRadius: expected, cornerPairs: pairs, cornerShapes: el.cornerShapes, clipPath: el.clipPath },
+          cut ? "Controls are rectangles or rounded rectangles; cut corners are not used" : `The ${el.shapeRole} role uses one ${expected}px radius on every corner`, "radius"));
       }
     }
     if (active.has("shadow-panel")) {

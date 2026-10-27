@@ -25,7 +25,7 @@
 .vua-control__head h1 { margin: 0 auto 0 0; font: var(--vua-font-display); }
 .vua-control__head p { margin: 0; max-width: 70ch; }
 .vua-control__actions { display: flex; align-items: center; gap: var(--vua-space-2); flex-wrap: wrap; }
-.vua-control__switch { display: inline-flex; padding: 3px; gap: var(--vua-space-1); border: 1px solid var(--vua-border); background: var(--vua-bg-panel); clip-path: var(--vua-shape-cut-sm); }
+.vua-control__switch { display: inline-flex; padding: 3px; gap: var(--vua-space-1); border: 1px solid var(--vua-border); background: var(--vua-bg-panel); border-radius: var(--vua-radius-control); }
 .vua-control__switch button { display: inline-flex; align-items: center; gap: var(--vua-space-2); padding: var(--vua-space-2) var(--vua-space-4) 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-caption); cursor: pointer; }
 .vua-control__switch button:hover { color: var(--vua-text-strong); }
 .vua-control__switch button[aria-pressed="true"] { background: color-mix(in srgb, var(--room) 18%, transparent); color: var(--vua-text-strong); border-bottom-color: var(--room); }
@@ -33,13 +33,13 @@
 
 .vua-control__panel {
   position: relative; display: flex; flex-direction: column; gap: var(--vua-space-2); padding: 16px var(--vua-space-4); min-width: 0;
-  background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); border: 1px solid var(--vua-border); clip-path: var(--vua-shape-cut-md);
+  background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); overflow: hidden;
 }
 .vua-control__panel h2 { margin: 0; font: var(--vua-font-title); overflow-wrap: anywhere; }
 .vua-control__panel h3 { margin: var(--vua-space-2) 0 0; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); letter-spacing: 0.04em; color: var(--vua-text-secondary); }
 .vua-control__panel p { margin: 0; }
-/* Skin slots: the default skin marks a panel's cut corner and the stage's edge in the room's color. */
-.vua-control__corner { position: absolute; top: 0; inset-inline-end: 0; width: 14px; height: 14px; background: linear-gradient(to bottom left, var(--kind, var(--room)) 50%, transparent 50%); pointer-events: none; }
+/* Skin slots: Grid marks a panel with a short light bar on its top edge and the stage's edge in the room's color. */
+.vua-control__corner { position: absolute; top: 0; inset-inline-start: var(--vua-space-4); width: 24px; height: 2px; background: var(--kind, var(--room)); pointer-events: none; }
 .vua-control__edge { position: absolute; inset-block: -1px; inset-inline-start: -1px; width: 4px; background: var(--room); pointer-events: none; z-index: 1; }
 .vua-control__backdrop { position: absolute; inset: 0; background-image: linear-gradient(var(--vua-graph-grid) 1px, transparent 1px), linear-gradient(90deg, var(--vua-graph-grid) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none; }
 .vua-control__empty { align-items: center; text-align: center; padding-block: 40px; color: var(--vua-text-secondary); }
@@ -116,7 +116,7 @@
 .vua-control__list h2 { margin: var(--vua-space-2) 0 0; color: var(--vua-text-secondary); font-weight: var(--vua-weight-strong); letter-spacing: 0.06em; }
 .vua-control__list ul { display: flex; flex-direction: column; gap: var(--vua-space-2); margin: 0; padding: 0; list-style: none; }
 .vua-control__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: var(--vua-space-2) 12px; text-align: start; font: inherit;
-  color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
+  color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-control__row:hover { border-color: var(--kind); }
 .vua-control__row[aria-pressed="true"] { border-color: var(--kind); background: color-mix(in srgb, var(--kind) 10%, var(--vua-bg-panel)); }
 .vua-control__row:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
@@ -137,7 +137,7 @@
 .vua-control__count { margin-inline-start: auto; color: var(--vua-text-secondary); font-weight: 400; }
 .vua-control__projects { display: flex; flex-direction: column; gap: var(--vua-space-2); margin: 0; padding: 0; list-style: none; }
 .vua-control__project { --project: var(--vua-control-unity); display: grid; grid-template-columns: auto minmax(0, 1fr) 150px 130px auto; align-items: center; gap: var(--vua-space-4); width: 100%; padding: 12px 16px; text-align: start; font: inherit;
-  color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); border-inline-start: 4px solid var(--project); cursor: pointer; clip-path: var(--vua-shape-cut-md); }
+  color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); border-inline-start: 4px solid var(--project); cursor: pointer; border-radius: var(--vua-radius-card); }
 .vua-control__project[data-kind="work"] { --project: var(--vua-control-work); }
 .vua-control__project:hover:not(:disabled) { border-color: var(--room); border-inline-start-color: var(--project); }
 .vua-control__project:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
@@ -199,7 +199,7 @@
 .vua-control__latest { display: inline-flex; align-items: center; gap: 8px; }
 .vua-control__latest > svg { color: var(--vua-success-text); }
 .vua-control__row-actions { display: flex; justify-content: flex-end; }
-.vua-control__icon-button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-strong); cursor: pointer; clip-path: var(--vua-shape-cut-sm); }
+.vua-control__icon-button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-strong); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-control__icon-button[data-tone="update"], .vua-control__icon-button[data-tone="add"] { border-color: var(--room); color: var(--room); }
 .vua-control__icon-button[data-tone="remove"]:hover { border-color: var(--vua-error); color: var(--vua-error-text); }
 .vua-control__icon-button:hover { background: color-mix(in srgb, currentColor 12%, transparent); }

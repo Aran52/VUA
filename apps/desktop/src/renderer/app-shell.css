@@ -520,7 +520,7 @@
 
 .vua-nav-confirm__url {
   overflow-wrap: anywhere;
-  font-family: ui-monospace, monospace;
+  font-family: var(--vua-font-mono);
 }
 
 .vua-nav-confirm__actions {

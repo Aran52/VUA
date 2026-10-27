@@ -63,6 +63,7 @@
     "Segoe UI",
     "Microsoft YaHei UI",
     sans-serif;
+  --vua-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --vua-font-display: 600 28px/36px var(--vua-font-family);
   --vua-font-title: 600 20px/28px var(--vua-font-family);
   --vua-font-body: 400 14px/20px var(--vua-font-family);
@@ -88,35 +89,28 @@
   --vua-space-5: 24px;
   --vua-space-6: 32px;
 
-  /* AMF's upper-left bevel follows the wordmark: vertical / horizontal = sqrt(3).
-   * The slanted edge meets the horizontal at 120 degrees. Role sizes are horizontal cuts. */
+  /* Grid geometry (author ruling 2026-10-28): rectangles and rounded rectangles with small radii,
+   * the same in the host and in AMF. Themes restyle the role radii; components never write their own. */
   --vua-corner-style: round;
-  --vua-corner-ratio: 1.732050808;
-  --vua-corner-action: 6px;
-  --vua-corner-field: 4px;
-  --vua-corner-indicator: 4px;
-  --vua-corner-container: 12px;
-  --vua-corner-overlay: 16px;
-  --vua-corner-menu: 8px;
-  --vua-corner-progress: 2px;
-  --vua-corners-action-quiet: 0px;
-  --vua-corners-action: var(--vua-corner-action) 0 0 0 / calc(var(--vua-corner-action) * var(--vua-corner-ratio)) 0 0 0;
-  --vua-corners-field: 0px;
-  --vua-corners-indicator: 0px;
-  --vua-corners-container: var(--vua-corner-container) 0 0 0 / calc(var(--vua-corner-container) * var(--vua-corner-ratio)) 0 0 0;
-  --vua-corners-overlay: var(--vua-corner-overlay) 0 0 0 / calc(var(--vua-corner-overlay) * var(--vua-corner-ratio)) 0 0 0;
-  --vua-corners-menu: 0px;
+  --vua-corners-action: 4px;
+  --vua-corners-action-quiet: 4px;
+  --vua-corners-field: 4px;
+  --vua-corners-indicator: 2px;
+  --vua-corners-container: 8px;
+  --vua-corners-overlay: 8px;
+  --vua-corners-menu: 4px;
   --vua-corners-progress: 0px;
-  /* Host rectangles and rounded rectangles; AMF overrides these inside its shape scope. */
+  --vua-corners-toggle: 2px;
+  --vua-corners-status: var(--vua-radius-control);
   --vua-radius-pill: var(--vua-radius-control);
-  --vua-radius-control: 6px;
-  --vua-radius-card: 10px;
-  --vua-radius-badge: 4px;
-  --vua-radius-overlay: 12px;
+  --vua-radius-control: 4px;
+  --vua-radius-card: 8px;
+  --vua-radius-badge: 2px;
+  --vua-radius-overlay: 8px;
   --vua-radius-xl: var(--vua-radius-overlay);
   --vua-radius-lg: var(--vua-radius-card);
   --vua-radius-md: var(--vua-radius-control);
-  --vua-radius-sm: 4px;
+  --vua-radius-sm: 2px;
 
   /* ---- 控件尺寸 ---- */
   --vua-control-height-sm: 28px;
@@ -130,12 +124,6 @@
   --vua-room-materials: #94a3ff;
   --vua-room-workshop: #ff7a45;
   --vua-room-release: #5eead4;
-
-  /* ---- Shapes: named clip-path presets; skins swap the shape language here ---- */
-  --vua-shape-cut-sm: polygon(0 calc(var(--vua-corner-action) * var(--vua-corner-ratio)), var(--vua-corner-action) 0, 100% 0, 100% 100%, 0 100%);
-  --vua-shape-cut-md: polygon(0 calc(var(--vua-corner-container) * var(--vua-corner-ratio)), var(--vua-corner-container) 0, 100% 0, 100% 100%, 0 100%);
-  --vua-shape-cut-lg: polygon(0 calc(var(--vua-corner-overlay) * var(--vua-corner-ratio)), var(--vua-corner-overlay) 0, 100% 0, 100% 100%, 0 100%);
-  --vua-shape-step: var(--vua-shape-cut-md);
 
   /* ---- Motion: durations and easing; scripted motion reads the same values ---- */
   --vua-motion-instant: 0ms;

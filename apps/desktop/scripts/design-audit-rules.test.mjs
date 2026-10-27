@@ -144,15 +144,15 @@ test("spacing-grid exempts actual auto margins but still flags equal fixed margi
 
 test("radius-token accepts 0, tokens, pill and circles", () => {
   const findings = evaluateSnapshot(snapshot([
-    el({ radius: [0, 6, 10, 12] }),
+    el({ radius: [0, 2, 4, 8] }),
     el({ radius: [999, 0, 0, 0] }),
     el({ radius: [{ pct: 50 }, 0, 0, 0] }),
   ]));
   assert.equal(findings.filter(f => f.rule === "radius-token").length, 0);
-  const off = evaluateSnapshot(snapshot([el({ radius: [8, 8, 8, 8] })]));
+  const off = evaluateSnapshot(snapshot([el({ radius: [6, 6, 6, 6] })]));
   const flagged = off.filter(f => f.rule === "radius-token");
   assert.equal(flagged.length, 1);
-  assert.ok(flagged[0].details.nearest === 6 || flagged[0].details.nearest === 10);
+  assert.ok(flagged[0].details.nearest === 4 || flagged[0].details.nearest === 8);
 });
 
 test("shadow-panel distinguishes cast shadows from selection and focus edges", () => {
@@ -299,14 +299,14 @@ test("theme-invariant classification covers the layout rules only", () => {
   assert.equal(THEME_INVARIANT_RULES.size, 9);
 });
 
-test("Grid rejects capsules, the wrong corner and a 45-degree bevel", () => {
-  const valid = { shapeRole: "action", shapeTheme: "bevel", shapeExpectedX: 6,
-    cornerShapes: ["superellipse(0)", "superellipse(0)", "superellipse(0)", "superellipse(0)"],
-    cornerPairs: [[6, 6 * Math.sqrt(3)], [0, 0], [0, 0], [0, 0]] };
+test("Grid roles keep one radius on every corner and never cut a corner", () => {
+  const valid = { shapeRole: "action", shapeExpectedRadius: 4,
+    cornerShapes: ["round", "round", "round", "round"], cornerPairs: [[4, 4], [4, 4], [4, 4], [4, 4]] };
   const elements = [el(valid), el({ ...valid, cornerPairs: [[999, 999], [999, 999], [999, 999], [999, 999]] }),
-    el({ ...valid, cornerPairs: [[0, 0], [6, 6 * Math.sqrt(3)], [0, 0], [0, 0]] }),
-    el({ ...valid, cornerPairs: [[6, 6], [0, 0], [0, 0], [0, 0]] })];
-  assert.deepEqual(evaluateSnapshot(snapshot(elements), { rules: ["grid-shape"] }).map(f => f.index), [1, 2, 3]);
+    el({ ...valid, cornerShapes: ["bevel", "round", "round", "round"] }),
+    el({ ...valid, clipPath: "polygon(0px 8px, 8px 0px, 100% 0px, 100% 100%, 0px 100%)" }),
+    el({ ...valid, cornerPairs: [[4, 4], [0, 0], [4, 4], [4, 4]] })];
+  assert.deepEqual(evaluateSnapshot(snapshot(elements), { rules: ["grid-shape"] }).map(f => f.index), [1, 2, 3, 4]);
 });
 
 test("selection never grants a workshop step cast elevation", () => {
@@ -317,10 +317,11 @@ test("selection never grants a workshop step cast elevation", () => {
   assert.deepEqual(result.map(f => f.index), [0, 1, 2]);
 });
 
-test("quiet AMF controls are rectangles while primary brand surfaces remain beveled", () => {
-  const quiet = { shapeRole: "field", shapeTheme: "bevel", shapeTreatment: "quiet", cornerPairs: [[0,0],[0,0],[0,0],[0,0]] };
-  const result = evaluateSnapshot(snapshot([el(quiet), el({ ...quiet, cornerPairs: [[999,999],[999,999],[999,999],[999,999]] })]), { rules: ["grid-shape"] });
-  assert.deepEqual(result.map(f => f.index), [1]);
+test("quiet and accent roles read their own radius token", () => {
+  const field = { shapeRole: "field", shapeTreatment: "quiet", shapeExpectedRadius: 4, cornerPairs: [[4,4],[4,4],[4,4],[4,4]] };
+  const card = { shapeRole: "container", shapeTreatment: "accent", shapeExpectedRadius: 8, cornerPairs: [[8,8],[8,8],[8,8],[8,8]] };
+  const result = evaluateSnapshot(snapshot([el(field), el(card), el({ ...card, cornerPairs: [[4,4],[4,4],[4,4],[4,4]] })]), { rules: ["grid-shape"] });
+  assert.deepEqual(result.map(f => f.index), [2]);
 });
 
 test("capture failures: vite error overlay and near-empty pages are unusable", () => {

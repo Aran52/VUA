@@ -474,7 +474,7 @@
 .vua-packages__legacy-list {
   margin: 0;
   padding-left: var(--vua-space-4);
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-family: var(--vua-font-mono);
   font-size: var(--vua-text-caption-size);
   line-height: var(--vua-text-caption-leading);
   user-select: text;

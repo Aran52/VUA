@@ -49,7 +49,6 @@
   --vua-accent-contrast: #24101a;
   --vua-accent-text: var(--vua-accent);
   --vua-corner-style: round;
-  --vua-amf-corner-style: round;
   --vua-corners-action-quiet: 10px;
   --vua-corners-action: 999px;
   --vua-corners-field: 10px;
@@ -59,6 +58,7 @@
   --vua-corners-menu: 10px;
   --vua-corners-progress: 999px;
   --vua-corners-toggle: 999px;
+  --vua-corners-status: 50%;
   --vua-radius-pill: 999px;
   --vua-radius-control: 10px;
   --vua-radius-card: 10px;
@@ -68,16 +68,6 @@
   --vua-radius-lg: 10px;
   --vua-radius-md: 10px;
   --vua-radius-sm: 6px;
-  --vua-amf-radius-pill: 999px;
-  --vua-amf-radius-control: 10px;
-  --vua-amf-radius-card: 10px;
-  --vua-amf-radius-badge: 999px;
-  --vua-amf-radius-overlay: 14px;
-  --vua-amf-radius-sm: 6px;
-  --vua-shape-cut-sm: none;
-  --vua-shape-cut-md: none;
-  --vua-shape-cut-lg: none;
-  --vua-shape-step: none;
   --vua-rail-content-align: center;
   --vua-rail-text-align: center;
   --vua-motion-fast: 150ms;

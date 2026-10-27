@@ -225,8 +225,8 @@ export function collectAuditSnapshot(options) {
   }
 
   const radiusTokens = {};
-  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay",
-    ...["action", "field", "indicator", "container", "overlay", "menu", "progress"].map(role => "--vua-corner-" + role)]) {
+  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay", "--vua-radius-badge",
+    ...["action", "action-quiet", "field", "indicator", "container", "overlay", "menu", "progress"].map(role => "--vua-corners-" + role)]) {
     const raw = (tokenRaw[name] || "").trim();
     const value = parseFloat(raw);
     if (Number.isFinite(value)) radiusTokens[name] = value;
@@ -456,8 +456,13 @@ export function collectAuditSnapshot(options) {
       interactive, isControl, isChoice, isTextField, indicatorRole, disabled, primary,
       shapeRole: cs.getPropertyValue("--vua-shape-role").trim(),
       shapeTreatment: cs.getPropertyValue("--vua-shape-treatment").trim(),
-      shapeTheme: cs.getPropertyValue("--vua-corner-style").trim(),
-      shapeExpectedX: parseFloat(cs.getPropertyValue("--vua-corner-" + cs.getPropertyValue("--vua-shape-role").trim())) || 0,
+      shapeExpectedRadius: (() => {
+        const role = cs.getPropertyValue("--vua-shape-role").trim();
+        const quietAction = role === "action" && cs.getPropertyValue("--vua-shape-treatment").trim() === "quiet";
+        const value = parseFloat(cs.getPropertyValue("--vua-corners-" + (quietAction ? "action-quiet" : role)));
+        return Number.isFinite(value) ? value : null;
+      })(),
+      clipPath: cs.clipPath,
       cornerShapes: ["top-left", "top-right", "bottom-right", "bottom-left"].map(corner => cs.getPropertyValue("corner-" + corner + "-shape")),
       cornerPairs: [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(raw => {
         const values = raw.trim().split(/\s+/).map(parseFloat); return [values[0], values[1] ?? values[0]];

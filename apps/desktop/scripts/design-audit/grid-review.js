@@ -8,13 +8,6 @@ export async function verifyGridFactoryState(view) {
     }
   };
   const check = (ok, message) => { if (!ok) throw new Error(message); };
-  const bevel = element => {
-    const style = getComputedStyle(element);
-    const [x, y] = style.borderTopLeftRadius.split(/\s+/).map(parseFloat);
-    return style.getPropertyValue("corner-top-left-shape") === "superellipse(0)"
-      && Math.abs(y / x - Math.sqrt(3)) < 0.01 && style.borderTopRightRadius === "0px"
-      && style.borderBottomRightRadius === "0px" && style.borderBottomLeftRadius === "0px";
-  };
   const roundedContainer = radius => element => {
     const style = getComputedStyle(element);
     return style.getPropertyValue("corner-top-left-shape") === "superellipse(1)"
@@ -23,7 +16,7 @@ export async function verifyGridFactoryState(view) {
   };
   const family = document.documentElement.dataset.themeFamily ?? "missing";
   const container = {
-    grid: bevel,
+    grid: roundedContainer("8px"),
     "frutiger-aero": roundedContainer("20px"),
     tenshi: roundedContainer("14px"),
     jirai: roundedContainer("10px"),

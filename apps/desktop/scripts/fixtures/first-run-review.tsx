@@ -135,6 +135,12 @@ async function mount(mode: typeof scenario = "installed", legacyMode = "desktop"
     }
   } else await completeFirstRun(keepGuide);
 }
+async function mountPreview(inventory: typeof creatorInventory = "all") {
+  // Preview states are not first-run acceptance. Avoid the language confirmation's
+  // intentional full reload, which would invalidate the caller's pending Promise.
+  localStorage.setItem(storageKeys.goals, JSON.stringify({ version: 1, onboarding: "completed", goals: [], environments: [] }));
+  await mount("installed", "desktop", previewTheme, inventory);
+}
 async function prepare() {
   await click(copy.play);
   await click(copy.desktop);
@@ -330,13 +336,13 @@ const review = {
     return checks.slice(startAt);
   },
   async previewEnvironment(page: "play" | "create", inventory: typeof creatorInventory = "all") {
-    await mount("installed", "desktop", previewTheme, inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-run-language]"));
+    await mountPreview(inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-run-language]"));
     await click(copy[page]);
     await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-editor-status]')?.textContent?.includes("2022.3.22f1"));
     await settlePage();
   },
   async previewSettings() {
-    await mount("installed", "desktop", previewTheme);
+    await mountPreview();
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => !document.querySelector("[data-first-run-language]"));
     document.querySelector<HTMLButtonElement>('[data-nav-id="shell-settings"]')!.click();
@@ -426,7 +432,7 @@ const review = {
     await settlePage();
   },
   async previewTools() {
-    await mount("installed", "desktop", previewTheme);
+    await mountPreview();
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => !document.querySelector("[data-first-run-language]"));
     await click(copy.tools);

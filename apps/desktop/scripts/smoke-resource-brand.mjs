@@ -60,11 +60,9 @@ async function run() {
       await delay(100);
       await fs.promises.writeFile(path.join(output, filename), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
     };
-    await waitFor(() => js('document.querySelector(".vua-tour")?.dataset.tourStep==="welcome"'), "welcome");
-    await js('document.querySelector(".vua-tour__actions button").click()');
-    await waitFor(() => js('!!document.querySelector(".vua-journey-top button")'), "wizard");
-    await js('document.querySelector(".vua-journey-top button").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]")'), "fresh AMF navigation");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=first-run-language-continue]")'), "first-use language");
+    await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "fresh AMF navigation");
     const actual = await js("window.vua.system.readResourceUsageV2()");
     const old = await js("window.vua.system.readResourceUsage()");
     assert(actual.schemaVersion === 2 && actual.ramTotalBytes > 0 && [actual.cpuUsagePercent, actual.gpuUsagePercent].every(value => value === null || Number.isFinite(value) && value >= 0 && value <= 100), "Real V2 IPC returns valid measured/nullable resources");

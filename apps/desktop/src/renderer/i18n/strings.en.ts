@@ -1222,7 +1222,8 @@ demoTaskTitle: "Demo task",
             id: "trust",
             title: "Trust ranks and the safety shield",
             paragraphs: [
-              "Nameplates show trust ranks, from Visitor up to Trusted User, while the Quick Menu is open. The Safety page's shield levels decide whose avatars and effects you see per rank — the default Normal level is a good starting point.",
+              "Trust Rank describes account trust. Shield Level controls which avatars, sounds and effects you see from each rank. Neither is an Avatar performance rating.",
+              "Open the Quick Menu to see nameplates and Shield settings. You can start with Normal and adjust it for the room and your preferences.",
             ],
           },
           {
@@ -1409,7 +1410,7 @@ demoTaskTitle: "Demo task",
             id: "environment-page",
             title: "Play and Avatar preparation",
             paragraphs: [
-              "Play checks Steam, VRChat and streaming software. Avatar editing checks Unity, package managers and AMF. Each failure stays next to its observed item and available recovery.",
+              "Play checks Steam, VRChat and streaming software. Avatar editing checks Unity, package managers and {amf}. Each failure stays next to its observed item and available recovery.",
               "Tools are grouped by purpose. Unfinished entries say In development instead of looking installed.",
             ],
           },
@@ -1426,7 +1427,7 @@ demoTaskTitle: "Demo task",
             title: "Materials, the line and upload",
             paragraphs: [
               "Recipes save reusable combinations; they are not a mandatory first step for every outfit. Workshop shows the actual line and automation state. Full auto is the default for a new preference and assembles the confirmed materials once. Existing ask/smart choices are preserved.",
-              "Some local materials can still lack a production entry. Do not treat a product association as a compatibility guarantee. Upload is confirmed by you through the official SDK.",
+              "A local UnityPackage marked as an Avatar can start production without a product link. Select the target Avatar and confirm automation permissions before starting. A product association does not guarantee compatibility; upload still requires your confirmation through the official SDK.",
             ],
           },
           {

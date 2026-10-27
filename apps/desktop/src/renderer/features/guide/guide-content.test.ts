@@ -29,21 +29,21 @@ test("教程支撑主题 id 与内容包教程同名且在内容包内;阅读型
     assert.equal(GUIDE_PAGE_TUTORIAL[topic], topic);
     assert.ok(ids.has(topic), `内容包缺教程 ${topic}`);
   }
-  for (const topic of ["guide-vua", "guide-room", "guide-hardware", "guide-creator"]) {
+  for (const topic of ["guide-vua", "guide-room", "guide-hardware", "guide-creator", "guide-avatars"]) {
     assert.ok(!ids.has(topic));
   }
-  assert.equal(GUIDE_TOPIC_IDS.length, 9);
+  assert.equal(GUIDE_TOPIC_IDS.length, 10);
   assert.equal(GUIDE_TOPIC_IDS[0], "guide-hardware");
   assert.equal(GUIDE_TOPIC_IDS.at(-1), "guide-vua");
-  assert.equal(ENCYCLOPEDIA_TOPIC_IDS.length, 7);
+  assert.equal(ENCYCLOPEDIA_TOPIC_IDS.length, 8);
   assert.ok(!ENCYCLOPEDIA_TOPIC_IDS.includes("guide-vua"));
   assert.ok(!ENCYCLOPEDIA_TOPIC_IDS.includes("guide-tutorials"));
 });
 
-test("每个主题 id 都映射到 strings.guide.pages 的合法键", () => {
+test("每个主题 id 都映射到合法内容页", () => {
   for (const topic of GUIDE_TOPIC_IDS) {
     const key = GUIDE_TOPIC_COPY_KEY[topic];
-    assert.ok(key in strings.guide.pages, `${topic} copy key ${key}`);
+    assert.ok(key === "avatars" || key in strings.guide.pages, `${topic} copy key ${key}`);
   }
   assert.equal(GUIDE_TOPIC_COPY_KEY["guide-vua"], "vua");
   assert.equal(GUIDE_TOPIC_COPY_KEY["guide-creator"], "creator");

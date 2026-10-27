@@ -114,7 +114,9 @@ export function AppTour({
   const [target, setTarget] = useState<AnchorTarget>(undefined);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const lastStartRequest = useRef(startRequest);
+  // A replay may be requested while startup still holds this surface unmounted.
+  // Zero means no explicit request; consume a pending request on the first mount.
+  const lastStartRequest = useRef(0);
 
   const active = progress?.status === "active";
   const stepIndex = active ? normalizeStep(progress.step, TOUR_STEPS.length) : 0;

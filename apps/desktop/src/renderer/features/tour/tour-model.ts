@@ -8,7 +8,7 @@
  *   指向不存在或不相关位置(缺席由渲染层诚实说明,不伪造指向);
  * - 进度状态独立于阅读器阅读位置与安装任务状态(storageKeys.tourProgress,
  *   本地 UI 偏好):active(含步号)/completed/skipped 三态;缺席 = 从未
- *   运行,新档案先自动播放,已有档案从帮助重播;中途退出应用按 active 步号恢复;
+ *   运行;所有档案均由用户明确重播,旧 active 书签不会自动打开导览;
  * - 不依赖教程端口(tutorial-port 为诚实 inactive,本导览不触碰)与
  *   AMF 工作流;应用事实仍来自正常 Gateway/任务状态。
  */

@@ -3,7 +3,13 @@ import { defineConfig } from "vite";
 import { buildInfo } from "./scripts/build-info.mjs";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), {
+    name: "vua-build-info",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "build-info.json", source: JSON.stringify(buildInfo, null, 2) });
+    },
+  }],
   base: "./",
   // 构建期事实注入(Phase A):开屏/设置页显示真实版本与提交号,
   // 生产构建同路径(check:leak 的临时生产构建也走这里)

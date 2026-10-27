@@ -2,8 +2,8 @@
  * 指南定位模型(首玩 B 切片):「主题 + 分节」定位、定位词表校验与回退、
  * 命名定位注册表、部署页标识 → 定位的映射,以及阅读位置持久化。
  *
- * 词表纪律:主题 id 与分节 id 的单一事实源是 i18n 源表(strings.guide.pages)
- * 与 guide-content 的主题注册表;跨进程(Main)只做形状收窄,词表校验与
+ * 词表纪律:主题 id 与分节 id 的单一事实源是 guidePage 汇集的既有语言表
+ * 与独立内容包;跨进程(Main)只做形状收窄,词表校验与
  * 回退只在本层——未知主题回退到开始页(guide-start),未知分节回退到
  * 主题开头,绝不抛异常打断"打开指南"这一动作。
  *
@@ -11,9 +11,8 @@
  * 任务进度;存储键唯一来源在 app/storage-keys.ts。
  */
 import { storageKeys } from "../../app/storage-keys.ts";
-import { strings } from "../../i18n/index.ts";
 import {
-  GUIDE_TOPIC_COPY_KEY,
+  guidePage,
   GUIDE_TOPIC_IDS,
   type GuideTopicId,
 } from "./guide-content.ts";
@@ -27,9 +26,7 @@ export interface GuideTarget {
 /** 主题 → 合法分节 id 闭集(由源表派生;四语言分节 id 对齐由 check-i18n-tables 把守) */
 const guideSectionIds = {} as Record<GuideTopicId, readonly string[]>;
 for (const topic of GUIDE_TOPIC_IDS) {
-  guideSectionIds[topic] = strings.guide.pages[GUIDE_TOPIC_COPY_KEY[topic]].sections.map(
-    (section) => section.id,
-  );
+  guideSectionIds[topic] = guidePage(topic).sections.map((section) => section.id);
 }
 export const GUIDE_SECTION_IDS: Readonly<Record<GuideTopicId, readonly string[]>> =
   guideSectionIds;
@@ -106,6 +103,14 @@ export const GUIDE_TARGETS = {
   uploadEligibility: { topic: "guide-creator", section: "upload-eligibility" },
   trustRank: { topic: "guide-creator", section: "trust-rank" },
   improveTrust: { topic: "guide-creator", section: "improve-trust" },
+  changeAvatar: { topic: "guide-avatars", section: "change-avatar" },
+  avatarVisibility: { topic: "guide-avatars", section: "visibility" },
+  avatarPerformance: { topic: "guide-avatars", section: "performance" },
+  outfitAssembly: { topic: "guide-avatars", section: "outfit-assembly" },
+  outfitDiagnostics: { topic: "guide-avatars", section: "outfit-diagnostics" },
+  pinkMaterials: { topic: "guide-avatars", section: "pink-materials" },
+  buildTest: { topic: "guide-avatars", section: "build-test" },
+  avatarPlatforms: { topic: "guide-avatars", section: "platforms" },
   shield: { topic: "guide-safety", section: "trust" },
   personalSpace: { topic: "guide-safety", section: "personal-space" },
   untrustedUrls: { topic: "guide-safety", section: "open-urls" },

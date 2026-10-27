@@ -1,21 +1,21 @@
 # Guidance choices and the VRChat encyclopedia
 
-> Updated: 2026-10-26
+> Updated: 2026-10-28
 > Scope: first-run guidance, VUA's own instructions, and a broader VRChat knowledge surface
-> Status: Draft research and recommendation; the new flows and encyclopedia are not implemented
+> Status: C+A direction accepted; language/contextual help, the VUA guide, the typed encyclopedia catalog, local full-text search and controlled VUA screenshots are implemented; real workflow and human-language acceptance remain separate
 
-The [guidance architecture](../architecture/guidance.md) remains the implementation baseline until
-this proposal is reviewed. This draft does not change a navigation, storage or browser contract,
-and it does not fix the production-entry or source-detail defects found in the local walkthrough.
-Those defects must not be hidden by publishing an imaginary working Avatar flow.
+The [guidance architecture](../architecture/guidance.md) is the current behavior baseline. This
+paper records the option comparison and the remaining content work rather than replacing that
+baseline. Production-entry and source-fact fixes in the merge history still need real-material
+verification; neither a repaired presentation nor an article proves that the Avatar flow works.
 
-## Current structure and the separation to preserve
+## Original structure and the separation to preserve
 
-A new profile currently receives a ten-step host tour followed by the independent goal wizard.
-The Avatar material branch opens Warehouse and ends there. Help contains that wizard, the feature
-tour, the encyclopedia, the game assistant and external AI tools. The encyclopedia mixes hardware,
-play, safety, devices and a VUA tutorial. Its horizontal topic chips are a navigation limit, not a
-knowledge model.
+Before the 2026-10-27 change, a new profile received a ten-step host tour followed by the
+independent goal wizard. The Avatar material branch opened Warehouse and ended there. Help contained
+that wizard, the feature tour, the encyclopedia, the game assistant and external AI tools. The
+encyclopedia mixed hardware, play, safety, devices and a VUA tutorial. Its horizontal topic chips
+were a navigation limit, not a knowledge model.
 
 Three teaching contexts need different content and behavior:
 
@@ -198,6 +198,30 @@ symptoms, offers the smallest safe checks and explains what evidence distinguish
 Version numbers, limits and software UI labels are dated, not universal truths. Do not invent time
 estimates, confidence scores, success claims or screenshots.
 
+## Chinese copy review and actual replacements
+
+The unnatural tone came from a repeatable template, not from Chinese itself:
+
+| Pattern | Why it gets in the player's way | Replacement rule |
+| --- | --- | --- |
+| Repeated “位置／应看到／若失败” | Reads like a generic test case and spends words before the useful action | Say what to click and what changes; add a failure branch only when it offers a real next check |
+| “省心、稳妥、最常见、通常” | Presents a preference or guess as a fact without evidence | Describe the observed condition and distinguish plausible causes from a diagnosis |
+| “完整、一键、只需” and unsupported fixed times | Hides prerequisites and turns a hoped-for flow into a promise | Name the actual prerequisites, source and checked version/date; do not invent an estimate |
+| Old navigation and a compulsory Recipe step | Sends a player to a missing control or makes an optional object look mandatory | Follow the current page and task state; explicitly mark optional and unavailable paths |
+
+These replacements are in the localized guide content, not only recommendations for later:
+
+- USB: “USB 是稳妥替代” → “Wi-Fi 串流频繁卡顿时，可改用支持数据传输的 USB 线；仍卡顿，再检查路由器和电脑的连接。” This makes USB a conditional diagnostic step, not a universal remedy.
+- Login: “登录转圈通常是线路不健康” → “登录一直转圈时，先检查 VRChat 服务和本机网络。仅凭转圈无法确定是网络、账号还是客户端问题。” A spinner alone cannot identify the cause.
+- Ranks: “Normal 就是不错的起点” → “Trust Rank 是账号信任等级；Shield Level 决定各信任等级的玩家向你显示哪些内容。它们和 Avatar 性能等级无关。” This separates account trust, personal display filtering and Avatar performance instead of prescribing a social rank.
+- VUA workflow: “仓储 → 配方 → 车间 → 出厂” → “素材是制作起点，配方用于保存和复用组合，不是每次换装的强制步骤。车间显示实际产线和自动化状态，上传需官方 SDK 和本人确认。” This describes the current entries without promising that VUA replaces Unity, SDK validation or upload eligibility.
+
+The copy passes cover the room, first-play, basic-control and safety articles, eight original Avatar
+and outfit articles, the encyclopedia controls, and the VUA instructions in all five UI languages.
+Structural checks and actual localized rendering are not evidence of complete native-speaker review.
+Four controlled production-build VUA screenshots now have explicit build and privacy records; real
+VRChat game captures remain deferred, and existing SVG figures must stay labeled as illustrations.
+
 ## Source review and licensing
 
 Sources were read on 2026-10-26. Their role in the new catalog is:
@@ -223,19 +247,33 @@ figures and link to official sources. Do not assume that public availability per
 translation of a page or screenshot. Record attribution and checked dates in the catalog, not in
 unversioned chat output alone.
 
-## Delivery order and acceptance
+## Delivery status and remaining acceptance
 
-1. Resolve the observed Avatar production-entry and source-fact blockers before publishing a VUA
-   end-to-end clothing procedure. Leave the current defects recorded; this draft changes none.
-2. Introduce the typed article catalog and split `guide-vua` into the VUA guide. Preserve useful
-   hardware/play articles, stable targets, reading recovery and browser behavior.
-3. Implement encyclopedia search/navigation and the first reviewed task paths, including distinction
-   between trust and performance. Link unavailable workflows honestly rather than inventing buttons.
-4. Replace mandatory first-run sequencing with language-first and bounded contextual invitations.
-   Simplify actual page actions and add safe automatic defaults separately from the content work.
-5. Review all five UI languages, keyboard/focus behavior, narrow windows, reduced motion and source
-   attribution. Exercise the real game-window guide separately; desktop DOM checks are not physical
-   headset or native-overlay acceptance.
+This slice has these implementation boundaries:
+
+1. The observed Avatar production-entry and source-fact defects have fixes in the merge history.
+   Their real-material reproduction and verification remain separate; the help changes do not close
+   those findings by assertion.
+2. `guide-vua` has a separate VUA guide, reading key and topic set. The typed article catalog expands
+   stable legacy topic/section targets, marks their review status honestly, and adds eight original
+   Avatar/outfit articles in a separate five-language content table.
+3. The encyclopedia home has six task entries, an eight-topic article tree, local title/alias/topic/
+   summary/full-body search, topic and answer-type filters, clear/empty states and reading recovery.
+   Catalog/article/chapter history and the two reading bookmarks remain separate. Article-level source
+   links, publishers, checked dates and `legacy`/`source-checked` states are shown in the reader.
+4. Four local screenshots come from the actual production Main/preload/renderer in a disposable
+   profile. Their manifest records real dimensions, build commit/dirty state, capture time and privacy
+   scope. The eligibility image is cropped to its note. These are controlled VUA screenshots, not
+   packaged-installer or VRChat game captures.
+5. First run asks only for a language. Bounded contextual introductions offer Later/dismiss/replay;
+   the feature tour is explicitly started. New automation preferences default to `full`, while saved
+   `ask`/`smart` choices remain unchanged and material confirmation and official upload handoffs stay
+   explicit.
+6. All five UI language tables are present. The controlled production smoke exercises localized
+   catalog/article rendering and search, full-body search, source entries, vertical-arrow navigation,
+   narrow disclosures, history and media loading. It does not replace full native-speaker copy review,
+   comprehensive keyboard/focus/screen-reader review, real-material flows, Unity writes, account
+   uploads, or game-window/hardware acceptance. Existing SVG figures remain illustrations.
 
 Acceptance means a player can find a relevant answer, distinguish fact from community interpretation,
 complete a checked step or reach an honest handoff, and return to the same task without losing work.

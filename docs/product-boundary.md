@@ -18,8 +18,8 @@ saved enable/disable choice (user correction, 2026-10-14). External Avatar-editi
 scheduled after Ibis. BDL is private to AMF.
 
 AMF owns Recipe-first production and reproducible production records. The VUA host works with or
-without AMF and BDL. The Wizard chooses a path by goal, device and current facts, and installed
-modules decide what appears in the main directory.
+without AMF and BDL. First run asks only for a language; contextual task guidance chooses a path by
+goal, device and current facts, and installed modules decide what appears in the main directory.
 [Host/module architecture](architecture/modules.md) owns activation, migration and lifecycle.
 
 **Material-first production (user ruling, 2026-10-13).** The player starts by selecting

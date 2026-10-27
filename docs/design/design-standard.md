@@ -1,7 +1,7 @@
 # VUA design standard
 
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation
-> Updated: 2026-10-26
+> Updated: 2026-10-28
 
 ## 0. Position of this version
 
@@ -11,7 +11,7 @@ v0.6.1 (the historical merge version); the combined scope continues here.
 | Treatment | Content |
 | --- | --- |
 | Retain | goal before terminology, Recipe-first, explicit state, recovery first, honest progress, user-content priority, dark-first, VUA purple/AMF orange jurisdictions, 4 px grid, semantic tokens, workshop-track metaphor, the fixed Home and desktop directory (§3; big-screen mode retired by the 2026-10-10 user ruling), slanted control language, three motion levels, WebGL scene direction (the nebula backdrop scene retired by the 2026-09-25 user ruling; see §7), Recipe graph/list/exploded views, Release coverflow and 3D pedestal, community-skin direction, WCAG 2.2 AA and APG gates |
-| Standardize | Windows and Fluent 2 desktop behavior; macOS native-tool texture as a visual reference; Carbon as information-structure reference only; global success/warning/error colors while reserving large traffic-light treatments for environment deployment; tokenized motion; fixed sidebar geometry; Electron mechanism + AMF use case for browsing/download; the five AMF stages kept as the full capability coverage (since 0.7.19 a wizard selects the path by goal/device/state — see Recipe-first) |
+| Standardize | Windows and Fluent 2 desktop behavior; macOS native-tool texture as a visual reference; Carbon as information-structure reference only; global success/warning/error colors while reserving large traffic-light treatments for environment deployment; tokenized motion; fixed sidebar geometry; Electron mechanism + AMF use case for browsing/download; the five AMF stages kept as the full capability coverage (task-level choices follow goal, device and observed state — see Recipe-first) |
 | Replace | framework-private Tauri window/IPC semantics, BDB contracts, a separate Production stage, globally disabled context menus, font-size or padding reflow on hover (including the sidebar under the 2026-10-26 user ruling), deceptive progress floors, paid font or icon assumptions |
 | Schedule separately | Visual direction remains part of this standard (merged at v0.6.1). Delivery sequencing, performance gates, and fallback acceptance are reviewed independently from the design decision. |
 
@@ -39,12 +39,12 @@ Recommendations explain why, impact, and alternatives.
 ### Recipe-first and path selection
 
 AMF still covers the five stages — Warehouse, Recipe, Assembly, Inspection, and Release — but no
-longer forces every player through one fixed grand flow. A production wizard selects the path by
-goal, device, and current state, walking only the stages that production actually needs (0.7.19,
-user ruling 2026-09-22 — accepted direction, not yet implemented). The full flow remains valuable
-for troubleshooting and experienced users as an optional path, not a mandatory one. Guidance does
-not replace account authentication or platform authorization; the Quest first-time activation
-tutorial distinguishes the standalone mode from the PC-connected path.
+longer forces every player through one fixed grand flow. First run asks only for a language. A
+task-level path follows the goal, device and observed material state rather than a global wizard
+(2026-10-27). The full flow remains valuable for troubleshooting and experienced users as an
+optional path, not a mandatory one. Guidance does not replace account authentication or platform
+authorization; the Quest first-time activation tutorial distinguishes the standalone mode from the
+PC-connected path.
 
 Execution, input waits, retry, and recovery are task states inside a use case, not a Production stage.
 
@@ -107,7 +107,7 @@ Theme/tray entries, alternate layouts and directional shell navigation. Ignore a
 mode preferences; a legacy native command cannot reactivate it. Language selection sits above
 **Search**, with a translation glyph at its left, a shorter selector and a visible gap between
 the two rows. Remove the separate Goal reselection, Language, Version and Donation pages;
-old goal links open Help's getting-started wizard. About includes the existing version/update
+old goal links open Help's VUA guide. About includes the existing version/update
 and diagnostic controls.
 
 Settings → Theme → Appearance uses three connected native buttons in the order Dark, Light,
@@ -119,12 +119,22 @@ the frame movement without changing selection, keyboard access or theme propagat
 The 2026-10-11 ruling restores **Help** to the topbar beside Settings, using the same parallelogram
 button and pressed styling. Remove its Environment-sidebar entry; keep Tools above Avatar editing.
 Help stays selected throughout its child pages and remains accessible through Home and Search.
-Help's destinations are Getting started (入门引导), the existing app tour, Knowledge
-encyclopedia (知识百科) and In-game assistant (游戏内助手). The encyclopedia is a page inside
-Help with an explicit return to Help, sharing Main's appearance. Hardware
-introductions are a peer chapter; Play's "What device do I have?" link opens it directly.
+Help starts with common VRChat questions, then offers the VUA guide, optional app tour,
+encyclopedia, game assistant and optional AI tools. The encyclopedia is a page inside Help with an
+explicit return to Help, sharing Main's appearance. Hardware introductions are a peer chapter;
+Play's "What device do I have?" link opens it directly.
 An **Official VRChat Wiki** action in the encyclopedia opens `wiki.vrchat.com` in the host
 browser. It works with AMF disabled and returns to the same reading content when closed.
+The encyclopedia's first visit opens a catalog rather than creating a reading bookmark. Six task
+entries and an eight-topic article tree lead to stable article sections. Local search covers the
+current language's title, aliases, topic, summary and complete body, with topic and answer-type
+filters, a clear action and an honest empty state. Search and catalog/article navigation preserve
+Back/Forward and the independent VUA-guide bookmark. Wide readers use a vertical topic tree;
+narrow containers use an accessible disclosure, with Arrow Up/Down as well as Left/Right topic
+navigation. Article-level sources identify publisher, checked date and review boundaries.
+Controlled production-build VUA screenshots retain their actual dimensions, commit/dirty state,
+capture time and privacy scope. They do not masquerade as VRChat game screenshots, packaged-installer
+acceptance, private-material evidence or proof of Unity/account execution.
 AMF adds a peer **Browse assets** entry beside its material library: open BOOTH by default and
 offer all requested discovery websites as ordinary browsing shortcuts. Avoid another import
 form or a scrape/search integration. Existing BOOTH acquisition and account behavior remain.
@@ -140,9 +150,9 @@ Ctrl/middle-click website shortcuts open another tab while ordinary clicks reuse
 Leaving an import browser still dismisses its modal. Close controls, website history and retry
 remain reachable. Local confirmation cards take precedence over native
 content. Respect the current domain colour, appearance, glass, matrix and resource-saving settings.
-All four Help cards open main-window child pages. Each child supports mouse-side-button
-Back/Forward; encyclopedia chapter choices and replay-wizard choices also participate in
-history. Tour and game-assistant child pages retain explicit buttons for their existing
+All Help cards open main-window child pages. Each child supports mouse-side-button
+Back/Forward; encyclopedia chapter choices participate in history, while the VUA guide
+keeps its reading position separate. Tour and game-assistant child pages retain explicit buttons for their existing
 highlight overlay and floating window, respectively.
 Tools groups tracking, translation, VR utilities and capture entries. Unwired integrations stay
 unavailable on the action side, with the same development badge as other unavailable peers.
@@ -214,15 +224,15 @@ text fields and existing composite widgets retain their own keyboard behavior. K
 headset desktop pointing share native controls; there is no separate touch mode. A physical VR
 controller binding is not claimed before its device test. Switching modes preserves page and tasks.
 
-The independent first-run wizard starts with friendly, single-choice result cards. Describe the
-next branch in each choice and advance on its click without an additional Continue. Later steps
-introduce device/platform/version only when relevant, then network, real software findings,
-confirmed preparation, connection guidance and the official play handoff. Save reading position
-separately from task facts; revisiting preparation requires reinspection. Account help opens
-Settings → Accounts and returns to the source step. Registration and linking have dedicated guides.
+First run asks only for a language, then enters the fixed Home. Module introductions offer help in
+context without a blocking wizard or forced settings interview. Device/platform/version questions
+belong to the actual task, followed by network, observed software findings, confirmed preparation,
+connection guidance and the official handoff. Save reading position separately from task facts;
+revisiting preparation requires reinspection. Account help opens Settings → Accounts and returns to
+the source step. Registration and linking have dedicated guides.
 
-Help exposes the first-run wizard, VUA app tour, preparation reader and game guide. Contextual help
-opens its destination directly. The [guidance architecture](../architecture/guidance.md) owns the
+Help exposes common VRChat questions, the VUA guide, an optional app tour, the encyclopedia and the
+game guide. Contextual help opens its destination directly. The [guidance architecture](../architecture/guidance.md) owns the
 window behavior and independent progress. In the transparent game guide, fade only the matrix/background
 and preserve readable text/controls; a dragged relative position survives automatic hiding/restoration.
 Keep the matrix/grid background, sidebar and small-window frosted glass, resource-saving preference
@@ -777,14 +787,14 @@ changelog history already uses.
   (capability_missing) and engine absence (unavailable) are presented distinctly; repeated
   toggles claim no idempotence and refusals surface as refusals.
 - **Guidance and overlays:** use a transparent highlight layer over actual VUA controls for the
-  app tour, a main-window Help encyclopedia for preparation, and a compact translucent guide
-  associated with VRChat for in-game steps. The app tour supports ordered page changes and
-  back/next/skip/restart. The encyclopedia supports long-form content and keyboard reading
-  inside its own scroll container, with topic navigation staying accessible during reading.
-  The game guide has short instructions, readable controls and the following/transparency
-  preferences defined in [guidance architecture](../architecture/guidance.md). Do not apply its
-  transparency default to the encyclopedia or app-tour mask. All three use the same i18n/content
-  sources while preserving their separate progress; actual window and headset UI need human review.
+  explicitly started app tour, a main-window encyclopedia and VUA guide, and a compact translucent
+  guide associated with VRChat for in-game steps. Help first presents common VRChat questions with
+  local answers and official links. The encyclopedia supports long-form content and keyboard reading
+  inside its own scroll container; the VUA guide has an independent bookmark and does not write
+  encyclopedia history. The game guide has short instructions, readable controls and the
+  following/transparency preferences defined in [guidance architecture](../architecture/guidance.md).
+  Do not apply its transparency default to the encyclopedia or app-tour mask. Facts may be shared,
+  but each teaching context keeps its own progress; actual window and headset UI need human review.
   Task/runtime overlays use stronger text contrast, fewer levels, larger targets, stable snapshots
   and semantic actions. No blur, complex background or long lists; desktop fallback remains available.
 - **Global shell: boot splash and notification center:** the 2026-10-10 approved opening is
@@ -796,10 +806,10 @@ changelog history already uses.
   After the animation budget, real renderer/Gateway/provider/paint readiness hands off to Main;
   if delayed, the circle continues until the bounded fallback and the shell's honest state take
   over. Reduced-motion/resource-saving keeps the final static monochrome frame with a shorter
-  dwell. On a new profile, the first main-window scene welcomes the traveler in the selected
-  language, then introduces real controls through the tour before the independent wizard.
+  dwell. On a new profile, the first main-window scene asks only for a language and then enters
+  Home. Module introductions and the feature tour are optional; the tour never opens automatically.
   Tour back/next/skip, readable cards, existing-profile compatibility and replay follow
-  [guidance architecture](../architecture/guidance.md#2-vua-app-tour).
+  [guidance architecture](../architecture/guidance.md#2-first-run-and-contextual-introductions).
   The notification center (header bell) projects the task facts without invented counts;
   the former bottom taskbar is retired by the 2026-10-09 user ruling. When the task-engine
   capability is not ready the entry never appears at all (§2 "Explicit facts and recovery"
@@ -866,9 +876,9 @@ A page is deliverable only when:
 ## 11. Accepted scope
 
 The accepted scope covers the base visual language, two jurisdictions, tokens, component states, fixed
-Home and logo navigation, desktop directory, independent branching wizard, Help entries
-for the guidance contexts (user ruling 2026-10-08), slanted controls, fixed sidebar geometry,
-task feedback, and the five AMF stages as full capability coverage. Wizard choices never hide these
+Home and logo navigation, desktop directory, language-only first run, contextual introductions,
+Help entries for the guidance contexts, slanted controls, fixed sidebar geometry,
+task feedback, and the five AMF stages as full capability coverage. Task choices never hide these
 feature entries; inspection remains available from production records and the directory. The scope
 also includes the WebGL scene direction (the nebula backdrop retired by the 2026-09-25 ruling),
 Recipe's three views, Release coverflow/pedestal, community-skin

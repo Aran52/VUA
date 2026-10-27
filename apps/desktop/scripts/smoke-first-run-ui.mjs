@@ -6,13 +6,36 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import { writeFile } from "node:fs/promises";
+import { once } from "node:events";
+import { setTimeout as delay } from "node:timers/promises";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-let server, window, taskWindow;
+let server, window, taskWindow, deadline;
 let exitCode = 1;
+const errors = [];
+function observeRenderer(contents) {
+  contents.on("console-message", event => {
+    if (event.level !== "error") return;
+    errors.push(event.message);
+    console.error(`Renderer: ${event.message}`);
+  });
+  contents.on("did-fail-load", (_event, code, description, url) => console.error(`Load failed ${code}: ${description} (${url})`));
+  contents.on("render-process-gone", (_event, details) => console.error(`Renderer exited: ${JSON.stringify(details)}`));
+}
+async function waitForReview() {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    if (await window.webContents.executeJavaScript("typeof window.firstRunReview === 'object'")) return;
+    await delay(50);
+  }
+  throw new Error("First-run fixture load timeout");
+}
 app.on("will-quit", () => { if (exitCode) app.exit(exitCode); });
 async function main() {
 try {
+  deadline = setTimeout(() => {
+    console.error(`First-run UI smoke timed out; URL=${window?.webContents.getURL() ?? "not loaded"}`);
+    app.exit(1);
+  }, 90_000);
   await app.whenReady();
   server = await createServer({ configFile: false, appType: "custom", root, plugins: [react()],
     resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },
@@ -32,12 +55,20 @@ try {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true,
       backgroundThrottling: false, partition } });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  const errors = [];
-  window.webContents.on("console-message", event => { if (event.level === "error") errors.push(event.message); });
+  observeRenderer(window.webContents);
   await window.loadURL(`http://127.0.0.1:${server.httpServer.address().port}/__first-run-review`);
+  console.log("First-run fixture loaded");
   window.webContents.debugger.attach("1.3");
   await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
-  const checks = await window.webContents.executeJavaScript("new Promise((resolve,reject)=>{const start=Date.now();const timer=setInterval(()=>{if(window.firstRunReview){clearInterval(timer);window.firstRunReview.run().then(resolve,error=>reject(new Error(error.stack ?? String(error))));}else if(Date.now()-start>15000){clearInterval(timer);reject(new Error('fixture load timeout'));}},50);})");
+  await waitForReview();
+  const navigation = once(window.webContents, "did-navigate");
+  // Language confirmation replaces the fixture context; continue in the new one.
+  void window.webContents.executeJavaScript("window.firstRunReview.run()").catch(error => console.error("Initial first-run context ended:", error));
+  await navigation;
+  await waitForReview();
+  if (!await window.webContents.executeJavaScript(`JSON.parse(localStorage.getItem("vua-goals") ?? "null")?.onboarding === "completed"`)) throw new Error("Language confirmation was not persisted through reload");
+  const checks = await window.webContents.executeJavaScript("window.firstRunReview.run().catch(error => { throw new Error(error.stack ?? String(error)); })");
+  checks.unshift("First-run language confirmation survives the actual page reload");
   console.log(`First-run controlled UI: ${checks.length} checks passed`);
   await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", { enabled: true });
   for (const key of ["Enter", "ArrowRight", "Home"]) {
@@ -46,6 +77,7 @@ try {
     await window.webContents.debugger.sendCommand("Input.dispatchKeyEvent", { type: "keyDown", key, code: key, windowsVirtualKeyCode: code,
       ...(key === "Enter" ? { text: "\r", unmodifiedText: "\r" } : {}) });
     await window.webContents.debugger.sendCommand("Input.dispatchKeyEvent", { type: "keyUp", key, code: key, windowsVirtualKeyCode: code });
+    if (key === "Enter") await waitForReview();
     checks.push(await window.webContents.executeJavaScript(`window.firstRunReview.afterKey(${JSON.stringify(key)})`));
   }
   await window.webContents.executeJavaScript('window.firstRunReview.setThemePreference("light")');
@@ -101,8 +133,10 @@ try {
   await writeFile(path.join(os.tmpdir(), "vua-first-run-ui-dom.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
   exitCode = 0;
+  clearTimeout(deadline);
   taskWindow.destroy(); window.destroy(); await server.close(); app.exit(0);
 } catch (error) {
+  clearTimeout(deadline);
   console.error(error); taskWindow?.destroy(); window?.destroy(); await server?.close(); app.exit(1);
 }
 }

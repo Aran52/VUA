@@ -126,9 +126,9 @@ type EffectsMode = "on" | "off";
 const lastPageStorageKey = storageKeys.lastPage;
 
 /** 深链接读取(C-EFFICIENCY):#/page-id 形态;非法 id 回退 null */
-function readHashPage(): PageId | null {
+function readHashPage(hash = window.location.hash): PageId | null {
   try {
-    const raw = migratePageId(window.location.hash.replace(/^#\/?/, "").split("?")[0] ?? "");
+    const raw = migratePageId(hash.replace(/^#\/?/, "").split("?")[0] ?? "");
     return isPageId(raw) ? raw : null;
   } catch {
     return null;
@@ -616,7 +616,7 @@ function AppShell({
   actions,
 }: {
   page: PageId;
-  navigate: (target: PageId) => void;
+  navigate: (target: PageId, updateHash?: boolean, hash?: string) => void;
   showOnboarding: boolean;
   startupComplete: boolean;
   onOnboardingComplete: (result: OnboardingResult) => void;
@@ -674,12 +674,21 @@ function AppShell({
     const saved = window.history.state?.vuaSettingsReturn;
     return settingsOpen && typeof saved === "string" && isPageId(saved) && !saved.startsWith("settings-") ? saved : null;
   });
+  const [settingsReturnHash, setSettingsReturnHash] = useState<string | undefined>(() => {
+    const saved = window.history.state?.vuaSettingsReturnHash;
+    return typeof saved === "string" && readHashPage(saved) === settingsReturn ? saved : undefined;
+  });
   useEffect(() => {
     if (!settingsOpen) return;
     const saved = window.history.state?.vuaSettingsReturn;
-    if (settingsReturn === null && typeof saved === "string" && isPageId(saved) && !saved.startsWith("settings-")) { setSettingsReturn(saved); return; }
-    if (settingsReturn) window.history.replaceState({ ...window.history.state, vuaSettingsReturn: settingsReturn }, "");
-  }, [page, settingsOpen, settingsReturn]);
+    if (settingsReturn === null && typeof saved === "string" && isPageId(saved) && !saved.startsWith("settings-")) {
+      setSettingsReturn(saved);
+      const hash = window.history.state?.vuaSettingsReturnHash;
+      setSettingsReturnHash(typeof hash === "string" && readHashPage(hash) === saved ? hash : undefined);
+      return;
+    }
+    if (settingsReturn) window.history.replaceState({ ...window.history.state, vuaSettingsReturn: settingsReturn, vuaSettingsReturnHash: settingsReturnHash }, "");
+  }, [page, settingsOpen, settingsReturn, settingsReturnHash]);
   const navigate = (target: PageId) => {
     target = availablePage(target, amf.installed);
     if (target === page) {
@@ -687,7 +696,10 @@ function AppShell({
       return;
     }
     if (target.startsWith("settings-")) {
-      if (!settingsOpen) setSettingsReturn(page);
+      if (!settingsOpen) {
+        setSettingsReturn(page);
+        setSettingsReturnHash(readHashPage() === page ? window.location.hash : undefined);
+      }
       navigatePage(target);
       return;
     }
@@ -708,7 +720,7 @@ function AppShell({
   const returnFromSettings = () => {
     const candidate = availablePage(settingsReturn ?? "home", amf.installed);
     const target = candidate.startsWith("settings-") ? "home" : candidate;
-    navigatePage(target);
+    navigatePage(target, true, settingsReturnHash);
     setSettingsReturn(null);
   };
   const onShellCommand = useEffectEvent((command: DesktopShellCommandV1) => {
@@ -1150,14 +1162,14 @@ export function App() {
     pageRef.current = page;
   }, [page]);
 
-  function navigate(target: PageId, updateHash = true) {
+  function navigate(target: PageId, updateHash = true, hash?: string) {
     if (target !== pageRef.current) { closeLoginBrowser(); closeBrowserModal(); }
     // 不做强制重定向(v0.3.3 §2.1):所有页面直达,阻断由页面内诚实状态表达
     setPage(target);
     if (!showOnboarding && updateHash) {
       // 深链接:当前页同步进 hash,可粘贴直达
       try {
-        window.location.hash = target;
+        window.location.hash = hash !== undefined && readHashPage(hash) === target ? hash : target;
       } catch {
         /* 极端环境下 hash 不可写时仅本次会话生效 */
       }

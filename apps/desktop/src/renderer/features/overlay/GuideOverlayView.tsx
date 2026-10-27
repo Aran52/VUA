@@ -1,8 +1,9 @@
 /**
  * 覆盖层引导视图(2026-09-26 用户裁决:游戏引导 Tab 退役,引导内容迁入
  * 置顶覆盖层窗口;窄窗口 460px 形态)。
- * 结构:横排主题 chips(六主题,顺序即 guide-content 的 GUIDE_TOPIC_IDS)
+ * 结构:横排主题 chips(由调用方提供主题集与初始主题)
  * + 所选主题的标题/导语/分节(段落 + 自制 SVG 插图,经 GUIDE_MEDIA 解析)。
+ * 百科与 VUA 指南各自提供阅读键;后者不写百科的阅读位置或历史。
  * 内容全部来自 i18n strings.guide.pages——覆盖层与(已退役的)原页面
  * 消费同一份文案,不另立第二套内容。
  * 刻意不含:「学习目标与进度」卡(教程端口为未接入占位,常驻空槽不诚实)
@@ -44,17 +45,20 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { GuideTargetV1 } from "@vua/contracts";
 import { MediaSlot } from "../../components/primitives/MediaSlot.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
-import { strings } from "../../i18n/index.ts";
+import { currentLocale, format, strings, termLabel } from "../../i18n/index.ts";
+import { encyclopediaCopy } from "../../i18n/encyclopedia-copy.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { storageKeys } from "../../app/storage-keys.ts";
 import { readEncyclopediaHash, recordEncyclopediaTarget } from "../help/encyclopedia-navigation.ts";
 import {
   ENCYCLOPEDIA_TOPIC_IDS,
   GUIDE_SOURCE_LINKS,
-  GUIDE_TOPIC_COPY_KEY,
+  guidePage,
   resolveGuideMedia,
   type GuideTopicId,
 } from "../guide/guide-content.ts";
+import { GUIDE_ARTICLES, guideArticleForTarget } from "../guide/guide-catalog.ts";
+import { guideMediaForSection } from "../guide/guide-media-manifest.ts";
 import {
   GUIDE_TARGETS,
   loadGuideReading,
@@ -126,18 +130,27 @@ export function GuideOverlayView({
   });
   const [topic, setTopic] = useState<GuideTopicId>(initialTarget.topic);
   const [scrollNonce, setScrollNonce] = useState(0);
+  const [compactTopics, setCompactTopics] = useState(() => embedded && window.matchMedia("(max-width: 720px)").matches);
+  useEffect(() => {
+    if (!embedded) return;
+    const query = window.matchMedia("(max-width: 720px)");
+    const update = () => setCompactTopics(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, [embedded]);
   const tabRefs = useRef<Partial<Record<GuideTopicId, HTMLButtonElement | null>>>({});
   const stripRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const pendingScroll = useRef<string | null>(initialTarget.section ?? null);
   const appliedNonce = useRef(0);
-  const topicCopy = copy.pages[GUIDE_TOPIC_COPY_KEY[topic]];
-  const openXrSection = copy.pages.devices.sections.find(section => section.id === "steamvr-openxr");
+  const topicCopy = guidePage(topic, copy);
+  const uiCopy = encyclopediaCopy[currentLocale];
+  const openXrSection = guidePage("guide-devices", copy).sections.find(section => section.id === "steamvr-openxr");
   const TopicHeading = embedded ? "h2" : "h1";
   const SectionHeading = embedded ? "h3" : "h2";
   const recordTarget = historyEnabled ? recordEncyclopediaTarget : () => {};
   const saveReading = (target: GuideTarget) => saveGuideReading(target, readingKey);
-  const sourceLink = historyEnabled ? GUIDE_SOURCE_LINKS[topic] : undefined;
+  const sourceLink = historyEnabled && !GUIDE_ARTICLES.some(article => article.target.topic === topic && article.sourceRefs.length > 0) ? GUIDE_SOURCE_LINKS[topic] : undefined;
 
   const scroller = () => panelRef.current?.closest(".vua-overlay__body");
 
@@ -166,8 +179,10 @@ export function GuideOverlayView({
     // 页底钳制:期望偏移不得超过最大滚动;到达判定用「分节进入视口 +
     // 滚动真正落地或钳在页底 + 布局稳定」(guideSectionArrival)
     const maxScroll = Math.max(0, body.scrollHeight - body.clientHeight);
-    // Main's encyclopedia keeps its topic strip sticky; do not put a heading behind it.
-    const stickyHeight = embedded ? (stripRef.current?.offsetHeight ?? 0) : 0;
+    // Only a horizontal sticky strip overlaps the article. The encyclopedia's
+    // vertical topic menu sits alongside it and must not offset the heading.
+    const strip = stripRef.current;
+    const stickyHeight = embedded && strip && getComputedStyle(strip).position === "sticky" ? strip.offsetHeight : 0;
     const desired = Math.min(
       Math.max(
         0,
@@ -208,8 +223,8 @@ export function GuideOverlayView({
     const index = topicIds.indexOf(topic);
     if (index < 0) return;
     let nextIndex: number | null = null;
-    if (event.key === "ArrowRight") nextIndex = (index + 1) % topicIds.length;
-    else if (event.key === "ArrowLeft")
+    if (event.key === "ArrowRight" || (embedded && event.key === "ArrowDown")) nextIndex = (index + 1) % topicIds.length;
+    else if (event.key === "ArrowLeft" || (embedded && event.key === "ArrowUp"))
       nextIndex = (index - 1 + topicIds.length) % topicIds.length;
     else if (event.key === "Home") nextIndex = 0;
     else if (event.key === "End") nextIndex = topicIds.length - 1;
@@ -321,35 +336,41 @@ export function GuideOverlayView({
     };
   }, [topic, readingKey]);
 
+  const topicTabs = topicIds.length > 1 ? <div
+    className="vua-overlay-guide__topics"
+    role="tablist"
+    aria-label={copy.topicsAria}
+    aria-orientation={embedded ? "vertical" : "horizontal"}
+    onKeyDown={onTopicsKeyDown}
+    ref={stripRef}
+  >
+    {topicIds.map((id) => (
+      <button
+        key={id}
+        ref={(element) => {
+          tabRefs.current[id] = element;
+        }}
+        type="button"
+        role="tab"
+        id={guideTabId(id)}
+        aria-selected={topic === id}
+        aria-controls={GUIDE_PANEL_ID}
+        tabIndex={topic === id ? 0 : -1}
+        className="vua-overlay-guide__topic"
+        data-active={topic === id || undefined}
+        onClick={() => selectTopic(id, false)}
+      >
+        {guidePage(id, copy).title}
+      </button>
+    ))}
+  </div> : null;
+
   return (
     <div className="vua-overlay-guide">
-      {topicIds.length > 1 ? <div
-        className="vua-overlay-guide__topics"
-        role="tablist"
-        aria-label={copy.topicsAria}
-        onKeyDown={onTopicsKeyDown}
-        ref={stripRef}
-      >
-        {topicIds.map((id) => (
-          <button
-            key={id}
-            ref={(element) => {
-              tabRefs.current[id] = element;
-            }}
-            type="button"
-            role="tab"
-            id={guideTabId(id)}
-            aria-selected={topic === id}
-            aria-controls={GUIDE_PANEL_ID}
-            tabIndex={topic === id ? 0 : -1}
-            className="vua-overlay-guide__topic"
-            data-active={topic === id || undefined}
-            onClick={() => selectTopic(id, false)}
-          >
-            {copy.pages[GUIDE_TOPIC_COPY_KEY[id]].title}
-          </button>
-        ))}
-      </div> : null}
+      {embedded && topicIds.length > 1 ? <details className="vua-overlay-guide__topic-menu" open={compactTopics ? undefined : true}>
+        <summary>{topicCopy.title}</summary>
+        {topicTabs}
+      </details> : topicTabs}
       <div
         className="vua-overlay-guide__content"
         role="tabpanel"
@@ -363,14 +384,15 @@ export function GuideOverlayView({
         <p className="vua-overlay-guide__intro">{topicCopy.intro}</p>
         {sourceLink ? <p><Button variant="subtle" data-guide-source={topic} title={sourceLink} onClick={() => void openExternalUrl(sourceLink)}>{strings.helpFaq.readMore}</Button></p> : null}
         {topicCopy.sections.map((section) => {
+          const article = guideArticleForTarget({ topic, section: section.id });
           const media =
             "media" in section && typeof section.media === "string"
               ? resolveGuideMedia(section.media)
-              : null;
+              : guideMediaForSection(topic, section.id);
           const caption =
             "caption" in section && typeof section.caption === "string"
               ? section.caption
-              : null;
+              : media?.caption ?? null;
           return (
             <section
               key={section.id}
@@ -381,22 +403,28 @@ export function GuideOverlayView({
               <SectionHeading className="vua-overlay-guide__section-title">{section.title}</SectionHeading>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="vua-overlay-guide__paragraph">
-                  {paragraph}
+                  {format(paragraph, { amf: termLabel("amf") })}
                 </p>
               ))}
+              {article && article.sourceRefs.length > 0 ? <details className="vua-overlay-guide__sources">
+                <summary>{uiCopy.sourceTitle}</summary>
+                <p className="vua-caption">{article.reviewStatus === "source-checked" ? uiCopy.sourceChecked : uiCopy.sourceLegacy}</p>
+                <ul>{article.sourceRefs.map(source => <li key={source.url}>
+                  <Button variant="subtle" title={source.url} data-guide-source={topic} data-guide-article-source={article.id} onClick={() => void openExternalUrl(source.url)}>{source.publisher}</Button>
+                  <span className="vua-caption">{source.checkedAt ? format(uiCopy.sourceCheckedAt, { date: source.checkedAt }) : uiCopy.sourceUndated}</span>
+                </li>)}</ul>
+              </details> : null}
               {section.id === "pico-prepare" && openXrSection ? (
                 <Button variant="subtle" data-guide-entry="steamvr-openxr" onClick={() => {
                   applyGuideTarget(GUIDE_TARGETS.steamVrOpenXr);
                   if (embedded) recordEncyclopediaTarget(GUIDE_TARGETS.steamVrOpenXr);
                 }}>{openXrSection.title}</Button>
               ) : null}
-              {media !== null && caption !== null ? (
-                <figure className="vua-overlay-guide__figure">
-                  <MediaSlot src={media.src} alt={media.alt} aspectRatio="16 / 9" />
-                  <figcaption className="vua-overlay-guide__caption">{caption}</figcaption>
+              {media !== null ? (
+                <figure className="vua-overlay-guide__figure" data-media-kind={media.kind}>
+                  <MediaSlot src={media.src} alt={media.alt} aspectRatio={media.aspectRatio} />
+                  {caption !== null ? <figcaption className="vua-overlay-guide__caption">{caption}</figcaption> : null}
                 </figure>
-              ) : media !== null ? (
-                <MediaSlot src={media.src} alt={media.alt} aspectRatio="16 / 9" />
               ) : null}
             </section>
           );

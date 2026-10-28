@@ -87,3 +87,7 @@ see the contact-required R item. Synthetic evidence does not certify that specif
 
 - 0.2.0 (2026-10-29): add versioned purpose filtering before pagination, optional status rows,
   and informational Recipe terms/content consumers while retaining the v0.1 face.
+
+The recorded synthetic Chinese views show the [purpose filter](../development/evidence/library-use-filter.png)
+and [Recipe import check](../development/evidence/recipe-use-import.png), including missing local product metadata.
+They are UI evidence only, not permissions for any real product.

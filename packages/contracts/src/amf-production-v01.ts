@@ -45,6 +45,8 @@ export interface AmfProductionLaneV01 {
   readonly queue: readonly AmfProductionWorkV01[];
 }
 export type AmfProductionBodyV01 =
+  | { readonly method: "amf.production.exportShareImage"; readonly params: { readonly schemaVersion:"0.1"; readonly runId:string; readonly format:"png"|"gif"; readonly index:number; readonly code:string|null } }
+  | { readonly method: "amf.production.readShareImage"; readonly params: { readonly schemaVersion:"0.1"; readonly inputId:string } }
   | { readonly method: "amf.production.planTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank } }
   | { readonly method: "amf.production.applyTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank; readonly planDigest: string; readonly textures: readonly string[] } }
   | { readonly method: "amf.production.planOutfitRemoval"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sourceId: string } }
@@ -227,6 +229,10 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
       && text(value.path,512) && isAmfPreviewPath(value.path);
     case "amf.production.releaseState": case "amf.production.bakeTurntable":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.readShareImage": return exact(value,["schemaVersion","inputId"]) && typeof value.inputId === "string" && /^input-[a-f0-9-]{36}\.bin$/u.test(value.inputId);
+    case "amf.production.exportShareImage": return exact(value,["schemaVersion","runId","format","index","code"]) && runId(value.runId)
+      && ["png","gif"].includes(String(value.format)) && Number.isInteger(value.index) && Number(value.index)>=0 && Number(value.index)<60
+      && (value.code===null || (typeof value.code==="string" && /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{12}$/u.test(value.code)));
     case "amf.production.turntableFrame": return exact(value, ["schemaVersion", "runId", "index"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && Number.isInteger(value.index) && Number(value.index) >= 0 && Number(value.index) < AMF_TURNTABLE_FRAMES;
     // The player confirms the content rights statement in VUA for each upload.

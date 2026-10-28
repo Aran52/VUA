@@ -131,3 +131,6 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 .vua-plan-images strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 /* A switch option named beside an outfit in the reviewed plan. */
 .vua-n3__tag { margin-inline-start: 8px; padding: 1px 8px; border: 1px solid var(--vua-border); border-radius: 0; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+
+.vua-share-photo { display:block; max-width:100%; width:280px; max-height:280px; object-fit:contain; margin:auto; border-radius:var(--vua-radius-md, 8px); }
+.vua-share-links { display:grid; gap:var(--vua-space-3, 12px); overflow-wrap:anywhere; }

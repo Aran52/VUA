@@ -41,6 +41,11 @@ The current Rust workspace directly declares the following third-party crates:
 
 | Dependency | Declared license family | Role |
 | --- | --- | --- |
+| `image` 0.25.10 | MIT OR Apache-2.0 | bounded PNG/JPEG/GIF/WebP image decoding and PNG/JPEG encoding |
+| `datamatrix` 0.3.3 | Apache-2.0 OR MIT | ECC200 rectangular Data Matrix encoder |
+| `rxing` 0.9.3 | Apache-2.0 | Data Matrix detection and error-correcting decoding (image feature disabled) |
+| `gif` 0.14.2 | MIT OR Apache-2.0 | bounded palette-preserving animated GIF encoding |
+| `color_quant` 1.1.0 | MIT | adaptive GIF foreground palette; reserved carrier colors remain exact |
 | `vrc-get-vpm` | MIT | VRChat package and project operations |
 | `tokio` | MIT | asynchronous runtime |
 | `reqwest` | MIT OR Apache-2.0 | HTTP client |

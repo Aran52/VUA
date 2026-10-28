@@ -15,7 +15,7 @@ const views = ["map", "map-flight", "map-control", "map-materials", "map-release
   "control-packages", "control-packages-project", "control-packages-project-smart", "control-packages-project-full", "control-packages-unlisted", "control-packages-repos",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms", "release-guide",
   "settings-vrchat", "settings-vrchat-account", "license-hub", "license-check", "license-active", "terms-parsed", "terms-items", "terms-unread", "terms-link", "materials-start", "materials-start-missing",
-  "network-tiers", "network-tiers-details",
+  "network-tiers", "network-tiers-details", "share-export", "share-read-error",
   "feedback-tiers", "feedback-dialog"];
 const only = process.argv.find(arg => arg.startsWith("--only="))?.slice("--only=".length) ?? "";
 let server;

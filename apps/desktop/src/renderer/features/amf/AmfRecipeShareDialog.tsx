@@ -8,7 +8,7 @@ import { boothSourceId } from "../warehouse/booth-source.ts";
 
 const copy = strings.amfProduction;
 type Product = { productId: string; title: string | null };
-export function AmfRecipeShareDialog({ recipeId, onClose }: { recipeId: string; onClose: () => void }) {
+export function AmfRecipeShareDialog({ recipeId, onClose, onExport }: { recipeId: string; onClose: () => void; onExport?: (value: AmfRecipeShareExport) => void }) {
   const port = useGateway().amfProduction;
   const [plan, setPlan] = useState<AmfRecipeSharePlan | null>(null);
   const [choices, setChoices] = useState<Record<string,string>>({});
@@ -111,7 +111,7 @@ export function AmfRecipeShareDialog({ recipeId, onClose }: { recipeId: string; 
         <div className="vua-n3__actions">{ready !== plan.materials.length ? <Button variant="subtle" disabled={busy} onClick={() => setSelected(plan.materials.filter(m => source(m) === null).map(m => m.materialId))}>{copy.sourceAll}</Button> : <span/>}
           <Button variant="primary" disabled={busy || lookupBusy || ready !== plan.materials.length} onClick={() => {
             if (!port || busy) return; setBusy(true); setError(null);
-            void port.exportRecipe(recipeId,plan.planDigest,choices).then(setOutput).catch(fail).finally(() => setBusy(false));
+            void port.exportRecipe(recipeId,plan.planDigest,choices).then(value => { if (onExport) onExport(value); else setOutput(value); }).catch(fail).finally(() => setBusy(false));
           }}>{copy.shareExport}</Button></div>
       </>}
       <p className="vua-caption vua-text-secondary">{copy.shareStatement}</p>

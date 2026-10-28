@@ -1,0 +1,8 @@
+{
+  "method": "amf.production.readShareImage",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "inputId": "input-00000000-0000-0000-0000-000000000000.bin"
+  }
+}

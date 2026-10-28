@@ -21,6 +21,8 @@ import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
 import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
 import { VrchatAvatarShelf } from "./VrchatAvatarShelf.tsx";
 import "./release-album.css";
+import { TurntableExportDialog } from "./TurntableExportDialog.tsx";
+import { recipeShareCopy } from "../../../i18n/index.ts";
 
 const copy = strings.releaseRoom;
 const shelfCopy = strings.vrchat.shelf;
@@ -39,7 +41,7 @@ export function ActionError({ error, onCheckAgain }: { error: unknown; onCheckAg
   </Alert>;
 }
 
-function TurntableBar({ run, state, busy, error, onBake }: { run: AmfProductionRun; state: AmfReleaseState | null; busy: boolean; error: unknown; onBake: () => void }) {
+function TurntableBar({ run, state, busy, error, onBake, onExport }: { run: AmfProductionRun; state: AmfReleaseState | null; busy: boolean; error: unknown; onBake: () => void; onExport: () => void }) {
   const turntable = state?.turntable ?? null;
   const step = lastStep(run, "turntable");
   const baking = step?.state === "running";
@@ -50,6 +52,7 @@ function TurntableBar({ run, state, busy, error, onBake }: { run: AmfProductionR
       : turntable?.current ? <>
         <span className="vua-text-secondary">{formatDateTime(turntable.bakedAt)}</span>
         <button type="button" className="vua-release-upload__link" onClick={onBake} disabled={busy}>{copy.turntable.bakeAgain}</button>
+        {window.vua?.dialog.recipeSharing && <button type="button" className="vua-album__bake" onClick={onExport} disabled={busy}>{recipeShareCopy.export}</button>}
       </> : <>
         {turntable || state?.editorOpen ? <span className="vua-text-secondary">{turntable ? copy.turntable.stale : copy.turntable.unityOpen}</span> : null}
         <button type="button" className="vua-album__bake" onClick={onBake} disabled={busy || state?.editorOpen}>{turntable ? copy.turntable.bakeAgain : copy.turntable.bake}</button>
@@ -109,6 +112,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const ids = useMemo(() => finishedRunIds(list), [list]);
   const index = Math.max(0, focus === null ? 0 : ids.indexOf(focus));
   const [dialog, setDialog] = useState<{ runId: string; requestId: string | null } | null>(null);
+  const [exportRun, setExportRun] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<unknown>(null);
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<{ runId: string; kind: "bake" | "upload"; error: unknown } | null>(null);
@@ -222,7 +226,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
       left: live => run ? <div className="vua-album__left">
         <ReleaseStage production={production} release={release} run={run} turntable={state?.turntable ?? null} title={title} live={live} />
         {live && <TurntableBar run={run} state={state} busy={ownWork(runId)} error={error?.kind === "bake" ? error.error : null}
-          onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} />}
+          onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} onExport={() => setExportRun(runId)} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
         <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null}
@@ -257,6 +261,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   return <>
     {failed && <p className="vua-caption vua-text-secondary">{copy.loadFailed}</p>}
     <ReleaseAlbum spreads={spreads} index={index} onIndex={at => setFocus(ids[at] ?? null)} />
+    {exportRun && <TurntableExportDialog runId={exportRun} onClose={() => setExportRun(null)} />}
     {dialog && dialogRun && <ReleaseUploadDialog proposedName={proposedUploadName(dialogRun)} avatarId={uploadedAvatarId(states[dialog.runId] ?? null)}
       picture={<StagePhoto port={production} run={dialogRun} label={avatarTitle(dialogRun)} />} requestedByAi={dialog.requestId !== null}
       error={<ActionError error={dialogError} onCheckAgain={() => { setDialog(null); checkAgain(dialog.runId); }} />} starting={starting}

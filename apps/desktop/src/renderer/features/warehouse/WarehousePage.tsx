@@ -1,3 +1,6 @@
+import { LibraryUseFilter } from "./LibraryUseFilter.tsx";
+import { termsEverywhereCopy } from "../../i18n/index.ts";
+import type { TermsPresetId } from "@vua/contracts";
 import {
   useEffect,
   useLayoutEffect,
@@ -161,6 +164,7 @@ function priceText(product: {
 function LibraryBadges({ facts, compact = false }: { facts: LibraryCardFacts | undefined; compact?: boolean }) {
   if (facts === undefined) return null;
   return <>
+    {facts.use && <Badge tone={["allowed","conditional"].includes(facts.use.status) ? "neutral" : "warning"}>{termsEverywhereCopy[facts.use.status]}</Badge>}
     {compact ? null : <Badge tone={facts.storage.state === "present" || facts.storage.state === "cloud_only" ? "neutral" : "warning"}>
       {copy.libraryState[facts.storage.state]}
     </Badge>}
@@ -185,7 +189,7 @@ function MaterialEntryView(props: Parameters<typeof MaterialEntryCard>[0] & { vi
   if (props.viewMode === "cards") return <MaterialEntryCard {...props} />;
   const { card, source, metadata, facts } = props;
   return <LibraryListRow id={card.key} title={metadata?.displayName ?? source?.title ?? card.entry.displayName}
-    shop={source?.shopName} variant={source?.variantName} variantCount={facts?.variantCount} source={libraryListSource(facts, card.entry.kind)}
+    use={facts?.use} shop={source?.shopName} variant={source?.variantName} variantCount={facts?.variantCount} source={libraryListSource(facts, card.entry.kind)}
     selected={props.selected} style={props.columnStyle} onSelect={props.onSelect} onOpen={props.onOpen} onMenu={props.onMenu} />;
 }
 
@@ -682,6 +686,8 @@ export function WarehousePage({
   >("all");
   const [downloadState, setDownloadState] = useState<"all" | "downloaded" | "not-downloaded" | "missing" | "in_progress" | "attention">("all");
   const [sourceCategory, setSourceCategory] = useState("all");
+  const [usePreset, setUsePreset] = useState<TermsPresetId | "">("");
+  const [useMode, setUseMode] = useState<"available" | "all">("available");
   const [libraryPage, setLibraryPage] = useState<LibraryPageView | null>(null);
   const latestLibraryPage = useRef(libraryPage); latestLibraryPage.current = libraryPage;
   useEffect(() => {
@@ -1084,7 +1090,7 @@ export function WarehousePage({
   };
 
   const [adaptation, setAdaptation] = useState<{ productId: string; title: string; previous: {
-    query: WarehouseQueryState; source: typeof source; downloadState: typeof downloadState; sourceCategory: string; pageOffset: number;
+    query: WarehouseQueryState; source: typeof source; downloadState: typeof downloadState; sourceCategory: string; usePreset: TermsPresetId | ""; useMode: "available" | "all"; pageOffset: number;
     viewMode: typeof viewMode; selectedIds: ReadonlySet<string>; selectedId: string | null; selectedLocalId: string | null; scrollTop: number; scrollLeft: number;
   } } | null>(null);
   const restoreScroll = useRef<{ top: number; left: number } | null>(null);
@@ -1092,17 +1098,17 @@ export function WarehousePage({
   const changePage = (offset: number) => { setPageOffset(offset); setSelectedIds(new Set()); };
   const showAdaptations = (product: { productId: string; title: string | null }) => {
     setAdaptation({ productId: product.productId, title: product.title ?? product.productId, previous: adaptation?.previous ?? {
-      query, source, downloadState, sourceCategory, pageOffset, viewMode, selectedIds: new Set(selectedIdsRef.current), selectedId, selectedLocalId,
+      query, source, downloadState, sourceCategory, usePreset, useMode, pageOffset, viewMode, selectedIds: new Set(selectedIdsRef.current), selectedId, selectedLocalId,
       scrollTop: wallEl?.scrollTop ?? 0, scrollLeft: wallEl?.scrollLeft ?? 0,
     } });
-    restoreScroll.current = null; setQuery(emptyWarehouseQuery); setSource("all"); setDownloadState("all"); setSourceCategory("all");
+    restoreScroll.current = null; setQuery(emptyWarehouseQuery); setSource("all"); setDownloadState("all"); setSourceCategory("all"); setUsePreset(""); setUseMode("available");
     setPageOffset(0); setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setLibraryPage(null); setListState({ kind: "loading" });
     if (wallEl) { wallEl.scrollTop = 0; wallEl.scrollLeft = 0; }
   };
   const cancelAdaptations = () => {
     if (!adaptation) return;
     const previous = adaptation.previous;
-    setQuery(previous.query); setSource(previous.source); setDownloadState(previous.downloadState); setSourceCategory(previous.sourceCategory);
+    setQuery(previous.query); setSource(previous.source); setDownloadState(previous.downloadState); setSourceCategory(previous.sourceCategory); setUsePreset(previous.usePreset); setUseMode(previous.useMode);
     setPageOffset(previous.pageOffset); setViewMode(previous.viewMode); setSelectedIds(previous.selectedIds); setSelectedId(previous.selectedId); setSelectedLocalId(previous.selectedLocalId);
     restoreScroll.current = { top: previous.scrollTop, left: previous.scrollLeft };
     setAdaptation(null); setLibraryPage(null); setListState({ kind: "loading" });
@@ -1122,7 +1128,7 @@ export function WarehousePage({
     setListState((prev) => (prev.kind === "loaded" ? prev : { kind: "loading" }));
     const read = dataSource === "fixture"
       ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
-      : libraryBrowser.list({ schemaVersion: "0.1", source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
+      : libraryBrowser.list({ ...(usePreset ? {schemaVersion:"0.2" as const,use:usePreset,useMode} : {schemaVersion:"0.1" as const}), source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
         ...(sourceCategory === "all" ? {} : { sourceCategory: sourceCategory === "unknown" ? null : sourceCategory.slice(9) }),
         ...(adaptation === null ? {} : { descriptionLinksTo: adaptation.productId }),
@@ -1143,7 +1149,7 @@ export function WarehousePage({
     return () => {
       active = false;
     };
-  }, [query, connected, reloadKey, source, downloadState, sourceCategory, pageOffset, dataSource, adaptation]);
+  }, [query, connected, reloadKey, source, downloadState, sourceCategory, usePreset, useMode, pageOffset, dataSource, adaptation]);
   useEffect(() => {
     const refresh = () => setReloadKey((key) => key + 1);
     window.addEventListener("focus", refresh);
@@ -1541,6 +1547,7 @@ export function WarehousePage({
             <Icon name="chevron-down" size={16} />
           </div>
         </label>
+        <LibraryUseFilter value={usePreset} mode={useMode} disabled={dataSource !== "live"} onChange={(purpose,mode)=>{ changeFilters(()=>{setUsePreset(purpose);setUseMode(mode);});setLibraryPage(null);setListState({kind:"loading"}); }}/>
       </div>
 
       {true ? (
@@ -1691,6 +1698,7 @@ export function WarehousePage({
                         ) : (
                           <LibraryListRow
                             key={item.productId}
+                            use={libraryPage?.facts.get(item.productId)?.use}
                             id={item.productId} productId={item.productId} title={item.title ?? item.productId} shop={item.shopName} variant={item.variantName}
                             variantCount={libraryPage?.facts.get(item.productId)?.variantCount} style={columns.style}
                             source={libraryListSource(libraryPage?.facts.get(item.productId), "product", {

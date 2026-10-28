@@ -1,3 +1,4 @@
+import { isLibraryListParamsV02, type LibraryListParamsV02 } from "./library-view-v02.js";
 import { isUnityLicenseParams, type UnityLicenseRequestV1 } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams } from "./environment-deployment.js";
 import { isTermsParams, type TermsRequestV1 } from "./terms-v01.js";
@@ -252,7 +253,7 @@ export interface LibraryDownloadStatusRequestV1 {
   readonly params: LibraryDownloadStatusV01;
 }
 export type LibraryViewRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & (
-  | { readonly method: "library.list"; readonly params: LibraryListParamsV01 }
+  | { readonly method: "library.list"; readonly params: LibraryListParamsV01 | LibraryListParamsV02 }
   | { readonly method: "library.productFiles"; readonly params: LibraryProductFilesParamsV01 }
 );
 export type RecipeDraftQueryRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & (
@@ -2187,7 +2188,7 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
     }
     case "library.list":
     case "library.productFiles":
-      return hasExactKeys(value, REQUEST_KEYS) && isLibraryViewParamsV01(value.method, value.params);
+      return hasExactKeys(value, REQUEST_KEYS) && (isLibraryViewParamsV01(value.method, value.params) || value.method === "library.list" && isLibraryListParamsV02(value.params));
     case "library.removalPreview": case "library.removeFiles": case "library.removalStatus": case "library.pendingRemovals": case "library.resolveRemoval":
       return hasExactKeys(value, REQUEST_KEYS) && isLibraryMaintenanceParamsV01(value.method, value.params);
     case "recipeDraft.list": case "recipeDraft.get": case "recipeDraft.save": case "recipeDraft.addSelection": case "recipeDraft.selectionStatus":

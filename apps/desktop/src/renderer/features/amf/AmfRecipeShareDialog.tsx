@@ -1,3 +1,5 @@
+import type { AmfRecipeDocument } from "@vua/contracts";
+import { RecipeContents } from "./RecipeContents.tsx";
 import { useEffect, useState } from "react";
 import { useGateway, type AmfRecipeSharePlan, type AmfRecipeShareExport } from "../../gateway/index.ts";
 import { catalogBrowser } from "../../app/catalog-browser-instance.ts";
@@ -10,6 +12,7 @@ const copy = strings.amfProduction;
 type Product = { productId: string; title: string | null };
 export function AmfRecipeShareDialog({ recipeId, onClose, onExport }: { recipeId: string; onClose: () => void; onExport?: (value: AmfRecipeShareExport) => void }) {
   const port = useGateway().amfProduction;
+  const [recipe, setRecipe] = useState<AmfRecipeDocument | null>(null);
   const [plan, setPlan] = useState<AmfRecipeSharePlan | null>(null);
   const [choices, setChoices] = useState<Record<string,string>>({});
   const [selected, setSelected] = useState<string[]>([]);
@@ -27,9 +30,9 @@ export function AmfRecipeShareDialog({ recipeId, onClose, onExport }: { recipeId
   useEffect(() => {
     if (!port) return;
     let alive = true; setBusy(true); setError(null);
-    void port.recipeSharePlan(recipeId).then(value => {
+    void Promise.all([port.recipeSharePlan(recipeId),port.getRecipe(recipeId)]).then(([value,saved]) => {
       if (!alive) return;
-      setPlan(value); setChoices({}); setOutput(null); setSelected(value.materials.filter(m => m.selectedProductId === null).map(m => m.materialId));
+      setRecipe(saved.recipe); setPlan(value); setChoices({}); setOutput(null); setSelected(value.materials.filter(m => m.selectedProductId === null).map(m => m.materialId));
     }).catch(e => { if (alive) setError(e instanceof Error ? e.message : copy.taskFailed); })
       .finally(() => { if (alive) setBusy(false); });
     return () => { alive = false; };
@@ -74,6 +77,7 @@ export function AmfRecipeShareDialog({ recipeId, onClose, onExport }: { recipeId
   return <ContentDialog open title={copy.shareRecipe} closeLabel={strings.common.dialogClose} onClose={onClose}>
     <div className="vua-recipe-transfer">
       <p>{copy.shareHint}</p>
+      {recipe && <RecipeContents recipe={recipe} sources={output?.document.sources ?? Object.fromEntries((plan?.materials ?? []).map(material => [material.materialId,source(material) ?? undefined]))}/>}
       {error && <div role="alert"><p>{error}</p><Button disabled={busy} onClick={() => setRetry(value => value + 1)}>{copy.retry}</Button></div>}
       {!plan ? <p role="status">{busy ? copy.loading : copy.shareSources}</p> : output ? <>
         <label className="vua-n3__field">{copy.shareOutput}<textarea readOnly value={output.shareCode} rows={5} onFocus={e => e.target.select()}/></label>

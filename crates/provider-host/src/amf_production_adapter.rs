@@ -1586,6 +1586,22 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn recipe_attribution_reads_the_recorded_shop_outside_account_membership() {
+        let (root, adapter) = preparation_fixture();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
+        let page = vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+        let mut observed = vua_acquisition::library_item_to_observation(&page.items[0], &format!("sha256:{}", "b".repeat(64)), "2026-10-29T00:00:00Z", None, None);
+        observed.library_type = None;
+        observed.shop_name = Some("Synthetic creator shop".into());
+        adapter.bdl.record_product_observation(&observed).unwrap();
+        assert_eq!(adapter.recipe_shop_name("901").unwrap().as_deref(), Some("Synthetic creator shop"));
+        assert_eq!(adapter.recipe_shop_name("99999999").unwrap(), None);
+        drop(adapter);
+        assert!(root.starts_with(std::env::temp_dir()) && root.file_name().unwrap().to_string_lossy().starts_with("vua-amf-prepare-"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn recipe_resolution_reads_local_ownership_download_names_and_all_product_packages() {
         use vua_orchestrator::amf_recipe_materials::{MaterialStatus,MaterialChoices};
         use vua_bdl_store::{ArtifactInspectionState,CopyRole,NewLocalArtifact};

@@ -134,3 +134,10 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 
 .vua-share-photo { display:block; max-width:100%; width:280px; max-height:280px; object-fit:contain; margin:auto; border-radius:var(--vua-radius-md, 8px); }
 .vua-share-links { display:grid; gap:var(--vua-space-3, 12px); overflow-wrap:anywhere; }
+
+.vua-recipe-contents ul, .vua-recipe-use ul { list-style:none; padding:0; display:grid; gap:12px; }
+.vua-recipe-contents li, .vua-recipe-use li { display:grid; gap:4px; padding-block:8px; border-bottom:1px solid var(--vua-border); }
+.vua-recipe-contents__settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 24px; }
+.vua-recipe-contents__settings > div { display:flex; gap:12px; justify-content:space-between; }
+.vua-recipe-contents__settings dd { margin:0; font-variant-numeric:tabular-nums; }
+.vua-recipe-contents__link { color:var(--vua-accent-text); border:0; background:none; padding:0; text-align:start; cursor:pointer; }

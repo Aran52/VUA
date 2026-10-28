@@ -1,3 +1,5 @@
+import { RecipeContents } from "./RecipeContents.tsx";
+import { RecipeUseCheck } from "./RecipeUseCheck.tsx";
 import { useEffect, useState } from "react";
 import type { AmfSharedRecipe, PendingRecipeShare, ReceivedRecipeLink } from "@vua/contracts";
 import { useGateway } from "../../gateway/index.ts";
@@ -9,8 +11,9 @@ const copy = strings.amfProduction;
 export function AmfRecipeImportDialog({ onClose, onImported, onOpen, initial }: {
   onClose: () => void; onImported: () => void; onOpen: (recipeId: string) => void; initial?: PendingRecipeShare | null;
 }) {
-  const port = useGateway().amfProduction, sharing = window.vua?.dialog.recipeSharing;
+  const port = useGateway().amfProduction, sharing = window.vua?.dialog?.recipeSharing;
   const [image, setImage] = useState<string | null>(null);
+  const [contentRevision, setContentRevision] = useState(0);
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<AmfSharedRecipe | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -45,7 +48,6 @@ export function AmfRecipeImportDialog({ onClose, onImported, onOpen, initial }: 
         {error && <p role="alert">{error}</p>}
         {savedId ? <>
           <p role="status">{copy.importDone}</p>
-          {sharing && <label className="vua-n3__field">{recipeShareCopy.image}<input type="file" accept=".png,.jpg,.jpeg,.gif,.webp" disabled={busy} onChange={e => readFiles([...e.target.files ?? []])}/></label>}
           <div className="vua-n3__actions">
             <Button variant="subtle" onClick={onClose}>{strings.common.dialogClose}</Button>
             <Button variant="primary" onClick={() => { onClose(); onOpen(savedId); }}>{copy.recipeOpen}</Button>
@@ -55,9 +57,8 @@ export function AmfRecipeImportDialog({ onClose, onImported, onOpen, initial }: 
           <section className="vua-recipe-transfer__preview">
             <h3>{preview.recipe.title}</h3>
             <p>{format(copy.recipeSummary, { materials: preview.recipe.materials.length, outfits: preview.recipe.outfits.length })}</p>
-            <ul>{preview.recipe.materials.map(material => (
-              <li key={material.id}><span>{material.packageName}</span><small>{"BOOTH · " + (typeof preview.sources[material.id] === "string" ? preview.sources[material.id] : (preview.sources[material.id] as { boothProductId: string } | undefined)?.boothProductId ?? "")}</small></li>
-            ))}</ul>
+            <RecipeContents recipe={preview.recipe} sources={preview.sources} revision={contentRevision}/>
+            <RecipeUseCheck document={preview} onUpdated={() => setContentRevision(value => value + 1)}/>
           </section>
           <p className="vua-caption vua-text-secondary">{copy.shareStatement}</p>
           <div className="vua-n3__actions vua-recipe-transfer__footer">

@@ -1,3 +1,4 @@
+import { isLibraryListV02, type LibraryListParamsV02, type LibraryUseV02 } from "@vua/contracts";
 import { isLibraryListV01, isLibraryProductFilesV01, type LibraryListParamsV01 } from "@vua/contracts";
 import type { LibraryEntryMetadataV01 } from "@vua/contracts";
 import type { WarehouseEntry } from "./acquire-port.ts";
@@ -15,6 +16,7 @@ export interface LibraryStorageFacts {
   readonly unexpandedArchives?: number;
 }
 export interface LibraryCardFacts {
+  readonly use?: LibraryUseV02;
   readonly variantCount?: number;
   readonly sourceCategory?: string | null;
   readonly storage: LibraryStorageFacts;
@@ -46,21 +48,22 @@ export interface LibraryFileInventory {
       readonly artifactSha256: string; readonly presence: "present" | "missing" | "changed" | "unreadable" }[] }[];
 }
 export interface LibraryBrowserPort {
-  list(query: LibraryListParamsV01): Promise<LibraryPageView>;
+  list(query: LibraryListParamsV01 | LibraryListParamsV02): Promise<LibraryPageView>;
   productFiles(productId: string): Promise<LibraryFileInventory>;
 }
 export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrowserPort {
   return {
     async list(query) {
       const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "library.list", params: query });
-      if (!response.ok || !isLibraryListV01(response.value)) throw new Error("library_read_failed");
+      if (!response.ok || !(isLibraryListV01(response.value) || isLibraryListV02(response.value))) throw new Error("library_read_failed");
+      if (query.schemaVersion === "0.2" && query.use !== undefined && (response.value.schemaVersion !== "0.2" || response.value.items.some(row => !row.use || row.use.presetId !== query.use || query.useMode !== "all" && !["allowed","conditional"].includes(row.use.status)))) throw new Error("library_use_invalid");
       const items = []; const localEntries: WarehouseEntry[] = []; const facts = new Map<string, LibraryCardFacts>();
       for (const row of response.value.items) {
         if (row.kind === "product") {
           const product = projectSummary(row.product);
           if (product === null) throw new Error("library_product_invalid");
           items.push(product);
-          facts.set(product.productId, { variantCount: row.variantCount ?? 0, sourceCategory: row.sourceCategory ?? null, storage: row.storage, sources: row.sources, ...(row.copyIds === undefined ? {} : { copyIds: row.copyIds }), operation: row.operation === null ? null : {
+          facts.set(product.productId, { ...("use" in row && row.use ? {use:row.use} : {}), variantCount: row.variantCount ?? 0, sourceCategory: row.sourceCategory ?? null, storage: row.storage, sources: row.sources, ...(row.copyIds === undefined ? {} : { copyIds: row.copyIds }), operation: row.operation === null ? null : {
             taskId: row.operation.taskId, state: row.operation.state, inspectRequired: row.operation.recoveryDisposition === "inspect_required",
           }, ...(row.localEntries === undefined ? {} : { localEntries: row.localEntries }) });
         } else {
@@ -68,7 +71,7 @@ export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrow
           if (entry === null) throw new Error("library_entry_invalid");
           const sourceProduct = row.sourceMatch === undefined ? undefined : projectSummary(row.sourceMatch.product);
           if (sourceProduct === null) throw new Error("library_source_invalid");
-          localEntries.push(entry); facts.set(entry.warehouseItemId, { variantCount: row.variantCount ?? 0, sourceCategory: row.sourceCategory ?? null, storage: row.storage, sources: row.sourceMatch?.sources ?? [], operation: null,
+          localEntries.push(entry); facts.set(entry.warehouseItemId, { ...("use" in row && row.use ? {use:row.use} : {}), variantCount: row.variantCount ?? 0, sourceCategory: row.sourceCategory ?? null, storage: row.storage, sources: row.sourceMatch?.sources ?? [], operation: null,
             ...(row.metadata === undefined ? {} : { metadata: row.metadata }),
             ...(row.copyIds === undefined ? {} : { copyIds: row.copyIds }),
             ...(row.sourceMatch === undefined || sourceProduct === undefined ? {} : { sourceMatch: { product: sourceProduct, basis: row.sourceMatch.basis, content: row.sourceMatch.content } }),

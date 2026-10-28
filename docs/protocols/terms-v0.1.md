@@ -1,8 +1,8 @@
 # VN3 terms v0.1
 
-> Document version: 0.1.0
+> Document version: 0.2.0
 > Status: Candidate
-> Updated: 2026-10-19
+> Updated: 2026-10-29
 > Owner: AMF
 
 This face records public license links from captured BOOTH descriptions, refreshes linked
@@ -123,7 +123,17 @@ The request/result schemas and executable examples are in
 [`schemas/terms/v0.1`](../../schemas/terms/v0.1). Candidate refresh tasks use the AMF task
 store and place local PDFs under AMF's `terms/<source-kind>/<file-id>/<sha256>.pdf` directory.
 
+## Library and Recipe consumers
+
+[Library view v0.2](library-view-v0.2.md) reuses these stored-evidence decisions for purpose
+filtering before pagination. Recipe import uses the same per-product and strictest-combination
+check and explicit refresh command, without blocking import or introducing new presets.
+
 ## Document changelog
+
+- 0.2.0 (2026-10-29): document library purpose filtering and informational Recipe consumers;
+  the v0.1 wire shape, seven presets and decision rules remain unchanged.
+
 
 - 0.1.0 (2026-10-19): add captured license links, explicit local refresh tasks, versioned
   VN3 parsing and stored-evidence use/combination queries.

@@ -15,7 +15,7 @@ const views = ["map", "map-flight", "map-control", "map-materials", "map-release
   "control-packages", "control-packages-project", "control-packages-project-smart", "control-packages-project-full", "control-packages-unlisted", "control-packages-repos",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin", "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty", "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms", "release-guide",
   "settings-vrchat", "settings-vrchat-account", "license-hub", "license-check", "license-active", "terms-parsed", "terms-items", "terms-unread", "terms-link", "materials-start", "materials-start-missing",
-  "network-tiers", "network-tiers-details", "share-export", "share-read-error",
+  "network-tiers", "network-tiers-details", "share-export", "share-read-error", "terms-everywhere-filter", "terms-everywhere-import",
   "feedback-tiers", "feedback-dialog"];
 const only = process.argv.find(arg => arg.startsWith("--only="))?.slice("--only=".length) ?? "";
 let server;
@@ -33,7 +33,7 @@ try {
   await mkdir(output, { recursive: true });
   const port = server.httpServer.address().port;
   for (const view of views.filter(name => name.startsWith(only))) {
-    const window = new BrowserWindow({ show: false, width: 1280, height: view.startsWith("release-") ? 1000 : view === "workshop-capacity" ? 1180 : view.startsWith("workshop-versions") ? 1240 : view.startsWith("workshop-fit") ? 1560 : view.startsWith("workshop-ft") ? 1180 : view === "workshop-texture" ? 1500 : view === "workshop-switch-adjust" ? 1300 : view === "control-fits" ? 1400 : 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
+    const window = new BrowserWindow({ show: false, width: 1280, height: view === "terms-everywhere-import" ? 1150 : view.startsWith("release-") ? 1000 : view === "workshop-capacity" ? 1180 : view.startsWith("workshop-versions") ? 1240 : view.startsWith("workshop-fit") ? 1560 : view.startsWith("workshop-ft") ? 1180 : view === "workshop-texture" ? 1500 : view === "workshop-switch-adjust" ? 1300 : view === "control-fits" ? 1400 : 860, webPreferences: { contextIsolation: true, sandbox: true, offscreen: true, backgroundThrottling: false } });
     window.webContents.on("console-message", event => { if (event.level === "error") console.error(view, event.message); });
     await window.loadURL(`http://127.0.0.1:${port}/__factory${view.startsWith("feedback-") ? "?feedback=1" : ""}#${view}`);
     await new Promise(resolve => setTimeout(resolve, view.startsWith("control-recipes") || view === "workshop-delete" ? 4500 : 2500));

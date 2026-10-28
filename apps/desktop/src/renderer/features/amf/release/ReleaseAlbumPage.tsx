@@ -52,7 +52,7 @@ function TurntableBar({ run, state, busy, error, onBake, onExport }: { run: AmfP
       : turntable?.current ? <>
         <span className="vua-text-secondary">{formatDateTime(turntable.bakedAt)}</span>
         <button type="button" className="vua-release-upload__link" onClick={onBake} disabled={busy}>{copy.turntable.bakeAgain}</button>
-        {window.vua?.dialog.recipeSharing && <button type="button" className="vua-album__bake" onClick={onExport} disabled={busy}>{recipeShareCopy.export}</button>}
+        {window.vua?.dialog?.recipeSharing && <button type="button" className="vua-album__bake" onClick={onExport} disabled={busy}>{recipeShareCopy.export}</button>}
       </> : <>
         {turntable || state?.editorOpen ? <span className="vua-text-secondary">{turntable ? copy.turntable.stale : copy.turntable.unityOpen}</span> : null}
         <button type="button" className="vua-album__bake" onClick={onBake} disabled={busy || state?.editorOpen}>{turntable ? copy.turntable.bakeAgain : copy.turntable.bake}</button>

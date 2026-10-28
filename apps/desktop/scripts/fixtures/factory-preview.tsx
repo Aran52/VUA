@@ -1,3 +1,4 @@
+import { TermsEverywherePreview, recipeTermsPreviewPort } from "./terms-everywhere-preview.tsx";
 import { SharePreview } from "./share-preview.tsx";
 // Synthetic preview of the AMF base map and workshop for visual review; no production claims.
 import React, { useState } from "react";
@@ -329,7 +330,7 @@ function NetworkPreview({ details }: { details: boolean }) {
   }, [details]);
   return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
 }
-const content = view.startsWith("share-") ? <GatewayProvider gateway={{...gateway,amfProduction:{...api,listRecipes:async()=>[]},amfRelease:releasePorts("release-turn").release}}><SharePreview view={view}/></GatewayProvider> : view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
+const content = view.startsWith("terms-everywhere-") ? <GatewayProvider gateway={{...gateway,amfProduction:api,terms:recipeTermsPreviewPort}}><TermsEverywherePreview view={view}/></GatewayProvider> : view.startsWith("share-") ? <GatewayProvider gateway={{...gateway,amfProduction:{...api,listRecipes:async()=>[],listFits:async()=>[]},amfRelease:releasePorts("release-turn").release}}><SharePreview view={view}/></GatewayProvider> : view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
   <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
   </div></aside></div>

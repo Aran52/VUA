@@ -1,0 +1,6 @@
+{
+  "kind": "vua.selection",
+  "formatVersion": "0.1",
+  "title": "Avatar materials",
+  "products": [{ "productId": "1000000" }, { "productId": "1000001", "shopName": "Synthetic shop", "variantName": "Coat" }]
+}

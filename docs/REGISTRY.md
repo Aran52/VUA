@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-25
+> Updated: 2026-10-28
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -73,6 +73,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/provider-process-v0.1.md | 0.3 | Implementation baseline | Core | 2026-10-10 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-selection-draft-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
+| docs/protocols/share-links-v0.1.md | 0.1.0 | Candidate | AMF / Hosting | 2026-10-28 |
 | docs/protocols/release-handoff-v0.1.md | 0.1 | Frozen | Core | 2026-09-16 |
 | docs/protocols/release-handoff-v0.2.md | 0.2 | Frozen | Core | 2026-09-21 |
 | docs/protocols/scenario-environment-v0.1.md | 0.1.0 | Candidate | Environment | 2026-10-13 |
@@ -160,6 +161,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/recipe/v0.3 | 0.3 | Frozen | Core | 2026-09-10 |
 | schemas/recipe-export/v0.1 | 0.1 | Frozen | Core | 2026-09-22 |
 | schemas/recipe-selection-draft/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |
+| schemas/selection-share/v0.1 | 0.1 | Candidate | AMF / Hosting | 2026-10-28 |
 | schemas/release-handoff/v0.1 | 0.1 | Frozen | Core | 2026-09-16 |
 | schemas/release-handoff/v0.2 | 0.2 | Frozen | Core | 2026-09-21 |
 | schemas/scenario-environment/v0.1 | 0.1 | Candidate | Environment | 2026-10-13 |

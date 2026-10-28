@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Jirai canvas tile: hearts and crosses</title>
+  <g fill="#f2a6c9" fill-opacity="0.07"><path transform="translate(6 6) scale(0.6)" d="M12 21C5 15 2 11 2 7.5 2 4.5 4.5 2 7.5 2c2 0 3.5 1 4.5 2.5C13 3 14.5 2 16.5 2 19.5 2 22 4.5 22 7.5 22 11 19 15 12 21z"/><path transform="translate(38 38) scale(0.45)" d="M12 21C5 15 2 11 2 7.5 2 4.5 4.5 2 7.5 2c2 0 3.5 1 4.5 2.5C13 3 14.5 2 16.5 2 19.5 2 22 4.5 22 7.5 22 11 19 15 12 21z"/></g>
+  <path d="M48 8v10M43 13h10" stroke="#f2a6c9" stroke-opacity="0.08" stroke-width="1.5"/>
+</svg>

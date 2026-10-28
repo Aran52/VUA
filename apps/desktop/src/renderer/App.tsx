@@ -112,6 +112,7 @@ import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
 import { AmfSurface as AmfPages, AmfUiRuntimeBridge } from "./features/modules/AmfSurface.tsx";
 import { HomePage, directory } from "./features/home/HomePage.tsx";
+import { ThemeAddress, ThemeCommandBar, ThemeDetails } from "./features/shell/ThemeChrome.tsx";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
 import "./app-shell.css";
 import "./features/home/home.css";
@@ -991,6 +992,7 @@ function AppShell({
         </button></Tooltip>
         <div className="vua-shell__location vua-drag-region">
           {settingsOpen ? <Button variant="primary" className="vua-shell__back" data-nav-id="shell-back" onClick={returnFromSettings}><Icon name="arrow-left" size={20} />{strings.journey.back}</Button> : null}
+          <ThemeAddress page={contentPage ?? page} navigate={navigate} openPalette={() => setPaletteOpen(true)} />
         </div>
         {/* Resource headroom summary; details retain each measured resource. */}
         <ResourceMonitor />
@@ -1047,6 +1049,7 @@ function AppShell({
           </div>
         ) : null}
       </header>
+      <ThemeCommandBar page={page} navigate={navigate} openSettings={() => settingsOpen ? returnFromSettings() : navigate("settings-theme")} />
       <div className="vua-shell__body">
         <aside className={`vua-shell__sidebar${settingsOpen ? " vua-shell__sidebar--settings" : ""}`} aria-label={settingsOpen ? strings.nav.tabs.settings : strings.app.sidebarAria}>
           <SkinMotif slot="page-corner" className="vua-shell__skin-motif" />
@@ -1086,6 +1089,7 @@ function AppShell({
           {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}</div> : null}
         </main>
       </div>
+      <ThemeDetails page={contentPage ?? page} />
       <NavigationConfirmOverlay />
       <AmfUiRuntimeBridge />
       <FileDropImporter onOpenLibrary={() => navigate("warehouse")} />

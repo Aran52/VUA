@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 44" width="64" height="44">
+  <title>Jirai satin bow</title>
+  <defs><linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd9ea"/><stop offset="0.45" stop-color="#f2a6c9"/><stop offset="1" stop-color="#d9779f"/></linearGradient></defs>
+  <path d="M32 18C22 2 4 4 6 16C8 28 22 26 32 22Z" fill="url(#s)" stroke="#120810" stroke-width="1.6"/>
+  <path d="M32 18C42 2 60 4 58 16C56 28 42 26 32 22Z" fill="url(#s)" stroke="#120810" stroke-width="1.6"/>
+  <path d="M29 22L20 42L26 39L29 44L32 24Z" fill="url(#s)" stroke="#120810" stroke-width="1.4"/>
+  <path d="M35 22L44 42L38 39L35 44L32 24Z" fill="url(#s)" stroke="#120810" stroke-width="1.4"/>
+  <rect x="27" y="14" width="10" height="11" rx="3.5" fill="#120810"/>
+  <path d="M10 12C14 8 20 9 24 13M54 12C50 8 44 9 40 13" stroke="#ffffff" stroke-opacity="0.6" stroke-width="1.4" fill="none"/>
+</svg>

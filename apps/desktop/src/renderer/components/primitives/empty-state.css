@@ -7,6 +7,15 @@
   text-align: center;
 }
 
+/* A theme's empty-state glyph sits above the title. */
+.vua-empty-state::before {
+  content: var(--vua-motif-glyphs, none);
+  width: 72px;
+  height: 56px;
+  background-color: color-mix(in srgb, var(--vua-accent) 70%, transparent);
+  mask: var(--vua-glyph-empty) center / contain no-repeat;
+}
+
 .vua-empty-state__title {
   margin: 0;
   font: var(--vua-font-body);

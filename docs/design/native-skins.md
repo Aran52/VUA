@@ -146,6 +146,10 @@ a preset may add theme-only shell parts that mirror existing functions (see the
 `packages/design-system/src/themes/*-chrome.css` and `apps/desktop/src/renderer/features/shell/ThemeChrome.tsx`;
 the drawn parts come from `skins/make-motifs.mjs`. The sections below describe the result.
 
+Outside Grid, the top-left home button shows a house in the preset's style instead of the VUA mark
+(author ruling, 2026-10-28): a white house in Vista's orb, a pink satin house with a heart window
+under Jirai's bow, and a white house with a star window in Tenshi's woven label. Grid keeps the mark.
+
 ## Frutiger Aero (dark and light)
 
 VUA as a Windows Vista window. Light mode is the classic look; dark mode follows Vista's black

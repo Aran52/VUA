@@ -10,11 +10,14 @@
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__header::after { height: 12px; background: url("../../skins/tenshi/motifs/zipper-tape.svg") 0 0 / 16px 12px repeat-x; box-shadow: 0 2px 4px rgb(42 114 200 / 0.15); }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__header::before { content: ""; position: absolute; inset-inline-end: 260px; top: calc(100% + 4px); z-index: 1; width: 20px; height: 36px; pointer-events: none;
   background: url("../../skins/tenshi/motifs/pull-tab.svg") center / contain no-repeat; transform: rotate(-8deg); }
-[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__logo-home { position: relative; padding: 5px 12px; border: 2px solid #4a9be8; border-radius: 12px; background: #ffffff;
+/* Home is a white house in a woven label, with a halo and wings (author ruling 2026-10-28). */
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__wordmark { display: none; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__logo-home { position: relative; width: 56px; height: 40px; padding: 0; border: 2px solid #4a9be8; border-radius: 12px;
+  background: #ffffff url("../../skins/tenshi/motifs/house.svg") center / 26px 26px no-repeat;
   outline: 1px dashed #8ec5f5; outline-offset: -5px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__logo-home::before { content: ""; position: absolute; inset-inline: -30px; top: -6px; height: 22px; pointer-events: none;
   background: url("../../skins/tenshi/motifs/wing.svg") left center / 34px 22px no-repeat, url("../../skins/tenshi/motifs/wing-right.svg") right center / 34px 22px no-repeat; }
-[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__logo-home::after { content: ""; position: absolute; inset-inline-start: 14px; top: -8px; width: 22px; height: 7px; border: 2px solid #f0c94a; border-radius: 50%; pointer-events: none; }
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__logo-home::after { content: ""; position: absolute; inset-inline-start: 17px; top: -8px; width: 22px; height: 7px; border: 2px solid #f0c94a; border-radius: 50%; pointer-events: none; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__tab { border: 2px solid #4a9be8; border-radius: 999px; background: #ffffff; color: #2a72c8; font-weight: var(--vua-weight-strong);
   outline: 1px dashed #8ec5f5; outline-offset: -5px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-shell__tab[aria-current="page"] { color: #ffffff; border-color: #2a72c8; background: linear-gradient(180deg, #6bb6ff, #4a9be8 50%, #2a72c8); outline-color: rgb(255 255 255 / 0.9); }

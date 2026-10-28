@@ -11,9 +11,10 @@
 }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__header::after { top: calc(100% + 2px); height: 14px; background: url("../../skins/jirai/motifs/lace-black.svg") 0 0 / 32px 14px repeat-x; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__logo-home { position: relative; display: grid; place-items: center; width: 44px; height: 40px; padding: 0 0 4px; border: 0;
-  background: url("../../skins/jirai/motifs/heart-filled.svg") center / contain no-repeat; }
+  background: url("../../skins/jirai/motifs/house.svg") center / contain no-repeat; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__logo-home::before { content: ""; position: absolute; left: 9px; top: -10px; width: 26px; height: 18px; background: url("../../skins/jirai/motifs/bow.svg") center / contain no-repeat; }
-[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__wordmark { width: 20px; overflow: hidden; color: #120810; }
+/* Home is a pink house with a bow on its roof (author ruling 2026-10-28). */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__wordmark { display: none; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__tab { border-color: var(--vua-purple); border-radius: 999px; background: linear-gradient(180deg, #2c1622, #160a10); color: var(--vua-purple); }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__tab[aria-current="page"] { color: #120810; background: linear-gradient(180deg, #ffe0ee 0%, #f2a6c9 48%, #d9779f 52%, #f0a3c6 100%); }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__window-button { color: var(--vua-purple); }

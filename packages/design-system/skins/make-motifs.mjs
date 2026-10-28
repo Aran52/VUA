@@ -361,4 +361,22 @@ writeRaw("jirai", "hearts-tile.svg", 64, 64, `
 <rect x="9" y="5.6" width="5" height="4.4" rx="1.2" fill="#e8eef5" stroke="#7f93a8" stroke-width="0.7"/>`, "Tenshi zipper tape tile");
 }
 
+// ---- Home: outside Grid, the top-left button is a house in the theme's style (author ruling 2026-10-28) ----
+writeRaw("frutiger-aero", "house.svg", 24, 24, `
+<path fill-rule="evenodd" d="M12 2.5L1.5 11.5H4.5V21.5H19.5V11.5H22.5ZM10 21.5V15.5H14V21.5Z" fill="#000000"/>`, "Frutiger Aero home: house glyph for the orb");
+
+writeRaw("jirai", "house.svg", 40, 36, `
+<defs><linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd9ea"/><stop offset="0.5" stop-color="${pink}"/><stop offset="1" stop-color="${pinkDeep}"/></linearGradient></defs>
+<path d="M8 16V33H32V16L20 6Z" fill="url(#h)" stroke="${plum}" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M3 18L20 3.5L37 18" fill="none" stroke="${plum}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3 18L20 3.5L37 18" fill="none" stroke="${pink}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+<path transform="translate(14.6 12.4) scale(0.45)" d="${heartD}" fill="${plum}"/>
+<path d="M17 33V27a3 3 0 0 1 6 0V33Z" fill="${plum}"/>`, "Jirai home: pink house with a heart window");
+
+writeRaw("tenshi", "house.svg", 28, 28, `
+<path d="M5 13V25H23V13L14 5.5Z" fill="#ffffff" stroke="#2a72c8" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M2.5 14L14 4L25.5 14" fill="none" stroke="#4a9be8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M14 11.5l1 2.2 2.4.2-1.8 1.6.6 2.4-2.2-1.3-2.2 1.3.6-2.4-1.8-1.6 2.4-.2z" fill="#4a9be8"/>
+<path d="M11.5 25V21a2.5 2.5 0 0 1 5 0V25" fill="#dcedff" stroke="#2a72c8" stroke-width="1.4"/>`, "Tenshi home: white house with a star window");
+
 console.log("ok");

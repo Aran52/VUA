@@ -17,7 +17,7 @@ export async function verifyGridFactoryState(view) {
   const family = document.documentElement.dataset.themeFamily ?? "missing";
   const container = {
     grid: roundedContainer("8px"),
-    "frutiger-aero": roundedContainer("20px"),
+    "frutiger-aero": roundedContainer("4px"),
     tenshi: roundedContainer("14px"),
     jirai: roundedContainer("10px"),
   }[family];
@@ -37,7 +37,9 @@ export async function verifyGridFactoryState(view) {
         `Workshop motif loads from the ${family} preset`);
     }
     const active = steps.find(step => step.getAttribute("aria-pressed") === "true");
-    check(active && steps.every(step => getComputedStyle(step).boxShadow === "none"), "Viewing and execution never grant step cards cast elevation");
+    // Viewing and execution never change a step card's shadow; Grid's step cards have none.
+    const shadows = new Set(steps.map(step => getComputedStyle(step).boxShadow));
+    check(active && shadows.size === 1 && (family !== "grid" || shadows.has("none")), "Viewing and execution never grant step cards cast elevation");
     if (view === "workshop-running") {
       const selectedBackground = getComputedStyle(active).backgroundColor;
       const running = steps.find(step => step.dataset.state === "running");

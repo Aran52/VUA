@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" width="16" height="12">
+  <title>Tenshi zipper tape tile</title>
+  <rect width="16" height="12" fill="#cfe6ff"/><rect width="16" height="1.5" fill="#8ec5f5"/><rect y="10.5" width="16" height="1.5" fill="#8ec5f5"/>
+  <rect x="1" y="2" width="5" height="4.4" rx="1.2" fill="#e8eef5" stroke="#7f93a8" stroke-width="0.7"/>
+  <rect x="9" y="5.6" width="5" height="4.4" rx="1.2" fill="#e8eef5" stroke="#7f93a8" stroke-width="0.7"/>
+</svg>

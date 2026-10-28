@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 128" width="192" height="128">
+  <title>Jirai page corner: pink energy-drink can with wavy lines, bow and black lace</title>
+  <defs>
+  <linearGradient id="can" x1="0" y1="0" x2="1" y2="0">
+  <stop offset="0" stop-color="#b8487c"/><stop offset="0.22" stop-color="#f6b3d1"/><stop offset="0.36" stop-color="#ffe3ef"/>
+  <stop offset="0.52" stop-color="#ee8fbb"/><stop offset="1" stop-color="#9c3a69"/>
+  </linearGradient>
+  <linearGradient id="rim" x1="0" y1="0" x2="1" y2="0">
+  <stop offset="0" stop-color="#6b6170"/><stop offset="0.4" stop-color="#e9e3ec"/><stop offset="1" stop-color="#5a5060"/>
+  </linearGradient>
+  </defs>
+  <ellipse cx="74" cy="118" rx="34" ry="5" fill="#000000" fill-opacity="0.35"/>
+  <path d="M50 30Q50 24 56 22H92Q98 24 98 30V108Q98 114 92 116H56Q50 114 50 108Z" fill="url(#can)" stroke="#2a0f1c" stroke-width="1.5"/>
+  <path d="M53 22Q53 16 60 15H88Q95 16 95 22Z" fill="url(#rim)" stroke="#2a0f1c" stroke-width="1.2"/>
+  <ellipse cx="74" cy="15" rx="14" ry="2.6" fill="#d9d2dc" stroke="#2a0f1c" stroke-width="1"/>
+  <path d="M53 112Q53 118 60 119H88Q95 118 95 112Z" fill="url(#rim)" stroke="#2a0f1c" stroke-width="1.2"/>
+  <path d="M62 40C57 50 67 58 62 68C57 78 67 86 62 96" fill="none" stroke="#1a0710" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M74 40C69 50 79 58 74 68C69 78 79 86 74 96" fill="none" stroke="#1a0710" stroke-width="4.2" stroke-linecap="round"/>
+  <path d="M86 40C81 50 91 58 86 68C81 78 91 86 86 96" fill="none" stroke="#1a0710" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M50 100H98" stroke="#2a0f1c" stroke-width="1" stroke-opacity="0.5"/>
+  <g transform="translate(118 74)">
+  <path d="M0 0C-14 -16 -30 -10 -26 2C-22 14 -8 10 0 4Z" fill="#f2a6c9" stroke="#2a0f1c" stroke-width="1.4"/>
+  <path d="M0 0C14 -16 30 -10 26 2C22 14 8 10 0 4Z" fill="#f2a6c9" stroke="#2a0f1c" stroke-width="1.4"/>
+  <path d="M-3 5L-12 30L-6 27L-3 32L1 7Z" fill="#e58ab4" stroke="#2a0f1c" stroke-width="1.2"/>
+  <path d="M3 5L12 30L6 27L3 32L-1 7Z" fill="#e58ab4" stroke="#2a0f1c" stroke-width="1.2"/>
+  <rect x="-5" y="-4" width="10" height="11" rx="3" fill="#1a0710"/>
+  </g>
+  <path d="M160 50.45C152.3 43.85 149 39.45 149 35.6C149 32.3 151.75 29.55 155.05 29.55C157.25 29.55 158.9 30.65 160 32.3C161.1 30.65 162.75 29.55 164.95 29.55C168.25 29.55 171 32.3 171 35.6C171 39.45 167.7 43.85 160 50.45Z" fill="#1a0710" stroke="#eaa0c2" stroke-width="1.4"/>
+  <path d="M153 33L167 47M167 33L153 47" stroke="#eaa0c2" stroke-width="1" stroke-opacity="0.7"/>
+  <rect x="0" y="118" width="192" height="3" fill="#eaa0c2" fill-opacity="0.6"/>
+  <path d="M0 121Q8 131 16 121Q24 131 32 121Q40 131 48 121Q56 131 64 121Q72 131 80 121Q88 131 96 121Q104 131 112 121Q120 131 128 121Q136 131 144 121Q152 131 160 121Q168 131 176 121Q184 131 192 121Z" fill="#0b0508" stroke="#eaa0c2" stroke-opacity="0.8" stroke-width="0.8"/>
+</svg>

@@ -6,7 +6,7 @@ export type SkinMotifSlot = "page-corner" | "control-panel-corner" | "preview";
 const motifUrls: Record<Exclude<SkinMotifFamily, "grid">, string> = {
   "frutiger-aero": new URL("../../skins/frutiger-aero/motifs/bubbles-and-sprout.svg", import.meta.url).href,
   tenshi: new URL("../../skins/tenshi/motifs/wing-halo-bandage.svg", import.meta.url).href,
-  jirai: new URL("../../skins/jirai/motifs/ribbon-lace-heart.svg", import.meta.url).href,
+  jirai: new URL("../../skins/jirai/motifs/claw-can.svg", import.meta.url).href,
 };
 
 function currentSkinFamily(): SkinMotifFamily {

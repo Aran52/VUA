@@ -24,14 +24,21 @@ the `.vuaskin` package loader and community import remain separate work.
 | Shape | one corner style and size per role group (actions, fields, indicators, containers, overlays), border weights, named special shapes | shape tokens; clip-path and mask presets chosen by name; see [controls and motion](../design/controls-and-motion.md) |
 | Motion | durations, easing, camera flight time, ambient motion strength | `--vua-motion-*` tokens and the scene engine |
 | Effects | glow, gradients, surface textures, background pattern | existing `--vua-glow-*`, `--vua-aurora-*`, `--vua-shine` plus a pattern slot |
-| Motifs | decorative images in named slots: page corners, room plates, empty states, dialog headers, the base-map frame | `data-skin-slot` elements that render a skin's image or nothing |
+| Materials | the card material (inner rims; a soft shadow for Jirai only), a stitch line inside containers, a sheen, a decoration overlay on large containers (Grid's corner ticks, Tenshi's stripe band, Jirai's lace hem), list-row edges, fill and selection, secondary-button gloss, press feedback, the dialog frame and footer band, the main area's client surface, heading color, Grid's light bars and Latin room tags | `--vua-card-material`, `--vua-card-stitch`, `--vua-surface-highlight`, `--vua-card-decor`, `--vua-row-*`, `--vua-corners-row`, `--vua-selection-ring`, `--vua-button-*`, `--vua-press-*`, `--vua-dialog-*`, `--vua-client-*`, `--vua-heading-color`, `--vua-light-bar`, `--vua-running-bar`, `--vua-tag-display` |
+| Motifs | decorative images in named slots: page corners, room plates, empty states, dialog headers, the base-map frame | illustrations: `data-skin-slot` elements that render a skin's image or nothing; glyphs: one-colour masks in the room or accent colour, drawn by pseudo-elements from `--vua-glyph-mark`, `--vua-glyph-selected` and `--vua-glyph-empty` once `--vua-motif-glyphs` turns them on; tiles: `--vua-header-edge` under the header and `--vua-trim-image` along dialogs |
 | Icons | an optional replacement icon set | the `Icon` component looks up the skin's sanitized SVG before the default |
 | Factory scenes | the base map's room interiors: backdrops, props, characters, particles | a scene pack: sprites plus a declarative layer description (below) |
 | Sound | reserved for later | — |
 
-A skin never changes text, layout order, controls, control sizes, focus behavior or what a screen shows. High
-contrast and Windows forced colors override every skin, and resource-saving mode stills every
-skin's motion, so the accessibility gates hold for all skins.
+A skin never changes text, functions, operation order, focus behavior or what a screen shows. Since
+the author's ruling of 2026-10-28, a built-in preset may add theme-only shell parts that mirror
+functions VUA already has, and may restyle structure: Frutiger Aero adds Vista's breadcrumb address
+bar, a search box that opens the command palette, a command bar for help, settings and modules, and
+a details pane (`features/shell/ThemeChrome.tsx`); Jirai Kei strings the workshop steps as hearts on
+a chain. The structure lives in `packages/design-system/src/themes/*-chrome.css`, scoped to the
+preset. High contrast and Windows forced colors override every skin and return to the ordinary
+shell, and resource-saving mode stills every skin's motion, so the accessibility gates hold for all
+skins.
 
 ## Package format
 
@@ -56,7 +63,8 @@ by VUA's own skins before anyone else uses it.
 A skin is data. It carries no JavaScript and no raw CSS:
 
 - token values are parsed by type and written as custom properties; a value cannot carry `url()`,
-  `@import` or a selector;
+  `@import` or a selector; image tokens such as `--vua-glyph-*` are written by the loader from the
+  skin's own motif files;
 - SVG passes a sanitizer (no scripts, event attributes, `foreignObject` or external references);
 - assets load from a local `vua-skin://` protocol under the renderer's content security policy,
   never from the network;
@@ -91,15 +99,17 @@ frame. A pack that fails validation falls back to the default scene for that roo
 | Skin | Availability | Color and shape | Motion and effects |
 | --- | --- | --- | --- |
 | **Grid** (default) | dark and light | neutral flat surfaces, purple/orange jurisdictions, small-radius rectangles with hairlines and accent light bars | crisp; no neon glow or purple/orange gradients |
-| **Frutiger Aero** | dark and light | blue/cyan and green, rounded or pill controls, static bubble/water motifs and glassy surfaces | restrained specular highlights and gradients; removed by accessibility overrides |
-| **Tenshi Kaiwai** | built-in preset; light | sky blue and white, flat rounded pills and a faint halo pattern | light, bouncy |
-| **Jirai Kei** | built-in preset; dark | pink and black, a low-contrast lace pattern and satin highlights | slower, softer and dimensional |
+| **Frutiger Aero** | dark and light | Windows Vista's Aero: a glass header with glare around a white client area, Segoe UI, 3–6 px radii, glossy push buttons, Explorer's selection, task dialogs with a footer band; dark mode is Vista's black glass | glossy highlights and glare; removed by accessibility overrides |
+| **Tenshi Kaiwai** | built-in preset; light | sky blue and white, a rounded title font, blue-white stripes, zipper tape, a second hairline inside containers, wings and a pixel heart | light, bouncy |
+| **Jirai Kei** | built-in preset; dark | pink and black, a display title font, black lace hems, a dashed pink stitch, a soft card shadow, bows and a pink energy-drink can | slower, softer and dimensional |
 
 The [native skins art brief](../design/native-skins.md) owns the palettes and visual vocabulary.
 Grid and all additional presets are implemented in `packages/design-system/src/tokens.css` and
 `themes/*.css`. Original local SVG motifs in `packages/design-system/skins/` render through
-`SkinMotif` into the sidebar, Appearance previews and the workshop's selected-line header.
-Custom fonts, extended scene packs and `.vuaskin` packages remain separate work.
+`SkinMotif` into the sidebar, Appearance previews and the workshop's selected-line header, and as
+glyphs before room names, section and dialog titles, after the current navigation item, above
+empty states and along the lower edge of dialogs.
+Tenshi and Jirai bundle OFL title-font subsets (see the [art brief](../design/native-skins.md#title-fonts)); extended scene packs and `.vuaskin` packages remain separate work.
 
 ## What to do before slice 13
 

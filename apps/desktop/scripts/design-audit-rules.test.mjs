@@ -181,6 +181,16 @@ test("shadow-panel accepts declared action material but not an arbitrary panel s
   assert.equal(evaluateSnapshot(panel).filter(f => f.rule === "shadow-panel").length, 1);
 });
 
+test("shadow-panel accepts a card shadow only when the theme declares it as card material", () => {
+  const material = "rgba(0, 0, 0, 0.35) 0px 6px 18px 0px";
+  const declared = snapshot([el({ boxShadow: material })]);
+  declared.shadowTokens["--vua-card-material"] = material;
+  assert.equal(evaluateSnapshot(declared).filter(f => f.rule === "shadow-panel").length, 0);
+  const other = snapshot([el({ boxShadow: "rgba(0, 0, 0, 0.5) 0px 12px 30px 0px" })]);
+  other.shadowTokens["--vua-card-material"] = material;
+  assert.equal(evaluateSnapshot(other).filter(f => f.rule === "shadow-panel").length, 1);
+});
+
 test("blur-scope flags card walls, exempts shell structure and overlays", () => {
   const wall = evaluateSnapshot(snapshot([el({ backdropFilter: "blur(10px)" })]));
   assert.equal(wall.filter(f => f.rule === "blur-scope").length, 1);

@@ -15,6 +15,9 @@ on:
     paths:
       - "apps/**"
       - "packages/**"
+      - "services/recipe-links/**"
+      - "schemas/amf-recipe/**"
+      - "schemas/selection-share/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -33,6 +36,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  share-links:
+    name: Share-link service (offline tests and typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Share-link contract, storage and material-page tests
+        run: pnpm --filter @vua/recipe-links test
+      - name: Share-link TypeScript boundary
+        run: pnpm --filter @vua/recipe-links typecheck
   check:
     runs-on: windows-latest
     steps:

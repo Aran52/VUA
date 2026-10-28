@@ -1,0 +1,32 @@
+[Unit]
+Description=VUA public share links
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=vua-recipe-links
+StateDirectoryMode=0700
+WorkingDirectory=/opt/vua-links
+Environment=PUBLIC_ORIGIN=https://ph-r.com
+Environment=DATA_DIR=/var/lib/vua-recipe-links
+Environment=PORT=6191
+Environment=PUBLISHES_PER_HOUR=20
+Environment=TRUST_PROXY=1
+ExecStart=/usr/bin/node --max-old-space-size=96 /opt/vua-links/services/recipe-links/dist/src/node.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryHigh=128M
+MemoryMax=192M
+
+[Install]
+WantedBy=multi-user.target

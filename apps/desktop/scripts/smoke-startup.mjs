@@ -1,6 +1,7 @@
 // Real Main/preload/renderer, isolated UI preferences, no vendor or hardware actions.
 import { app, BrowserWindow } from "electron";
 import { createRequire } from "node:module";
+import childProcess from "node:child_process";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import os from "node:os";
@@ -18,6 +19,24 @@ process.env.VUA_DEV_USER_DATA = path.join(output, "profile");
 process.env.VUA_PROVIDER_EXECUTABLE = process.env.VUA_TEST_HOST_EXECUTABLE ?? path.resolve(desktop, "../../target/release/vua-orchestrator-provider.exe");
 process.env.VUA_AMF_EXECUTABLE = process.env.VUA_TEST_AMF_EXECUTABLE ?? path.resolve(desktop, "../../target/release/vua-amf-provider.exe");
 delete process.env.VUA_RENDERER_URL;
+// Exercise a valid cold handshake that exceeds the old 7.5-second UI wait.
+// Only this diagnostic delays the handshake request; the real provider and its timeout stay intact.
+const slowProvider = process.argv.includes("--slow-provider");
+const spawn = childProcess.spawn;
+let slowedProvider = false;
+if (slowProvider) childProcess.spawn = (...args) => {
+  const child = spawn(...args);
+  if (args[0] === process.env.VUA_PROVIDER_EXECUTABLE) {
+    slowedProvider = true;
+    const write = child.stdin.write;
+    child.stdin.write = function (...writeArgs) {
+      child.stdin.write = write;
+      setTimeout(() => write.apply(this, writeArgs), 12_000);
+      return true;
+    };
+  }
+  return child;
+};
 const localeCase = process.argv.includes("--locale-unmatched") ? "unmatched"
   : process.argv.includes("--locale-ordered") ? "ordered" : "native";
 if (localeCase === "unmatched") app.getPreferredSystemLanguages = () => ["fr-FR", "de-DE"];
@@ -34,8 +53,9 @@ let main;
 let exitCode = 1;
 app.on("will-quit", () => { if (exitCode) app.exit(exitCode); });
 const deadline = setTimeout(() => { console.error("Startup UI smoke timed out"); app.quit(); }, 75_000);
-async function waitFor(check, label, timeout = 7_500) {
-  for (const until = Date.now() + timeout; Date.now() < until;) { if (await check()) return; await delay(50); }
+async function waitFor(check, label, timeoutMs = 7_500) {
+  const expires = performance.now() + timeoutMs;
+  while (performance.now() < expires) { if (await check()) return; await delay(50); }
   throw new Error(`Timeout: ${label}`);
 }
 const js = source => main.webContents.executeJavaScript(source, true);
@@ -87,10 +107,12 @@ async function run() {
       return {transform,valid:matrix.is2D&&[matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f].every((value,i)=>Math.abs(value-expected[i])<0.000001)};
     })()`);
     assert(rayRotation.valid, `Black rays keep the approved 120-degree direction: ${rayRotation.transform}`);
+    // Native startup permits a 15-second handshake before opening the renderer.
+    // Allow that existing budget plus page loading on a cold Windows runner.
     await waitFor(() => {
       main = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().startsWith("file:") && !window.webContents.getURL().includes("surface=splash"));
       return main && !main.webContents.isLoading();
-    }, "main application load", 20_000);
+    }, "main application load", 30_000);
     if (!splash.isDestroyed()) {
       const rejected = await splash.webContents.executeJavaScript('window.vua.startup.complete().then(()=>false,()=>true)');
       assert(rejected, "The splash cannot announce main-frame readiness");
@@ -100,6 +122,7 @@ async function run() {
     assert(await js('document.querySelectorAll(".vua-onboarding select option").length===5 && document.querySelectorAll(".vua-onboarding input").length===0'), "All five delivered languages are available without a goals questionnaire");
     await waitFor(() => splash.isDestroyed(), "startup window teardown");
     assert(shown.filter(item => item.window === main.id).length === 1 && shown.filter(item => item.window === main.id).every(item => !item.loading), "Main opens once after loading and the small splash is destroyed");
+    if (slowProvider) assert(slowedProvider && await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"slow-startup",method:"app.snapshot",params:{}}).then(result=>result.ok)'), "A delayed native handshake still reaches the first-use UI with a working Gateway");
     const nativeLanguages = app.getPreferredSystemLanguages();
     assert(await js(`JSON.stringify(window.vua.startup.systemLanguages)===${JSON.stringify(JSON.stringify(nativeLanguages))}`), "Preload supplies the Windows language preference list");
     const match = nativeLanguages.map(tag => tag.trim().toLowerCase()).map(tag => /^zh-(hant|tw|hk|mo)(-|$)/.test(tag) ? "zh-TW" : tag.startsWith("zh") ? "zh-CN" : tag.startsWith("en") ? "en" : tag.startsWith("ja") ? "ja" : tag.startsWith("ko") ? "ko" : null).find(Boolean) ?? "en";
@@ -173,6 +196,6 @@ async function run() {
     console.error(error);
     if (main && !main.isDestroyed()) await capture(main, "failure");
     console.error(JSON.stringify({ evidence: output, rendererErrors: errors }));
-  } finally { clearTimeout(deadline); app.quit(); }
+  } finally { childProcess.spawn = spawn; clearTimeout(deadline); app.quit(); }
 }
 void run();

@@ -95,8 +95,8 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:network
       - name: Native splash, first-use language and optional tour (isolated profile)
         run: pnpm --filter @vua/desktop smoke:startup
-      - name: Unsupported system language fallback
-        run: pnpm --filter @vua/desktop smoke:startup --locale-unmatched
+      - name: Unsupported system language fallback after a slow native handshake
+        run: pnpm --filter @vua/desktop smoke:startup --locale-unmatched --slow-provider
       - name: Ordered Windows language preferences
         run: pnpm --filter @vua/desktop smoke:startup --locale-ordered
       - name: Resource summary and jurisdiction logo (isolated profile)

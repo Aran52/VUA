@@ -19,6 +19,7 @@ class FakeProviderProcess extends EventEmitter {
   readonly stderr = new PassThrough();
   readonly stdio = [this.stdin, this.stdout, this.stderr];
   killed = false;
+  shutdownAfterExit = false;
   #buffer = "";
   readonly #handshakePayload: unknown;
 
@@ -66,12 +67,18 @@ class FakeProviderProcess extends EventEmitter {
       return;
     }
     if (kind === "prepare_shutdown" || kind === "continue_shutdown") {
-      this.#respond(frameId, {
+      const respond = () => this.#respond(frameId, {
         contractVersion: "0.1",
         outcome: "safe_to_stop",
         blockingTasks: [],
       });
-      queueMicrotask(() => this.finish(0));
+      if (this.shutdownAfterExit) {
+        this.emit("exit", 0, null);
+        queueMicrotask(() => { respond(); this.emit("close", 0, null); });
+      } else {
+        respond();
+        queueMicrotask(() => this.finish(0));
+      }
       return;
     }
     const request = frame.payload as ApplicationRequestV01;
@@ -210,6 +217,27 @@ describe("supervised process Provider v0.1", () => {
       .resolves.toMatchObject({ outcome: "safe_to_stop" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(provider.status()).toMatchObject({ state: "stopped", acceptingCalls: false });
+  });
+
+  it("drains the final shutdown response when exit arrives before stdout", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    processes[0]!.shutdownAfterExit = true;
+    const shutdown = provider.prepareShutdown({ timeoutMs: 1_000 });
+    expect(provider.status().acceptingCalls).toBe(false);
+    await expect(shutdown).resolves.toMatchObject({ outcome: "safe_to_stop" });
+    await expect(provider.waitForExit(1_000)).resolves.toBe(true);
+    expect(provider.status()).toMatchObject({ state: "stopped", acceptingCalls: false });
+  });
+
+  it("rejects an unanswered request after an unexpected exit closes its streams", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    processes[0]!.stdin.removeAllListeners("data");
+    const request = provider.invoke(getRequest());
+    processes[0]!.crash();
+    await expect(request).rejects.toThrow("Provider exited");
+    expect(provider.status()).toMatchObject({ state: "failed", acceptingCalls: false });
   });
 
   it("reports an unexpected process exit and permits an explicit restart", async () => {

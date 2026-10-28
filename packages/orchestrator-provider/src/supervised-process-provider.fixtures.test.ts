@@ -57,7 +57,7 @@ class VectorFakeProcess extends EventEmitter {
   }
 
   kill(): boolean {
-    queueMicrotask(() => this.emit("exit", 0, null));
+    queueMicrotask(() => { this.emit("exit", 0, null); this.emit("close", 0, null); });
     return true;
   }
 

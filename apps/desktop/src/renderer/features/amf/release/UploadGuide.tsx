@@ -11,6 +11,7 @@
  * Drop the four images in as <img> (or MediaSlot) inside each .vua-upload-guide__shot.
  */
 import { strings } from "../../../i18n/index.ts";
+import { UploadEligibilityNote } from "../../help/UploadEligibilityNote.tsx";
 
 const copy = strings.releaseRoom.uploadGuide;
 
@@ -24,6 +25,7 @@ export function UploadGuide() {
   return <section className="vua-album__block vua-upload-guide" id="release-upload-guide" aria-label={copy.title}>
     <h3>{copy.title}</h3>
     <p className="vua-caption vua-text-secondary">{copy.intro}</p>
+    <UploadEligibilityNote />
     <ol className="vua-upload-guide__steps">{steps.map((step, index) => <li key={index} id={`release-upload-guide-step-${index + 1}`}>
       <strong>{step.title}</strong>
       <p>{step.text}</p>

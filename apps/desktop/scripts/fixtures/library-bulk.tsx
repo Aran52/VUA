@@ -82,7 +82,7 @@ const pause = () => new Promise<void>(resolve => setTimeout(resolve, 35));
 const text = () => document.body.textContent ?? "";
 const check = (value: unknown, label: string) => { if (!value) throw Error(label); checks.push(label); };
 const until = async (test: () => boolean, label: string) => { const deadline = performance.now() + 6000; while (!test()) { if (performance.now() > deadline) throw Error(`${label}: ${text()}`); await pause(); } };
-const button = (label: string) => { const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
+const button = (label: string) => { const scope = document.querySelector('[role="dialog"]') ?? document; const found = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
 const click = async (label: string) => { const node = button(label); if (node.disabled) throw Error(`Disabled ${label}`); node.click(); await pause(); };
 const cards = () => [...document.querySelectorAll<HTMLElement>("[data-selection-id]")];
 async function menu() {
@@ -110,6 +110,7 @@ async function run() {
   await click(copy.cardMenu.openFolder); await until(() => !!document.querySelector('[role="dialog"]'), "product folder choice");
   check(text().includes(copy.cardMenu.chooseFolder) && openedFolders.length === 1, "a product with multiple directories offers a choice instead of opening a guessed root");
   await click("installed.zip");
+  await until(() => openedFolders.at(-1) === "whi-synthetic" && !document.querySelector('[role="dialog"]'), "chosen product folder opens and the chooser finishes closing");
   check(openedFolders.at(-1) === "whi-synthetic" && !document.querySelector('[role="dialog"]'), "chosen product directory uses its recorded entry identity");
   await menu();
   check(![...document.querySelectorAll(".vua-context-menu button")].some(button => button.textContent?.trim() === copy.cardMenu.openFolder), "multi-card selection never exposes a folder action");

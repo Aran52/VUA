@@ -16,7 +16,7 @@
   gap: var(--vua-space-1);
   padding: var(--vua-space-1);
   border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: var(--vua-bg-panel);
   width: fit-content;
 }
@@ -24,7 +24,7 @@
 .vua-packages__section-tab {
   appearance: none;
   border: 1px solid transparent;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: transparent;
   color: var(--vua-text-secondary);
   font: var(--vua-font-body);
@@ -88,7 +88,7 @@
 .vua-packages__invalid-projects svg {
   position: relative;
   top: 2px;
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
   flex: 0 0 auto;
 }
 
@@ -106,7 +106,7 @@
 
 .vua-packages__migration svg {
   flex: 0 0 auto;
-  margin-top: 2px;
+  margin-top: var(--vua-space-1);
   color: var(--vua-accent-text);
 }
 
@@ -415,8 +415,8 @@
 
 .vua-packages__warning-strip svg {
   flex: 0 0 auto;
-  margin-top: 2px;
-  color: var(--vua-warning);
+  margin-top: var(--vua-space-1);
+  color: var(--vua-warning-text);
 }
 
 .vua-packages__warning-strip p {
@@ -446,7 +446,7 @@
   position: relative;
   top: 2px;
   flex: 0 0 auto;
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-packages__change-group {
@@ -474,7 +474,7 @@
 .vua-packages__legacy-list {
   margin: 0;
   padding-left: var(--vua-space-4);
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-family: var(--vua-font-mono);
   font-size: var(--vua-text-caption-size);
   line-height: var(--vua-text-caption-leading);
   user-select: text;
@@ -543,7 +543,7 @@
 }
 
 .vua-packages__health[data-health="unreachable"] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-packages__health[data-health="unreachable"] .vua-packages__health-dot {
@@ -586,6 +586,8 @@
   align-items: center;
   gap: var(--vua-space-2);
 }
+
+.vua-packages__repo-refresh { flex: 0 0 112px; }
 
 /* A2 安装入口(026 v0.2 消费批):「安装最新」行与版本行内安装钮 */
 .vua-packages__install-latest {
@@ -753,7 +755,7 @@
 .vua-packages__cache-note {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--vua-space-2);
   margin: 0;
   font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading);
   color: var(--vua-text-secondary, var(--vua-text-2, inherit));

@@ -80,6 +80,7 @@ const packagesView: PackagesView = {
     { repoId: "nadena.dev.vpm-repos", name: "bd_", url: "https://vpm.nadena.dev/vpm.json", localPath: null, cached: true, enabled: true },
     { repoId: "jp.lilxyzw.vpm-repos", name: "lilxyzw", url: "https://lilxyzw.github.io/vpm-repos/vpm.json", localPath: null, cached: true, enabled: true },
     { repoId: "com.example.tools", name: "Example tools", url: "https://tools.example.com/vpm.json", localPath: null, cached: false, enabled: false },
+    { repoId: null, name: "Local preview", url: null, localPath: "D:\\Synthetic\\VPM", cached: false },
   ],
 };
 const unavailable = () => Promise.resolve({ kind: "unavailable" } as const);
@@ -131,7 +132,10 @@ export function controlPreview(view: string, base: VuaGateway, production: AmfPr
   } as AmfProductionPort;
   // The package view loads once the AMF module reports ready.
   const amfModule = { ...base.amfModule, snapshot: async () => ({ schemaVersion: "0.1" as const, moduleId: "amf" as const, installed: true, state: "ready" as const }) };
-  const gateway = { ...base, amfModule, amfProduction, packages: packagesPort, projectOps: projectOps(base.projectOps) };
+  const previewPackages = view === "control-packages-repos-disabled" ? { ...packagesPort,
+    snapshot: async () => ({ ...packagesView, blocks: { ...packagesView.blocks, repoLifecycle: false } }),
+  } : packagesPort;
+  const gateway = { ...base, amfModule, amfProduction, packages: previewPackages, projectOps: projectOps(base.projectOps) };
   try { localStorage.setItem("vua-amf-control-recipes-view-v01", view === "control-recipes-list" ? "list" : "graph"); } catch { /* preview only */ }
   // Package page modes: the view suffix picks the workshop's permission mode.
   try { localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("-full") ? "full" : view.endsWith("-smart") ? "smart" : "ask"); } catch { /* preview only */ }
@@ -140,7 +144,7 @@ export function controlPreview(view: string, base: VuaGateway, production: AmfPr
   const selected = view === "control-recipes-selected" ? recipeNodeId("stage-meiyun") : view === "control-recipes-part" ? packageNodeId("nadena.dev.modular-avatar")
     : view === "control-recipes-list" ? materialNodeId(outfits.cap.id) : null;
   const screen: Screen = view.startsWith("control-packages-project") ? { kind: "project", key: "work:finished" } : view === "control-packages-unlisted" ? { kind: "project", key: "work:waiting" }
-    : view === "control-packages-repos" ? { kind: "repos" } : { kind: "projects" };
+    : view.startsWith("control-packages-repos") ? { kind: "repos" } : { kind: "projects" };
   const page = view.startsWith("control-packages")
     ? <AmfRoom page="packages" navigate={() => {}}><ControlPackagesPage onNavigate={() => {}} initialScreen={screen}/></AmfRoom>
     : <AmfRoom page="recipe" navigate={() => {}}><ControlRecipesPage onNavigate={() => {}} initialSelected={selected}/></AmfRoom>;

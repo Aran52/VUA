@@ -74,6 +74,23 @@ test("type-scale flags 'normal' line height", () => {
   assert.equal(findings.filter(f => f.rule === "type-scale").length, 1);
 });
 
+test("type rules check painted text and fields rather than icon line-box scaffolding", () => {
+  const findings = evaluateSnapshot(snapshot([
+    el({ hasText: false, fontSize: 13, lineHeight: 0, fontWeight: 700 }),
+    el({ hasText: false, isTextField: true, fontSize: 13, lineHeight: 18, fontWeight: 700 }),
+  ]), { rules: ["type-scale", "type-weight"] });
+  assert.deepEqual(findings.map(finding => finding.index), [1, 1]);
+});
+
+test("native select line boxes retain platform leading while token sizes still apply", () => {
+  const findings = evaluateSnapshot(snapshot([
+    el({ tag: "select", fontSize: 12, lineHeight: "normal", nativeLineHeight: true }),
+    el({ tag: "select", fontSize: 13, lineHeight: "normal", nativeLineHeight: true }),
+    el({ tag: "select", fontSize: 12, lineHeight: "normal", nativeLineHeight: false }),
+  ]), { rules: ["type-scale"] });
+  assert.deepEqual(findings.map(finding => finding.index), [1, 2]);
+});
+
 test("type-weight flags weights outside 400/600", () => {
   const findings = evaluateSnapshot(snapshot([el({ fontWeight: 500 }), el({ fontWeight: 600 }), el({ fontWeight: 400 })]));
   assert.equal(findings.filter(f => f.rule === "type-weight").length, 1);
@@ -119,31 +136,49 @@ test("spacing-grid passes multiples of 4 and border compensation, flags 6/10/14"
   assert.deepEqual(flagged.map(f => f.details.property).sort(), ["margin-right", "row-gap"]);
 });
 
-test("spacing-grid exempts symmetric horizontal centering margins", () => {
-  const findings = evaluateSnapshot(snapshot([el({ margins: [0, 33, 0, 33] })]));
+test("spacing-grid exempts actual auto margins but still flags equal fixed margins", () => {
+  const findings = evaluateSnapshot(snapshot([el({ margins: [0, 34, 0, 34], autoMargins: [false, true, false, true] })]));
   assert.equal(findings.filter(f => f.rule === "spacing-grid").length, 0);
+  assert.equal(evaluateSnapshot(snapshot([el({ margins: [0, 6, 0, 6] })])).filter(f => f.rule === "spacing-grid").length, 2);
 });
 
 test("radius-token accepts 0, tokens, pill and circles", () => {
   const findings = evaluateSnapshot(snapshot([
-    el({ radius: [0, 6, 10, 12] }),
+    el({ radius: [0, 2, 4, 8] }),
     el({ radius: [999, 0, 0, 0] }),
     el({ radius: [{ pct: 50 }, 0, 0, 0] }),
   ]));
   assert.equal(findings.filter(f => f.rule === "radius-token").length, 0);
-  const off = evaluateSnapshot(snapshot([el({ radius: [8, 8, 8, 8] })]));
+  const off = evaluateSnapshot(snapshot([el({ radius: [6, 6, 6, 6] })]));
   const flagged = off.filter(f => f.rule === "radius-token");
   assert.equal(flagged.length, 1);
-  assert.ok(flagged[0].details.nearest === 6 || flagged[0].details.nearest === 10);
+  assert.ok(flagged[0].details.nearest === 4 || flagged[0].details.nearest === 8);
 });
 
-test("shadow-panel flags ordinary panels but not glow, elevated tokens or floating layers", () => {
+test("shadow-panel distinguishes cast shadows from selection and focus edges", () => {
+  for (const boxShadow of ["inset 0 -2px 0 rgb(255, 122, 69)", "rgb(255, 122, 69) 0px 0px 0px 2px", "rgba(0,0,0,.2) 0px 0px 0px 0px"]) {
+    assert.equal(evaluateSnapshot(snapshot([el({ boxShadow })])).filter(f => f.rule === "shadow-panel").length, 0);
+  }
+  assert.equal(evaluateSnapshot(snapshot([el({ boxShadow: "0 4px 0 black" })])).filter(f => f.rule === "shadow-panel").length, 1);
   const glow = evaluateSnapshot(snapshot([el({ boxShadow: "0 0 18px rgba(167,139,250,0.45)" })]));
   assert.equal(glow.filter(f => f.rule === "shadow-panel").length, 0);
   const shadow = evaluateSnapshot(snapshot([el({ boxShadow: "0 4px 12px rgba(0,0,0,0.4)" })]));
   assert.equal(shadow.filter(f => f.rule === "shadow-panel").length, 1);
   const floating = evaluateSnapshot(snapshot([el({ boxShadow: "0 4px 12px rgba(0,0,0,0.4)", overlayContext: true })]));
   assert.equal(floating.filter(f => f.rule === "shadow-panel").length, 0);
+  const elevated = snapshot([el({ boxShadow: "0 8px 28px black" })]);
+  elevated.shadowTokens["--vua-shadow-elevated"] = "0 8px 28px black";
+  assert.equal(evaluateSnapshot(elevated).filter(f => f.rule === "shadow-panel").length, 1, "an elevation token does not authorize an ordinary panel's cast shadow");
+});
+
+test("shadow-panel accepts declared action material but not an arbitrary panel shadow", () => {
+  const material = "0 3px 0 #46192f";
+  const action = snapshot([el({ tag: "button", cls: ["vua-button", "vua-button--primary"], boxShadow: material })]);
+  action.shadowTokens["--vua-action-shadow"] = material;
+  assert.equal(evaluateSnapshot(action).filter(f => f.rule === "shadow-panel").length, 0);
+  const panel = snapshot([el({ boxShadow: material })]);
+  panel.shadowTokens["--vua-action-shadow"] = material;
+  assert.equal(evaluateSnapshot(panel).filter(f => f.rule === "shadow-panel").length, 1);
 });
 
 test("blur-scope flags card walls, exempts shell structure and overlays", () => {
@@ -161,11 +196,27 @@ test("one-accent flags mixed jurisdiction families and multiple filled primaries
   const oneAccent = mixed.filter(f => f.rule === "one-accent");
   assert.equal(oneAccent.length, 1);
   assert.deepEqual(oneAccent[0].details.families.sort(), ["orange", "purple"]);
+  assert.equal(evaluateSnapshot(snapshot([
+    el({ family: "purple" }), el({ family: "orange" }),
+  ]), { rules: ["one-accent"] }).length, 0, "semantic graph and room colours are not competing jurisdiction actions");
   const primaries = evaluateSnapshot(snapshot([
     el({ backgroundColor: { r: 167, g: 139, b: 250, a: 1 }, primary: true, interactive: true, isControl: true }),
     el({ backgroundColor: { r: 167, g: 139, b: 250, a: 1 }, primary: true, interactive: true, isControl: true }),
   ]));
   assert.equal(primaries.filter(f => f.rule === "one-accent").length, 1);
+});
+
+test("one primary is allowed in each action scope and inert controls never compete", () => {
+  const inPage = el({ primary: true, actionScope: "page" });
+  const inDialog = el({ primary: true, actionScope: "dialog" });
+  const check = elements => evaluateSnapshot(snapshot(elements), { rules: ["one-accent"] });
+  assert.equal(check([inPage, inDialog]).length, 0);
+  assert.equal(check([inPage, { ...inPage }]).length, 1);
+  assert.equal(check([inPage, { ...inPage, disabled: true }]).length, 0);
+  assert.equal(check([inPage, { ...inPage, isChoice: true }]).length, 0, "selected choices are not primary commands");
+  assert.equal(check([inPage, { ...inPage, indicatorRole: true }]).length, 0, "status colours do not declare a primary command");
+  assert.equal(check([{ ...inPage, primaryGroup: "split" }, { ...inPage, primaryGroup: "split" }]).length, 0, "a split action is one primary group");
+  assert.equal(evaluateSnapshot(snapshot([el({ primary: true, isControl: true, isChoice: true, rect: { x: 0, y: 0, w: 28, h: 28 } })]), { rules: ["target-size"] }).length, 0);
 });
 
 test("one-accent is exemptable per view (factory map)", () => {
@@ -195,7 +246,7 @@ test("overflow flags hidden clipping without ellipsis, exempts ellipsis and line
   const clamp = evaluateSnapshot(snapshot([el({ overflowY: "hidden", scrollH: 220, clientH: 40, lineClamp: "2" })]));
   assert.equal(clamp.filter(f => f.rule === "overflow").length, 0);
   const scrolled = evaluateSnapshot(snapshot([el({ overflowX: "hidden", scrollW: 220, clientW: 100, insideScrollContainer: true })]));
-  assert.equal(scrolled.filter(f => f.rule === "overflow").length, 0);
+  assert.equal(scrolled.filter(f => f.rule === "overflow").length, 1, "a scroller does not excuse a child clipping its own text");
 });
 
 test("overflow flags elements beyond the viewport", () => {
@@ -205,9 +256,10 @@ test("overflow flags elements beyond the viewport", () => {
   assert.equal(flagged[0].details.kind, "viewport");
 });
 
-test("radius-nesting flags equal-or-larger child radius, exempts pills/circles", () => {
-  const nested = evaluateSnapshot(snapshot([el({ radius: [10, 10, 10, 10], ancestorRadius: 10 })]));
+test("radius-nesting follows the approved inner-not-larger rule, exempts pills/circles", () => {
+  const nested = evaluateSnapshot(snapshot([el({ radius: [12, 12, 12, 12], ancestorRadius: 10 })]));
   assert.equal(nested.filter(f => f.rule === "radius-nesting").length, 1);
+  assert.equal(evaluateSnapshot(snapshot([el({ radius: [10, 10, 10, 10], ancestorRadius: 10 })])).filter(f => f.rule === "radius-nesting").length, 0);
   const pill = evaluateSnapshot(snapshot([el({ radius: [999, 999, 999, 999], ancestorRadius: 10 })]));
   assert.equal(pill.filter(f => f.rule === "radius-nesting").length, 0);
   const stepped = evaluateSnapshot(snapshot([el({ radius: [6, 6, 6, 6], ancestorRadius: 10 })]));
@@ -230,16 +282,46 @@ test("surface-nesting reports only self-surfaces, once each; svg and inner text 
   // A shallow self-surface passes.
   const shallow = evaluateSnapshot(snapshot([el({ selfSurface: true, surfaceDepth: 2 })]));
   assert.equal(shallow.filter(f => f.rule === "surface-nesting").length, 0);
+  const progress = evaluateSnapshot(snapshot([
+    el({ path: [1, 0], selfSurface: true, surfaceDepth: 3, hasText: false, rect: { x: 0, y: 0, w: 80, h: 6 } }),
+    el({ path: [1, 1], selfSurface: true, surfaceDepth: 3 }),
+  ]));
+  assert.equal(progress.filter(f => f.rule === "surface-nesting").length, 1, "thin progress indicators do not become container layers");
 });
 
 test("theme-invariant classification covers the layout rules only", () => {
-  for (const rule of ["spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting", "surface-nesting", "target-size", "overflow"]) {
+  for (const rule of ["spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting", "surface-nesting", "target-size", "overflow", "grid-shape"]) {
     assert.ok(isThemeInvariant(rule), `${rule} is theme-invariant`);
   }
   for (const rule of ["color-token", "contrast", "shadow-panel", "one-accent", "border-density"]) {
     assert.ok(!isThemeInvariant(rule), `${rule} is theme-dependent`);
   }
-  assert.equal(THEME_INVARIANT_RULES.size, 8);
+  assert.equal(THEME_INVARIANT_RULES.size, 9);
+});
+
+test("Grid roles keep one radius on every corner and never cut a corner", () => {
+  const valid = { shapeRole: "action", shapeExpectedRadius: 4,
+    cornerShapes: ["round", "round", "round", "round"], cornerPairs: [[4, 4], [4, 4], [4, 4], [4, 4]] };
+  const elements = [el(valid), el({ ...valid, cornerPairs: [[999, 999], [999, 999], [999, 999], [999, 999]] }),
+    el({ ...valid, cornerShapes: ["bevel", "round", "round", "round"] }),
+    el({ ...valid, clipPath: "polygon(0px 8px, 8px 0px, 100% 0px, 100% 100%, 0px 100%)" }),
+    el({ ...valid, cornerPairs: [[4, 4], [0, 0], [4, 4], [4, 4]] })];
+  assert.deepEqual(evaluateSnapshot(snapshot(elements), { rules: ["grid-shape"] }).map(f => f.index), [1, 2, 3, 4]);
+});
+
+test("selection never grants a workshop step cast elevation", () => {
+  const approved = "rgba(0, 0, 0, 0.65) 0px 4px 0px 0px, rgba(0, 0, 0, 0.5) 0px 12px 20px 0px";
+  const elements = [el({ workshopStepActive: true, boxShadow: approved }), el({ boxShadow: approved }),
+    el({ workshopStepActive: true, boxShadow: "rgba(0,0,0,.5) 0px 8px 24px" })];
+  const result = evaluateSnapshot(snapshot(elements, { shadowTokens: { "--vua-shadow-workshop-active": approved } }), { rules: ["shadow-panel"] });
+  assert.deepEqual(result.map(f => f.index), [0, 1, 2]);
+});
+
+test("quiet and accent roles read their own radius token", () => {
+  const field = { shapeRole: "field", shapeTreatment: "quiet", shapeExpectedRadius: 4, cornerPairs: [[4,4],[4,4],[4,4],[4,4]] };
+  const card = { shapeRole: "container", shapeTreatment: "accent", shapeExpectedRadius: 8, cornerPairs: [[8,8],[8,8],[8,8],[8,8]] };
+  const result = evaluateSnapshot(snapshot([el(field), el(card), el({ ...card, cornerPairs: [[4,4],[4,4],[4,4],[4,4]] })]), { rules: ["grid-shape"] });
+  assert.deepEqual(result.map(f => f.index), [2]);
 });
 
 test("capture failures: vite error overlay and near-empty pages are unusable", () => {
@@ -247,6 +329,15 @@ test("capture failures: vite error overlay and near-empty pages are unusable", (
   assert.match(classifyCapture({ errorOverlay: false, elementCount: 3 }, 6), /floor 6/);
   assert.equal(classifyCapture({ errorOverlay: false, elementCount: 10 }, 6), null, "sparsest real view passes");
   assert.equal(classifyCapture({ errorOverlay: false, elementCount: 28 }, 6), null);
+  assert.match(classifyCapture({ elementCount: 40 }, 6, { requireFoundation: true }), /foundation/);
+  assert.equal(classifyCapture({ elementCount: 40, tokenRaw: { "--vua-font-body": "400 14px/20px sans-serif" }, palette: [{ name: "--vua-text-strong" }] }, 6, { requireFoundation: true }), null);
+});
+
+test("capture rejects a theme label that disagrees with the rendered App", () => {
+  const painted = { elementCount: 76, theme: "dark" };
+  assert.match(classifyCapture(painted, 6, { requestedTheme: "light" }), /requested theme light, collected dark/);
+  assert.match(classifyCapture({ elementCount: 76 }, 6, { requestedTheme: "light" }), /no theme/);
+  assert.equal(classifyCapture(painted, 6, { requestedTheme: "dark" }), null);
 });
 
 test("theme-invariant findings aggregate once: the light state drops layout rules", () => {
@@ -331,6 +422,8 @@ test("baseline check flags new groups and reports resolved keys", () => {
 // ---- color math ---------------------------------------------------------------
 
 test("color math: parse, distance, composite and WCAG ratio", () => {
+  assert.deepEqual(parseColor("color(srgb 0.5 0 1 / 25%)"), { r: 127.5, g: 0, b: 255, a: 0.25 });
+  assert.ok(Math.abs(parseColor("color(srgb-linear .5 0 0)").r - 187.516) < 0.01);
   assert.deepEqual(parseColor("#a78bfa"), { r: 167, g: 139, b: 250, a: 1 });
   assert.deepEqual(parseColor("rgb(255 0 0 / 0.5)"), { r: 255, g: 0, b: 0, a: 0.5 });
   assert.equal(parseColor("not-a-color"), null);

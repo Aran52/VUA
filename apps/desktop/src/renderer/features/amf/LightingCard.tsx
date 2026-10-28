@@ -56,7 +56,7 @@ export function LightingCard({ port, run, level, disabled, onStarted, onError }:
         </li>)}</ul>
         {plan.skipped.length > 0 && <p className="vua-caption vua-text-secondary">{format(copy.shared, { count: String(plan.skipped.length) })}</p>}
         <p className="vua-caption vua-text-secondary">{copy.restoreNote}</p>
-        <div className="vua-n3__actions"><Button variant="primary" disabled={disabled || starting || chosen.size === 0} onClick={() => { void apply(); }} data-nav-id="workshop-lighting-apply">
+        <div className="vua-n3__actions"><Button disabled={disabled || starting || chosen.size === 0} onClick={() => { void apply(); }} data-nav-id="workshop-lighting-apply">
           {starting ? copy.applying : format(copy.apply, { count: String(chosen.size) })}</Button></div>
       </>}
   </Card>;

@@ -10,7 +10,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--vua-corners-status, 50%);
 }
 
 .vua-status-light--lg .vua-status-light__dot {

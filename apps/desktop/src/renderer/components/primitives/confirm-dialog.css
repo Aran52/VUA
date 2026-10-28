@@ -31,7 +31,7 @@
 }
 
 .vua-confirm-dialog__title[data-danger] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-confirm-dialog__title[data-danger]::before {
@@ -63,7 +63,7 @@
   border: 1px solid var(--vua-error);
   border-radius: var(--vua-radius-control);
   background: color-mix(in srgb, var(--vua-error) 12%, transparent);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-confirm-dialog__warning p {
@@ -82,17 +82,15 @@
   padding: 0 var(--vua-space-3) var(--vua-space-3);
 }
 
-/* 危险实心确认按钮(示意图 B 红底形态):error 底 + on-status 近黑字,
-   与状态灯同法——两主题与 HC 退化下对比均达标;局部覆盖描边 danger */
+/* Filled destructive confirmation needs a foreground for each error palette. */
 .vua-confirm-dialog__actions .vua-button--danger {
   background: var(--vua-error);
   border-color: var(--vua-error);
-  color: var(--vua-on-status);
+  color: var(--vua-on-error);
 }
 
 .vua-confirm-dialog__actions .vua-button--danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--vua-error) 84%, var(--vua-on-status));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vua-error) 24%, transparent);
 }
 
 /* A closing dialog moves out without taking clicks. */
@@ -102,5 +100,5 @@
 
 .vua-confirm-dialog__text {
   margin: 0;
-  line-height: 1.6;
+  line-height: var(--vua-text-body-leading);
 }

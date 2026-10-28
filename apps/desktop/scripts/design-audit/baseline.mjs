@@ -41,13 +41,23 @@ export function entryCounts(group) {
   return { instances: group.elements.length };
 }
 
-export async function writeBaseline(file, allGroups, meta) {
+function baselineEntries(groups) {
   const entries = {};
-  for (const group of allGroups) {
-    entries[group.key] = { instances: group.elements.length, severity: group.severity };
+  const rank = { hint: 0, warning: 1, error: 2 };
+  for (const group of groups) {
+    const previous = entries[group.key];
+    entries[group.key] = {
+      instances: Math.max(previous?.instances ?? 0, group.elements.length),
+      severity: previous && rank[previous.severity] > rank[group.severity] ? previous.severity : group.severity,
+    };
   }
+  return entries;
+}
+
+export async function writeBaseline(file, allGroups, meta) {
+  const entries = baselineEntries(allGroups);
   const payload = {
-    toolVersion: 1,
+    toolVersion: 2,
     generatedAt: meta.generatedAt,
     commit: meta.commit ?? null,
     views: meta.views,
@@ -71,11 +81,20 @@ export async function loadBaseline(file) {
  * Compares fresh groups against the baseline.
  * Returns { newFindings, resolvedKeys, baselineMissing }.
  */
-export function checkAgainstBaseline(groups, baseline) {
+export function checkAgainstBaseline(groups, baseline, scopeViews) {
   if (!baseline?.entries) return { baselineMissing: true, newFindings: groups, resolvedKeys: [] };
-  const known = new Set(Object.keys(baseline.entries));
+  const scope = scopeViews && new Set(scopeViews);
+  const known = new Set(Object.keys(baseline.entries).filter(key => !scope || scope.has(key.split("|")[1])));
   const current = new Set(groups.map(g => g.key));
-  const newFindings = groups.filter(g => !known.has(g.key));
+  const counts = baselineEntries(groups);
+  const rank = { hint: 0, warning: 1, error: 2 };
+  const newFindings = [...new Set(groups.map(group => group.key))].flatMap(key => {
+    const before = baseline.entries[key];
+    const after = counts[key];
+    const reason = !before ? "new_group" : after.instances > before.instances ? "increased_instances"
+      : rank[after.severity] > rank[before.severity] ? "increased_severity" : null;
+    return reason ? [{ ...groups.find(group => group.key === key), reason, previousInstances: before?.instances ?? 0, instances: after.instances }] : [];
+  });
   const resolvedKeys = [...known].filter(k => !current.has(k));
   return { baselineMissing: false, newFindings, resolvedKeys };
 }

@@ -423,6 +423,7 @@ function ProjectDetectionSection({ onMigrate }: { onMigrate: (sourcePath: string
                 <>
                   <input
                     type="text"
+                    className="vua-text-input"
                     value={noteFlow.draft}
                     maxLength={2000}
                     placeholder={noteCopy.placeholder}
@@ -676,6 +677,7 @@ export function ProjectCompatSection() {
               <span>{copy.importSourceLabel}</span>
               <input
                 type="text"
+                className="vua-text-input"
                 value={sourcePath}
                 onChange={(event) => setSourcePath(event.target.value)}
                 placeholder={copy.importSourcePlaceholder}
@@ -685,7 +687,7 @@ export function ProjectCompatSection() {
             <label className="vua-project-compat__label">
               <span>{copy.importParentLabel}</span>
               <span className="vua-project-compat__row">
-                <input type="text" value={parentDir} readOnly placeholder="—" />
+                <input type="text" className="vua-text-input" value={parentDir} readOnly placeholder="—" />
                 <Button variant="default" onClick={pickParent}>
                   {copy.importParentPick}
                 </Button>
@@ -695,6 +697,7 @@ export function ProjectCompatSection() {
               <span>{copy.importNameLabel}</span>
               <input
                 type="text"
+                className="vua-text-input"
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
               />

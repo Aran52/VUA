@@ -1,14 +1,19 @@
 # Skin system
 
-> Updated: 2026-10-25
+> Updated: 2026-10-28
 > Status: architecture approved by the author on 2026-10-17; slice 13 settles the native skins
 
-A skin changes how VUA looks and moves without changing what it does. VUA ships the current
-purple style as its default skin, **Grid**, and the author's two briefs (天使界隈 Tenshi, 地雷系 Jirai) as native skins;
-the same format can later admit community skins. The [current plan](current-plan.md) schedules
-the skin work as slice 13; this document fixes the architecture now so the screens built before
-then are ready for it. The [design standard](../design/design-standard.md) keeps the
-community-skin direction.
+A skin changes how VUA looks and moves without changing what it does. **Grid** is the default.
+The Appearance page offers Grid and **Frutiger Aero** in dark and light, **Tenshi Kaiwai** in light
+and **Jirai Kei** in dark. These display names remain English in every UI language.
+`data-theme-family` selects the family. The existing `dark | light | system`
+preference remains independent for Grid and Aero; single-mode presets lock the appearance choices
+and override Windows' mode. Existing profiles resolve to Grid. All four built-in presets use CSS
+tokens rather than the separate community package loader.
+
+The [current plan](current-plan.md) schedules further skin work as slice 13. The design standard
+keeps the community-skin direction. Built-in presets use the same token boundaries described here;
+the `.vuaskin` package loader and community import remain separate work.
 
 ## What a skin can change
 
@@ -32,12 +37,12 @@ skin's motion, so the accessibility gates hold for all skins.
 
 A skin is a folder or a `.vuaskin` zip with a manifest:
 
-- `manifest.json`: `schemaVersion`, `id`, `version`, names and descriptions in the four UI
-  languages, author, SPDX license and a rights statement for every asset, minimum VUA version,
-  preview images;
+- `manifest.json`: `schemaVersion`, `id`, `version`, a fixed English display name, descriptions in
+  the supported UI languages, author, SPDX license and a rights statement for every asset, minimum
+  VUA version, preview images;
 - `tokens.dark.json` and/or `tokens.light.json`: values for the documented token set only, each
   typed (color, length, duration, easing, enum) and range-checked; a skin omits what it keeps
-  from the default. A skin may provide one mode only (Tenshi is light only); while it is active,
+  from the default. A skin may provide one mode only (Tenshi Kaiwai is light only); while it is active,
   Appearance shows the theme switch locked to that mode and Windows' theme does not change it;
 - `motifs/`, `icons/`, `fonts/`, `scenes/`: images (PNG, WebP, sanitized SVG), WOFF2 fonts,
   scene packs.
@@ -83,13 +88,18 @@ frame. A pack that fails validation falls back to the default scene for that roo
 
 ## Native skins
 
-| Skin | Color | Shape and motifs | Motion |
+| Skin | Availability | Color and shape | Motion and effects |
 | --- | --- | --- | --- |
-| **Grid** (default) | the current purple and orange | a cut top-right corner on every control and container, thin strokes, grid canvas | crisp; press is a 1 px inset shift |
-| **天使界隈 (Tenshi)** | sky blue and white | flat, rounded pill shapes; wings, halos, bandages, pills | light, bouncy |
-| **地雷系 (Jirai)** | pink and black | lace edges, bows, leather textures, energy drinks; dimensional | slower, softer |
+| **Grid** (default) | dark and light | neutral flat surfaces, purple/orange jurisdictions, small-radius rectangles with hairlines and accent light bars | crisp; no neon glow or purple/orange gradients |
+| **Frutiger Aero** | dark and light | blue/cyan and green, rounded or pill controls, static bubble/water motifs and glassy surfaces | restrained specular highlights and gradients; removed by accessibility overrides |
+| **Tenshi Kaiwai** | built-in preset; light | sky blue and white, flat rounded pills and a faint halo pattern | light, bouncy |
+| **Jirai Kei** | built-in preset; dark | pink and black, a low-contrast lace pattern and satin highlights | slower, softer and dimensional |
 
-The [native skins art brief](../design/native-skins.md) proposes their palettes and lists every asset; the author's design session (slice 13) approves them.
+The [native skins art brief](../design/native-skins.md) owns the palettes and visual vocabulary.
+Grid and all additional presets are implemented in `packages/design-system/src/tokens.css` and
+`themes/*.css`. Original local SVG motifs in `packages/design-system/skins/` render through
+`SkinMotif` into the sidebar, Appearance previews and the workshop's selected-line header.
+Custom fonts, extended scene packs and `.vuaskin` packages remain separate work.
 
 ## What to do before slice 13
 
@@ -101,8 +111,9 @@ progress:
 2. Room colors get their own tokens (`--vua-room-control`, `--vua-room-materials`,
    `--vua-room-workshop`, `--vua-room-release`). Status colors keep their meaning and are not used
    as room colors.
-3. Shapes come from named presets (`--vua-shape-*` with clip-path classes) instead of inline
-   polygons.
+3. Shapes come from role tokens and the shared native corner renderer (`--vua-corner-*` /
+   `--vua-corners-*` in `packages/design-system`), rather than feature polygons. The owning
+   [control language](../design/controls-and-motion.md#corners) defines Grid's geometry.
 4. Decorative extras sit in `data-skin-slot` elements; a screen works and reads the same with
    every slot empty.
 5. Canvas and WebGL drawing reads its colors from tokens through one palette helper and keeps its

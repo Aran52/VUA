@@ -1,89 +1,61 @@
 /**
- * VUA Design Token 底座
+ * Shared design tokens and the default Grid preset.
  *
- * 视觉语言(视觉重做,取代 v0.4.x 文档基线;2026-09-25 性能简化修订):
- * 游戏 × 创作助手的"深邃工坊"——近黑紫空间画布 + 极淡网格纹理(背景辉光斑
- * 已按用户裁决退役)、玻璃拟态面板(半透明 + 背景模糊 + 内发光细边)、霓虹
- * 强调(电紫/亮橙,渐变面 + 辖区色辉光)。品牌双重点色纪律不变:VUA 紫 =
- * 环境部署/游戏引导/工具合集/设置,AMF 橙 = 模型生产,同一页面不混用。
- *
- * 使用纪律:
- * - 业务组件只允许引用语义 Token,不得直接书写颜色、阴影或任意间距值。
- * - 默认深色主题(:root);[data-theme="light"] 提供浅色切换(辉光收敛)。
- * - 组件只消费 --vua-accent-* 别名,由根节点 data-module 切换辖区。
- * - 渐变/辉光/氛围/光泽只放 --vua-accent-gradient / --vua-glow-* /
- *   --vua-aurora-* / --vua-shine;
- *   --vua-accent 等被 check-contrast 校验的变量必须保持纯色。
- *   组件写法:background-color: var(--vua-accent);
- *            background-image: var(--vua-accent-gradient);
- *   HC 把 gradient 置 none 即退化为纯色系统色。
- * - 红绿灯语义(绿/红/琥珀)仅环境部署模块使用;
- *   车间进行中/完成用橙色系,琥珀仅车间检查点/确认/恢复点。
- * - 高对比度双通道(forced-colors 与 [data-hc="on"])抹除全部阴影/辉光/
- *   渐变/氛围,色彩语义让位给文字与边框。
+ * Control sizes, typography and interaction stay invariant. Colors, shapes,
+ * textures and motion belong to the active theme. Grid uses neutral flat
+ * surfaces with purple and orange jurisdictions. Additional presets live in
+ * themes/: Frutiger Aero supports both modes, Tenshi is light and Jirai is dark.
+ * accessibility.css owns the final high-contrast, forced-color and resource-saving overrides.
  */
 
 :root {
   color-scheme: dark;
 
-  /* ---- VUA 电紫(环境部署 / 游戏引导 / 工具合集 / 设置) ---- */
+  /* Grid: orange/purple jurisdictions on neutral, flat surfaces. */
   --vua-purple: #a78bfa;
   --vua-purple-hover: #b79ffc;
   --vua-purple-pressed: #9377e8;
-  --vua-purple-tint: #241f3d;
-
-  /* ---- AMF 亮橙(模型生产) ---- */
+  --vua-purple-tint: #28243a;
   --vua-orange: #ff7a45;
   --vua-orange-hover: #ff8f5e;
   --vua-orange-pressed: #e56a35;
-  --vua-orange-tint: #3d2317;
-
-  /* ---- 工业琥珀:仅车间检查点 / 确认 / 恢复点 ---- */
+  --vua-orange-tint: #38281f;
   --vua-amber: #ffd34d;
-  /* 琥珀结论文字(图标/节点用 --vua-amber,文字需更高对比度) */
   --vua-amber-text: var(--vua-amber);
-
-  /* ---- 语义色(独立于品牌色,不得混用) ---- */
-  --vua-success: #4ade80; /* 就绪绿:仅环境部署模块 */
-  --vua-error: #fb7185; /* 错误红:全应用通用 */
-  --vua-warning: #fde047; /* 需注意:仅环境部署模块 */
-  --vua-info: #94a3ff; /* 中性信息色 */
-
-  /* 状态灯图标色(实底状态灯上的图标):深浅主题同用近黑 */
+  --vua-success: #4ade80;
+  --vua-error: #fb7185;
+  --vua-warning: #fde047;
+  --vua-info: #94a3ff;
+  --vua-success-text: var(--vua-success);
+  --vua-error-text: var(--vua-error);
+  --vua-warning-text: var(--vua-warning);
   --vua-on-status: #0b0a12;
-
-  /* ---- 背景层级:近黑紫深邃基底(游戏 × 创作助手氛围) ---- */
-  --vua-bg-canvas: #0b0a12;
-  --vua-bg-panel: #151322;
-  --vua-bg-elevated: #1e1b30;
-
-  /* ---- 文本 ---- */
-  --vua-text-strong: #f5f3ff;
-  --vua-text-secondary: #b3b0c8;
-  --vua-text-disabled: #6b6880;
-
-  /* ---- 边框与焦点:亮一档的紫灰,玻璃面板的内发光边 ---- */
-  --vua-border: #2e2a45;
-  --vua-border-strong: #45406a;
+  --vua-on-error: #0b0a12;
+  --vua-bg-canvas: #101216;
+  --vua-bg-panel: #191c22;
+  --vua-bg-elevated: #23272f;
+  --vua-text-strong: #f5f5f7;
+  --vua-text-secondary: #b7bbc7;
+  --vua-text-disabled: #727887;
+  --vua-border: #3d434f;
+  --vua-border-strong: #5a6372;
   --vua-border-focus: var(--vua-accent);
-
-  /* ---- 阴影:环境光 + 辖区色辉光;卡片面板保持干净,辉光给强调与浮层 ---- */
-  --vua-shadow-elevated:
-    0 8px 28px rgb(0 0 0 / 0.5),
-    0 0 24px rgb(167 139 250 / 0.12);
-  /* 强调辉光(主按钮/选中态/状态灯呼吸);HC 下抹除 */
-  --vua-glow-accent: 0 0 18px rgb(167 139 250 / 0.45);
-  --vua-glow-accent-soft: 0 0 28px rgb(167 139 250 / 0.22);
-
-  /* ---- 渐变强调面(主按钮/hero 标题);辖区由 data-module 覆盖 ---- */
-  --vua-accent-gradient: linear-gradient(135deg, #b79ffc 0%, #8b76f2 55%, #7a5ff0 100%);
-  /* 画布氛围辉光斑:2026-09-25 用户裁决基线退役(性能简化——去背景光效,
-   * 保留网格纹理);token 保留为 none,base.css 消费层不变,HC/特效关
-   * 覆写语义不受影响 */
+  --vua-shadow-elevated: 0 12px 32px rgb(0 0 0 / 0.42);
+  --vua-glow-accent: none;
+  --vua-glow-accent-soft: none;
+  --vua-accent-gradient: none;
+  --vua-accent-gradient-hover: none;
+  --vua-accent-gradient-pressed: none;
   --vua-aurora-1: none;
   --vua-aurora-2: none;
-  /* 主按钮 hover 光泽扫过(sheen);HC 下置 none */
-  --vua-shine: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.22) 50%, transparent 70%);
+  --vua-canvas-pattern:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--vua-text-strong) 1.5%, transparent) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--vua-text-strong) 1.5%, transparent) 0 1px, transparent 1px 44px);
+  --vua-shine: none;
+  --vua-surface-highlight: none;
+  --vua-action-shadow: none;
+  --vua-card-inset: none;
+  --vua-header-sheen: none;
 
   /* ---- 字阶 ---- */
   --vua-font-family:
@@ -91,6 +63,7 @@
     "Segoe UI",
     "Microsoft YaHei UI",
     sans-serif;
+  --vua-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --vua-font-display: 600 28px/36px var(--vua-font-family);
   --vua-font-title: 600 20px/28px var(--vua-font-family);
   --vua-font-body: 400 14px/20px var(--vua-font-family);
@@ -116,23 +89,35 @@
   --vua-space-5: 24px;
   --vua-space-6: 32px;
 
-  /* ---- 圆角:按钮与状态芯片胶囊形;输入框/下拉/菜单 6px;
-   * 卡片 10px;对话框与大型浮层 12px;同类组件一致 ---- */
-  --vua-radius-pill: 999px;
-  --vua-radius-control: 6px;
-  --vua-radius-card: 10px;
-  --vua-radius-badge: 999px;
-  --vua-radius-overlay: 12px;
-  /* Radii step down with nesting (author ruling, 2026-10-25): dialogs and overlays use xl; the
-   * first rounded container on a page uses lg; a rounded container inside it md; inside that sm,
-   * the smallest. Controls use md, or sm inside an md container. Pills and circles stay pills. */
+  /* Grid geometry (author ruling 2026-10-28): rectangles and rounded rectangles with small radii,
+   * the same in the host and in AMF. Themes restyle the role radii; components never write their own. */
+  --vua-corner-style: round;
+  --vua-corners-action: 4px;
+  --vua-corners-action-quiet: 4px;
+  --vua-corners-field: 4px;
+  --vua-corners-indicator: 2px;
+  --vua-corners-container: 8px;
+  --vua-corners-overlay: 8px;
+  --vua-corners-menu: 4px;
+  --vua-corners-progress: 0px;
+  --vua-corners-toggle: 2px;
+  --vua-corners-status: var(--vua-radius-control);
+  --vua-radius-pill: var(--vua-radius-control);
+  --vua-radius-control: 4px;
+  --vua-radius-card: 8px;
+  --vua-radius-badge: 2px;
+  --vua-radius-overlay: 8px;
   --vua-radius-xl: var(--vua-radius-overlay);
   --vua-radius-lg: var(--vua-radius-card);
   --vua-radius-md: var(--vua-radius-control);
-  --vua-radius-sm: 4px;
+  --vua-radius-sm: 2px;
 
   /* ---- 控件尺寸 ---- */
-  --vua-control-height: 36px;
+  --vua-control-height-sm: 28px;
+  --vua-control-height-md: 32px;
+  --vua-control-height-lg: 40px;
+  --vua-control-height: var(--vua-control-height-md);
+  --vua-indicator-height: 20px;
 
   /* ---- Factory rooms: each AMF room's own color, separate from status colors; skins may change them ---- */
   --vua-room-control: #a78bfa;
@@ -140,21 +125,22 @@
   --vua-room-workshop: #ff7a45;
   --vua-room-release: #5eead4;
 
-  /* ---- Shapes: named clip-path presets; skins swap the shape language here ---- */
-  --vua-shape-cut-sm: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
-  --vua-shape-cut-md: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-  --vua-shape-cut-lg: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
-  --vua-shape-step: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
-
   /* ---- Motion: durations and easing; scripted motion reads the same values ---- */
-  --vua-motion-fast: 140ms;
-  --vua-motion-base: 300ms;
-  --vua-motion-slow: 560ms;
+  --vua-motion-instant: 0ms;
+  --vua-motion-fast: 120ms;
+  --vua-motion-normal: 180ms;
+  --vua-motion-base: var(--vua-motion-normal);
+  --vua-motion-slow: 360ms;
   --vua-motion-camera: 650ms;
-  --vua-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --vua-motion-ease-enter: cubic-bezier(0.2, 0.9, 0.25, 1);
+  --vua-motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --vua-motion-ease: var(--vua-motion-ease-enter);
+  --vua-motion-station: 240ms;
+  --vua-motion-ease-station: cubic-bezier(0.55, 0, 1, 0.45);
   --vua-scene-fps: 30;
 
   /* ---- Layers: the feedback tiers stack in this order; anything that opens from inside a dialog sits above it ---- */
+  --vua-z-browser: 500;
   --vua-z-drawer: 600;
   --vua-z-dialog: 800;
   --vua-z-popover: 900;
@@ -200,69 +186,56 @@
   --vua-accent-tint: var(--vua-orange-tint);
   --vua-accent-contrast: #17142e;
   --vua-accent-text: var(--vua-accent);
-  --vua-accent-gradient: linear-gradient(135deg, #ff8f5e 0%, #ff7a45 50%, #f0612b 100%);
-  --vua-glow-accent: 0 0 18px rgb(255 122 69 / 0.45);
-  --vua-glow-accent-soft: 0 0 28px rgb(255 122 69 / 0.22);
+  --vua-accent-gradient: none;
+  --vua-accent-gradient-hover: none;
+  --vua-accent-gradient-pressed: none;
+  --vua-glow-accent: none;
+  --vua-glow-accent-soft: none;
 }
 
 [data-theme="light"] {
   color-scheme: light;
-
-  /* 浅色品牌底色已压暗至对比度达标(浅色橙/紫处于"浅字深字双不达标"死区,必须压明度) */
-  --vua-purple: #6557d2; /* 文字 #f3f2f8 实测 4.90:1 */
-  --vua-purple-hover: #5648c2; /* 等比顺移 */
-  --vua-purple-pressed: #463aa8; /* 等比顺移 */
+  --vua-purple: #6557d2;
+  --vua-purple-hover: #5648c2;
+  --vua-purple-pressed: #463aa8;
   --vua-purple-tint: #eae8fb;
-
-  --vua-orange: #bb4a10; /* 文字 #f3f2f8 实测 4.60:1 */
-  --vua-orange-hover: #a03e0e; /* 等比顺移 */
-  --vua-orange-pressed: #84330b; /* 等比顺移 */
+  --vua-orange: #bb4a10;
+  --vua-orange-hover: #a03e0e;
+  --vua-orange-pressed: #84330b;
   --vua-orange-tint: #fbeae0;
-
-  /* Factory room colors on light surfaces (text-safe on white) */
   --vua-room-control: #6557d2;
   --vua-room-materials: #4453c4;
   --vua-room-workshop: #bb4a10;
   --vua-room-release: #0f766e;
-
-  /* 琥珀浅色变体:白底 4.29:1(不用 #9c6d00,避免与浅色 warning 撞值) */
-  --vua-amber: #a86e00;
-  /* 琥珀文字浅色变体:白底 5.0:1(节点 4.29 仅够非文字 3:1,文字需更深档) */
-  --vua-amber-text: #986500;
-
+  --vua-amber: #986500;
+  --vua-amber-text: #805300;
   --vua-success: #107c10;
   --vua-error: #d13438;
-  --vua-warning: #9c6d00;
+  --vua-warning: #805900;
+  --vua-on-error: #ffffff;
+  --vua-success-text: #0b650b;
+  --vua-error-text: #9f1f29;
+  --vua-warning-text: #6b4800;
   --vua-info: #5f6b8a;
-
   --vua-bg-canvas: #f6f6f9;
   --vua-bg-panel: #ffffff;
   --vua-bg-elevated: #ffffff;
-
   --vua-text-strong: #191824;
   --vua-text-secondary: #565470;
   --vua-text-disabled: #a5a3ba;
-
   --vua-border: #dad9e2;
   --vua-border-strong: #c0bed0;
-
-  /* 浅色阴影/辉光收敛:保留层级,不放肆发光 */
-  --vua-shadow-elevated:
-    0 4px 16px rgb(25 24 36 / 0.1),
-    0 0 20px rgb(101 87 210 / 0.05);
-  --vua-glow-accent: 0 0 12px rgb(101 87 210 / 0.3);
-  --vua-glow-accent-soft: 0 0 20px rgb(101 87 210 / 0.14);
-
-  /* 浅色渐变止点不浅于 --vua-accent(accent→hover→pressed),保证按钮文字对比度 */
-  --vua-accent-gradient: linear-gradient(135deg, #6557d2 0%, #5648c2 60%, #463aa8 100%);
-  /* 浅色氛围辉光斑:同深色基线一并退役(2026-09-25 用户裁决) */
+  --vua-shadow-elevated: 0 8px 24px rgb(25 24 36 / 0.12);
+  --vua-glow-accent: none;
+  --vua-glow-accent-soft: none;
+  --vua-accent-gradient: none;
+  --vua-accent-gradient-hover: none;
+  --vua-accent-gradient-pressed: none;
   --vua-aurora-1: none;
   --vua-aurora-2: none;
-  /* 浅色按钮底色深,光泽高光更强一档 */
-  --vua-shine: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  --vua-shine: none;
 }
 
-/* 浅色主题按钮文字用近白;tint 上强调文字用 pressed 档 */
 [data-theme="light"] {
   --vua-accent-contrast: #f3f2f8;
   --vua-accent-text: var(--vua-accent-pressed);
@@ -271,122 +244,19 @@
 [data-theme="light"] [data-module="production"] {
   --vua-accent-contrast: #f3f2f8;
   --vua-accent-text: var(--vua-accent-pressed);
-  --vua-accent-gradient: linear-gradient(135deg, #bb4a10 0%, #a03e0e 60%, #84330b 100%);
-  --vua-glow-accent: 0 0 12px rgb(187 74 16 / 0.3);
-  --vua-glow-accent-soft: 0 0 20px rgb(187 74 16 / 0.14);
-}
-
-/* ---- 高对比度(C-I18N,design-requirements C-11) ----
- * 双通道:
- * 1. 系统强制色(forced-colors: active):映射系统色关键字,尊重用户的
- *    Windows HC 调色板;色彩语义让位给文字与图标(状态灯实底失效,
- *    结论文字仍在),区块边界由 1px 边框维持;
- * 2. 手动"始终开启"[data-hc="on"]:显式高对比色(黑底/白字/黄强调),
- *    不依赖系统;选择器不限定根节点,展台可局部预览同一套映射。
- * 两者都只覆盖 Token,组件零改动;阴影/辉光/渐变/氛围全部抹除。
- * check-contrast 校验手动 HC 上下文的对比度,并对 forced-colors 块做
- * 系统色关键字结构守卫。 */
-
-@media (forced-colors: active) {
-  :root {
-    --vua-bg-canvas: Canvas;
-    --vua-bg-panel: Canvas;
-    --vua-bg-elevated: Canvas;
-    --vua-text-strong: CanvasText;
-    --vua-text-secondary: CanvasText;
-    --vua-text-disabled: GrayText;
-    --vua-border: CanvasText;
-    --vua-border-strong: CanvasText;
-    --vua-border-focus: Highlight;
-    --vua-accent: Highlight;
-    --vua-accent-hover: Highlight;
-    --vua-accent-pressed: Highlight;
-    --vua-accent-tint: Canvas;
-    --vua-accent-text: Highlight;
-    --vua-accent-contrast: HighlightText;
-    --vua-success: CanvasText;
-    --vua-error: CanvasText;
-    --vua-warning: CanvasText;
-    --vua-amber: CanvasText;
-    --vua-amber-text: CanvasText;
-    --vua-info: CanvasText;
-    --vua-room-control: Highlight;
-    --vua-room-materials: Highlight;
-    --vua-room-workshop: Highlight;
-    --vua-room-release: Highlight;
-    --vua-on-status: Canvas;
-    --vua-shadow-elevated: none;
-    --vua-glow-accent: none;
-    --vua-glow-accent-soft: none;
-    --vua-accent-gradient: none;
-    --vua-aurora-1: none;
-    --vua-aurora-2: none;
-    --vua-shine: none;
-  }
-}
-
-[data-hc="on"] {
-  color-scheme: dark;
-  --vua-bg-canvas: #000000;
-  --vua-bg-panel: #000000;
-  --vua-bg-elevated: #101010;
-  --vua-text-strong: #ffffff;
-  --vua-text-secondary: #ffffff;
-  --vua-text-disabled: #9a9a9a;
-  --vua-border: #ffffff;
-  --vua-border-strong: #ffffff;
-  --vua-border-focus: #ffd600;
-  /* 辖区色在 HC 下抹平(色彩让位文字);purple/orange 与 accent 同值,
-   * check-contrast 的辖区守卫因此仍成立 */
-  --vua-purple: #ffd600;
-  --vua-orange: #ffd600;
-  --vua-accent: #ffd600;
-  --vua-accent-hover: #ffdf4d;
-  --vua-accent-pressed: #e6c000;
-  --vua-accent-tint: #3d3600;
-  --vua-accent-text: #ffd600;
-  --vua-accent-contrast: #000000;
-  --vua-success: #00e676;
-  --vua-error: #ff5252;
-  --vua-warning: #ffd600;
-  --vua-amber: #ffd600;
-  --vua-amber-text: #ffd600;
-  --vua-info: #ffffff;
-  --vua-on-status: #000000;
-  --vua-room-control: #ffd600;
-  --vua-room-materials: #ffd600;
-  --vua-room-workshop: #ffd600;
-  --vua-room-release: #ffd600;
-  --vua-shadow-elevated: none;
+  --vua-accent-gradient: none;
+  --vua-accent-gradient-hover: none;
+  --vua-accent-gradient-pressed: none;
   --vua-glow-accent: none;
   --vua-glow-accent-soft: none;
-  --vua-accent-gradient: none;
-  --vua-aurora-1: none;
-  --vua-aurora-2: none;
-  --vua-shine: none;
-  --vua-album-paper: #000000;
-  --vua-album-pattern: none;
-  --vua-album-binding: #000000;
-  --vua-album-rule: #ffffff;
-  --vua-album-print: #000000;
-  --vua-shadow-album: none;
-  --vua-shadow-album-spine-left: none;
-  --vua-shadow-album-spine-right: none;
-  --vua-shadow-print: none;
-  --vua-shadow-release: none;
 }
 
-/* ---- 特效总开关(S-VFX-5,VR/省资源地基):装饰 token 全部置 none。
- * 需同时覆盖 :root/主题块 与更近继承层的 [data-module] 辖区块;
- * 选择器特异性与 [data-theme] [data-module] 持平,靠文件末尾位置取胜。
- * WebGL 场景由 useSceneMode 读同一属性判定不挂载;
- * 动画/过渡压平在 base.css(与 reduced-motion 同级)。 ---- */
-[data-effects="off"],
-[data-effects="off"] [data-module] {
-  --vua-glow-accent: none;
-  --vua-glow-accent-soft: none;
-  --vua-accent-gradient: none;
-  --vua-aurora-1: none;
-  --vua-aurora-2: none;
-  --vua-shine: none;
+[data-theme-family="grid"] {
+  --vua-purple: #a78bfa;
+  --vua-orange: #ff7a45;
+}
+
+[data-theme-family="grid"][data-theme="light"] {
+  --vua-purple: #6557d2;
+  --vua-orange: #bb4a10;
 }

@@ -27,6 +27,7 @@
 }
 
 .vua-content-dialog__header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -36,12 +37,16 @@
 }
 
 .vua-content-dialog__title {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
   font: var(--vua-font-title);
   font-weight: var(--vua-weight-strong);
   color: var(--vua-text-strong);
 }
 
 .vua-content-dialog__close {
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--vua-text-secondary);

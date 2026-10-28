@@ -139,7 +139,7 @@ async function run() {
   const drawer = document.querySelector<HTMLElement>(".vua-warehouse__drawer")!;
   button(copy.sourceSearch.openBooth, drawer).click(); await until(() => opened.length === 2, "detail opens source");
   check(!drawer.textContent!.includes(copy.libraryState.productionUnchecked), "detail drops the retired qualification sentence");
-  check([...document.querySelectorAll("select option")].some(node => node.textContent === "3D衣装"), "new category reaches filter options immediately");
+  await until(() => [...document.querySelectorAll<HTMLOptionElement>("select option")].some(node => node.value === "category:3D衣装"), "the recorded category reaches filter options in every locale");
   button(copy.detail.close, drawer).click(); await wait();
   card("booth:92").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
   await until(() => fetched.includes("booth:92"), "uncategorized official page observed");

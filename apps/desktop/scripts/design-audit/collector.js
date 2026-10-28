@@ -13,10 +13,90 @@ export function collectAuditSnapshot(options) {
     '[role="checkbox"]', '[role="radio"]', '[role="switch"]', '[role="link"]',
     '[tabindex]:not([tabindex="-1"])',
   ].join(",");
+  const styles = new WeakMap();
+  const styleOf = element => {
+    if (!styles.has(element)) styles.set(element, getComputedStyle(element));
+    return styles.get(element);
+  };
+
+  // CSS clipping confines a camera scene's paint without breaking the page.
+  // Do not clip to the window here: genuinely escaping content must stay visible
+  // to the overflow rule, and content below the fold still needs its style audit.
+  function paintedRect(element, rectangle) {
+    let left = rectangle.left, right = rectangle.right, top = rectangle.top, bottom = rectangle.bottom;
+    let escapingPosition = null;
+    for (let node = element; node; node = node.parentElement) {
+      const style = styleOf(node);
+      if (style.display === "none" || (node === element && style.visibility !== "visible") || Number(style.opacity) === 0) return null;
+      if (node !== element && style.contentVisibility === "hidden") return null;
+      if (node !== element && node.tagName === "DETAILS" && !node.open) {
+        const summary = [...node.children].find(child => child.tagName === "SUMMARY");
+        if (!summary?.contains(element)) return null;
+      }
+      // Assistive labels clipped to no painted area are still available to
+      // accessibility APIs, but they are not visibly truncated text.
+      const inset = style.clipPath.match(/^inset\(([^)]*)\)$/)?.[1].split(/\s+round\s+/)[0].trim().split(/\s+/);
+      if (inset && inset.every(value => /^\d+(?:\.\d+)?%$/.test(value))) {
+        const [top, right = top, bottom = top, left = right] = inset.map(parseFloat);
+        if (top + bottom >= 100 || left + right >= 100) return null;
+      }
+      const legacyClip = style.clip.match(/^rect\(([^)]*)\)$/)?.[1].split(/[\s,]+/).map(parseFloat);
+      if (legacyClip && /^(absolute|fixed)$/.test(style.position) && (legacyClip[1] <= legacyClip[3] || legacyClip[2] <= legacyClip[0])) return null;
+      const establishesFixedBlock = style.transform !== "none" || style.perspective !== "none"
+        || style.filter !== "none" || style.backdropFilter !== "none"
+        || /(?:layout|paint|strict|content)/.test(style.contain)
+        || style.contentVisibility === "auto" || /(?:transform|perspective|filter)/.test(style.willChange);
+      if (node !== element && escapingPosition && (establishesFixedBlock || (escapingPosition === "absolute" && style.position !== "static"))) escapingPosition = null;
+      const clipX = /^(hidden|clip)$/.test(style.overflowX);
+      const clipY = /^(hidden|clip)$/.test(style.overflowY);
+      if (node !== element && !escapingPosition && (clipX || clipY)) {
+        const clip = node.getBoundingClientRect();
+        if (clipX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+        if (clipY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+      }
+      // Overflow between a positioned descendant and its containing block does
+      // not clip it. Visibility and zero-opacity ancestors still apply above.
+      if (style.position === "fixed" || style.position === "absolute") escapingPosition = style.position;
+    }
+    return right > left && bottom > top ? { x: left, y: top, w: right - left, h: bottom - top } : null;
+  }
+
+  function hitRegion(element, rectangle) {
+    let region = { ...rectangle, source: "control" };
+    if (!element.matches('input[type="checkbox"], input[type="radio"]')) return region;
+    for (const label of element.labels || []) {
+      if (label.control !== element) continue;
+      // A fragment is a real clickable label area; a bounding box spanning
+      // separate lines or separate labels would invent a target between them.
+      for (const fragment of label.getClientRects()) {
+        const candidate = paintedRect(label, fragment);
+        if (candidate && Math.min(candidate.w, candidate.h) > Math.min(region.w, region.h)) region = { ...candidate, source: "label" };
+      }
+    }
+    return region;
+  }
+
+  function isSurface(element, style, canvas) {
+    if (!element.matches("div,article,section,aside,main,nav,header,footer,ul,ol,li,dl,table,fieldset,details,form")) return false;
+    if (element.matches(interactiveControlSelector) || style.display === "inline" || style.display === "contents") return false;
+    const background = parseColor(style.backgroundColor);
+    const enclosingEdges = ["Top", "Right", "Bottom", "Left"].filter(side => parseFloat(style[`border${side}Width`]) > 0 && style[`border${side}Style`] !== "none").length;
+    return enclosingEdges >= 3 || Boolean(background && background.a >= 0.05 && (!canvas || rgbDistance(background, canvas) > 2));
+  }
 
   function parseColor(text) {
     if (typeof text !== "string") return null;
     const value = text.trim();
+    const modern = value.match(/^color\(srgb(-linear)?\s+([^)]*)\)$/i);
+    if (modern) {
+      const values = modern[2].split(/[\s/]+/).filter(Boolean).map(part => parseFloat(part) / (part.endsWith("%") ? 100 : 1));
+      if (values.length < 3 || !values.every(Number.isFinite)) return null;
+      const channel = value => {
+        const clamped = Math.max(0, Math.min(1, value));
+        return 255 * (modern[1] ? clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * clamped ** (1 / 2.4) - 0.055 : clamped);
+      };
+      return { r: channel(values[0]), g: channel(values[1]), b: channel(values[2]), a: values[3] ?? 1 };
+    }
     const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
     if (rgb) {
       const parts = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number);
@@ -53,10 +133,17 @@ export function collectAuditSnapshot(options) {
 
   // ---- token palette ---------------------------------------------------------
   const customNames = new Set();
+  const scopedNames = new Map();
   function gatherNames(rules) {
     for (const rule of rules) {
       if (rule.style) {
-        for (const prop of rule.style) if (prop.startsWith("--vua-")) customNames.add(prop);
+        for (const prop of rule.style) if (prop.startsWith("--vua-")) {
+          customNames.add(prop);
+          if (rule.selectorText) {
+            if (!scopedNames.has(rule.selectorText)) scopedNames.set(rule.selectorText, new Set());
+            scopedNames.get(rule.selectorText).add(prop);
+          }
+        }
       }
       if (rule.cssRules) gatherNames(rule.cssRules);
     }
@@ -98,9 +185,23 @@ export function collectAuditSnapshot(options) {
     tokenRaw[name] = raw;
     // Only values that start as a color resolve to one; composite values such
     // as box-shadow lists are not palette members.
-    if (!/^\s*(var\(|#|rgb|hsl|color-mix)/i.test(raw)) continue;
+    if (!/^\s*(var\(|#|rgb|hsl|color(?:-mix)?\()/i.test(raw)) continue;
     const color = resolveTokenColor(name, moduleRoot);
     if (color) palette.push({ name, color });
+  }
+  // Feature tokens (graph and room surfaces) resolve in their declaring scope.
+  for (const [selector, names] of scopedNames) {
+    let hosts;
+    try { hosts = document.querySelectorAll(selector); } catch { continue; }
+    for (const host of hosts) {
+      if (host === moduleRoot || host === document.documentElement) continue;
+      for (const name of names) {
+        const raw = styleOf(host).getPropertyValue(name).trim();
+        if (!/^\s*(var\(|#|rgb|hsl|color(?:-mix)?\()/i.test(raw)) continue;
+        const color = resolveTokenColor(name, host);
+        if (color && !palette.some(entry => entry.name === name && rgbDistance(entry.color, color) < 0.01)) palette.push({ name, color });
+      }
+    }
   }
   // Accent in the default (non-production) scope for jurisdiction family checks.
   const accentRootScope = resolveTokenColor("--vua-accent", document.documentElement);
@@ -108,15 +209,13 @@ export function collectAuditSnapshot(options) {
 
   const familyColors = { purple: [], orange: [] };
   for (const entry of palette) {
-    if (/purple|accent/.test(entry.name)) familyColors.purple.push(entry.color);
-    if (/orange/.test(entry.name)) familyColors.orange.push(entry.color);
+    if (/^--vua-purple(?:-|$)/.test(entry.name)) familyColors.purple.push(entry.color);
+    if (/^--vua-orange(?:-|$)/.test(entry.name)) familyColors.orange.push(entry.color);
   }
-  if (accentRootScope) familyColors.purple.push(accentRootScope);
-  if (accentModuleScope) familyColors.orange.push(accentModuleScope);
 
   // Resolved shadow/glow tokens for shadow-panel classification.
   const shadowTokens = {};
-  for (const name of ["--vua-shadow-elevated", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
+  for (const name of ["--vua-shadow-elevated", "--vua-action-shadow", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
     const probe = document.createElement("div");
     probe.style.position = "absolute";
     probe.style.display = "none";
@@ -126,7 +225,8 @@ export function collectAuditSnapshot(options) {
   }
 
   const radiusTokens = {};
-  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay"]) {
+  for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay", "--vua-radius-badge",
+    ...["action", "action-quiet", "field", "indicator", "container", "overlay", "menu", "progress"].map(role => "--vua-corners-" + role)]) {
     const raw = (tokenRaw[name] || "").trim();
     const value = parseFloat(raw);
     if (Number.isFinite(value)) radiusTokens[name] = value;
@@ -163,11 +263,11 @@ export function collectAuditSnapshot(options) {
     }
     return false;
   }
-  function insideScrollContainer(el) {
+  function insideScrollContainer(el, axis) {
     for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
       const cs = getComputedStyle(node);
-      if (/(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight + 1) return true;
-      if (/(auto|scroll)/.test(cs.overflowX) && node.scrollWidth > node.clientWidth + 1) return true;
+      if (axis === "y" && /(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight + 1) return true;
+      if (axis === "x" && /(auto|scroll)/.test(cs.overflowX) && node.scrollWidth > node.clientWidth + 1) return true;
     }
     return false;
   }
@@ -238,16 +338,28 @@ export function collectAuditSnapshot(options) {
     const rect = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none") continue;
+    const paint = paintedRect(el, rect);
+    if (!paint) continue;
+    let truncation = false;
+    for (let node = el; node; node = node.parentElement) {
+      const style = styleOf(node);
+      if (style.textOverflow === "ellipsis" || (style.webkitLineClamp && style.webkitLineClamp !== "none")) { truncation = true; break; }
+    }
 
-    const text = directText(el);
+    const text = cs.contentVisibility === "hidden" ? "" : directText(el);
     const color = parseColor(cs.color);
     const backgroundColor = parseColor(cs.backgroundColor);
     const eff = effectiveBackground(el);
     const interactive = Boolean(el.closest(interactiveControlSelector));
     const isControl = el.matches(interactiveControlSelector);
+    const isChoice = el.matches('select, input[type="checkbox"], input[type="radio"], [aria-pressed], [aria-selected], [role="tab"], [role="switch"], [role="radio"], [role="checkbox"], [role="option"]');
+    const isTextField = el.matches('textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])');
+    const indicatorRole = el.getAttribute("data-vua-control-role") === "indicator";
+    const primaryGroup = el.closest("[data-vua-primary-group]");
     const disabled = el.disabled === true || el.getAttribute("aria-disabled") === "true"
-      || Boolean(el.closest('[aria-disabled="true"]'));
-    const primary = isControl && !disabled && backgroundColor && backgroundColor.a >= 0.95
+      || Boolean(el.closest('[aria-disabled="true"], [inert]'));
+    const actionOwner = el.closest('[role="dialog"], [role="alertdialog"]');
+    const primary = isControl && !indicatorRole && !disabled && backgroundColor && backgroundColor.a >= 0.95
       && (rgbDistance(backgroundColor, accentModuleScope || { r: -1, g: -1, b: -1 }) <= 12
         || rgbDistance(backgroundColor, accentRootScope || { r: -1, g: -1, b: -1 }) <= 12);
 
@@ -266,7 +378,6 @@ export function collectAuditSnapshot(options) {
     let surfaceDepth = 0;
     if (opts.proposed) {
       const canvasBg = parseColor(getComputedStyle(document.body).backgroundColor);
-      const rgbDist = (a, b) => a && b ? Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2) : 999;
       for (let node = el.parentElement; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
         if (node.namespaceURI && node.namespaceURI.includes("svg")) continue;
         const acs = getComputedStyle(node);
@@ -275,15 +386,11 @@ export function collectAuditSnapshot(options) {
           if (r && !(typeof r === "object" && r.pct >= 45) && r < 100) ancestorRadius = typeof r === "object" ? 0 : r;
           if ((typeof r === "object" && r.pct >= 45) || r >= 100) ancestorDecorative = true;
         }
-        const abg = parseColor(acs.backgroundColor);
-        const aborder = (parseFloat(acs.borderTopWidth) || 0) > 0 && acs.borderTopStyle !== "none";
-        const independent = (abg && abg.a >= 0.05 && rgbDist(abg, canvasBg) > 2) || aborder;
+        const independent = isSurface(node, acs, canvasBg);
         if (independent) surfaceDepth += 1;
       }
     }
-    const ownBg = parseColor(cs.backgroundColor);
-    const ownBorder = borders.some(b => b.width >= 1 && b.style !== "none");
-    const selfSurface = (ownBg && ownBg.a >= 0.05) || ownBorder ? 1 : 0;
+    const selfSurface = isSurface(el, cs, parseColor(getComputedStyle(document.body).backgroundColor)) ? 1 : 0;
 
     let hasIcon = false;
     for (const child of el.querySelectorAll("svg, img")) {
@@ -292,15 +399,24 @@ export function collectAuditSnapshot(options) {
     }
 
     // The scroll-container walk is expensive; run it only for overflow candidates.
-    let insideScroll = false;
+    let insideScrollX = false;
+    let insideScrollY = false;
     if (opts.overflowChecks) {
       const tol = 2;
       const beyond = rect.x < -tol || rect.y < -tol
         || rect.x + rect.width > window.innerWidth + tol || rect.y + rect.height > window.innerHeight + tol;
       const clipped = (cs.overflowX === "hidden" && el.scrollWidth > el.clientWidth + 1)
         || (cs.overflowY === "hidden" && el.scrollHeight > el.clientHeight + 1);
-      if (beyond || clipped) insideScroll = insideScrollContainer(el);
+      if (beyond || clipped) {
+        insideScrollX = insideScrollContainer(el, "x");
+        insideScrollY = insideScrollContainer(el, "y");
+      }
     }
+
+    let typedStyle;
+    try { typedStyle = el.computedStyleMap?.(); } catch { /* optional Typed OM */ }
+    const gapApplies = /flex|grid/.test(cs.display) && [...el.childNodes].filter(node => node.nodeType === 3
+      ? node.textContent.trim() : node.nodeType === 1 && node.getClientRects().length > 0 && styleOf(node).position !== "absolute").length > 1;
 
     elements.push({
       path: elementPath(el),
@@ -308,10 +424,15 @@ export function collectAuditSnapshot(options) {
       id: el.id || "",
       cls: (el.getAttribute("class") || "").split(/\s+/).filter(Boolean),
       rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+      paintedRect: paint,
+      hitRect: hitRegion(el, paint),
+      clippedByAncestor: paint.w < rect.width - 2 || paint.h < rect.height - 2,
+      intentionalTruncation: truncation,
       text: text.slice(0, MAX_TEXT),
       textLength: text.length,
       fontSize: parseFloat(cs.fontSize) || 0,
       lineHeight: cs.lineHeight === "normal" ? "normal" : parseFloat(cs.lineHeight) || 0,
+      nativeLineHeight: tag === "select" && cs.appearance !== "none" && cs.lineHeight === "normal",
       fontWeight: parseInt(cs.fontWeight, 10) || 0,
       color,
       backgroundColor,
@@ -322,8 +443,9 @@ export function collectAuditSnapshot(options) {
       radius: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map(k => parseRadius(cs["border" + k + "Radius"])),
       paddings: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["padding" + k]) || 0)),
       margins: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["margin" + k]) || 0)),
-      rowGap: cs.rowGap === "normal" ? 0 : Math.round(parseFloat(cs.rowGap) || 0),
-      columnGap: cs.columnGap === "normal" ? 0 : Math.round(parseFloat(cs.columnGap) || 0),
+      autoMargins: ["top", "right", "bottom", "left"].map(side => typedStyle?.get(`margin-${side}`)?.toString() === "auto"),
+      rowGap: !gapApplies || cs.rowGap === "normal" ? 0 : Math.round(parseFloat(cs.rowGap) || 0),
+      columnGap: (!gapApplies && cs.columnCount === "auto") || cs.columnGap === "normal" ? 0 : Math.round(parseFloat(cs.columnGap) || 0),
       overflowX: cs.overflowX, overflowY: cs.overflowY,
       textOverflow: cs.textOverflow,
       lineClamp: cs.webkitLineClamp || "none",
@@ -331,11 +453,28 @@ export function collectAuditSnapshot(options) {
       display: cs.display, position: cs.position, zIndex: parseInt(cs.zIndex, 10) || 0,
       opacity: parseFloat(cs.opacity),
       inlineStyle: Boolean(el.getAttribute("style")),
-      interactive, isControl, disabled, primary,
+      interactive, isControl, isChoice, isTextField, indicatorRole, disabled, primary,
+      shapeRole: cs.getPropertyValue("--vua-shape-role").trim(),
+      shapeTreatment: cs.getPropertyValue("--vua-shape-treatment").trim(),
+      shapeExpectedRadius: (() => {
+        const role = cs.getPropertyValue("--vua-shape-role").trim();
+        const quietAction = role === "action" && cs.getPropertyValue("--vua-shape-treatment").trim() === "quiet";
+        const value = parseFloat(cs.getPropertyValue("--vua-corners-" + (quietAction ? "action-quiet" : role)));
+        return Number.isFinite(value) ? value : null;
+      })(),
+      clipPath: cs.clipPath,
+      cornerShapes: ["top-left", "top-right", "bottom-right", "bottom-left"].map(corner => cs.getPropertyValue("corner-" + corner + "-shape")),
+      cornerPairs: [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(raw => {
+        const values = raw.trim().split(/\s+/).map(parseFloat); return [values[0], values[1] ?? values[0]];
+      }),
+      primaryGroup: primaryGroup ? elementPath(primaryGroup).join(".") : null,
+      role: el.getAttribute("role"),
+      actionScope: actionOwner ? elementPath(actionOwner).join(".") : "page",
       family: familyOf(backgroundColor) || familyOf(color),
       overlayContext: isOverlayContext(el),
       shellStructure: isShellStructure(el),
-      insideScrollContainer: insideScroll,
+      insideScrollContainer: insideScrollX || insideScrollY,
+      insideScrollX, insideScrollY,
       effBg: eff.color,
       effBgFromCanvas: eff.fromCanvas,
       hasBackgroundImage: cs.backgroundImage !== "none",

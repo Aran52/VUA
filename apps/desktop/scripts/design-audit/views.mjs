@@ -1,3 +1,5 @@
+import { verifyGridFactoryState } from "./grid-review.js";
+
 // View registry for the design audit. Adding a view to the audit means adding
 // one entry to VIEWS (or one view id to a FACTORY_VIEWS expansion). Each entry
 // names its fixture harness, its functional area and how the runner drives it
@@ -12,8 +14,8 @@ export const FIXTURES = {
     prefix: "/__factory",
     // preview-factory.mjs shell: locale written before module load, theme on
     // <html>, AMF production jurisdiction on #root.
-    shell: ({ locale, theme }) =>
-      `<html data-theme="${theme}"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});</script>`
+    shell: ({ locale, theme, themeFamily = "grid" }) =>
+      `<html data-theme="${theme}" data-theme-family="${themeFamily}"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});</script>`
       + `<style>html,body,#root{height:100%;margin:0}#root{display:flex;flex-direction:column;padding:24px;box-sizing:border-box;background:var(--vua-bg-canvas)}</style></head>`
       + `<body><div id="root" data-module="production"></div>`
       + `<script type="module" src="/scripts/fixtures/factory-preview.tsx"></script></body></html>`,
@@ -25,7 +27,7 @@ export const FIXTURES = {
   "library-navigation": {
     prefix: "/__library-navigation",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-navigation.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -35,7 +37,7 @@ export const FIXTURES = {
   "library-bulk": {
     prefix: "/__library-bulk",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-bulk.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -45,7 +47,7 @@ export const FIXTURES = {
   "library-corners": {
     prefix: "/__library-corners",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-corners.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -55,7 +57,7 @@ export const FIXTURES = {
   "library-entries": {
     prefix: "/__library-entries",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-entries.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -65,21 +67,11 @@ export const FIXTURES = {
   "library-maintenance": {
     prefix: "/__library-maintenance",
     shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
       + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
       + `<script type="module" src="/scripts/fixtures/library-maintenance.tsx"></script></body></html>`,
     themeMode: "attribute",
     readyGlobal: "n5MaintenanceReview",
-    viewport: () => ({ width: 1200, height: 900 }),
-  },
-  "dependency-clues": {
-    prefix: "/__dependency-clues",
-    shell: ({ locale }) =>
-      `<html><body data-module="production"><div id="root"></div>`
-      + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
-      + `<script type="module" src="/scripts/fixtures/dependency-clues.tsx"></script></body></html>`,
-    themeMode: "attribute",
-    readyGlobal: "n5DependencyReview",
     viewport: () => ({ width: 1200, height: 900 }),
   },
   "first-run": {
@@ -117,7 +109,7 @@ export const FIXTURES = {
   "import-dialog": {
     prefix: "/__import-dialog",
     shell: ({ locale }) =>
-      `<html data-theme="dark"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify("locale")});</script></head>`
+      `<html data-theme="dark"><head><script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});</script></head>`
       + `<body><div id="root"></div>`
       + `<script type="module" src="/scripts/fixtures/import-dialog-modal.tsx"></script></body></html>`,
     themeMode: "attribute",
@@ -136,6 +128,7 @@ export const FIXTURES = {
   },
   "task-window": {
     prefix: "/__task-window-review",
+    query: { view: "status" },
     shell: ({ locale, theme }) =>
       `<html data-theme="${theme}"><head>`
       + `<script>localStorage.setItem("vua-locale", ${JSON.stringify(locale)});localStorage.setItem("vua-theme", ${JSON.stringify(theme)});</script></head>`
@@ -159,7 +152,7 @@ export const FIXTURES = {
   },
 };
 
-// The 82 AMF/preview views from preview-factory.mjs, unchanged.
+// AMF/preview views, including the unavailable repository-action layout.
 const FACTORY_VIEWS = [
   "map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop",
   "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu",
@@ -173,7 +166,7 @@ const FACTORY_VIEWS = [
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part",
   "control-recipes-list", "control-recipes-many", "control-recipes-empty", "control-fits",
   "control-packages", "control-packages-project", "control-packages-project-smart",
-  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos",
+  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos", "control-packages-repos-disabled",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin",
   "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty",
   "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms",
@@ -204,7 +197,9 @@ function factoryArea(view) {
 const ONE_ACCENT_EXEMPT = new Set(FACTORY_VIEWS.filter(v => v.startsWith("map")));
 
 function factoryView(id) {
-  return { id, fixture: "factory", area: factoryArea(id), exemptRules: ONE_ACCENT_EXEMPT.has(id) ? ["one-accent"] : [] };
+  const review = ["workshop-running", "workshop-waiting", "workshop-finished", "control-packages-repos", "control-packages-repos-disabled"].includes(id);
+  return { id, fixture: "factory", area: factoryArea(id), exemptRules: ONE_ACCENT_EXEMPT.has(id) ? ["one-accent"] : [],
+    ...(review ? { steps: [`await (${verifyGridFactoryState.toString()})(${JSON.stringify(id)})`] } : {}) };
 }
 
 export const VIEWS = [
@@ -218,16 +213,18 @@ export const VIEWS = [
   { id: "library-corners", fixture: "library-corners", area: "library", steps: ["await window.libraryBulkReview.run()"], settleMs: 600 },
   { id: "library-entries", fixture: "library-entries", area: "library", steps: ["await window.n5EntriesReview.run()"], settleMs: 600 },
   { id: "library-maintenance", fixture: "library-maintenance", area: "library", steps: ["await window.n5MaintenanceReview.run()"], settleMs: 600 },
-  { id: "dependency-clues", fixture: "dependency-clues", area: "library", steps: ["await window.n5DependencyReview.run()"], settleMs: 600 },
+  { id: "library-adaptations", fixture: "library-navigation", area: "library", steps: ["await window.libraryNavigationReview.run()", "await window.libraryNavigationReview.showAdaptations()"], settleMs: 600 },
 
   // Whole-shell App states via first-run-review. The fixture renders the real
   // App only inside mount() (internal), so states are driven through its
   // exported previewEnvironment()/run() end states.
   { id: "first-run-home", fixture: "first-run", area: "first-run",
     steps: ["await window.firstRunReview.previewEnvironment(\"play\")", "document.querySelector('[data-nav-id=\"logo-home\"]').click()"], settleMs: 600 },
-  { id: "first-run-settings", fixture: "first-run", area: "settings", steps: ["await window.firstRunReview.run()"], settleMs: 600 },
+  { id: "first-run-settings", fixture: "first-run", area: "settings", steps: ["await window.firstRunReview.previewSettings()"], settleMs: 600 },
   { id: "env-play", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("play")'], settleMs: 600 },
   { id: "env-create", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("create")'], settleMs: 600 },
+  { id: "env-create-standard", fixture: "first-run", area: "environment", steps: ['await window.firstRunReview.previewEnvironment("create", "standard")'], settleMs: 600 },
+  { id: "tools-hub", fixture: "first-run", area: "tools", steps: ["await window.firstRunReview.previewTools()"], settleMs: 600 },
 
   // Focused panels and dialogs.
   { id: "deployment-check", fixture: "deployment-check", area: "first-run-deployment", steps: ["await window.deploymentReview.run()"], settleMs: 600 },
@@ -235,13 +232,13 @@ export const VIEWS = [
   { id: "import-dialog", fixture: "import-dialog", area: "import-dialog", steps: ["await window.importDialog.run()", "window.__setImportOpen(true)"], settleMs: 600 },
   { id: "resource-monitor", fixture: "resource-monitor", area: "resource-monitor",
     steps: ["await window.resourceMonitorSmoke.base()", "document.querySelector('[data-nav-id=\"system-resources\"]').click()"], settleMs: 600 },
-  { id: "task-window", fixture: "task-window", area: "task-window" },
-  { id: "ai-preparation", fixture: "ai-preparation", area: "ai-preparation" },
+  { id: "task-window", fixture: "task-window", area: "task-window", steps: ["await window.taskWindowReview.run()"] },
+  { id: "ai-preparation", fixture: "ai-preparation", area: "ai-preparation", steps: ["await window.agentUiReview.previewPreparation()"] },
 ];
 
 export const AREAS = [...new Set(VIEWS.map(v => v.area))].sort();
 
-/** Overflow pass locales: dark theme only (default pass is zh-CN dark+light). */
+/** Overflow locales use the family's first supported mode; Grid/Aero use dark, light-only presets use light. */
 export const OVERFLOW_LOCALES = ["en", "ja", "ko", "zh-TW"];
 export const DEFAULT_LOCALE = "zh-CN";
 export const THEMES = ["dark", "light"];

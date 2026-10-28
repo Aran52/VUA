@@ -80,6 +80,7 @@ test("初始落点:明确定位(查询)> 上次阅读位置 > 开始页", () => 
   );
   assert.deepEqual(initialGuideTarget("?view=guide", stored), stored);
   assert.deepEqual(initialGuideTarget("?view=guide", null), { topic: "guide-start" });
+  assert.deepEqual(initialGuideTarget("?view=guide", null, { topic: "guide-vua" }), { topic: "guide-vua" });
 });
 
 test("查询段剥离(评审 P2):定位参数单次消费,剥离后初始落点回到最新阅读位置", () => {
@@ -124,6 +125,25 @@ test("阅读位置持久化:存储往返一致;损坏值/词表漂移安全回�
     // 主题词表外 → 开始页
     store.set("vua-guide-reading", JSON.stringify({ topic: "guide-legacy" }));
     assert.deepEqual(loadGuideReading(), { topic: "guide-start" });
+  } finally {
+    delete (globalThis as Record<string, unknown>).localStorage;
+  }
+});
+
+test("百科和 VUA 指南使用独立阅读键;上传问答分节可直接定位", () => {
+  const store = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, value),
+    removeItem: (key: string) => void store.delete(key),
+  };
+  Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true });
+  try {
+    saveGuideReading({ topic: "guide-safety", section: "trust" });
+    saveGuideReading({ topic: "guide-vua", section: "production-line" }, "vua-vua-guide-reading-v1");
+    assert.deepEqual(loadGuideReading(), { topic: "guide-safety", section: "trust" });
+    assert.deepEqual(loadGuideReading("vua-vua-guide-reading-v1"), { topic: "guide-vua", section: "production-line" });
+    assert.deepEqual(normalizeGuideTarget({ topic: "guide-creator", section: "improve-trust" }), { topic: "guide-creator", section: "improve-trust" });
   } finally {
     delete (globalThis as Record<string, unknown>).localStorage;
   }

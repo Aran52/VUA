@@ -1,13 +1,15 @@
 /* Solid card (author ruling, 2026-10-25): an opaque panel with a 1 px border, no blur, glow or
- * shadow, so pages read calm and the jurisdiction colour stays for actions and selection.
+ * cast shadow. A theme may add an inner rim without changing the surface hierarchy.
  * The first rounded container on a page uses the lg radius; containers inside it step down. */
 
 .vua-card {
   position: relative;
-  background: var(--vua-bg-panel);
+  background-color: var(--vua-bg-panel);
+  background-image: var(--vua-surface-highlight, none);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-lg);
   padding: var(--vua-space-4);
+  box-shadow: var(--vua-card-inset, none);
   transition: border-color var(--vua-motion-fast) ease;
 }
 

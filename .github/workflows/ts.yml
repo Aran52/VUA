@@ -50,6 +50,8 @@ jobs:
         run: pnpm check
       - name: Library maintenance interaction (isolated profile, synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:library-maintenance
+      - name: Local material entry and saved source display (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:material-entry
       - name: Bundle Main and preload for module interaction
         run: node apps/desktop/scripts/build-electron.mjs
       - name: Tray updates and exit (isolated process)
@@ -66,9 +68,13 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:help-navigation
       - name: Wiki and AMF browser within shell navigation (isolated profile, synthetic websites)
         run: pnpm --filter @vua/desktop smoke:asset-browser
+      - name: Notifications above browsing and AMF shape ownership (isolated profile, synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:browser-shell
+      - name: Stable sidebar and page/card widths across detail scrolling (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:layout-stability
       - name: Regional reference and website tests (four languages, synthetic observations)
         run: pnpm --filter @vua/desktop smoke:network
-      - name: Native splash and first-use tour (isolated profile)
+      - name: Native splash, first-use language and optional tour (isolated profile)
         run: pnpm --filter @vua/desktop smoke:startup
       - name: Unsupported system language fallback
         run: pnpm --filter @vua/desktop smoke:startup --locale-unmatched

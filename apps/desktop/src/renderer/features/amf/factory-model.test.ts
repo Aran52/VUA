@@ -87,6 +87,15 @@ describe("telling production lines apart", () => {
     expect(labels.get("n3-01a1455e-7790-7006-a7c0-000100000003")?.extra).toMatch(/#1$/u);
     expect(labels.get("n3-01a1455e-7791-7006-a7c0-000100000004")?.extra).toMatch(/#2$/u);
   });
+
+  it("numbers same-named lines whose run ids carry no start time", () => {
+    const labels = lineLabels([
+      { runId: "run-finished", sourceNames: ["Meiyun_v2.1.0.zip"] },
+      { runId: "run-active", sourceNames: ["Meiyun_v2.1.0.zip"] },
+    ], () => "unused");
+    expect(labels.get("run-active")?.extra).toBe("#1");
+    expect(labels.get("run-finished")?.extra).toBe("#2");
+  });
 });
 
 describe("full access", () => {

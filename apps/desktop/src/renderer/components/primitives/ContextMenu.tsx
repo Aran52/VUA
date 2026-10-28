@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./context-menu.css";
+import { useShapeScope } from "./ShapeScope.tsx";
 
 /**
  * 右键上下文菜单(S-XII)。
@@ -33,6 +34,7 @@ export interface ContextMenuState {
 }
 
 export function ContextMenu({ menu, onClose }: { menu: ContextMenuState; onClose: () => void }) {
+  const shapeScope = useShapeScope();
   const ref = useRef<HTMLDivElement | null>(null);
 
   // 打开后:视口边缘防溢出 + 聚焦首个可用项;Escape/外击/滚动/窗口失焦即关闭
@@ -89,6 +91,7 @@ export function ContextMenu({ menu, onClose }: { menu: ContextMenuState; onClose
       ref={ref}
       className="vua-context-menu"
       role="menu"
+      data-vua-shape-scope={shapeScope}
       style={{ left: menu.x, top: menu.y }}
     >
       {menu.items.map((item) => (

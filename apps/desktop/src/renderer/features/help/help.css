@@ -5,6 +5,13 @@
 .vua-knowledge__body .vua-overlay-guide__topic { border: 1px solid var(--vua-border); }
 .vua-knowledge__body .vua-overlay-guide__topic[data-active] { color: var(--vua-accent-contrast); }
 .vua-help-child > * { flex-shrink: 0; }
-.vua-help-child .vua-onboarding { min-height: 0; padding: 0; width: 100%; }
-.vua-help-child .vua-onboarding__panel { max-width: none; }
-.vua-help-child .vua-onboarding__header h2 { margin: 0; }
+.vua-help-section { display: grid; gap: var(--vua-space-3); margin-bottom: var(--vua-space-5); }
+.vua-help-section > h2 { margin: 0; }
+.vua-help-faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--vua-space-3); }
+.vua-help-faq__item { display: grid; align-content: start; gap: var(--vua-space-2); padding: var(--vua-space-4); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); }
+.vua-help-faq__item h3, .vua-help-faq__item p { margin: 0; }
+.vua-help-faq__actions { display: flex; flex-wrap: wrap; align-self: end; gap: var(--vua-space-2); }
+.vua-upload-eligibility { display: grid; gap: var(--vua-space-2); margin: var(--vua-space-4) 0; padding: var(--vua-space-3) var(--vua-space-4); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); }
+.vua-upload-eligibility h2 { margin: 0; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-upload-eligibility p { margin: 0; color: var(--vua-text-secondary); font: var(--vua-font-body); }
+.vua-upload-eligibility__actions { display: flex; flex-wrap: wrap; gap: var(--vua-space-2); }

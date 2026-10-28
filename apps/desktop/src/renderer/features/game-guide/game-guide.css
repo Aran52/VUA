@@ -82,7 +82,7 @@ html[data-vua-surface="game-guide"] body {
 .vua-game-guide__opacity {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--vua-space-2);
   color: var(--vua-text-secondary);
 }
 
@@ -115,7 +115,7 @@ html[data-vua-surface="game-guide"] body {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px var(--vua-space-2, 8px);
-  padding: 6px var(--vua-space-3, 12px);
+  padding: var(--vua-space-2) var(--vua-space-3, 12px);
   border-bottom: 1px solid var(--vua-border);
   flex: none;
 }
@@ -123,7 +123,7 @@ html[data-vua-surface="game-guide"] body {
 .vua-game-guide__follow {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--vua-space-2);
   color: var(--vua-text-secondary);
   font-size: 0.85em;
   cursor: pointer;

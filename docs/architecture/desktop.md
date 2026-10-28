@@ -65,8 +65,9 @@ Main now supplies Windows' ordered preferred UI languages through local preload 
 instead of letting Electron's browser language decide first use. Native input is bounded in
 preload; browser previews retain their navigator fallback. The saved manual choice always wins,
 and inferred choices do not become a saved override. PICO distribution and network targets
-remain independent. The first-use welcome/tour precedes the route wizard as defined by
-[guidance architecture](guidance.md#2-vua-app-tour), without enabling AMF or changing Home.
+remain independent. First use asks only for a language and then enters the fixed Home, as defined by
+[guidance architecture](guidance.md#2-first-run-and-contextual-introductions). The feature tour and
+module introductions are optional and do not enable AMF.
 
 Main returns normalized navigation/download events through narrow ports and retains `Session`,
 `WebContents` and `DownloadItem` handles. Browser storage owns cookies/tokens; they are not copied
@@ -79,8 +80,9 @@ The main shell has one fixed Home, opened by its left logo, and a fixed
 Environment/Avatar directory in the sidebar. The 2026-10-10 user ruling retires big-screen mode:
 Theme and tray entries, alternate layouts and directional shell navigation are removed.
 Startup removes the old local layout preference without interpreting it. `nav-model.ts` retains internal page ownership for tasks and deep links without
-restoring the old two-tab presentation. Wizard choices never hide features or change Home actions.
-The [design standard](../design/design-standard.md#3-platform-and-information-architecture)
+restoring the old two-tab presentation. The 2026-10-27 C+A ruling replaces the global
+route wizard with one language choice followed by contextual module introductions. Neither changes
+the fixed directory or hides features. The [design standard](../design/design-standard.md#3-platform-and-information-architecture)
 owns the accepted layout, logo colors, unavailable peers and preserved visual preferences.
 
 Environment contains Play, Tools and Avatar editing. Tools groups the planned tracking,
@@ -89,23 +91,21 @@ entries share the Candidate connection card (discovery/install handoff/launch/st
 remaining unwired entries offer collapsible descriptions with disabled development actions,
 not installed/launchable plugin claims. Help is a global topbar
 parallelogram beside Settings, with no sidebar duplicate; its active state covers all Help children.
-Home exposes it among global actions, and Search retains its entry. Help contains Getting started, the app tour, Knowledge encyclopedia and
-In-game assistant. The encyclopedia is a main-window page with hardware introductions and
-the existing shared preparation chapters/bookmark. Its official Wiki entry opens
-`wiki.vrchat.com` in an isolated host browser, including when AMF is disabled.
-Play links directly to hardware reading.
-All four Help cards open main-window child pages; tour and game-assistant pages then offer
-their existing explicit start actions. The replay wizard stays inside its Help child page.
-Native mouse Back/Forward uses Chromium history, including encyclopedia chapters and wizard
-choices; restored preparation still needs fresh inspection. Same-document navigation does not
-invalidate Main's subscribed native-command listeners.
+Home exposes it among global actions, and Search retains its entry. Help starts with common VRChat
+questions, including trust rank, Shield Level, Personal Space and untrusted URLs. It then offers
+VUA instructions, the app tour, the encyclopedia, the game assistant and optional AI tools. The
+encyclopedia remains a main-window page with hardware introductions and shared preparation chapters.
+Its official Wiki entry opens `wiki.vrchat.com` in an isolated host browser, including when AMF is
+disabled. Play links directly to hardware reading.
 
-`journey-model.ts` stores only a versioned reading/selection bookmark. Desktop/PICO and creator
-routes use the existing typed network/deployment ports. A fresh plan or a task completed during
-the current visit can establish software readiness; a restored terminal receipt alone cannot.
-Reopening a completed preparation step reinspects files, and accepted tasks remain observable
-through their receipts. A connection confirmation is explicitly user-declared, not headset evidence.
-Opening Steam or a guide does not prove installation, login or successful play.
+The internal `help-wizard` route now owns the separate VUA guide and its replay of contextual module
+introductions. It does not reopen the retired global wizard. `onboarding-model.ts` retains legacy
+`vua-goals` parsing and migration. Desktop/PICO and creator routes use the existing typed
+network/deployment ports. A fresh plan or a task completed during the current visit can establish
+software readiness; a restored terminal receipt alone cannot. Reopening a completed preparation
+step reinspects files, and accepted tasks remain observable through their receipts. A connection
+confirmation is explicitly user-declared, not headset evidence. Opening Steam or a guide does not
+prove installation, login or successful play.
 
 Play and Tools have equally sized two-half cards: collapsible details on the left and status/action on the
 right. Normal game exit retains **Close** only while owned software survives, with no failure
@@ -113,7 +113,7 @@ warning. Play/Tools cards are 88 px high, half their previous heights;
 the two action/detail halves remain intact. Network's equally tall tile is above the grid; it offers
 approximate [regional HTTPS references](network-onboarding.md), while website tests remain in expanded details. The expandable runtime inventory stays
 on Play. The retired Software & connections page is absent from Home, sidebar and tour;
-old stored page IDs migrate to Play. Wizard choices still do not control these entries.
+old stored page IDs migrate to Play. First-run language and contextual choices still do not control these entries.
 The typed play port consumes the Candidate [play-session family](play-sessions.md), keeps
 unavailable observations distinct from missing software, and disables launch while installation
 is active. Scoped deployment bookmarks retain Desktop and PICO work independently while

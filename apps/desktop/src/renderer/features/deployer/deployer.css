@@ -11,6 +11,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 /* 英雄区:状态灯 + 一句话结论 + 主按钮,高度按窗口自适应(v0.3.3 §4.1) */

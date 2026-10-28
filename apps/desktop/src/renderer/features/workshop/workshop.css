@@ -11,6 +11,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .vua-workshop__hero {
@@ -57,7 +58,7 @@
 }
 
 .vua-workshop__conclusion[data-kind="blocked"] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 /* 完成态与进行态同为辖区橙,以图标(勾 / 箭头)区分;
@@ -175,7 +176,7 @@
 
 .vua-track__stage[data-state="blocked"] .vua-track__node {
   border-color: var(--vua-error);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
   box-shadow: 0 0 12px color-mix(in srgb, var(--vua-error) 45%, transparent);
 }
 
@@ -260,14 +261,14 @@
   flex: 1;
   height: 4px;
   overflow: hidden;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: var(--vua-border);
 }
 
 .vua-workshop__replay-progress-fill {
   display: block;
   height: 100%;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   /* 辖区渐变填充 + 微辉光;HC 下 gradient 置 none 退化纯色 */
   background-color: var(--vua-accent);
   background-image: var(--vua-accent-gradient);

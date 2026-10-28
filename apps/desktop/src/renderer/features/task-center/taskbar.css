@@ -103,7 +103,7 @@
 
 .vua-taskbar__task-glyph {
   display: inline-flex;
-  margin-top: 2px;
+  margin-top: var(--vua-space-1);
   color: var(--vua-text-secondary);
 }
 
@@ -118,7 +118,7 @@
 }
 
 .vua-taskbar__task-glyph[data-status="failed"] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 /* 行主区是打开按钮(W25 走查 D2:活动/终态两态一致回来源页,不静默无响应):
@@ -172,11 +172,11 @@
 }
 
 .vua-taskbar__task-status[data-status="failed"] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-taskbar__rejected {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-taskbar__task-actions {

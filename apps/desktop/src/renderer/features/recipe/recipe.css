@@ -76,7 +76,7 @@
   gap: var(--vua-space-2);
   padding: var(--vua-space-1) var(--vua-space-2);
   border: none;
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   background: transparent;
   color: var(--vua-text-strong);
   font: var(--vua-font-body);
@@ -175,7 +175,7 @@
   bottom: var(--vua-space-3);
   z-index: 2;
   border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-pill);
+  border-radius: 0;
   padding: var(--vua-space-1) var(--vua-space-3);
   background: color-mix(in srgb, var(--vua-bg-panel) 82%, transparent);
   backdrop-filter: blur(12px);

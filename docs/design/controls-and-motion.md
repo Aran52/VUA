@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-10-25
+> Updated: 2026-10-28
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 
@@ -15,7 +15,7 @@ The author's ruling of 2026-10-25 replaces fixed shape rules with two requiremen
 
 1. **Every control has a size specification** that holds in every theme: height, padding, icon
    size, gap, minimum width and hit area per size step.
-2. **Within one theme, every control speaks the same language**: one corner style, one stroke,
+2. **Within one theme's declared scope, every control speaks the same language**: one corner style, one stroke,
    one fill logic, one state ladder and one motion feel, applied to all controls.
 
 Which control is square, rounded or a special shape is the theme's decision, not the standard's.
@@ -36,6 +36,13 @@ to the primitive instead of styling its own button, tab or tag.
 | Container | `Card`, `Panel`, `Section`, `ListRow`, `TableRow` | line cards, library cards, settings sections |
 | Overlay | `Menu`, `ContextMenu`, `Popover`, `Tooltip`, `Dialog`, `Drawer`, `Toast` | mode picker, line menu, confirmations |
 | Sequence | `Stepper` | workshop stations |
+
+Text inputs without a feature-specific appearance use the shared `.vua-text-input` skin in
+`packages/design-system/src/base.css`, including legacy package/project forms. It reuses the
+folder picker's path-field fill, border, padding, corners and focus outline. The folder picker
+uses the same class; feature layouts still own width and path direction. Existing search and
+other deliberately styled fields keep their own appearance, and the AMF geometry scope still
+owns their rectangular shape.
 
 ### Size steps
 
@@ -58,7 +65,9 @@ step inside dense rows.
   use the step below its padding (an `md` card holds `sm` or `md` controls).
 - **Overlays:** menus have 32 px rows and 4 px inner padding; dialogs are 400, 560 or 720 px wide
   with 24 px padding; drawers are 360 or 480 px wide; tooltips wrap at 280 px.
-- **Stepper:** stations are 64 px high; the connector belongs to the theme's shape language.
+- **Stepper:** workshop station cards are at least 80 px high. A neutral edge or thin
+  underline marks viewing; execution uses the icon, status text and progress connector.
+  Neither state gives the card a cast shadow or a large accent fill.
 
 The steps are theme-independent; a theme changes shapes, colours and motion, never these sizes.
 
@@ -68,32 +77,46 @@ A theme defines the following token groups. Components only consume them.
 
 ### Corners
 
-Corners are set per **role group**, each with a style and a size:
+Grid uses rectangles and rounded rectangles only, with small radii, and the same geometry in the
+VUA host and in AMF content (author ruling, 2026-10-28; it replaces the 2026-10-25 cut-corner
+direction). Only the module accent colour differs between host and AMF pages.
+
+Corners are set per **role group**, one radius per group:
 
 | Role group | Members | Grid |
 | --- | --- | --- |
-| Actions | buttons, icon buttons, segmented items, tabs | cut, 6 px |
-| Fields | text fields, selects, search | cut, 4 px |
-| Indicators | tags, status chips, badges | cut, 4 px (badges: square) |
-| Containers | cards, panels, list and table groups | cut, 12 px |
-| Overlays | menus, popovers, dialogs, drawers, toasts | cut, 16 px (menus 8 px) |
+| Actions | primary and secondary buttons, icon buttons, segmented items, tabs | 4 px |
+| Fields | inputs, selects, search | 4 px |
+| Indicators | tags, status chips, count badges | 2 px |
+| Status lights | `StatusLight` | 4 px rounded square |
+| Toggles | `Toggle` track and thumb | 4 px track, 2 px thumb |
+| Progress | progress bars | square, 2 px tall |
+| Containers | cards, panels, workshop station cards, base-map rooms | 8 px |
+| Repeated rows | lists, tables, compact groups | square, separated by lines and space |
+| Large overlays | dialogs, drawers, browser frames | 8 px |
+| Small overlays | menus, tooltips, compact popovers | 4 px |
 
-- Styles a theme may choose: `cut` (a chamfer on the top-right corner), `cut-2` (top-right and
-  bottom-left), `round` (a radius of that size), `square` (none), `pill` (fully round ends, for
-  actions and indicators only) and `mask` (a named mask image such as a lace edge, from the skin).
-- **Grid** uses `cut` throughout: one chamfer on the top-right corner, its size growing with the
-  element, thin strokes, the grid canvas behind. The diagonal of the chamfer carries the same
-  stroke as the edges.
+- Styles a theme may choose: `round` (a radius per role), `square` (none), `pill` (fully round
+  ends, for actions and indicators) and `mask` (a named mask image such as a lace edge, from the
+  skin). Cut, bevel, notch and parallelogram corners are not part of any theme.
 - **Nesting:** an inner corner is never larger than the corner of the element around it.
-- **Special shapes** are allowed for named roles only and declared by the theme: the stepper's
-  connector (Grid: an arrow notch), the brand mark, avatar circles and status dots. A feature does
-  not invent its own shape.
+- **Special shapes** are allowed for named roles only: the brand mark, avatar circles, activity
+  spinners and status dots. A feature does not invent its own shape.
+- **Futuristic feel without shapes.** Grid's character comes from precision and light: 1 px
+  hairlines; 2 px solid accent light bars for state (the selected tab's lower edge, the current
+  navigation item, a base-map room's leading edge, a panel's short top bar); cool near-black
+  surfaces; accent colour only on actions and states; tabular digits everywhere and
+  `--vua-font-mono` for IDs, versions, paths and URLs; label-over-value data layout; and short,
+  exact motion without bounce. Gradient buttons, neon glow and card shadows are not used.
 
-Implementation note. A `cut` corner is a clip-path, which also clips borders, outlines and
-shadows. The shared shape mixin therefore draws the stroke as an inset layer with the same
-polygon, draws the focus ring inside the shape (2 px inset) or on an outer wrapper, and gives
-elevated overlays a drop-shadow filter on a wrapper rather than a box-shadow. One mixin serves
-every control; no feature writes its own polygon.
+Implementation. Each theme sets the role radii as `--vua-corners-<role>` tokens and the host
+radii as `--vua-radius-*`; in Grid both resolve to the table above. The shared
+`packages/design-system/src/shapes.css` applies the role radii to AMF's own controls, so bespoke
+AMF buttons, fields and panels follow the theme too. Non-inherited role metadata lets the
+[design audit](design-audit.md) check one radius per role and the absence of cut corners
+(`corner-shape` other than round, or a `clip-path` polygon).
+
+Frutiger Aero, Tenshi Kaiwai and Jirai Kei set their own radii through the same tokens.
 
 ### Stroke and fill
 
@@ -106,6 +129,13 @@ every control; no feature writes its own polygon.
 | subtle | low-emphasis actions | text only, tint on hover |
 | selected | chosen tab, segment, row | accent tint fill, accent text, 2 px accent bar on the leading or bottom edge |
 | container fill | cards and panels | solid panel colour |
+
+Aero may use a restrained gradient on primary actions. Every gradient stop must meet the same text
+contrast requirement as its solid accent tokens. Ordinary cards stay readable and solid in both
+themes; atmospheric fills belong to the canvas and allowed overlay structure. A theme can give
+primary buttons a declared material through `--vua-action-shadow`; `--vua-card-inset` supplies only
+an inner rim, and `--vua-header-sheen` supplies the shell's glass finish. These are not permission
+for arbitrary card shadows. Accessibility and resource-saving overrides remove all three effects.
 
 ### State ladder
 
@@ -135,6 +165,11 @@ across the app:
 The shell (top bar, sidebar, task bar) and labels floating over scene art may use glass. Grid
 keeps glass only on the shell and on level 2–4 overlays.
 
+The author's adopted third-party review (2026-10-25) supersedes the earlier selected-station
+shadow exception. Viewing (`aria-pressed`) and execution (`aria-current="step"`) are independent.
+Only a step awaiting user input uses amber; future steps stay neutral. The detail area names
+both the viewed step and the running step, or explicitly says no step is running.
+
 ### Iconography
 
 One icon set with one stroke width per theme (Grid: 1.5 px line icons), at 16, 20 or 24 px,
@@ -152,6 +187,7 @@ of the design standard's earlier §7:
 | `--vua-motion-normal` | 180 ms | menus, popovers, tooltips, local reveal, page content swap |
 | `--vua-motion-slow` | 360 ms | dialogs, drawers, cards entering, staged entrances |
 | `--vua-motion-camera` | 650 ms | base-map camera flight, album page turns |
+| `--vua-motion-station` | 240 ms | viewing indicator travel between workshop stations |
 
 - **Easing:** entrances use `--vua-motion-ease-enter` (`cubic-bezier(0.2, 0.9, 0.25, 1)`); exits use
   `--vua-motion-ease-exit` (`cubic-bezier(0.4, 0, 1, 1)`) and take two thirds of the entrance time.
@@ -176,17 +212,17 @@ of the design standard's earlier §7:
 | page change | content fades over normal; no sliding pages |
 | row added or removed | fade over normal; neighbours move over normal |
 | progress | determinate bars move over normal; indeterminate shimmer only while active |
-| stepper | the active station's stroke pulses only while its work runs |
+| stepper | one shared viewing indicator slides to the selected station over 240 ms with `--vua-motion-ease-station` (`cubic-bezier(0.55, 0, 1, 0.45)`), an ease-in/accelerating curve; execution state does not move |
 
 A theme may set a **motion feel**: a duration scale (0.75–1.5 applied to fast, normal and slow),
-its own easing pair and its press feedback (Grid: inset shift; Tenshi: a slight bounce; Jirai:
-slower, softer). Reduced motion, `data-effects="off"` and resource-saving mode override every
+its own easing pair and its press feedback (Grid: inset shift; Tenshi Kaiwai: a slight bounce;
+Jirai Kei: slower, softer). Reduced motion, `data-effects="off"` and resource-saving mode override every
 theme: they keep at most a fast opacity change and still every loop. Scripted motion (the
 factory scenes, album, camera) reads the same tokens through the motion hook.
 
 ## Checking
 
-The design audit checks, per theme:
+The completed control catalogue requires these checks per theme:
 
 - control heights on the three steps, and indicators at their fixed heights;
 - one corner style and size per role group and size step (a "language" check: every button of a
@@ -195,16 +231,34 @@ The design audit checks, per theme:
 - durations and easings from the motion tokens (static scan for literal `ms` and `cubic-bezier`);
 - bespoke controls: a `<button>` outside the primitives that draws its own border or fill.
 
-## Grid migration
+The current [audit implementation](design-audit.md) measures hit-area floors, typography,
+spacing, colours, contrast, painted overflow, surface/corner nesting and one radius per role
+with no cut corners. Role-specific size
+steps and complete motion/bespoke-control checks remain scheduled
+in the [Grid normalization plan](../development/grid-theme-normalization.md). A complete run
+with no current-rule findings does not establish those remaining catalogue requirements.
 
-The default theme today mixes four languages: pill buttons and status chips, skewed
-parallelogram tabs in the shell, cut-corner panels in the factory and control center, and rounded
-cards, fields and tags elsewhere. Moving Grid to its one language:
+## Current theme presets
 
-1. Shape mixin, corner tokens per role group and motion tokens in `packages/design-system`.
-2. Primitives: `Button`, `IconButton`, `Segmented`, `Tabs`, `Tag`, `StatusChip`, `Badge`, `Card`,
-   `TextField`, `Select`, `Menu`, `Dialog`, `Drawer`, `Toast`, `Tooltip`, `Stepper` in the three
-   steps with the state ladder.
-3. Shell: the skewed tabs and title-bar buttons become `Tabs` and `IconButton` with cut corners.
-4. Feature areas move their bespoke controls onto the primitives one area per pull request, each
-   with the audit's before-and-after sheet.
+Control sizes and the state ladder stay shared. Shape, color, texture and motion values are
+selected by `data-theme-family`. Grid and Aero keep `dark`, `light` and `system` independent;
+Tenshi Kaiwai locks Light and Jirai Kei locks Dark, so those choices cannot contradict the preset.
+Missing or invalid stored families resolve to Grid. All four display names stay English in every
+UI language.
+
+- **Grid** supports dark and light modes. Neutral surfaces, low-contrast structural lines and
+  orange/purple jurisdictions carry the futuristic composition: small-radius rectangles, hairlines
+  and accent light bars, flat fills, and no gradients, neon glow or synthwave treatment.
+- **Frutiger Aero** supports dark and light modes. Blue/cyan and green jurisdictions, rounded or
+  pill shapes, original bubble/leaf motifs and restrained specular highlights replace Grid's
+  geometry and palette. Water and glass motifs stay behind readable content, with solid list
+  surfaces and the common accessibility overrides removing decorative effects when required.
+- **Tenshi Kaiwai** locks light mode. White, sky blue and lavender use pill actions, 14 px cards,
+  original wing/halo/bandage motifs and a light overshoot entrance.
+- **Jirai Kei** locks dark mode. Dusty pink and lavender sit on black-plum surfaces, with
+  rounded containers, original bow/stitched-heart motifs, a low-contrast lace canvas and satin
+  action highlights. Neon glow is absent and accessibility overrides remove patterns and highlights.
+
+The complete role/size/state primitive catalogue still migrates feature controls onto shared
+primitives. New themes consume that catalogue through tokens rather than adding feature-level
+color or shape recipes.

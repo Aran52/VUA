@@ -255,20 +255,24 @@ UI language.
 - **Grid** supports dark and light modes. Neutral surfaces, low-contrast structural lines and
   orange/purple jurisdictions carry the futuristic composition: small-radius rectangles, hairlines
   and accent light bars, flat fills, and no gradients, neon glow or synthwave treatment.
-- **Frutiger Aero** supports dark and light modes and recreates Windows Vista's Aero (author ruling,
-  2026-10-28): a glass header with glare streaks around a white client area, Segoe UI, 3 px controls
-  and 4–6 px panels and dialogs, Vista's glossy push buttons with a blue hover, Explorer's selection,
-  task dialogs with a glass frame and a gray footer band, and an orb glyph. Dark mode follows Vista's
-  black glass. Accessibility overrides remove the gloss, frame and glare.
-- **Tenshi Kaiwai** locks light mode. White, sky blue and lavender use pill actions, 14 px cards
-  with a second hairline inside the edge, a rounded title font, blue-white stripes on the header,
-  cards and selection, zipper tape under the header and along dialogs, wing and pixel-heart glyphs,
-  and a light overshoot entrance.
-- **Jirai Kei** locks dark mode. Dusty pink and lavender sit on black-plum surfaces, with a display
-  title font, a dashed pink stitch inside containers, black lace hems on cards, the header and
-  dialogs, a soft card shadow, bow and stitched-heart glyphs, a pink energy-drink can marked with
-  three wavy lines, a low-contrast lace canvas and satin action highlights. Neon glow is absent and
-  accessibility overrides remove patterns, shadows and highlights.
+- **Frutiger Aero** supports dark and light modes and makes VUA a Windows Vista window (author
+  approval of the from-scratch mockup, 2026-10-28): a glass frame with glare over the Aurora
+  wallpaper, an orb, Vista's caption buttons, a breadcrumb address bar and search box, a dark command
+  bar, Explorer's navigation pane and selection, Control Panel style links with glossy icons, group
+  boxes, Vista's glossy push buttons and green progress bar, a details pane, and task dialogs with a
+  glass frame and a gray footer band. Dark mode is Vista's black glass. High contrast returns to the
+  ordinary shell.
+- **Tenshi Kaiwai** locks light mode: sky blue and white with light techwear. A striped header with
+  a zipper and its pull, a woven brand label with a halo and wings, a white sidebar with a webbing
+  strap, nylon-pouch cards with a zipper and a woven tag, velcro-patch steps with a halo on the
+  running one, striped selection, sky-blue stitched pills, a rounded title font and a pastel
+  PC-window dialog with pixel buttons and wings.
+- **Jirai Kei** locks dark mode: black satin for most of the surface with pink as the accent. A
+  satin header with black lace hanging from a pink rim, a black-and-pink gingham sidebar with ribbon
+  banners and a ribbon tag on the current item, satin cards with a dashed stitch, a lace hem and a
+  bow, hearts strung on a chain for the workshop steps, pink satin pills, a candy-stripe progress bar
+  with a heart, a pink energy-drink can marked with three wavy lines, a safety pin and a bandage, a
+  display title font and a letter-style dialog with a pearl frame and a big bow.
 
 The complete role/size/state primitive catalogue still migrates feature controls onto shared
 primitives. New themes consume that catalogue through tokens rather than adding feature-level

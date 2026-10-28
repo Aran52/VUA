@@ -37,9 +37,9 @@ export async function verifyGridFactoryState(view) {
         `Workshop motif loads from the ${family} preset`);
     }
     const active = steps.find(step => step.getAttribute("aria-pressed") === "true");
-    // Step cards wear the theme's card material (none in Grid); viewing and execution never change it.
-    const material = (() => { const probe = document.createElement("div"); probe.style.boxShadow = "var(--vua-card-material)"; active?.parentElement?.appendChild(probe); const value = getComputedStyle(probe).boxShadow; probe.remove(); return value; })();
-    check(active && steps.every(step => getComputedStyle(step).boxShadow === material), "Viewing and execution never grant step cards cast elevation");
+    // Viewing and execution never change a step card's shadow; Grid's step cards have none.
+    const shadows = new Set(steps.map(step => getComputedStyle(step).boxShadow));
+    check(active && shadows.size === 1 && (family !== "grid" || shadows.has("none")), "Viewing and execution never grant step cards cast elevation");
     if (view === "workshop-running") {
       const selectedBackground = getComputedStyle(active).backgroundColor;
       const running = steps.find(step => step.dataset.state === "running");

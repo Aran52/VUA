@@ -136,20 +136,31 @@ muted pink and white, with lace and ribbon details supplying the sweet/dark cont
 | Effects | soft drop shadows, a satin highlight on primary buttons, a faint lace pattern on the canvas; keep pink decorative rather than neon |
 | Motion | slower and softer: base 240 ms, slow 420 ms, ease-in-out, gentle sway on decorations |
 
+## The from-scratch redo
+
+After two passes that restyled the existing presets, the author asked on 2026-10-28 for a redo from
+scratch, grounded in research on each style. Standalone mockups of the shell, home page, workshop and
+a confirmation dialog were approved for all three presets the same day, together with a rule change:
+a preset may add theme-only shell parts that mirror existing functions (see the
+[skin system](../development/skin-system.md#what-a-skin-can-change)). The port lives in
+`packages/design-system/src/themes/*-chrome.css` and `apps/desktop/src/renderer/features/shell/ThemeChrome.tsx`;
+the drawn parts come from `skins/make-motifs.mjs`. The sections below describe the result.
+
 ## Frutiger Aero (dark and light)
 
-Windows Vista's Aero, as the author asked on 2026-10-28. Light mode is the classic look; dark mode
-follows Vista's black glass in Media Center and the Sidebar.
+VUA as a Windows Vista window. Light mode is the classic look; dark mode follows Vista's black
+glass in Media Center and the Sidebar.
 
 | Layer | Direction |
 | --- | --- |
-| Frame | the header is glass: a white gloss over the top half, diagonal glare streaks and a blue tint, blurred over the aurora canvas; the main area is a white client surface with a rounded top-left corner |
+| Frame | the whole shell is a glass frame with a white gloss, diagonal glare and a blue tint over the Aurora wallpaper; an orb carries the logo; Vista's caption buttons sit in the top-right corner, the close button red |
+| Shell parts | a breadcrumb address bar and a search box in the glass; a dark command bar for help, settings and modules; Explorer's navigation pane; a details pane at the bottom |
 | Type | Segoe UI with Microsoft YaHei UI, Meiryo UI and Malgun Gothic, Vista's own fonts; headings in Vista's dark blue |
 | Shape | small radii: 3 px controls, 2 px fields and tags, 4 px panels, 6 px dialogs |
 | Buttons | secondary buttons are Vista's gray glossy push buttons that turn light blue on hover; primary buttons are glossy blue (VUA) or green (AMF) with a dark outline |
 | Selection | Explorer's light-blue gradient with a blue border on the current row and navigation item |
 | Dialogs | a glass frame around the dialog, the title in dark blue and a gray footer band for the buttons |
-| Motifs | an orb before titles, bubbles for the current item, bubbles and a leaf for empty states, the bubbles-and-sprout corner |
+| Pages | Control Panel style links with glossy green, blue and orange icons; group boxes with a blue legend; the workshop steps in one Explorer strip; Vista's green progress bar |
 
 ## Asset list
 

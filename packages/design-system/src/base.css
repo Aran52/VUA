@@ -1,6 +1,9 @@
 @import "./themes/frutiger-aero.css";
 @import "./themes/tenshi.css";
 @import "./themes/jirai.css";
+@import "./themes/aero-chrome.css";
+@import "./themes/jirai-chrome.css";
+@import "./themes/tenshi-chrome.css";
 @import "./motifs/motifs.css";
 @import "./accessibility.css";
 @import "./shapes.css";

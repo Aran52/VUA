@@ -1,0 +1,121 @@
+/* Jirai Kei (author approval of the from-scratch mockup, 2026-10-28). Black satin carries 60-70% of
+ * the surface and pink is the accent: a satin header with black lace hanging from a pink rim, a
+ * black-and-pink gingham sidebar with ribbon banners, satin cards with a dashed stitch, a lace hem
+ * and a bow, hearts strung on a chain for the workshop steps, a pink candy-stripe progress bar with
+ * a heart, and a letter-style dialog with a pearl frame and a big bow. */
+
+/* ---- Header ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__header {
+  height: 58px; border-bottom: 2px solid var(--vua-purple); backdrop-filter: none; -webkit-backdrop-filter: none;
+  background: linear-gradient(180deg, #2c1622 0%, #1a0d14 55%, #120910 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__header::after { top: calc(100% + 2px); height: 14px; background: url("../../skins/jirai/motifs/lace-black.svg") 0 0 / 32px 14px repeat-x; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__logo-home { position: relative; display: grid; place-items: center; width: 44px; height: 40px; padding: 0 0 4px; border: 0;
+  background: url("../../skins/jirai/motifs/heart-filled.svg") center / contain no-repeat; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__logo-home::before { content: ""; position: absolute; left: 9px; top: -10px; width: 26px; height: 18px; background: url("../../skins/jirai/motifs/bow.svg") center / contain no-repeat; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__wordmark { width: 20px; overflow: hidden; color: #120810; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__tab { border-color: var(--vua-purple); border-radius: 999px; background: linear-gradient(180deg, #2c1622, #160a10); color: var(--vua-purple); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__tab[aria-current="page"] { color: #120810; background: linear-gradient(180deg, #ffe0ee 0%, #f2a6c9 48%, #d9779f 52%, #f0a3c6 100%); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__window-button { color: var(--vua-purple); }
+
+/* ---- Sidebar: gingham, ribbon banners, a ribbon tag on the current item ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__sidebar {
+  border-right: 2px solid rgb(242 166 201 / 0.6); padding-top: 28px;
+  background-color: #150a10;
+  background-image: linear-gradient(90deg, rgb(242 166 201 / 0.09) 50%, transparent 50%), linear-gradient(rgb(242 166 201 / 0.09) 50%, transparent 50%);
+  background-size: 18px 18px;
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__sidebar-label {
+  display: inline-block; align-self: flex-start; padding: 1px 18px 1px 12px; border: 0; color: #120810;
+  font: var(--vua-font-body); font-family: var(--vua-font-title-family); font-size: 15px;
+  background: linear-gradient(180deg, #ffd1e5, #f2a6c9 55%, #d9779f);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%);
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__sidebar-item { border-radius: 16px; color: #f2d7e4; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__sidebar-item[aria-current="page"],
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__sidebar-item[aria-current="page"]:hover {
+  color: #120810; font-weight: var(--vua-weight-strong); box-shadow: 0 0 12px rgb(242 166 201 / 0.45);
+  background: linear-gradient(180deg, #ffd9ea, #f2a6c9 55%, #d9779f);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%);
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-shell__sidebar-item[aria-current="page"]::after { inset-inline-end: 18px; background-color: #120810; }
+
+/* ---- Page titles and sections ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-page__hero h1 { position: relative; padding-inline-start: 44px; color: var(--vua-purple); text-shadow: 0 0 14px rgb(242 166 201 / 0.5); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-page__hero h1::before { content: ""; position: absolute; inset-inline-start: 0; top: 4px; width: 38px; height: 26px; background: url("../../skins/jirai/motifs/bow.svg") center / contain no-repeat; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__section h2 { display: flex; align-items: center; gap: 12px; color: var(--vua-purple); font-size: 20px; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__section h2::before { content: "✝"; width: auto; height: auto; mask: none; background: none; color: var(--vua-purple); font-size: 14px; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__section h2::after { content: ""; flex: 1; height: 10px; background: url("../../skins/jirai/motifs/chain.svg") 0 center / 22px 10px repeat-x; }
+
+/* ---- Cards: satin, stitch, lace hem, a bow ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-card, [data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__activity, [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile, [data-theme-family="jirai"]:not([data-hc="on"]) .vua-control__panel {
+  border-color: rgb(242 166 201 / 0.75);
+  background-color: #1d0f16; background-image: linear-gradient(160deg, #2a1520 0%, #170b11 60%, #1d0f16 100%);
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__activity { position: relative; padding: 16px 20px; border: 1px solid rgb(242 166 201 / 0.75); border-radius: 14px; margin-bottom: 14px;
+  outline: 1px dashed rgb(242 166 201 / 0.5); outline-offset: -6px; box-shadow: 0 8px 22px rgb(0 0 0 / 0.5); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__activity h2 { color: var(--vua-purple); font-family: var(--vua-font-title-family); font-size: 17px; font-weight: 400; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__activity > button { border-bottom: 0; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-home__activity::after, [data-theme-family="jirai"]:not([data-hc="on"]) .vua-card::after {
+  content: ""; position: absolute; inset-inline-end: 14px; top: -14px; width: 40px; height: 28px; pointer-events: none;
+  background: url("../../skins/jirai/motifs/bow.svg") center / contain no-repeat;
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-card--elevated::after { content: none; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile { border-radius: 18px; outline-offset: -7px; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile:hover:not(:disabled), [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile[aria-pressed="true"] { border-color: var(--vua-purple); box-shadow: 0 0 0 3px rgb(242 166 201 / 0.25), 0 10px 24px rgb(0 0 0 / 0.5); background-color: #2a1520; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile__icon { width: 64px; height: 58px; padding-bottom: 6px; color: #120810; background: url("../../skins/jirai/motifs/heart-filled.svg") center / contain no-repeat; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile strong { font-family: var(--vua-font-title-family); font-size: 24px; font-weight: 400; color: #ffe3ef; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-grid > :nth-child(3n + 2) .vua-route-tile::after {
+  content: ""; position: absolute; inset-inline-end: -10px; top: 18px; width: 56px; height: 20px; pointer-events: none;
+  background: url("../../skins/jirai/motifs/safety-pin-pink.svg") center / contain no-repeat; transform: rotate(-24deg);
+}
+
+/* ---- Buttons: pink satin pills ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-button { border-radius: 999px; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-button--default { border-color: var(--vua-purple); color: var(--vua-purple); background: linear-gradient(180deg, #2c1622, #160a10); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-button--primary, [data-theme-family="jirai"]:not([data-hc="on"]) [data-module="production"] .vua-button--primary {
+  color: #120810; border-color: #120810;
+  background: linear-gradient(180deg, #ffe0ee 0%, #f2a6c9 48%, #d9779f 52%, #f0a3c6 100%);
+  box-shadow: inset 0 1px 0 #ffffff, 0 0 0 2px rgb(242 166 201 / 0.35), 0 4px 12px rgb(242 166 201 / 0.35);
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-button--primary::before { content: "♥"; }
+
+/* ---- Workshop: hearts on a chain, a candy-stripe bar, a bandage on the running card ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__stations::before { content: ""; position: absolute; inset-inline: 24px; top: 26px; height: 10px; background: url("../../skins/jirai/motifs/chain.svg") 0 0 / 22px 10px repeat-x; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__stations > li:not(:last-of-type)::after { display: none; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station { justify-items: center; min-height: 0; padding: 4px 4px 8px; border-color: transparent; background: transparent; box-shadow: none; outline: 0; text-align: center; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station > svg { display: none; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station::before,
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station[aria-current="step"]::before {
+  content: ""; position: relative; inset: auto; width: 44px; height: 42px; z-index: 1;
+  background: url("../../skins/jirai/motifs/heart-outline.svg") center / contain no-repeat;
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station[data-state="done"]::before { background-image: url("../../skins/jirai/motifs/heart-filled.svg"); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station[data-state="running"]::before, [data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station[aria-pressed="true"]::before { background-image: url("../../skins/jirai/motifs/heart-glow.svg"); filter: drop-shadow(0 0 8px #f2a6c9); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station[aria-pressed="true"] { background: transparent; border-color: transparent; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__station-indicator { background: #f2a6c9; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__bar { height: 14px; overflow: visible; border: 1px solid var(--vua-purple); border-radius: 999px; background: #120910; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__bar > span { position: relative; border-radius: 999px; background: repeating-linear-gradient(135deg, #f2a6c9 0 8px, #ffd1e5 8px 12px); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-line__bar > span::after { content: ""; position: absolute; inset-inline-end: -10px; top: -5px; width: 22px; height: 22px; background: url("../../skins/jirai/motifs/heart-filled.svg") center / contain no-repeat; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-card.vua-line__live::after { inset-inline: -16px auto; top: -10px; width: 64px; height: 24px; background-image: url("../../skins/jirai/motifs/bandage.svg"); transform: rotate(-20deg); }
+
+/* ---- Dialogs: a letter with a pearl frame and a big bow ---- */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog {
+  isolation: isolate; padding: 22px 14px 6px; border: 2px solid var(--vua-purple); border-radius: 18px;
+  background: linear-gradient(165deg, #2c1622, #140a10);
+  box-shadow: 0 0 0 6px #120910, 0 0 0 7px rgb(242 166 201 / 0.6), 0 20px 50px rgb(0 0 0 / 0.7);
+  outline: 1px dashed rgb(242 166 201 / 0.55); outline-offset: -9px;
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog::before {
+  content: ""; position: absolute; inset: -17px; z-index: -1; padding: 9px; border-radius: 26px; pointer-events: none;
+  background: radial-gradient(circle, #f2a6c9 0 3.2px, transparent 3.6px) 0 0 / 12px 12px;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog::after {
+  inset-inline: calc(50% - 48px); bottom: auto; top: -42px; width: 96px; height: 66px;
+  background: url("../../skins/jirai/motifs/bow.svg") center / contain no-repeat;
+}
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__header { justify-content: center; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__title { color: var(--vua-purple); font-family: var(--vua-font-title-family); font-size: 24px; font-weight: 400; text-shadow: 0 0 12px rgb(242 166 201 / 0.5); }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__title:not([data-danger])::before { content: none; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__actions { justify-content: center; gap: 14px; }

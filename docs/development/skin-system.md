@@ -30,9 +30,15 @@ the `.vuaskin` package loader and community import remain separate work.
 | Factory scenes | the base map's room interiors: backdrops, props, characters, particles | a scene pack: sprites plus a declarative layer description (below) |
 | Sound | reserved for later | — |
 
-A skin never changes text, layout order, controls, control sizes, focus behavior or what a screen shows. High
-contrast and Windows forced colors override every skin, and resource-saving mode stills every
-skin's motion, so the accessibility gates hold for all skins.
+A skin never changes text, functions, operation order, focus behavior or what a screen shows. Since
+the author's ruling of 2026-10-28, a built-in preset may add theme-only shell parts that mirror
+functions VUA already has, and may restyle structure: Frutiger Aero adds Vista's breadcrumb address
+bar, a search box that opens the command palette, a command bar for help, settings and modules, and
+a details pane (`features/shell/ThemeChrome.tsx`); Jirai Kei strings the workshop steps as hearts on
+a chain. The structure lives in `packages/design-system/src/themes/*-chrome.css`, scoped to the
+preset. High contrast and Windows forced colors override every skin and return to the ordinary
+shell, and resource-saving mode stills every skin's motion, so the accessibility gates hold for all
+skins.
 
 ## Package format
 

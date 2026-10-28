@@ -296,4 +296,69 @@ write("frutiger-aero", "orb.svg", 24, 24, `
 <path d="M5 10A7.5 6 0 0 1 19 10C16 8.6 8 8.6 5 10Z" fill="currentColor" stroke="none"/>
 <path d="M8 17A6 3 0 0 0 16 17" stroke-width="1.2" stroke-opacity="0.8"/>`, "Frutiger Aero mark: glass orb");
 
+// ---- Pass 3 (from-scratch mockups approved 2026-10-28): Jirai's ribbons and charms, Tenshi's techwear ----
+const pink = "#f2a6c9", pinkDeep = "#d9779f", plum = "#120810";
+const heartD = "M12 21C5 15 2 11 2 7.5 2 4.5 4.5 2 7.5 2c2 0 3.5 1 4.5 2.5C13 3 14.5 2 16.5 2 19.5 2 22 4.5 22 7.5 22 11 19 15 12 21z";
+
+writeRaw("jirai", "bow.svg", 64, 44, `
+<defs><linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd9ea"/><stop offset="0.45" stop-color="${pink}"/><stop offset="1" stop-color="${pinkDeep}"/></linearGradient></defs>
+<path d="M32 18C22 2 4 4 6 16C8 28 22 26 32 22Z" fill="url(#s)" stroke="${plum}" stroke-width="1.6"/>
+<path d="M32 18C42 2 60 4 58 16C56 28 42 26 32 22Z" fill="url(#s)" stroke="${plum}" stroke-width="1.6"/>
+<path d="M29 22L20 42L26 39L29 44L32 24Z" fill="url(#s)" stroke="${plum}" stroke-width="1.4"/>
+<path d="M35 22L44 42L38 39L35 44L32 24Z" fill="url(#s)" stroke="${plum}" stroke-width="1.4"/>
+<rect x="27" y="14" width="10" height="11" rx="3.5" fill="${plum}"/>
+<path d="M10 12C14 8 20 9 24 13M54 12C50 8 44 9 40 13" stroke="#ffffff" stroke-opacity="0.6" stroke-width="1.4" fill="none"/>`, "Jirai satin bow");
+
+writeRaw("jirai", "heart-filled.svg", 24, 24, `<path d="${heartD}" fill="${pink}" stroke="${plum}" stroke-width="1.6"/>`, "Jirai filled heart");
+writeRaw("jirai", "heart-glow.svg", 24, 24, `<path d="${heartD}" fill="${pink}" stroke="#ffffff" stroke-width="1.6"/>`, "Jirai current heart");
+writeRaw("jirai", "heart-outline.svg", 24, 24, `<path d="${heartD}" fill="#1a0d14" stroke="${pink}" stroke-width="1.6"/>`, "Jirai outline heart");
+
+writeRaw("jirai", "chain.svg", 22, 10, `<g fill="none" stroke="${pink}" stroke-width="1.6"><rect x="1" y="2" width="12" height="6" rx="3" stroke-opacity="0.75"/><rect x="11" y="2" width="10" height="6" rx="3" stroke-opacity="0.45"/></g>`, "Jirai chain tile");
+
+writeRaw("jirai", "safety-pin-pink.svg", 56, 20, `
+<g fill="none" stroke="#d8d0dc" stroke-width="2" stroke-linecap="round"><path d="M10 10H50a4 4 0 0 0 0-8H14"/><path d="M10 10H46"/></g>
+<rect x="2" y="5" width="10" height="10" rx="3" fill="${pink}" stroke="${plum}"/>`, "Jirai safety pin");
+
+writeRaw("jirai", "bandage.svg", 64, 24, `
+<rect x="1" y="2" width="62" height="20" rx="10" fill="#f9c3da" stroke="${plum}" stroke-width="1.4"/>
+<rect x="22" y="5" width="20" height="14" rx="3" fill="#fde3ee" stroke="${pinkDeep}" stroke-width="1"/>
+<g fill="${pinkDeep}"><circle cx="9" cy="9" r="1"/><circle cx="9" cy="15" r="1"/><circle cx="14" cy="12" r="1"/><circle cx="55" cy="9" r="1"/><circle cx="55" cy="15" r="1"/><circle cx="50" cy="12" r="1"/></g>`, "Jirai pink bandage");
+
+writeRaw("jirai", "hearts-tile.svg", 64, 64, `
+<g fill="${pink}" fill-opacity="0.07"><path transform="translate(6 6) scale(0.6)" d="${heartD}"/><path transform="translate(38 38) scale(0.45)" d="${heartD}"/></g>
+<path d="M48 8v10M43 13h10" stroke="${pink}" stroke-opacity="0.08" stroke-width="1.5"/>`, "Jirai canvas tile: hearts and crosses");
+
+{
+  const sky = "#4a9be8", skyDeep = "#2a72c8", skyLine = "#8ec5f5", skyPale = "#dcedff";
+  writeRaw("tenshi", "pull-tab.svg", 22, 40, `
+<defs><linearGradient id="m" x1="0" x2="1"><stop offset="0" stop-color="#9fb0c2"/><stop offset="0.45" stop-color="#ffffff"/><stop offset="1" stop-color="#8496aa"/></linearGradient></defs>
+<rect x="5" y="0" width="12" height="10" rx="3" fill="url(#m)" stroke="#5d7088"/>
+<rect x="4" y="9" width="14" height="26" rx="7" fill="url(#m)" stroke="#5d7088"/>
+<rect x="8" y="15" width="6" height="14" rx="3" fill="#cfe6ff" stroke="#5d7088"/>
+<path d="M11 33l1 3 3 .2-2.4 2 .8 3-2.4-1.7-2.4 1.7.8-3-2.4-2 3-.2z" fill="${sky}"/>`, "Tenshi zipper pull with a star");
+
+  writeRaw("tenshi", "buckle.svg", 26, 44, `
+<rect x="1" y="1" width="24" height="18" rx="4" fill="#ffffff" stroke="${skyDeep}" stroke-width="1.5"/>
+<rect x="6" y="6" width="14" height="8" rx="2" fill="${skyPale}" stroke="${skyDeep}"/>
+<path d="M3 19h20l-3 22H6z" fill="#ffffff" stroke="${skyDeep}" stroke-width="1.5"/>
+<path d="M9 24h8M9 29h8M9 34h8" stroke="${skyLine}" stroke-width="1.5"/>`, "Tenshi side-release buckle");
+
+  writeRaw("tenshi", "wing.svg", 60, 36, `
+<path d="M58 22C46 6 22 0 4 6C1 7 2 11 5 11C10 11 13 12 16 14C12 16 13 20 18 20C19 24 24 26 28 24C30 28 37 30 42 28C49 26 55 26 58 22Z" fill="#ffffff" stroke="${sky}" stroke-width="1.6"/>
+<path d="M14 9C24 9 34 12 44 17M20 15C28 15 36 18 44 22" stroke="${skyLine}" stroke-width="1.2" fill="none"/>`, "Tenshi wing, pointing left");
+
+  writeRaw("tenshi", "wing-right.svg", 60, 36, `
+<g transform="translate(60 0) scale(-1 1)"><path d="M58 22C46 6 22 0 4 6C1 7 2 11 5 11C10 11 13 12 16 14C12 16 13 20 18 20C19 24 24 26 28 24C30 28 37 30 42 28C49 26 55 26 58 22Z" fill="#ffffff" stroke="${sky}" stroke-width="1.6"/>
+<path d="M14 9C24 9 34 12 44 17M20 15C28 15 36 18 44 22" stroke="${skyLine}" stroke-width="1.2" fill="none"/></g>`, "Tenshi wing, pointing right");
+
+  writeRaw("tenshi", "cloud.svg", 220, 120, `
+<g fill="#ffffff" fill-opacity="0.9"><ellipse cx="60" cy="80" rx="50" ry="22"/><ellipse cx="95" cy="62" rx="34" ry="28"/><ellipse cx="130" cy="78" rx="44" ry="22"/></g>
+<path d="M180 24v12M174 30h12" stroke="${skyLine}" stroke-width="2"/><path d="M30 26v8M26 30h8" stroke="${skyLine}" stroke-width="1.6"/>`, "Tenshi cloud with sparkles");
+
+  writeRaw("tenshi", "zipper-tape.svg", 16, 12, `
+<rect width="16" height="12" fill="#cfe6ff"/><rect width="16" height="1.5" fill="${skyLine}"/><rect y="10.5" width="16" height="1.5" fill="${skyLine}"/>
+<rect x="1" y="2" width="5" height="4.4" rx="1.2" fill="#e8eef5" stroke="#7f93a8" stroke-width="0.7"/>
+<rect x="9" y="5.6" width="5" height="4.4" rx="1.2" fill="#e8eef5" stroke="#7f93a8" stroke-width="0.7"/>`, "Tenshi zipper tape tile");
+}
+
 console.log("ok");

@@ -42,9 +42,10 @@ export function createCreatorInventoryPort(client: GatewayClient): { inspect(): 
       if (!record(e) || typeof e.version !== "string" || typeof e.path !== "string" || typeof e.classification !== "string") { editorsKnown = false; continue; }
       const verified = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "environment.verifyEditor", params: { path: e.path } }).catch(() => null);
       if (!verified?.ok) { editorsKnown = false; continue; }
-      if (!record(verified.value) || verified.value.verdict !== "verified"
-        || typeof verified.value.version !== "string" || typeof verified.value.exePath !== "string" || typeof verified.value.classification !== "string") continue;
-      editors.push({ version: verified.value.version, path: verified.value.exePath, classification: verified.value.classification });
+      const value: unknown = verified.value;
+      if (!record(value) || value.verdict !== "verified"
+        || typeof value.version !== "string" || typeof value.exePath !== "string" || typeof value.classification !== "string") continue;
+      editors.push({ version: value.version, path: value.exePath, classification: value.classification });
     }
     return { editors, editorsKnown, vcc, alcom, apps };
   } };

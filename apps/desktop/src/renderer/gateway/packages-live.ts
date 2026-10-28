@@ -1077,8 +1077,9 @@ export function createLivePackages(client: GatewayClient): PackagesPort {
       params: {},
     });
     const availability = (operationId: string): boolean => {
-      if (!result.ok || !isRecord(result.value)) return false;
-      const capabilities = result.value.capabilities;
+      const value: unknown = result.ok ? result.value : null;
+      if (!isRecord(value)) return false;
+      const capabilities = value.capabilities;
       if (!isRecord(capabilities) || !Array.isArray(capabilities.operations)) return false;
       return capabilities.operations.some(
         (operation) =>

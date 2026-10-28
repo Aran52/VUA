@@ -1,3 +1,4 @@
+import { isLibraryListParamsV02, type LibraryListParamsV02, type LibraryListV02 } from "./library-view-v02.js";
 import { isUnityLicenseParams } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
 import { isTermsParams, type TermsPresetId, type ProductTermsV01, type TermsUseCheckV01, type TermsAcceptedV01 } from "./terms-v01.js";
@@ -2011,7 +2012,7 @@ export interface LibraryDownloadQueryV01 extends ApplicationRequestBaseV01 {
   readonly kind: "query"; readonly method: "library.downloadStatus"; readonly params: LibraryDownloadStatusV01;
 }
 export type LibraryViewQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "query" } & (
-  | { readonly method: "library.list"; readonly params: LibraryListParamsV01 }
+  | { readonly method: "library.list"; readonly params: LibraryListParamsV01 | LibraryListParamsV02 }
   | { readonly method: "library.productFiles"; readonly params: LibraryProductFilesParamsV01 }
 );
 export type RecipeDraftQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "query" } & (
@@ -3031,7 +3032,7 @@ export type ApplicationSuccessValueV01 =
   | NetworkResult
   | WebsiteTestResult
   | GameWindowObservationResultV1
-  | LibraryListV01 | LibraryProductFilesV01
+  | LibraryListV01 | LibraryListV02 | LibraryProductFilesV01
   | RecipeDraftListV01 | RecipeDraftReadV01
   | LibraryRemovalPreviewV01 | LibraryRemovalSnapshotV01 | RecipeDraftSelectionStatusV01
   | LibraryPendingRemovalsV01
@@ -3794,7 +3795,7 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   }
   if (value.method === "library.list" || value.method === "library.productFiles") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
-      && isLibraryViewParamsV01(value.method, value.params);
+      && (isLibraryViewParamsV01(value.method, value.params) || value.method === "library.list" && isLibraryListParamsV02(value.params));
   }
   if (value.method === "catalog.searchProducts") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])

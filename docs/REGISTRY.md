@@ -24,7 +24,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/bdl-queries-v0.4.md | 0.4 | Frozen | Data | 2026-09-15 |
 | docs/protocols/bdl-queries-v0.5.md | 0.5 | Frozen | Data | 2026-09-22 |
 | docs/protocols/bdl-queries-v0.6.md | 0.6 | Frozen | Data | 2026-10-02 |
-| docs/protocols/terms-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-19 |
+| docs/protocols/terms-v0.1.md | 0.2.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/booth-search-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/catalog-sync-v0.1.md | 0.1 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.2.md | 0.2 | Frozen | Data | 2026-10-02 |
@@ -50,6 +50,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/library-records-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.1.md | 0.8 | Implementation baseline | AMF | 2026-10-12 |
+| docs/protocols/library-view-v0.2.md | 0.2.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/material-intake-v0.1.md | 0.1 | Implementation baseline | Production | 2026-09-06 |
 | docs/protocols/material-intake-v0.2.md | 0.2.1 | Frozen | Core | 2026-09-21 |
 | docs/protocols/packages-catalog-v0.2.md | 0.2 | Frozen | Core | 2026-09-17 |
@@ -140,6 +141,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/library-records/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | schemas/library-records/v0.2 | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | schemas/library-view/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-12 |
+| schemas/library-view/v0.2 | 0.2 | Candidate | AMF | 2026-10-29 |
 | schemas/manager-apps/v0.1/ | 0.1 | Candidate | Environment | 2026-10-09 |
 | schemas/packages-catalog/v0.1 | 0.1 | Frozen | Core | 2026-09-17 |
 | schemas/packages-catalog/v0.2 | 0.2 | Frozen | Core | 2026-09-17 |

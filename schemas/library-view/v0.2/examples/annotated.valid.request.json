@@ -1,0 +1,8 @@
+{
+  "method": "library.list",
+  "params": {
+    "schemaVersion": "0.2",
+    "use": "game_development",
+    "useMode": "all"
+  }
+}

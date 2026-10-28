@@ -1,3 +1,5 @@
+import { Badge } from "../../components/primitives/Badge.tsx";
+import { termsEverywhereCopy } from "../../i18n/index.ts";
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Button } from "../../components/primitives/Button.tsx";
 import { format, strings } from "../../i18n/index.ts";
@@ -50,9 +52,9 @@ export function libraryListSource(facts: LibraryCardFacts | undefined, origin: "
 }
 
 /** One plain source value; detail facts stay in the detail panel. */
-export function LibraryListRow({ id, productId, title, shop, variant, variantCount, source, selected, style, onSelect, onOpen, onMenu }: {
+export function LibraryListRow({ id, productId, title, shop, variant, variantCount, source, use, selected, style, onSelect, onOpen, onMenu }: {
   id: string; productId?: string | undefined; title: string; shop?: string | null | undefined; variant?: string | null | undefined; variantCount?: number | undefined;
-  source: ReturnType<typeof libraryListSource>; selected: boolean; style: CSSProperties; onSelect: () => void; onOpen: () => void; onMenu: (event: MouseEvent<HTMLElement>) => void;
+  use?: LibraryCardFacts["use"]; source: ReturnType<typeof libraryListSource>; selected: boolean; style: CSSProperties; onSelect: () => void; onOpen: () => void; onMenu: (event: MouseEvent<HTMLElement>) => void;
 }) {
   const variation: ReactNode = (variantCount ?? 0) > 1 ? format(copy.variants, { count: variantCount! }) : variant || "—";
   return <div className="vua-warehouse-list-row" style={style} data-selected={selected || undefined} data-product-id={productId} data-selection-id={id}
@@ -61,6 +63,6 @@ export function LibraryListRow({ id, productId, title, shop, variant, variantCou
     <div className="vua-library-list__cell vua-library-list__title" role="cell"><span title={title}>{title}</span><Button variant="subtle" aria-label={strings.warehouse.removeFiles.actions} aria-haspopup="menu" onClick={event => { event.stopPropagation(); onMenu(event); }}>⋯</Button></div>
     <span className="vua-library-list__cell" role="cell" title={shop ?? undefined}>{shop || "—"}</span>
     <span className="vua-library-list__cell" role="cell" title={(variantCount ?? 0) > 1 ? undefined : variant ?? undefined}>{variation}</span>
-    <span className="vua-library-list__cell vua-library-list__source" role="cell" data-source={source}>{copy.states[source]}</span>
+    <span className="vua-library-list__cell vua-library-list__source" role="cell" data-source={source}>{copy.states[source]}{use&&<Badge tone={["allowed","conditional"].includes(use.status)?"neutral":"warning"}>{termsEverywhereCopy[use.status]}</Badge>}</span>
   </div>;
 }

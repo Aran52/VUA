@@ -10,6 +10,9 @@ use vua_bdl_store::{ArtifactMode, BdlStore, CopyRole, LibraryCopyEvidence};
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct Query {
     schema_version: String,
+    #[serde(rename = "use")]
+    use_preset: Option<String>,
+    use_mode: Option<String>,
     #[serde(default = "all")]
     source: String,
     #[serde(default = "all")]
@@ -104,13 +107,16 @@ pub fn list(
     downloads: &LibraryDownloadService,
     params: Value,
 ) -> Result<Value, LibraryDownloadError> {
-    if params.get("availabilityStatus").is_some_and(Value::is_null) || params.get("descriptionLinksTo").is_some_and(Value::is_null) {
+    if ["use","useMode"].iter().any(|key| params.get(*key).is_some_and(Value::is_null)) || params.get("availabilityStatus").is_some_and(Value::is_null) || params.get("descriptionLinksTo").is_some_and(Value::is_null) {
         return Err(LibraryDownloadError("invalid_params"));
     }
     // Omitted = all categories; null = no recorded native category.
     let category_filter = params.get("sourceCategory").cloned();
     let query: Query = serde_json::from_value(params)?;
-    if query.schema_version != "0.1"
+    if !["0.1","0.2"].contains(&query.schema_version.as_str())
+        || (query.schema_version == "0.1" && (query.use_preset.is_some() || query.use_mode.is_some()))
+        || query.use_preset.as_ref().is_some_and(|preset| !crate::terms::preset_ids().contains(&preset.as_str()))
+        || query.use_mode.as_ref().is_some_and(|mode| query.use_preset.is_none() || !["available","all"].contains(&mode.as_str()))
         || !["all", "local", "imported", "bought", "gifts", "free_downloads"].contains(&query.source.as_str())
         || ![
             "all",
@@ -331,6 +337,12 @@ pub fn list(
                 }
             })
     });
+    if let Some(preset) = &query.use_preset {
+        annotate_use(bdl, &mut rows, preset)?;
+        if query.use_mode.as_deref().unwrap_or("available") == "available" {
+            rows.retain(|row| matches!(row["use"]["status"].as_str(), Some("allowed" | "conditional")));
+        }
+    }
     // Facets cover the full filtered library, before category and pagination.
     let source_categories: std::collections::BTreeSet<_> = rows.iter()
         .filter_map(|row| row["sourceCategory"].as_str().map(str::to_owned)).collect();
@@ -339,8 +351,34 @@ pub fn list(
     }
     let total = rows.len();
     Ok(
-        json!({"schemaVersion":"0.1","total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()}),
+        json!({"schemaVersion":query.schema_version,"total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()}),
     )
+}
+
+/// Match the renderer's confirmed identity rule: name/filename suggestions cannot
+/// grant use permission to an unrelated local item.
+fn terms_product_id(row: &Value) -> Option<&str> {
+    if row["kind"] == "product" {return row["product"]["productId"].as_str();}
+    row["metadata"]["productId"].as_str().or_else(|| {
+        (row["sourceMatch"]["basis"] == "mapping").then(|| row["sourceMatch"]["product"]["productId"].as_str()).flatten()
+    })
+}
+fn annotate_use(bdl: &BdlStore, rows: &mut [Value], preset: &str) -> Result<(), LibraryDownloadError> {
+    let ids=rows.iter().filter_map(terms_product_id).map(str::to_owned).collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>();
+    let check=crate::terms::check_use(bdl,preset,&ids)?;
+    let decisions=check.products.iter().map(|product| {
+        let status=match product.result.decision.as_str() {
+            "conforms" if !product.result.conditions.is_empty()=>"conditional",
+            "conforms"=>"allowed", "contact_licensor"=>"contact", "nonconforming"=>"forbidden",
+            _ if product.source_state=="no_vn3"=>"no_terms", _=>"unknown",
+        };
+        (product.product_id.as_str(),status)
+    }).collect::<HashMap<_,_>>();
+    for row in rows {
+        let status=terms_product_id(row).map(|id|decisions.get(id).copied().unwrap_or("unknown")).unwrap_or("no_terms");
+        row["use"]=json!({"presetId":preset,"status":status});
+    }
+    Ok(())
 }
 
 fn params_product_invalid(value: &Option<String>) -> bool {

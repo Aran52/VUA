@@ -121,6 +121,7 @@ h1,
 h2 {
   font: var(--vua-font-title);
   margin-block: var(--vua-space-4);
+  color: var(--vua-heading-color, inherit);
 }
 
 h3,

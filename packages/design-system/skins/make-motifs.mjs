@@ -207,4 +207,93 @@ write("jirai", "safety-pin.svg", 24, 24, `
 </g>
 <path d="${heartPath(18, 18, 0.22)}" fill="currentColor" stroke="none"/>`, "Jirai safety pin with heart");
 
+// ---- Glyph slots: one-color marks drawn as masks in the room or accent color ----
+write("jirai", "heart.svg", 24, 24, `
+<path d="${heartPath(12, 12.5, 0.82)}" fill="currentColor" fill-opacity="0.3" stroke-width="1.8"/>
+<path d="${heartPath(12, 12.5, 0.56)}" stroke-width="1" stroke-dasharray="1.4 1.6"/>`, "Jirai selection mark: stitched heart");
+
+// ================= Frutiger Aero =================
+const bubble = (cx, cy, r) => `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="currentColor" fill-opacity="0.18" stroke-width="${n(Math.max(1.2, r * 0.16))}"/>
+<path d="M${n(cx - r * 0.62)} ${n(cy - r * 0.12)}A${n(r * 0.64)} ${n(r * 0.64)} 0 0 1 ${n(cx - r * 0.1)} ${n(cy - r * 0.64)}" stroke-width="${n(Math.max(1, r * 0.14))}"/>`;
+const leaf = (x, y, s, deg) => `<g transform="translate(${n(x)} ${n(y)}) rotate(${deg}) scale(${s})"><path d="M0 0C4 -8 12 -10 18 -9C17 -2 11 4 0 0Z" fill="currentColor" fill-opacity="0.45" stroke-width="1.4"/><path d="M1 -1C6 -4 10 -6 14 -7" stroke-width="1" stroke-opacity="0.8"/></g>`;
+
+write("frutiger-aero", "bubble.svg", 24, 24, `
+${bubble(13, 13, 8)}
+${bubble(5, 6, 3)}`, "Frutiger Aero selection mark: bubbles");
+
+write("frutiger-aero", "empty-state.svg", 120, 96, `
+${bubble(56, 44, 22)}
+${bubble(90, 30, 9)}
+${bubble(24, 22, 6)}
+${leaf(70, 74, 1.3, -18)}
+<path d="M8 84C24 78 40 90 56 84S88 78 112 84" stroke-width="2"/>`, "Frutiger Aero empty state: bubbles, leaf and water");
+
+// ---- Pass 2 (author review 2026-10-28): Vista-era Aero, Jirai's claw can and black lace, Tenshi's stripes and techwear ----
+// These carry their own colors, so they render as images rather than one-color masks.
+const writeRaw = (skin, name, w, h, body, title) => {
+  const dir = path.join(root, skin, "motifs");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, name), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+  <title>${title}</title>
+${body.trim().split("\n").map(l => "  " + l.trim()).join("\n")}
+</svg>
+`);
+};
+
+// Tenshi: a zipper tile on light-blue tape, teeth interlocking from both edges.
+writeRaw("tenshi", "zipper.svg", 24, 10, `
+<rect width="24" height="10" fill="#dcedff"/>
+<rect width="24" height="1" fill="#9fc3e8"/><rect y="9" width="24" height="1" fill="#9fc3e8"/>
+${[1, 13].map(x => `<rect x="${x}" y="1.5" width="4.5" height="4" rx="1" fill="#c7d5e3" stroke="#7d93aa" stroke-width="0.6"/><rect x="${x + 0.8}" y="2.1" width="2.6" height="0.9" rx="0.4" fill="#ffffff" fill-opacity="0.9"/>`).join("\n")}
+${[7, 19].map(x => `<rect x="${x}" y="4.5" width="4.5" height="4" rx="1" fill="#c7d5e3" stroke="#7d93aa" stroke-width="0.6"/><rect x="${x + 0.8}" y="5.1" width="2.6" height="0.9" rx="0.4" fill="#ffffff" fill-opacity="0.9"/>`).join("\n")}`, "Tenshi zipper tile");
+
+// Tenshi: a pixel heart, the style's digital accent.
+{
+  const rows = [".XX.XX.", "XXXXXXX", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."];
+  const cells = rows.flatMap((row, y) => [...row].map((c, x) => c === "X" ? `<rect x="${1.5 + x * 3}" y="${3 + y * 3}" width="3" height="3"/>` : "")).filter(Boolean);
+  writeRaw("tenshi", "pixel-heart.svg", 24, 24, `<g fill="#000000">${cells.join("")}</g>`, "Tenshi selection mark: pixel heart");
+}
+
+// Jirai: black lace hanging from a pink ribbon band.
+writeRaw("jirai", "lace-black.svg", 32, 12, `
+<rect width="32" height="3" fill="#eaa0c2" fill-opacity="0.6"/>
+<path d="M0 3Q4 12.5 8 3Q12 12.5 16 3Q20 12.5 24 3Q28 12.5 32 3Z" fill="#0b0508" stroke="#eaa0c2" stroke-opacity="0.8" stroke-width="0.8"/>
+${[4, 12, 20, 28].map(x => `<circle cx="${x}" cy="6" r="1.2" fill="#5a2a40"/>`).join("")}`, "Jirai black lace tile");
+
+// Jirai: a pink energy-drink can with three wavy lines, a bow on top and black lace at its foot.
+writeRaw("jirai", "claw-can.svg", 192, 128, `
+<defs>
+<linearGradient id="can" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0" stop-color="#b8487c"/><stop offset="0.22" stop-color="#f6b3d1"/><stop offset="0.36" stop-color="#ffe3ef"/>
+<stop offset="0.52" stop-color="#ee8fbb"/><stop offset="1" stop-color="#9c3a69"/>
+</linearGradient>
+<linearGradient id="rim" x1="0" y1="0" x2="1" y2="0">
+<stop offset="0" stop-color="#6b6170"/><stop offset="0.4" stop-color="#e9e3ec"/><stop offset="1" stop-color="#5a5060"/>
+</linearGradient>
+</defs>
+<ellipse cx="74" cy="118" rx="34" ry="5" fill="#000000" fill-opacity="0.35"/>
+<path d="M50 30Q50 24 56 22H92Q98 24 98 30V108Q98 114 92 116H56Q50 114 50 108Z" fill="url(#can)" stroke="#2a0f1c" stroke-width="1.5"/>
+<path d="M53 22Q53 16 60 15H88Q95 16 95 22Z" fill="url(#rim)" stroke="#2a0f1c" stroke-width="1.2"/>
+<ellipse cx="74" cy="15" rx="14" ry="2.6" fill="#d9d2dc" stroke="#2a0f1c" stroke-width="1"/>
+<path d="M53 112Q53 118 60 119H88Q95 118 95 112Z" fill="url(#rim)" stroke="#2a0f1c" stroke-width="1.2"/>
+${[62, 74, 86].map((x, i) => `<path d="M${x} 40C${x - 5} 50 ${x + 5} 58 ${x} 68C${x - 5} 78 ${x + 5} 86 ${x} 96" fill="none" stroke="#1a0710" stroke-width="${i === 1 ? 4.2 : 3.6}" stroke-linecap="round"/>`).join("\n")}
+<path d="M50 100H98" stroke="#2a0f1c" stroke-width="1" stroke-opacity="0.5"/>
+<g transform="translate(118 74)">
+<path d="M0 0C-14 -16 -30 -10 -26 2C-22 14 -8 10 0 4Z" fill="#f2a6c9" stroke="#2a0f1c" stroke-width="1.4"/>
+<path d="M0 0C14 -16 30 -10 26 2C22 14 8 10 0 4Z" fill="#f2a6c9" stroke="#2a0f1c" stroke-width="1.4"/>
+<path d="M-3 5L-12 30L-6 27L-3 32L1 7Z" fill="#e58ab4" stroke="#2a0f1c" stroke-width="1.2"/>
+<path d="M3 5L12 30L6 27L3 32L-1 7Z" fill="#e58ab4" stroke="#2a0f1c" stroke-width="1.2"/>
+<rect x="-5" y="-4" width="10" height="11" rx="3" fill="#1a0710"/>
+</g>
+<path d="${heartPath(160, 40, 1.1)}" fill="#1a0710" stroke="#eaa0c2" stroke-width="1.4"/>
+<path d="M153 33L167 47M167 33L153 47" stroke="#eaa0c2" stroke-width="1" stroke-opacity="0.7"/>
+<rect x="0" y="118" width="192" height="3" fill="#eaa0c2" fill-opacity="0.6"/>
+<path d="${Array.from({ length: 12 }, (_, i) => `${i === 0 ? "M0 121" : ""}Q${i * 16 + 8} 131 ${(i + 1) * 16} 121`).join("")}Z" fill="#0b0508" stroke="#eaa0c2" stroke-opacity="0.8" stroke-width="0.8"/>`, "Jirai page corner: pink energy-drink can with wavy lines, bow and black lace");
+
+// Frutiger Aero (Vista era): a glass orb for the mark slot.
+write("frutiger-aero", "orb.svg", 24, 24, `
+<circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.45" stroke-width="1.4"/>
+<path d="M5 10A7.5 6 0 0 1 19 10C16 8.6 8 8.6 5 10Z" fill="currentColor" stroke="none"/>
+<path d="M8 17A6 3 0 0 0 16 17" stroke-width="1.2" stroke-opacity="0.8"/>`, "Frutiger Aero mark: glass orb");
+
 console.log("ok");

@@ -215,7 +215,7 @@ export function collectAuditSnapshot(options) {
 
   // Resolved shadow/glow tokens for shadow-panel classification.
   const shadowTokens = {};
-  for (const name of ["--vua-shadow-elevated", "--vua-action-shadow", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
+  for (const name of ["--vua-shadow-elevated", "--vua-action-shadow", "--vua-card-material", "--vua-glow-accent", "--vua-glow-accent-soft"]) {
     const probe = document.createElement("div");
     probe.style.position = "absolute";
     probe.style.display = "none";
@@ -226,7 +226,7 @@ export function collectAuditSnapshot(options) {
 
   const radiusTokens = {};
   for (const name of ["--vua-radius-sm", "--vua-radius-control", "--vua-radius-card", "--vua-radius-overlay", "--vua-radius-badge",
-    ...["action", "action-quiet", "field", "indicator", "container", "overlay", "menu", "progress"].map(role => "--vua-corners-" + role)]) {
+    ...["action", "action-quiet", "field", "indicator", "container", "overlay", "menu", "progress", "row"].map(role => "--vua-corners-" + role)]) {
     const raw = (tokenRaw[name] || "").trim();
     const value = parseFloat(raw);
     if (Number.isFinite(value)) radiusTokens[name] = value;

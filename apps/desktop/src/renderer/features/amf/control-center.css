@@ -34,12 +34,14 @@
 .vua-control__panel {
   position: relative; display: flex; flex-direction: column; gap: var(--vua-space-2); padding: 16px var(--vua-space-4); min-width: 0;
   background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); overflow: hidden;
+  box-shadow: var(--vua-card-material, none); outline: var(--vua-card-stitch, none); outline-offset: var(--vua-card-stitch-offset);
 }
+.vua-control__panel::before { content: ""; position: absolute; inset: var(--vua-card-decor-inset, 0); border-radius: inherit; background: var(--vua-card-decor, none); pointer-events: none; }
 .vua-control__panel h2 { margin: 0; font: var(--vua-font-title); overflow-wrap: anywhere; }
 .vua-control__panel h3 { margin: var(--vua-space-2) 0 0; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); letter-spacing: 0.04em; color: var(--vua-text-secondary); }
 .vua-control__panel p { margin: 0; }
 /* Skin slots: Grid marks a panel with a short light bar on its top edge and the stage's edge in the room's color. */
-.vua-control__corner { position: absolute; top: 0; inset-inline-start: var(--vua-space-4); width: 24px; height: 2px; background: var(--kind, var(--room)); pointer-events: none; }
+.vua-control__corner { position: absolute; top: 0; inset-inline-start: var(--vua-space-4); width: 24px; height: var(--vua-light-bar, 2px); background: var(--kind, var(--room)); pointer-events: none; }
 .vua-control__edge { position: absolute; inset-block: -1px; inset-inline-start: -1px; width: 4px; background: var(--room); pointer-events: none; z-index: 1; }
 .vua-control__backdrop { position: absolute; inset: 0; background-image: linear-gradient(var(--vua-graph-grid) 1px, transparent 1px), linear-gradient(90deg, var(--vua-graph-grid) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none; }
 .vua-control__empty { align-items: center; text-align: center; padding-block: 40px; color: var(--vua-text-secondary); }

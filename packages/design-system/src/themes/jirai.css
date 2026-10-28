@@ -1,5 +1,14 @@
+/* Title font: ZCOOL KuaiLe, SIL OFL 1.1, subset to the UI text by skins/make-fonts.mjs. */
+@font-face {
+  font-family: "ZCOOL KuaiLe";
+  src: url("../../skins/jirai/fonts/ZCOOLKuaiLe-Title.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 [data-theme-family="jirai"] {
   color-scheme: dark;
+  --vua-font-title-family: "ZCOOL KuaiLe", var(--vua-font-family);
   --vua-purple: #eaa0c2;
   --vua-purple-hover: #f3bad6;
   --vua-purple-pressed: #d285ac;
@@ -40,7 +49,6 @@
   --vua-shine: linear-gradient(115deg, transparent 22%, rgb(255 255 255 / 0.18) 46%, rgb(255 255 255 / 0.04) 58%, transparent 82%);
   --vua-surface-highlight: linear-gradient(155deg, rgb(255 255 255 / 0.055), transparent 48%);
   --vua-action-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 -2px 0 rgb(49 11 31 / 0.32), 0 3px 0 #46192f;
-  --vua-card-inset: inset 0 1px 0 rgb(255 224 240 / 0.06);
   --vua-header-sheen: linear-gradient(180deg, rgb(255 190 220 / 0.06), transparent 65%);
   --vua-room-control: #eaa0c2;
   --vua-room-materials: #c3a6ff;
@@ -68,8 +76,6 @@
   --vua-radius-lg: 10px;
   --vua-radius-md: 10px;
   --vua-radius-sm: 6px;
-  --vua-rail-content-align: center;
-  --vua-rail-text-align: center;
   --vua-motion-fast: 150ms;
   --vua-motion-normal: 240ms;
   --vua-motion-base: var(--vua-motion-normal);
@@ -78,6 +84,29 @@
   --vua-motion-ease-enter: cubic-bezier(0.4, 0, 0.2, 1);
   --vua-motion-ease-exit: cubic-bezier(0.4, 0, 0.8, 0.4);
   --vua-motion-ease: var(--vua-motion-ease-enter);
+  /* Materials: a dashed pink stitch inside every container, black lace hems, a soft cast shadow on
+   * cards (author ruling 2026-10-28), stitched selection, a slower sinking press, bows and hearts. */
+  --vua-card-material: inset 0 1px 0 rgb(255 224 240 / 0.06), 0 6px 18px rgb(0 0 0 / 0.35);
+  --vua-card-stitch: 1px dashed rgb(234 160 194 / 0.45);
+  --vua-card-stitch-offset: -4px;
+  --vua-row-border-width: 1px;
+  --vua-row-fill: #1e1119;
+  --vua-row-current-stitch: 1px dashed rgb(234 160 194 / 0.85);
+  --vua-corners-row: 10px;
+  --vua-card-decor: url("../../skins/jirai/motifs/lace-black.svg") 0 100% / auto 12px repeat-x;
+  /* The lace hangs just below the card edge, so short cards keep their content clear. */
+  --vua-card-decor-inset: 0 0 -11px 0;
+  --vua-header-edge: url("../../skins/jirai/motifs/lace-black.svg") 0 0 / auto 12px repeat-x;
+  --vua-trim-image: url("../../skins/jirai/motifs/lace-black.svg");
+  --vua-running-bar: 0px;
+  --vua-press-transform: translateY(2px);
+  --vua-light-bar: 0px;
+  --vua-room-name-bar-width: 0px;
+  --vua-tag-display: none;
+  --vua-motif-glyphs: "";
+  --vua-glyph-mark: url("../../skins/jirai/motifs/dialog-header.svg");
+  --vua-glyph-selected: url("../../skins/jirai/motifs/heart.svg");
+  --vua-glyph-empty: url("../../skins/jirai/motifs/empty-state.svg");
 }
 
 [data-theme-family="jirai"] [data-module="production"] {

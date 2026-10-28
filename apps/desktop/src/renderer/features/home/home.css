@@ -1,13 +1,15 @@
 .vua-home { width: 100%; max-width: 1180px; margin-inline: auto; gap: 28px; }
 .vua-home__section { display: grid; gap: 16px; }
 .vua-home__section h2 { margin: 0; font: var(--vua-font-title); color: var(--vua-text-secondary); }
+.vua-home__section h2::before { content: var(--vua-motif-glyphs, none); display: inline-block; width: 22px; height: 22px; margin-inline-end: var(--vua-space-2); vertical-align: -3px; background-color: var(--vua-accent); mask: var(--vua-glyph-mark) center / contain no-repeat; }
 .vua-route-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 16px; }
 .vua-route-grid--devices { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
-.vua-route-tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--vua-space-4); min-height: 150px; padding: 28px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); background: var(--vua-bg-panel); color: var(--vua-text-strong); text-align: start; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, transform 120ms ease; }
+.vua-route-tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--vua-space-4); min-height: 150px; padding: 28px; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); box-shadow: var(--vua-card-material, none); outline: var(--vua-card-stitch, none); outline-offset: var(--vua-card-stitch-offset); color: var(--vua-text-strong); text-align: start; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, transform 120ms ease; }
 .vua-route-tile strong { font: var(--vua-font-title); }
-.vua-route-tile:hover:not(:disabled) { border-color: var(--vua-accent); background: var(--vua-accent-tint); transform: translateY(-2px); }
+.vua-route-tile::before, .vua-environment-card::before { content: ""; position: absolute; inset: var(--vua-card-decor-inset, 0); border-radius: inherit; background: var(--vua-card-decor, none); pointer-events: none; z-index: 1; }
+.vua-route-tile:hover:not(:disabled) { border-color: var(--vua-accent); background-color: var(--vua-accent-tint); transform: translateY(-2px); }
 .vua-route-tile:active:not(:disabled) { transform: translateY(0); }
-.vua-route-tile[aria-pressed='true'] { border-color: var(--vua-accent); background: var(--vua-accent-tint); }
+.vua-route-tile[aria-pressed='true'] { border-color: var(--vua-accent); background-color: var(--vua-accent-tint); }
 .vua-route-tile:focus-visible { outline: 3px solid var(--vua-accent); outline-offset: 4px; }
 .vua-route-tile:disabled { opacity: 1; cursor: default; }
 .vua-route-tile__tag { position: absolute; top: 12px; right: 12px; font: var(--vua-font-caption); background: var(--vua-bg-elevated); color: var(--vua-text-secondary); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-sm); padding: 3px 8px; }
@@ -64,7 +66,7 @@
 .vua-compact-environments { --vua-environment-height: 88px; }
 .vua-play-page > *, .vua-creator-page > * { flex-shrink: 0; }
 .vua-play-page, .vua-creator-page, .vua-tools-hub { padding: 8px; }
-.vua-environment-card { position: relative; display: grid; grid-template-columns: 1fr 1fr; height: var(--vua-environment-height, 176px); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); overflow: hidden; background: var(--vua-bg-panel); }
+.vua-environment-card { position: relative; display: grid; grid-template-columns: 1fr 1fr; height: var(--vua-environment-height, 176px); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); overflow: hidden; background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); box-shadow: var(--vua-card-material, none); outline: var(--vua-card-stitch, none); outline-offset: var(--vua-card-stitch-offset); }
 .vua-environment-card[data-selected='true'] { border-color: var(--vua-accent); }
 .vua-environment-card > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--vua-space-4); padding: var(--vua-space-5) 16px; border: 0; color: var(--vua-text-strong); background: transparent; cursor: pointer; font: var(--vua-font-body); transition: background 140ms ease; min-width: 0; }
 .vua-environment-card > button:hover:not(:disabled) { background: var(--vua-accent-tint); }

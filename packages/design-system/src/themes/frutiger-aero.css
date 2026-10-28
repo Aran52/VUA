@@ -1,5 +1,10 @@
+/* Frutiger Aero follows Windows Vista's Aero (author ruling 2026-10-28): a glass frame with glare
+ * around a white client area, Segoe UI, small radii, glossy push buttons with a blue hover,
+ * Explorer's selection, and task dialogs with a footer band. Dark mode follows Vista's black glass
+ * (Media Center and the Sidebar). */
 [data-theme-family="frutiger-aero"] {
   color-scheme: dark;
+  --vua-font-family: "Segoe UI", "Microsoft YaHei UI", "Meiryo UI", "Malgun Gothic", sans-serif;
   --vua-purple: #63c7ee;
   --vua-purple-hover: #8adbf7;
   --vua-purple-pressed: #3ba9d4;
@@ -19,57 +24,58 @@
   --vua-warning-text: var(--vua-warning);
   --vua-on-status: #071b2e;
   --vua-on-error: #071b2e;
-  --vua-bg-canvas: #071b2e;
-  --vua-bg-panel: #0e2a40;
-  --vua-bg-elevated: #17405a;
+  --vua-bg-canvas: #04111d;
+  --vua-bg-panel: #0e2233;
+  --vua-bg-elevated: #132d42;
   --vua-text-strong: #f2fcff;
   --vua-text-secondary: #b8d8e6;
   --vua-text-disabled: #7194a8;
-  --vua-border: #2f5c72;
-  --vua-border-strong: #47859c;
+  --vua-border: #2b4c62;
+  --vua-border-strong: #4f8db0;
   --vua-border-focus: var(--vua-accent);
+  --vua-heading-color: #a8dcff;
   --vua-accent-contrast: #071b2e;
   --vua-accent-text: var(--vua-accent);
-  --vua-accent-gradient: linear-gradient(135deg, #63c7ee 0%, #3ba9d4 100%);
-  --vua-accent-gradient-hover: linear-gradient(135deg, #8adbf7 0%, #63c7ee 100%);
-  --vua-accent-gradient-pressed: linear-gradient(135deg, #3ba9d4 0%, #2b8db8 100%);
+  --vua-accent-gradient: linear-gradient(180deg, #8ad8f4 0%, #63c7ee 49%, #3fb0dc 50%, #55bfe8 100%);
+  --vua-accent-gradient-hover: linear-gradient(180deg, #a6e4f8 0%, #7fd3f2 49%, #55bfe8 50%, #6ccaee 100%);
+  --vua-accent-gradient-pressed: linear-gradient(180deg, #55bfe8 0%, #3ba9d4 49%, #2b8db8 50%, #3aa0cc 100%);
   --vua-glow-accent: none;
   --vua-glow-accent-soft: none;
-  --vua-shine: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.2) 50%, transparent 70%);
-  --vua-shadow-elevated: 0 16px 36px rgb(1 15 28 / 0.42);
-  --vua-aurora-1: radial-gradient(circle at 84% 8%, rgb(99 199 238 / 0.18), transparent 38%);
-  --vua-aurora-2: radial-gradient(circle at 8% 92%, rgb(164 222 114 / 0.1), transparent 34%);
-  --vua-canvas-pattern: url("../../skins/frutiger-aero/motifs/water.svg");
-  --vua-action-shadow: inset 0 1px 0 rgb(255 255 255 / 0.68), inset 0 -2px 0 rgb(7 74 111 / 0.25), 0 3px 8px rgb(31 135 178 / 0.18);
-  --vua-card-inset: inset 0 1px 0 rgb(255 255 255 / 0.16);
-  --vua-header-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.14), transparent 72%);
-  --vua-surface-highlight: linear-gradient(180deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0) 52%);
+  --vua-shine: linear-gradient(180deg, rgb(255 255 255 / 0.4) 0%, rgb(255 255 255 / 0.12) 49%, rgb(255 255 255 / 0) 50%);
+  --vua-shadow-elevated: 0 12px 32px rgb(0 6 14 / 0.55);
+  --vua-aurora-1: radial-gradient(ellipse 60% 50% at 8% 100%, rgb(98 196 110 / 0.28), transparent 70%);
+  --vua-aurora-2: radial-gradient(ellipse 70% 60% at 96% 0%, rgb(56 150 220 / 0.32), transparent 70%);
+  --vua-canvas-pattern: none;
+  --vua-action-shadow: 0 0 0 1px rgb(6 40 64 / 0.9), inset 0 1px 0 rgb(255 255 255 / 0.55);
+  --vua-header-sheen:
+    linear-gradient(180deg, rgb(255 255 255 / 0.2) 0%, rgb(255 255 255 / 0.06) 50%, rgb(255 255 255 / 0) 51%),
+    repeating-linear-gradient(112deg, rgb(255 255 255 / 0) 0 180px, rgb(255 255 255 / 0.07) 180px 200px, rgb(255 255 255 / 0) 200px 236px, rgb(255 255 255 / 0.05) 236px 246px, rgb(255 255 255 / 0) 246px 420px),
+    linear-gradient(90deg, rgb(16 52 80 / 0.7), rgb(28 78 110 / 0.55) 50%, rgb(16 52 80 / 0.7));
   --vua-room-control: #63c7ee;
   --vua-room-materials: #82c8ff;
   --vua-room-workshop: #a4de72;
   --vua-room-release: #55e0c0;
   --vua-corner-style: round;
-  --vua-corners-action-quiet: 999px;
-  --vua-corners-action: 999px;
-  --vua-corners-field: 12px;
-  --vua-corners-indicator: 999px;
-  --vua-corners-container: 20px;
-  --vua-corners-overlay: 24px;
-  --vua-corners-menu: 14px;
-  --vua-corners-progress: 999px;
-  --vua-corners-toggle: 999px;
+  --vua-corners-action-quiet: 3px;
+  --vua-corners-action: 3px;
+  --vua-corners-field: 2px;
+  --vua-corners-indicator: 2px;
+  --vua-corners-container: 4px;
+  --vua-corners-overlay: 6px;
+  --vua-corners-menu: 3px;
+  --vua-corners-progress: 2px;
+  --vua-corners-toggle: 3px;
+  --vua-corners-row: 3px;
   --vua-corners-status: 50%;
-  --vua-radius-pill: 999px;
-  --vua-radius-control: 12px;
-  --vua-radius-card: 20px;
-  --vua-radius-badge: 999px;
-  --vua-radius-overlay: 24px;
-  --vua-radius-xl: 24px;
-  --vua-radius-lg: 20px;
-  --vua-radius-md: 12px;
-  --vua-radius-sm: 8px;
-  --vua-rail-content-align: center;
-  --vua-rail-text-align: center;
+  --vua-radius-pill: 3px;
+  --vua-radius-control: 3px;
+  --vua-radius-card: 4px;
+  --vua-radius-badge: 2px;
+  --vua-radius-overlay: 6px;
+  --vua-radius-xl: 6px;
+  --vua-radius-lg: 4px;
+  --vua-radius-md: 3px;
+  --vua-radius-sm: 2px;
   --vua-motion-fast: 140ms;
   --vua-motion-normal: 220ms;
   --vua-motion-base: var(--vua-motion-normal);
@@ -78,28 +84,61 @@
   --vua-motion-ease-enter: cubic-bezier(0.22, 0.8, 0.3, 1);
   --vua-motion-ease-exit: cubic-bezier(0.4, 0, 0.8, 0.4);
   --vua-motion-ease: var(--vua-motion-ease-enter);
+  /* Black glass: a gloss band on panels, glossy black push buttons that light up blue,
+   * a blue glass selection and a glass dialog frame. */
+  --vua-surface-highlight: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.03) 26px, rgb(255 255 255 / 0) 27px);
+  --vua-card-material: inset 0 1px 0 rgb(255 255 255 / 0.2), inset 0 -1px 0 rgb(0 0 0 / 0.5);
+  --vua-card-decor: none;
+  --vua-row-border-width: 1px;
+  --vua-row-border-color: transparent;
+  --vua-row-fill: transparent;
+  --vua-row-current-sheen: linear-gradient(180deg, rgb(120 200 255 / 0.36) 0%, rgb(80 170 230 / 0.2) 49%, rgb(60 150 215 / 0.12) 50%, rgb(60 150 215 / 0.2) 100%);
+  --vua-selection-ring: inset 0 0 0 1px rgb(120 200 255 / 0.7);
+  --vua-button-gloss: linear-gradient(180deg, #4b5d6c 0%, #2c3b48 49%, #172430 50%, #22323f 100%);
+  --vua-button-gloss-hover: linear-gradient(180deg, #5a95c6 0%, #2f73ab 49%, #17578f 50%, #2a6ca6 100%);
+  --vua-button-gloss-pressed: linear-gradient(180deg, #2a6ca6 0%, #17578f 49%, #0e4675 50%, #1c5d93 100%);
+  --vua-button-border: #56697a;
+  --vua-button-border-hover: #8fd0ff;
+  --vua-button-glow-hover: 0 0 8px rgb(99 199 238 / 0.55);
+  --vua-client-fill: #071725;
+  --vua-client-edge: -1px -1px 0 rgb(120 190 230 / 0.25);
+  --vua-client-radius: 6px;
+  --vua-dialog-frame: 0 0 0 1px rgb(0 0 0 / 0.8), 0 0 0 7px rgb(40 90 125 / 0.75), 0 0 0 8px rgb(150 210 245 / 0.35), 0 16px 40px rgb(0 0 0 / 0.55);
+  --vua-dialog-footer-fill: #0b1a28;
+  --vua-dialog-footer-edge: 1px solid #24435a;
+  --vua-dialog-footer-pad: 12px;
+  --vua-press-transform: none;
+  --vua-press-filter: none;
+  --vua-light-bar: 0px;
+  --vua-running-bar: 0px;
+  --vua-room-name-bar-width: 0px;
+  --vua-tag-display: none;
+  --vua-motif-glyphs: "";
+  --vua-glyph-mark: url("../../skins/frutiger-aero/motifs/orb.svg");
+  --vua-glyph-selected: url("../../skins/frutiger-aero/motifs/bubble.svg");
+  --vua-glyph-empty: url("../../skins/frutiger-aero/motifs/empty-state.svg");
 }
 
 [data-theme-family="frutiger-aero"] [data-module="production"] {
   --vua-accent-contrast: #071b2e;
   --vua-accent-text: var(--vua-accent);
-  --vua-accent-gradient: linear-gradient(135deg, #a4de72 0%, #65c9a6 100%);
-  --vua-accent-gradient-hover: linear-gradient(135deg, #c2ef9a 0%, #a4de72 100%);
-  --vua-accent-gradient-pressed: linear-gradient(135deg, #83bd52 0%, #55b18e 100%);
+  --vua-accent-gradient: linear-gradient(180deg, #c2ef9a 0%, #a4de72 49%, #83c950 50%, #96d662 100%);
+  --vua-accent-gradient-hover: linear-gradient(180deg, #d4f6b6 0%, #b6e78a 49%, #96d662 50%, #a8df76 100%);
+  --vua-accent-gradient-pressed: linear-gradient(180deg, #96d662 0%, #83bd52 49%, #6ea83e 50%, #7cb64a 100%);
   --vua-glow-accent: none;
   --vua-glow-accent-soft: none;
 }
 
 [data-theme-family="frutiger-aero"][data-theme="light"] {
   color-scheme: light;
-  --vua-purple: #1478aa;
-  --vua-purple-hover: #0f6692;
-  --vua-purple-pressed: #0a5278;
-  --vua-purple-tint: #ddf2fc;
-  --vua-orange: #417a24;
-  --vua-orange-hover: #35651c;
-  --vua-orange-pressed: #294f16;
-  --vua-orange-tint: #e6f4da;
+  --vua-purple: #0066cc;
+  --vua-purple-hover: #0052a3;
+  --vua-purple-pressed: #003d7a;
+  --vua-purple-tint: #dcecfc;
+  --vua-orange: #2b7a1a;
+  --vua-orange-hover: #236515;
+  --vua-orange-pressed: #1b5010;
+  --vua-orange-tint: #e3f3dc;
   --vua-amber: #876100;
   --vua-amber-text: #705000;
   --vua-success: #187a46;
@@ -111,40 +150,57 @@
   --vua-warning-text: #705000;
   --vua-on-status: #ffffff;
   --vua-on-error: #ffffff;
-  --vua-bg-canvas: #eaf7fc;
+  --vua-bg-canvas: #dfeaf4;
   --vua-bg-panel: #ffffff;
-  --vua-bg-elevated: #f4fcff;
-  --vua-text-strong: #17354d;
-  --vua-text-secondary: #48677b;
-  --vua-text-disabled: #8299a6;
-  --vua-border: #b9dceb;
-  --vua-border-strong: #8fc4d8;
+  --vua-bg-elevated: #ffffff;
+  --vua-text-strong: #1a1a1a;
+  --vua-text-secondary: #4a5866;
+  --vua-text-disabled: #8d98a3;
+  --vua-border: #c9d8e6;
+  --vua-border-strong: #7da2ce;
+  --vua-heading-color: #1e3287;
   --vua-accent-contrast: #ffffff;
   --vua-accent-text: var(--vua-accent-pressed);
-  --vua-accent-gradient: linear-gradient(135deg, #1478aa 0%, #0f6692 100%);
-  --vua-accent-gradient-hover: linear-gradient(135deg, #0f6692 0%, #0a5278 100%);
-  --vua-accent-gradient-pressed: linear-gradient(135deg, #0a5278 0%, #083f5e 100%);
-  --vua-shine: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
-  --vua-shadow-elevated: 0 16px 36px rgb(34 92 120 / 0.18);
-  --vua-aurora-1: radial-gradient(circle at 82% 4%, rgb(99 199 238 / 0.24), transparent 40%);
-  --vua-aurora-2: radial-gradient(circle at 6% 96%, rgb(164 222 114 / 0.18), transparent 36%);
-  --vua-canvas-pattern: url("../../skins/frutiger-aero/motifs/water.svg");
-  --vua-action-shadow: inset 0 1px 0 rgb(255 255 255 / 0.82), inset 0 -2px 0 rgb(7 74 111 / 0.2), 0 3px 8px rgb(50 132 171 / 0.18);
-  --vua-card-inset: inset 0 1px 0 #ffffff;
-  --vua-header-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.48), transparent 80%);
-  --vua-surface-highlight: linear-gradient(180deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0) 62%);
+  --vua-accent-gradient: linear-gradient(180deg, #1a74cc 0%, #0b63bd 49%, #0052a8 50%, #0a5fb6 100%);
+  --vua-accent-gradient-hover: linear-gradient(180deg, #2a80d4 0%, #1470c8 49%, #0a5fb6 50%, #156bc2 100%);
+  --vua-accent-gradient-pressed: linear-gradient(180deg, #0052a8 0%, #00468f 49%, #003d7a 50%, #004a90 100%);
+  --vua-shine: linear-gradient(180deg, rgb(255 255 255 / 0.36) 0%, rgb(255 255 255 / 0.12) 49%, rgb(255 255 255 / 0) 50%);
+  --vua-shadow-elevated: 0 8px 22px rgb(20 50 80 / 0.25);
+  --vua-aurora-1: radial-gradient(ellipse 55% 45% at 8% 100%, rgb(126 206 96 / 0.5), transparent 70%);
+  --vua-aurora-2: radial-gradient(ellipse 65% 55% at 96% 0%, rgb(70 160 225 / 0.45), transparent 70%);
+  --vua-canvas-pattern: none;
+  --vua-action-shadow: 0 0 0 1px rgb(10 50 100 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.5);
+  --vua-header-sheen:
+    linear-gradient(180deg, rgb(255 255 255 / 0.62) 0%, rgb(255 255 255 / 0.28) 50%, rgb(255 255 255 / 0.08) 51%, rgb(255 255 255 / 0) 100%),
+    repeating-linear-gradient(112deg, rgb(255 255 255 / 0) 0 180px, rgb(255 255 255 / 0.24) 180px 200px, rgb(255 255 255 / 0) 200px 236px, rgb(255 255 255 / 0.16) 236px 246px, rgb(255 255 255 / 0) 246px 420px),
+    linear-gradient(90deg, rgb(110 170 214 / 0.6), rgb(160 208 236 / 0.5) 50%, rgb(118 178 220 / 0.6));
   --vua-room-control: #126f9f;
   --vua-room-materials: #316d9b;
-  --vua-room-workshop: #417a24;
+  --vua-room-workshop: #2b7a1a;
   --vua-room-release: #147f73;
+  --vua-surface-highlight: linear-gradient(180deg, #ffffff, #f2f7fb);
+  --vua-card-material: inset 0 1px 0 #ffffff;
+  --vua-row-current-sheen: linear-gradient(180deg, #eaf3fd 0%, #d9eafc 49%, #cfe3fb 50%, #c4dcfa 100%);
+  --vua-selection-ring: inset 0 0 0 1px #7da2ce, inset 0 0 0 2px rgb(255 255 255 / 0.6);
+  --vua-button-gloss: linear-gradient(180deg, #f2f2f2 0%, #ebebeb 49%, #dddddd 50%, #cfcfcf 100%);
+  --vua-button-gloss-hover: linear-gradient(180deg, #eaf6fd 0%, #d9f0fc 49%, #bee6fd 50%, #a7d9f5 100%);
+  --vua-button-gloss-pressed: linear-gradient(180deg, #e5f4fc 0%, #c4e5f6 49%, #98d1ef 50%, #68b3db 100%);
+  --vua-button-border: #707070;
+  --vua-button-border-hover: #3c7fb1;
+  --vua-button-glow-hover: none;
+  --vua-client-fill: #ffffff;
+  --vua-client-edge: -1px -1px 0 rgb(60 100 140 / 0.4);
+  --vua-dialog-frame: 0 0 0 1px rgb(30 60 90 / 0.65), 0 0 0 7px rgb(150 200 235 / 0.85), 0 0 0 8px rgb(30 60 90 / 0.55), 0 16px 40px rgb(0 0 0 / 0.3);
+  --vua-dialog-footer-fill: #f0f0f0;
+  --vua-dialog-footer-edge: 1px solid #dfdfdf;
 }
 
 [data-theme-family="frutiger-aero"][data-theme="light"] [data-module="production"] {
   --vua-accent-contrast: #ffffff;
   --vua-accent-text: var(--vua-accent-pressed);
-  --vua-accent-gradient: linear-gradient(135deg, #417a24 0%, #2f6c48 100%);
-  --vua-accent-gradient-hover: linear-gradient(135deg, #35651c 0%, #295a3a 100%);
-  --vua-accent-gradient-pressed: linear-gradient(135deg, #294f16 0%, #21482f 100%);
+  --vua-accent-gradient: linear-gradient(180deg, #2b8019 0%, #237014 49%, #1b6010 50%, #216a14 100%);
+  --vua-accent-gradient-hover: linear-gradient(180deg, #34891f 0%, #2a7a18 49%, #216a14 50%, #287318 100%);
+  --vua-accent-gradient-pressed: linear-gradient(180deg, #1b6010 0%, #17530d 49%, #134a0b 50%, #17530d 100%);
   --vua-glow-accent: none;
   --vua-glow-accent-soft: none;
 }

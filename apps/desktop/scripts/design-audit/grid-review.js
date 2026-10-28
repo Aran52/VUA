@@ -17,7 +17,7 @@ export async function verifyGridFactoryState(view) {
   const family = document.documentElement.dataset.themeFamily ?? "missing";
   const container = {
     grid: roundedContainer("8px"),
-    "frutiger-aero": roundedContainer("20px"),
+    "frutiger-aero": roundedContainer("4px"),
     tenshi: roundedContainer("14px"),
     jirai: roundedContainer("10px"),
   }[family];
@@ -37,7 +37,9 @@ export async function verifyGridFactoryState(view) {
         `Workshop motif loads from the ${family} preset`);
     }
     const active = steps.find(step => step.getAttribute("aria-pressed") === "true");
-    check(active && steps.every(step => getComputedStyle(step).boxShadow === "none"), "Viewing and execution never grant step cards cast elevation");
+    // Step cards wear the theme's card material (none in Grid); viewing and execution never change it.
+    const material = (() => { const probe = document.createElement("div"); probe.style.boxShadow = "var(--vua-card-material)"; active?.parentElement?.appendChild(probe); const value = getComputedStyle(probe).boxShadow; probe.remove(); return value; })();
+    check(active && steps.every(step => getComputedStyle(step).boxShadow === material), "Viewing and execution never grant step cards cast elevation");
     if (view === "workshop-running") {
       const selectedBackground = getComputedStyle(active).backgroundColor;
       const running = steps.find(step => step.dataset.state === "running");

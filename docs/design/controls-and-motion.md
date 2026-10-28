@@ -92,7 +92,7 @@ Corners are set per **role group**, one radius per group:
 | Toggles | `Toggle` track and thumb | 4 px track, 2 px thumb |
 | Progress | progress bars | square, 2 px tall |
 | Containers | cards, panels, workshop station cards, base-map rooms | 8 px |
-| Repeated rows | lists, tables, compact groups | square, separated by lines and space |
+| Repeated rows | lists, tables, compact groups, the workshop's line list | square, separated by lines and space; themes may round and outline each row (`--vua-corners-row`) |
 | Large overlays | dialogs, drawers, browser frames | 8 px |
 | Small overlays | menus, tooltips, compact popovers | 4 px |
 
@@ -106,8 +106,10 @@ Corners are set per **role group**, one radius per group:
   hairlines; 2 px solid accent light bars for state (the selected tab's lower edge, the current
   navigation item, a base-map room's leading edge, a panel's short top bar); cool near-black
   surfaces; accent colour only on actions and states; tabular digits everywhere and
-  `--vua-font-mono` for IDs, versions, paths and URLs; label-over-value data layout; and short,
-  exact motion without bounce. Gradient buttons, neon glow and card shadows are not used.
+  `--vua-font-mono` for IDs, versions, paths and URLs; label-over-value data layout; HUD corner
+  ticks on large containers and a light bar along the top of the running step card (author ruling,
+  2026-10-28); and short, exact motion without bounce. Gradient buttons, neon glow and card shadows
+  are not used.
 
 Implementation. Each theme sets the role radii as `--vua-corners-<role>` tokens and the host
 radii as `--vua-radius-*`; in Grid both resolve to the table above. The shared
@@ -133,9 +135,13 @@ Frutiger Aero, Tenshi Kaiwai and Jirai Kei set their own radii through the same 
 Aero may use a restrained gradient on primary actions. Every gradient stop must meet the same text
 contrast requirement as its solid accent tokens. Ordinary cards stay readable and solid in both
 themes; atmospheric fills belong to the canvas and allowed overlay structure. A theme can give
-primary buttons a declared material through `--vua-action-shadow`; `--vua-card-inset` supplies only
-an inner rim, and `--vua-header-sheen` supplies the shell's glass finish. These are not permission
-for arbitrary card shadows. Accessibility and resource-saving overrides remove all three effects.
+primary buttons a declared material through `--vua-action-shadow`, and `--vua-header-sheen` supplies
+the shell's glass finish. Level-1 containers wear the theme's declared **card material**: inner rims
+and, for Jirai only, a soft cast shadow in `--vua-card-material`; a line drawn just inside the edge
+in `--vua-card-stitch` (Tenshi's second hairline, Jirai's dashed stitch); and a sheen in
+`--vua-surface-highlight` (Aero's gloss band). Grid sets none of them. These are not permission for
+arbitrary card shadows. Accessibility overrides remove all of them; resource-saving mode removes
+the material and sheen and keeps the stitch, which costs nothing to draw.
 
 ### State ladder
 
@@ -146,7 +152,7 @@ across the app:
 | --- | --- |
 | rest | the role's base |
 | hover | stroke to `--vua-border-strong`, or fill one step lighter (dark) or darker (light) |
-| pressed | fill one further step; the theme's press feedback (Grid: a 1 px inset shift, no scaling) |
+| pressed | fill one further step; the theme's press feedback in `--vua-press-transform` and `--vua-press-filter` (Grid: a 1 px inset shift, no scaling; Tenshi a small bounce; Jirai a 2 px sink; Aero a brighter highlight) |
 | focus-visible | the focus ring, in addition to the current state |
 | selected | the selected recipe above; hover still applies on top |
 | disabled | text and stroke at the disabled colour, no hover, a reason in the tooltip |
@@ -157,7 +163,7 @@ across the app:
 | Level | Surfaces | Shadow | Glass |
 | --- | --- | --- | --- |
 | 0 | page canvas | none | no |
-| 1 | cards, panels, rows | none | no |
+| 1 | cards, panels, rows | none; a theme may declare a card material (Jirai: a soft shadow, author ruling 2026-10-28) | no |
 | 2 | menus, popovers, tooltips | small | allowed |
 | 3 | dialogs, drawers | medium | allowed |
 | 4 | toasts | medium | allowed |
@@ -249,15 +255,20 @@ UI language.
 - **Grid** supports dark and light modes. Neutral surfaces, low-contrast structural lines and
   orange/purple jurisdictions carry the futuristic composition: small-radius rectangles, hairlines
   and accent light bars, flat fills, and no gradients, neon glow or synthwave treatment.
-- **Frutiger Aero** supports dark and light modes. Blue/cyan and green jurisdictions, rounded or
-  pill shapes, original bubble/leaf motifs and restrained specular highlights replace Grid's
-  geometry and palette. Water and glass motifs stay behind readable content, with solid list
-  surfaces and the common accessibility overrides removing decorative effects when required.
-- **Tenshi Kaiwai** locks light mode. White, sky blue and lavender use pill actions, 14 px cards,
-  original wing/halo/bandage motifs and a light overshoot entrance.
-- **Jirai Kei** locks dark mode. Dusty pink and lavender sit on black-plum surfaces, with
-  rounded containers, original bow/stitched-heart motifs, a low-contrast lace canvas and satin
-  action highlights. Neon glow is absent and accessibility overrides remove patterns and highlights.
+- **Frutiger Aero** supports dark and light modes and recreates Windows Vista's Aero (author ruling,
+  2026-10-28): a glass header with glare streaks around a white client area, Segoe UI, 3 px controls
+  and 4–6 px panels and dialogs, Vista's glossy push buttons with a blue hover, Explorer's selection,
+  task dialogs with a glass frame and a gray footer band, and an orb glyph. Dark mode follows Vista's
+  black glass. Accessibility overrides remove the gloss, frame and glare.
+- **Tenshi Kaiwai** locks light mode. White, sky blue and lavender use pill actions, 14 px cards
+  with a second hairline inside the edge, a rounded title font, blue-white stripes on the header,
+  cards and selection, zipper tape under the header and along dialogs, wing and pixel-heart glyphs,
+  and a light overshoot entrance.
+- **Jirai Kei** locks dark mode. Dusty pink and lavender sit on black-plum surfaces, with a display
+  title font, a dashed pink stitch inside containers, black lace hems on cards, the header and
+  dialogs, a soft card shadow, bow and stitched-heart glyphs, a pink energy-drink can marked with
+  three wavy lines, a low-contrast lace canvas and satin action highlights. Neon glow is absent and
+  accessibility overrides remove patterns, shadows and highlights.
 
 The complete role/size/state primitive catalogue still migrates feature controls onto shared
 primitives. New themes consume that catalogue through tokens rather than adding feature-level

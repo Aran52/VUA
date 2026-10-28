@@ -14,6 +14,8 @@
 
 /* 玻璃拟态壳层:半透明面板 + 深一档背景模糊,透出 WebGL 场景/画布辉光 */
 .vua-shell__header {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--vua-space-6);
@@ -23,6 +25,17 @@
   backdrop-filter: blur(24px) saturate(1.6);
   -webkit-backdrop-filter: blur(24px) saturate(1.6);
   border-bottom: 1px solid var(--vua-border);
+}
+
+/* A theme's tile hangs below the header: Tenshi's zipper, Jirai's black lace. */
+.vua-shell__header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  height: 10px;
+  background: var(--vua-header-edge, none);
+  pointer-events: none;
 }
 
 .vua-shell__brand {
@@ -329,10 +342,25 @@
 /* Selection is colour and a thin edge, without moving its neighbours. */
 .vua-shell__sidebar-item[aria-current="page"],
 .vua-shell__sidebar-item[aria-current="page"]:hover {
-  background: var(--vua-accent-tint);
-  box-shadow: inset 2px 0 0 var(--vua-accent);
+  background-color: var(--vua-accent-tint);
+  background-image: var(--vua-row-current-sheen, none);
+  box-shadow: inset var(--vua-light-bar, 2px) 0 0 var(--vua-accent), var(--vua-selection-ring, 0 0 #0000);
   color: var(--vua-accent-text);
   font-weight: 600;
+}
+
+/* A theme's selection glyph sits at the end of the current item. */
+.vua-shell__sidebar-item[aria-current="page"]::after {
+  content: var(--vua-motif-glyphs, none);
+  position: absolute;
+  inset-inline-end: var(--vua-space-2);
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  translate: 0 -50%;
+  background-color: var(--vua-accent);
+  mask: var(--vua-glyph-selected) center / contain no-repeat;
+  pointer-events: none;
 }
 
 .vua-shell__main {
@@ -347,6 +375,10 @@
   display: flex;
   flex-direction: column;
   padding: var(--vua-space-6) var(--vua-space-5);
+  /* Aero draws a Vista client area here; the other themes leave the canvas showing. */
+  background: var(--vua-client-fill, transparent);
+  box-shadow: var(--vua-client-edge, none);
+  border-start-start-radius: var(--vua-client-radius, 0px);
 }
 
 /* 页面切换淡入:150–200ms,透明度 + 8px 上移;

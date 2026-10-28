@@ -1,3 +1,5 @@
+import { PublishedRecipeLinks } from "./PublishedRecipeLinks.tsx";
+import type { PendingRecipeShare } from "@vua/contracts";
 /** Control center, Recipes: every saved Recipe and what it uses, as a living graph or a list, with details beside it. */
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@vua/design-system";
@@ -40,6 +42,15 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   const [resetKey, setResetKey] = useState(0);
   const [sharing, setSharing] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [incoming, setIncoming] = useState<PendingRecipeShare | null>(null);
+  useEffect(() => {
+    const api = window.vua?.dialog?.recipeSharing;
+    if (!api || !port) return;
+    let alive = true;
+    const take = () => { void api.takePending().then(value => { if (alive && value) { setIncoming(value); setImporting(true); } }).catch(() => {}); };
+    take(); const unsubscribe = api.subscribe(take);
+    return () => { alive = false; unsubscribe(); };
+  }, [port]);
   const [draftsOpen, setDraftsOpen] = useState(false);
 
   useEffect(() => {
@@ -83,7 +94,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
           {(["graph", "list"] as const).map(option => <button type="button" key={option} aria-pressed={view === option} onClick={() => chooseView(option)}>
             <Icon name={option === "graph" ? "shader" : "file"} size={16}/>{copy.views[option]}</button>)}
         </span>}
-        {saved !== null && saved.length > 0 && <Button onClick={() => setImporting(true)}>{production.importRecipe}</Button>}
+        {saved !== null && saved.length > 0 && <Button onClick={() => { setIncoming(null); setImporting(true); }}>{production.importRecipe}</Button>}
       </div>
     </header>
 
@@ -92,7 +103,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
     : saved === null ? <p role="status" className="vua-caption vua-text-secondary">{production.loading}</p>
     : saved.length === 0 ? <div className="vua-control__panel vua-control__empty"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
         <Icon name="file" size={24}/><h2>{copy.emptyTitle}</h2>
-        <div className="vua-n3__actions"><Button onClick={() => onNavigate("workshop")}>{copy.openWorkshop}</Button><Button variant="primary" onClick={() => setImporting(true)}>{production.importRecipe}</Button></div>
+        <div className="vua-n3__actions"><Button onClick={() => onNavigate("workshop")}>{copy.openWorkshop}</Button><Button variant="primary" onClick={() => { setIncoming(null); setImporting(true); }}>{production.importRecipe}</Button></div>
       </div>
     : <div className="vua-control__body">
         <section className="vua-control__stage" aria-label={view === "graph" ? copy.graphLabel : copy.listLabel}>
@@ -120,9 +131,10 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
       <Button variant="subtle" aria-expanded={draftsOpen} aria-controls="control-recipe-drafts" onClick={() => setDraftsOpen(value => !value)}>{production.recipeWorkspace}</Button>
       {draftsOpen && <div id="control-recipe-drafts"><RecipeWorkspace/></div>}
     </section>
+    <PublishedRecipeLinks/>
     <FitsPanel port={port} />
     {sharing !== null && <AmfRecipeShareDialog recipeId={sharing} onClose={() => setSharing(null)}/>}
-    {importing && <AmfRecipeImportDialog onClose={() => setImporting(false)} onImported={() => setReload(value => value + 1)} onOpen={recipeId => setSelected(recipeNodeId(recipeId))}/>}
+    {importing && <AmfRecipeImportDialog initial={incoming} onClose={() => setImporting(false)} onImported={() => setReload(value => value + 1)} onOpen={recipeId => setSelected(recipeNodeId(recipeId))}/>}
   </div>;
 }
 

@@ -1,19 +1,19 @@
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
 import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
-import { Icon } from "@vua/design-system";
+import { Icon, SkinMotif } from "@vua/design-system";
 import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
-import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
-import { strings, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { compactSourceLabel } from "./line-presentation.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
@@ -30,11 +30,12 @@ import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
 import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey } from "./factory-model.ts";
+import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey, needsFullAutoNotice } from "./factory-model.ts";
+import { FullAutoConfirm, type FullAutoReason } from "./FullAutoConfirm.tsx";
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
-import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
+import { formatDuration, lineLabels, queueAhead, runStartedAt } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
@@ -109,7 +110,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [closeOffer, setCloseOffer] = useState<{ readonly message: string; readonly retry: (() => void) | null } | null>(null);
   const afterClose = useRef<(() => void) | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
-  const [confirmFull, setConfirmFull] = useState(false);
+  const [confirmFull, setConfirmFull] = useState<FullAutoReason | null>(null);
   const [adjusting, setAdjusting] = useState(false);
   // The station the player opened; without one the page follows the line.
   const [chosenStation, setChosenStation] = useState<StationKey | null>(null);
@@ -117,7 +118,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [changing, setChanging] = useState<readonly string[] | null>(null);
   const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
   // Full access changes the work project without asking, so the player reads what that means first.
-  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
+  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull("switch"); else applyLevel(next); };
   const unattended = useRef(new Set<string>());
   const initialized = useRef("");
   const refreshList = useCallback(async () => {
@@ -253,7 +254,6 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const states = run ? lineStations(run) : null;
   const status: LineStatus | null = run ? lineStatus(run) : null;
   const effective: AutomationLevel = level;
-  const stops = stopsAt(effective);
   // One layout for every mode; the modes differ in where the line stops.
   const showDetails = adjusting;
   const chosen = !!selection.avatarPrefab && selection.outfits.length > 0;
@@ -265,7 +265,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     unattended.current.add(key);
     void assembleNow();
   });
-  const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
+  const ui = presentationCopy.workshop;
+  const objectName = run?.result?.facts?.avatarName?.trim() || avatar?.name || (avatars.length === 1 ? avatars[0]?.name : null) || ui.unknownAvatar;
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
   // A creator-patched line locks the operations that cannot replay its manual steps (face_tracking_manual_replay).
@@ -286,11 +287,46 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const panels = factory.panels;
   // One card per run, even if a list read ever repeats an entry.
-  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
-    extra: labels.get(recent.runId)?.extra ?? null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: recent.runId === run?.runId ? objectName : compactSourceLabel(recent.sourceNames[0] ?? "") || ui.unknownAvatar,
+    extra: runStartedAt(recent.runId) ? labels.get(recent.runId)?.extra ?? null : null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
     : !lineBusy(run) && run.phase === "succeeded" ? "check" : !lineBusy(run) && run.phase === "ready" ? "plan" : currentStation(states));
+  const stationsRef = useRef<HTMLOListElement | null>(null);
+  const [stationIndicator, setStationIndicator] = useState<{ x: number; y: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const list = stationsRef.current;
+    if (!list) return;
+    let active = true;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!active) return;
+        const selected = list.querySelector<HTMLElement>(".vua-line__station[aria-pressed='true']");
+        if (!selected) { setStationIndicator(null); return; }
+        const listRect = list.getBoundingClientRect();
+        const rect = selected.getBoundingClientRect();
+        const next = {
+          x: rect.left - listRect.left + list.scrollLeft + 12,
+          y: rect.bottom - listRect.top + list.scrollTop - 2,
+          width: Math.max(0, rect.width - 24),
+        };
+        setStationIndicator(previous => previous?.x === next.x && previous.y === next.y && previous.width === next.width ? previous : next);
+      });
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    list.querySelectorAll(".vua-line__station").forEach(element => observer.observe(element));
+    update();
+    void document.fonts.ready.then(update);
+    return () => {
+      active = false;
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [shown, runId]);
+  const executing = states ? STATIONS.find(key => states[key] === "running") : undefined;
   const observed = run?.result?.facts?.observedSelection ?? null;
   const planOpen = run !== null && !busy && restorePlan === null && (run.phase === "ready" || run.phase === "succeeded");
   const unchangedPlan = run?.phase === "succeeded" && observed !== null && sameSelection(selection, observed);
@@ -309,10 +345,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
     <div className="vua-workshop__main">
-    <ConfirmDialog open={confirmFull} danger title={factory.fullAccess.title} cancelLabel={factory.fullAccess.cancel} confirmLabel={factory.fullAccess.confirm}
-      onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
-      <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
-    </ConfirmDialog>
+    <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
+      onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void command("prepare"); }} />
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
     {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
       action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
@@ -334,24 +368,28 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {!recipePreview && (list === null ? <Card><EmptyState title={requesting ? copy.loading : unavailable} description={copy.loading} /></Card> : <Card>
         <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { void command("prepare"); }}>{copy.prepare}</Button></div>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{copy.prepare}</Button></div>
         {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label></details>}
         <Button variant="subtle" onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
       </Card>)}
     </> : <>
       <header className="vua-line__header">
-        <h1 className="vua-title">{lineName(run.sources.map(source => source.itemName)) || run.runId}</h1>
-        {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
+        <div className="vua-line__object"><h1 className="vua-title">{objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
         {status && <StatusChip status={status}/>}
+        <SkinMotif slot="control-panel-corner" className="vua-line__skin-motif" />
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
-      {states && <ol className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key}>
-        <button type="button" className="vua-line__station" data-state={states[key]} aria-pressed={shown === key} aria-current={currentStation(states) === key ? "step" : undefined}
+      {states && <ol ref={stationsRef} className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key} data-state={states[key]}>
+        <button type="button" className="vua-line__station" data-vua-surface-role="workshop-step" data-state={states[key]} aria-pressed={shown === key} aria-current={executing === key ? "step" : undefined}
           onClick={() => setChosenStation(key)} data-nav-id={`workshop-station-${key}`}>
           <Icon name={STATION_ICONS[key]} size={20}/>
           <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>
-          {stops.has(key) && ["todo", "waiting"].includes(states[key]) && <span className="vua-line__stop">{factory.stopsHere}</span>}
-        </button></li>)}</ol>}
+        </button></li>)}
+        {stationIndicator && <span key={runId} className="vua-line__station-indicator" aria-hidden="true"
+          style={{ width: stationIndicator.width, transform: `translate(${stationIndicator.x}px, ${stationIndicator.y}px)` }} />}
+      </ol>}
+      <div className="vua-line__context" role="status"><strong>{format(ui.viewing, { step: factory.stations[shown] })}</strong><span>{executing ? format(ui.executing, { step: factory.stations[executing] }) : ui.idle}</span></div>
+      <details className="vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd></dl><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
       {lineBusy(run) && <Card className="vua-line__live" aria-live="polite">
         <div className="vua-line__live-head"><span className="vua-n3__spinner" aria-hidden="true"/>
           <strong>{runningStep ? copy.step[runningStep.key as keyof typeof copy.step] ?? runningStep.name : run.phase === "assembling" ? copy.assembling : run.phase === "restoring" ? copy.restoring : copy.preparing}</strong></div>

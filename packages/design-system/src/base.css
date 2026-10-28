@@ -1,3 +1,13 @@
+@import "./themes/frutiger-aero.css";
+@import "./themes/tenshi.css";
+@import "./themes/jirai.css";
+@import "./themes/aero-chrome.css";
+@import "./themes/jirai-chrome.css";
+@import "./themes/tenshi-chrome.css";
+@import "./motifs/motifs.css";
+@import "./accessibility.css";
+@import "./shapes.css";
+
 /* 全局基础样式:只消费 Token,不引入新的视觉值 */
 
 *,
@@ -15,27 +25,15 @@ body,
 body {
   margin: 0;
   font: var(--vua-font-body);
+  /* Digits keep one width so counts, sizes and times line up. */
+  font-variant-numeric: tabular-nums;
   color: var(--vua-text-strong);
   -webkit-font-smoothing: antialiased;
-  /* 深邃空间画布:近黑紫基底 + 极淡网格纹理(color-mix 自文字色,深浅主题
-   * 自适应);辉光斑层(--vua-aurora-*)基线为 none(2026-09-25 性能简化,
-   * 用户裁决),消费层保留以便氛围层未来回归时零改动接入;
-   * forced-colors 由 UA 抹除背景图,[data-hc="on"] 下网格 4% 白近似不可见,
-   * 均安全降级 */
   background-color: var(--vua-bg-canvas);
   background-image:
     var(--vua-aurora-1),
     var(--vua-aurora-2),
-    repeating-linear-gradient(
-      0deg,
-      color-mix(in srgb, var(--vua-text-strong) 4%, transparent) 0 1px,
-      transparent 1px 44px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--vua-text-strong) 4%, transparent) 0 1px,
-      transparent 1px 44px
-    );
+    var(--vua-canvas-pattern);
 }
 
 /* 选中区:辖区色淡底(模型生产自动变橙);forced-colors 由 UA 映射系统 Highlight */
@@ -44,7 +42,7 @@ body {
   color: var(--vua-text-strong);
 }
 
-/* 细滚动条:轨道透明,拇指圆头;hover 时染辖区色 */
+/* Thin industrial scrollbars keep a transparent track and square thumb. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--vua-border-strong) transparent;
@@ -62,7 +60,7 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: var(--vua-border-strong);
   border: 3px solid transparent;
-  border-radius: 999px;
+  border-radius: 0;
   background-clip: padding-box;
 }
 
@@ -81,11 +79,101 @@ textarea {
 /* Browser defaults moved onto the 4 px grid and the two weights; components set their own
  * values on top (design audit, 2026-10-25). */
 button {
+  min-width: 28px;
+  min-height: 28px;
   padding-inline: var(--vua-space-2);
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  background: var(--vua-bg-panel);
+}
+
+/* A native indicator stays compact; its associated label supplies the hit area. */
+:where(label:has(> input:is([type="checkbox"], [type="radio"]))) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vua-space-2);
+  min-height: 28px;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select) {
+  min-height: var(--vua-control-height);
+}
+
+/* Default text-field skin, shared with the folder picker's path editor. Opt in only
+ * where no feature-specific appearance exists; widths and text direction stay local. */
+.vua-text-input {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px var(--vua-space-2);
+  border: 1px solid var(--vua-border);
+  border-radius: var(--vua-radius-control);
+  color: var(--vua-text-strong);
+  background: var(--vua-bg-canvas);
+}
+
+.vua-text-input:focus {
+  outline: 2px solid var(--vua-accent);
+  outline-offset: 1px;
 }
 
 p {
   margin-block: var(--vua-space-3);
+}
+
+h1,
+h2 {
+  font: var(--vua-font-title);
+  margin-block: var(--vua-space-4);
+  color: var(--vua-heading-color, inherit);
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font: var(--vua-font-body);
+  font-weight: var(--vua-weight-strong);
+  margin-block: var(--vua-space-3);
+}
+
+small {
+  font: var(--vua-font-caption);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+summary {
+  min-height: 28px;
+  cursor: pointer;
+}
+
+legend {
+  padding: 0;
+}
+
+ul,
+ol,
+dl,
+figure,
+blockquote {
+  margin-block: var(--vua-space-3);
+}
+
+form {
+  margin: 0;
+}
+
+fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--vua-space-3);
+  border: 1px solid var(--vua-border);
 }
 
 strong,

@@ -31,11 +31,18 @@ export const storageKeys = {
   /** 主题偏好(2026-10-09 默认深色裁决):dark | light | system;缺省 dark;
    *  旧版写入的 dark|light 仍是合法子集。解析/写入见 app/theme-preference.ts */
   theme: "vua-theme",
+  /** Independent theme family; dark/light/system remains in theme. Missing/invalid = grid. */
+  themeFamily: "vua-theme-family",
   /** 界面语言(C-I18N):LocaleId;缺省走系统探测,fallback 见 i18n/locales.ts */
   locale: "vua-locale",
   /** 指南阅读位置(首玩 B 切片):版本化前仅存 {topic, section?};只保存阅读
    *  信息,不保存账号信息或部署任务进度;读写见 features/guide/guide-target.ts */
   guideReading: "vua-guide-reading",
+  /** VUA's own guide has an independent reading bookmark. */
+  vuaGuideReading: "vua-vua-guide-reading-v1",
+  /** Non-modal module introductions: permanent dismissal and session-only snooze. */
+  contextGuide: "vua-context-guide-v1",
+  contextGuideSnoozed: "vua-context-guide-snoozed-v1",
   /** 应用导览进度:版本化 TourProgressV2(v1 按步骤内容迁移)
    *  {v,status,step};独立于阅读器阅读位置与安装任务状态;读写见
    *  features/tour/tour-model.ts */

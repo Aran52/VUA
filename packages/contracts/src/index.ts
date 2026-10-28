@@ -43,3 +43,4 @@ export * from "./texture-memory-v01.js";
 export * from "./outfit-removal-v01.js";
 
 export * from "./amf-recipe-materials.js";
+export * from "./share-links-v01.js";

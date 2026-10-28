@@ -20,6 +20,8 @@ import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
+import { contextGuideCopy } from "./context-guide-copy.ts";
+import { helpFaqCopy } from "./help-faq-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -37,6 +39,8 @@ export const strings: Strings = {
   browser: browserCopy["ko"],
   fileDrop: fileDropCopy["ko"],
   helpUi: helpCopy["ko"],
+  helpFaq: helpFaqCopy["ko"],
+  contextGuide: contextGuideCopy["ko"],
   distribution: distributionCopy["ko"],
   amfModule: moduleCopy["ko"],
   amfProduction: amfProductionCopy.ko,
@@ -489,6 +493,8 @@ demoTaskTitle: "데모 작업",
     },
   },
   onboarding: {
+    firstRunTitle: "언어 선택",
+    firstRunBody: "설정에서 언제든 바꿀 수 있어요. 다른 기능은 필요할 때 안내해요.",
     steps: {
       goals: "목표 선택",
       environments: "환경 세부 설정",
@@ -1181,7 +1187,8 @@ rolled_back: "롤백됨",
             id: "trust",
             title: "트러스트 등급과 세이프티 실드",
             paragraphs: [
-              "퀵 메뉴가 열려 있는 동안 네임플레이트에 트러스트 등급(Visitor부터 Trusted User까지)이 표시됩니다. 세이프티 페이지의 실드 레벨은 등급별로 보이는 아바타와 이펙트를 결정합니다. 기본값 Normal이 좋은 출발점입니다.",
+              "트러스트 등급은 계정의 신뢰도예요. 실드 레벨은 등급별로 표시할 아바타, 소리, 효과를 정해요. 둘 다 Avatar 성능 등급과는 별개예요.",
+              "퀵 메뉴에서 네임플레이트와 실드 설정을 확인해요. 먼저 Normal을 사용하고 방과 개인 취향에 맞게 조절할 수 있어요.",
             ],
           },
           {
@@ -1313,26 +1320,56 @@ rolled_back: "롤백됨",
           },
         ],
       },
+      creator: {
+        title: "업로드와 신뢰 등급",
+        intro: "업로드 조건, 신뢰 등급, 로컬 테스트에 대한 안내예요.",
+        sections: [
+          {
+            id: "upload-eligibility",
+            title: "업로드에 필요한 조건",
+            paragraphs: [
+              "Unity와 VRChat SDK로 커스텀 Avatar를 업로드하려면 VRChat.com 계정과 New User 이상의 신뢰 등급이 필요해요. Steam 또는 Meta 계정은 먼저 VRChat 계정과 연결해야 해요.",
+              "아직 업로드할 수 없어도 빌드하고 로컬에서 테스트할 수 있어요. 테스트 Avatar는 본인에게만 보여요. VUA가 등급을 부여하거나 공식 확인을 우회하지는 않아요.",
+            ],
+          },
+          {
+            id: "trust-rank",
+            title: "사용자 등급이란?",
+            paragraphs: [
+              "Trust Rank는 VRChat이 계정의 신뢰도를 나타내는 지표예요. Avatar 기능을 표시할지 정하는 Shield Level이나 Avatar의 렌더링 비용을 추정하는 Performance Rank와는 달라요.",
+              "퀵 메뉴에서 이름표와 등급을 확인할 수 있어요. VUA는 플레이 시간, 친구 수, 계정 이름으로 등급을 추측하지 않아요.",
+            ],
+          },
+          {
+            id: "improve-trust",
+            title: "New User가 되려면",
+            paragraphs: [
+              "평소처럼 VRChat을 사용하며 월드를 탐색하고 친구와 놀고, 자격을 얻은 뒤 콘텐츠를 만들어 보세요. Visitor에서 New User가 되면 VRChat이 알려줘요.",
+              "잠수, 대량 친구 추가, 저품질 콘텐츠 대량 업로드로는 등급이 오르지 않아요. 공인된 지름길이나 승급 시기 보장은 없어요. 등급이 잘못되었다고 생각하면 VRChat 지원에 문의하세요.",
+            ],
+          },
+        ],
+      },
       /** VUA 사용법 주제(2026-09-26 가이드 호스트 판정): 읽기 전용. 지금
        *  실제로 되는 것만 담고 미연결 기능을 약속하지 않음. */
       vua: {
-        title: "VUA 사용법",
-        intro: "VUA 창과 주요 흐름을 빠르게 소개합니다. 지금 실제로 되는 것만 담았습니다.",
+        title: "VUA 사용 안내",
+        intro: "소재, 제작, 설정, 업로드의 현재 경로를 안내해요.",
         sections: [
           {
             id: "window-tour",
-            title: "VUA 창 둘러보기",
+            title: "조작 위치 찾기",
             paragraphs: [
-              "상단 바에는 왼쪽부터 모듈 전환(환경 설정/아바타 제작), 설정, 기능 검색(Ctrl+P), 가이드, 알림이 있고, 왼쪽 사이드바에는 현재 모듈의 기능 그룹이 나열됩니다.",
-              "화면 하단의 작업 센터에 백그라운드 작업과 다운로드가 모이며, 오른쪽 위 종 아이콘으로 알림 목록을 엽니다.",
+              "상단 바에서 기능 검색과 설정을 열고, 왼쪽 사이드바에서 현재 모듈의 기능을 선택해요. 화면별 안내는 처음 방문할 때 표시돼요.",
+              "다운로드와 백그라운드 작업은 위쪽 종 아이콘에서 확인해요. 화면 아래쪽 작업 표시줄은 없어요.",
             ],
           },
           {
             id: "environment-page",
-            title: "환경 페이지",
+            title: "플레이와 아바타 제작 준비",
             paragraphs: [
-              "플레이/제작 환경 페이지에서는 먼저 환경 검사를 실행하고, 결과가 부족하면 수정 계획이 단계를 안내합니다.",
-              "도구 모음은 환경 모듈 사이드바의 「도구」 그룹에 있습니다. 아직 연결되지 않았으며 정직한 빈 상태를 표시합니다.",
+              "플레이에서는 Steam, VRChat, 스트리밍 환경을 확인해요. 아바타 편집에서는 Unity, 패키지 관리자와 {amf}를 확인해요. 실패한 항목에는 현재 상태와 가능한 해결 방법이 표시돼요.",
+              "도구는 용도별로 나뉘어요. 아직 구현되지 않은 항목은 개발 중으로 표시되며 설치된 것처럼 보이지 않아요.",
             ],
           },
           {
@@ -1340,23 +1377,31 @@ rolled_back: "롤백됨",
             title: "소재 가져오기 두 가지",
             paragraphs: [
               "로컬 소재: 라이브러리에서 폴더를 선택하여 가져옵니다. 일반 파일은 그대로 보관하고 ZIP은 원본을 보관하며 자동으로 압축을 풉니다. 제작에는 UnityPackage만 사용합니다.",
-              "BOOTH 상품: 내장 브라우저 창에서 상품 페이지를 열고 본인 계정으로 구매·다운로드한 뒤, 다운로드를 한 번 클릭해 창고에 받습니다.",
+              "BOOTH 구매 소재는 계정 페이지에서 로그인 후 동기화하거나 라이브러리에서 상품 페이지를 열 수 있어요. 필요한 파일만 다운로드하세요. 상품 연결은 출처 기록이며 파일 일치나 호환성을 보장하지 않아요.",
             ],
           },
           {
             id: "production-line",
             title: "제작 라인",
             paragraphs: [
-              "라인은 창고 → 레시피 → 작업장 → 출고 순으로 진행됩니다. 소재는 창고에 들어가 레시피에서 조합하고, 작업장에서 실행 계획을 확인해 진행합니다.",
-              "검사는 제작 기록에 통합됩니다. 결과는 기록과 함께 표시되며 별도 단계가 아닙니다.",
+              "소재에서 제작을 시작하고 레시피로 조합을 저장해 재사용해요. 레시피는 매번 거쳐야 하는 단계가 아니에요. 작업장은 실제 제작 라인과 자동화 상태를 보여줘요. 새 설정의 기본값은 완전 자동이며 확인한 소재를 한 번 조립해요. 기존 수동 검토와 제한 자동 설정은 유지돼요.",
+              "Avatar로 지정한 로컬 UnityPackage는 상품 연결 없이 제작을 시작할 수 있어요. 시작 전에 대상 Avatar와 자동화 권한을 확인하세요. 상품 연결은 호환성을 보장하지 않으며 업로드에는 공식 SDK와 본인 확인이 필요해요.",
             ],
           },
           {
             id: "settings-basics",
             title: "자주 쓰는 설정",
             paragraphs: [
-              "외관은 다크/라이트/시스템 설정 따름을 고를 수 있으며, 시스템 따름은 Windows의 밝기 모드를 실시간으로 따라갑니다.",
-              "리소스 절약 모드는 장식 애니메이션을 꺼서 부하를 낮추므로 VR이나 저사양 환경에 적합합니다.",
+              "Grid와 Frutiger Aero는 다크와 라이트를 지원해요. Tenshi Kaiwai는 라이트, Jirai Kei는 다크 전용이에요. 언어, 계정, 환경 경로는 설정의 각 페이지에서 바꿔요.",
+              "리소스 절약 모드는 장식 애니메이션, 질감과 일부 시각 효과를 끄고 글자와 조작은 유지해요.",
+            ],
+          },
+          {
+            id: "upload-prerequisites",
+            title: "업로드 전 계정 조건",
+            paragraphs: [
+              "커스텀 Avatar를 업로드하려면 정식 VRChat 계정과 New User 이상의 트러스트 등급이 필요해요. Unity 설치와는 별개이며 등급이 부족해도 로컬 테스트는 할 수 있어요.",
+              "아바타 제작 준비와 업로드 확인에서 트러스트 등급의 의미와 올리는 방법을 찾아볼 수 있어요. 업로드는 본인 확인 후 공식 SDK로 진행해요.",
             ],
           },
         ],

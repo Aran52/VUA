@@ -47,15 +47,14 @@ async function run() {
       return Boolean(window && !window.webContents.isLoading());
     }, "production renderer");
     const js = source => window.webContents.executeJavaScript(source);
-    await waitFor(() => js('document.querySelector(".vua-tour")?.dataset.tourStep==="welcome"'), "first-use welcome");
-    await js('document.querySelector(".vua-tour__actions button").click()');
-    await waitFor(() => js('!!document.querySelector(".vua-onboarding") && !document.querySelector(".vua-boot-splash")'), "fresh wizard");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=first-run-language-continue]")'), "first-use language");
+    await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
+    await waitFor(() => js('!!document.querySelector(".vua-home") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "fresh Home");
     const checks = [];
     const assert = (condition, label) => { if (!condition) throw new Error(label); checks.push(label); };
     await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="ready")'), "fresh default AMF startup");
     assert(JSON.parse(fs.readFileSync(path.join(profile, "modules/amf.json"), "utf8")).enabled === true, "fresh AMF default is retained before host data is created");
     assert(fs.existsSync(path.join(profile, "modules/amf/data/bdl/bdl.db")), "AMF creates its own isolated data");
-    await js('document.querySelector(".vua-journey-top button").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=home-modules]")'), "home module entry");
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && !!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh editing navigation");
     assert(await js('!!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh users can reach editing directly");

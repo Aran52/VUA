@@ -5,20 +5,18 @@
   justify-content: center;
   gap: var(--vua-space-2);
   min-height: var(--vua-control-height);
-  padding: 0 var(--vua-space-4);
+  min-width: calc(var(--vua-control-height) * 2);
+  padding: 0 var(--vua-space-3);
   border: 1px solid transparent;
-  /* 胶囊按钮:全圆角 */
-  border-radius: var(--vua-radius-pill);
+  border-radius: var(--vua-radius-control);
   font: var(--vua-font-body);
-  font-weight: 600;
+  font-weight: var(--vua-weight-strong);
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    filter 120ms ease,
-    transform 120ms ease;
+    background-color var(--vua-motion-fast) var(--vua-motion-ease),
+    border-color var(--vua-motion-fast) var(--vua-motion-ease),
+    color var(--vua-motion-fast) var(--vua-motion-ease),
+    transform var(--vua-motion-fast) var(--vua-motion-ease);
 }
 
 .vua-button:disabled {
@@ -26,73 +24,44 @@
   opacity: 0.5;
 }
 
-/* 主操作:辖区渐变面(8s 缓慢流动)+ 辖区色辉光;HC 下 gradient/glow 置 none,退化纯色 */
 .vua-button--primary {
-  overflow: hidden;
   background-color: var(--vua-accent);
-  background-image: var(--vua-accent-gradient);
-  background-size: 200% 200%;
+  background-image: var(--vua-shine), var(--vua-accent-gradient);
   color: var(--vua-accent-contrast);
-  box-shadow: var(--vua-glow-accent-soft);
-  animation: vua-button-flow 8s ease-in-out infinite alternate;
-}
-
-/* 渐变面缓慢流动:reduced-motion 全局规则压掉动画 */
-@keyframes vua-button-flow {
-  from {
-    background-position: 0% 0%;
-  }
-  to {
-    background-position: 100% 100%;
-  }
-}
-
-/* hover 光泽扫过:伪元素承载 sheen,transform 滑过;HC 下 --vua-shine 为 none */
-.vua-button--primary::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: var(--vua-shine);
-  transform: translateX(-130%);
-  transition: transform 450ms ease;
-  pointer-events: none;
+  box-shadow: var(--vua-action-shadow, none);
 }
 
 .vua-button--primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: var(--vua-glow-accent);
-}
-
-.vua-button--primary:hover:not(:disabled)::after {
-  transform: translateX(130%);
+  background-color: var(--vua-accent-hover);
+  background-image: var(--vua-shine), var(--vua-accent-gradient-hover);
 }
 
 .vua-button--primary:active:not(:disabled) {
-  filter: brightness(0.94);
-  transform: translateY(0);
+  background-color: var(--vua-accent-pressed);
+  background-image: var(--vua-shine), var(--vua-accent-gradient-pressed);
 }
 
-/* 焦点环与辉光叠加(base 的 :focus-visible box-shadow 会被本类覆盖,在此合并);
- * forced-colors 下 UA 抹除 box-shadow,outline 仍在 */
-.vua-button--primary:focus-visible {
-  box-shadow:
-    var(--vua-glow-accent),
-    0 0 0 3px color-mix(in srgb, var(--vua-accent) 30%, transparent);
+.vua-button:active:not(:disabled) {
+  transform: var(--vua-press-transform, translateY(1px));
+  filter: var(--vua-press-filter, none);
 }
 
-/* 次级:玻璃质感(半透明底 + 顶部内高光),hover 描边泛辖区色 */
 .vua-button--default {
-  background: color-mix(in srgb, var(--vua-bg-elevated) 70%, transparent);
-  border-color: var(--vua-border);
+  background-color: transparent;
+  background-image: var(--vua-button-gloss, none);
+  border-color: var(--vua-button-border, var(--vua-border));
   color: var(--vua-text-strong);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--vua-text-strong) 7%, transparent);
 }
 
 .vua-button--default:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--vua-bg-elevated) 85%, transparent);
-  border-color: var(--vua-accent);
-  transform: translateY(-1px);
+  background-color: var(--vua-bg-panel);
+  background-image: var(--vua-button-gloss-hover, none);
+  border-color: var(--vua-button-border-hover, var(--vua-border-strong));
+  box-shadow: var(--vua-button-glow-hover, none);
+}
+
+.vua-button--default:active:not(:disabled) {
+  background-image: var(--vua-button-gloss-pressed, none);
 }
 
 .vua-button--subtle {
@@ -105,15 +74,13 @@
   background: var(--vua-accent-tint);
 }
 
-/* 破坏性操作(F4-9 删除原始等):错误红描边与文字,hover 加错误红面;
-   文字对比按 error 令牌的语义色计算,HC 主题退化纯色描边(§8.1 高危形态) */
 .vua-button--danger {
   background: transparent;
   border-color: var(--vua-error);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-button--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--vua-error) 16%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vua-error) 24%, transparent);
+  background: var(--vua-error);
+  color: var(--vua-on-error);
 }

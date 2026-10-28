@@ -1,0 +1,158 @@
+@media (forced-colors: active) {
+  :root,
+  :root[data-theme][data-theme-family],
+  :root[data-theme][data-theme-family] [data-module="production"] {
+    --vua-bg-canvas: Canvas;
+    --vua-bg-panel: Canvas;
+    --vua-bg-elevated: Canvas;
+    --vua-text-strong: CanvasText;
+    --vua-text-secondary: CanvasText;
+    --vua-text-disabled: GrayText;
+    --vua-border: CanvasText;
+    --vua-border-strong: CanvasText;
+    --vua-border-focus: Highlight;
+    --vua-accent: Highlight;
+    --vua-accent-hover: Highlight;
+    --vua-accent-pressed: Highlight;
+    --vua-accent-tint: Canvas;
+    --vua-accent-text: Highlight;
+    --vua-accent-contrast: HighlightText;
+    --vua-success: CanvasText;
+    --vua-error: CanvasText;
+    --vua-warning: CanvasText;
+    --vua-amber: CanvasText;
+    --vua-amber-text: CanvasText;
+    --vua-info: CanvasText;
+    --vua-success-text: CanvasText;
+    --vua-error-text: CanvasText;
+    --vua-warning-text: CanvasText;
+    --vua-room-control: Highlight;
+    --vua-room-materials: Highlight;
+    --vua-room-workshop: Highlight;
+    --vua-room-release: Highlight;
+    --vua-on-status: Canvas;
+    --vua-on-error: Canvas;
+    --vua-shadow-elevated: none;
+    --vua-glow-accent: none;
+    --vua-glow-accent-soft: none;
+    --vua-accent-gradient: none;
+    --vua-accent-gradient-hover: none;
+    --vua-accent-gradient-pressed: none;
+    --vua-aurora-1: none;
+    --vua-aurora-2: none;
+    --vua-canvas-pattern: none;
+    --vua-surface-highlight: none;
+    --vua-shine: none;
+  --vua-action-shadow: none;
+  --vua-card-material: none;
+  --vua-card-decor: none;
+  --vua-header-edge: none;
+  --vua-trim-image: none;
+  --vua-button-gloss: none;
+  --vua-button-gloss-hover: none;
+  --vua-button-gloss-pressed: none;
+  --vua-dialog-frame: initial;
+  --vua-card-stitch: none;
+  --vua-row-current-stitch: none;
+  --vua-row-current-sheen: none;
+  --vua-motif-glyphs: none;
+  --vua-press-filter: none;
+  --vua-header-sheen: none;
+  }
+}
+
+[data-hc="on"],
+:root[data-theme][data-hc="on"],
+:root[data-theme][data-hc="on"] [data-module="production"] {
+  color-scheme: dark;
+  --vua-bg-canvas: #000000;
+  --vua-bg-panel: #000000;
+  --vua-bg-elevated: #101010;
+  --vua-text-strong: #ffffff;
+  --vua-text-secondary: #ffffff;
+  --vua-text-disabled: #9a9a9a;
+  --vua-border: #ffffff;
+  --vua-border-strong: #ffffff;
+  --vua-border-focus: #ffd600;
+  --vua-purple: #ffd600;
+  --vua-orange: #ffd600;
+  --vua-accent: #ffd600;
+  --vua-accent-hover: #ffdf4d;
+  --vua-accent-pressed: #e6c000;
+  --vua-accent-tint: #3d3600;
+  --vua-accent-text: #ffd600;
+  --vua-accent-contrast: #000000;
+  --vua-success: #00e676;
+  --vua-error: #ff5252;
+  --vua-warning: #ffd600;
+  --vua-amber: #ffd600;
+  --vua-amber-text: #ffd600;
+  --vua-info: #ffffff;
+  --vua-success-text: var(--vua-success);
+  --vua-error-text: var(--vua-error);
+  --vua-warning-text: var(--vua-warning);
+  --vua-on-status: #000000;
+  --vua-on-error: #000000;
+  --vua-room-control: #ffd600;
+  --vua-room-materials: #ffd600;
+  --vua-room-workshop: #ffd600;
+  --vua-room-release: #ffd600;
+  --vua-shadow-elevated: none;
+  --vua-glow-accent: none;
+  --vua-glow-accent-soft: none;
+  --vua-accent-gradient: none;
+  --vua-accent-gradient-hover: none;
+  --vua-accent-gradient-pressed: none;
+  --vua-aurora-1: none;
+  --vua-aurora-2: none;
+  --vua-canvas-pattern: none;
+  --vua-surface-highlight: none;
+  --vua-shine: none;
+  --vua-action-shadow: none;
+  --vua-card-material: none;
+  --vua-card-decor: none;
+  --vua-header-edge: none;
+  --vua-trim-image: none;
+  --vua-button-gloss: none;
+  --vua-button-gloss-hover: none;
+  --vua-button-gloss-pressed: none;
+  --vua-dialog-frame: initial;
+  --vua-card-stitch: none;
+  --vua-row-current-stitch: none;
+  --vua-row-current-sheen: none;
+  --vua-motif-glyphs: none;
+  --vua-press-filter: none;
+  --vua-header-sheen: none;
+  --vua-album-paper: #000000;
+  --vua-album-pattern: none;
+  --vua-album-binding: #000000;
+  --vua-album-rule: #ffffff;
+  --vua-album-print: #000000;
+  --vua-shadow-album: none;
+  --vua-shadow-album-spine-left: none;
+  --vua-shadow-album-spine-right: none;
+  --vua-shadow-print: none;
+  --vua-shadow-release: none;
+}
+
+[data-effects="off"],
+[data-effects="off"] [data-module],
+:root[data-theme][data-effects="off"],
+:root[data-theme][data-effects="off"] [data-module] {
+  --vua-glow-accent: none;
+  --vua-glow-accent-soft: none;
+  --vua-accent-gradient: none;
+  --vua-accent-gradient-hover: none;
+  --vua-accent-gradient-pressed: none;
+  --vua-aurora-1: none;
+  --vua-aurora-2: none;
+  --vua-canvas-pattern: none;
+  --vua-surface-highlight: none;
+  --vua-shine: none;
+  --vua-action-shadow: none;
+  --vua-card-material: none;
+  --vua-row-current-sheen: none;
+  --vua-motif-glyphs: none;
+  --vua-press-filter: none;
+  --vua-header-sheen: none;
+}

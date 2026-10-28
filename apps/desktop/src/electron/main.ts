@@ -1,4 +1,5 @@
 import { recipeTransferText } from "./amf-recipe-transfer.js";
+import { registerRecipeSharing, queueShareLink } from "./recipe-share-ipc.js";
 import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
@@ -153,7 +154,9 @@ const desktopProfile = resolveDesktopProfile({
 });
 configureDesktopProfile(app, desktopProfile);
 if (app.isPackaged && !app.requestSingleInstanceLock()) app.exit(0);
-app.on("second-instance", () => { if (mainWindow !== null && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); } });
+app.on("second-instance", (_event, argv) => { for(const argument of argv)queueShareLink(argument);if (mainWindow !== null && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); } });
+app.on("open-url", (event, url) => { if(queueShareLink(url))event.preventDefault(); });
+for(const argument of process.argv)queueShareLink(argument);
 if (desktopProfile.kind !== "release") {
   process.stderr.write(`${JSON.stringify({ channel: "desktop-profile", ...desktopProfile })}\n`);
 }
@@ -451,6 +454,7 @@ function vrchatRouteFace(host: ModuleProvider): NonNullable<DesktopGatewayRouteC
 }
 
 function registerIpc(provider: ModuleProvider): void {
+  registerRecipeSharing({provider,root:amfDataRoot,assertReady:assertAmfReady,assertSender:event=>assertLocalSender(senderFrameUrl(event)),window:()=>mainWindow});
   // Pairing and approval are restricted to the local Main frame; overlays and
   // embedded websites cannot read a token or approve an Agent's proposed write.
   const assertAiSender = (event: Electron.IpcMainInvokeEvent) => {

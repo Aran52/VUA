@@ -1,0 +1,51 @@
+.vua-context-guide {
+  position: fixed;
+  inset-inline-end: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: grid;
+  gap: var(--vua-space-2);
+  width: min(360px, calc(100vw - 32px));
+  padding: var(--vua-space-4);
+  border: 1px solid var(--vua-border-strong);
+  border-radius: var(--vua-radius-card);
+  background: var(--vua-bg-elevated);
+  box-shadow: var(--vua-shadow-elevated);
+}
+
+.vua-context-guide h2,
+.vua-context-guide p {
+  margin: 0;
+}
+
+.vua-context-guide h2 {
+  font: var(--vua-font-body);
+  font-weight: var(--vua-weight-strong);
+}
+
+.vua-context-guide p {
+  color: var(--vua-text-secondary);
+  font: var(--vua-font-body);
+}
+
+.vua-context-guide__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vua-space-2);
+  margin-top: var(--vua-space-2);
+}
+
+@media (max-width: 760px) {
+  .vua-context-guide {
+    inset-inline: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .vua-context-guide {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}

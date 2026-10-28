@@ -1344,7 +1344,7 @@ export function WarehousePage({
         { id: "bulkReDownload", label: copy.cardMenu.reDownload, disabled: !downloadAvailable, onSelect: () => setBulkDownload({ products: [...products.values()], mode: "redownload", skippedLocal }) },
         { id: "bulkDeleteLocal", label: copy.cardMenu.deleteLocal, disabled: dataSource !== "live" || scopes.length === 0, onSelect: () => setBulkRemovalTargets(scopes) },
         { id: "removeCards", label: copy.removeCards.title, disabled: dataSource !== "live" || selection.size === 0 || selection.size > 200, onSelect: () => setRemovedCards(selectedRemovalCards(selection)) },
-        ...(product ? [boothMenuItem(product.productId)] : []),
+        ...(product ? [boothMenuItem(product.productId), compatibilityMenuItem(product)] : []),
         ...(refs.length > 0
           ? [{
               id: "addToRecipe",

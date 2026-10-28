@@ -1,0 +1,17 @@
+.vua-skin-motif {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+[data-effects="off"] .vua-skin-motif,
+[data-hc="on"] .vua-skin-motif {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  .vua-skin-motif { display: none; }
+}

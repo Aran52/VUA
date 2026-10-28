@@ -1,3 +1,4 @@
+import { SharePreview } from "./share-preview.tsx";
 // Synthetic preview of the AMF base map and workshop for visual review; no production claims.
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -28,8 +29,10 @@ import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/app-shell.css";
 import "../../src/renderer/features/settings/settings.css";
+import { ShapeScope } from "../../src/renderer/components/primitives/ShapeScope.tsx";
 
 const view = location.hash.slice(1) || "map";
+const layoutReview = new URLSearchParams(location.search).has("layout-review");
 const sources = [
   { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage", productIds: ["booth:1"] },
   { sourceId: "outfit", itemId: "b", itemName: "TshirtShorts_Meiyun_v1.00.zip", name: "TshirtShorts_Meiyun_v1.00.unitypackage", productIds: ["booth:2"] },
@@ -109,9 +112,9 @@ runs.texline = { ...runs.finished!, runId: "texline", result: { facts: { ...runs
 const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const api = {
   // The capacity view shows an idle factory, where the setting can change; the others have a line running.
-  async list() { const idle = view === "workshop-capacity"; return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: !idle, queue: [],
+  async list() { const idle = view === "workshop-capacity" || layoutReview; return { sources, editors: [{ path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }], busy: !idle, queue: [],
     capacity: idle ? 2 : 1, running: idle ? [] : [{ taskId: "task-running", runId: "running", operation: "amf.production.prepare" }],
-    runs: Object.values(runs).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
+    runs: Object.values(runs).filter(run => !layoutReview || run.runId === "finished").map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(s => s.itemName) })) }; },
   async get(runId: string) { return structuredClone(runs[runId]!); },
   async listRecipes() { return [1, 2, 3].map(i => ({ recipeId: "r" + i, title: "Recipe " + i, revision: 1, updatedAt: "2026-10-17T00:00:00Z" })); },
   async previewImage() { return pixel; },
@@ -326,7 +329,7 @@ function NetworkPreview({ details }: { details: boolean }) {
   }, [details]);
   return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
 }
-createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
+const content = view.startsWith("share-") ? <GatewayProvider gateway={{...gateway,amfProduction:{...api,listRecipes:async()=>[],listFits:async()=>[]},amfRelease:releasePorts("release-turn").release}}><SharePreview view={view}/></GatewayProvider> : view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
   <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
   </div></aside></div>
@@ -348,7 +351,8 @@ createRoot(document.getElementById("root")!).render(view.startsWith("terms-") ? 
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api, libraryBrowser: libraryApi }}>
   {control ? control.page : view.startsWith("map") ? <FactoryMap navigate={() => {}} initialRoom={(view === "map-flight" ? null : view.slice(4) || null) as Room | null} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
-</GatewayProvider>);
+</GatewayProvider>;
+createRoot(document.getElementById("root")!).render(<ShapeScope value={/^(map|workshop-|control-|release-|materials-|terms-)/.test(view) ? "amf" : undefined}>{content}</ShapeScope>);
 
 // The items view opens the list of every VN3 item the way the player does.
 if (view === "terms-items") setTimeout(() => document.querySelector<HTMLElement>(".vua-terms__items summary")?.click(), 1200);

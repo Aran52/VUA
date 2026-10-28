@@ -120,7 +120,10 @@ async function run() {
   await until(() => !!document.querySelector(".vua-start__picks"), "start dialog resolves local materials");
   check(calls.every(call => call.method !== "amf.production.prepare"), "opening the dialog never starts Unity work");
   document.querySelector<HTMLInputElement>('.vua-start__pick input')!.click(); await pause();
-  button(strings.factory.materialsStart.start).click();
+  button(strings.factory.materialsStart.startFull).click();
+  await until(() => !!button(strings.factory.fullAccess.startConfirm), "the first full-auto start shows the full-auto warning");
+  check(calls.every(call => call.method !== "amf.production.prepare"), "the warning comes before any Unity work");
+  button(strings.factory.fullAccess.startConfirm).click();
   await until(() => navigated === "workshop", "accepted preparation opens its workshop");
   const prepared = calls.find(call => call.method === "amf.production.prepare");
   check(prepared.params.sources[0].sourceId === "src-wh-imported" && prepared.params.sources[0].role === "avatar"
@@ -129,17 +132,18 @@ async function run() {
   await open(local.entry.warehouseItemId); startButton()!.click();
   await until(() => !!document.querySelector(".vua-start__picks"), "unlinked local Avatar needs no BOOTH identity");
   document.querySelector<HTMLInputElement>('.vua-start__pick input')!.click(); await pause();
-  failPrepare = true; button(strings.factory.materialsStart.start).click();
+  failPrepare = true; button(strings.factory.materialsStart.startFull).click();
   await until(() => text().includes(strings.factory.materialsStart.startFailed), "preparation failure stays visible");
   check(navigated === "" && !!document.querySelector(".vua-start"), "failed preparation keeps the selected materials and does not navigate");
-  failPrepare = false; button(strings.factory.materialsStart.start).click();
+  failPrepare = false; button(strings.factory.materialsStart.startFull).click();
   await until(() => navigated === "workshop", "explicit retry succeeds");
+  check(!button(strings.factory.fullAccess.startConfirm), "the full-auto warning shows only once");
   hasEditor = false; await open(local.entry.warehouseItemId); startButton()!.click();
   await until(() => text().includes(strings.amfProduction.editorMissing), "missing Editor is explained");
-  check(button(strings.factory.materialsStart.start).disabled, "missing Editor cannot start a line");
+  check(button(strings.factory.materialsStart.startFull).disabled, "missing Editor cannot start a line");
   hasEditor = true; hasAvatar = false; await open(local.entry.warehouseItemId); startButton()!.click();
   await until(() => text().includes(strings.factory.materialsStart.notSourceTitle), "unsupported or missing local source is explained");
-  check(button(strings.factory.materialsStart.start).disabled, "non-admitted materials cannot start production");
+  check(button(strings.factory.materialsStart.startFull).disabled, "non-admitted materials cannot start production");
   amfEnabled = false; await open(local.entry.warehouseItemId);
   check(startButton() === null, "disabled AMF does not offer a production action");
   await showLocal();

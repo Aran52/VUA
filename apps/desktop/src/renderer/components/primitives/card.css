@@ -1,13 +1,18 @@
-/* Solid card (author ruling, 2026-10-25): an opaque panel with a 1 px border, no blur, glow or
- * shadow, so pages read calm and the jurisdiction colour stays for actions and selection.
+/* Solid card (author ruling, 2026-10-25): an opaque panel with a 1 px border, no blur or glow.
+ * A theme declares the card's material: an inner rim, a stitched line, and for Jirai a soft
+ * shadow (author ruling, 2026-10-28). The surface hierarchy stays the same.
  * The first rounded container on a page uses the lg radius; containers inside it step down. */
 
 .vua-card {
   position: relative;
-  background: var(--vua-bg-panel);
+  background-color: var(--vua-bg-panel);
+  background-image: var(--vua-surface-highlight, none);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-lg);
   padding: var(--vua-space-4);
+  box-shadow: var(--vua-card-material, none);
+  outline: var(--vua-card-stitch, none);
+  outline-offset: var(--vua-card-stitch-offset);
   transition: border-color var(--vua-motion-fast) ease;
 }
 
@@ -16,6 +21,16 @@
   background: var(--vua-bg-elevated);
   border-color: transparent;
   box-shadow: var(--vua-shadow-elevated);
+}
+
+/* The theme's decoration overlay: Grid's corner ticks, Tenshi's stripe band, Jirai's lace hem. */
+.vua-card::before {
+  content: "";
+  position: absolute;
+  inset: var(--vua-card-decor-inset, 0);
+  border-radius: inherit;
+  background: var(--vua-card-decor, none);
+  pointer-events: none;
 }
 
 .vua-card:hover {

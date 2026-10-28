@@ -272,7 +272,7 @@ export class ModuleProvider implements OrchestratorProviderV01 {
     if (isAmfOperation(request.method)) {
       if (!this.amfReady()) return this.#unavailable(request);
       if (request.kind === "command") this.#mutations += 1;
-      try { return await this.#optionalInvoke(request, AMF_OPERATION_TIMEOUT_MS) ?? this.#unavailable(request); }
+      try { return await this.#optionalInvoke(request, request.method === "amf.production.exportShareImage" ? 300_000 : AMF_OPERATION_TIMEOUT_MS) ?? this.#unavailable(request); }
       finally { if (request.kind === "command") this.#mutations -= 1; }
     }
     if (request.method === "task.get" || request.method === "task.requestCancellation") {

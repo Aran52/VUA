@@ -29,7 +29,7 @@ export function LocalImportButton({ onSingle, onMigration }: { onSingle: () => v
     return () => window.removeEventListener("pointerdown", outside, true);
   }, [open]);
   return <div ref={container} className="vua-import-menu" onMouseEnter={keepOpen} onMouseLeave={leave} onBlur={event => { if (!inside(event.relatedTarget)) setOpen(false); }} onKeyDown={event => { if (event.key === "Escape" && open) { event.preventDefault(); event.stopPropagation(); setOpen(false); } }}>
-    <div className="vua-import-menu__buttons">
+    <div className="vua-import-menu__buttons" data-vua-primary-group="">
       <Button variant="primary" data-nav-id="warehouse-import" onClick={() => { setOpen(false); onSingle(); }}>{strings.importPage.localTitle}</Button>
       <Button variant="primary" aria-label={strings.importPage.importModes} aria-haspopup="menu" aria-expanded={open} onMouseEnter={() => setOpen(true)} onClick={() => setOpen(true)}><Icon name="chevron-down" size={16} /></Button>
     </div>

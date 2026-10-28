@@ -1,5 +1,3 @@
-/* ---- 首次目标引导(v0.3.3 §2.2/§4.3):宽松低密度,推荐项紫色描边,底部固定操作 ---- */
-
 .vua-onboarding {
   min-height: 100%;
   display: flex;
@@ -10,70 +8,16 @@
 }
 
 .vua-onboarding__panel {
-  width: 100%;
-  max-width: 980px;
   display: flex;
   flex-direction: column;
-  gap: var(--vua-space-6);
+  gap: var(--vua-space-5);
+  width: 100%;
+  max-width: 520px;
 }
 
 .vua-onboarding__header {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: var(--vua-space-2);
-}
-
-/* ---- 步骤指示(v0.3.3 §2.5):文字 + 图标 + 位置同显,不只靠颜色 ---- */
-.vua-onboarding__steps {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--vua-space-3);
-}
-
-.vua-onboarding__steps-list {
-  display: flex;
-  align-items: center;
-  gap: var(--vua-space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.vua-onboarding__step {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vua-space-2);
-  font: var(--vua-font-body);
-  color: var(--vua-text-secondary);
-}
-
-.vua-onboarding__step-marker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid var(--vua-border-strong);
-  font: var(--vua-font-caption);
-  color: var(--vua-text-secondary);
-}
-
-.vua-onboarding__step[data-state="current"] {
-  color: var(--vua-accent-text);
-  font-weight: 600;
-}
-
-.vua-onboarding__step[data-state="current"] .vua-onboarding__step-marker {
-  border-color: var(--vua-accent);
-  background: var(--vua-accent-tint);
-  color: var(--vua-accent-text);
-}
-
-.vua-onboarding__step[data-state="done"] .vua-onboarding__step-marker {
-  border-color: var(--vua-accent);
-  color: var(--vua-accent-text);
 }
 
 .vua-onboarding__header h1,
@@ -81,133 +25,24 @@
   margin: 0;
 }
 
-/* Hero 大标题:辖区渐变文字(引导=紫);HC 下 gradient 置 none 退化纯色 */
-.vua-onboarding__header h1 {
-  background-color: var(--vua-accent);
-  background-image: var(--vua-accent-gradient);
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: vua-hero-shimmer 12s linear infinite;
-}
-
-@media (forced-colors: active) {
-  .vua-onboarding__header h1 {
-    background: none;
-    -webkit-background-clip: initial;
-    background-clip: initial;
-    color: CanvasText;
-  }
-}
-
-.vua-onboarding__grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--vua-space-4);
-}
-
-.vua-onboarding__option {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vua-space-2);
-  text-align: left;
-  padding: var(--vua-space-4);
-  border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-card);
-  background: var(--vua-bg-panel);
-  color: var(--vua-text-strong);
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
-}
-
-.vua-onboarding__option:hover {
-  transform: translateY(-2px);
-  border-color: var(--vua-accent);
-  box-shadow: var(--vua-glow-accent-soft);
-}
-
-/* 推荐项:辖区色描边;选中态在推荐描边之上再叠 tint 底 + 柔光 */
-.vua-onboarding__option[data-recommended] {
-  border-color: var(--vua-accent);
-}
-
-.vua-onboarding__option[data-selected] {
-  border-color: var(--vua-accent);
-  background: var(--vua-accent-tint);
-  box-shadow: var(--vua-glow-accent-soft);
-}
-
-.vua-onboarding__option-head {
-  display: flex;
-  align-items: center;
-  gap: var(--vua-space-2);
-}
-
-.vua-onboarding__check {
-  margin-left: auto;
-  display: inline-flex;
-  width: 20px;
-  height: 20px;
-  align-items: center;
-  justify-content: center;
-  color: var(--vua-accent-text);
-}
-
-.vua-onboarding__option-desc {
+.vua-onboarding__header p {
+  color: var(--vua-text-secondary);
   font: var(--vua-font-body);
-  color: var(--vua-text-strong);
 }
 
-.vua-onboarding__summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vua-space-4);
-  padding: var(--vua-space-4);
-  border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-card);
-  background: var(--vua-bg-panel);
-}
-
-.vua-onboarding__summary-section {
-  display: flex;
-  flex-direction: column;
+.vua-onboarding__language {
+  display: grid;
   gap: var(--vua-space-2);
+  color: var(--vua-text-strong);
+  font: var(--vua-font-body);
 }
 
-.vua-onboarding__summary-section h2,
-.vua-onboarding__summary-section p {
-  margin: 0;
-}
-
-.vua-onboarding__summary-list {
-  margin: 0;
-  padding-left: var(--vua-space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--vua-space-1);
+.vua-onboarding__language .vua-settings-select {
+  width: 100%;
 }
 
 .vua-onboarding__footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--vua-space-3);
+  justify-content: flex-end;
+  gap: var(--vua-space-2);
 }
-
-.vua-onboarding__footer-right {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vua-space-3);
-}
-.vua-journey-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.vua-journey-phases { display: flex; flex-wrap: wrap; gap: 24px; list-style: none; padding: 0; margin: 0; color: var(--vua-text-secondary); }
-.vua-journey-phases li { display: flex; align-items: center; gap: 8px; }
-.vua-journey-phases li span { border: 1px solid var(--vua-border); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; }
-.vua-journey-phases [aria-current] { color: var(--vua-accent-text); }
-.vua-journey-content { display: grid; gap: 24px; }
-.vua-onboarding__header h1 { animation: none; }

@@ -155,7 +155,7 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
       </Tooltip>
       {peek && !expanded
         ? createPortal(
-            <div className="vua-notify-peek" role="alertdialog" aria-label={aiCopy.peekTitle}>
+            <div className="vua-notify-peek" role="alertdialog" aria-label={aiCopy.peekTitle} data-vua-native-occluder data-vua-shell-popover>
               <p className="vua-caption vua-text-secondary">{aiCopy.peekTitle}</p>
               <strong>{requestTitle(peek)}</strong>
               <p className="vua-caption vua-text-secondary">{format(aiCopy.askedAt, { time: requestClock(peek.createdAt) })}</p>
@@ -172,11 +172,13 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
             <>
               <div
                 className={`vua-notify-backdrop${phase === "closing" ? " vua-notify-backdrop--closing" : ""}`}
+                data-vua-native-occluder data-vua-shell-popover
                 onClick={close}
               />
               <div
                 ref={panelRef}
                 className={`vua-notify-panel${phase === "closing" ? " vua-notify-panel--closing" : ""}`}
+                data-vua-shell-popover
                 role="region"
                 aria-label={copy.title}
                 tabIndex={-1}

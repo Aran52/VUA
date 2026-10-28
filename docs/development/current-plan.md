@@ -76,7 +76,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 10 | Face tracking add-on | P-03 | built: face tracking evidence and guarded creator-patch sessions (Aran52/VUA#47), the session limit and the pre-patch copy (Aran52/VUA#52), and the workshop station (Aran52/VUA#62); the Meiyun run in VRChat remains |
 | 11 | Unity sign-in and license | — | in progress: the detection and check engine and contracts (Aran52/VUA#28); the scenario step remains |
 | 12 | Managed upload | P-02 | done: first real upload on 2026-10-17 (Aran52/VUA#4), a second through the MCP round on 2026-10-19 |
-| 13 | Appearance and one-click styles | — | after the AMF operations settle (author, 2026-10-23); needs a design session |
+| 13 | Appearance and one-click styles | — | in progress: Grid/Aero and Tenshi/Jirai presets with the first original motif set in PR #68; extended scene art, custom fonts and package loader remain |
 | 14 | Player language and four-language review | P-02 | |
 | 15 | Versioned SOPs | A-03, B-02–B-05 | |
 | 16 | Eval runs | all `ready` cases | when a concrete need arises (author, 2026-10-23) |
@@ -113,7 +113,7 @@ This plan orders the next slices toward the [north star](../north-star.md). Each
 | 47 | Library migration through the player's agent | — | planned; after 46, sharing its manifest |
 | 48 | Identical content: the player's choice | — | planned; default keeps a separate copy for each item (author, 2026-10-21) |
 | 49 | Shareable turntable with a Recipe link | P-02, P-04 | planned: a "VUA inside" badge, a code hidden in the background and a short-link service (author, 2026-10-24); prompts turntable-share, share-link-service and product-pictures |
-| 50 | AI connection as a first-run choice | — | planned |
+| 50 | Optional AI connection | — | planned; not part of language-only first run (2026-10-27) |
 | 51 | Recipes creators trust | P-04 | planned: prompts recipe-booth-materials (Aran52/VUA#65), terms-everywhere, turntable-share, share-link-service; B by Claude |
 | 52 | Signed Windows releases | — | on hold (author, 2026-10-25): SignPath Foundation declined on 2026-10-24 for low public visibility; releases stay unsigned for now |
 | 53 | Consistent interface by audit | — | item 1 prompted (`design-audit`); items 2–3 follow its report |
@@ -207,8 +207,9 @@ VUA alone.
 ## 7 — Permission modes and simpler choices
 
 1. The workshop offers three permission modes, like an AI agent's (author ruling 2026-10-18):
-   ask before changes (default), decide on its own, and full access, which warns first that it
-   may mess up the Avatar. The modes share one layout and differ in where the line stops; they
+   ask before changes, decide on its own, and full access, which warns first that it
+   may mess up the Avatar. New and invalid preferences default to full auto (2026-10-27);
+   existing ask/smart choices are preserved. The modes share one layout and differ in where the line stops; they
    describe what the player wants to hand over, not their experience with Unity.
 2. VUA recommends the Avatar and outfit prefabs with stated rules (name match with the outfit's
    target, top-level prefab, the creator's base for outfits) and asks only when two candidates
@@ -913,21 +914,22 @@ drag from X is a still picture; the animated GIF serves chats and Discord.
 to X, drags each from X into a second VUA, and VUA opens the Recipe and the product selection,
 while the badge and the picture look unchanged to the eye.
 
-## 50 — AI connection as a first-run choice
+## 50 — Optional AI connection
 
 Author decision, 2026-10-24, for players in Japan who avoid AI tools. The local MCP connection
 is already off until the player enables it in Help. The choice becomes visible and complete.
 
-1. The first-run wizard asks once whether to use AI tools with VUA, worded neutrally, with
-   "No" as the default; Settings changes it later.
+1. First run asks only for a language (2026-10-27); AI is not part of that page. When AI tools
+   become relevant, Help or Settings offers a neutral opt-in with "No" as the default, and the
+   choice can change later.
 2. With "No", VUA shows nothing about AI: the Help entry, AI request cards, the agent wording of
    the permission modes and AI mentions in tours stay hidden, and the MCP connection cannot be
    enabled until the choice changes.
 3. With "Yes", the Help entry works as today; the connection itself still starts only when the
    player turns it on.
 
-**Done when** a first run with "No" shows no AI wording anywhere the author looks, and switching to
-"Yes" in Settings brings back the Help entry without a restart.
+**Done when** first run contains no AI interview, the default opt-out shows no AI wording anywhere
+the author looks, and opting in through Settings brings back the Help entry without a restart.
 
 ## 51 — Recipes creators trust
 
@@ -1022,6 +1024,12 @@ inconsistency, more than any single page, is what reads as unrefined.
 2. Claude tightens the tokens and adds page anatomy and composed components (card variants, list
    row, section header, key-value row, stat tile, toolbar), deciding the proposal rules with the
    author from the first report's data.
+   PR #67 delivered the first token pass and approved control direction. The
+   [Grid normalization plan](grid-theme-normalization.md) orders audit calibration, the remaining
+   shared-control migration and correction of verified findings (author request, 2026-10-25).
+   The [calibrated comparison](../research/design-audit-calibration-2026-10-25.md) records complete
+   before/after coverage and the verified repair slice. The shared catalogue migration and the
+   author's visual/keyboard acceptance remain open.
 3. Agents migrate one functional area per pull request onto those components; each pull request
    lowers the area's findings and shows its before-and-after contact sheet, and CI then refuses
    findings beyond the baseline.

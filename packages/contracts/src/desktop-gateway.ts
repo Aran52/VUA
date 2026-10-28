@@ -1545,6 +1545,7 @@ export interface DesktopDialogApiV1 {
   pickLibraryThumbnail?(): Promise<string | null>;
   copyRecipeShare?(document: import("./amf-recipe-v05.ts").AmfSharedRecipe): Promise<void>;
   saveRecipeShare?(document: import("./amf-recipe-v05.ts").AmfSharedRecipe): Promise<boolean>;
+  readonly recipeSharing?: import("./share-links-v01.js").DesktopRecipeSharingV01;
   /** U10 手选编辑器路径(021 收敛点 4:单一「浏览」入口 openFile +
    *  openDirectory 双态):pickEditorExecutable 选 exe 文件本身,
    *  pickEditorDirectory 选版本化根/Editor 目录;取消返回 null。路径原样

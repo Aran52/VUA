@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { TOUR_STEPS, firstTourRequired, normalizeStep, parseTourProgress, serializeTourProgress } from "./tour-model.ts";
+import { TOUR_STEPS, normalizeStep, parseTourProgress, serializeTourProgress } from "./tour-model.ts";
 
 test("the welcome scene precedes real, unique controls across the available VUA areas", () => {
   assert.equal(TOUR_STEPS[0]?.id, "welcome");
@@ -22,17 +22,7 @@ test("a returning V1 tour resumes the same content after new scenes are inserted
   }
   for (const status of ["completed", "skipped"]) {
     assert.deepEqual(parseTourProgress(JSON.stringify({ v: 1, status, step: 4 })), { v: 2, status, step: 0 });
-    assert.equal(firstTourRequired(false, JSON.stringify({ v: 1, status, step: 4 })), false);
   }
-});
-
-test("first use shows the tour before the wizard; existing profiles do not auto-start it", () => {
-  assert.equal(firstTourRequired(false, null), true);
-  assert.equal(firstTourRequired(false, "invalid"), true);
-  assert.equal(firstTourRequired(false, '{"v":2,"status":"active","step":2}'), true);
-  assert.equal(firstTourRequired(false, '{"v":2,"status":"completed","step":0}'), false);
-  assert.equal(firstTourRequired(false, '{"v":2,"status":"skipped","step":0}'), false);
-  assert.equal(firstTourRequired(true, null), false);
 });
 
 test("corrupt, unknown and noninteger progress does not silently become a completed tour", () => {

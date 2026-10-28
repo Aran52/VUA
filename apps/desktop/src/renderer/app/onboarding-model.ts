@@ -2,8 +2,8 @@ import { defaultPage, isPageId, type BusinessModuleId, type PageId } from "./nav
 import { storageKeys } from "./storage-keys.ts";
 
 /**
- * 首次目标引导的持久化模型(美术方案 v0.3.3 §2.2)。
- * 纯函数、无 IO:localStorage 读写由 App 壳负责,这里只做解析/清洗/决策。
+ * 旧目标数据的解析与首次语言选择的入口判断。
+ * 纯函数、无 IO:localStorage 读写由 App 壳负责;旧目标不再决定首启流程。
  *
  * 版本化结构(从第一天起):未知版本、非法 JSON、缺字段一律视为"未完成引导",
  * 不允许旧数据静默生效;勾选环境部署后又取消时,environments 必须清空,
@@ -113,8 +113,8 @@ export interface EntryDecision {
 
 /**
  * 启动入口决策:
- * - 引导未完成(含数据损坏)→ 必须进引导,vua-last-page 不能绕过;
- * - 已完成/已跳过 → 优先恢复合法的上次页面(旧 id 先迁移),否则回退默认落点。
+ * - 没有有效的旧完成记录 → 只显示语言选择,vua-last-page 不能绕过;
+ * - 已有记录 → 恢复合法的上次页面(旧 id 先迁移),否则回退默认落点。
  */
 export function resolveEntry(
   stored: StoredGoalsV1 | null,

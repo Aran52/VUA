@@ -12,16 +12,20 @@ import { app, BrowserWindow, protocol } from "electron";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildInfo } from "./build-info.mjs";
+import { THEME_FAMILIES, THEME_FAMILY_MODES } from "./theme-presets.mjs";
 
 import {
   FIXTURES, VIEWS, OVERFLOW_LOCALES, DEFAULT_LOCALE, THEMES,
 } from "./design-audit/views.mjs";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
+import { finishThemeTransitions } from "./design-audit/settle.js";
+import { captureAuditPage } from "./design-audit/capture.mjs";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
 import { evaluateSnapshot, borderDensityMetric, applyBorderDensity, RULES, THEME_INVARIANT_RULES, isThemeInvariant, classifyCapture } from "./design-audit/rules.mjs";
 import { Attributor } from "./design-audit/attributor.mjs";
@@ -29,6 +33,7 @@ import { groupFindings, writeBaseline, loadBaseline, checkAgainstBaseline } from
 import { scanStatic } from "./design-audit/static-scan.mjs";
 import { scanCardStyles, countCardImports } from "./design-audit/cards.mjs";
 import { buildSummary, buildOverviewHtml, rankRootCauses } from "./design-audit/report.mjs";
+import { auditCoverage, runPassed, stateKey, stateResult } from "./design-audit/results.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(scriptDir, "..");
@@ -46,8 +51,18 @@ const hasFlag = name => args.includes(`--${name}`);
 const ONLY = argValue("only", "");
 const LOCALE_FILTER = argValue("locale", null);
 const THEME_FILTER = argValue("theme", null);
+const THEME_FAMILY = argValue("themeFamily", "grid");
+if (!THEME_FAMILIES.includes(THEME_FAMILY)) throw new Error(`Unknown theme family: ${THEME_FAMILY}`);
+if (THEME_FILTER && !THEME_FAMILY_MODES[THEME_FAMILY].includes(THEME_FILTER)) {
+  throw new Error(`${THEME_FAMILY} does not provide ${THEME_FILTER} mode`);
+}
 const OUT = argValue("out", path.join(desktopRoot, "_local_design_audit", new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)));
 const MAX_VIEWS = Number(argValue("max", "0"));
+// One call replaces every emulated feature, so all of them travel together.
+const EMULATED_MEDIA = [
+  { name: "prefers-color-scheme", value: "light" },
+  { name: "prefers-reduced-motion", value: "no-preference" },
+];
 const NO_SCREENS = hasFlag("no-screens");
 const CHECK_BASELINE = hasFlag("check-baseline");
 const UPDATE_BASELINE = hasFlag("update-baseline");
@@ -58,7 +73,7 @@ const BASELINE_PATH = path.join(scriptDir, "design-audit", "baseline.json");
 // floor is passed explicitly.
 // Vite debris pages collect ~3 elements; the sparsest real view collects 10.
 const PER_STATE_ELEMENT_FLOOR = Number(argValue("per-state-elements", "6"));
-const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER);
+const PARTIAL_PLAN = Boolean(ONLY || MAX_VIEWS > 0 || LOCALE_FILTER || THEME_FILTER || THEME_FAMILY !== "grid");
 const TOTAL_ELEMENT_FLOOR = Number(argValue("min-total-elements", PARTIAL_PLAN ? "0" : "30000"));
 
 if (hasFlag("list")) {
@@ -73,14 +88,14 @@ const selectedViews = MAX_VIEWS > 0
   ? VIEWS.slice(0, MAX_VIEWS)
   : VIEWS.filter(v => ONLY_PREFIXES.length === 0 || ONLY_PREFIXES.some(p => v.id.startsWith(p)));
 const locales = LOCALE_FILTER ? [LOCALE_FILTER] : [DEFAULT_LOCALE, ...OVERFLOW_LOCALES];
-const themes = THEMES.filter(t => !THEME_FILTER || t === THEME_FILTER);
+const themes = THEMES.filter(t => THEME_FAMILY_MODES[THEME_FAMILY].includes(t) && (!THEME_FILTER || t === THEME_FILTER));
 
 function planGroups() {
   const groups = [];
   for (const view of selectedViews) {
     for (const locale of locales) {
       const isDefaultLocale = locale === DEFAULT_LOCALE;
-      const themeList = isDefaultLocale ? themes : themes.filter(t => t === "dark");
+      const themeList = isDefaultLocale ? themes : themes.filter(t => t === THEME_FAMILY_MODES[THEME_FAMILY][0]);
       if (!themeList.length) continue;
       groups.push({
         view, locale, themes: themeList,
@@ -114,13 +129,15 @@ const LIMITATIONS = [
   "Computed-style analysis sees one state per view. Hover, focus, pressed and disabled interactions, and states that require live Gateway traffic, are not exercised unless a fixture mounts them.",
   "Contrast is computed against alpha-composited backgrounds; gradient and image backgrounds fall back to their background-color layer, so text over busy art may be mis-graded.",
   "Attribution prefers the CDP cascade winner; hover-only rules (:hover) cannot be matched from the static state, so those findings fall back to class+area attribution.",
-  "Overflow checks see the zh-CN layout for all views plus four extra locales in dark theme; light-theme text growth in other locales is not measured. The viewport branch reports horizontal overflow only — vertical growth beyond the fold is normal document scrolling.",
+  "Overflow checks see zh-CN for all views plus four extra locales in the preset's first supported mode. Dual-mode presets therefore cover dark overflow only; a light-only preset uses light instead of dropping those states. The viewport branch reports horizontal overflow only — vertical growth beyond the fold is normal document scrolling.",
   "Primary-action detection is heuristic (opaque accent-filled controls); custom-selected states can inflate the one-accent count.",
   "data-audit-skip regions (base-map scene canvas, turntable frames, WebGL scenes, product imagery) are excluded by design and not audited.",
 ];
 
 async function main() {
-  await mkdtemp(path.join(tmpdir(), "vua-design-audit-")).then(dir => app.setPath("userData", dir));
+  const profile = mkdtempSync(path.join(tmpdir(), "vua-design-audit-"));
+  app.setPath("userData", profile);
+  app.setPath("sessionData", profile);
   await app.whenReady();
   protocol.handle("vua-img", request => request.url === `vua-img://local/${"a".repeat(64)}`
     ? new Response(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=", "base64"), { headers: { "Content-Type": "image/png" } })
@@ -128,8 +145,10 @@ async function main() {
 
   const shotsDir = path.join(OUT, "shots");
   const jsonDir = path.join(OUT, "json");
+  const snapshotsDir = path.join(OUT, "snapshots");
   await mkdir(shotsDir, { recursive: true });
   await mkdir(jsonDir, { recursive: true });
+  await mkdir(snapshotsDir, { recursive: true });
 
   const server = await createServer({
     configFile: false,
@@ -152,8 +171,12 @@ async function main() {
     const hit = fixturesByPrefix.find(([, fixture]) => req.url?.startsWith(fixture.prefix));
     if (!hit) return next();
     const [, fixture] = hit;
+    const shellHtml = fixture.shell(shellParams);
+    const themedHtml = shellHtml.includes("data-theme-family=")
+      ? shellHtml
+      : shellHtml.replace("<html", `<html data-theme-family="${THEME_FAMILY}"`);
     res.setHeader("Content-Type", "text/html");
-    res.end(await server.transformIndexHtml(req.url, fixture.shell(shellParams)));
+    res.end(await server.transformIndexHtml(req.url, themedHtml));
   });
   await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -162,11 +185,11 @@ async function main() {
   let recentConsoleErrors = [];
   function ensureWindow() {
     if (!window || window.isDestroyed()) {
-      // Hidden (not offscreen) like the smoke harnesses: some dialog focus
-      // assertions and captures behave closer to the real shell this way.
+      // Offscreen rendering keeps the compositor advancing on Windows while
+      // this audit window stays hidden, including scripted dialog exits.
       window = new BrowserWindow({
         show: false, width: 1280, height: 860,
-        webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false },
+        webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, offscreen: true },
       });
       window.webContents.on("console-message", event => {
         if (event.level === "error") {
@@ -190,10 +213,15 @@ async function main() {
     loadCounter += 1;
     if (view.fixture === "factory") {
       const feedback = view.id.startsWith("feedback-") ? "feedback=1&" : "";
-      return `${origin}/__factory?${feedback}r=${loadCounter}#${view.id}`;
+      return `${origin}/__factory?${feedback}themeFamily=${encodeURIComponent(THEME_FAMILY)}&r=${loadCounter}#${view.id}`;
     }
     // Fixtures read their state from the shell itself; the hash is for humans.
-    return `${origin}${FIXTURES[view.fixture].prefix}?r=${loadCounter}`;
+    const fixture = FIXTURES[view.fixture];
+    const url = new URL(fixture.prefix, origin);
+    for (const [name, value] of Object.entries(fixture.query ?? {})) url.searchParams.set(name, value);
+    url.searchParams.set("themeFamily", THEME_FAMILY);
+    url.searchParams.set("r", String(loadCounter));
+    return url.href;
   };
 
   function pollReady(fixture, win) {
@@ -236,7 +264,7 @@ async function main() {
 
     const load = async theme => {
       recentConsoleErrors = [];
-      shellParams = { locale, theme };
+      shellParams = { locale, theme, themeFamily: THEME_FAMILY };
       const url = viewUrl(view, theme);
       // A Vite re-optimization reloads the page mid-navigation and aborts the
       // load (ERR_ABORTED); one retry after the dust settles.
@@ -248,13 +276,17 @@ async function main() {
         await win.loadURL(url);
       }
       // Fixtures assert the system appearance resolves to light (the
-      // first-run smoke emulates the same media feature).
+      // first-run smoke emulates the same media feature). Motion is pinned to
+      // no-preference: hosted Windows runners disable system animations, which
+      // Chromium reports as reduced motion and which would remove the
+      // transitions the fixtures verify.
       if (win.webContents.debugger.isAttached()) {
         await win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
-          features: [{ name: "prefers-color-scheme", value: "light" }],
+          features: EMULATED_MEDIA,
         }).catch(() => {});
       }
       if (!(await pollReady(fixture, win))) throw new Error(`fixture readiness timeout (${fixture.readyGlobal ?? "no signal"})`);
+      await win.webContents.executeJavaScript("document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))", true);
       await runSteps(win, view);
       if (fixture.settleFor) await sleep(fixture.settleFor(view.id));
       else await settle(win, view.settleMs ?? 400);
@@ -271,18 +303,21 @@ async function main() {
         await setTheme(fixture, win, theme);
       }
       await settle(win, 400);
+      await win.webContents.executeJavaScript(`${finishThemeTransitions.toString()};finishThemeTransitions()`, true);
 
       const rules = state.rules ?? undefined;
       const collectorOptions = { proposed: !rules, overflowChecks: true };
       const collectSource = `${collectAuditSnapshot.toString()};collectAuditSnapshot(${JSON.stringify(collectorOptions)})`;
       const snapshot = await win.webContents.executeJavaScript(collectSource, true);
+      await writeFile(path.join(snapshotsDir, `${shotName(view.id, locale, theme)}.json`), JSON.stringify(snapshot));
 
       // A Vite error overlay or a near-empty page means the view did not
       // render; record a capture failure instead of auditing the debris.
-      const baseReason = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR);
-      if (baseReason) {
+      const baseReason = classifyCapture(snapshot, PER_STATE_ELEMENT_FLOOR, { requireFoundation: true, requestedTheme: theme });
+      const localeReason = snapshot.locale === locale ? null : `requested locale ${locale}, collected ${snapshot.locale || "no locale"}`;
+      if (baseReason || localeReason) {
         const lastError = recentConsoleErrors.at(-1);
-        const reason = lastError ? `${baseReason}; last console error: ${lastError}` : baseReason;
+        const reason = lastError ? `${baseReason ?? localeReason}; last console error: ${lastError}` : baseReason ?? localeReason;
         collectionFailures.push({ view: view.id, locale, theme, reason });
         console.error(`[capture-fail] ${view.id} ${locale}/${theme}: ${reason}`);
         continue;
@@ -312,12 +347,12 @@ async function main() {
       let annotPath = null;
       if (state.capture) {
         const annotateSource = `${applyAnnotations.toString()};applyAnnotations(${JSON.stringify(annotateItems(findings, snapshot))}, ${JSON.stringify({ view: view.id, theme, locale })})`;
-        await win.webContents.executeJavaScript(annotateSource, true).catch(() => {});
+        await win.webContents.executeJavaScript(annotateSource, true);
         await sleep(300);
         const name = shotName(view.id, locale, theme);
         annotPath = path.join(shotsDir, `${name}.annot.png`);
-        await writeCapture(win, annotPath);
-        await win.webContents.executeJavaScript(`${removeAnnotations.toString()};removeAnnotations()`, true).catch(() => {});
+        await writeCapture(win, annotPath, true);
+        await win.webContents.executeJavaScript(`${removeAnnotations.toString()};removeAnnotations()`, true);
         await sleep(150);
         shotPath = path.join(shotsDir, `${name}.png`);
         await writeCapture(win, shotPath);
@@ -346,8 +381,8 @@ async function main() {
     }
   }
 
-  async function writeCapture(win, file) {
-    const image = await win.webContents.capturePage({}, { stayHidden: true, stayAwake: true });
+  async function writeCapture(win, file, annotated = false) {
+    const image = await captureAuditPage(win, annotated);
     await writeFile(file, image.toPNG());
   }
 
@@ -356,7 +391,8 @@ async function main() {
       await withTimeout(auditViewLocale(group), 240_000, `${group.view.id}/${group.locale} timed out`);
     } catch (error) {
       for (const state of group.states) {
-        errors.push({ view: group.view.id, locale: group.locale, theme: state.theme, error: String(error.message ?? error) });
+        const failed = { view: group.view.id, locale: group.locale, theme: state.theme, error: String(error.message ?? error) };
+        if (![...collected, ...collectionFailures].some(record => stateKey(record) === stateKey(failed))) errors.push(failed);
       }
       console.error(`[fail] ${group.view.id} ${group.locale}: ${error.message ?? error}`);
       try { if (window && !window.isDestroyed()) window.destroy(); } catch { /* gone */ }
@@ -395,12 +431,7 @@ async function main() {
     }
     await writeFile(
       path.join(jsonDir, `${jsonName(state.view, state.locale, state.theme)}.json`),
-      JSON.stringify({
-        view: state.view, area: state.area, locale: state.locale, theme: state.theme,
-        elementCount: state.elementCount, findingsCount: state.findingsCount,
-        byRule: state.byRule, bySeverity: state.bySeverity,
-        groups,
-      }, null, 2),
+      JSON.stringify(stateResult(state), null, 2),
       "utf8",
     );
   }
@@ -423,25 +454,35 @@ async function main() {
 
   // Baseline handling: every run writes baseline.json into its output dir;
   // --update-baseline additionally refreshes the committed gate baseline.
+  const coverage = auditCoverage(groups, collected, errors, collectionFailures);
+  const elementTotal = collected.reduce((sum, state) => sum + state.elementCount, 0);
+  const usable = runPassed(coverage, elementTotal, TOTAL_ELEMENT_FLOOR);
   let checkOutcome = { mode: "skip" };
   const outBaseline = await writeBaseline(path.join(OUT, "baseline.json"), allGroups, {
     generatedAt: new Date().toISOString(), commit, views: selectedViews.length,
   });
   if (UPDATE_BASELINE) {
-    await writeBaseline(BASELINE_PATH, allGroups, {
-      generatedAt: new Date().toISOString(), commit, views: selectedViews.length,
-    });
-    checkOutcome = { mode: "write", entryCount: outBaseline.entryCount };
-    console.log(`baseline written: ${BASELINE_PATH} (${outBaseline.entryCount} entries)`);
+    if (PARTIAL_PLAN || !usable) {
+      checkOutcome = { mode: "refused", reason: "A committed baseline requires a complete, successful full audit." };
+      console.error(checkOutcome.reason);
+      process.exitCode = 1;
+    } else {
+      await writeBaseline(BASELINE_PATH, allGroups, {
+        generatedAt: new Date().toISOString(), commit, views: selectedViews.length,
+      });
+      checkOutcome = { mode: "write", entryCount: outBaseline.entryCount };
+      console.log(`baseline written: ${BASELINE_PATH} (${outBaseline.entryCount} entries)`);
+    }
   } else if (CHECK_BASELINE) {
     const baseline = await loadBaseline(BASELINE_PATH);
-    const { baselineMissing, newFindings, resolvedKeys } = checkAgainstBaseline(allGroups, baseline);
+    const { baselineMissing, newFindings, resolvedKeys } = checkAgainstBaseline(allGroups, baseline, selectedViews.map(view => view.id));
     checkOutcome = {
       mode: "check", baselineMissing,
-      newCount: newFindings.length, resolvedCount: resolvedKeys.length,
+      newCount: newFindings.length, resolvedCount: resolvedKeys.length, failed: baselineMissing || newFindings.length > 0 || !usable,
     };
     if (baselineMissing) {
       console.error(`baseline missing at ${BASELINE_PATH} — run with --update-baseline first`);
+      process.exitCode = 1;
     } else {
       for (const group of newFindings) console.error(`NEW: ${group.key}`);
       console.error(`baseline check: ${newFindings.length} new, ${resolvedKeys.length} resolved`);
@@ -453,6 +494,8 @@ async function main() {
     date: new Date().toISOString().slice(0, 10),
     generatedAt: new Date().toISOString(),
     commit,
+    themeFamily: THEME_FAMILY,
+    emulatedMedia: Object.fromEntries(EMULATED_MEDIA.map(feature => [feature.name, feature.value])),
     viewCount: selectedViews.length,
     viewLocaleStates: collected.length,
     elementTotal: collected.reduce((sum, c) => sum + c.elementCount, 0),
@@ -460,10 +503,17 @@ async function main() {
     overflowLocales: OVERFLOW_LOCALES,
     themeInvariantRules: [...THEME_INVARIANT_RULES].sort().join(", "),
     perStateElementFloor: PER_STATE_ELEMENT_FLOOR,
+    plannedStates: coverage.planned, usable,
+    filtered: PARTIAL_PLAN,
+    requestedScope: [...new Set(groups.map(group => group.locale))].map(locale => {
+      const selected = groups.filter(group => group.locale === locale);
+      return { locale, themes: [...new Set(selected.flatMap(group => group.states.map(state => state.theme)))],
+        rules: locale === DEFAULT_LOCALE ? "all" : "overflow", states: selected.reduce((sum, group) => sum + group.states.length, 0) };
+    }),
   };
 
   const overviewHtml = buildOverviewHtml({
-    meta, viewResults, rootCauses,
+    meta, viewResults, rootCauses, coverage, errors, collectionFailures,
     rulesMeta: Object.fromEntries(Object.entries(RULES).map(([id, r]) => [id, { severity: r.severity, category: r.category }])),
   });
   await writeFile(path.join(OUT, "index.html"), overviewHtml, "utf8");
@@ -471,11 +521,11 @@ async function main() {
   const summary = buildSummary({
     meta, viewResults, groups: allGroups, rootCauses, staticScan, cards, cardImports,
     uncovered: UNCOVERED_PAGES, limitations: LIMITATIONS, rulesMeta: RULES_META_FOR_DOCS,
-    checkOutcome, collectionFailures,
+    checkOutcome, collectionFailures, coverage, errors,
   });
   await writeFile(path.join(OUT, "summary.md"), summary, "utf8");
   await writeFile(path.join(OUT, "run-summary.json"), JSON.stringify({
-    meta, errors, collectionFailures, states: collected.map(c => ({
+    meta, coverage, errors, collectionFailures, states: collected.map(c => ({
       view: c.view, locale: c.locale, theme: c.theme, findings: c.findingsCount, elements: c.elementCount,
     })),
   }, null, 2), "utf8");
@@ -483,8 +533,10 @@ async function main() {
   console.log(`\ndone: ${collected.length} states, ${errors.length} failed states`);
   console.log(`output: ${OUT}`);
   await server.close();
-  const plannedStates = groups.reduce((sum, g) => sum + g.states.length, 0);
-  const elementTotal = collected.reduce((sum, c) => sum + c.elementCount, 0);
+  if (!usable) {
+    console.error(`FAILED: ${coverage.audited}/${coverage.planned} states audited; ${coverage.executionFailures} execution failures, ${coverage.captureFailures} capture failures, ${coverage.missing.length} missing, ${coverage.duplicates.length} duplicate, ${coverage.unexpected.length} unexpected`);
+    process.exitCode = 1;
+  }
   if (collectionFailures.length > 0) {
     console.error(`FAILED: ${collectionFailures.length} capture failures (see summary)`);
     process.exitCode = 1;
@@ -494,7 +546,7 @@ async function main() {
     process.exitCode = 1;
   }
   console.log(`elements: ${elementTotal}${TOTAL_ELEMENT_FLOOR > 0 ? ` (floor ${TOTAL_ELEMENT_FLOOR})` : ""}`);
-  app.exit(errors.length >= plannedStates && plannedStates > 0 ? 1 : process.exitCode ?? 0);
+  app.exit(process.exitCode ?? 0);
 }
 
 function withTimeout(promise, ms, message) {
@@ -527,7 +579,8 @@ function annotateItems(findings, snapshot) {
   return findings
     .map(f => ({
       rule: f.rule, severity: f.severity, message: f.message, cls: f.cls, tag: f.tag,
-      rect: f.index != null ? snapshot.elements[f.index]?.rect ?? null : null,
+      rect: f.rule === "target-size" && f.index != null ? snapshot.elements[f.index]?.hitRect ?? f.rect
+        : f.rect ?? (f.index != null ? snapshot.elements[f.index]?.rect ?? null : null),
     }))
     .filter(item => item.rect)
     .sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));

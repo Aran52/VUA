@@ -30,7 +30,7 @@ function portals(layer: Layer): HTMLElement[] {
 }
 function browserShell(layer: Layer): HTMLElement[] {
   return portals(layer).some(element => element.matches('[data-vua-browser-active="true"]'))
-    ? [...document.querySelectorAll<HTMLElement>(".vua-shell__header, .vua-shell__sidebar")] : [];
+    ? [...document.querySelectorAll<HTMLElement>(".vua-shell__header, .vua-shell__sidebar, [data-vua-shell-popover]")] : [];
 }
 function roots(layer: Layer): HTMLElement[] { return [layer.panel, ...portals(layer), ...browserShell(layer)]; }
 /** Leaving a browser-backed import must dismiss its modal before entering Settings. */

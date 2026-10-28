@@ -15,6 +15,7 @@ export const RULES = {
   "contrast": { severity: "error", category: "current", attribution: "color" },
   "spacing-grid": { severity: "warning", category: "current", attribution: null },
   "radius-token": { severity: "warning", category: "current", attribution: "radius" },
+  "grid-shape": { severity: "warning", category: "current", attribution: "radius" },
   "shadow-panel": { severity: "warning", category: "current", attribution: "box-shadow" },
   "blur-scope": { severity: "warning", category: "current", attribution: "backdrop-filter" },
   "one-accent": { severity: "warning", category: "current", attribution: null },
@@ -31,7 +32,7 @@ const ACTIVE_RULES_DEFAULT = Object.keys(RULES);
 // duplicate the dark state's findings, so aggregation counts them once (dark).
 export const THEME_INVARIANT_RULES = new Set([
   "spacing-grid", "type-scale", "type-weight", "radius-token", "radius-nesting",
-  "surface-nesting", "target-size", "overflow",
+  "surface-nesting", "target-size", "overflow", "grid-shape",
 ]);
 
 export function isThemeInvariant(ruleId) {
@@ -39,8 +40,12 @@ export function isThemeInvariant(ruleId) {
 }
 
 /** Why this snapshot is not auditable content, or null when it is usable. */
-export function classifyCapture(snapshot, perStateElementFloor) {
+export function classifyCapture(snapshot, perStateElementFloor, { requireFoundation = false, requestedTheme = null } = {}) {
   if (snapshot.errorOverlay) return "vite error overlay (page did not render)";
+  if (requestedTheme && snapshot.theme !== requestedTheme) return `requested theme ${requestedTheme}, collected ${snapshot.theme || "no theme"}`;
+  if (requireFoundation && (!snapshot.tokenRaw?.["--vua-font-body"] || !snapshot.palette?.some(token => token.name === "--vua-text-strong"))) {
+    return "shared design foundation did not load";
+  }
   if ((snapshot.elementCount ?? 0) < perStateElementFloor) {
     return `only ${snapshot.elementCount} elements collected (floor ${perStateElementFloor})`;
   }
@@ -60,6 +65,7 @@ function makeFinding(ruleId, el, index, details, message, property = null) {
     tag: el.tag,
     cls: el.cls,
     text: el.text,
+    rect: el.paintedRect ?? el.rect,
     details,
     message,
     property,
@@ -73,6 +79,18 @@ function passSpacing(value) {
 
 const MARGIN_SIDES = ["top", "right", "bottom", "left"];
 
+// Zero-blur inset bars and concentric rings draw selection/focus/binding edges.
+// Offset cast shadows still count, even when their blur is zero.
+export function isLineShadow(value) {
+  if (!value || value === "none") return false;
+  const shadows = value.replace(/(?:rgba?|hsla?|color)\([^)]*\)|#[\da-f]+/gi, "color").split(",");
+  return shadows.every(shadow => {
+    const lengths = [...shadow.matchAll(/(-?(?:\d*\.)?\d+)(?:px)?\b/g)].map(match => Number(match[1]));
+    return lengths.length >= 2 && (lengths[2] ?? 0) === 0
+      && (/\binset\b/.test(shadow) || (lengths[0] === 0 && lengths[1] === 0));
+  });
+}
+
 /** Evaluates the selected rules over one page snapshot. */
 export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemptRules = [] } = {}) {
   const active = new Set(rules.filter(id => !exemptRules.includes(id)));
@@ -80,11 +98,13 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
   const push = finding => { if (active.has(finding.rule)) findings.push(finding); };
   const tokens = snapshot.palette ?? [];
   const familiesSeen = { purple: [], orange: [] };
+  const indicators = (snapshot.elements ?? []).filter(el => el.selfSurface && !el.hasText && el.rect.h <= 8);
 
   for (const [index, el] of (snapshot.elements ?? []).entries()) {
-    if (active.has("type-scale")) {
+    const typographyRelevant = el.hasText || el.isTextField || el.tag === "select" || el.tag === "textarea";
+    if (active.has("type-scale") && typographyRelevant) {
       if (el.fontSize > 0) {
-        const ok = TYPE_SCALE.some(t => t.size === el.fontSize && t.lineHeight === el.lineHeight);
+        const ok = TYPE_SCALE.some(t => t.size === el.fontSize && (t.lineHeight === el.lineHeight || el.nativeLineHeight));
         if (!ok) {
           const nearest = nearestTypeScale(el.fontSize);
           push(makeFinding("type-scale", el, index, {
@@ -95,7 +115,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         }
       }
     }
-    if (active.has("type-weight")) {
+    if (active.has("type-weight") && typographyRelevant) {
       if (el.fontSize > 0 && el.fontWeight !== 400 && el.fontWeight !== 600) {
         push(makeFinding("type-weight", el, index, { fontWeight: el.fontWeight },
           `font weight ${el.fontWeight} is not 400 or 600`, "font-weight"));
@@ -146,8 +166,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       (el.paddings ?? []).forEach((v, i) => { if (v !== 0 && !passSpacing(v)) offenders.push([`padding-${MARGIN_SIDES[i]}`, v]); });
       (el.margins ?? []).forEach((v, i) => {
         if (v === 0) return;
-        // Symmetric horizontal auto-centering is a layout idiom, not spacing rhythm.
-        if ((i === 1 || i === 3) && el.margins[1] === el.margins[3]) return;
+        if (el.autoMargins?.[i]) return;
         if (!passSpacing(v)) offenders.push([`margin-${MARGIN_SIDES[i]}`, v]);
       });
       for (const [kind, v] of [["row-gap", el.rowGap], ["column-gap", el.columnGap]]) {
@@ -163,7 +182,7 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       const offenders = new Map(); // value -> corner (one finding per distinct value)
       (el.radius ?? []).forEach((r, i) => {
         if (typeof r === "object" || r >= 100 || r === 0) return;
-        const exact = RADIUS_TOKENS.some(t => Math.abs(t.value - r) < 0.01);
+        const exact = [...RADIUS_TOKENS.map(t => t.value), ...Object.values(snapshot.radiusTokens ?? {})].some(value => Math.abs(value - r) < 0.01);
         if (!exact && !offenders.has(r)) offenders.set(r, ["top-left", "top-right", "bottom-right", "bottom-left"][i]);
       });
       for (const [value, corner] of offenders) {
@@ -172,14 +191,30 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
           `border-radius ${corner}: ${value}px is not a --vua-radius-* value`, "radius"));
       }
     }
+    if (active.has("grid-shape") && el.shapeRole && el.shapeRole !== "none") {
+      // Author ruling 2026-10-28: rectangles and rounded rectangles only, one radius per role.
+      const pairs = el.cornerPairs ?? [];
+      const cut = (el.cornerShapes ?? []).some(shape => shape && !/^(round|superellipse\(1\))$/.test(shape))
+        || /polygon\(/.test(el.clipPath ?? "");
+      const expected = el.shapeExpectedRadius;
+      const uneven = typeof expected === "number" && pairs.some(pair => pair.some(value => Math.abs(value - expected) > 0.1));
+      if (cut || uneven) {
+        push(makeFinding("grid-shape", el, index, { role: el.shapeRole, expectedRadius: expected, cornerPairs: pairs, cornerShapes: el.cornerShapes, clipPath: el.clipPath },
+          cut ? "Controls are rectangles or rounded rectangles; cut corners are not used" : `The ${el.shapeRole} role uses one ${expected}px radius on every corner`, "radius"));
+      }
+    }
     if (active.has("shadow-panel")) {
       const shadow = el.boxShadow;
-      if (shadow && shadow !== "none") {
-        const glow = Object.values(snapshot.shadowTokens ?? {}).some(v => shadow === v);
+      if (shadow && shadow !== "none" && !isLineShadow(shadow)) {
+        const glow = Object.entries(snapshot.shadowTokens ?? {}).some(([name, value]) => name.startsWith("--vua-glow-") && shadow === value);
         const elevated = shadow === (snapshot.shadowTokens ?? {})["--vua-shadow-elevated"];
+        const actionMaterial = el.tag === "button" && el.cls.includes("vua-button--primary")
+          && shadow === (snapshot.shadowTokens ?? {})["--vua-action-shadow"];
+        // A theme may declare a card material (Jirai's soft shadow, author ruling 2026-10-28).
+        const cardMaterial = shadow === (snapshot.shadowTokens ?? {})["--vua-card-material"];
         const floating = el.overlayContext || el.shellStructure
           || el.position === "fixed" || (el.position === "absolute" && el.zIndex >= 600);
-        if (!floating && !glow) {
+        if (!floating && !glow && !actionMaterial && !cardMaterial) {
           push(makeFinding("shadow-panel", el, index, { shadow, elevatedShadow: elevated },
             elevated ? "elevated surface shadow on an ordinary panel/card" : "shadow on an ordinary panel/card", "box-shadow"));
         }
@@ -193,17 +228,17 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       }
     }
     if (active.has("one-accent")) {
-      if (el.family && el.backgroundColor && el.backgroundColor.a >= 0.95) {
+      if (el.isControl && !el.indicatorRole && !el.disabled && el.family && el.backgroundColor && el.backgroundColor.a >= 0.95) {
         familiesSeen[el.family]?.push(index);
       }
     }
     if (active.has("target-size")) {
       if (el.isControl && !el.disabled && el.display !== "inline") {
-        const { w, h } = el.rect;
+        const { w, h } = el.hitRect ?? el.rect;
         if (w < THRESHOLDS.targetFloor || h < THRESHOLDS.targetFloor) {
           push(makeFinding("target-size", el, index, { w, h, floor: THRESHOLDS.targetFloor },
             `interactive target ${w}x${h} is below the 24x24 floor`, "size"));
-        } else if (el.primary && (w < THRESHOLDS.primaryFloor || h < THRESHOLDS.primaryFloor)) {
+        } else if (el.primary && !el.isChoice && !el.indicatorRole && (w < THRESHOLDS.primaryFloor || h < THRESHOLDS.primaryFloor)) {
           push(makeFinding("target-size", el, index, { w, h, floor: THRESHOLDS.primaryFloor, primary: true },
             `primary action ${w}x${h} is below the 32x32 interior`, "size"));
         }
@@ -211,7 +246,6 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
     }
     if (active.has("overflow")) {
       const clipped = (el.overflowX === "hidden" || el.overflowY === "hidden")
-        && !el.insideScrollContainer
         && el.textOverflow !== "ellipsis" && el.lineClamp === "none"
         && ((el.overflowX === "hidden" && el.scrollW > el.clientW + 1)
           || (el.overflowY === "hidden" && el.scrollH > el.clientH + 1))
@@ -221,11 +255,14 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
           kind: "clipped", scrollW: el.scrollW, clientW: el.clientW, scrollH: el.scrollH, clientH: el.clientH,
         }, "text is clipped without an ellipsis", null));
       }
-      const { x, y, w, h } = el.rect;
+      if (el.clippedByAncestor && el.hasText && !el.intentionalTruncation && !clipped) {
+        push(makeFinding("overflow", el, index, { kind: "ancestor_clip", rect: el.rect, paintedRect: el.paintedRect }, "text is clipped by an ancestor without an ellipsis", null));
+      }
+      const { x, y, w, h } = el.paintedRect ?? el.rect;
       const tol = THRESHOLDS.overflowTolerance;
       // Horizontal only: vertical growth beyond the fold is normal document
       // scrolling, not layout breakage.
-      const beyond = !el.insideScrollContainer
+      const beyond = !(el.insideScrollX ?? el.insideScrollContainer)
         && (x < -tol || x + w > snapshot.viewport.w + tol);
       if (beyond && w > 4 && h > 4) {
         push(makeFinding("overflow", el, index, { kind: "viewport", rect: el.rect }, "element extends horizontally beyond the viewport", null));
@@ -235,18 +272,20 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
       const own = Math.max(...(el.radius ?? [0]).map(r => (typeof r === "object" ? 999 : r)));
       const ownPct = (el.radius ?? []).some(r => typeof r === "object");
       if (!ownPct && own > 0 && own < 100 && el.ancestorRadius > 0 && !el.ancestorDecorative
-        && own >= el.ancestorRadius) {
+        && own > el.ancestorRadius) {
         push(makeFinding("radius-nesting", el, index, { radius: own, ancestorRadius: el.ancestorRadius },
-          `radius ${own}px does not step down from ancestor ${el.ancestorRadius}px`, null));
+          `radius ${own}px is larger than ancestor ${el.ancestorRadius}px`, null));
       }
     }
     if (active.has("surface-nesting")) {
       // Report only the over-deep surface itself — text and icons inside one
       // would repeat the same finding once per element. SVG frames are not
       // surfaces.
-      if (el.tag !== "svg" && el.selfSurface && el.surfaceDepth >= 3) {
-        push(makeFinding("surface-nesting", el, index, { surfaceDepth: el.surfaceDepth },
-          `${el.surfaceDepth} nested bordered/filled surfaces`, null));
+      const indicatorDepth = indicators.filter(marker => marker.path.length <= el.path.length && marker.path.every((part, i) => el.path[i] === part)).length;
+      const surfaceDepth = el.surfaceDepth - indicatorDepth;
+      if (el.tag !== "svg" && el.selfSurface && !indicators.includes(el) && surfaceDepth >= 3) {
+        push(makeFinding("surface-nesting", el, index, { surfaceDepth },
+          `${surfaceDepth} nested bordered/filled surfaces`, null));
       }
     }
   }
@@ -265,15 +304,19 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         message: `two jurisdiction accent families (${families.join(", ")}) in one view`, property: null,
       });
     }
-    const primaries = (snapshot.elements ?? [])
-      .map((el, i) => ({ el, i }))
-      .filter(({ el }) => el.primary)
-      .map(({ el, i }) => ({ index: i, path: el.path, cls: el.cls, text: el.text }));
-    if (primaries.length > 1) {
+    const commands = new Map();
+    for (const [index, el] of (snapshot.elements ?? []).entries()) {
+      if (!el.primary || el.isChoice || el.indicatorRole || el.disabled) continue;
+      const scope = el.actionScope ?? "page";
+      const key = `${scope}|${el.primaryGroup ?? `element-${index}`}`;
+      if (!commands.has(key)) commands.set(key, { index, path: el.path, cls: el.cls, text: el.text, scope });
+    }
+    const primariesByScope = Object.groupBy([...commands.values()], primary => primary.scope);
+    for (const primaries of Object.values(primariesByScope).filter(items => items.length > 1)) {
       findings.push({
         rule: "one-accent", severity: severityOf("one-accent"), category: categoryOf("one-accent"),
         index: null, path: null, tag: "view", cls: [], text: `${primaries.length} filled primary buttons`,
-        details: { primaries }, message: `${primaries.length} filled primary buttons in one view`, property: null,
+        details: { primaries }, message: `${primaries.length} filled primary buttons in one action scope`, property: null,
       });
     }
   }

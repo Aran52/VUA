@@ -46,8 +46,14 @@ drawer and Windows notifications for work that ends in the background, is slice 
 
 ## Layers and motion
 
-Layers are tokens in `packages/design-system/src/tokens.css`: drawer 600, dialog 800, popover 900,
+Layers are tokens in `packages/design-system/src/tokens.css`: browser frame 500, drawer 600, dialog 800, popover 900,
 toast 1000, tooltip 1100. Anything that can open from inside a dialog sits above it.
+
+The global notification backdrop/panel sit at 700/701, above browser chrome. While notifications
+are present, including their closing animation, `data-vua-native-occluder` makes the native
+webpage yield its viewport; closing restores the retained browser view without navigation or
+reload. Browser-backed import modals allow these host popovers through their focus/isolation
+boundary. Notification surfaces retain the host's rectangular/rounded shape while AMF is open.
 
 Every tier moves with scripted motion from the motion tokens (`--vua-motion-fast`,
 `--vua-motion-base`, `--vua-motion-ease`) through `motion.ts`, so Windows' animation setting does

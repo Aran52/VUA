@@ -1,5 +1,5 @@
 import { formatDateTime } from "./i18n/index.ts";
-import { Suspense, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DesktopShellCommandV1, GuideTargetV1 } from "@vua/contracts";
 import { saveDebugMode, useDebugMode } from "./app/debug-mode.ts";
 import {
@@ -25,11 +25,16 @@ import {
 import { resourceSaverActive, resourceSaverSource } from "./app/resource-saver.ts";
 import { storageKeys } from "./app/storage-keys.ts";
 import {
+  fixedThemeForFamily,
+  isThemeFamily,
+  loadThemeFamily,
   loadThemePreference,
   resolveTheme,
+  saveThemeFamily,
   saveThemePreference,
   toggledPreference,
   type ResolvedTheme,
+  type ThemeFamily,
   type ThemePreference,
 } from "./app/theme-preference.ts";
 import {
@@ -40,14 +45,16 @@ import { ForestVariantRoot } from "./app/ForestVariantRoot.tsx";
 import { Button } from "./components/primitives/Button.tsx";
 import { BrandMark } from "./components/BrandMark.tsx";
 import { Card } from "./components/primitives/Card.tsx";
-import { Icon } from "@vua/design-system";
-import { format, strings, termLabel, termSequence, TERMS } from "./i18n/index.ts";
+import { Toggle } from "./components/primitives/Toggle.tsx";
+import { Icon, SkinMotif } from "@vua/design-system";
+import { format, presentationCopy, strings, termLabel, termSequence, TERMS } from "./i18n/index.ts";
 import { currentLocale, localeRegistry } from "./i18n/index.ts";
 import { creatorEnvReady } from "./features/deployer/deployer-model.ts";
 import { OnboardingPage, type OnboardingResult } from "./features/onboarding/OnboardingPage.tsx";
 import { NavigationConfirmOverlay } from "./app/NavigationConfirmOverlay.tsx";
 import { AppTour } from "./features/tour/AppTour.tsx";
-import { firstTourRequired } from "./features/tour/tour-model.ts";
+import { ContextGuidance } from "./features/guidance/ContextGuidance.tsx";
+import { resetContextGuides } from "./features/guidance/context-guidance.ts";
 import { LoginBrowserOverlay } from "./app/LoginBrowserOverlay.tsx";
 import { closeLoginBrowser } from "./app/login-browser-store.ts";
 import { closeBrowserModal } from "./components/primitives/modal-layer.tsx";
@@ -105,6 +112,7 @@ import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
 import { AmfSurface as AmfPages, AmfUiRuntimeBridge } from "./features/modules/AmfSurface.tsx";
 import { HomePage, directory } from "./features/home/HomePage.tsx";
+import { ThemeAddress, ThemeCommandBar, ThemeDetails } from "./features/shell/ThemeChrome.tsx";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
 import "./app-shell.css";
 import "./features/home/home.css";
@@ -119,9 +127,9 @@ type EffectsMode = "on" | "off";
 const lastPageStorageKey = storageKeys.lastPage;
 
 /** 深链接读取(C-EFFICIENCY):#/page-id 形态;非法 id 回退 null */
-function readHashPage(): PageId | null {
+function readHashPage(hash = window.location.hash): PageId | null {
   try {
-    const raw = migratePageId(window.location.hash.replace(/^#\/?/, "").split("?")[0] ?? "");
+    const raw = migratePageId(hash.replace(/^#\/?/, "").split("?")[0] ?? "");
     return isPageId(raw) ? raw : null;
   } catch {
     return null;
@@ -216,11 +224,14 @@ const steamVRDetection = false;
 
 function ThemeSettingsPage({
   theme,
+  resolvedTheme,
+  themeFamily,
   hc,
   saverOn,
   saverAuto,
   steamVRRunning,
   onThemeChange,
+  onThemeFamilyChange,
   onHcChange,
   onSaverToggle,
   onSaverAutoChange,
@@ -231,20 +242,48 @@ function ThemeSettingsPage({
     { value: "light", label: copy.light },
     { value: "system", label: copy.system },
   ] as const;
+  const familyOptions = [
+    { value: "grid", label: presentationCopy.settings.grid },
+    { value: "frutiger-aero", label: presentationCopy.settings.aero },
+    { value: "tenshi", label: presentationCopy.settings.tenshi },
+    { value: "jirai", label: presentationCopy.settings.jirai },
+  ] as const;
+  const fixedTheme = fixedThemeForFamily(themeFamily);
   const saverSource = resourceSaverSource({
     manualOn: saverOn,
     autoEnabled: saverAuto,
     steamVRRunning,
   });
   return (
-    <div className="vua-page">
+    <div className="vua-page vua-theme-page">
       <section className="vua-page__hero">
         <h1 className="vua-title">{strings.nav.pages.settingsTheme}</h1>
       </section>
-      <Card>
-        <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.appearanceHeading}</h2>
-          <div className="vua-theme-choice" role="group" aria-label={copy.appearanceAria}>
+      <Card className="vua-settings-group">
+        <h2>{presentationCopy.settings.group}</h2>
+        <div className="vua-preference-row">
+          <div><h3>{presentationCopy.settings.family}</h3><p>{presentationCopy.settings.familyHint}</p></div>
+          <div className="vua-theme-family" role="group" aria-label={presentationCopy.settings.family}>
+            {familyOptions.map(option => (
+              <button
+                type="button"
+                key={option.value}
+                className="vua-theme-family__option"
+                aria-pressed={themeFamily === option.value}
+                data-nav-id={`theme-family-${option.value}`}
+                onClick={() => onThemeFamilyChange(option.value)}
+              >
+                <span className="vua-theme-family__preview" data-theme-family={option.value} data-theme={fixedThemeForFamily(option.value) ?? resolvedTheme} aria-hidden="true" data-audit-skip>
+                  {option.value === "grid" ? <><span /><span /><span /></> : <SkinMotif family={option.value} slot="preview" />}
+                </span>
+                <span>{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="vua-preference-row">
+          <div><h3>{copy.appearanceHeading}</h3><p id="theme-appearance-hint">{fixedTheme ? presentationCopy.settings.fixedAppearanceHint : presentationCopy.settings.appearanceHint}</p></div>
+          <div className="vua-theme-choice" role="group" aria-label={copy.appearanceAria} aria-describedby="theme-appearance-hint" aria-disabled={fixedTheme !== null}>
             <span
               className="vua-theme-choice__selection"
               aria-hidden="true"
@@ -257,6 +296,7 @@ function ThemeSettingsPage({
                 className="vua-theme-choice__button"
                 aria-pressed={theme === option.value}
                 data-nav-id={`theme-${option.value}`}
+                disabled={fixedTheme !== null}
                 onClick={() => onThemeChange(option.value)}
               >
                 {option.label}
@@ -264,34 +304,32 @@ function ThemeSettingsPage({
             ))}
           </div>
         </div>
-      </Card>
-      <Card>
-        <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.hcHeading}</h2>
-          <div>
-            <select
-              className="vua-settings-select"
-              aria-label={copy.hcAria}
-              value={hc}
-              onChange={(event) => onHcChange(event.target.value as HcMode)}
-            >
-              <option value="auto">{copy.hcAuto}</option>
-              <option value="on">{copy.hcOn}</option>
-            </select>
+        <div className="vua-preference-row">
+          <div><h3>{copy.hcHeading}</h3><p>{presentationCopy.settings.contrastHint}</p></div>
+          <div className="vua-theme-choice vua-theme-choice--pair" role="group" aria-label={copy.hcAria}>
+            <span
+              className="vua-theme-choice__selection"
+              aria-hidden="true"
+              style={{ transform: `translateX(${hc === "on" ? 100 : 0}%)` }}
+            />
+            {(["auto", "on"] as const).map(option => (
+              <button
+                type="button"
+                key={option}
+                className="vua-theme-choice__button"
+                aria-pressed={hc === option}
+                data-nav-id={`theme-hc-${option}`}
+                onClick={() => onHcChange(option)}
+              >
+                {option === "auto" ? copy.hcAuto : copy.hcOn}
+              </button>
+            ))}
           </div>
         </div>
-      </Card>
-      <Card>
-        <div className="vua-page__stack">
-          <h2 className="vua-title">{copy.saverHeading}</h2>
-          <p className="vua-text-secondary">{copy.saverDescription}</p>
+        <div className="vua-preference-row">
+          <div><h3>{copy.saverHeading}</h3><p>{copy.saverDescription}</p></div>
           <div className="vua-settings-row">
-            <Button
-              variant={saverOn ? "default" : "primary"}
-              onClick={onSaverToggle}
-            >
-              {saverOn ? copy.saverTurnOff : copy.saverTurnOn}
-            </Button>
+            <Toggle on={saverOn} onToggle={onSaverToggle} label={saverOn ? copy.saverTurnOff : copy.saverTurnOn} />
             {saverSource === "auto" ? <span className="vua-text-secondary">{copy.saverStateAuto}</span> : null}
           </div>
           {/* The SteamVR option shows once VUA can tell that SteamVR is running (issue #27). */}
@@ -494,14 +532,18 @@ interface PageActions {
   navigate: (target: PageId) => void;
   openAccounts: () => void;
   startTour: () => void;
+  replayContextGuides: () => void;
 }
 
 /** 主题页偏好管道(C-I18N/主题页):AppShell 持有的主题偏好/HC/资源节约状态下传给主题设置页 */
 interface PagePrefs {
   /** 外观选择当前值:跟随系统时为偏好值;走查覆盖(?theme=)时为覆盖值 */
   theme: ThemePreference;
+  resolvedTheme: ResolvedTheme;
+  themeFamily: ThemeFamily;
   hc: HcMode;
   onThemeChange: (theme: ThemePreference) => void;
+  onThemeFamilyChange: (family: ThemeFamily) => void;
   onHcChange: (mode: HcMode) => void;
   /** 资源节约模式(S-VFX-5 落地):手动开状态(持久化) */
   saverOn: boolean;
@@ -529,7 +571,7 @@ function renderPage(
     case "home": case "environment-hub":
       return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
     case "help": case "help-wizard": case "help-tour": case "help-game-assistant": case "help-encyclopedia": case "help-ai":
-      return <HelpPage page={page} navigate={actions.navigate} onAccounts={actions.openAccounts} startTour={actions.startTour} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
+      return <HelpPage page={page} navigate={actions.navigate} startTour={actions.startTour} replayContextGuides={actions.replayContextGuides} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
     case "env-play": case "env-create":
       return <RouteEnvironmentPage zone={page === "env-play" ? "play" : "create"} onAccounts={actions.openAccounts} onOpenAmf={() => actions.navigate("warehouse")} />;
     case "warehouse": case "asset-browser": case "recipe": case "release": case "packages": case "workshop":
@@ -570,21 +612,17 @@ function AppShell({
   page,
   navigate: navigatePage,
   showOnboarding,
-  autoStartTour,
   startupComplete,
-  onTourFinish,
   onOnboardingComplete,
   actions,
 }: {
   page: PageId;
-  navigate: (target: PageId) => void;
+  navigate: (target: PageId, updateHash?: boolean, hash?: string) => void;
   showOnboarding: boolean;
-  autoStartTour: boolean;
   startupComplete: boolean;
-  onTourFinish: () => void;
   onOnboardingComplete: (result: OnboardingResult) => void;
   /** 壳层注入的动作(openPalette/navigate 由 AppShell 内部补齐,见 pageActions) */
-  actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour">;
+  actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour" | "replayContextGuides">;
 }) {
   // 008 路径 a 桌面接线(W19):删除偏好开启时,生成完成即逐条目发起独立删除任务
   const amf = useAmfModule();
@@ -612,9 +650,20 @@ function AppShell({
   const [themePref, setThemePref] = useState<ThemePreference>(() =>
     loadThemePreference((key) => localStorage.getItem(key)),
   );
-  // 生效主题 = 覆盖 ?? 偏好解析;pref=system 时按系统深浅色解析
+  const [themeFamilyOverride, setThemeFamilyOverride] = useState<ThemeFamily | null>(() => {
+    const value = new URLSearchParams(window.location.search).get("themeFamily");
+    return isThemeFamily(value) ? value : null;
+  });
+  const [themeFamilyPreview] = useState(() =>
+    isThemeFamily(new URLSearchParams(window.location.search).get("themeFamily")),
+  );
+  const [themeFamily, setThemeFamily] = useState<ThemeFamily>(() =>
+    loadThemeFamily((key) => localStorage.getItem(key)),
+  );
+  const resolvedThemeFamily = themeFamilyOverride ?? themeFamily;
+  // Single-mode presets take precedence over system and preview appearance overrides.
   const resolvedTheme: ResolvedTheme =
-    themeOverride ?? resolveTheme(themePref, systemDark);
+    fixedThemeForFamily(resolvedThemeFamily) ?? themeOverride ?? resolveTheme(themePref, systemDark);
   const environmentView = useEnvironmentView();
   const creatorReady = creatorEnvReady(environmentView.deployer);
   const activeModule = page === "home" || page.startsWith("help") ? "global" : moduleOf(page);
@@ -626,12 +675,21 @@ function AppShell({
     const saved = window.history.state?.vuaSettingsReturn;
     return settingsOpen && typeof saved === "string" && isPageId(saved) && !saved.startsWith("settings-") ? saved : null;
   });
+  const [settingsReturnHash, setSettingsReturnHash] = useState<string | undefined>(() => {
+    const saved = window.history.state?.vuaSettingsReturnHash;
+    return typeof saved === "string" && readHashPage(saved) === settingsReturn ? saved : undefined;
+  });
   useEffect(() => {
     if (!settingsOpen) return;
     const saved = window.history.state?.vuaSettingsReturn;
-    if (settingsReturn === null && typeof saved === "string" && isPageId(saved) && !saved.startsWith("settings-")) { setSettingsReturn(saved); return; }
-    if (settingsReturn) window.history.replaceState({ ...window.history.state, vuaSettingsReturn: settingsReturn }, "");
-  }, [page, settingsOpen, settingsReturn]);
+    if (settingsReturn === null && typeof saved === "string" && isPageId(saved) && !saved.startsWith("settings-")) {
+      setSettingsReturn(saved);
+      const hash = window.history.state?.vuaSettingsReturnHash;
+      setSettingsReturnHash(typeof hash === "string" && readHashPage(hash) === saved ? hash : undefined);
+      return;
+    }
+    if (settingsReturn) window.history.replaceState({ ...window.history.state, vuaSettingsReturn: settingsReturn, vuaSettingsReturnHash: settingsReturnHash }, "");
+  }, [page, settingsOpen, settingsReturn, settingsReturnHash]);
   const navigate = (target: PageId) => {
     target = availablePage(target, amf.installed);
     if (target === page) {
@@ -639,7 +697,10 @@ function AppShell({
       return;
     }
     if (target.startsWith("settings-")) {
-      if (!settingsOpen) setSettingsReturn(page);
+      if (!settingsOpen) {
+        setSettingsReturn(page);
+        setSettingsReturnHash(readHashPage() === page ? window.location.hash : undefined);
+      }
       navigatePage(target);
       return;
     }
@@ -660,7 +721,7 @@ function AppShell({
   const returnFromSettings = () => {
     const candidate = availablePage(settingsReturn ?? "home", amf.installed);
     const target = candidate.startsWith("settings-") ? "home" : candidate;
-    navigatePage(target);
+    navigatePage(target, true, settingsReturnHash);
     setSettingsReturn(null);
   };
   const onShellCommand = useEffectEvent((command: DesktopShellCommandV1) => {
@@ -675,7 +736,7 @@ function AppShell({
   useEffect(() => window.vua?.window.shellCommandEvents?.subscribe(onShellCommand), []);
   const onEncyclopediaTarget = useEffectEvent((target: GuideTargetV1 | null) => {
     setGuideRequest({ target, nonce: ++guideRequestNonce.current });
-    navigate("help-encyclopedia");
+    navigate(target?.topic === "guide-vua" ? "help-wizard" : "help-encyclopedia");
   });
   useEffect(() => {
     const unsubscribe = window.vua?.window.encyclopediaTargetEvents.subscribe(onEncyclopediaTarget);
@@ -686,9 +747,14 @@ function AppShell({
 
   // 命令面板(C-EFFICIENCY,ui-ux §6.1):Ctrl/Cmd+P 开关;命令 = 全部页面跳转 + 主题切换
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // 应用导览重播信号(三类引导裁决 2026-10-05):命令面板动作递增,
-  // AppTour 据此从第一步重开;导览的进度/自动开始在其内部自治
+  // Explicit replay starts the tour; it never opens automatically on startup.
   const [tourStartRequest, setTourStartRequest] = useState(0);
+  const [tourActive, setTourActive] = useState(false);
+  const [contextGuideReplay, setContextGuideReplay] = useState(0);
+  const replayContextGuides = () => {
+    resetContextGuides(localStorage, sessionStorage);
+    setContextGuideReplay(value => value + 1);
+  };
   const startTour = () => {
     if (showOnboarding) onOnboardingComplete({ status: "skipped", goals: [], environments: [] });
     setTourStartRequest(value => value + 1);
@@ -759,19 +825,23 @@ function AppShell({
     navigate,
     openAccounts: () => navigate("settings-accounts"),
     startTour,
+    replayContextGuides,
   };
 
-  // 生效主题 → data-theme:单次 dataset 写入,变化才触发,不做二次翻转
-  // (防双写闪烁;已知的间歇性 stale-compositor 重绘缺陷不猜因、不作投机修复)
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
-  }, [resolvedTheme]);
+    document.documentElement.dataset.themeFamily = resolvedThemeFamily;
+  }, [resolvedTheme, resolvedThemeFamily]);
 
   // 偏好持久化:覆盖在时跳过(走查不写存储)
   useEffect(() => {
-    if (themeOverride !== null) return;
+    if (themeOverride !== null || themeFamilyPreview) return;
     saveThemePreference((key, value) => localStorage.setItem(key, value), themePref);
-  }, [themePref, themeOverride]);
+  }, [themePref, themeOverride, themeFamilyPreview]);
+  useEffect(() => {
+    if (themeFamilyPreview) return;
+    saveThemeFamily((key, value) => localStorage.setItem(key, value), themeFamily);
+  }, [themeFamily, themeFamilyPreview]);
 
   // pref=system 时订阅系统深浅色变化,实时重解析生效主题;其余偏好不监听
   // (覆盖在时同样不监听——生效值被覆盖钉死)
@@ -870,13 +940,26 @@ function AppShell({
   }, [effectsAuto]);
 
   const pagePrefs: PagePrefs = {
-    theme: themeOverride ?? themePref, hc,
+    theme: fixedThemeForFamily(resolvedThemeFamily) ?? themeOverride ?? themePref,
+    resolvedTheme,
+    themeFamily: resolvedThemeFamily,
+    hc,
     onThemeChange: (next) => {
+      if (fixedThemeForFamily(resolvedThemeFamily) !== null) return;
       if (themeOverride !== null) {
         if (next === "dark" || next === "light") setThemeOverride(next);
         return;
       }
       setThemePref(next);
+    },
+    onThemeFamilyChange: (next) => {
+      const fixed = fixedThemeForFamily(next);
+      if (themeFamilyPreview) setThemeFamilyOverride(next);
+      else setThemeFamily(next);
+      if (fixed !== null) {
+        if (themeOverride !== null) setThemeOverride(fixed);
+        else setThemePref(fixed);
+      }
     },
     onHcChange: setHc,
     saverOn: effects === "off",
@@ -909,6 +992,7 @@ function AppShell({
         </button></Tooltip>
         <div className="vua-shell__location vua-drag-region">
           {settingsOpen ? <Button variant="primary" className="vua-shell__back" data-nav-id="shell-back" onClick={returnFromSettings}><Icon name="arrow-left" size={20} />{strings.journey.back}</Button> : null}
+          <ThemeAddress page={contentPage ?? page} navigate={navigate} openPalette={() => setPaletteOpen(true)} />
         </div>
         {/* Resource headroom summary; details retain each measured resource. */}
         <ResourceMonitor />
@@ -965,8 +1049,10 @@ function AppShell({
           </div>
         ) : null}
       </header>
+      <ThemeCommandBar page={page} navigate={navigate} openSettings={() => settingsOpen ? returnFromSettings() : navigate("settings-theme")} />
       <div className="vua-shell__body">
         <aside className={`vua-shell__sidebar${settingsOpen ? " vua-shell__sidebar--settings" : ""}`} aria-label={settingsOpen ? strings.nav.tabs.settings : strings.app.sidebarAria}>
+          <SkinMotif slot="page-corner" className="vua-shell__skin-motif" />
           {settingsOpen ? <div className="vua-shell__sidebar-group vua-shell__sidebar-group--settings" data-module="settings">
             {moduleDef("settings").groups.flatMap(g => g.pages).map(p => <button type="button" key={p.id} className="vua-shell__sidebar-item" aria-current={page === p.id ? "page" : undefined} onClick={() => navigate(p.id)} data-nav-id={`nav-${p.id}`}>{pageLabel(p)}</button>)}
           </div> : (["env", "production"] as const).filter(group => group !== "production" || amf.installed).map(group => <div className="vua-shell__sidebar-group" key={group} data-module={group}>
@@ -999,17 +1085,16 @@ function AppShell({
             {aiPort ? <AiRequestsHere page={contentPage} /> : null}
             {renderPage(contentPage, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}
           </div> : null}
-          {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={onOnboardingComplete} onAccounts={pageActions.openAccounts} /></div> : null}
+          {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={onOnboardingComplete} /></div> : null}
           {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}</div> : null}
         </main>
       </div>
-      {/* 导航确认卡(015 §12,批 B-3):U9(1)/(3) 确认层的渲染层载体,全局一次挂载 */}
+      <ThemeDetails page={contentPage ?? page} />
       <NavigationConfirmOverlay />
       <AmfUiRuntimeBridge />
       <FileDropImporter onOpenLibrary={() => navigate("warehouse")} />
-      {/* 应用导览(三类引导裁决 2026-10-05):主窗口内有序高亮;从未运行自动
-       *  开始,active 按步号恢复,重播经命令面板;状态独立于阅读器/安装 */}
-      {!showOnboarding && startupComplete ? <AppTour page={page} navigate={navigate} startRequest={tourStartRequest} autoStart={autoStartTour} onFinish={onTourFinish} /> : null}
+      <ContextGuidance page={page} startTour={startTour} replayToken={contextGuideReplay} suppressed={!startupComplete || showOnboarding || settingsOpen || tourActive} />
+      {!showOnboarding && startupComplete ? <AppTour page={page} navigate={navigate} startRequest={tourStartRequest} onActiveChange={setTourActive} /> : null}
       {/* 窗口级登录浏览器(2026-10-05 用户裁决):无开启意图时零渲染;视图
           生命周期归组件(卸载即关),宿主不依赖任何页面/弹窗 */}
       <LoginBrowserOverlay />
@@ -1038,22 +1123,12 @@ export function App() {
     resolveEntry(storedGoals, override === null ? readStoredPage() : null),
   );
   const [showOnboarding, setShowOnboarding] = useState(entry.showOnboarding);
-  const [firstTourPending, setFirstTourPending] = useState(() => {
-    if (override !== null) return false;
-    try { return firstTourRequired(!entry.showOnboarding, localStorage.getItem(storageKeys.tourProgress)); }
-    catch { return entry.showOnboarding; }
-  });
   // Main owns the native splash; browser previews retain an in-page fallback.
   const [splashDone, setSplashDone] = useState(false);
   const nativeStartup = window.vua?.startup;
   const finishStartup = () => {
     setSplashDone(true);
     void nativeStartup?.complete().catch(() => { /* Main's bounded fallback still opens the shell. */ });
-  };
-  const finishFirstTour = () => {
-    if (!firstTourPending) return;
-    setFirstTourPending(false);
-    setPage("home");
   };
   // 启动里程碑(Phase A 牵线):gateway 装配完成即报;provider 探针=首个
   // capability 应答(任一结果均计,测网关链活性);paint 由 AppShell 首效应上报
@@ -1091,14 +1166,14 @@ export function App() {
     pageRef.current = page;
   }, [page]);
 
-  function navigate(target: PageId, updateHash = true) {
+  function navigate(target: PageId, updateHash = true, hash?: string) {
     if (target !== pageRef.current) { closeLoginBrowser(); closeBrowserModal(); }
     // 不做强制重定向(v0.3.3 §2.1):所有页面直达,阻断由页面内诚实状态表达
     setPage(target);
     if (!showOnboarding && updateHash) {
       // 深链接:当前页同步进 hash,可粘贴直达
       try {
-        window.location.hash = target;
+        window.location.hash = hash !== undefined && readHashPage(hash) === target ? hash : target;
       } catch {
         /* 极端环境下 hash 不可写时仅本次会话生效 */
       }
@@ -1112,6 +1187,16 @@ export function App() {
       }
     }
   }
+
+  useEffect(() => {
+    const sharing = window.vua?.dialog?.recipeSharing;
+    if (!sharing || showOnboarding) return;
+    let active = true;
+    const reveal = () => { if (active) navigate("recipe"); };
+    void sharing.hasPending().then(value => { if (value) reveal(); }).catch(() => {});
+    const unsubscribe = sharing.subscribe(reveal);
+    return () => { active = false; unsubscribe(); };
+  }, [showOnboarding]);
 
   // 深链接:用户粘贴/回退产生 hashchange 时同步页面(navigate 写入的同值不回环)
   useEffect(() => {
@@ -1141,7 +1226,7 @@ export function App() {
     if (result.page) navigate(result.page);
   }
 
-  const actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour"> = {
+  const actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour" | "replayContextGuides"> = {
     prepareEnv: () => navigate("env-create"),
   };
 
@@ -1154,10 +1239,8 @@ export function App() {
         <AppShell
           page={page}
           navigate={navigate}
-          showOnboarding={showOnboarding && !firstTourPending}
-          autoStartTour={firstTourPending}
+          showOnboarding={showOnboarding}
           startupComplete={splashDone}
-          onTourFinish={finishFirstTour}
           onOnboardingComplete={handleOnboardingComplete}
           actions={actions}
         />

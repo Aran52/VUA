@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useModalOwner } from "./modal-layer.tsx";
 import { canAnimate, easing, fastMs, motionOff } from "./motion.ts";
 import "./tooltip.css";
+import { useShapeScope } from "./ShapeScope.tsx";
 
 /**
  * Tier 1, tooltip: a short line about an icon or a control, shown on hover or keyboard focus and
@@ -23,6 +24,7 @@ export function Tooltip({ content, placement = "top", block = false, children }:
 }) {
   const id = useId();
   const owner = useModalOwner();
+  const shapeScope = useShapeScope();
   const anchor = useRef<HTMLSpanElement>(null);
   const bubble = useRef<HTMLDivElement>(null);
   const timer = useRef<number | null>(null);
@@ -72,7 +74,7 @@ export function Tooltip({ content, placement = "top", block = false, children }:
       {cloneElement(children, { "aria-describedby": describedBy })}
     </span>
     {open ? createPortal(<div ref={bubble} id={id} role="tooltip" className="vua-tooltip" data-side={position?.side ?? placement}
-      data-vua-modal-owner={owner}
+      data-vua-modal-owner={owner} data-vua-shape-scope={shapeScope}
       style={position ? { left: position.left, top: position.top } : { left: -9999, top: -9999 }}>{content}</div>, document.body) : null}
   </>;
 }

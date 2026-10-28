@@ -2036,6 +2036,99 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.exportShareImage"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "format",
+            "index",
+            "code"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,100}$"
+            },
+            "format": {
+              "enum": [
+                "png",
+                "gif"
+              ]
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 59
+            },
+            "code": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{12}$"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.readShareImage"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "inputId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "inputId": {
+              "type": "string",
+              "pattern": "^input-[0-9a-f-]{36}\\.bin$"
+            }
+          }
+        }
+      }
     }
   ]
 }

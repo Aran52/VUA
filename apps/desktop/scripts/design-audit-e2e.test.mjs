@@ -5,14 +5,18 @@
 
 import { app, BrowserWindow } from "electron";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectAuditSnapshot } from "./design-audit/collector.js";
+import { finishThemeTransitions } from "./design-audit/settle.js";
+import { captureAuditPage } from "./design-audit/capture.mjs";
 import { applyAnnotations, removeAnnotations } from "./design-audit/annotate.js";
 import { evaluateSnapshot, classifyCapture } from "./design-audit/rules.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+let gridPage = "";
 
 const PAGE = `<!doctype html><html data-theme="dark"><head><style>
 :root {
@@ -29,7 +33,7 @@ body { margin: 0; background: var(--vua-bg-canvas); color: var(--vua-text-strong
 .oddweight { font-weight: 500; }
 .hardcolor { color: #ff4400; background-color: #123456; }
 .lowcontrast { color: #55555f; background-color: #151322; padding: 8px; }
-.offradius { border-radius: 8px; }
+.offradius { border-radius: 7px; }
 .shadowed { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 .glowy { box-shadow: 0 0 18px rgba(167,139,250,0.45); }
 .blurcard { backdrop-filter: blur(10px); background: rgba(21,19,34,0.8); }
@@ -50,6 +54,7 @@ body { margin: 0; background: var(--vua-bg-canvas); color: var(--vua-text-strong
 <div id="blur" class="blurcard">blur card wall</div>
 <div style="border-radius: 10px; padding: 4px;">
   <div id="nested" class="same-radius" style="border-radius: 10px;">same radius as parent</div>
+  <div id="larger" class="larger-radius" style="border-radius: 12px;">larger radius than parent</div>
   <div id="pill" class="pill-in-card">pill</div>
   <div id="circle" class="circle"></div>
   <div id="step" class="stepdown">steps down</div>
@@ -75,6 +80,46 @@ const OVERLAY_PAGE = `<!doctype html><html><body>
 <vite-error-overlay><pre>Failed to resolve import "@vua/contracts"</pre></vite-error-overlay>
 </body></html>`;
 
+const CALIBRATION_PAGE = `<!doctype html><html><head><style>
+body { margin:0; color:white; background:black; font:400 14px/20px sans-serif; }
+.camera { position:relative; width:200px; height:80px; overflow:hidden; }
+.scene { width:1200px; height:60px; transform:translateX(-300px); background:gray; }
+.hidden { opacity:0; }
+.bleed { position:absolute; top:100px; left:740px; width:200px; height:40px; }
+.caption-clip { width:100px; overflow:hidden; }
+.caption { display:block; width:300px; white-space:nowrap; }
+.label { display:inline-flex; align-items:center; min-height:28px; padding:0 8px; gap:8px; }
+input { width:16px; height:16px; padding:0; margin:0; }
+.auto { width:101px; margin-left:auto; }
+.fixed { margin-inline:6px; }
+.separator { border-bottom:1px solid white; }
+.local { --vua-local-surface:color-mix(in srgb, blue 40%, white); background:var(--vua-local-surface); }
+</style></head><body>
+<div class="camera"><div id="scene" class="scene"></div><div class="hidden"><button id="hidden-control">hidden</button></div></div>
+<div id="bleed" class="bleed">actual viewport overflow</div>
+<div class="caption-clip"><span id="caption" class="caption">actual clipped caption</span></div>
+<label id="large-label" class="label"><input id="labelled" type="checkbox">a usable label</label>
+<input id="unlabelled" type="checkbox" aria-label="tiny independent control">
+<div inert><button id="inert-control" style="width:16px;height:16px;padding:0">inactive background action</button></div>
+<div role="dialog"><button id="scoped-control">dialog action</button></div>
+<span id="assistive" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">assistive label</span>
+<select id="native-select" style="font:400 12px/16px sans-serif"><option>native choice</option></select>
+<details><summary id="closed-summary">collapsed details</summary><button id="collapsed-control">hidden child</button></details>
+<div style="content-visibility:hidden"><button id="content-hidden-control">hidden content</button></div>
+<div id="mixed" style="background:color-mix(in srgb, white 20%, black);color:#888">dim text on a mixed surface</div>
+<div id="local-token" class="local">a locally scoped token</div>
+<input id="text-field" type="text" style="font:400 13px/18px sans-serif">
+<span id="icon-line" style="line-height:0"><svg width="16" height="16"></svg></span>
+<button id="status-control" data-vua-control-role="indicator">status</button>
+<div data-vua-primary-group=""><button id="split-main">main</button><button id="split-menu">menu</button></div>
+<div style="width:100px;height:24px;overflow:hidden"><span id="fixed-escape" style="position:fixed;left:500px;top:100px;width:100px;height:20px">fixed overlay</span></div>
+<div style="position:relative;transform:translateX(0);width:100px;height:24px;overflow:hidden"><span id="fixed-trapped" style="position:fixed;left:80px;top:0;width:200px;height:20px;white-space:nowrap">truly clipped fixed text</span></div>
+<div style="position:relative;width:250px;height:24px"><div style="width:40px;height:24px;overflow:hidden"><span id="absolute-escape" style="position:absolute;left:100px;top:0;width:100px;height:20px">absolute overlay</span></div></div>
+<div style="visibility:hidden"><span id="visibility-override" style="visibility:visible">a visibly restored child</span></div>
+<div id="auto" class="auto">auto alignment</div><div id="fixed" class="fixed">fixed margins</div>
+<div class="separator"><div class="separator"><button id="choice">ordinary choice</button></div></div>
+</body></html>`;
+
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 let server; // assigned in main; shared with the overlay test
@@ -97,11 +142,12 @@ test("collector and rules run end-to-end on a synthetic page", async win => {
   assert.ok(has("spacing-grid", "offscale"), "spacing-grid flags 14px padding");
   assert.ok((byRule["color-token"] ?? []).some(f => f.cls.includes("hardcolor")), "color-token flags #ff4400/#123456");
   assert.ok(has("contrast", "lowcontrast"), "contrast flags dim text");
-  assert.ok(has("radius-token", "offradius"), "radius-token flags 8px");
+  assert.ok(has("radius-token", "offradius"), "radius-token flags 7px");
   assert.ok(has("shadow-panel", "shadowed"), "shadow-panel flags ordinary panel");
   assert.ok(!has("shadow-panel", "glow"), "accent glow is exempt");
   assert.ok(has("blur-scope", "blurcard"), "blur-scope flags card-wall blur");
-  assert.ok(has("radius-nesting", "same-radius"), "radius-nesting flags same-radius child");
+  assert.ok(!has("radius-nesting", "same-radius"), "equal inner corners follow the approved standard");
+  assert.ok(has("radius-nesting", "larger-radius"), "larger inner corners are flagged");
   assert.ok(!has("radius-nesting", "pill") && !has("radius-nesting", "circle"), "pill/circle exempt from radius-nesting");
   assert.ok(!has("radius-nesting", "step"), "stepped-down radius passes");
   assert.ok(has("overflow", "clipped"), "overflow flags hidden clipping");
@@ -131,8 +177,77 @@ test("annotation overlay draws and removes cleanly", async win => {
     `${applyAnnotations.toString()};applyAnnotations(${JSON.stringify(items)}, { view: "e2e", theme: "dark", locale: "zh-CN" })`, true);
   assert.equal(drawn, items.length);
   assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('[data-vua-audit-overlay]').length"), 1);
+  const pixels = (await captureAuditPage(win, true)).toBitmap();
+  let legendPixels = 0;
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (pixels[offset] >= 40 && pixels[offset] <= 50 && pixels[offset + 1] >= 40 && pixels[offset + 1] <= 50 && pixels[offset + 2] >= 250) legendPixels += 1;
+  }
+  assert.ok(legendPixels >= 20, "the captured image contains the red annotation legend, not only a DOM overlay");
   await win.webContents.executeJavaScript(`${removeAnnotations.toString()};removeAnnotations()`, true);
   assert.equal(await win.webContents.executeJavaScript("document.querySelectorAll('[data-vua-audit-overlay]').length"), 0);
+});
+
+test("paint clipping, label hit regions and auto margins preserve real defects", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/calibration`);
+  const snapshot = await win.webContents.executeJavaScript(
+    `${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed: true, overflowChecks: true })`, true);
+  const element = id => snapshot.elements.find(value => value.id === id);
+  const findings = evaluateSnapshot(snapshot);
+  const flagged = (rule, id) => findings.some(f => f.rule === rule && f.index === snapshot.elements.indexOf(element(id)));
+  assert.equal(element("hidden-control"), undefined, "opacity-zero ancestors are not painted controls");
+  assert.equal(element("assistive"), undefined, "fully clipped assistive labels have no paint");
+  assert.equal(element("collapsed-control"), undefined, "closed details retain layout without painting their children");
+  assert.equal(element("content-hidden-control"), undefined, "content-visibility hidden is not painted content");
+  assert.ok(element("closed-summary"), "a closed details summary remains a visible action");
+  assert.equal(flagged("contrast", "mixed"), true, "modern computed colours retain real contrast failures");
+  assert.ok(Math.abs(element("mixed").backgroundColor.r - 51) < 0.1);
+  assert.ok(snapshot.palette.some(entry => entry.name === "--vua-local-surface" && Math.abs(entry.color.r - 153) < 0.1), "local tokens resolve in their feature scope");
+  assert.equal(flagged("type-scale", "native-select"), false, "native select leading is controlled by Chromium");
+  assert.equal(element("native-select").isChoice, true);
+  assert.equal(flagged("type-scale", "icon-line"), false);
+  assert.equal(flagged("type-scale", "text-field"), true, "empty text fields still retain their type check");
+  assert.equal(element("status-control").indicatorRole, true);
+  assert.equal(element("split-main").primaryGroup, element("split-menu").primaryGroup);
+  assert.ok(element("split-main").primaryGroup);
+  assert.equal(Math.round(element("fixed-escape").paintedRect.w), 100, "fixed content escapes an unrelated overflow ancestor");
+  assert.equal(flagged("overflow", "fixed-escape"), false);
+  assert.equal(flagged("overflow", "fixed-trapped"), true, "a transformed containing block still clips fixed content");
+  assert.equal(Math.round(element("absolute-escape").paintedRect.w), 100, "absolute content follows its containing block");
+  assert.ok(element("visibility-override"), "inherited visibility may be explicitly restored");
+  assert.equal(flagged("overflow", "scene"), false, "a camera clipped inside the page is not viewport leakage");
+  assert.equal(flagged("overflow", "bleed"), true, "unconfined content still fails");
+  assert.equal(flagged("overflow", "caption"), true, "ordinary clipped text is not exempted with the scene");
+  assert.equal(flagged("target-size", "labelled"), false, "the associated 28px label supplies the real hit region");
+  assert.equal(flagged("target-size", "unlabelled"), true, "an independent tiny checkbox still fails");
+  assert.equal(element("inert-control").disabled, true, "modal isolation makes background actions inactive");
+  assert.equal(flagged("target-size", "inert-control"), false);
+  assert.notEqual(element("scoped-control").actionScope, element("inert-control").actionScope, "dialog actions have their own primary-action scope");
+  assert.equal(element("labelled").hitRect.source, "label");
+  assert.equal(await win.webContents.executeJavaScript("document.getElementById('large-label').click(); document.getElementById('labelled').checked"), true);
+  assert.equal(element("auto").autoMargins[3], true);
+  assert.equal(flagged("spacing-grid", "auto"), false);
+  assert.equal(flagged("spacing-grid", "fixed"), true);
+  assert.equal(element("choice").selfSurface, false, "an action is not another nested container");
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
+});
+
+test("settling theme colours preserves camera and activity motion", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/calibration`);
+  await win.webContents.executeJavaScript(`(async () => {
+    document.body.style.transition = 'color 60s linear';
+    getComputedStyle(document.body).color;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    document.body.style.color = 'black';
+    getComputedStyle(document.body).color;
+    window.camera = document.getElementById('scene').animate([{transform:'translateX(0)'}, {transform:'translateX(100px)'}], {duration:60000});
+    window.camera.pause(); window.camera.currentTime = 30000;
+    window.activity = document.getElementById('bleed').animate([{opacity:1}, {opacity:.5}], {duration:1000, iterations:Infinity});
+  })()`, true);
+  await win.webContents.executeJavaScript(`${finishThemeTransitions.toString()};finishThemeTransitions()`, true);
+  const state = await win.webContents.executeJavaScript(`({colour:getComputedStyle(document.body).color, camera:window.camera.currentTime, activity:window.activity.playState})`, true);
+  assert.equal(state.colour, "rgb(0, 0, 0)");
+  assert.equal(state.camera, 30000);
+  assert.equal(state.activity, "running");
 });
 
 test("vite error overlay marks the snapshot as a capture failure", async win => {
@@ -159,17 +274,78 @@ test("e2e page CSS parses with the static block parser", () => {
   });
 });
 
+test("hidden compositor advances scripted exits across repeated opens", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
+  const completed = await win.webContents.executeJavaScript(`(async () => {
+    for (let index = 0; index < 2; index += 1) {
+      const panel = document.createElement('div');
+      panel.textContent = 'closing dialog';
+      document.body.append(panel);
+      const exit = panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' });
+      await Promise.race([exit.finished, new Promise((_, reject) => setTimeout(() => reject(new Error('hidden exit stopped advancing')), 2000))]);
+      panel.remove();
+    }
+    return true;
+  })()`, true);
+  assert.equal(completed, true);
+});
+
+test("actual Grid controls are rounded rectangles in the host and in AMF alike", async win => {
+  await win.loadURL(`http://127.0.0.1:${server.address().port}/grid`);
+  const geometry = await win.webContents.executeJavaScript(`(() => {
+    const read = element => { const s = getComputedStyle(element);
+      return { role: s.getPropertyValue('--vua-shape-role').trim(), shape: s.getPropertyValue('corner-top-left-shape'), clip: s.clipPath,
+        corners: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius] }; };
+    return { button: read(document.querySelector('#grid-button')), host: read(document.querySelector('#host-button')),
+      badge: read(document.querySelector('#grid-badge')), station: read(document.querySelector('.vua-line__station')),
+      portal: read(document.getElementById('owned-portal')),
+      childRole: getComputedStyle(document.querySelector('#grid-label')).getPropertyValue('--vua-shape-role').trim(),
+      hostRest: ['host-sidebar','host-settings'].map(id => read(document.getElementById(id))) };
+  })()`, true);
+  const uniform = (style, radius) => style.corners.every(value => value === radius) && !/bevel|superellipse\(0\)/.test(style.shape) && !/polygon/.test(style.clip);
+  assert.ok(uniform(geometry.button, "4px"), "an AMF primary action is a 4 px rounded rectangle");
+  assert.ok(uniform(geometry.host, "4px"), "the host action uses the same radius");
+  assert.ok(uniform(geometry.badge, "2px"), "indicators use 2 px");
+  assert.ok(uniform(geometry.station, "8px"), "workshop station cards use the container radius");
+  assert.equal(geometry.portal.role, "menu", "an AMF-owned portal retains its own scope");
+  assert.ok(uniform(geometry.portal, "4px"), "small owned menus use the menu radius");
+  assert.equal(geometry.childRole, "none", "text never inherits its parent's control role");
+  assert.ok(geometry.hostRest.every(style => style.role === "none" && new Set(style.corners).size === 1), "host sidebar and settings keep uniform corners");
+  const snapshot = await win.webContents.executeJavaScript(`${collectAuditSnapshot.toString()};collectAuditSnapshot({ proposed:true, overflowChecks:true })`, true);
+  const findings = evaluateSnapshot(snapshot, { rules:["grid-shape", "shadow-panel"] });
+  assert.deepEqual(findings.filter(f => f.rule === "grid-shape").map(f => f.cls[0]).sort(), ["broken-cut", "broken-grid"]);
+  assert.equal(findings.filter(f => f.rule === "shadow-panel").length, 0, "selected and resting steps both stay flat");
+});
+
 async function main() {
   try {
     await app.whenReady();
+    const root = path.resolve(scriptDir, "../../..");
+    const files = ["packages/design-system/src/tokens.css", "packages/design-system/src/base.css", "packages/design-system/src/shapes.css",
+      "apps/desktop/src/renderer/components/primitives/button.css", "apps/desktop/src/renderer/components/primitives/badge.css",
+      "apps/desktop/src/renderer/components/primitives/toggle.css", "apps/desktop/src/renderer/features/amf/factory.css"];
+    const css = (await Promise.all(files.map(file => readFile(path.join(root, file), "utf8")))).join("\n").replace(/@import\s+[^;]+;/g, "");
+    gridPage = `<!doctype html><html data-theme="dark"><head><style>${css}
+      body{padding:32px}#grid-button{width:160px;height:40px;border-color:rgb(255,0,0)}
+      .vua-line__stations{margin-top:24px;width:500px}.broken-grid{border-radius:999px!important}.broken-cut{corner-shape:bevel!important}
+    </style></head><body><div data-vua-shape-scope="amf">
+      <button id="grid-button" class="vua-button vua-button--primary"><span id="grid-label">Grid action</span></button>
+      <span id="grid-badge" class="vua-badge" data-tone="neutral">Status</span><input aria-label="Field"><button class="vua-toggle" aria-label="Switch"></button>
+      <ol class="vua-line__stations"><li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="true">Active</button></li>
+      <li><button class="vua-line__station" data-vua-surface-role="workshop-step" aria-pressed="false">Rest</button></li></ol>
+      <button class="broken-grid vua-button--primary">Capsule regression</button>
+      <button class="broken-cut vua-button--primary">Cut regression</button></div>
+      <div class="vua-shell" data-module="production"><header><button id="host-button" class="vua-button">Host action</button></header>
+        <aside><button id="host-sidebar">Host sidebar</button></aside><section><input id="host-settings" aria-label="Host settings"></section></div>
+      <div id="owned-portal" class="vua-tooltip" data-vua-shape-scope="amf">Owned portal</div></body></html>`;
     server = createServer((req, res) => {
       res.setHeader("Content-Type", "text/html");
-      res.end(req.url === "/overlay" ? OVERLAY_PAGE : PAGE);
+      res.end(req.url === "/overlay" ? OVERLAY_PAGE : req.url === "/calibration" ? CALIBRATION_PAGE : req.url === "/grid" ? gridPage : PAGE);
     });
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const win = new BrowserWindow({
       show: false, width: 800, height: 600,
-      webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false },
+      webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, offscreen: true },
     });
     await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
     let failed = 0;

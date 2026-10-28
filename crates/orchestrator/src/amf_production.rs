@@ -683,6 +683,10 @@ pub(crate) struct AssemblyExecution<'a> {
 }
 
 impl AmfProductionEngine {
+    /// Owned derived image cache; native paths never appear in renderer receipts.
+    pub fn share_image_root(&self) -> PathBuf { self.root.join("share-images") }
+    pub fn share_storage_boundary(&self) -> &Path { self.root.parent().unwrap_or(&self.root) }
+
     pub fn new(root: PathBuf, platform: Arc<dyn AmfProductionPlatform>) -> Self {
         Self { root, platform, live: Mutex::new(BTreeMap::new()), usual: Mutex::new(None) }
     }

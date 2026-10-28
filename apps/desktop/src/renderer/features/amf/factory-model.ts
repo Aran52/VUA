@@ -9,9 +9,9 @@ export type LineStatus = "running" | "waiting" | "attention" | "finished" | "sto
  * steps itself, or VUA changes the work project without asking. It is about what the player wants to hand over,
  * not how well they know Unity (author ruling 2026-10-18). */
 export type AutomationLevel = "ask" | "smart" | "full";
-/** Listed in this order; asking before changes is the default. */
+/** Listed in this order; new and invalid preferences default to full auto. */
 export const AUTOMATION_LEVELS: readonly AutomationLevel[] = ["ask", "smart", "full"];
-export const DEFAULT_AUTOMATION_LEVEL: AutomationLevel = "ask";
+export const DEFAULT_AUTOMATION_LEVEL: AutomationLevel = "full";
 
 interface Step { readonly key: string; readonly state: string }
 export interface LineFacts { readonly phase: AmfRunPhase; readonly steps: readonly Step[] }
@@ -97,13 +97,26 @@ export function queueAhead(lane: { readonly running: readonly unknown[]; readonl
   return Math.max(1, lane.running.length + Math.max(0, index));
 }
 
-// A new key: every player starts asking before changes, whatever the earlier familiarity choice was.
+// Keep the existing key so ask/smart choices survive the full-auto default change.
 const levelKey = "vua-amf-permission-mode-v01";
 export function storedAutomationLevel(): AutomationLevel {
   try { const value = localStorage.getItem(levelKey); return AUTOMATION_LEVELS.includes(value as AutomationLevel) ? value as AutomationLevel : DEFAULT_AUTOMATION_LEVEL; } catch { return DEFAULT_AUTOMATION_LEVEL; }
 }
 export function rememberAutomationLevel(level: AutomationLevel): void {
   try { localStorage.setItem(levelKey, level); } catch { /* The level applies to this session. */ }
+}
+
+// Full auto is the default for new players (author ruling 2026-10-28); its warning shows once,
+// at the first start in full auto or the first switch to it.
+const fullAutoNoticeKey = "vua-amf-full-auto-notice-v01";
+export function fullAutoNoticeSeen(): boolean {
+  try { return localStorage.getItem(fullAutoNoticeKey) === "seen"; } catch { return false; }
+}
+export function rememberFullAutoNotice(): void {
+  try { localStorage.setItem(fullAutoNoticeKey, "seen"); } catch { /* The notice shows again next session. */ }
+}
+export function needsFullAutoNotice(level: AutomationLevel, seen: boolean = fullAutoNoticeSeen()): boolean {
+  return level === "full" && !seen;
 }
 
 /** When a run started: AMF run IDs are `n3-` plus a UUIDv7, whose first 48 bits are milliseconds since 1970. */
@@ -123,10 +136,12 @@ export function lineLabels(runs: readonly { runId: string; sourceNames: readonly
     const twins = named.filter(other => other.name === name);
     if (twins.length < 2) { labels.set(run.runId, { name, extra: null }); continue; }
     const started = runStartedAt(run.runId);
-    const stamp = started ? time(started) : run.runId.slice(-6);
-    const sameStamp = twins.filter(other => { const at = runStartedAt(other.run.runId); return (at ? time(at) : other.run.runId.slice(-6)) === stamp; })
-      .sort((a, b) => a.run.runId.localeCompare(b.run.runId));
-    labels.set(run.runId, { name, extra: sameStamp.length > 1 ? `${stamp} · #${sameStamp.findIndex(other => other.run.runId === run.runId) + 1}` : stamp });
+    const order = (group: typeof twins) => [...group].sort((a, b) => a.run.runId.localeCompare(b.run.runId)).findIndex(other => other.run.runId === run.runId) + 1;
+    // A run id without a start time carries no readable stamp; number the twins instead of showing id fragments.
+    if (!started) { labels.set(run.runId, { name, extra: `#${order(twins.filter(other => !runStartedAt(other.run.runId)))}` }); continue; }
+    const stamp = time(started);
+    const sameStamp = twins.filter(other => { const at = runStartedAt(other.run.runId); return at !== null && time(at) === stamp; });
+    labels.set(run.runId, { name, extra: sameStamp.length > 1 ? `${stamp} · #${order(sameStamp)}` : stamp });
   }
   return labels;
 }

@@ -16,6 +16,7 @@
 }
 
 .vua-content-dialog {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: min(1040px, 94vw);
@@ -23,10 +24,11 @@
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
   background: var(--vua-bg-elevated);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--vua-bg-canvas) 60%, transparent);
+  box-shadow: var(--vua-dialog-frame, 0 12px 40px color-mix(in srgb, var(--vua-bg-canvas) 60%, transparent));
 }
 
 .vua-content-dialog__header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -36,12 +38,39 @@
 }
 
 .vua-content-dialog__title {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
   font: var(--vua-font-title);
   font-weight: var(--vua-weight-strong);
-  color: var(--vua-text-strong);
+  color: var(--vua-heading-color, var(--vua-text-strong));
+}
+
+/* A theme's trim hangs from the dialog's lower edge, like a hem. */
+.vua-content-dialog::after {
+  content: var(--vua-motif-glyphs, none);
+  position: absolute;
+  inset-inline: 20%;
+  bottom: -9px;
+  height: 12px;
+  background: var(--vua-trim-image, none) center / auto 12px repeat-x;
+  pointer-events: none;
+}
+
+/* A theme's mark sits before the title. */
+.vua-content-dialog__title::before {
+  content: var(--vua-motif-glyphs, none);
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-inline-end: var(--vua-space-2);
+  vertical-align: -4px;
+  background-color: var(--vua-accent);
+  mask: var(--vua-glyph-mark) center / contain no-repeat;
 }
 
 .vua-content-dialog__close {
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--vua-text-secondary);

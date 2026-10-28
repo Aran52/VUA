@@ -161,7 +161,7 @@ fn wire_run(run: ProductionRun) -> Value {
     object.remove("appliedFits");
     object.remove("observedAt");
     // A version list shows each record's summary; the full replay state stays in the record.
-    if let Some(revisions) = value["revisions"].as_array_mut() {
+    if let Some(revisions) = value.get_mut("revisions").and_then(Value::as_array_mut) {
         for revision in revisions {
             revision
                 .as_object_mut()
@@ -184,6 +184,7 @@ fn route(
     method: &str,
     request: &Value,
 ) -> Result<Value, vua_orchestrator::AppErrorV1> {
+    if let Some(result) = super::amf_share_routes::route(&service, method, request) { return result; }
     if let Some(result) = super::amf_release_routes::route(&service, method, request) {
         return result;
     }
@@ -662,6 +663,29 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use vua_orchestrator::{NanosTaskIdGenerator, SqliteTaskStore, SystemClock};
+
+    #[test]
+    fn wire_run_preserves_absent_revisions_and_hides_retained_replay_state() {
+        let mut run: ProductionRun = serde_json::from_value(json!({
+            "schemaVersion":"0.1", "runId":"n3-wire", "phase":"ready", "taskId":"task-wire",
+            "editor":{"path":"Unity.exe","version":"2022.3.22f1"}, "projectRoot":"synthetic-project",
+            "choices":[], "sources":[], "prefabs":[], "projectFingerprint":"", "unityFingerprint":"",
+            "steps":[], "selection":null, "confirmedDigest":null, "result":null, "error":null, "recovery":null
+        })).unwrap();
+        assert!(wire_run(run.clone()).get("revisions").is_none(),
+            "An empty optional version list must stay absent, not become null");
+        run.revisions.push(serde_json::from_value(json!({
+            "id":"rev-wire", "before":"assembly", "takenAt":"2026-10-25T00:00:00Z",
+            "state":{}, "summary":{"avatar":null,"outfits":[],"sources":[],"lightingMaterials":0,"sdkFixes":[]},
+            "editedInUnity":false
+        })).unwrap());
+        let view = wire_run(run);
+        let revisions = view.get("revisions").and_then(Value::as_array).unwrap();
+        assert_eq!(revisions.len(), 1);
+        assert_eq!(revisions[0]["id"], "rev-wire");
+        assert_eq!(revisions[0]["summary"]["lightingMaterials"], 0);
+        assert!(revisions[0].get("state").is_none(), "Replay state stays inside the local record");
+    }
 
     #[test]
     fn work_whose_task_ended_reads_interrupted_with_its_usual_durations() {

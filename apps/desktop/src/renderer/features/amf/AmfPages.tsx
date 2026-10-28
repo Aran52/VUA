@@ -10,13 +10,14 @@ import { FactoryMap } from "./FactoryMap.tsx";
 import { AmfRoom } from "./AmfRoom.tsx";
 import { ReleasePage } from "../release/ReleasePage.tsx";
 import { strings } from "../../i18n/index.ts";
+import { ShapeScope } from "../../components/primitives/ShapeScope.tsx";
 export default function AmfPages({ page, navigate, prepareEnv }: {
   page: PageId; creatorReady: boolean; navigate: (page: PageId) => void; prepareEnv: () => void;
 }) {
-  if (page === "avatar-hub") return <FactoryMap navigate={navigate} />;
+  if (page === "avatar-hub") return <ShapeScope value="amf"><FactoryMap navigate={navigate} /></ShapeScope>;
   // Settings → Debugging information: the factory's production records.
   if (page === "settings-debug") return <ReleasePage onNavigate={navigate} heading={strings.nav.pages.settingsDebug} />;
-  return <AmfRoom page={page} navigate={navigate}><RoomPage page={page} navigate={navigate} prepareEnv={prepareEnv} /></AmfRoom>;
+  return <ShapeScope value="amf"><AmfRoom page={page} navigate={navigate}><RoomPage page={page} navigate={navigate} prepareEnv={prepareEnv} /></AmfRoom></ShapeScope>;
 }
 
 function RoomPage({ page, navigate, prepareEnv }: { page: PageId; navigate: (page: PageId) => void; prepareEnv: () => void }) {

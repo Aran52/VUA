@@ -1,6 +1,6 @@
 # Contract and decision registry
 
-> Updated: 2026-10-28
+> Updated: 2026-10-29
 
 Contracts, schema directories and decisions with their version, status, owner and last review date. [Documentation governance](meta/documentation-governance.md) defines the statuses and when a row changes. Earlier registry contents, including other document versions, remain in Git history and [the archive](archive/2026-09-29/registry-before-simplification.md).
 
@@ -14,7 +14,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
 | docs/protocols/ai-tools-v0.1.md | 0.9.0 | Candidate | Integration | 2026-10-24 |
-| docs/protocols/amf-production-v0.1.md | 0.36.0 | Candidate | AMF | 2026-10-25 |
+| docs/protocols/amf-production-v0.1.md | 0.37.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -71,6 +71,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/project-inspection-v0.2.md | 0.2 | Frozen | Environment | 2026-09-09 |
 | docs/protocols/project-ops-v0.2.md | 0.2 | Frozen | Core | 2026-09-12 |
 | docs/protocols/provider-process-v0.1.md | 0.3 | Implementation baseline | Core | 2026-10-10 |
+| docs/protocols/recipe-image-share-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-selection-draft-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
 | docs/protocols/share-links-v0.1.md | 0.1.0 | Candidate | AMF / Hosting | 2026-10-28 |
@@ -98,9 +99,10 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/windows-update-plans-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-ui-runtime-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
 | docs/protocols/amf-data-recovery-v0.1.md | 0.1 | Candidate | Integration | 2026-10-26 |
+| schemas/share-links/v0.1 | 0.1 | Candidate code vectors | AMF | 2026-10-29 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
-| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-24 |
+| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-29 |
 | schemas/amf-recipe/v0.4 | 0.4 | Candidate | AMF | 2026-10-20 |
 | schemas/amf-recipe/v0.5 | 0.5 | Candidate | AMF | 2026-10-24 |
 | schemas/application-contract/v0.1 | 0.1 | Frozen | Core | 2026-09-15 |

@@ -184,6 +184,7 @@ fn route(
     method: &str,
     request: &Value,
 ) -> Result<Value, vua_orchestrator::AppErrorV1> {
+    if let Some(result) = super::amf_share_routes::route(&service, method, request) { return result; }
     if let Some(result) = super::amf_release_routes::route(&service, method, request) {
         return result;
     }

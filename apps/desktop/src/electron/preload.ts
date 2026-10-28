@@ -1,3 +1,4 @@
+import { isReceivedRecipeLink, isPublishedRecipeLink, isShareImageSaved } from "@vua/contracts";
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
 import type {
   ApplicationEventV01,
@@ -168,6 +169,21 @@ const api: VuaDesktopApiV7 = Object.freeze({
     invoke: (request: DesktopGatewayRequestV1) => ipcRenderer.invoke("vua:gateway:invoke", request),
   }),
   dialog: Object.freeze({
+    recipeSharing: Object.freeze({
+      exportImage:(options:import("@vua/contracts").ShareImageOptions)=>ipcRenderer.invoke("vua:share:export",options).then(value => { if (!isShareImageSaved(value)) throw new Error("share_invalid"); return value; }),
+      readInput:(text:string)=>ipcRenderer.invoke("vua:share:read",text).then(value => { if (!isReceivedRecipeLink(value)) throw new Error("share_invalid"); return value; }),
+      readImage:(files:readonly File[])=>{
+        if(!Array.isArray(files)||files.length!==1)return Promise.reject(new Error("share_image_invalid"));
+        const paths=files.map(file=>webUtils.getPathForFile(file));
+        if(paths.some(value=>!value))return Promise.reject(new Error("share_image_invalid"));
+        return ipcRenderer.invoke("vua:share:read-image",paths).then(value => { if (!isReceivedRecipeLink(value)) throw new Error("share_invalid"); return value; });
+      },
+      list:(recipeId?:string)=>ipcRenderer.invoke("vua:share:list",recipeId).then(value => { if (!Array.isArray(value) || !value.every(isPublishedRecipeLink)) throw new Error("share_invalid"); return value; }),
+      withdraw:(code:string)=>ipcRenderer.invoke("vua:share:withdraw",code),
+      hasPending:()=>ipcRenderer.invoke("vua:share:has-pending"),
+      takePending:()=>ipcRenderer.invoke("vua:share:take-pending"),
+      subscribe:(listener:()=>void)=>{const wrapped=()=>listener();ipcRenderer.on("vua:share:pending",wrapped);return()=>ipcRenderer.removeListener("vua:share:pending",wrapped);},
+    }),
     copyRecipeShare: (document: import("@vua/contracts").AmfSharedRecipe) => ipcRenderer.invoke("vua:recipe:copy-share", document),
     saveRecipeShare: (document: import("@vua/contracts").AmfSharedRecipe) => ipcRenderer.invoke("vua:recipe:save-share", document),
     pickMaterialSource: (intake: "direct_unity_package" | "local_reusable_vpm") =>
@@ -431,3 +447,19 @@ const api: VuaDesktopApiV7 = Object.freeze({
 });
 
 contextBridge.exposeInMainWorld("vua", api);
+
+// File paths are obtained only in preload. The renderer sees the verified declaration.
+if (typeof window !== "undefined") {
+window.addEventListener("dragover", event => {
+  if (event.dataTransfer?.types.includes("Files") && !(event.target instanceof Element && event.target.closest("[data-share-drop],input,textarea"))) event.preventDefault();
+});
+window.addEventListener("drop", event => {
+  if (event.target instanceof Element && event.target.closest("[data-share-drop],input,textarea")) return;
+  const files = [...event.dataTransfer?.files ?? []];
+  if (files.length !== 1 || !/\.(png|jpe?g|gif|webp)$/iu.test(files[0]!.name)) return;
+  event.preventDefault(); event.stopPropagation();
+  const file = webUtils.getPathForFile(files[0]!);
+  if (file) void ipcRenderer.invoke("vua:share:queue-image", [file]);
+});
+
+}

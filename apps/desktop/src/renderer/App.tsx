@@ -1188,6 +1188,16 @@ export function App() {
     }
   }
 
+  useEffect(() => {
+    const sharing = window.vua?.dialog?.recipeSharing;
+    if (!sharing || showOnboarding) return;
+    let active = true;
+    const reveal = () => { if (active) navigate("recipe"); };
+    void sharing.hasPending().then(value => { if (value) reveal(); }).catch(() => {});
+    const unsubscribe = sharing.subscribe(reveal);
+    return () => { active = false; unsubscribe(); };
+  }, [showOnboarding]);
+
   // 深链接:用户粘贴/回退产生 hashchange 时同步页面(navigate 写入的同值不回环)
   useEffect(() => {
     if (showOnboarding) return;

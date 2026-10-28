@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.36.0
+> Document version: 0.37.0
 > Status: Candidate
-> Updated: 2026-10-25
+> Updated: 2026-10-29
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -776,7 +776,16 @@ therefore a floor where they appear. The evidence and its bounds are the Bridge'
 is a source estimate (`evidence: "unity_source_estimate"`), never the SDK's built cost, which
 the SDK's own check reports after assembly.
 
+## Recipe image export and import
+
+[Recipe image sharing v0.1](recipe-image-share-v0.1.md) owns the two additive native methods,
+controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transport and local
+withdrawal ownership. They retain the existing provider frame limit and import preview.
+
 ## Document changelog
+
+- 0.37.0 (2026-10-29): add bounded turntable image export and image-carrier reads; link transport and publication ownership stay in Main.
+
 
 - 0.36.0 (2026-10-25): add Recipe v0.5 material checklists, explicit package choices and digest-bound difference confirmation; retain v0.4 preparation and switch options in both Recipe generations.
 

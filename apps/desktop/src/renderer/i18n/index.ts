@@ -28,3 +28,5 @@ export { TERMS, termLabel, termNote, termSequence, type TermId } from "./terms.t
 
 export { formatDateMinute, formatDateTime, formatShortDateTime } from "./date-time.ts";
 export { presentationCopy } from "./presentation-copy.ts";
+
+export { recipeShareCopy, recipeShareError } from "./recipe-share.ts";

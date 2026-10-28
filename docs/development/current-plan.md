@@ -1,10 +1,12 @@
 # Current development plan
 
-> Updated: 2026-10-27
+> Updated: 2026-10-29
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The
 [N sequence](../development-outline.md) keeps the acceptance rows; this plan sets the order.
+Until the freeze release is published, the [freeze plan](freeze-plan.md) sets the order instead
+and says which rows stop now.
 
 ## Where things stand
 

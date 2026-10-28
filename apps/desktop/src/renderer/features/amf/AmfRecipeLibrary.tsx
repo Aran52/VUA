@@ -21,7 +21,7 @@ export function AmfRecipeLibrary({ onOpen, disabled = false, refreshKey = 0 }: {
   const [importOpen, setImportOpen] = useState(false);
   const [incoming, setIncoming] = useState<PendingRecipeShare | null>(null);
   useEffect(() => {
-    const sharing = window.vua?.dialog.recipeSharing;
+    const sharing = window.vua?.dialog?.recipeSharing;
     if (!sharing || disabled) return;
     let alive = true;
     const take = () => { void sharing.takePending().then(value => { if (alive && value) { setIncoming(value); setImportOpen(true); } }).catch(() => {}); };

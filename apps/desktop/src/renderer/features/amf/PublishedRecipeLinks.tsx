@@ -5,7 +5,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { recipeShareCopy as copy, recipeShareError } from "../../i18n/index.ts";
 
 export function PublishedRecipeLinks() {
-  const sharing = window.vua?.dialog.recipeSharing;
+  const sharing = window.vua?.dialog?.recipeSharing;
   const [links, setLinks] = useState<readonly PublishedRecipeLink[]>([]), [nonce, setNonce] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [notice, setNotice] = useState<string | null>(null);
   useEffect(() => { let alive = true; void sharing?.list().then(value => { if (alive) setLinks(value); }).catch(e => { if (alive) setError(recipeShareError(e)); }); return () => { alive = false; }; }, [sharing, nonce]);

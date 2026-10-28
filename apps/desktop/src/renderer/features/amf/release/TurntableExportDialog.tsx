@@ -9,7 +9,7 @@ import { strings, recipeShareCopy as copy, recipeShareError } from "../../../i18
 import { AmfRecipeShareDialog } from "../AmfRecipeShareDialog.tsx";
 
 export function TurntableExportDialog({ runId, onClose }: { runId: string; onClose(): void }) {
-  const gateway = useGateway(), sharing = window.vua?.dialog.recipeSharing;
+  const gateway = useGateway(), sharing = window.vua?.dialog?.recipeSharing;
   const [format, setFormat] = useState<"png" | "gif">("png");
   const [frame, setFrame] = useState(0), [photo, setPhoto] = useState<string | null>(null);
   const [include, setInclude] = useState(false), [confirmed, setConfirmed] = useState(false);

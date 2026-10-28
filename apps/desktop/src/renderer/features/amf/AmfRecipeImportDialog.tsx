@@ -9,7 +9,7 @@ const copy = strings.amfProduction;
 export function AmfRecipeImportDialog({ onClose, onImported, onOpen, initial }: {
   onClose: () => void; onImported: () => void; onOpen: (recipeId: string) => void; initial?: PendingRecipeShare | null;
 }) {
-  const port = useGateway().amfProduction, sharing = window.vua?.dialog.recipeSharing;
+  const port = useGateway().amfProduction, sharing = window.vua?.dialog?.recipeSharing;
   const [image, setImage] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<AmfSharedRecipe | null>(null);

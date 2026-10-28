@@ -1185,7 +1185,7 @@ export function App() {
   }
 
   useEffect(() => {
-    const sharing = window.vua?.dialog.recipeSharing;
+    const sharing = window.vua?.dialog?.recipeSharing;
     if (!sharing || showOnboarding) return;
     let active = true;
     const reveal = () => { if (active) navigate("recipe"); };

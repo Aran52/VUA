@@ -44,7 +44,19 @@
     --vua-surface-highlight: none;
     --vua-shine: none;
   --vua-action-shadow: none;
-  --vua-card-inset: none;
+  --vua-card-material: none;
+  --vua-card-decor: none;
+  --vua-header-edge: none;
+  --vua-trim-image: none;
+  --vua-button-gloss: none;
+  --vua-button-gloss-hover: none;
+  --vua-button-gloss-pressed: none;
+  --vua-dialog-frame: initial;
+  --vua-card-stitch: none;
+  --vua-row-current-stitch: none;
+  --vua-row-current-sheen: none;
+  --vua-motif-glyphs: none;
+  --vua-press-filter: none;
   --vua-header-sheen: none;
   }
 }
@@ -97,7 +109,19 @@
   --vua-surface-highlight: none;
   --vua-shine: none;
   --vua-action-shadow: none;
-  --vua-card-inset: none;
+  --vua-card-material: none;
+  --vua-card-decor: none;
+  --vua-header-edge: none;
+  --vua-trim-image: none;
+  --vua-button-gloss: none;
+  --vua-button-gloss-hover: none;
+  --vua-button-gloss-pressed: none;
+  --vua-dialog-frame: initial;
+  --vua-card-stitch: none;
+  --vua-row-current-stitch: none;
+  --vua-row-current-sheen: none;
+  --vua-motif-glyphs: none;
+  --vua-press-filter: none;
   --vua-header-sheen: none;
   --vua-album-paper: #000000;
   --vua-album-pattern: none;
@@ -126,6 +150,9 @@
   --vua-surface-highlight: none;
   --vua-shine: none;
   --vua-action-shadow: none;
-  --vua-card-inset: none;
+  --vua-card-material: none;
+  --vua-row-current-sheen: none;
+  --vua-motif-glyphs: none;
+  --vua-press-filter: none;
   --vua-header-sheen: none;
 }

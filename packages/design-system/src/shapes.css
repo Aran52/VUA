@@ -31,6 +31,13 @@
   border-radius: var(--vua-shape-corners) !important;
 }
 
+/* List rows are their own role: Grid divides them with square edges, themes round each row. */
+:where(:scope, :scope *):where(.vua-workshop__line) {
+  --vua-shape-role: row;
+  --vua-shape-treatment: quiet;
+  border-radius: var(--vua-corners-row, 0px) !important;
+}
+
 :where(:scope, :scope *):where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
   --vua-shape-role: field;
   --vua-shape-treatment: quiet;

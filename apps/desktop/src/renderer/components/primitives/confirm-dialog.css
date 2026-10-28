@@ -10,11 +10,12 @@
 }
 
 .vua-confirm-dialog {
+  position: relative;
   width: min(560px, calc(100vw - 48px));
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
   background: var(--vua-bg-elevated);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--vua-bg-canvas) 60%, transparent);
+  box-shadow: var(--vua-dialog-frame, 0 12px 40px color-mix(in srgb, var(--vua-bg-canvas) 60%, transparent));
 }
 
 .vua-confirm-dialog__header {
@@ -24,10 +25,33 @@
   padding: var(--vua-space-3) var(--vua-space-3) var(--vua-space-2);
 }
 
+/* A theme's trim hangs from the dialog's lower edge, like a hem. */
+.vua-confirm-dialog::after {
+  content: var(--vua-motif-glyphs, none);
+  position: absolute;
+  inset-inline: 20%;
+  bottom: -9px;
+  height: 12px;
+  background: var(--vua-trim-image, none) center / auto 12px repeat-x;
+  pointer-events: none;
+}
+
+/* A theme's mark sits before the title. */
+.vua-confirm-dialog__title:not([data-danger])::before {
+  content: var(--vua-motif-glyphs, none);
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-inline-end: var(--vua-space-2);
+  vertical-align: -4px;
+  background-color: var(--vua-accent);
+  mask: var(--vua-glyph-mark) center / contain no-repeat;
+}
+
 /* Only a dangerous confirmation colors its title; the rest read like any heading. */
 .vua-confirm-dialog__title {
   font-weight: var(--vua-weight-strong);
-  color: var(--vua-text-strong);
+  color: var(--vua-heading-color, var(--vua-text-strong));
 }
 
 .vua-confirm-dialog__title[data-danger] {
@@ -79,7 +103,11 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--vua-space-2);
-  padding: 0 var(--vua-space-3) var(--vua-space-3);
+  padding: var(--vua-dialog-footer-pad, 0px) var(--vua-space-3) var(--vua-space-3);
+  border-top: var(--vua-dialog-footer-edge, 0 none);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+  background: var(--vua-dialog-footer-fill, transparent);
 }
 
 /* Filled destructive confirmation needs a foreground for each error palette. */

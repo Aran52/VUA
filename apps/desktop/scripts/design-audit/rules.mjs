@@ -210,9 +210,11 @@ export function evaluateSnapshot(snapshot, { rules = ACTIVE_RULES_DEFAULT, exemp
         const elevated = shadow === (snapshot.shadowTokens ?? {})["--vua-shadow-elevated"];
         const actionMaterial = el.tag === "button" && el.cls.includes("vua-button--primary")
           && shadow === (snapshot.shadowTokens ?? {})["--vua-action-shadow"];
+        // A theme may declare a card material (Jirai's soft shadow, author ruling 2026-10-28).
+        const cardMaterial = shadow === (snapshot.shadowTokens ?? {})["--vua-card-material"];
         const floating = el.overlayContext || el.shellStructure
           || el.position === "fixed" || (el.position === "absolute" && el.zIndex >= 600);
-        if (!floating && !glow && !actionMaterial) {
+        if (!floating && !glow && !actionMaterial && !cardMaterial) {
           push(makeFinding("shadow-panel", el, index, { shadow, elevatedShadow: elevated },
             elevated ? "elevated surface shadow on an ordinary panel/card" : "shadow on an ordinary panel/card", "box-shadow"));
         }

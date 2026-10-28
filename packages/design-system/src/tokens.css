@@ -54,7 +54,6 @@
   --vua-shine: none;
   --vua-surface-highlight: none;
   --vua-action-shadow: none;
-  --vua-card-inset: none;
   --vua-header-sheen: none;
 
   /* ---- 字阶 ---- */
@@ -64,8 +63,8 @@
     "Microsoft YaHei UI",
     sans-serif;
   --vua-font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --vua-font-display: 600 28px/36px var(--vua-font-family);
-  --vua-font-title: 600 20px/28px var(--vua-font-family);
+  --vua-font-display: 600 28px/36px var(--vua-font-title-family);
+  --vua-font-title: 600 20px/28px var(--vua-font-title-family);
   --vua-font-body: 400 14px/20px var(--vua-font-family);
   --vua-font-caption: 400 12px/16px var(--vua-font-family);
   /* The same four steps as size and leading pairs, for rules that set a size and keep their own
@@ -101,6 +100,7 @@
   --vua-corners-menu: 4px;
   --vua-corners-progress: 0px;
   --vua-corners-toggle: 2px;
+  --vua-corners-row: 0px;
   --vua-corners-status: var(--vua-radius-control);
   --vua-radius-pill: var(--vua-radius-control);
   --vua-radius-control: 4px;
@@ -111,6 +111,54 @@
   --vua-radius-lg: var(--vua-radius-card);
   --vua-radius-md: var(--vua-radius-control);
   --vua-radius-sm: 2px;
+
+  /* Theme materials. These values are Grid's look; the other presets restyle the same tokens.
+   * Level-1 containers (cards, panels, rooms, step cards) and list rows consume them. */
+  --vua-font-title-family: var(--vua-font-family);
+  --vua-tag-display: inline;
+  --vua-card-material: none;
+  --vua-card-stitch: none;
+  --vua-card-stitch-offset: -4px;
+  --vua-row-border-width: 0 0 1px;
+  --vua-row-fill: transparent;
+  --vua-row-current-stitch: none;
+  --vua-row-current-sheen: none;
+  --vua-light-bar: 2px;
+  --vua-card-decor-inset: 0;
+  --vua-room-name-bar-width: 4px;
+  --vua-press-transform: translateY(1px);
+  --vua-press-filter: none;
+  /* Glyph slots: small one-color motifs drawn as masks in the room or accent color. A theme turns
+   * them on with --vua-motif-glyphs: "" and then provides every --vua-glyph-* image. */
+  --vua-motif-glyphs: none;
+  --vua-glyph-mark: none;
+  --vua-glyph-selected: none;
+  --vua-glyph-empty: none;
+  /* An overlay drawn on large containers: Grid's HUD corner ticks (author ruling 2026-10-28);
+   * the presets swap in a stripe band or a lace hem. */
+  --vua-card-decor:
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px 4px / 10px 1px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px 4px / 1px 10px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) 4px / 10px 1px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) 4px / 1px 10px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px calc(100% - 4px) / 10px 1px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px calc(100% - 4px) / 1px 10px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) calc(100% - 4px) / 10px 1px no-repeat,
+    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) calc(100% - 4px) / 1px 10px no-repeat;
+  /* Grid's light bar on the running step card (author ruling 2026-10-28). */
+  --vua-running-bar: 2px;
+  /* Image tiles: one hangs below the shell header, one along the lower edge of dialogs. */
+  --vua-header-edge: none;
+  --vua-trim-image: none;
+  /* Secondary buttons' finish (Aero: Vista's glossy push buttons), the dialog footer, the main
+   * area's client surface (Aero: a Vista window's client area). */
+  --vua-button-gloss: none;
+  --vua-button-gloss-hover: none;
+  --vua-button-gloss-pressed: none;
+  --vua-dialog-footer-fill: transparent;
+  --vua-client-fill: transparent;
+  --vua-client-edge: none;
+  --vua-client-radius: 0px;
 
   /* ---- 控件尺寸 ---- */
   --vua-control-height-sm: 28px;

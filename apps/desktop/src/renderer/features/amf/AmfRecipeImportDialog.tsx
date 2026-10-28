@@ -56,7 +56,7 @@ export function AmfRecipeImportDialog({ onClose, onImported, onOpen, initial }: 
             <h3>{preview.recipe.title}</h3>
             <p>{format(copy.recipeSummary, { materials: preview.recipe.materials.length, outfits: preview.recipe.outfits.length })}</p>
             <ul>{preview.recipe.materials.map(material => (
-              <li key={material.id}><span>{material.packageName}</span><small>{"BOOTH · " + (typeof preview.sources[material.id] === "string" ? preview.sources[material.id] : (preview.sources[material.id] as { productId: string } | undefined)?.productId ?? "")}</small></li>
+              <li key={material.id}><span>{material.packageName}</span><small>{"BOOTH · " + (typeof preview.sources[material.id] === "string" ? preview.sources[material.id] : (preview.sources[material.id] as { boothProductId: string } | undefined)?.boothProductId ?? "")}</small></li>
             ))}</ul>
           </section>
           <p className="vua-caption vua-text-secondary">{copy.shareStatement}</p>

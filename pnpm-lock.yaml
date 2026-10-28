@@ -112,6 +112,22 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.10.1)(vite@8.2.2(@types/node@24.10.1)(jiti@2.7.0))
 
+  services/recipe-links:
+    dependencies:
+      '@vua/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
 packages:
 
   '@dimforge/rapier3d-compat@0.12.0':

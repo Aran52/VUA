@@ -21,8 +21,8 @@ function MeterRow({ label, percent, detail }: { label: string; percent: number |
   </div>;
 }
 
-/** Summary = remaining mean of available dimensions, with an independent
- * saturation indicator. Detail is portalled outside the glass titlebar. */
+/** Summary names the tightest resource with a three-step state (F6).
+ * Detail is portalled outside the glass titlebar. */
 export function ResourceMonitor() {
   const [snapshot, setSnapshot] = useState<SystemResourceUsageV2 | null>(null);
   const [open, setOpen] = useState(false);
@@ -65,15 +65,20 @@ export function ResourceMonitor() {
   if (snapshot === null) return null;
   const view = usagePercents(snapshot);
   const resourceNames = { cpu: copy.cpu, gpu: copy.gpu, ram: copy.ramShort, vram: copy.vramShort };
-  const constrained = view.constrained ? format(copy.constrained, { resource: resourceNames[view.constrained], percent: view.constrainedPct ?? 0 }) : null;
-  const summary = format(copy.indicatorAria, { percent: view.headroomPct, count: view.measuredCount });
+  const stateWords = { plenty: copy.statePlenty, gettingTight: copy.stateGettingTight, tight: copy.stateTight };
+  const state = stateWords[view.loadState];
+  const summary = view.tightest !== null && view.tightestPct !== null
+    ? format(copy.tightestAria, { resource: resourceNames[view.tightest], percent: view.tightestPct, state })
+    : copy.title;
   return <>
     <button ref={toggleRef} type="button" className="vua-shell__usage vua-caption" aria-expanded={open}
-      aria-label={summary + (constrained ? " · " + constrained : "")} title={summary}
+      aria-label={summary} title={summary}
       data-nav-id="system-resources" onClick={() => setOpen(current => !current)}>
       <Icon name="gauge" size={16} />
-      <span className="vua-shell__usage-value">{format(copy.headroom, { percent: view.headroomPct })}</span>
-      {constrained ? <span className="vua-shell__usage-constrained"><Icon name="warning" size={16} /><span>{constrained}</span></span> : null}
+      {view.tightest !== null && view.tightestPct !== null ? <>
+        <span className="vua-shell__usage-value">{format(copy.tightest, { resource: resourceNames[view.tightest], percent: view.tightestPct })}</span>
+        <span className="vua-shell__usage-state" data-state={view.loadState}>{state}</span>
+      </> : null}
     </button>
     {open ? createPortal(<div ref={panelRef} className="vua-usage-panel" data-vua-native-occluder role="region" aria-label={copy.title} tabIndex={-1}>
       <div className="vua-usage-panel__header">

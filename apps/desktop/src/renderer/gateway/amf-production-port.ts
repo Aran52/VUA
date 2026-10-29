@@ -20,6 +20,8 @@ export interface AmfPrefab {
   readonly sourceId: string; readonly path: string; readonly name: string; readonly isAvatar: boolean;
   readonly prefabGuid?: string; readonly objectPaths?: readonly string[];
   readonly hasSkinnedMesh: boolean; readonly hasMergeArmature: boolean; readonly hasMissingScripts: boolean; readonly humanoidBones: readonly string[];
+  /** Observed VRCFury integration components; absent when an older AMF build did not report it. */
+  readonly hasVrcFury?: boolean;
   /** Work-project-relative PNG rendered for this candidate; read it with `previewImage`. */
   readonly preview?: string;
 }
@@ -251,6 +253,7 @@ const source = (v: unknown): v is AmfProductionSource => record(v) && [v.sourceI
 const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path, v.name].every(text)
   && [v.isAvatar, v.hasSkinnedMesh, v.hasMergeArmature, v.hasMissingScripts].every(p => typeof p === "boolean") && texts(v.humanoidBones)
   && (v.preview === undefined || isAmfPreviewPath(v.preview))
+  && (v.hasVrcFury === undefined || typeof v.hasVrcFury === "boolean")
   && (v.prefabGuid === undefined || (typeof v.prefabGuid === "string" && /^[a-f0-9]{32}$/u.test(v.prefabGuid)))
   && (v.objectPaths === undefined || (texts(v.objectPaths) && v.objectPaths.length <= 2048 && v.objectPaths.every(p => p.length <= 512) && new Set(v.objectPaths).size === v.objectPaths.length));
 const ratings: readonly string[] = AMF_SDK_RATINGS;

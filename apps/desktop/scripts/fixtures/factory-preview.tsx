@@ -43,7 +43,7 @@ const base = (runId: string, phase: AmfProductionRun["phase"], steps: [string, s
   schemaVersion: "0.1", runId, phase, taskId: "task-" + runId, editor: { path: "C:/Unity/Unity.exe", version: "2022.3.22f1" }, projectRoot: "C:/work/" + runId,
   choices: [{ sourceId: "avatar", role: "auto" }, { sourceId: outfit, role: "auto" }], sources: [sources[0]!, sources.find(s => s.sourceId === outfit)!].map(s => ({ ...s, role: s.sourceId === "avatar" ? "avatar" as const : "outfit" as const, sha256: "a".repeat(64) })),
   prefabs: [{ sourceId: "avatar", path: "Assets/Meiyun/Meiyu_改変.prefab", name: "Meiyu_改変", isAvatar: true, hasSkinnedMesh: true, hasMergeArmature: false, hasMissingScripts: false, humanoidBones: ["Head"] },
-    { sourceId: outfit, path: "Assets/Outfit/Outfit.prefab", name: outfit === "outfit" ? "TshirtShorts_Meiyun" : "Meiyun_Costume4", isAvatar: false, hasSkinnedMesh: true, hasMergeArmature: true, hasMissingScripts: false, humanoidBones: [] }],
+    { sourceId: outfit, path: "Assets/Outfit/Outfit.prefab", name: outfit === "outfit" ? "TshirtShorts_Meiyun" : "Meiyun_Costume4", isAvatar: false, hasSkinnedMesh: true, hasMergeArmature: true, hasMissingScripts: false, humanoidBones: [], hasVrcFury: true }],
   steps: steps.map(([key, state, detail]) => ({ key, name: key, state, detail: detail ?? "" })), selection: null, error: null, recovery: null, result: null, snapshotId: null,
 });
 const runs: Record<string, AmfProductionRun> = {

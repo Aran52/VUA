@@ -72,7 +72,7 @@ export function ScenarioPreparation({ intent, checked, onChecked, autoCheck = fa
         {step.id === "unity-license" ? <a href={`#${licenseId}`} onClick={event => { event.preventDefault(); focusLicenseStep(); }}>{copy.licenseStepLink}</a> : null}
       </li>;
     })}</ol> : null}
-    {checked ? <div role="status"><p>{copy.done}</p><ul>{checked.observations.map(fact => <li key={fact.component}>
+    {checked ? <div role="status" data-scenario-software-check><p>{copy.done}</p><ul>{checked.observations.map(fact => <li key={fact.component}>
       <strong>{strings.deployment.components[fact.component as keyof typeof strings.deployment.components] ?? fact.component}</strong>{" · "}{strings.deployment.reasons[fact.presence]}
       {fact.version ? ` (${fact.version})` : ""}
     </li>)}</ul><p>{checked.softwareReady ? copy.ready : copy.missing}</p></div> : null}

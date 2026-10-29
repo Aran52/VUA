@@ -226,7 +226,7 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
         {copy.downloadOrder}{": "}{plan.downloadPolicy.sources.map(source => copy.downloadSources[source]).join(" → ")}<br />
         {plan.downloadPolicy.editorEditions !== undefined ? copy.editorEditionOrder : null}
       </p> : null}
-      <ol>{plan.steps.map(s => <li key={s.component}>
+      <ol data-deployment-plan>{plan.steps.map(s => <li key={s.component}>
         <strong>{copy.components[s.component as keyof typeof copy.components]}</strong>{": "}{copy.actions[s.action]}
         <p className="vua-caption">{copy.reasons[s.reason]}{s.version === null ? "" : ` (${s.version})`}</p>
         {s.location !== null ? <code>{s.location}</code> : null}

@@ -218,13 +218,15 @@ async function run() {
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true'`), `${button} expands inline`);
       assert(await inlineDetailFits(button), `${button} details stay below their own editor or manager card`);
       if (button === 'route-unity2022') {
-        const softwareChecked = 'document.querySelector("#route-unity2022-details .vua-scenario-preparation [role=status] li") && !document.querySelector("#route-unity2022-details .vua-deployment ol li")';
+        const softwareChecked = 'document.querySelector("#route-unity2022-details [data-scenario-software-check] li") && !document.querySelector("#route-unity2022-details [data-deployment-plan]")';
         try { await waitFor(() => js(`!!(${softwareChecked})`), "Automatic Unity software check"); }
         catch (error) { console.error(JSON.stringify({ unityDetails: await js('document.querySelector("#route-unity2022-details")?.innerText.slice(0, 1200)') })); throw error; }
         assert(await js(`!!(${softwareChecked})`), "Unity preparation checks software on first entry without planning or installing");
+        assert(await js(`(() => { const steps = document.querySelectorAll('#route-unity2022-details .vua-scenario-license-step'); return steps.length === 1 && !steps[0].closest('details') && steps[0].getBoundingClientRect().height > 0; })()`), "Unity licensing is a single visible scenario step outside the SOP");
+        assert(await js(`document.querySelectorAll('#route-unity2022-details .vua-unity-license-status > button').length === 1`), "With AMF disabled, the license step offers only installation through the existing plan");
         if (process.env.VUA_TEST_EXPECT_EDITOR_VERSION) {
           const expected = process.env.VUA_TEST_EXPECT_EDITOR_VERSION;
-          assert(await js(`[...document.querySelectorAll('#route-unity2022-details .vua-scenario-preparation [role=status] li')].some(item=>item.textContent.includes(${JSON.stringify(expected)}))`), "The existing Editor's full version is reported on first entry without installation");
+          assert(await js(`[...document.querySelectorAll('#route-unity2022-details [data-scenario-software-check] li')].some(item=>item.textContent.includes(${JSON.stringify(expected)}))`), "The existing Editor's full version is reported on first entry without installation");
           await capture('unity-first-entry');
         }
       }

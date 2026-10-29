@@ -3078,7 +3078,7 @@ rolled_back: "已回滾",
       pending: "翻譯中",
     },
     version: {
-      heading: "VUA 桌面端",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · 早期預覽",
       debugHeading: "除錯模式",
       debugToggle: "顯示商品除錯資訊",

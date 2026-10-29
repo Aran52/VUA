@@ -8,12 +8,15 @@ import { DeploymentPanel } from "../deployer/DeploymentPanel.tsx";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { ModulesPage } from "../modules/ModulesPage.tsx";
 import { UploadEligibilityNote } from "../help/UploadEligibilityNote.tsx";
+import { consumeLicenseStep } from "../deployer/license-step-navigation.ts";
+import { requestProductionRun } from "../amf/production-recipe-navigation.ts";
 const copy = strings.environmentCards;
-export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
+export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; onWorkshop?: (() => void) | undefined }) {
+  const [licenseRequest] = useState(consumeLicenseStep);
   const port = useGateway().environment.managers;
   const [inventory, setInventory] = useState<CreatorManagers | null>(null); const [busy, setBusy] = useState(true); const [failed, setFailed] = useState(false);
   const [purpose, setPurpose] = useState<"pc_avatar" | "quest_avatar">("pc_avatar");
-  const [detail, setDetail] = useState<CreatorEditor | "unity2022" | "unity6" | "unity_hub" | "vcc" | "alcom" | null>(null);
+  const [detail, setDetail] = useState<CreatorEditor | "unity2022" | "unity6" | "unity_hub" | "vcc" | "alcom" | null>(licenseRequest ? "unity2022" : null);
   const [unityVisited, setUnityVisited] = useState(false);
   useEffect(() => { if (detail === "unity2022") setUnityVisited(true); }, [detail]);
   const toggle = (next: NonNullable<typeof detail>) => setDetail(current => typeof current === "object" && current && typeof next === "object" ? current.path === next.path ? null : next : current === next ? null : next);
@@ -43,7 +46,8 @@ export function CreatorPage({ onOpenAmf }: { onOpenAmf: () => void }) {
         <section id="route-unity2022-details" className="vua-environment-detail" hidden={detail !== "unity2022"}>
           {detailHeader(strings.journey.unity2022)}
           <div className="vua-route-platform"><Button aria-pressed={purpose === "pc_avatar"} onClick={() => setPurpose("pc_avatar")}>{strings.journey.pcAvatar}</Button><Button aria-pressed={purpose === "quest_avatar"} onClick={() => setPurpose("quest_avatar")}>{strings.journey.questAvatar}</Button></div>
-          {unityVisited || detail === "unity2022" ? <DeploymentPanel key={purpose} zone="create" purpose={purpose} autoPlan /> : null}
+          {unityVisited || detail === "unity2022" ? <DeploymentPanel key={purpose} zone="create" purpose={purpose} autoPlan focusLicense={licenseRequest !== null}
+            onReturnToWorkshop={licenseRequest?.runId && onWorkshop ? () => { requestProductionRun(licenseRequest.runId!); onWorkshop(); } : undefined} /> : null}
         </section>
       </div>
       <div className="vua-card-entry" data-card-entry="route-unity6">

@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.37.0
+> Document version: 0.38.0
 > Status: Candidate
-> Updated: 2026-10-29
+> Updated: 2026-10-30
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -24,7 +24,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.faceTrackingPlan` | Query | `runId`, `menuId` | Exact imported menu, active owned Avatar, project/revision digest, interactive execution and manual replay/trust warning |
 | `amf.production.faceTrackingPatch` | Command | `runId`, `menuId`, `planDigest`, `confirmTrustedCode: true` | Durable task: snapshot, creator session, independent reinspection, automatic restoration on failure |
 | `amf.production.prepare` | Command | `sources: [{sourceId, role}]`, `editorPath` | Durable `taskId`, `runId` acceptance |
-| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild`, pending Recipe `adjustments` and the estimated synced `parameterBudget` |
+| `amf.production.plan` | Query | `runId`, `selection` | Exact digest-bound selection, effective input roles, `rebuild`, pending Recipe `adjustments`, the estimated synced `parameterBudget` and the pre-assembly `prediction` |
 | `amf.production.assemble` | Command | `runId`, `planDigest`, `selection` | Durable task acceptance |
 | `amf.production.planOutfitRemoval` | Query | `runId`, `sourceId` | Complete owned deletion inventory and digest |
 | `amf.production.removeOutfit` | Command | `runId`, `sourceId`, `planDigest`, `confirmed: true` | Protected removal task; independent reinspection and automatic recovery |
@@ -776,6 +776,43 @@ therefore a floor where they appear. The evidence and its bounds are the Bridge'
 is a source estimate (`evidence: "unity_source_estimate"`), never the SDK's built cost, which
 the SDK's own check reports after assembly.
 
+## Pre-assembly cost prediction
+
+`amf.production.plan` carries `prediction`, the plan's pre-assembly cost estimate for the Avatar
+and every selected outfit. It reuses the two estimates above instead of deriving new ones: the
+texture term decodes each prefab's imported textures with the texture-memory report's rules for
+the `pc` platform (slice 9), and the parameter term is the plan's own `parameterBudget` estimate
+(slice 33), split per outfit. The Bridge observes the remaining facts on each imported
+candidate: triangle and material-slot counts from the candidate's renderers (index counts per
+submesh; every renderer's `sharedMaterials`), mesh buffer bytes from each mesh's own vertex
+layout plus its index buffer, decoded texture bytes over the prefab's dependencies, and the
+`VRCPhysBone` component count by type name so the observation works whether or not the SDK type
+resolves.
+
+`rows` holds one entry per selected candidate — the Avatar first, then the outfits in selection
+order — with `triangles`, `materialSlots`, `textureBytes`, `physBones`, `parameterBits`,
+`uncompressedBytes` and `complete`. `parameterBits` is `null` when the parameter evidence is
+`unknown` (the Avatar's asset was unreadable or an observation was truncated); every other value
+is present whenever the candidate has a footprint. `uncompressedBytes` is the predicted upload
+footprint: decoded textures plus mesh buffers. `total` sums the rows; its `parameterBits` is
+`null` if any row is. `complete` is true when every value of that row was decided — a decoded
+texture whose importer settings the rules cannot decide, a mesh without a readable layout
+(32 bytes per vertex is then assumed), or a missing PhysBone type marks it false while the other
+values stay.
+
+`available` is false, with no rows and no total, when a selected candidate carries no footprint
+observation, which happens for a run inspected by an AMF build that predates it; the page then
+says so and offers a recheck instead of showing zeros.
+
+Tolerance against the built result: triangle, material-slot, PhysBone and parameter-bit counts
+are source-exact for the imported assets, with the parameter figure still a source estimate of
+MA's build-time merge; texture memory is exact when every texture decodes and unknown otherwise;
+the size is expected within 25 % of the SDK's own uncompressed figure, which also counts
+animation data, collider settings and SDK-added buffers that the import does not state. The
+`tolerance` object names this as `counts: "exact"`, `textureBytes: "decoded_estimate"` and
+`uncompressedBytes: "within_25_percent"`. The SDK's measurement after the build remains the
+authoritative number.
+
 ## Recipe image export and import
 
 [Recipe image sharing v0.1](recipe-image-share-v0.1.md) owns the two additive native methods,
@@ -783,6 +820,8 @@ controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transpor
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
 ## Document changelog
+
+- 0.38.0 (2026-10-30): `amf.production.plan` carries `prediction`, the pre-assembly cost of the Avatar and each selected outfit (size, triangles, material slots, texture memory, PhysBones and parameter bits), reusing the texture-memory rules and the parameter estimate; candidates gain an optional `footprint`, and a plan from an older AMF build stays readable without one.
 
 - 0.37.0 (2026-10-29): add bounded turntable image export and image-carrier reads; link transport and publication ownership stay in Main.
 

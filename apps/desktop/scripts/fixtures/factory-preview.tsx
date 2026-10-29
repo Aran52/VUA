@@ -65,6 +65,8 @@ runs.switchline = { ...runs.finished!, runId: "switchline",
   sources: [...runs.finished!.sources, { ...runs.finished!.sources[1]!, sourceId: "costume", itemName: "Meiyun_Costume4_v1.0.0.zip", name: "Meiyun_Costume4.unitypackage" }],
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[1]!, sourceId: "costume", path: "Assets/Costume4/Costume4.prefab", name: "Costume4" }],
   selection: mainSelection, result: { facts: { ...runs.finished!.result!.facts!, observedSelection: mainSelection } } } as AmfProductionRun;
+// The plan review with the pre-assembly cost prediction (freeze row F5).
+runs.prediction = { ...runs.finished!, runId: "prediction", selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] } };
 runs.rebuild = { ...runs.finished!, runId: "rebuild",
   prefabs: [...runs.finished!.prefabs, { ...runs.finished!.prefabs[0]!, path: "Assets/Meiyun/Meiyun.prefab", name: "Meiyun" }],
   selection: { avatarPrefab: "Assets/Meiyun/Meiyu_改変.prefab", outfits: [outfitChoice] },
@@ -156,7 +158,15 @@ const api = {
   // The fits views: the plan names the stored fit the assembly applies, and saving keeps the reported adjustments.
   async plan(runId: string, selection: unknown) { return { runId, planDigest: "c".repeat(64), selection,
     inputs: [{ sourceId: "avatar", name: "Meiyu_改変", role: "avatar" }, { sourceId: "outfit", name: "TshirtShorts", role: "outfit" }],
-    fits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }] }; },
+    fits: [{ sourceId: "outfit", fitId: "fit-1", name: "TshirtShortsForMeiyun" }],
+    // Synthetic pre-assembly prediction values for the visual review; no production claims.
+    prediction: { schemaVersion: "0.1", evidence: "unity_source_estimate", platform: "pc", available: true,
+      tolerance: { counts: "exact", textureBytes: "decoded_estimate", uncompressedBytes: "within_25_percent" },
+      rows: [
+        { sourceId: "avatar", name: "Meiyu_改変", role: "avatar", triangles: 68420, materialSlots: 5, textureBytes: 124153200, physBones: 12, parameterBits: 34, uncompressedBytes: 145647800, complete: true },
+        { sourceId: "outfit", name: "TshirtShorts", role: "outfit", triangles: 31208, materialSlots: 4, textureBytes: 65745000, physBones: 0, parameterBits: 2, uncompressedBytes: 75920000, complete: true },
+      ],
+      total: { triangles: 99628, materialSlots: 9, textureBytes: 189898200, physBones: 12, parameterBits: 36, uncompressedBytes: 221567800, complete: true } } }; },
   async saveFit(runId: string, sourceId: string, name: string) { return { fitId: "fit-new", name, createdAt: "2026-10-23T01:00:00Z", updatedAt: "2026-10-23T01:00:00Z" }; },
 } as unknown as AmfProductionPort;
 // The materials-start views: the library's products mapped to the AMF sources above,
@@ -218,6 +228,7 @@ const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   texture: { run: "texline", clicks: [] },
   switch: { run: "switchline", clicks: ["workshop-station-plan"] },
   "switch-adjust": { run: "switchline", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
+  prediction: { run: "prediction", clicks: ["workshop-station-plan", "workshop-plan-adjust", "workshop-plan-review"] },
   versions: { run: "versions", clicks: ["workshop-station-assemble"] },
   "versions-plan": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-4"] },
   "versions-confirm": { run: "versions", clicks: ["workshop-station-assemble", "workshop-revision-rev-2", "workshop-revision-restore"] },

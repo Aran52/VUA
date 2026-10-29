@@ -141,3 +141,13 @@ html[data-effects="off"] .vua-n3__material { transition: none; }
 .vua-recipe-contents__settings > div { display:flex; gap:12px; justify-content:space-between; }
 .vua-recipe-contents__settings dd { margin:0; font-variant-numeric:tabular-nums; }
 .vua-recipe-contents__link { color:var(--vua-accent-text); border:0; background:none; padding:0; text-align:start; cursor:pointer; }
+
+/* Pre-assembly cost prediction (F5): one row per Avatar or outfit, the total last. */
+.vua-line__prediction { display: grid; gap: var(--vua-space-2); overflow-x: auto; }
+.vua-line__prediction > p { margin: 0; font-weight: var(--vua-weight-strong); }
+.vua-line__prediction-table { width: 100%; border-collapse: collapse; font: var(--vua-font-caption); font-variant-numeric: tabular-nums; }
+.vua-line__prediction-table th, .vua-line__prediction-table td { padding: var(--vua-space-1) var(--vua-space-2); text-align: end; white-space: nowrap; border-bottom: 1px solid var(--vua-border); }
+.vua-line__prediction-table thead th { color: var(--vua-text-secondary); font-weight: var(--vua-weight-strong); }
+.vua-line__prediction-table tbody th { text-align: start; white-space: normal; color: var(--vua-text-strong); }
+.vua-line__prediction-table tbody th small { display: block; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-line__prediction-total th, .vua-line__prediction-total td { border-bottom: 0; font-weight: var(--vua-weight-strong); }

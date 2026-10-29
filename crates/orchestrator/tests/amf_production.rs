@@ -81,7 +81,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec!["Head".into()],
             preview: Some(".vua/previews/cmd/candidate-000.png".into()),
-            prefab_guid:None, object_paths:None,
+            prefab_guid:None, object_paths:None, footprint: None,
             parameter_budget: Some(ParameterBudget {
                 expression_parameters_observed: true,
                 expression_parameters: vec![
@@ -106,7 +106,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
-            prefab_guid:None, object_paths:None,
+            prefab_guid:None, object_paths:None, footprint: None,
             parameter_budget: Some(ParameterBudget {
                 expression_parameters_observed: true,
                 expression_parameters: vec![],
@@ -128,7 +128,7 @@ fn candidates() -> Vec<PrefabCandidate> {
             has_missing_scripts: false,
             humanoid_bones: vec![],
             preview: None,
-            parameter_budget: None, prefab_guid:None, object_paths:None,
+            parameter_budget: None, prefab_guid:None, object_paths:None, footprint: None,
         },
     ]
 }

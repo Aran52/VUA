@@ -101,8 +101,33 @@ export interface AmfProductionPlan {
   /** Estimated synced parameter bits of the assembled Avatar against the 256-bit limit; absent when
    *  the engine predates the estimate. */
   readonly parameterBudget?: AmfParameterBudgetPlanV01;
+  /** Pre-assembly cost prediction for the Avatar and each selected outfit; absent when the
+   *  engine predates the observation. */
+  readonly prediction?: AmfPlanPrediction;
   /** The saved fit the plan applies per source, when one is known; `null` names no fit. Absent when the engine does not report fits. */
   readonly fits?: readonly { readonly sourceId: string; readonly fitId: string | null; readonly name: string | null }[];
+}
+/** One candidate's predicted cost before assembly. `parameterBits` is null when the source
+ *  evidence cannot decide it; `complete` says whether every value was decided. */
+export interface AmfPlanPredictionRow {
+  readonly sourceId: string; readonly name: string; readonly role: "avatar" | "outfit";
+  readonly triangles: number; readonly materialSlots: number; readonly textureBytes: number;
+  readonly physBones: number; readonly parameterBits: number | null;
+  readonly uncompressedBytes: number; readonly complete: boolean;
+}
+export interface AmfPlanPredictionTotal {
+  readonly triangles: number; readonly materialSlots: number; readonly textureBytes: number;
+  readonly physBones: number; readonly parameterBits: number | null;
+  readonly uncompressedBytes: number; readonly complete: boolean;
+}
+/** The plan's pre-assembly cost prediction; `available` is false when a selected candidate
+ *  carries no observation, and the rows are then empty. */
+export interface AmfPlanPrediction {
+  readonly schemaVersion: "0.1"; readonly evidence: "unity_source_estimate"; readonly platform: "pc";
+  readonly available: boolean;
+  readonly tolerance: { readonly counts: "exact"; readonly textureBytes: "decoded_estimate"; readonly uncompressedBytes: "within_25_percent" };
+  readonly rows: readonly AmfPlanPredictionRow[];
+  readonly total?: AmfPlanPredictionTotal;
 }
 export interface AmfProductionAccepted { readonly runId: string; readonly taskId: string }
 export interface AmfSavedRecipe { readonly recipe: AmfRecipeDocument; readonly revision: number; readonly updatedAt: string }
@@ -254,6 +279,24 @@ const prefab = (v: unknown): v is AmfPrefab => record(v) && [v.sourceId, v.path,
   && (v.prefabGuid === undefined || (typeof v.prefabGuid === "string" && /^[a-f0-9]{32}$/u.test(v.prefabGuid)))
   && (v.objectPaths === undefined || (texts(v.objectPaths) && v.objectPaths.length <= 2048 && v.objectPaths.every(p => p.length <= 512) && new Set(v.objectPaths).size === v.objectPaths.length));
 const ratings: readonly string[] = AMF_SDK_RATINGS;
+const count = (v: unknown, max: number): v is number => Number.isSafeInteger(v) && Number(v) >= 0 && Number(v) <= max;
+const predictionTotal = (v: unknown): v is AmfPlanPredictionTotal => record(v)
+  && [v.triangles, v.materialSlots, v.textureBytes, v.physBones, v.uncompressedBytes].every(n => count(n, 1 << 40))
+  && (v.parameterBits === null || count(v.parameterBits, 1 << 20)) && typeof v.complete === "boolean";
+const predictionRow = (v: unknown): v is AmfPlanPredictionRow => record(v) && text(v.sourceId) && text(v.name)
+  && (v.role === "avatar" || v.role === "outfit")
+  && [v.triangles, v.materialSlots, v.textureBytes, v.physBones, v.uncompressedBytes].every(n => count(n, 1 << 40))
+  && (v.parameterBits === null || count(v.parameterBits, 1 << 20)) && typeof v.complete === "boolean";
+/** The pre-assembly prediction: an unavailable document carries no rows and no total; an
+ *  available one carries at least one row and a total whose sums are the rows' sums. */
+export const isAmfPlanPrediction = (v: unknown): v is AmfPlanPrediction => record(v)
+  && v.schemaVersion === "0.1" && v.evidence === "unity_source_estimate" && v.platform === "pc"
+  && record(v.tolerance) && v.tolerance.counts === "exact" && v.tolerance.textureBytes === "decoded_estimate"
+  && v.tolerance.uncompressedBytes === "within_25_percent"
+  && typeof v.available === "boolean" && Array.isArray(v.rows) && v.rows.length <= 64 && v.rows.every(predictionRow)
+  && (v.available
+    ? v.rows.length > 0 && predictionTotal(v.total)
+    : v.rows.length === 0 && v.total === undefined);
 const revisionKinds: readonly string[] = ["materials", "assembly", "rebuild", "sdk_fix", "face_tracking", "editor_save", "outfit_removal", "lighting", "texture_memory", "restore"];
 const revisionSummary = (v: unknown): v is AmfProductionRevisionSummary => record(v)
   && (v.avatar === null || text(v.avatar)) && texts(v.outfits) && texts(v.sources)
@@ -456,6 +499,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
         || !isAmfAssemblySelection(v.selection) || v.preserveOriginals !== true || v.officialSdkChecks !== "not_run" || !editor(v.editor) || !text(v.projectRoot)
         || !v.inputs.every(i => record(i) && text(i.sourceId) && text(i.name) && ["avatar", "outfit", "import_only"].includes(String(i.role)))
         || (v.parameterBudget !== undefined && !isAmfParameterBudgetPlan(v.parameterBudget))
+        || (v.prediction !== undefined && !isAmfPlanPrediction(v.prediction))
         || !planFits(v.fits) || !hasValidAmfRecipeReview(v)) throw new Error("amf_production_plan_invalid");
       return v as unknown as AmfProductionPlan;
     },

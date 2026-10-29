@@ -46,6 +46,7 @@ namespace Vua.Editor.Bridge
             public List<string> humanoidBones = new List<string>();
             public string preview = "";
             public ParameterBudget parameterBudget = new ParameterBudget();
+            public Footprint footprint = new Footprint();
         }
         [Serializable] internal sealed class PreviewImage { public string view; public string path; }
         [Serializable] internal sealed class MaterialUse { public string owner; public string renderer; public string material; }
@@ -342,7 +343,8 @@ namespace Vua.Editor.Bridge
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
                     hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),
-                    parameterBudget = ObserveParameterBudget(prefab, IsAvatar(prefab)) });
+                    parameterBudget = ObserveParameterBudget(prefab, IsAvatar(prefab)),
+                    footprint = ObserveFootprint(prefab, "pc") });
             }
             return candidates;
         }

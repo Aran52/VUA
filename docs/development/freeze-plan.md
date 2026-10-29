@@ -37,7 +37,10 @@ skipped.
 | 3 | The SDK starts signed in after the shared product name change |
 | 19, 26 | Experimental VRChat sign-in and the Avatar list with a real account |
 
-Slice 11 (Unity sign-in and license) finishes its scenario step or hides it from players.
+Slice 11 (Unity sign-in and license) finishes its scenario step (author, 2026-10-29): the
+Avatar-editing preparation shows the license state with one next action, and a production
+license failure opens that step with the line retained. Testing Hub's Unity CLI waits until
+after the freeze.
 
 ### 2. Close the open branches
 
@@ -85,10 +88,29 @@ release. These checks do not block the freeze.
 | --- | --- |
 | VUA on a clean Windows VM | Online and offline installers each install, launch and reach the home screen; record the VM image |
 | External tools | Each of the six connected Steam tools (VRCFT, Space Calibrator, OVR Advanced Settings, OVR Overlay Translator, OVR Toolkit, OyasumiVR) goes from not installed through VUA's Steam handoff to observed installation and launch at least once |
+| Upgrade from v0.7.0 | Installing the freeze release over v0.7.0 keeps material records, Recipes, settings, run history and saved module choices, and VUA reaches the home screen |
+| AMF update without GitHub | On a network where GitHub is unreachable, VUA finds, downloads and activates an independent AMF update from the mainland mirror; record how GitHub was blocked |
 
 LIV and VRCS stay as description cards.
 
-### 5. Freeze release
+### 5. First run and guidance
+
+The author's ruling of 2026-10-28 is part of v1.0.0:
+
+- The first run asks no language question; VUA uses the detected system language.
+- The first launch opens a first-use notice with four parts: what VUA is for, the changelog,
+  "VUA is open source under Apache 2.0 and free to download on GitHub", and links to the
+  third-party licenses. It has two buttons:
+  - **知道了** enters VUA with the existing light, skippable feature tour;
+  - **我完全不知道要做什么** opens a page-by-page wizard joined with the encyclopedia. It starts
+    from "what is VRChat" and introduces one concept per page. Each page has two buttons:
+    **我要这个** sets up or deploys that thing, **我知道了** goes to the next page.
+- Where a concept matters, VUA explains it in place and links to the matching encyclopedia
+  section; for example, the upload step explains the player's trust rank.
+- The encyclopedia reads like a manual — neutral, accurate and concise — with a moderate
+  summary and commentary from an experienced player.
+
+### 6. Freeze release
 
 - The product name becomes **Virtual Unified Assistant** in the app, READMEs, release notes
   and installer metadata.
@@ -125,4 +147,8 @@ These items stop now. Each may come back only through a new decision.
 | 50 | Optional AI connection changes |
 | 52 | Signed releases (already on hold) |
 | 53 | Interface consistency audit beyond its first report |
+| 11 (item 3) | Testing the Unity CLI that Hub installs |
+| — | N7's illustrated user guide with screenshots of the tested release |
+| — | Encrypting saved sign-in cookies, which needs the installer to verify a fused Electron runtime |
+| — | Development dependency upgrades proposed by Dependabot (VUA-Project/VUA#87, #89) |
 | — | Social discovery on VRCX-0, remaining N1 physical rows, N5 real-account review |

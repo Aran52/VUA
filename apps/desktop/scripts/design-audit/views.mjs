@@ -154,7 +154,7 @@ export const FIXTURES = {
 
 // AMF/preview views, including the unavailable repository-action layout.
 const FACTORY_VIEWS = [
-  "map", "map-flight", "map-control", "map-materials", "map-release", "map-workshop",
+  "stations",
   "workshop-running", "workshop-waiting-auto", "workshop-waiting", "workshop-mode-menu",
   "workshop-full-access", "workshop-attention", "workshop-interrupted", "workshop-finished",
   "workshop-materials", "workshop-inspect", "workshop-line-menu", "workshop-delete",
@@ -180,7 +180,7 @@ const FACTORY_VIEWS = [
 ];
 
 function factoryArea(view) {
-  if (view.startsWith("map")) return "factory-map";
+  if (view === "stations") return "factory-map";
   if (view.startsWith("workshop")) return "workshop";
   if (view.startsWith("control")) return "control-center";
   if (view.startsWith("release")) return "release-room";
@@ -194,7 +194,7 @@ function factoryArea(view) {
 
 // The base map composes four room colors by design (design-standard §8.1/§8.2
 // wording for the map composition), so the one-accent rule is exempt there.
-const ONE_ACCENT_EXEMPT = new Set(FACTORY_VIEWS.filter(v => v.startsWith("map")));
+const ONE_ACCENT_EXEMPT = new Set(FACTORY_VIEWS.filter(v => v === "stations"));
 
 function factoryView(id) {
   const review = ["workshop-running", "workshop-waiting", "workshop-finished", "control-packages-repos", "control-packages-repos-disabled"].includes(id);

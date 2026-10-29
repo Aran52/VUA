@@ -42,7 +42,7 @@ namespace Vua.Editor.Bridge
         [Serializable] internal sealed class Candidate
         {
             public string sourceId; public string path; public string name; public string prefabGuid; public List<string> objectPaths = new List<string>(); public bool isAvatar;
-            public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts;
+            public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts; public bool hasVrcFury;
             public List<string> humanoidBones = new List<string>();
             public string preview = "";
             public ParameterBudget parameterBudget = new ParameterBudget();
@@ -318,6 +318,14 @@ namespace Vua.Editor.Bridge
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.material_use.truncated", "Material use was truncated at " + MaxMaterialUse + " entries."));
         }
         private static bool MissingScripts(GameObject prefab) => prefab.GetComponentsInChildren<Component>(true).Any(c => c == null);
+        // VRCFury integration components are recognized by name (the VF namespace or
+        // VRCFury-prefixed types), so the observation works whether or not VRCFury is
+        // installed in the project; presence is an integration hint for the guide, never
+        // proof of a working setup (known packages: com.vrcfury.vrcfury, guide delivery).
+        private static bool HasVrcFury(GameObject prefab) => prefab.GetComponentsInChildren<Component>(true).Any(c =>
+            c != null && (string.Equals(c.GetType().Namespace, "VF", StringComparison.Ordinal)
+                || (c.GetType().Namespace != null && c.GetType().Namespace.StartsWith("VF.", StringComparison.Ordinal))
+                || c.GetType().Name.StartsWith("VRCFury", StringComparison.Ordinal)));
         private static Animator HumanAnimator(GameObject avatar) => avatar.GetComponentsInChildren<Animator>(true).FirstOrDefault(a => a.isHuman);
         private static List<string> Bones(GameObject avatar)
         {
@@ -342,7 +350,7 @@ namespace Vua.Editor.Bridge
                         .Distinct(StringComparer.Ordinal).Take(2048).ToList(),
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
-                    hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),
+                    hasMissingScripts = MissingScripts(prefab), hasVrcFury = HasVrcFury(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),
                     parameterBudget = ObserveParameterBudget(prefab, IsAvatar(prefab)),
                     footprint = ObserveFootprint(prefab, "pc") });
             }

@@ -84,13 +84,15 @@ async function hostAbsentHonestAbsence() {
   check(indicatorAbsent(), "无宿主时指示器整条缺席(不渲染占位假陈述)");
 }
 
-/* ---- ②宿主在场:余量按四项读数平均,弹层四项词面＋aria ---- */
+/* ---- ②宿主在场:顶栏点名最高读数维度(F6),弹层四项词面＋aria ---- */
 async function indicatorAndPanelFullFace() {
   installSystemHost();
   (window as any).__remount();
   await wait();
   const button = toggle();
-  check(button.textContent?.includes("59%"), "顶栏显示四项平均余量=59%");
+  const stateSpan = document.querySelector<HTMLElement>(".vua-shell__usage-state");
+  check(button.textContent?.includes("80%"), "顶栏点名最高读数 GPU=80%(四项 20/80/48/16)");
+  check(stateSpan?.dataset.state === "gettingTight", "80% 读作趋紧(gettingTight)");
   check(button.getAttribute("aria-expanded") === "false", "初始 aria-expanded=false");
   button.click();
   await wait();
@@ -155,7 +157,8 @@ async function vramUnavailableHonestFace() {
   usageMode = "ram-only";
   (window as any).__remount();
   await wait();
-  check(toggle().textContent?.includes("52%"), "仅 RAM 可用时按 RAM 计算余量，不把缺失读数当作零");
+  check(toggle().textContent?.includes("48%"), "仅 RAM 可用时点名 RAM=48%(宽裕),不把缺失读数当作零");
+  check(document.querySelector<HTMLElement>(".vua-shell__usage-state")?.dataset.state === "plenty", "48% 读作宽裕(plenty)");
   toggle().click();
   await wait();
   const text = panel()?.textContent ?? "";

@@ -1,6 +1,11 @@
 import type { SystemResourceUsageV2 } from "@vua/contracts";
 
 export type ResourceKey = "cpu" | "gpu" | "ram" | "vram";
+/** F6: 标题栏不再显示均值余量,而是点名最高读数的维度并给出三档状态。 */
+export type ResourceLoadState = "plenty" | "gettingTight" | "tight";
+/** getting tight 与沿用既有"紧张"警戒线(90%)对齐;70% 起读作趋紧。 */
+export const GETTING_TIGHT_PCT = 70;
+export const TIGHT_PCT = 90;
 export interface ResourceUsagePercents {
   readonly cpuPct: number | null;
   readonly gpuPct: number | null;
@@ -8,10 +13,10 @@ export interface ResourceUsagePercents {
   readonly vramPct: number | null;
   /** Only known dimensions participate; never count unavailable sensors as 0. */
   readonly measuredCount: number;
-  readonly headroomPct: number;
-  /** A nearly full dimension remains visible even when the mean looks healthy. */
-  readonly constrained: ResourceKey | null;
-  readonly constrainedPct: number | null;
+  /** The dimension with the highest reading; null only when nothing is measurable. */
+  readonly tightest: ResourceKey | null;
+  readonly tightestPct: number | null;
+  readonly loadState: ResourceLoadState;
 }
 
 export function percentOf(used: number, total: number): number {
@@ -20,6 +25,13 @@ export function percentOf(used: number, total: number): number {
 }
 const utilization = (value: number | null) =>
   value === null || !Number.isFinite(value) || value < 0 ? null : Math.min(100, Math.round(value));
+
+export function loadStateOf(tightestPct: number | null): ResourceLoadState {
+  if (tightestPct === null) return "plenty";
+  if (tightestPct >= TIGHT_PCT) return "tight";
+  if (tightestPct >= GETTING_TIGHT_PCT) return "gettingTight";
+  return "plenty";
+}
 
 export function usagePercents(snapshot: SystemResourceUsageV2): ResourceUsagePercents {
   const cpuPct = utilization(snapshot.cpuUsagePercent);
@@ -30,10 +42,11 @@ export function usagePercents(snapshot: SystemResourceUsageV2): ResourceUsagePer
   const known = ([["cpu", cpuPct], ["gpu", gpuPct], ["ram", ramPct], ["vram", vramPct]] as const)
     .filter((entry): entry is readonly [ResourceKey, number] => entry[1] !== null);
   const worst = [...known].sort((a, b) => b[1] - a[1])[0];
+  const tightestPct = worst ? worst[1] : null;
   return { cpuPct, gpuPct, ramPct, vramPct, measuredCount: known.length,
-    headroomPct: Math.round(100 - known.reduce((sum, [, value]) => sum + value, 0) / known.length),
-    constrained: worst && worst[1] >= 90 ? worst[0] : null,
-    constrainedPct: worst && worst[1] >= 90 ? worst[1] : null };
+    tightest: worst ? worst[0] : null,
+    tightestPct,
+    loadState: loadStateOf(tightestPct) };
 }
 export function formatGigabytes(bytes: number): string {
   return (bytes / 1024 ** 3).toFixed(1);

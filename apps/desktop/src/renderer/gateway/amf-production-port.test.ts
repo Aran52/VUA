@@ -31,6 +31,8 @@ describe("AMF production response boundary", () => {
     expect(isAmfProductionRun({...run,prefabs:[prefab]})).toBe(true);
     expect(isAmfProductionRun({...run,prefabs:[{...prefab,prefabGuid:"broken"}]})).toBe(false);
     expect(isAmfProductionRun({...run,prefabs:[{...prefab,objectPaths:["same","same"]}]})).toBe(false);
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,hasVrcFury:true}]})).toBe(true);
+    expect(isAmfProductionRun({...run,prefabs:[{...prefab,hasVrcFury:"yes"}]})).toBe(false);
     const plan={schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),selection,inputs:[],preserveOriginals:true,officialSdkChecks:"not_run",editor:run.editor,projectRoot:run.projectRoot,recipeDifferences};
     let response:unknown=plan;const requests:unknown[]=[];
     const client={invoke:async(request:unknown)=>{requests.push(request);return {ok:true,value:response};},subscribe:()=>()=>{}} as unknown as GatewayClient;

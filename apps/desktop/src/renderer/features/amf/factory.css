@@ -1,4 +1,5 @@
-/* AMF base map: a two-floor building cross-section. Rooms carry their own color; status uses icons and text. */
+/* AMF stations: a plain list of the four stations (F1 replaced the code-drawn base map).
+ * Stations keep their own color; status uses icons and text. */
 .vua-factory { display: flex; flex-direction: column; gap: var(--vua-space-4); width: 100%; max-width: 1180px; margin-inline: auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .vua-factory__command { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .vua-factory__command h1 { margin: 0 0 4px; }
@@ -10,81 +11,34 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__alert[data-tone="attention"] { border-color: var(--vua-error); color: var(--vua-error-text); }
 .vua-factory__alert[data-tone="clear"] { color: var(--vua-text-secondary); }
 
-.vua-factory__viewport {
-  --vua-factory-grid: color-mix(in srgb, var(--vua-border) 55%, transparent);
-  position: relative; overflow: hidden; border: 1px solid var(--vua-border-strong); border-radius: var(--vua-radius-card);
-  background-color: var(--vua-bg-canvas);
-  background-image: linear-gradient(var(--vua-factory-grid) 1px, transparent 1px), linear-gradient(90deg, var(--vua-factory-grid) 1px, transparent 1px);
-  background-size: 24px 24px;
+/* Station list: one row per station, its live facts and its Enter button. */
+.vua-stations__list { display: grid; gap: var(--vua-space-3); margin: 0; padding: 0; list-style: none; }
+.vua-stations__item { --room: var(--vua-accent); position: relative; display: grid; grid-template-columns: minmax(120px, auto) minmax(0, 1.1fr) minmax(0, 1fr) auto; align-items: center; gap: 8px var(--vua-space-4); padding: var(--vua-space-4) var(--vua-space-4) var(--vua-space-4) var(--vua-space-5); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-panel); color: var(--vua-text-strong); transition: border-color var(--vua-motion-fast), background-color var(--vua-motion-fast); }
+.vua-stations__item::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--room); }
+.vua-stations__item:hover { border-color: var(--room); background: color-mix(in srgb, var(--room) 7%, var(--vua-bg-panel)); }
+.vua-stations__item[data-room="materials"] { --room: var(--vua-room-materials); }
+.vua-stations__item[data-room="workshop"] { --room: var(--vua-room-workshop); }
+.vua-stations__item[data-room="control"] { --room: var(--vua-room-control); }
+.vua-stations__item[data-room="release"] { --room: var(--vua-room-release); }
+.vua-stations__heading { display: grid; gap: var(--vua-space-1); min-width: 0; }
+.vua-stations__name { margin: 0; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); font-weight: var(--vua-weight-strong); }
+.vua-stations__item .vua-factory__body { align-self: center; max-width: none; }
+.vua-stations__item .vua-factory__enter { justify-self: end; }
+@media (max-width: 760px) {
+  .vua-stations__item { grid-template-columns: minmax(0, 1fr) auto; }
+  .vua-stations__heading { grid-column: 1 / -1; }
+  .vua-stations__item .vua-factory__body { grid-column: 1 / -1; }
+  .vua-stations__item .vua-factory__enter { justify-self: start; }
 }
-.vua-factory__building { position: relative; display: grid; gap: var(--vua-space-4); padding: var(--vua-space-4) var(--vua-space-4) var(--vua-space-4) 52px; transform-origin: 0 0; will-change: transform; }
-.vua-factory__floor { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: var(--vua-space-4); }
-.vua-factory__floor::before {
-  content: attr(data-floor) "F"; position: absolute; inset-inline-start: -40px; top: 6px;
-  font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); letter-spacing: 0.08em; color: var(--vua-text-secondary);
-}
-
-.vua-factory__room {
-  --room: var(--vua-accent);
-  position: relative; min-height: 230px; min-width: 0; color: var(--vua-text-strong); cursor: zoom-in;
-  background: var(--vua-bg-panel); border: 1px solid var(--vua-border);
-  border-radius: var(--vua-radius-card); overflow: hidden;
-  transition: border-color var(--vua-motion-fast), background-color var(--vua-motion-fast), opacity var(--vua-motion-base);
-}
-.vua-factory__room::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--room); z-index: 2; }
-.vua-factory__room:hover { border-color: var(--room); background: color-mix(in srgb, var(--room) 7%, var(--vua-bg-panel)); }
-.vua-factory__room[data-room="materials"] { --room: var(--vua-room-materials); }
-.vua-factory__room[data-room="workshop"] { --room: var(--vua-room-workshop); }
-.vua-factory__room[data-room="control"] { --room: var(--vua-room-control); }
-.vua-factory__room[data-room="release"] { --room: var(--vua-room-release); }
-.vua-factory__scene { position: absolute; inset: 0; opacity: 0.85; transition: opacity var(--vua-motion-base); pointer-events: none; }
-.vua-factory__canvas { display: block; }
-.vua-factory__label { position: relative; z-index: 1; background: linear-gradient(90deg, color-mix(in srgb, var(--vua-bg-panel) 94%, transparent) 0, color-mix(in srgb, var(--vua-bg-panel) 80%, transparent) 46%, transparent 72%); display: grid; grid-template-rows: auto auto auto 1fr auto; gap: var(--vua-space-2); height: 100%; box-sizing: border-box; padding: 16px var(--vua-space-4) var(--vua-space-4) var(--vua-space-5); transition: opacity var(--vua-motion-base); }
-
-.vua-factory__viewport[data-zoomed] .vua-factory__room { cursor: pointer; }
-.vua-factory__viewport[data-zoomed] .vua-factory__room:not([data-zoomed]) { opacity: 0.5; }
-.vua-factory__viewport[data-zoomed] .vua-factory__label { opacity: 0; pointer-events: none; }
-.vua-factory__viewport[data-zoomed] .vua-factory__floor::before { opacity: 0; }
-.vua-factory__room[data-zoomed] .vua-factory__scene { opacity: 1; }
-.vua-factory__room[data-zoomed] { cursor: default; }
 
 .vua-factory__plate { display: flex; align-items: center; justify-content: space-between; color: var(--room); }
 .vua-room__name::before { content: var(--vua-motif-glyphs, none); flex: none; align-self: center; width: 20px; height: 20px; background-color: var(--room); mask: var(--vua-glyph-mark) center / contain no-repeat; }
 .vua-factory__tag { display: var(--vua-tag-display, inline); font-size: var(--vua-text-caption-size); line-height: var(--vua-text-caption-leading); font-weight: var(--vua-weight-strong); letter-spacing: 0.16em; }
-.vua-factory__name { justify-self: start; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--vua-text-display-size); font-weight: var(--vua-weight-strong); line-height: var(--vua-text-display-leading); cursor: pointer; }
-.vua-factory__name:focus-visible, .vua-factory__enter:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 3px; }
+.vua-factory__enter:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 3px; }
 .vua-factory__hint, .vua-factory__muted { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
-.vua-factory__body { display: flex; flex-direction: column; gap: 8px; align-self: end; min-width: 0; max-width: 60%; }
-.vua-factory__room[data-wide] .vua-factory__body { max-width: 52%; }
+.vua-factory__body { display: flex; flex-direction: column; gap: 8px; align-self: end; min-width: 0; }
 .vua-factory__enter { display: inline-flex; align-items: center; gap: var(--vua-space-2); justify-self: start; padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--room) 12%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-factory__enter:hover { background: var(--room); color: var(--vua-accent-contrast); }
-
-/* The zoomed room keeps its interface at normal size above the magnified interior. */
-.vua-factory__panel { --room: var(--vua-accent); position: absolute; inset-inline: 14px; top: 14px; z-index: 3; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--vua-space-2) var(--vua-space-5); padding: 12px 16px 12px var(--vua-space-5); background: color-mix(in srgb, var(--vua-bg-panel) 92%, transparent); border: 1px solid var(--room); border-radius: var(--vua-radius-card); animation: vua-factory-panel var(--vua-motion-base) var(--vua-motion-fast) both var(--vua-motion-ease); }
-.vua-factory__panel::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--room); }
-.vua-factory__panel[data-room="materials"] { --room: var(--vua-room-materials); }
-.vua-factory__panel[data-room="workshop"] { --room: var(--vua-room-workshop); }
-.vua-factory__panel[data-room="control"] { --room: var(--vua-room-control); }
-.vua-factory__panel[data-room="release"] { --room: var(--vua-room-release); }
-.vua-factory__panel h2 { margin: 0; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
-.vua-factory__panel-title { display: grid; gap: var(--vua-space-1); }
-.vua-factory__panel .vua-factory__plate { gap: var(--vua-space-2); justify-content: flex-start; }
-.vua-factory__panel .vua-factory__body { max-width: none; }
-@keyframes vua-factory-panel { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
-
-/* Doors to the neighboring rooms while zoomed. */
-.vua-factory__door { --room: var(--vua-accent); position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--vua-bg-panel) 90%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; animation: vua-factory-panel var(--vua-motion-base) var(--vua-motion-base) both var(--vua-motion-ease); }
-.vua-factory__door:hover { background: var(--room); color: var(--vua-accent-contrast); }
-.vua-factory__door:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
-.vua-factory__door[data-room="materials"] { --room: var(--vua-room-materials); }
-.vua-factory__door[data-room="workshop"] { --room: var(--vua-room-workshop); }
-.vua-factory__door[data-room="control"] { --room: var(--vua-room-control); }
-.vua-factory__door[data-room="release"] { --room: var(--vua-room-release); }
-.vua-factory__door[data-direction="left"] { inset-inline-start: 10px; top: 50%; translate: 0 -50%; }
-.vua-factory__door[data-direction="right"] { inset-inline-end: 10px; top: 50%; translate: 0 -50%; flex-direction: row-reverse; }
-.vua-factory__door[data-direction="up"] { inset-inline-end: 14px; top: 92px; }
-.vua-factory__door[data-direction="down"] { left: 50%; bottom: 10px; translate: -50% 0; }
-
 
 .vua-factory__counts { display: flex; gap: var(--vua-space-4); flex-wrap: wrap; font: var(--vua-font-caption); }
 .vua-factory__counts [data-tone="running"] { color: var(--vua-accent-text); }
@@ -93,26 +47,12 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-factory__line { display: grid; gap: 8px; min-width: 0; }
 .vua-factory__line-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--vua-font-caption); }
 
-/* Station strip, shared by the base map and the workshop. */
-.vua-factory__stations, .vua-line__stations { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--vua-space-2); }
+/* Workshop strip: one segment per station (the base-map variant left with the map). */
+.vua-line__stations { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--vua-space-2); }
 .vua-factory__station-now { font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); }
-/* On the base map the strip is a segmented status bar: one segment per station, the current one taller. */
-.vua-factory__stations { gap: 2px; align-items: end; }
-.vua-factory__stations > span { height: 4px; background: var(--vua-border); }
-.vua-factory__stations > [data-state="done"] { background: var(--vua-success); }
-.vua-factory__stations > [data-state="running"] { background: var(--vua-accent); }
-.vua-factory__stations > [data-state="waiting"] { background: var(--vua-warning); }
-.vua-factory__stations > [data-state="failed"] { background: var(--vua-error); }
-.vua-factory__stations > [data-current] { height: 8px; }
 
-@media (max-width: 760px) {
-  .vua-factory__floor { grid-template-columns: minmax(0, 1fr); }
-  .vua-factory__building { padding-inline-start: var(--vua-space-4); }
-  .vua-factory__floor::before { display: none; }
-}
-/* Resource-saving mode holds the factory still: scenes draw one frame and the camera cuts. */
-[data-effects="off"] .vua-factory__room, [data-effects="off"] .vua-factory__scene { transition: none; }
-[data-effects="off"] .vua-factory__panel, [data-effects="off"] .vua-factory__door { animation: none; }
+/* Resource-saving mode keeps the station list still. */
+[data-effects="off"] .vua-stations__item { transition: none; }
 
 /* Room frame: the room's plate and its tabs above the pages it holds. */
 .vua-room { --room: var(--vua-accent); display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin-inline: auto; }

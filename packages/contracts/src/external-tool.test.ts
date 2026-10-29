@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { EXTERNAL_TOOL_IDS, isExternalToolResult } from "./external-tool.js";
+import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, isExternalToolResult } from "./external-tool.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 import { isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 const vectors = JSON.parse(readFileSync(new URL("../../../schemas/external-tool/v0.2/vectors.json", import.meta.url), "utf8")) as Record<"requests" | "results", { name: string; valid: boolean; value: Record<string, unknown> }[]>;
@@ -17,6 +17,10 @@ describe("external-tool Candidate wire", () => {
     const request = { schemaVersion: 1, requestId: "tool", method: "tools.actConnection", params: { toolId: "vrcft", action: "start", commandId: "one-click" } };
     for (const extra of [{ executable: "cmd.exe" }, { appId: "1" }, { action: "kill" }, { toolId: "custom" }, { toolId: "liv" }, { commandId: "bad command" }]) expect(isDesktopGatewayRequestV1({ ...request, params: { ...request.params, ...extra } })).toBe(false);
     expect(isDesktopGatewayRequestV1({ ...request, method: "tools.observeConnection" })).toBe(false);
+  });
+  it("names each fixed tool for the player's approval", () => {
+    expect(Object.keys(EXTERNAL_TOOL_NAMES).sort()).toEqual([...EXTERNAL_TOOL_IDS].sort());
+    for (const toolId of EXTERNAL_TOOL_IDS) expect(EXTERNAL_TOOL_NAMES[toolId].length).toBeGreaterThan(0);
   });
   it("rejects v0.1 snapshots and out-of-scope tool IDs in observed facts", () => {
     const snapshot = { schemaVersion: "vua.external-tool/v0.2", toolId: "space", capturedAt: "synthetic", presence: "installed", steamReady: true, buildId: "123", running: false, canStop: false, activity: "idle", issue: null };

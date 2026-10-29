@@ -23,6 +23,20 @@ describe("license-step view navigation", () => {
   it("can open the scenario without a production run", () => {
     requestLicenseStep(); expect(consumeLicenseStep()).toEqual({}); expect(consumeLicenseStep()).toBeNull();
   });
+  it("returns to the same run across separate Host and AMF module instances, only once", async () => {
+    vi.resetModules();
+    const host = await import("../amf/production-recipe-navigation.ts");
+    host.requestProductionRun("line-separate-amf");
+    vi.resetModules();
+    const amf = await import("../amf/production-recipe-navigation.ts");
+    expect(amf.takeRequestedProductionRun()).toBe("line-separate-amf");
+    expect(amf.takeRequestedProductionRun()).toBeNull();
+    expect(host.takeRequestedProductionRun()).toBeNull();
+  });
+  it("keeps the existing in-memory return when session storage is unavailable", () => {
+    vi.stubGlobal("sessionStorage", { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } });
+    requestProductionRun("line-memory"); expect(takeRequestedProductionRun()).toBe("line-memory"); expect(takeRequestedProductionRun()).toBeNull();
+  });
   it.each(["", "../line", "line\n", "a".repeat(101), 1, null])("discards invalid run ID %j", runId => {
     values.set(key, JSON.stringify({ runId })); expect(consumeLicenseStep()).toBeNull(); expect(values.has(key)).toBe(false);
   });

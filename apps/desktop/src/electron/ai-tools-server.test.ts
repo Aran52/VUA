@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
+import { EXTERNAL_TOOL_ACTIONS, EXTERNAL_TOOL_IDS, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ExternalToolSnapshot } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
 import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange, taskSummary } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
@@ -81,6 +81,52 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(service.snapshot().requests).toEqual([]);
     expect((await client.callTool({name:"vua_unity_license",arguments:{editorPath:"C:/synthetic/Unity.exe"}})).isError).toBe(true);
     expect(calls).toHaveLength(1);
+  });
+  it.each(EXTERNAL_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
+    const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.2", toolId,
+      capturedAt: "2026-10-29T00:00:00.000Z", presence: "installed", steamReady: true, buildId: "12345",
+      running: false, canStop: false, activity: "idle", issue: null };
+    const { client, calls, service } = await setup(async request => envelope(request, { toolConnection }));
+    const status = await client.callTool({ name: "vua_tool_status", arguments: { toolId } });
+    expect(status.isError).toBeFalsy();
+    expect(data(status).data).toEqual({ toolConnection });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ method: "tools.observeConnection", params: { toolId } });
+    expect(service.snapshot().requests).toEqual([]);
+    for (const action of EXTERNAL_TOOL_ACTIONS) {
+      const before = calls.length;
+      const args = { toolId, action };
+      const queued = await client.callTool({ name: "vua_request_tool", arguments: args });
+      expect(queued.isError).toBeFalsy();
+      const approval = service.snapshot().requests.find(request => request.state === "pending")!;
+      expect(approval).toMatchObject({ tool: "vua_request_tool", state: "pending", details: { parameters: args } });
+      expect(calls.slice(before)).toEqual([expect.objectContaining({ method: "tools.observeConnection", params: { toolId } })]);
+      const duplicate = await client.callTool({ name: "vua_request_tool", arguments: args });
+      expect(data(duplicate).data).toEqual(data(queued).data);
+      expect(calls).toHaveLength(before + 1);
+      const forged = await client.callTool({ name: "vua_request_tool", arguments: { ...args, decision: "approve" } });
+      expect(forged.isError).toBe(true);
+      expect(calls).toHaveLength(before + 1);
+      await service.resolve(approval.id, "approve");
+      expect(calls.slice(before + 1)).toEqual([expect.objectContaining({ method: "tools.actConnection",
+        params: { ...args, commandId: expect.stringMatching(/^ai-/) } })]);
+      expect(service.snapshot().requests.find(request => request.id === approval.id)).toMatchObject({ state: "accepted", result: { toolConnection } });
+    }
+  });
+  it("rejects unknown Steam tool IDs in the MCP schema before observation or approval", async () => {
+    const { client, calls, service } = await setup();
+    const catalog = await client.listTools();
+    for (const name of ["vua_tool_status", "vua_request_tool"]) {
+      const tool = catalog.tools.find(tool => tool.name === name)!;
+      expect(tool.inputSchema.properties?.toolId).toEqual({ enum: [...EXTERNAL_TOOL_IDS] });
+      for (const toolId of ["unknown", "liv", "vrcs"]) {
+        const result = await client.callTool({ name, arguments: { toolId, ...(name === "vua_request_tool" ? { action: "start" } : {}) } });
+        expect(result.isError).toBe(true);
+        expect(data(result)).toHaveProperty("error", "unsupported_tool_or_parameters");
+      }
+    }
+    expect(calls).toEqual([]);
+    expect(service.snapshot().requests).toEqual([]);
   });
   it("reads recorded VN3 terms and checks one use across products without fetching or queueing", async () => {
     const { client, calls, service } = await setup();

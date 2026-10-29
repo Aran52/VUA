@@ -1,6 +1,11 @@
 /** Candidate N2 v0.2: six fixed official Steam connections; hardware/modules stay upstream. */
 export const EXTERNAL_TOOL_IDS = ["vrcft", "space", "advanced", "toolkit", "oyasumi", "translator"] as const;
 export type ExternalToolId = typeof EXTERNAL_TOOL_IDS[number];
+/** Product names, the same in every UI language, shown wherever the player approves an action on a tool. */
+export const EXTERNAL_TOOL_NAMES: Readonly<Record<ExternalToolId, string>> = {
+  vrcft: "VRCFaceTracking", space: "OpenVR Space Calibrator", advanced: "OVR Advanced Settings",
+  toolkit: "OVR Toolkit", oyasumi: "OyasumiVR", translator: "OVR Overlay Translator",
+};
 export const EXTERNAL_TOOL_ACTIONS = ["install", "start", "stop", "cancel"] as const;
 export type ExternalToolAction = typeof EXTERNAL_TOOL_ACTIONS[number];
 export interface ExternalToolSnapshot {

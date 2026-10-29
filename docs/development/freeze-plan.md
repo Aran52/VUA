@@ -1,15 +1,17 @@
 # Freeze plan
 
-> Updated: 2026-10-29 (author's ruling)
+> Updated: 2026-10-30 (author's ruling)
 
-VUA is the first step of PH-R's serial order. It freezes before PH-R headset work starts. This plan
-says what must be true before the freeze, what stops now, and what may change afterwards. It
+VUA is the first step of PH-R's serial order. The freeze is a temporary measure to ship v1.0.0,
+the first stable release that replaces the Beta, before PH-R headset work starts. The author can
+lift it at any time. This plan says what must be true before the freeze, what waits, and what may
+change while it lasts. It
 overrides the order in the [current plan](current-plan.md) until the freeze release is published;
 the [N sequence](../development-outline.md) keeps its acceptance rows.
 
 ## What the freeze means
 
-After the freeze release, VUA receives only:
+While the freeze lasts, VUA receives only:
 
 - bug fixes, including fixes found by players;
 - security updates;
@@ -18,7 +20,8 @@ After the freeze release, VUA receives only:
 - the Pharos settings and controls, when PH-R reaches that stage. This is the one planned
   feature addition and gets its own plan.
 
-Anything else is recorded as a later idea and not started.
+Anything else is recorded under "After the freeze" and waits until the author lifts the freeze or
+admits it by a new decision.
 
 ## Rule while the freeze is open
 
@@ -48,17 +51,43 @@ Every branch with work since v0.7.0 is merged or closed before the freeze. Merge
 state; where a feature is unfinished, hide its entry and record what is missing. Do not finish
 an unfinished feature to close its branch.
 
+Merged into `slice/n3-n4-ma-production` on 2026-10-29 (Aran52/VUA#68–#81): the component
+updates, the theme styles and Grid audit, terms everywhere, turntable sharing, the share-link
+service, local material entry and the first freeze plan.
+
+Still open:
+
 | Branch | Content |
 | --- | --- |
-| `slice/component-update-*` | Independent signed host and AMF updates; merge, because fixes after the freeze ship through it |
-| `slice/theme-styles`, `slice/grid-theme-audit` | Grid, Aero, Tenshi and Jirai presets; keep what is merged, stop slice 13 here |
-| `slice/terms-everywhere`, `slice/turntable-share` | Recipe terms before import, turntable image with a Recipe link |
-| `slice/share-link-service` | Public share links and material pages, served by the trial server in mainland China |
-| `slice/local-material-entry` | Local entry and CI fixes |
+| `slice/unity-license-step` | Slice 11's license step, shown in Avatar-editing preparation, with the run retained across Host and AMF |
+| `slice/steam-tools-acceptance` | All connected Steam tools exposed through MCP, and the tool named on its approval card |
 
 Delete branches that are fully merged.
 
-### 3. AMF checks by the community
+### 3. Last changes before the freeze
+
+Author ruling, 2026-10-30. These rows are the only feature work left before v1.0.0, besides
+section 6. Each row is one slice and one pull request; the slice prompt names its row.
+
+**Remove or hide what players can see but cannot use**
+
+| Row | Change | Done when |
+| --- | --- | --- |
+| F1 | Replace AMF's base map (code-drawn rooms and factory camera) with a plain station list. Warehouse, Recipe, Workshop and Release stay as the player's stations; the production animation goes with the map | The four stations open from the list in every language and both themes, and no screen loads the base map |
+| F2 | Remove the notification panel's "Show completed" setting, which has no effect | The setting is gone and no saved preference refers to it |
+| F3 | Ship the Grid, Aero, Tenshi and Jirai presets | Approved by the author, 2026-10-30 |
+
+**Finish what the core path needs**
+
+| Row | Change | Done when |
+| --- | --- | --- |
+| F4 | Library migration grouping, slice 46 in full: per-directory choices, loose-file grouping, separate display of confirmed, unassigned, excluded and unreadable areas, import of confirmed groups through the existing intake, and the versioned migration manifest | The author migrates a real local collection with wrappers, mixed loose files and nested collections, with every file accounted for |
+| F5 | Pre-assembly prediction, slice 35 item 2: before assembly the plan shows each outfit's size, triangles, material slots, texture memory, PhysBones and parameter bits, reusing slice 9's texture memory and slice 33's parameter-bit estimate | A P-02 plan shows all six values per outfit before assembly, and the built result is within the stated tolerance of the prediction |
+| F6 | The title bar names the tightest resource instead of the mean of CPU, GPU, RAM and VRAM (slice 39 item 1) | During a P-02 run the title bar names the busiest resource at a fixed width |
+| F7 | Recognize outfits that carry VRCFury components and show the VRCFury guide, with VRCFury listed in the known packages as `guide` delivery after its license check (slice 33 item 5) | An outfit with VRCFury components shows the guide at intake |
+| F8 | A minimal user guide: installation, first run, and one complete production from materials to the SDK, with screenshots of the v1.0.0 build in the five UI languages. N7's full illustrated guide waits until after the freeze | The author follows the guide on the clean VM from section 5 without other help |
+
+### 4. AMF checks by the community
 
 AMF's real-material checks move to community testers after v1.0.0 is published. They report
 results as GitHub issues; fixes ship as independent AMF updates, so they do not need a new host
@@ -82,7 +111,7 @@ release. These checks do not block the freeze.
 | P-03 | The N3 minimum case: one real Avatar, at least two actively used dependencies or plugins and at least six other real materials in one project and one run, handed to the SDK |
 | P-04 | The P-03 Recipe rebuilds the same relationships and settings in a second, separate project |
 
-### 4. Fresh installations
+### 5. Fresh installations
 
 | Case | Pass condition |
 | --- | --- |
@@ -93,7 +122,7 @@ release. These checks do not block the freeze.
 
 LIV and VRCS stay as description cards.
 
-### 5. First run and guidance
+### 6. First run and guidance
 
 The author's ruling of 2026-10-28 is part of v1.0.0:
 
@@ -110,8 +139,10 @@ The author's ruling of 2026-10-28 is part of v1.0.0:
 - The encyclopedia reads like a manual — neutral, accurate and concise — with a moderate
   summary and commentary from an experienced player.
 
-### 6. Freeze release
+### 7. Freeze release
 
+- The host becomes a stable release; AMF keeps its Beta label and updates independently, as it
+  does today.
 - The product name becomes **Virtual Unified Assistant** in the app, READMEs, release notes
   and installer metadata.
 - The release notes state that the UI translations have not been reviewed by native speakers.
@@ -127,28 +158,29 @@ The author's ruling of 2026-10-28 is part of v1.0.0:
 
 ## After the freeze
 
-These items stop now. Each may come back only through a new decision.
+These items wait while the freeze lasts. Each may come back through a new decision, or when the
+author lifts the freeze.
 
 | Slices | Item |
 | --- | --- |
-| 13, 22, 23 | Styles beyond the merged presets, motion setting, base map art |
+| 13, 22, 23 | Styles beyond the four approved presets, motion setting; base map art is moot after F1 |
 | 14 | Native review of the five UI languages (allowed after the freeze as a fix) |
 | 15, 16 | Versioned SOPs, Eval runs |
 | 17 (beyond P-03/P-04) | Further complex-production coverage |
 | 18 | Tool and package delivery by license |
 | 24 | Finer usual durations |
-| 32, 34, 35 | Agent interface refinements, evidence layers, start card |
-| 33 (remaining) | The slider, built-result evidence, VRCFury |
+| 32, 34, 35 (except item 2) | Agent interface refinements, evidence layers, start card, release attribution, local lessons |
+| 33 (remaining) | The slider, built-result evidence |
 | 36, 38 | Licensed entry guide, latency calibration |
 | 37 | Creator credits |
-| 39, 40 | Resource panel, notification center redesign |
-| 45–48 | Source hints, library migration, identical-content choice |
+| 39 (except item 1), 40 (except F2) | Resource panel, notification center redesign |
+| 45, 47, 48 | Source hints, migration through the player's agent, identical-content choice |
 | 49, 51 | Turntable sharing and creator-trusted Recipes beyond the merged state |
 | 50 | Optional AI connection changes |
-| 52 | Signed releases (already on hold) |
 | 53 | Interface consistency audit beyond its first report |
 | 11 (item 3) | Testing the Unity CLI that Hub installs |
-| — | N7's illustrated user guide with screenshots of the tested release |
+| — | N7's full illustrated user guide (F8 ships the minimal guide) |
 | — | Encrypting saved sign-in cookies, which needs the installer to verify a fused Electron runtime |
 | — | Development dependency upgrades proposed by Dependabot (VUA-Project/VUA#87, #89) |
 | — | Social discovery on VRCX-0, remaining N1 physical rows, N5 real-account review |
+| — | Platforms beyond Windows x64: Windows on Arm, Linux (Ubuntu, SteamOS), macOS, Android, iOS; planned separately |

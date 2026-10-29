@@ -21,13 +21,14 @@ import "./deployer.css";
 
 const copy = strings.deployment;
 export interface DeploymentCardState { busy: boolean; error: boolean; ready: boolean }
-export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, autoPlan = false }: {
+export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, autoPlan = false, focusLicense = false, onReturnToWorkshop }: {
   zone: CheckZone;
   /** A route chosen by the user; standalone deployment keeps its multi-purpose picker. */
   purpose?: DeploymentPurpose;
   onReadyChange?: (ready: boolean) => void;
   onStateChange?: (state: DeploymentCardState) => void;
   autoPlan?: boolean;
+  focusLicense?: boolean; onReturnToWorkshop?: (() => void) | undefined;
 }) {
   const gateway = useGateway();
   const port = gateway.environment.deployment;
@@ -65,6 +66,13 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
   const [startedAt, setStartedAt] = useState<number | null>(restored?.startedAt ?? null);
   const [now, setNow] = useState(Date.now);
   const command = useRef<string | null>(null);
+  const installationRef = useRef<HTMLDivElement>(null), installationRequested = useRef(false);
+  useEffect(() => {
+    if (plan && installationRequested.current) {
+      installationRequested.current = false;
+      installationRef.current?.scrollIntoView({ block: "center" }); installationRef.current?.focus({ preventScroll: true });
+    }
+  }, [plan]);
   const active = taskId !== null && (task === null || (!isTerminalTaskStateV01(task.state) && task.recoveryDisposition !== "inspect_required"));
 
   // This clock shows elapsed time only. Installer progress comes from adapter events.
@@ -182,7 +190,9 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
     }
   }, [autoPlan, restored, available, active, picoRegion]);
   const preparation = <ScenarioPreparation intent={intent} checked={checkedIntentMatches ? softwareCheck : null}
-    onChecked={setSoftwareCheck} autoCheck={autoPlan && restored === null} disabled={active} />;
+    onChecked={setSoftwareCheck} autoCheck={autoPlan && restored === null} disabled={disabled}
+    focusLicense={focusLicense} onReturnToWorkshop={onReturnToWorkshop}
+    onInstallUnity={() => { if (!available) return; installationRequested.current = true; void replan(); }} installUnavailable={!available} />;
   if (port === undefined || !available) return purpose ? <Card>{preparation}<p role="status">{strings.journey.unavailable}</p>
     <GuideEntryButton target={zone === "play" ? GUIDE_TARGETS.vrchatInstall : { topic: "guide-vua" }} label={strings.journey.guide} /></Card> : preparation;
   return <Card className="vua-deployment">
@@ -208,6 +218,7 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
       <p className="vua-caption">{copy.locationHint}</p>
     </> : null}
     {preparation}
+    <div ref={installationRef} tabIndex={-1}>
     <Button disabled={disabled || purposes.length === 0 || (purposes.includes("pico_pcvr") && picoRegion === "")} onClick={() => { void replan(); }}>{busy ? copy.working : gateway.environment.scenarios ? strings.scenarioEnvironment.plan : copy.plan}</Button>
     {plan !== null ? <>
       {plan.downloadPolicy !== undefined ? <p className="vua-caption">
@@ -215,7 +226,7 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
         {copy.downloadOrder}{": "}{plan.downloadPolicy.sources.map(source => copy.downloadSources[source]).join(" → ")}<br />
         {plan.downloadPolicy.editorEditions !== undefined ? copy.editorEditionOrder : null}
       </p> : null}
-      <ol>{plan.steps.map(s => <li key={s.component}>
+      <ol data-deployment-plan>{plan.steps.map(s => <li key={s.component}>
         <strong>{copy.components[s.component as keyof typeof copy.components]}</strong>{": "}{copy.actions[s.action]}
         <p className="vua-caption">{copy.reasons[s.reason]}{s.version === null ? "" : ` (${s.version})`}</p>
         {s.location !== null ? <code>{s.location}</code> : null}
@@ -229,6 +240,7 @@ export function DeploymentPanel({ zone, purpose, onReadyChange, onStateChange, a
       {!purpose || !routeReady ? <><p>{copy.consent}</p>
       <Button variant="primary" disabled={disabled || plan.steps.some(s => s.action === "inspect")} onClick={() => { void execute(); }}>{copy.execute}</Button></> : null}
     </> : null}
+    </div>
     {task !== null ? <div role="status" aria-live="polite">
       <p>{task.recoveryDisposition === "inspect_required" ? copy.inspectRequired : copy.states[task.state]}</p>
       {step !== null ? <>

@@ -19,6 +19,6 @@ export function PlayLaunch({ onAccounts }: { onAccounts: () => void }) {
   </section>;
 }
 /** Fixed feature routes are independent of wizard choices. */
-export function RouteEnvironmentPage({ zone, onAccounts, onOpenAmf }: { zone: "play" | "create"; onAccounts: () => void; onOpenAmf: () => void }) {
-  return zone === "play" ? <PlayPage onAccounts={onAccounts} /> : <CreatorPage onOpenAmf={onOpenAmf} />;
+export function RouteEnvironmentPage({ zone, onAccounts, onOpenAmf, onWorkshop }: { zone: "play" | "create"; onAccounts: () => void; onOpenAmf: () => void; onWorkshop?: () => void }) {
+  return zone === "play" ? <PlayPage onAccounts={onAccounts} /> : <CreatorPage onOpenAmf={onOpenAmf} onWorkshop={onWorkshop} />;
 }

@@ -29,7 +29,8 @@ import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
-import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
+import { requestLicenseStep } from "../deployer/license-step-navigation.ts";
+import { isUnityLicenseFailure, productionErrorMessage } from "./unity-license-failure.ts";
 import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey, needsFullAutoNotice } from "./factory-model.ts";
 import { FullAutoConfirm, type FullAutoReason } from "./FullAutoConfirm.tsx";
 import "./factory.css";
@@ -127,14 +128,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const observed = await port.list(); setList(observed); setRecipeRefresh(value => value + 1);
       const present = new Set(observed.sources.map(source => source.sourceId));
       setSourceIds(ids => ids.filter(id => present.has(id)));
-    } catch (e) { setError(e instanceof Error ? e.message : unavailable); }
+    } catch (e) { setError(productionErrorMessage(e, unavailable)); }
   }, [port]);
   useEffect(() => { void refreshList(); setRunReload(value => value + 1); }, [refreshList, taskKey]);
   useEffect(() => {
     if (!port || !requestedRecipe) return;
     let alive = true; setRequesting(true); remember(runKey, "");
     void port.getRecipe(requestedRecipe).then(value => { if (alive) setRecipePreview(value); })
-      .catch(e => { if (alive) setError(e instanceof Error ? e.message : copy.taskFailed); })
+      .catch(e => { if (alive) setError(productionErrorMessage(e, copy.taskFailed)); })
       .finally(() => { if (alive) setRequesting(false); });
     return () => { alive = false; };
   }, [port, requestedRecipe]);
@@ -155,7 +156,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         }
         // A reinspection keeps the previous phase until it ends; a running step still needs fresh facts.
         if (["preparing", "inspecting", "assembling", "restoring"].includes(loaded.phase) || loaded.steps.some(step => step.state === "running") || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
-      } catch (e) { if (alive) { loadFailed = true; setError(e instanceof Error ? e.message : unavailable); timer = setTimeout(() => { void load(); }, 2000); } }
+      } catch (e) { if (alive) { loadFailed = true; setError(productionErrorMessage(e, unavailable)); timer = setTimeout(() => { void load(); }, 2000); } }
     };
     void load();
     return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };
@@ -210,7 +211,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   };
   /** Shows a refusal; Unity holding the project offers saving and closing it, then `retry`. */
   const fail = (e: unknown, retry: (() => void) | null = null) => {
-    const message = e instanceof Error ? e.message : copy.taskFailed;
+    const message = productionErrorMessage(e, copy.taskFailed);
     setError(message);
     setCloseOffer(e instanceof AmfProductionError && e.suggestedAction === "amf.production.closeEditor" ? { message, retry } : null);
   };
@@ -233,7 +234,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const accepted = await port.prepareRecipe(recipePreview.recipe.recipeId, editor.path);
       initialized.current = ""; setPlan(null); setRun(null); setSelection(blank); setRestorePlan(null); setSavedRecipe(null); setRecipePreview(null);
       setRunId(accepted.runId); remember(runKey, accepted.runId); setTaskId(accepted.taskId); setTaskAction("prepare");
-    } catch (e) { setError(e instanceof Error ? e.message : copy.taskFailed); }
+    } catch (e) { setError(productionErrorMessage(e, copy.taskFailed)); }
     finally { setRequesting(false); }
   };
   // Fully automatic: the one-sentence plan is the stop; confirming it reviews and assembles in one go.
@@ -244,7 +245,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const reviewed = await port.plan(runId, selection);
       const response = await port.assemble(runId, reviewed);
       setPlan(null); setAdjusting(false); setChosenStation(null); setTaskId(response.taskId); setTaskAction("assemble"); setRunId(response.runId);
-    } catch (e) { setError(e instanceof Error ? e.message : copy.taskFailed); }
+    } catch (e) { setError(productionErrorMessage(e, copy.taskFailed)); }
     finally { setRequesting(false); }
   };
   const selectLine = (id: string) => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(id); remember(runKey, id); setPlan(null); setRestorePlan(null); setAdjusting(false); setError(null); };
@@ -273,7 +274,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const ftLocked = run?.result?.facts?.faceTracking?.manualReplayRequired === true;
   const reviewRestore = () => {
     if (!port) return; setRequesting(true); setError(null);
-    void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+    void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
   };
   const ftRestore = run?.snapshotId ? reviewRestore : null;
   // Fits the working selection would apply, by name; a Recipe's own fits carry no name.
@@ -348,9 +349,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
       onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void command("prepare"); }} />
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
-    {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
-      action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
-      : error !== null && <Alert tone="error" title={copy.error} action={closeOffer !== null && closeOffer.message === error && run !== null
+    {error !== null && isUnityLicenseFailure(error) && !isUnityLicenseFailure(run?.error) ? <Alert tone="warning" title={strings.unityLicense.retry}
+      action={<Button onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
+      : error !== null && !isUnityLicenseFailure(error) && <Alert tone="error" title={copy.error} action={closeOffer !== null && closeOffer.message === error && run !== null
         ? <Popconfirm title={editorClose.confirmTitle} description={editorClose.confirmBody} confirmLabel={editorClose.confirm} cancelLabel={editorClose.cancel}
             onConfirm={() => { void closeUnity(closeOffer.retry); }}>
             <Button variant="subtle" disabled={busy} data-nav-id="workshop-close-unity">{closeOffer.retry ? editorClose.actionContinue : editorClose.action}</Button>
@@ -360,7 +361,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></header>
       {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
         if (!port) return; setRequesting(true); setError(null);
-        void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+        void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
       }}/>}
       {recipePreview && <Card><Button disabled={busy} onClick={() => setSharingRecipe(recipePreview.recipe.recipeId)}>{copy.shareRecipe}</Button><h2>{recipePreview.recipe.title}</h2><p>{format(copy.recipeSummary,{materials:recipePreview.recipe.materials.length,outfits:recipePreview.recipe.outfits.length})}</p>
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
@@ -370,7 +371,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{copy.prepare}</Button></div>
         {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label></details>}
-        <Button variant="subtle" onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
+        <Button variant="subtle" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button>
       </Card>)}
     </> : <>
       <header className="vua-line__header">
@@ -400,15 +401,15 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {!lineBusy(run) && (status === "attention" || status === "stopped") && <Card className="vua-line__attention" data-status={status}>
         <h2>{status === "stopped" ? factory.status.stopped : factory.attentionTitle}</h2>
-        {run.error && /license/iu.test(run.error) ? <><p role="alert">{strings.unityLicense.retryHint}</p>
-          <Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button></>
+        {run.error && isUnityLicenseFailure(run.error) ? <><p role="alert">{strings.unityLicense.retryHint}</p>
+          <Button onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button></>
           : run.error && <p role="alert">{run.error.replace(/^vua.[a-z_.]+ — detail: /u, "")}</p>}
         {run.recovery && <p className="vua-n3__notice">{run.recovery === "restored" ? copy.recovered : copy.recoveryFailed}</p>}
         {interruptedChange(run) && <p>{factory.interrupted.hint}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{factory.newLine}</Button>
           {interruptedChange(run) && run.snapshotId && <Button disabled={busy || requesting} onClick={() => {
             if (!port) return; setRequesting(true); setError(null);
-            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }} data-nav-id="workshop-restore-interrupted">{factory.interrupted.restore}</Button>}
           {run.sources.length > 0 && <Button variant="primary" disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
         <details className="vua-n3__advanced"><summary>{factory.details}</summary><ul className="vua-n3__progress">{run.steps.map((item,index) => <li key={`${item.key}-${index}`} data-state={item.state}>
@@ -498,7 +499,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} data-nav-id="workshop-plan-review" onClick={() => {
           if (!port) return; setRequesting(true); setError(null);
-          void port.plan(runId,selection).then(setPlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+          void port.plan(runId,selection).then(setPlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
         }}>{copy.reviewCta}</Button></div>
       </>}
       {shown === "plan" && run.phase === "succeeded" && port && !busy && <OutfitRemovalCard port={port} run={run} disabled={busy}
@@ -521,7 +522,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {run.snapshotId && !busy && !restorePlan && !plan && run.phase !== "inspect_required" && <>
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => {
             if (!port) return; setRequesting(true); setError(null);
-            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }} data-nav-id="workshop-restore">{copy.restore}</Button></div>
         </>}
       </Card>}
@@ -562,7 +563,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <form onSubmit={event => {
             event.preventDefault(); if (!port) return; setRequesting(true); setError(null);
             void port.saveRecipe(runId,recipeTitle.trim() || run.result?.facts?.avatarName || copy.title).then(setSavedRecipe)
-              .catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+              .catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }}><label className="vua-n3__field">{copy.recipeName}<input value={recipeTitle} maxLength={120} placeholder={run.result.facts.avatarName || copy.title} onChange={e => setRecipeTitle(e.target.value)}/></label>
           <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}

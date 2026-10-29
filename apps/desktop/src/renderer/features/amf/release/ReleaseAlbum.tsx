@@ -3,7 +3,7 @@
  * resource-saving mode the album cuts straight to the next spread. All motion is scripted. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { Icon } from "@vua/design-system";
-import { useEffectsOn } from "../RoomCanvas.tsx";
+import { useEffectsOn } from "../motion.ts";
 import { format, strings } from "../../../i18n/index.ts";
 import { ALBUM_MOTION, dragProgress, durationOf, easingOf, turnCompletes, turnTo, type Turn, type TurnDirection } from "./release-model.ts";
 

@@ -46,6 +46,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/library-entry-metadata-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
+| docs/protocols/library-migration-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-30 |
 | docs/protocols/library-maintenance-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-records-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |

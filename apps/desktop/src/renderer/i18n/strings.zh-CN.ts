@@ -205,7 +205,6 @@ export const strings: Strings = {
     backToOrigin: "回到来源页",
     cancel: "取消",
     clear: "清除",
-    showCompleted: "显示已完成",
     cancelRejected: "该任务当前不可取消",
     retry: "重试",
     retryRejected: "此任务当前无法重试",

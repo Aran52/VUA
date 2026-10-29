@@ -206,8 +206,6 @@ export function NotificationPopover({ navigate, page }: { navigate: (target: Pag
                 <NotificationList
                   notifications={center.notifications}
                   rejectedId={center.rejectedId}
-                  showCompleted={center.showCompleted}
-                  onShowCompletedChange={center.setShowCompleted}
                   onCancel={(id) => void center.cancel(id)}
                   onRetry={(id) => void center.retry(id)}
                   dismissible={center.dismissible}

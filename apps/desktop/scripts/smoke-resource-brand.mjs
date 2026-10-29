@@ -74,18 +74,23 @@ async function run() {
       gpuName: "Synthetic review GPU", gpuKind: "discrete", sampledAt: new Date().toISOString() };
     ipcMain.removeHandler("vua:system:resource-usage-v2");
     ipcMain.handle("vua:system:resource-usage-v2", () => synthetic);
-    await waitFor(() => js('document.querySelector(".vua-shell__usage-value")?.textContent.includes("50%")'), "four-resource headroom");
+    await waitFor(() => js('document.querySelector(".vua-shell__usage-value")?.textContent.includes("80%") && document.querySelector(".vua-shell__usage-state")?.dataset.state==="gettingTight"'), "tightest resource named with a fixed-width state");
     await click("system-resources");
-    assert(await js('document.querySelectorAll(".vua-usage-panel [role=meter]").length===4'), "Details show four named resource meters");
+    // waitFor:面板挂载是点击后的异步提交,立即断言存在竞态(本机复现两次)
+    await waitFor(() => js('document.querySelectorAll(".vua-usage-panel [role=meter]").length===4'), "Details show four named resource meters");
     assert(await js('document.querySelector(".vua-usage-panel").textContent.includes("Synthetic review GPU")'), "Details identify the selected card");
     assert(await js('!document.querySelector(".vua-usage-panel").textContent.includes("采样于")'), "Sampling-time display remains absent");
     await capture("resource-dark-synthetic.png");
     synthetic = { ...synthetic, gpuUsagePercent: 99 };
-    await waitFor(() => js('document.querySelector(".vua-shell__usage-constrained")?.textContent.includes("GPU 99%")'), "saturation indicator");
-    assert(await js('document.querySelector(".vua-shell__usage-value").textContent.includes("35%")'), "Healthy mean does not hide a saturated GPU");
+    await waitFor(() => js('document.querySelector(".vua-shell__usage-value")?.textContent.includes("99%") && document.querySelector(".vua-shell__usage-state")?.dataset.state==="tight"'), "tightest names the saturated GPU as tight");
+    const widthBeforeTight = await js('document.querySelector(".vua-shell__usage-state").getBoundingClientRect().width');
+    const widthBeforeValue = await js('document.querySelector(".vua-shell__usage-value").getBoundingClientRect().width');
     synthetic = { ...synthetic, cpuUsagePercent: null, gpuUsagePercent: null, vramUsedBytes: null, vramTotalBytes: null, gpuName: null, gpuKind: null };
     await waitFor(() => js('document.querySelectorAll(".vua-usage-panel__unavailable").length===3'), "unknown readings");
-    assert(await js('document.querySelectorAll(".vua-usage-panel__unavailable").length===3 && document.querySelector(".vua-shell__usage-value").textContent.includes("40%")'), "Unknown dimensions are shown and excluded from the mean");
+    assert(await js('document.querySelectorAll(".vua-usage-panel__unavailable").length===3 && document.querySelector(".vua-shell__usage-value").textContent.includes("60%") && document.querySelector(".vua-shell__usage-state").dataset.state==="plenty"'), "Unknown dimensions are shown and the tightest falls back to RAM as plenty");
+    const widthAfterPlenty = await js('document.querySelector(".vua-shell__usage-state").getBoundingClientRect().width');
+    assert(Math.abs(widthAfterPlenty - widthBeforeTight) < 0.5, `state keeps a fixed width across updates (tight=${widthBeforeTight} plenty=${widthAfterPlenty})`);
+    assert(await js('Math.abs(document.querySelector(".vua-shell__usage-value").getBoundingClientRect().width - ' + widthBeforeValue + ') < 0.5'), "value keeps a fixed width across updates");
     synthetic = { ...synthetic, cpuUsagePercent: 20, gpuUsagePercent: 40, gpuName: "Synthetic integrated GPU", gpuKind: "integrated" };
     await waitFor(() => js('document.querySelector(".vua-usage-panel").textContent.includes("共享内存")'), "UMA explanation");
     assert(await js('document.querySelectorAll(".vua-usage-panel [role=meter]").length===3'), "Shared-memory graphics do not double-count RAM as VRAM");

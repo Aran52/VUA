@@ -194,7 +194,6 @@ export const strings: Strings = {
     backToOrigin: "원래 페이지로",
     cancel: "취소",
     clear: "지우기",
-    showCompleted: "완료 항목 표시",
     cancelRejected: "지금은 이 작업을 취소할 수 없습니다",
     retry: "재시도",
     retryRejected: "이 작업은 지금 다시 시도할 수 없습니다",

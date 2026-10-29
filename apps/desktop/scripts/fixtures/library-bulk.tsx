@@ -159,7 +159,7 @@ async function run() {
     { id: "transfer-known", title: "Download · synthetic-material-with-a-long-filename.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 5 * 1024 ** 2, expectedBytes: 20 * 1024 ** 2, bytesPerSecond: 2 * 1024 ** 2, sampledAt: Date.now() } },
     { id: "transfer-unknown", title: "Download · unknown-size.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 1024, expectedBytes: null, bytesPerSecond: null, sampledAt: Date.now() } },
     ...(["queued", "preparing", "running", "waitingInput", "paused", "completed", "completedWithWarnings", "failed", "cancelled"] as const).map(status => ({ id: `sync-${status}`, title: `BOOTH library sync · ${status}`, status, originPage: "warehouse" as const, cancellable: status === "running" })),
-  ]} rejectedId={null} showCompleted={false} onShowCompletedChange={() => {}} onCancel={() => {}} onRetry={() => {}} dismissible={() => undefined} onBackToOrigin={() => {}} emptyText={null} replay={null} /></div>);
+  ]} rejectedId={null} onCancel={() => {}} onRetry={() => {}} dismissible={() => undefined} onBackToOrigin={() => {}} emptyText={null} replay={null} /></div>);
   await pause();
   check(document.querySelectorAll("progress").length === 2 && document.querySelectorAll("progress:indeterminate").length === 1, "known size renders measured progress; unknown size remains indeterminate");
   check(text().includes("MiB/s") && text().includes(strings.taskCenter.speedUnavailable), "notification rows show transfer speed and an honest measuring state");

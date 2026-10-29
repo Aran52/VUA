@@ -201,7 +201,6 @@ export const strings = {
     backToOrigin: "Back to origin page",
     cancel: "Cancel",
     clear: "Clear",
-    showCompleted: "Show completed",
     cancelRejected: "This task cannot be cancelled right now",
     retry: "Retry",
     retryRejected: "This task cannot be retried right now",

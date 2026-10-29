@@ -194,7 +194,6 @@ export const strings: Strings = {
     backToOrigin: "元のページへ戻る",
     cancel: "キャンセル",
     clear: "クリア",
-    showCompleted: "完了を表示",
     cancelRejected: "このタスクは現在キャンセルできません",
     retry: "再試行",
     retryRejected: "このタスクは現在再試行できません",

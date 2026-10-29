@@ -121,8 +121,6 @@ function TaskRow({
 export function NotificationList({
   notifications,
   rejectedId,
-  showCompleted,
-  onShowCompletedChange,
   onCancel,
   onRetry,
   dismissible,
@@ -132,8 +130,6 @@ export function NotificationList({
 }: {
   notifications: readonly TaskItem[];
   rejectedId: string | null;
-  showCompleted: boolean;
-  onShowCompletedChange: (value: boolean) => void;
   onCancel: (taskId: string) => void;
   onRetry: (taskId: string) => void;
   dismissible: (task: TaskItem) => (() => void) | undefined;
@@ -161,16 +157,6 @@ export function NotificationList({
       ) : emptyText !== null ? (
         <p className="vua-taskbar__empty vua-caption">{emptyText}</p>
       ) : null}
-      <div className="vua-taskbar__filters">
-        <label className="vua-taskbar__show-completed">
-          <input
-            type="checkbox"
-            checked={showCompleted}
-            onChange={(event) => onShowCompletedChange(event.target.checked)}
-          />{" "}
-          {copy.showCompleted}
-        </label>
-      </div>
       {replay ? (
         <div className="vua-taskbar__devtools">
           <Button variant="subtle" onClick={replay}>

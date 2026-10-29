@@ -38,7 +38,8 @@ export const factoryCopy = {
     panels: {
       materials: { title: "Line materials", change: "Change materials", changeTitle: "Choose the new materials", apply: "Change materials", cancel: "Cancel", unchanged: "Choose a set that differs from the current one.",
         confirmTitle: "Change line materials", confirmBody: "The current work is saved as a restore point, then the new materials are assembled. Earlier results come back from the restore point.", confirm: "Change materials" },
-      inspect: { title: "What Unity found", avatars: "Avatar: {names}", outfits: "{source}: {count} wearable prefabs", checkedAt: "Checked {time}", recheck: "Check again", waiting: "Checked once materials arrive" },
+      inspect: { title: "What Unity found", avatars: "Avatar: {names}", outfits: "{source}: {count} wearable prefabs", checkedAt: "Checked {time}", recheck: "Check again", waiting: "Checked once materials arrive",
+        vrcFury: "VRCFury components were found on: {sources}. VRCFury is not installed by VUA; the components need VRCFury itself from its official page.", vrcFuryGuide: "VRCFury's official page" },
       plan: { waiting: "Planned after the check", current: "The Avatar's current plan",
         fits: "Saved fits apply: {names} — a fit applies only on the same Avatar and the same garment." },
       assemble: { last: "Last assembly: {time}", waiting: "Assembled once the plan is set", },
@@ -204,7 +205,8 @@ export const factoryCopy = {
     panels: {
       materials: { title: "产线原料", change: "更换原料", changeTitle: "选择新的原料", apply: "更换原料", cancel: "取消", unchanged: "选一组和现在不同的原料。",
         confirmTitle: "更换产线原料", confirmBody: "当前工作将被存为还原点，再换上新原料重新装配。历史结果可从还原点恢复。", confirm: "更换原料" },
-      inspect: { title: "Unity 找到的内容", avatars: "Avatar：{names}", outfits: "{source}：{count} 个可穿戴的 Prefab", checkedAt: "检查于 {time}", recheck: "重新检查", waiting: "原料到位后检查" },
+      inspect: { title: "Unity 找到的内容", avatars: "Avatar：{names}", outfits: "{source}：{count} 个可穿戴的 Prefab", checkedAt: "检查于 {time}", recheck: "重新检查", waiting: "原料到位后检查",
+        vrcFury: "在 {sources} 上发现了 VRCFury 组件。VUA 不会安装 VRCFury；这些组件需要从官方页面获取 VRCFury 本体。", vrcFuryGuide: "VRCFury 官方页面" },
       plan: { waiting: "检查完成后定方案", current: "Avatar 当前方案",
         fits: "将套用微调：{names}——微调只对同一个 Avatar、同一件衣服生效。" },
       assemble: { last: "上次装配：{time}", waiting: "方案确定后装配", },
@@ -370,7 +372,8 @@ export const factoryCopy = {
     panels: {
       materials: { title: "產線原料", change: "更換原料", changeTitle: "選擇新的原料", apply: "更換原料", cancel: "取消", unchanged: "選一組和現在不同的原料。",
         confirmTitle: "更換產線原料", confirmBody: "目前工作將被存為還原點，再換上新原料重新裝配。歷史結果可從還原點恢復。", confirm: "更換原料" },
-      inspect: { title: "Unity 找到的內容", avatars: "Avatar：{names}", outfits: "{source}：{count} 個可穿戴的 Prefab", checkedAt: "檢查於 {time}", recheck: "重新檢查", waiting: "原料到位後檢查" },
+      inspect: { title: "Unity 找到的內容", avatars: "Avatar：{names}", outfits: "{source}：{count} 個可穿戴的 Prefab", checkedAt: "檢查於 {time}", recheck: "重新檢查", waiting: "原料到位後檢查",
+        vrcFury: "在 {sources} 上發現了 VRCFury 元件。VUA 不會安裝 VRCFury；這些元件需要從官方頁面取得 VRCFury 本體。", vrcFuryGuide: "VRCFury 官方頁面" },
       plan: { waiting: "檢查完成後定方案", current: "Avatar 目前方案",
         fits: "將套用微調：{names}——微調只對同一個 Avatar、同一件衣服生效。" },
       assemble: { last: "上次裝配：{time}", waiting: "方案確定後裝配", },
@@ -536,7 +539,8 @@ export const factoryCopy = {
     panels: {
       materials: { title: "ラインの素材", change: "素材を入れ替える", changeTitle: "新しい素材を選ぶ", apply: "素材を変更", cancel: "キャンセル", unchanged: "今と違う組み合わせを選んでください。",
         confirmTitle: "ラインの素材を変更", confirmBody: "現在の作業は復元ポイントとして保存され、新しい素材で組み立て直します。以前の結果は復元ポイントから戻せます。", confirm: "素材を入れ替える" },
-      inspect: { title: "Unity が見つけたもの", avatars: "アバター：{names}", outfits: "{source}：着せられる Prefab {count} 個", checkedAt: "{time} にチェック", recheck: "再チェック", waiting: "素材がそろったら検査" },
+      inspect: { title: "Unity が見つけたもの", avatars: "アバター：{names}", outfits: "{source}：着せられる Prefab {count} 個", checkedAt: "{time} にチェック", recheck: "再チェック", waiting: "素材がそろったら検査",
+        vrcFury: "{sources} に VRCFury コンポーネントが見つかりました。VUA は VRCFury をインストールしません。公式ページから VRCFury 本体を入手してください。", vrcFuryGuide: "VRCFury 公式ページ" },
       plan: { waiting: "検査後に計画", current: "アバターの現在の計画",
         fits: "保存済みフィットを適用：{names}——フィットは同じ Avatar と同じ衣装にだけ適用されます。" },
       assemble: { last: "前回の組み立て：{time}", waiting: "計画が決まったら組み立て", },
@@ -702,7 +706,8 @@ export const factoryCopy = {
     panels: {
       materials: { title: "라인 에셋", change: "에셋 바꾸기", changeTitle: "새 에셋 고르기", apply: "에셋 변경", cancel: "취소", unchanged: "지금과 다른 조합을 골라 주세요.",
         confirmTitle: "라인 에셋 변경", confirmBody: "현재 작업은 복원 지점으로 저장되고, 새 에셋으로 다시 조립해요. 이전 결과는 복원 지점에서 되돌릴 수 있어요.", confirm: "에셋 바꾸기" },
-      inspect: { title: "Unity가 찾은 것", avatars: "아바타: {names}", outfits: "{source}: 입힐 수 있는 Prefab {count}개", checkedAt: "{time}에 검사", recheck: "다시 검사", waiting: "에셋이 준비되면 검사" },
+      inspect: { title: "Unity가 찾은 것", avatars: "아바타: {names}", outfits: "{source}: 입힐 수 있는 Prefab {count}개", checkedAt: "{time}에 검사", recheck: "다시 검사", waiting: "에셋이 준비되면 검사",
+        vrcFury: "{sources}에서 VRCFury 컴포넌트를 찾았어요. VUA는 VRCFury를 설치하지 않아요. 공식 페이지에서 VRCFury를 직접 받아 주세요.", vrcFuryGuide: "VRCFury 공식 페이지" },
       plan: { waiting: "검사 후 계획", current: "아바타의 현재 계획",
         fits: "저장된 핏 적용: {names} — 핏은 같은 Avatar와 같은 의상에만 적용돼요." },
       assemble: { last: "지난 조립: {time}", waiting: "계획이 정해지면 조립", },

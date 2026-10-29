@@ -13,6 +13,9 @@ import type { AmfAssemblySelection, AmfOutfitSelection, AmfSourceRole } from "./
 export interface AmfCandidateFacts {
   readonly sourceId: string; readonly path: string; readonly name: string; readonly isAvatar: boolean;
   readonly hasSkinnedMesh: boolean; readonly hasMergeArmature: boolean; readonly hasMissingScripts: boolean;
+  /** Observed VRCFury integration components (VF namespace or VRCFury-prefixed types).
+   * Optional so observations from an older AMF build without this fact stay valid. */
+  readonly hasVrcFury?: boolean;
 }
 export interface AmfSourceFacts { readonly sourceId: string; readonly role: AmfSourceRole; readonly itemName: string }
 export type AmfAvatarReason = "only" | "creator_base" | "package_name" | "top_level";

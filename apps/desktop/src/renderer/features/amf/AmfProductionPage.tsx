@@ -13,6 +13,7 @@ import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
 import { strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { openExternalUrl } from "../../app/open-external.ts";
 import { compactSourceLabel } from "./line-presentation.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
@@ -251,6 +252,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const selectLine = (id: string) => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(id); remember(runKey, id); setPlan(null); setRestorePlan(null); setAdjusting(false); setError(null); };
   const avatars = [...new Map((run?.prefabs.filter(p => p.isAvatar && !p.hasMissingScripts && run.sources.some(s => s.sourceId === p.sourceId && (s.role === "avatar" || s.role === "auto"))) ?? []).map(p => [p.path,p])).values()];
   const avatar = avatars.find(p => p.path === selection.avatarPrefab);
+  // F7: outfits whose observed prefabs carry VRCFury integration components get the
+  // official guide at intake; the observation is a hint, never proof of a working setup.
+  const vrcFuryOutfits = run ? [...new Set(run.prefabs.filter(p => p.hasVrcFury === true && !p.isAvatar)
+    .map(p => run.sources.find(s => s.sourceId === p.sourceId)?.itemName ?? p.sourceId))] : [];
 
   const states = run ? lineStations(run) : null;
   const status: LineStatus | null = run ? lineStatus(run) : null;
@@ -449,6 +454,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             return count > 0 ? <li key={source.sourceId}>{format(panels.inspect.outfits, { source: source.itemName, count })}</li> : null;
           })}
         </ul>}
+        {vrcFuryOutfits.length > 0 && <p role="status" className="vua-n3__notice">{format(panels.inspect.vrcFury, { sources: vrcFuryOutfits.join(" · ") })}
+          <Button variant="subtle" onClick={() => { void openExternalUrl("https://vrcfury.com/download"); }}>{panels.inspect.vrcFuryGuide}</Button></p>}
         {run.result?.diagnostics?.filter(d => d.severity !== "info").map(d => <p role="status" className="vua-n3__notice" key={d.code}>{d.message}</p>)}
         {lastInspection?.endedAt && <p className="vua-caption vua-text-secondary">{format(panels.inspect.checkedAt, { time: formatDateMinute(lastInspection.endedAt) })}</p>}
         <div className="vua-n3__actions"><Button disabled={busy || run.sources.length === 0} onClick={() => { void command("reinspect"); }} data-nav-id="workshop-recheck">{panels.inspect.recheck}</Button></div>

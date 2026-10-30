@@ -64,6 +64,7 @@ AMF が管理し、無効にしてもデータは残ります。
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
 - [v0.7.0 リリースノート](docs/release/v0.7.0_JA.md)
+- [1.0.0 最小ガイド（候補版、五言語）](docs/user-guide/v1.0.0/ja.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 
 ## これまでの歩み

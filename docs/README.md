@@ -32,7 +32,7 @@ Pull requests follow the [protected-main policy](meta/protected-main.md).
 
 | Reader | Read in order | Ready to act when |
 | --- | --- | --- |
-| Player | [Current delivery](../README.md#current-delivery-and-starting-points) → latest release notes in `release/` → [questions and bugs](../CONTRIBUTING.md#reporting-and-assets) | The available build and its known issues are clear |
+| Player | [Current delivery](../README.md#current-delivery-and-starting-points) → latest release notes in `release/` → [1.0.0 candidate minimal guide](user-guide/v1.0.0/README.md) → [questions and bugs](../CONTRIBUTING.md#reporting-and-assets) | The available build and its known issues are clear |
 | Human developer | [Contributor workflow](../CONTRIBUTING.md#develop-one-useful-slice) → [local setup and launch](../apps/desktop/README.md#development-commands) → the relevant task below | The app starts and the checks relevant to the change are known |
 | Frontend UI/UX | [Product scope](product-boundary.md) + [N acceptance](development-outline.md#new-sequence) → [Desktop](architecture/desktop.md) → [interaction rules](design/design-standard.md#6-interaction-and-feedback) and [i18n/accessibility](design/design-standard.md#9-accessibility-internationalization-and-performance) | Required states, real Gateway data and human UI acceptance are known; account flows also read the [account-guide browser](architecture/desktop.md#account-guide-browser) |
 | Environment logic | [N1](development-outline.md#n1-purpose-driven-deployment) / [N2](development-outline.md#n2-external-gameplay-tools) → [deployment flow](architecture/evolution.md#deployment-architecture-first-slice) → [standalone Unity deployment](architecture/unity-deployment.md) → [external integrations](architecture/integrations-and-overlays.md#external-integration-modes) → [contract status](protocols/README.md#delivery-status-and-implementation-entry-points) | Detection, installation handoff, mutation ownership and needed contracts are known |
@@ -71,6 +71,7 @@ Pull requests follow the [protected-main policy](meta/protected-main.md).
 | `development/` | Engineering and evidence rules, scoped delivery plans |
 | `decisions/` | Accepted decisions with their rationale |
 | `release/` | Version policy and release notes |
+| `user-guide/` | Minimal player procedures and actual-version screenshots; capture provenance and pending walkthroughs |
 | `tool-catalog/` | Core, plugin and external tool classification |
 | `meta/` | Documentation governance and the protected-main policy |
 | `migration/` | Legacy asset migration ledger |

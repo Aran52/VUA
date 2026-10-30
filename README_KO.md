@@ -62,6 +62,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 - [제품 경계](docs/product-boundary.md)
 - [아키텍처](docs/architecture/system.md)
 - [v0.7.0 릴리스 노트](docs/release/v0.7.0_KO.md)
+- [1.0.0 최소 안내서(후보판, 다섯 언어)](docs/user-guide/v1.0.0/ko.md)
 - [기여 가이드](CONTRIBUTING.md) · [보안 정책](SECURITY.md)
 
 ## 지나온 길

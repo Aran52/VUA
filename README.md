@@ -64,6 +64,7 @@ The download above is the published 0.7.0 Beta. Source now prepares **v1.0.0 Bra
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
 - [v0.7.0 release notes](docs/release/v0.7.0.md)
+- [1.0.0 minimal guide (candidate, five languages)](docs/user-guide/v1.0.0/README.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ## Milestones

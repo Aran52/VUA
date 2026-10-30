@@ -22,15 +22,21 @@ if (!raw.split(path.sep).some(part => part.startsWith("_local_")) || existsSync(
 const views = ["first-use-notice", "beginner-wizard", "env-create", "import-dialog", "materials-start", "workshop-inspect", "workshop-prediction", "workshop-finished", "release-sdk"];
 const locales = ["en", "zh-CN", "zh-TW", "ja", "ko"];
 const require = createRequire(import.meta.url);
-const result = spawnSync(require("electron"), [path.join(desktop, "scripts/design-audit.mjs"), "--only=" + views.join(","), "--theme=dark", "--out=" + raw], { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true });
-if (result.error) throw result.error;
-if (result.status !== 0) throw Error("Guide capture run did not complete");
-const run = JSON.parse(readFileSync(path.join(raw, "run-summary.json")));
+for (const locale of locales) {
+  // Explicit locale runs save clean screenshots; the ordinary overflow passes
+  // inspect other languages without writing their images.
+  const localeOutput = path.join(raw, locale);
+  const result = spawnSync(require("electron"), [path.join(desktop, "scripts/design-audit.mjs"), "--only=" + views.join(","), "--locale=" + locale, "--theme=dark", "--out=" + localeOutput], { cwd: desktop, env: process.env, stdio: "inherit", windowsHide: true });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw Error("Guide capture run did not complete: " + locale);
+  const run = JSON.parse(readFileSync(path.join(localeOutput, "run-summary.json")));
+  if (!run.coverage.complete) throw Error("Incomplete guide capture: " + locale);
+}
 const output = path.join(workspace, "docs/user-guide/v1.0.0/images");
 const captures = [];
 for (const locale of locales) for (const view of views) {
   const suffix = locale === "zh-CN" ? "" : "--" + locale;
-  const input = path.join(raw, "shots", view + suffix + "--dark.png");
+  const input = path.join(raw, locale, "shots", view + suffix + "--dark.png");
   const data = readFileSync(input);
   if (data.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") throw Error("Invalid PNG: " + view);
   const directory = path.join(output, locale); mkdirSync(directory, { recursive: true });
@@ -39,4 +45,4 @@ for (const locale of locales) for (const view of views) {
 }
 const manifest = { productVersion: pkg.version, amfVersion: JSON.parse(readFileSync(path.join(desktop, "distribution/amf-version.json"))).version, sourceCommit, rendererBuild: build, capturedAt: new Date().toISOString(), method: "Actual React renderer through the existing design-audit fixtures; synthetic Gateway facts and stand-in imagery", scope: "Illustrates the 1.0.0 UI; not a real-material production, installer, clean-VM, SDK execution or human acceptance", privacy: "No real accounts, orders, private material files or device inventory; fixture data only", nativeReview: "All five languages pending, including Traditional Chinese", installerCaptures: "Pending author capture on the recorded clean Windows VM, online and offline", captures };
 writeFileSync(path.join(output, "../capture-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-console.log(JSON.stringify({ version: pkg.version, sourceCommit, captures: captures.length, auditCompleted: run.coverage?.complete ?? run.complete ?? null }));
+console.log(JSON.stringify({ version: pkg.version, sourceCommit, captures: captures.length, auditCompleted: true }));

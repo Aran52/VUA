@@ -3,7 +3,7 @@ import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon, SkinMotif } from "@vua/design-system";
-import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
@@ -518,6 +518,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           <span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
         {planFitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: planFitNames.join(" · ") })}</p>}
         {plan.parameterBudget && <ParameterBudgetNote budget={plan.parameterBudget}/>}
+        {plan.prediction && <PredictionNote prediction={plan.prediction}/>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" disabled={ftLocked} onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
@@ -603,6 +604,35 @@ function ParameterBudgetNote({ budget }: { budget: AmfParameterBudgetPlanV01 }) 
       <strong>{source.name}</strong><span>{kind(source)} · {source.bits} bit</span></li>)}</ul>
     {budget.unresolvedPrefixConfigs > 0 && <p className="vua-caption vua-text-secondary">
       {format(budgetCopy.prefixNote, { count: String(budget.unresolvedPrefixConfigs) })}</p>}
+  </div>;
+}
+
+/** The plan's pre-assembly cost prediction (freeze row F5): one row per Avatar or outfit with
+ *  its size, triangles, material slots, texture memory, PhysBones and parameter bits. */
+function PredictionNote({ prediction }: { prediction: AmfPlanPrediction }) {
+  const predictionCopy = copy.prediction;
+  if (!prediction.available) return <p className="vua-caption vua-text-secondary">{predictionCopy.unavailable}</p>;
+  const megabytes = (bytes: number) => `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  const cells = (row: { triangles: number; materialSlots: number; textureBytes: number; physBones: number; parameterBits: number | null; uncompressedBytes: number }) => [
+    `≈ ${megabytes(row.uncompressedBytes)}`, row.triangles.toLocaleString(), String(row.materialSlots), `≈ ${megabytes(row.textureBytes)}`,
+    String(row.physBones), row.parameterBits === null ? "—" : `${row.parameterBits} / 256`,
+  ];
+  const columns = ["size", "triangles", "materialSlots", "textureMemory", "physBones", "parameterBits"] as const;
+  return <div className="vua-line__prediction">
+    <p>{predictionCopy.title}</p>
+    <table className="vua-line__prediction-table">
+      <thead><tr><th scope="col"/>{columns.map(column => <th key={column} scope="col">{predictionCopy.columns[column]}</th>)}</tr></thead>
+      <tbody>
+        {prediction.rows.map(row => <tr key={`${row.role}-${row.sourceId}`}>
+          <th scope="row">{row.name}{row.role === "avatar" && <small>{copy.avatar}</small>}</th>
+          {cells(row).map((cell, index) => <td key={columns[index]}>{cell}</td>)}
+        </tr>)}
+        {prediction.total && <tr className="vua-line__prediction-total"><th scope="row">{predictionCopy.total}</th>
+          {cells(prediction.total).map((cell, index) => <td key={columns[index]}>{cell}</td>)}</tr>}
+      </tbody>
+    </table>
+    <p className="vua-caption vua-text-secondary">{predictionCopy.note}</p>
+    {prediction.rows.some(row => !row.complete) && <p className="vua-caption vua-text-secondary">{predictionCopy.incomplete}</p>}
   </div>;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { amfRunProblem, isAmfProductionRun, createAmfProductionPort } from "./amf-production-port.ts";
+import { amfRunProblem, isAmfProductionRun, isAmfPlanPrediction, createAmfProductionPort } from "./amf-production-port.ts";
 import type { GatewayClient } from "./gateway-client.ts";
 import type { DesktopGatewaySuccessValueV1 } from "@vua/contracts";
 
@@ -40,6 +40,30 @@ describe("AMF production response boundary", () => {
     response={schemaVersion:"0.1",runId:"n3-test",taskId:"task-review"};
     await port.assemble("n3-test",reviewed,true);
     expect(requests.at(-1)).toMatchObject({method:"amf.production.assemble",params:{recipeDifferencesConfirmed:true,planDigest:plan.planDigest}});
+  });
+  it("validates the plan's pre-assembly prediction and keeps plans without it readable", async () => {
+    const row={sourceId:"avatar",name:"Avatar",role:"avatar",triangles:10,materialSlots:1,textureBytes:20,physBones:0,parameterBits:8,uncompressedBytes:40,complete:true};
+    const prediction={schemaVersion:"0.1",evidence:"unity_source_estimate",platform:"pc",available:true,
+      tolerance:{counts:"exact",textureBytes:"decoded_estimate",uncompressedBytes:"within_25_percent"},
+      rows:[row],total:{triangles:10,materialSlots:1,textureBytes:20,physBones:0,parameterBits:8,uncompressedBytes:40,complete:true}};
+    expect(isAmfPlanPrediction(prediction)).toBe(true);
+    // An undecided parameter count stays null; a wrong tolerance or a missing total is refused.
+    expect(isAmfPlanPrediction({...prediction,rows:[{...row,parameterBits:null,complete:false}]})).toBe(true);
+    expect(isAmfPlanPrediction({...prediction,tolerance:{...prediction.tolerance,uncompressedBytes:"exact"}})).toBe(false);
+    expect(isAmfPlanPrediction({...prediction,total:undefined})).toBe(false);
+    expect(isAmfPlanPrediction({...prediction,available:false})).toBe(false);
+    expect(isAmfPlanPrediction({...prediction,available:false,rows:[],total:undefined})).toBe(true);
+    expect(isAmfPlanPrediction({...prediction,rows:[{...row,role:"import_only"}]})).toBe(false);
+    const plan={schemaVersion:"0.1",runId:"n3-test",planDigest:"b".repeat(64),selection,inputs:[],
+      preserveOriginals:true,officialSdkChecks:"not_run",editor:run.editor,projectRoot:run.projectRoot,prediction};
+    const client={invoke:async()=>({ok:true,value:plan}),subscribe:()=>()=>{}} as unknown as GatewayClient;
+    const port=createAmfProductionPort(client);
+    expect((await port.plan("n3-test",selection)).prediction?.rows[0]?.parameterBits).toBe(8);
+    const broken={invoke:async()=>({ok:true,value:{...plan,prediction:{...prediction,rows:[{...row,triangles:-1}]}}}),subscribe:()=>()=>{}} as unknown as GatewayClient;
+    await expect(createAmfProductionPort(broken).plan("n3-test",selection)).rejects.toThrow("amf_production_plan_invalid");
+    // A plan from an engine that predates the observation carries no prediction at all.
+    const old={invoke:async()=>({ok:true,value:{...plan,prediction:undefined}}),subscribe:()=>()=>{}} as unknown as GatewayClient;
+    expect((await createAmfProductionPort(old).plan("n3-test",selection)).prediction).toBeUndefined();
   });
   it("validates optional close facts while keeping old runs readable", () => {
     const editorClose = {schemaVersion:"0.1",runId:"n3-test",closeId:"close-1",outcome:"saved",

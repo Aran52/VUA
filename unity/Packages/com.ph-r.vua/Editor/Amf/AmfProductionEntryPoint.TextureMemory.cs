@@ -91,6 +91,63 @@ namespace Vua.Editor.Bridge
         private static HashSet<Texture> TextureDependencies(GameObject avatar) => new HashSet<Texture>(
             EditorUtility.CollectDependencies(new UnityEngine.Object[] { avatar }).OfType<Texture>());
 
+        // One texture's decoded footprint on a platform, from the same importer rules the
+        // assembled-Avatar report uses. `shared` only marks why a texture is read-only; it
+        // never changes the decoded size. Known is false when the rules cannot decide.
+        private static void FillTextureInfo(Texture texture, string platform, HashSet<Texture> shared, TextureInfo info)
+        {
+            var target = platform == "pc" ? "Standalone" : "Android";
+            var path = AssetDatabase.GetAssetPath(texture);
+            info.path = path; info.width = texture.width; info.height = texture.height; info.format = "Unknown"; info.reason = "unsupported_texture";
+            info.id = AssetDatabase.TryGetGUIDAndLocalFileIdentifier(texture, out string guid, out long localId)
+                ? guid + ":" + localId : "generated:" + texture.GetInstanceID();
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (texture is Texture2D tex)
+            {
+                info.mipmap = tex.mipmapCount > 1;
+                if (importer != null && importer.textureShape == TextureImporterShape.Texture2D)
+                {
+                    importer.GetSourceTextureWidthAndHeight(out int width, out int height);
+                    var pot = Mathf.IsPowerOfTwo(width) && Mathf.IsPowerOfTwo(height);
+                    var settings = importer.GetPlatformTextureSettings(target);
+                    info.maxSize = settings.overridden ? settings.maxTextureSize : importer.maxTextureSize;
+                    info.mipmap = importer.mipmapEnabled;
+                    var effective = settings.overridden ? settings : importer.GetDefaultPlatformTextureSettings();
+                    info.format = (effective.format == TextureImporterFormat.Automatic ? importer.GetAutomaticFormat(target) : effective.format).ToString();
+                    // Non-POT import scaling and special shapes vary by importer; leave
+                    // these unknown instead of guessing a favorable platform total.
+                    if (pot)
+                    {
+                        while (Math.Max(width, height) > info.maxSize) { width = Math.Max(1, width / 2); height = Math.Max(1, height / 2); }
+                        info.width = width; info.height = height;
+                    }
+                    else info.format = "Unknown";
+                    info.reason = shared.Contains(texture) ? "shared_with_other_avatar"
+                        : !pot ? "non_power_of_two"
+                        : importer.textureType != TextureImporterType.Default || !importer.sRGBTexture || texture.filterMode == FilterMode.Point
+                          || info.format.Contains("Half") || info.format.Contains("Float") || info.format.Contains("HDR") || info.format == "BC6H"
+                          || new[] { ".exr", ".hdr" }.Contains(Path.GetExtension(path).ToLowerInvariant()) ? "specialized_texture"
+                        : !SafeTextureFile(path) || AssetDatabase.LoadMainAssetAtPath(path) != texture ? "read_only_texture" : "";
+                }
+                else { info.format = tex.format.ToString(); info.reason = "no_texture_importer"; }
+            }
+            else if (texture is Cubemap cube)
+            {
+                info.faces = 6; info.mipmap = cube.mipmapCount > 1;
+                // Only the active platform's imported cube dimensions/format are observed.
+                if ((platform == "android") == (EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android)) info.format = cube.format.ToString();
+            }
+            // A format unsupported on the target may be expanded by Unity. Its compressed
+            // footprint must not be presented as that platform's decoded memory.
+            var mobileFormat = info.format.StartsWith("ASTC", StringComparison.Ordinal) || info.format.StartsWith("ETC", StringComparison.Ordinal) || info.format.StartsWith("EAC", StringComparison.Ordinal);
+            var desktopFormat = info.format.StartsWith("BC", StringComparison.Ordinal) || info.format.StartsWith("DXT", StringComparison.Ordinal);
+            if ((platform == "pc" && mobileFormat) || (platform == "android" && desktopFormat)) info.format = "Unknown";
+            var size = TextureBytes(info.width, info.height, info.mipmap, info.format, info.faces);
+            info.known = size >= 0; info.estimatedBytes = Math.Max(0, size);
+            if (!info.known && info.reason == "") info.reason = "unsupported_format";
+            info.editable = info.known && info.reason == "";
+        }
+
         internal static List<TextureMemoryReport> MeasureTextureMemory(string avatarId)
         {
             var avatar = string.IsNullOrEmpty(avatarId) ? null : FindOwned(avatarId);
@@ -104,58 +161,10 @@ namespace Vua.Editor.Bridge
             foreach (var platform in new[] { "pc", "android" })
             {
                 var report = new TextureMemoryReport { platform = platform };
-                var target = platform == "pc" ? "Standalone" : "Android";
                 foreach (var texture in dependencies.OrderBy(t => AssetDatabase.GetAssetPath(t), StringComparer.Ordinal).ThenBy(t => t.name, StringComparer.Ordinal))
                 {
-                    var path = AssetDatabase.GetAssetPath(texture);
-                    var info = new TextureInfo { path = path, width = texture.width, height = texture.height, format = "Unknown", reason = "unsupported_texture" };
-                    info.id = AssetDatabase.TryGetGUIDAndLocalFileIdentifier(texture, out string guid, out long localId)
-                        ? guid + ":" + localId : "generated:" + texture.GetInstanceID();
-                    var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                    if (texture is Texture2D tex)
-                    {
-                        info.mipmap = tex.mipmapCount > 1;
-                        if (importer != null && importer.textureShape == TextureImporterShape.Texture2D)
-                        {
-                            importer.GetSourceTextureWidthAndHeight(out int width, out int height);
-                            var pot = Mathf.IsPowerOfTwo(width) && Mathf.IsPowerOfTwo(height);
-                            var settings = importer.GetPlatformTextureSettings(target);
-                            info.maxSize = settings.overridden ? settings.maxTextureSize : importer.maxTextureSize;
-                            info.mipmap = importer.mipmapEnabled;
-                            var effective = settings.overridden ? settings : importer.GetDefaultPlatformTextureSettings();
-                            info.format = (effective.format == TextureImporterFormat.Automatic ? importer.GetAutomaticFormat(target) : effective.format).ToString();
-                            // Non-POT import scaling and special shapes vary by importer; leave
-                            // these unknown instead of guessing a favorable platform total.
-                            if (pot)
-                            {
-                                while (Math.Max(width, height) > info.maxSize) { width = Math.Max(1, width / 2); height = Math.Max(1, height / 2); }
-                                info.width = width; info.height = height;
-                            }
-                            else info.format = "Unknown";
-                            info.reason = shared.Contains(texture) ? "shared_with_other_avatar"
-                                : !pot ? "non_power_of_two"
-                                : importer.textureType != TextureImporterType.Default || !importer.sRGBTexture || texture.filterMode == FilterMode.Point
-                                  || info.format.Contains("Half") || info.format.Contains("Float") || info.format.Contains("HDR") || info.format == "BC6H"
-                                  || new[] { ".exr", ".hdr" }.Contains(Path.GetExtension(path).ToLowerInvariant()) ? "specialized_texture"
-                                : !SafeTextureFile(path) || AssetDatabase.LoadMainAssetAtPath(path) != texture ? "read_only_texture" : "";
-                        }
-                        else { info.format = tex.format.ToString(); info.reason = "no_texture_importer"; }
-                    }
-                    else if (texture is Cubemap cube)
-                    {
-                        info.faces = 6; info.mipmap = cube.mipmapCount > 1;
-                        // Only the active platform's imported cube dimensions/format are observed.
-                        if ((platform == "android") == (EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android)) info.format = cube.format.ToString();
-                    }
-                    // A format unsupported on the target may be expanded by Unity. Its compressed
-                    // footprint must not be presented as that platform's decoded memory.
-                    var mobileFormat = info.format.StartsWith("ASTC", StringComparison.Ordinal) || info.format.StartsWith("ETC", StringComparison.Ordinal) || info.format.StartsWith("EAC", StringComparison.Ordinal);
-                    var desktopFormat = info.format.StartsWith("BC", StringComparison.Ordinal) || info.format.StartsWith("DXT", StringComparison.Ordinal);
-                    if ((platform == "pc" && mobileFormat) || (platform == "android" && desktopFormat)) info.format = "Unknown";
-                    var size = TextureBytes(info.width, info.height, info.mipmap, info.format, info.faces);
-                    info.known = size >= 0; info.estimatedBytes = Math.Max(0, size);
-                    if (!info.known && info.reason == "") info.reason = "unsupported_format";
-                    info.editable = info.known && info.reason == "";
+                    var info = new TextureInfo();
+                    FillTextureInfo(texture, platform, shared, info);
                     report.textures.Add(info); report.totalBytes += info.estimatedBytes; report.complete &= info.known;
                 }
                 report.rank = report.complete ? TextureRank(report.totalBytes, platform) : "unknown";

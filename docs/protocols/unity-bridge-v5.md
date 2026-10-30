@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.21.0
+> Document version: 0.22.0
 > Status: Candidate
-> Updated: 2026-10-25
+> Updated: 2026-10-30
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -388,6 +388,30 @@ parameters, parameters other tools (VRCFury, reactive components) generate, or a
 unsynced asset entry that an MA config upgrades to synced. The authoritative synced cost stays
 with the SDK's own check on the built result.
 
+## Candidate footprint evidence
+
+Each inspection candidate may carry `footprint`, the pre-assembly cost facts for that imported
+prefab. Absence is compatible with older results. It holds:
+
+- `triangles`, `materialSlots`, `meshes`, `skinnedMeshes`: counted from the candidate's
+  renderers — index counts per submesh divided by three, and every renderer's `sharedMaterials`
+  length. A renderer without a mesh contributes nothing.
+- `textureBytes`, `textureComplete`: decoded PC texture memory over the prefab's dependencies,
+  using the same importer rules and decoded-size arithmetic as the texture-memory report. False
+  when any texture's size cannot be decided or the inventory exceeds 2048 textures; the bytes
+  then cover only the decidable textures.
+- `meshBytes`, `meshComplete`: vertex stride from each mesh's own vertex-attribute layout times
+  its vertex count, plus its index buffer at the mesh's index format. A mesh whose layout cannot
+  be read assumes 32 bytes per vertex and marks itself incomplete.
+- `physBones`, `physBonesKnown`: the count of `VRCPhysBone` components found by type name;
+  `physBonesKnown` is false when the SDK type does not resolve, so a zero is never presented as
+  a measured absence.
+
+The consumer's plan prediction reuses these numbers, the texture-memory rules and the parameter
+estimate; it does not re-derive them. The built result stays authoritative, and the expected
+tolerance is stated in
+[amf-production v0.1](amf-production-v0.1.md#pre-assembly-cost-prediction).
+
 ## Switch options
 
 A plan's outfit may carry `saved` (default `true`) and `group` (default empty). Unity's
@@ -400,6 +424,8 @@ independent switch). A grouped item with a value below 1 or a parameter outside 
 not verify.
 
 ## Document changelog
+
+- 0.22.0 (2026-10-30): each inspection candidate may carry `footprint` — triangles, material slots, renderer counts, decoded texture bytes, mesh buffer bytes and PhysBone counts observed before assembly, each group stating whether it is complete.
 
 - 0.21.0 (2026-10-25): report optional prefab GUIDs and bounded prefab-object/material path inventories for reviewed Recipe v0.5 reproduction, retaining switch options in plans and observations.
 

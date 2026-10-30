@@ -86,12 +86,31 @@ impl BudgetCount {
     }
 }
 
+/// The source estimate behind the plan's parameter budget and its cost prediction, so both
+/// read the same numbers instead of deriving them twice.
+pub(super) struct ParameterEstimate {
+    /// False when the Avatar asset, a candidate's evidence or the observation is missing or
+    /// truncated; every number then stays at zero and an unknown state is reported instead.
+    pub known: bool,
+    pub avatar_name: String,
+    pub expression_bits: u32,
+    pub avatar_ma_bits: u32,
+    pub avatar_unresolved: u32,
+    /// One row per selected outfit: (source id, prefab name, bits it adds, its unresolved
+    /// prefix configs). Rows keep selection order, so the rows sum to the total.
+    pub outfits: Vec<(String, String, u32, u32)>,
+    pub total: u32,
+    pub unresolved: u32,
+}
+
 /// The plan's estimate of the synced parameter bits the assembled Avatar would use:
 /// the Avatar's own Expression Parameters plus every selected candidate's MA Parameters,
 /// merged by name the way MA merges at build time, plus one bit for each switch VUA adds.
-/// Each source row holds the bits it adds to the running total, so the rows sum to it. Old runs without the evidence, an
-/// unreadable Avatar asset or a truncated observation report `unknown` instead of a number.
-pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection) -> serde_json::Value {
+/// Each row holds the bits it adds to the running total. Old runs without the evidence, an
+/// unreadable Avatar asset or a truncated observation report `known: false` instead of a number.
+pub(super) fn estimate_parameters(run: &ProductionRun, selection: &AssemblySelection) -> ParameterEstimate {
+    let unknown = || ParameterEstimate { known: false, avatar_name: String::new(), expression_bits: 0,
+        avatar_ma_bits: 0, avatar_unresolved: 0, outfits: vec![], total: 0, unresolved: 0 };
     let avatar = run.prefabs.iter().find(|prefab| prefab.is_avatar && prefab.path == selection.avatar_prefab);
     let avatar_budget = avatar.and_then(|prefab| prefab.parameter_budget.as_ref());
     let outfits: Vec<(&OutfitSelection, &PrefabCandidate)> = selection
@@ -114,8 +133,7 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
         || unusable(&avatar_budget)
         || outfits.iter().any(|(_, outfit)| unusable(&outfit.parameter_budget.as_ref()))
     {
-        return serde_json::json!({"schemaVersion":"0.1","limitBits":PARAMETER_LIMIT_BITS,"state":"unknown",
-            "estimateBits":0,"evidence":"unity_source_estimate","sources":[],"unresolvedPrefixConfigs":0});
+        return unknown();
     }
     let avatar_budget = avatar_budget.expect("checked above");
     let avatar_name = avatar.expect("a budget implies its candidate").name.clone();
@@ -126,12 +144,6 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
         for entry in &component.parameters { count.add(entry); }
     }
     let avatar_ma_bits = count.bits - expression_bits;
-    let mut sources = vec![serde_json::json!({"kind":"expression_parameters","origin":"avatar_base",
-        "name":avatar_name,"bits":expression_bits})];
-    if avatar_ma_bits > 0 || avatar_budget.unresolved_prefix_configs > 0 {
-        sources.push(serde_json::json!({"kind":"ma_parameters","origin":"avatar_base",
-            "name":avatar_name,"bits":avatar_ma_bits}));
-    }
     let mut unresolved = avatar_budget.unresolved_prefix_configs;
     // An exclusive group's switches share one parameter: a Bool for a group of one, an Int (8
     // bits) otherwise, counted on the group's first outfit.
@@ -142,6 +154,7 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
         }
     }
     let mut groups_counted = std::collections::BTreeSet::<&str>::new();
+    let mut rows = Vec::with_capacity(outfits.len());
     for (choice, outfit) in &outfits {
         // Checked above to be present and untruncated.
         let budget = outfit.parameter_budget.as_ref().expect("checked above");
@@ -158,22 +171,43 @@ pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection)
         }
         let bits = count.bits - before;
         unresolved += budget.unresolved_prefix_configs;
-        if bits > 0 || budget.unresolved_prefix_configs > 0 {
+        rows.push((outfit.source_id.clone(), outfit.name.clone(), bits, budget.unresolved_prefix_configs));
+    }
+    ParameterEstimate { known: true, avatar_name, expression_bits, avatar_ma_bits,
+        avatar_unresolved: avatar_budget.unresolved_prefix_configs, outfits: rows,
+        total: count.bits, unresolved }
+}
+
+/// The plan's parameter-budget document, built from [`estimate_parameters`].
+pub fn plan_parameter_budget(run: &ProductionRun, selection: &AssemblySelection) -> serde_json::Value {
+    let estimate = estimate_parameters(run, selection);
+    if !estimate.known {
+        return serde_json::json!({"schemaVersion":"0.1","limitBits":PARAMETER_LIMIT_BITS,"state":"unknown",
+            "estimateBits":0,"evidence":"unity_source_estimate","sources":[],"unresolvedPrefixConfigs":0});
+    }
+    let mut sources = vec![serde_json::json!({"kind":"expression_parameters","origin":"avatar_base",
+        "name":estimate.avatar_name,"bits":estimate.expression_bits})];
+    if estimate.avatar_ma_bits > 0 || estimate.avatar_unresolved > 0 {
+        sources.push(serde_json::json!({"kind":"ma_parameters","origin":"avatar_base",
+            "name":estimate.avatar_name,"bits":estimate.avatar_ma_bits}));
+    }
+    for (_, name, bits, unresolved) in &estimate.outfits {
+        if *bits > 0 || *unresolved > 0 {
             sources.push(serde_json::json!({"kind":"ma_parameters","origin":"selected_outfit",
-                "name":outfit.name,"bits":bits}));
+                "name":name,"bits":bits}));
         }
     }
-    let estimate = count.bits;
-    let state = if estimate > PARAMETER_LIMIT_BITS {
+    let estimate_bits = estimate.total;
+    let state = if estimate_bits > PARAMETER_LIMIT_BITS {
         "over_limit"
-    } else if estimate * 10 > PARAMETER_LIMIT_BITS * 9 {
+    } else if estimate_bits * 10 > PARAMETER_LIMIT_BITS * 9 {
         "near_limit"
     } else {
         "fits"
     };
     serde_json::json!({"schemaVersion":"0.1","limitBits":PARAMETER_LIMIT_BITS,"state":state,
-        "estimateBits":estimate,"evidence":"unity_source_estimate","sources":sources,
-        "unresolvedPrefixConfigs":unresolved})
+        "estimateBits":estimate_bits,"evidence":"unity_source_estimate","sources":sources,
+        "unresolvedPrefixConfigs":estimate.unresolved})
 }
 
 #[cfg(test)]
@@ -191,7 +225,7 @@ mod tests {
     fn candidate(name: &str, path: &str, avatar: bool, evidence: Option<ParameterBudget>) -> PrefabCandidate {
         PrefabCandidate { source_id: if avatar { "avatar" } else { "outfit" }.into(), path: path.into(),
             name: name.into(), is_avatar: avatar, has_skinned_mesh: true, has_merge_armature: false,
-            has_missing_scripts: false, humanoid_bones: vec![], preview: None, parameter_budget: evidence, prefab_guid:None, object_paths:None }
+            has_missing_scripts: false, humanoid_bones: vec![], preview: None, parameter_budget: evidence, prefab_guid:None, object_paths:None, footprint: None }
     }
     fn run(prefabs: Vec<PrefabCandidate>) -> ProductionRun {
         ProductionRun { run_id: "n3-test".into(), prefabs, ..serde_json::from_value(serde_json::json!({

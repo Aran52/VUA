@@ -53,6 +53,7 @@
   align-items: center;
   min-height: var(--vua-space-6);
   width: fit-content;
+  color: var(--vua-accent-text);
 }
 
 .vua-onboarding__footer {

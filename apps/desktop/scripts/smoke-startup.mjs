@@ -53,7 +53,9 @@ let main;
 let lastStep = "initialization", lastJavaScript = "";
 let exitCode = 1;
 app.on("will-quit", () => { if (exitCode) app.exit(exitCode); });
-const deadline = setTimeout(() => { console.error(JSON.stringify({ failure: "Startup UI smoke timed out", wait: lastStep, operation: lastJavaScript, url: main?.webContents.getURL(), loading: main?.webContents.isLoading() })); app.quit(); }, 120_000);
+// Both entry paths, five languages and the full tour exceed the earlier single-path budget.
+// Individual UI waits remain bounded; the watchdog covers the expanded complete run.
+const deadline = setTimeout(() => { console.error(JSON.stringify({ failure: "Startup UI smoke timed out", wait: lastStep, operation: lastJavaScript, url: main?.webContents.getURL(), loading: main?.webContents.isLoading() })); app.quit(); }, 240_000);
 async function waitFor(check, label, timeoutMs = 7_500) {
   lastStep = label;
   console.log("Startup UI: " + label);

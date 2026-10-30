@@ -349,7 +349,7 @@ async function run() {
     await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), "Forward returns to the catalog");
     assert(await js('localStorage.getItem("vua-guide-reading")?.includes("visibility") && !localStorage.getItem("vua-vua-guide-reading-v1")?.includes("visibility")'), "Catalog and article preserve the encyclopedia bookmark only");
     await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"first-run-language"})');
-    await waitFor(() => js('!!document.querySelector("[data-guide-section=first-run-language]") && !document.querySelector("figure img[src$=\"/first-run.png\"]")'), "Updated first-use explanation excludes the retired language-choice capture");
+    await waitFor(() => js('!!document.querySelector("[data-guide-section=first-run-language]") && !Array.from(document.querySelectorAll("figure img")).some(image=>image.getAttribute("src").endsWith("/first-run.png"))'), "Updated first-use explanation excludes the retired language-choice capture");
     assert(true, "The first-use manual reflects the notice without reusing an older UI capture");
     await capture("vua-guide-media");
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');

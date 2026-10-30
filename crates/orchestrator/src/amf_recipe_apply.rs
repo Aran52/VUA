@@ -281,7 +281,7 @@ mod tests {
             run.sources.push(PreparedSource { source_id:id.into(), role:SourceRole::Auto, name:format!("{id}.unitypackage"),
                 item_name:id.into(), sha256:format!("sha256:{}",hash.repeat(64)), asset_paths:vec![path.clone()] });
             run.prefabs.push(PrefabCandidate { source_id:id.into(),path,name:id.into(),is_avatar:avatar,has_skinned_mesh:true,
-                has_merge_armature:!avatar,has_missing_scripts:false,humanoid_bones:vec![],preview:None,parameter_budget:None, prefab_guid:None, object_paths:None });
+                has_merge_armature:!avatar,has_missing_scripts:false,humanoid_bones:vec![],preview:None,parameter_budget:None, prefab_guid:None, object_paths:None, footprint:None });
         }
         let selection = AssemblySelection { avatar_prefab:"Assets/avatar.prefab".into(),outfits:["coat","hat"].into_iter().map(|id| OutfitSelection {
             source_id:id.into(),prefab_path:format!("Assets/{id}.prefab"),mode:BindingMode::MergeArmature,bone:String::new(),toggle_name:id.into(),active:true,saved:true,group:String::new(),

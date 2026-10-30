@@ -171,7 +171,7 @@ const FACTORY_VIEWS = [
   "workshop-versions", "workshop-versions-plan", "workshop-versions-confirm", "workshop-versions-error",
   "workshop-fitsave", "workshop-fitplan", "workshop-fitreview", "workshop-ft", "workshop-ft-dialog",
   "workshop-ft-locked", "workshop-ft-none", "workshop-close-offer", "workshop-texture",
-  "workshop-switch", "workshop-switch-adjust",
+  "workshop-switch", "workshop-switch-adjust", "workshop-prediction",
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part",
   "control-recipes-list", "control-recipes-many", "control-recipes-empty", "control-fits",
   "control-packages", "control-packages-project", "control-packages-project-smart",
@@ -207,8 +207,13 @@ const ONE_ACCENT_EXEMPT = new Set(FACTORY_VIEWS.filter(v => v === "stations"));
 
 function factoryView(id) {
   const review = ["workshop-running", "workshop-waiting", "workshop-finished", "control-packages-repos", "control-packages-repos-disabled"].includes(id);
+  // The prediction table sits below the plan's review list and arrives with the plan; wait
+  // for it, then settle the capture on it.
+  const waitForPrediction = "for (let i = 0; i < 120 && !document.querySelector('.vua-line__prediction'); i++) await new Promise(resolve => setTimeout(resolve, 100));"
+    + "document.querySelector('.vua-line__prediction')?.scrollIntoView({block:'center'});";
+  const scroll = id === "workshop-prediction" ? { settleMs: 900, steps: [waitForPrediction] } : {};
   return { id, fixture: "factory", area: factoryArea(id), exemptRules: ONE_ACCENT_EXEMPT.has(id) ? ["one-accent"] : [],
-    ...(review ? { steps: [`await (${verifyGridFactoryState.toString()})(${JSON.stringify(id)})`] } : {}) };
+    ...(review ? { steps: [`await (${verifyGridFactoryState.toString()})(${JSON.stringify(id)})`] } : {}), ...scroll };
 }
 
 export const VIEWS = [

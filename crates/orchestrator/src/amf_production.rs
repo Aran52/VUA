@@ -28,6 +28,8 @@ mod face_tracking;
 pub use face_tracking::*;
 mod parameter_budget;
 pub use parameter_budget::*;
+mod prediction;
+pub use prediction::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -136,6 +138,24 @@ pub struct AssemblySelection {
     pub outfits: Vec<OutfitSelection>,
 }
 
+/// One candidate's cost evidence, read from the imported prefab before assembly (freeze
+/// row F5). Counts are the asset's own; `texture_bytes` and `mesh_bytes` are decoded
+/// estimates, and each group says whether every term was decidable.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CandidateFootprint {
+    pub triangles: u64,
+    pub material_slots: u32,
+    pub meshes: u32,
+    pub skinned_meshes: u32,
+    pub texture_bytes: u64,
+    pub texture_complete: bool,
+    pub mesh_bytes: u64,
+    pub mesh_complete: bool,
+    pub phys_bones: u32,
+    pub phys_bones_known: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrefabCandidate {
@@ -157,6 +177,9 @@ pub struct PrefabCandidate {
     pub prefab_guid: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub object_paths: Option<Vec<String>>,
+    /// Pre-assembly cost evidence; an older Bridge omits it (freeze row F5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footprint: Option<CandidateFootprint>,
 }
 
 /// Bridge previews live in this work-project folder, one subfolder per Bridge command.
@@ -1514,7 +1537,7 @@ impl AmfProductionEngine {
             "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
                 "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes})),
             "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>(),
-            "parameterBudget":plan_parameter_budget(&run, selection),"materials":run.recipe_materials,"materialChoices":run.material_choices,"recipeDifferences":run.recipe_differences}),
+            "parameterBudget":plan_parameter_budget(&run, selection),"prediction":plan_prediction(&run, selection),"materials":run.recipe_materials,"materialChoices":run.material_choices,"recipeDifferences":run.recipe_differences}),
         )
     }
     pub fn assemble(

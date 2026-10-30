@@ -62,6 +62,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - [产品边界](docs/product-boundary.md)
 - [系统架构](docs/architecture/system.md)
 - [v0.7.0 发行说明](docs/release/v0.7.0_ZH.md)
+- [1.0.0 最小指南（候选版，五种语言）](docs/user-guide/v1.0.0/zh-CN.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
 
 ## 里程碑

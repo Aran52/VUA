@@ -89,7 +89,7 @@ SDK's Auto Fix only when offered and understood. Open the corresponding project 
 the VRChat SDK panel to inspect appearance, behavior and the target platform. If sign-in or trust
 rank blocks upload, use the linked upload-eligibility explanation and return after resolving it.
 
-![SDK findings in Finished Avatars](images/en/release-sdk.png)
+![SDK error example using another sample Avatar](images/en/release-sdk.png)
 
 The walkthrough is complete when this project reaches the SDK for review. Upload only after
 checking the result and confirming content rights. VUA's managed upload requires explicit

@@ -78,7 +78,7 @@
 在 Unity 打开对应工程及 VRChat SDK 面板，检查外观、行为与目标平台。
 登录或信任等级阻止上传时，按页面的上传资格说明处理后返回。
 
-![成品页中的 SDK 检查](images/zh-CN/release-sdk.png)
+![另一个示例 Avatar 的 SDK 错误状态](images/zh-CN/release-sdk.png)
 
 该工程到达 SDK、可供检查时，本次操作完成。检查结果并确认内容权利后才上传。
 VUA 的受管上传仍需明确确认，由官方 SDK 构建和上传，记录实际结果。

@@ -19,7 +19,7 @@ fixtures, with synthetic Gateway facts and stand-in images. They show the UI's l
 not a real material run or successful SDK build. No real account, order, credential, private
 material or machine inventory is captured. Grid dark is shown in all five languages.
 
-The committed capture manifest records the exact clean source, renderer build identity, capture
+The committed [capture manifest](capture-manifest.json) records the exact clean source, renderer build identity, capture
 time, locale/view, dimensions and SHA-256 for every image. Do not replace an image with a mockup,
 a different version or an unrelated installation screenshot.
 

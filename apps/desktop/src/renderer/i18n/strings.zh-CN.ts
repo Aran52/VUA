@@ -3123,7 +3123,7 @@ rolled_back: "已回滚",
       pending: "翻译中",
     },
     version: {
-      heading: "VUA 桌面端",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · 早期预览",
       debugHeading: "调试模式",
       debugToggle: "显示商品调试信息",

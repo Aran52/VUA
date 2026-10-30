@@ -1,4 +1,4 @@
-VUA 0.6.6 Ibis (Beta) — Windows x64
+Virtual Unified Assistant (VUA) — Windows x64
 
 Extract the entire ZIP, then run VUA.exe. Keep resources, locales and all companion
 files together. Node.js, pnpm, Rust and the source repository are not needed.

@@ -3100,7 +3100,7 @@ rolled_back: "롤백됨",
       pending: "번역 중",
     },
     version: {
-      heading: "VUA 데스크톱",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · 얼리 프리뷰",
       debugHeading: "디버그 모드",
       debugToggle: "상품 디버그 정보 표시",

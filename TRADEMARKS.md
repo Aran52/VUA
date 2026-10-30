@@ -4,7 +4,7 @@ The Apache License 2.0 licenses copyright and patent rights in covered contribut
 grant permission to use project names, logos, mascots, or other marks to imply endorsement,
 affiliation, or official status.
 
-“VUA”, “VRC Ultra Assistant”, and the project's original logos and mascots identify this project.
+“VUA”, “Virtual Unified Assistant”, and the project's original logos and mascots identify this project.
 You may use the names truthfully to describe compatibility, forks, reviews, or contributions, but
 modified distributions should use a clearly distinct name and presentation unless the project has
 granted permission.

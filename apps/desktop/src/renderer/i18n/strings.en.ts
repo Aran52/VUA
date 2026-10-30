@@ -3171,7 +3171,7 @@ demoTaskTitle: "Demo task",
       pending: "translating",
     },
     version: {
-      heading: "VUA Desktop",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · Early preview",
       debugHeading: "Debug mode",
       debugToggle: "Show product debug info",

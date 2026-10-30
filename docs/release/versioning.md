@@ -1,7 +1,7 @@
 # Versioning policy
 
 > Scope: VUA product releases, tags, packages, and public contracts
-> Updated: 2026-10-26
+> Updated: 2026-10-30
 
 ## Product version
 
@@ -13,8 +13,10 @@ VUA product releases follow [Semantic Versioning 2.0.0](https://semver.org/spec/
   change must be explicit in release notes and accompanied by the owning protocol/schema/migration.
 - Under the 2026-09-30 user ruling, N stages define delivery outcomes and acceptance, not product
   version numbers. Select the release version from its actual changes before publication.
-- No `1.0.0`, stable release, or production-safety commitment is scheduled. Only an explicit
-  request from the author can change the continuing-Beta policy.
+- The author selected **v1.0.0 Brave New World** on 2026-10-29 under the
+  [freeze plan](../development/freeze-plan.md#7-freeze-release). The host becomes stable;
+  AMF remains Beta and updates independently. This supersedes the continuing-Beta policy
+  for the host and does not close pending N-stage acceptance.
 - A published tag and artifact are immutable. Any change is a new version.
 - A git tag marks a revision; a tag alone is not a publication. A *published release* is a GitHub
   Release, and a *published artifact* is an installable asset attached to one. Verified mirrors
@@ -24,12 +26,14 @@ VUA product releases follow [Semantic Versioning 2.0.0](https://semver.org/spec/
   (2026-10-01): `v0.6.0` is a tag without a GitHub Release, and the only published Release,
   `v0.5.0`, carries no assets — no installable artifact has been published yet.
 
-## Continuing Beta and independent delivery stages
+## Lifecycle and independent delivery stages
 
-Beta is lifecycle metadata rather than an automatically appended SemVer suffix.
-Do not generate v1.0.0 candidates or stable claims from earlier M plans.
-Historical tags/artifacts and their original stage labels remain unchanged; adoption of this plan
-does not itself bump the current package version or create a release.
+Beta and stable are lifecycle metadata rather than automatically appended SemVer suffixes.
+The freeze release is the author's explicit authorization for host 1.0.0; AMF's Beta stage is
+shown separately in the app and release notes. Earlier tags, artifacts and their original stage
+labels remain unchanged. Preparing source does not publish a release or pass its real-run gates.
+The existing distribution v0.2 channel identifier remains `beta`; that frozen wire identifier
+does not set the host's lifecycle stage. A channel-format change needs its own version.
 
 The [development sequence](../development-outline.md) owns N1-N7 outcomes and acceptance.
 One stage may span several releases, and a release may include useful slices from several stages.
@@ -56,6 +60,14 @@ release adds the material-first Avatar production path and other user-facing cap
 minor version increments. AMF moves to payload **0.2.0** and declares host `>=0.7.0, <0.8.0`,
 because it calls Gateway methods the 0.6.7 host lacks. Codenames are game references written as
 ordinary words; Ibis is EVE Online's Caldari rookie ship, and Stone Age is a Minecraft advancement.
+
+The freeze release is **v1.0.0 Brave New World**, explicitly selected by the author on
+2026-10-29. It ends the host's continuing Beta. Brave New World names Aldous Huxley's novel and
+the Stellaris achievement for colonizing the first planet. AMF moves to **0.3.0 Beta** because
+its migration planner, station list, prediction and VRCFury guidance add user-facing capabilities.
+It requires host `>=1.0.0, <2.0.0`: it uses the freeze host's expanded intake surface, which
+0.7.0 does not serve. The installer updates the pair; later compatible AMF updates remain
+independent. The AMF UI ABI, Bridge and BDL formats keep their current versions.
 
 Compare the release candidate with the last published release, not with an N-stage number.
 Identify the public application behavior/contracts and any stored-format compatibility changes;

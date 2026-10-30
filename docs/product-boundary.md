@@ -653,8 +653,10 @@ them as real runs expose needs. Do not require exhaustive module completeness or
 acceptance. Existing access, privacy, ownership, and explicit recovery requirements remain
 implementation constraints; results must still be factual.
 
-The project remains **Beta until the author explicitly requests otherwise**, with no planned
-v1.0.0 milestone and no production-safety guarantee. Historical release labels/tags are unchanged.
+The author selected **v1.0.0 Brave New World** on 2026-10-29 under the
+[freeze plan](development/freeze-plan.md#7-freeze-release): the host becomes stable and AMF
+remains Beta. This supersedes the host's continuing-Beta policy. Historical release labels/tags
+are unchanged; stable does not declare every Windows or real-material case accepted.
 N stages define delivery outcomes independently of product release numbers; the
 [versioning policy](release/versioning.md) selects versions from actual release changes and owns
 the numerical Beta mapping. N-gate completion applies only to its recorded scenarios and disclosed
@@ -691,8 +693,9 @@ afterward, only the versions and operations actually exercised may be reported a
 
 ## Current stage
 
-Current development is continuing Beta under the N sequence. The historical v0.6.0 artifact remains
-unchanged; this ruling is not a new product release. Runtime-tool deployment is active. Community
+Current development prepares the freeze release under the N sequence; the host and AMF have
+separate lifecycle stages under the [version policy](release/versioning.md). Historical artifacts
+remain unchanged; source preparation is not publication. Runtime-tool deployment is active. Community
 plugin execution and a marketplace still require their separately accepted security decisions.
 
 **External Agent access (user ruling, 2026-10-13).** VUA runs a local MCP server for the

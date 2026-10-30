@@ -47,7 +47,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 
 [v0.7.0 Stone Age(Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)는 처음으로 아바타 제작 흐름을 제공합니다. 라이브러리에서 아바타와 의상을 고르면 VUA가 전용 Unity 프로젝트에서 조립하고 VRChat SDK로 확인한 뒤, 확인을 거쳐 업로드합니다. Windows x64 온라인·오프라인 NSIS 설치 파일에 AMF가 포함됩니다. [N1–N7 개발 순서](docs/development-outline.md)에 따라 개발을 이어 갑니다.
 
-Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·소재·사람의 검토가 통과했음을 뜻하지 않습니다. [v0.7.0 범위, 검사 및 제한 사항](docs/release/v0.7.0_KO.md)을 확인해 주세요.
+위 다운로드는 공개된 0.7.0 Beta입니다. 소스에서는 **v1.0.0 Brave New World**를 준비하고 있어요. 본체는 안정 버전이 되고 AMF는 Beta로 독립 업데이트를 이어 갑니다. [동결 버전 릴리스 노트 초안](docs/release/v1.0.0_KO.md)에 범위와 작성자 확인 대기 항목을 적었습니다. 소스 준비만으로 설치 파일이 공개되거나 N 단계의 검수가 끝나는 것은 아니에요.
 
 ### 현재 제공 상태와 시작 방법
 

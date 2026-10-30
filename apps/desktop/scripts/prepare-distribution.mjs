@@ -43,7 +43,7 @@ for (const root of [hostRoot, amfRoot]) {
 }
 const bootstrap = path.join(output, "bootstrap-source"); fs.mkdirSync(bootstrap);
 fs.writeFileSync(path.join(bootstrap, "main.cjs"), fs.readFileSync(path.join(desktop, "distribution/bootstrap.cjs"), "utf8").replace("__VUA_RELEASE_PUBLIC_KEY__", trust.publicKey));
-fs.writeFileSync(path.join(bootstrap, "package.json"), JSON.stringify({ name: "vua-desktop", productName: "VUA", version: pkg.version, main: "main.cjs", private: true }));
+fs.writeFileSync(path.join(bootstrap, "package.json"), JSON.stringify({ name: "vua-desktop", productName: "Virtual Unified Assistant", version: pkg.version, main: "main.cjs", private: true }));
 fs.mkdirSync(path.join(hostRoot, "bootstrap"), { recursive: true });
 await library("@electron/asar").createPackage(bootstrap, path.join(hostRoot, "bootstrap/app.asar"));
 

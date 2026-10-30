@@ -47,7 +47,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 
 [v0.7.0 Stone Age（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) 带来第一条 Avatar 制作路径：从素材库选好 Avatar 和衣服，VUA 在自己的 Unity 工程里装配，用 VRChat SDK 检查，经你确认后上传。Windows x64 在线与离线 NSIS 安装包随包包含 AMF。开发仍按 [N1–N7 序列](docs/development-outline.md) 推进。
 
-项目保持 Beta。发布不代表 N1/N5 或尚未完成的真机、素材及人工审查已通过。实际范围、检查与限制见 [v0.7.0 发行说明](docs/release/v0.7.0_ZH.md)。
+以上下载仍为已发布的 0.7.0 Beta。源码正在准备 **v1.0.0 Brave New World**：本体进入稳定版，AMF 保持 Beta、独立更新。[冻结版发行说明草稿](docs/release/v1.0.0_ZH.md)列出范围和待作者检查的项目；源码准备不代表安装包已发布或 N 阶段验收通过。
 
 ### 当前交付与开始入口
 

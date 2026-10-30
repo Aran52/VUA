@@ -21,7 +21,8 @@ export async function previewLibraryDirectory(target: string, warehouseRoot: str
       const itemPath = path.join(target, entry.name);
       const itemMeta = await fs.lstat(itemPath).catch(() => null);
       const kind = itemMeta?.isSymbolicLink() ? "link" : itemMeta?.isDirectory() ? "directory" : itemMeta?.isFile() ? "file" : "other";
-      items.push({ name: entry.name, path: itemPath, kind, sizeBytes: kind === "file" && itemMeta !== null ? itemMeta.size : null });
+      items.push({ name: entry.name, path: itemPath, kind, sizeBytes: kind === "file" && itemMeta !== null ? itemMeta.size : null,
+        modifiedMs: kind === "file" && itemMeta !== null ? Math.trunc(itemMeta.mtimeMs) : null });
     }
     items.sort((a, b) => a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "directory" ? -1 : b.kind === "directory" ? 1 : a.name.localeCompare(b.name));
     return { path: target, state: "ready", truncated, items };

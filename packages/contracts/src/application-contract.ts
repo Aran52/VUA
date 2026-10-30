@@ -16,6 +16,7 @@ import { isCatalogSyncParamsV03, type CatalogSyncBeginV03, type CatalogSyncPageV
 import { isLibraryDownloadParamsV01, type LibraryDownloadBeginV01, type LibraryDownloadObservationV01, type LibraryDownloadStatusV01 } from "./library-download-v01.js";
 import { isLibraryImportParamsV01, type LibraryImportParamsV01, type LibraryImportAcceptedV01 } from "./library-intake-v01.js";
 import { isLibraryImportPathsParamsV02, type LibraryImportPathsParamsV02, type LibraryImportPathsAcceptedV02 } from "./library-intake-v02.js";
+import { isLibraryImportGroupsParamsV01, type LibraryImportGroupsParamsV01 } from "./library-migration-v01.js";
 import { isLibraryEntryMetadataParamsV01, type LibraryEntryMetadataQueryV01, type LibraryEntryMetadataUpdateV01, type LibraryEntryMetadataV01 } from "./library-entry-metadata-v01.js";
 import { isLibraryRemoveLocalEntriesV01, type LibraryRemoveLocalEntriesV01, type LibraryRemovedLocalEntriesV01 } from "./library-records-v01.js";
 import { isLibraryRemoveCardsV02, type LibraryRemoveCardsV02 } from "./library-records-v02.js";
@@ -2034,6 +2035,9 @@ export interface LibraryImportCommandV01 extends ApplicationRequestBaseV01 {
 export interface LibraryImportPathsCommandV02 extends ApplicationRequestBaseV01 {
   readonly kind: "command"; readonly method: "library.importPaths"; readonly commandId: string; readonly params: LibraryImportPathsParamsV02;
 }
+export interface LibraryImportGroupsCommandV01 extends ApplicationRequestBaseV01 {
+  readonly kind: "command"; readonly method: "library.importGroups"; readonly commandId: string; readonly params: LibraryImportGroupsParamsV01;
+}
 export type LibraryEntryMetadataRequestV01 = ApplicationRequestBaseV01 & (
   | { readonly kind: "query"; readonly method: "library.entryMetadata"; readonly params: LibraryEntryMetadataQueryV01 }
   | { readonly kind: "command"; readonly commandId: string; readonly method: "library.updateEntryMetadata"; readonly params: LibraryEntryMetadataUpdateV01 }
@@ -2889,6 +2893,7 @@ export type ApplicationRequestV01 =
   | LibraryMaintenanceQueryV01 | LibraryMaintenanceCommandV01
   | LibraryImportCommandV01
   | LibraryImportPathsCommandV02
+  | LibraryImportGroupsCommandV01
   | LibraryEntryMetadataRequestV01
   | RecipeDraftQueryV01 | RecipeDraftCommandV01
   | WarehouseListEntriesQueryV03
@@ -3776,6 +3781,9 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   }
   if (value.method === "library.importPaths") {
     return value.kind === "command" && isIdentifier(value.commandId) && isLibraryImportPathsParamsV02(value.params);
+  }
+  if (value.method === "library.importGroups") {
+    return value.kind === "command" && isIdentifier(value.commandId) && isLibraryImportGroupsParamsV01(value.params);
   }
   if (value.method === "library.entryMetadata" || value.method === "library.updateEntryMetadata") {
     const query = value.method === "library.entryMetadata";

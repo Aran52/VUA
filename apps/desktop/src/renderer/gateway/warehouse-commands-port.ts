@@ -1,3 +1,4 @@
+import type { MigrationGroupV01 } from "@vua/contracts";
 import type { WarehouseArtifactMode } from "./acquire-port.ts";
 import type { CapabilityReport } from "./types.ts";
 
@@ -95,6 +96,12 @@ export interface WarehouseCommandsPort {
   importFolders(
     sourceFolders: readonly string[],
     options?: { readonly autoGenerate?: boolean },
+  ): Promise<WarehouseCommandOutcome>;
+  /** Reviewed migration groups (library-migration v0.1): one entry per named group, copied
+   *  from the explicit files under its root. */
+  importGroups(
+    groups: readonly MigrationGroupV01[],
+    options?: { readonly autoGenerate?: boolean; readonly commandId?: string },
   ): Promise<WarehouseCommandOutcome>;
   /** Native file/folder drop; copy only the supplied paths (library-intake v0.2). */
   importPaths(

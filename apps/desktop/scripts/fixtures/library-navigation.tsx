@@ -53,10 +53,10 @@ Object.defineProperty(window, "vua", { configurable: true, value: { gateway: { i
     createDirectory: async () => ({ ok: false, error: "failed" }),
   },
   library: { previewDirectory: async (path: string) => { scans.push(path); return { path, state: "ready", truncated: false, items: [
-    { name: "Garment with versions", path: `${path}\\Garment`, kind: "directory", sizeBytes: null },
-    { name: "shared.README", path: `${path}\\shared.README`, kind: "file", sizeBytes: 32 },
-    { name: "bundle.zip", path: `${path}\\bundle.zip`, kind: "file", sizeBytes: 64 },
-    { name: "ancestor link", path: `${path}\\link`, kind: "link", sizeBytes: null },
+    { name: "Garment with versions", path: `${path}\\Garment`, kind: "directory", sizeBytes: null, modifiedMs: null },
+    { name: "shared.README", path: `${path}\\shared.README`, kind: "file", sizeBytes: 32, modifiedMs: 1760000000000 },
+    { name: "bundle.zip", path: `${path}\\bundle.zip`, kind: "file", sizeBytes: 64, modifiedMs: 1760000000000 },
+    { name: "ancestor link", path: `${path}\\link`, kind: "link", sizeBytes: null, modifiedMs: null },
   ] }; } },
   dialog: { pickWarehouseFolders: async () => null },
 } });
@@ -139,9 +139,11 @@ async function run() {
   check(document.elementFromPoint(popupBounds.left + 10, popupBounds.top + 10)?.closest(".vua-import-menu__choices") === popup, "migration route is visible and hit-testable");
   arrow.click(); await pause(); await click(strings.importPage.migrationTitle); await until(() => !!document.querySelector(".vua-folder-picker"), "migration source picker");
   await click(strings.folderPicker.desktop); await click(strings.folderPicker.openCta);
-  await until(() => !!document.querySelector(".vua-migration-preview__tree"), "migration structure preview");
-  check(document.body.textContent?.includes(strings.importPage.migrationPreview.planning) && document.body.textContent?.includes("shared.README") && document.body.textContent?.includes("bundle.zip"), "migration preview retains loose companion files and archives without assigning package boundaries");
-  check(scans.length > 0 && calls.every(call => call.method !== "library.importPaths" && call.method !== "library.importFolders"), "migration structural preview performs no import");
+  await until(() => !!document.querySelector(".vua-migration__root"), "migration grouping planner");
+  const planner = document.querySelector<HTMLElement>(".vua-migration")!;
+  check(planner.textContent?.includes("shared.README") && planner.textContent?.includes("bundle.zip"), "migration planner retains loose companion files and archives for grouping");
+  check(!!planner.querySelector('[data-nav-id="migration-material-Garment"]') && planner.querySelector<HTMLButtonElement>('[data-nav-id="migration-import"]')?.disabled, "migration planner exposes directory choices and blocks import while files are unassigned");
+  check(scans.length > 0 && calls.every(call => !["library.importGroups", "library.importPaths", "library.importFolders"].includes(call.method)), "opening the migration planner performs no import");
   document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await pause();
   await listAndAdaptationChecks();
   return checks;

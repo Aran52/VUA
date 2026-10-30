@@ -46,6 +46,10 @@ pub enum ImportError {
         expected: u64,
         actual: u64,
     },
+    /// A migration group's name cannot become an entry folder.
+    InvalidGroupName(String),
+    /// A migration group's file path is outside its root or unsafe to store.
+    InvalidGroupPath(String),
     Cancelled,
 }
 
@@ -79,6 +83,8 @@ impl std::fmt::Display for ImportError {
                 formatter,
                 "copied {relative_path} is {actual} bytes, source reported {expected}"
             ),
+            Self::InvalidGroupName(name) => write!(formatter, "{name:?} cannot be an entry name"),
+            Self::InvalidGroupPath(path) => write!(formatter, "{path:?} is not a path inside its reviewed root"),
         }
     }
 }
@@ -119,6 +125,41 @@ pub struct WarehouseImporter<'a> {
     clock: &'a dyn Clock,
     warehouse_root: PathBuf,
     policy: InspectionPolicy,
+}
+
+/// One named migration material (freeze row F4 / slice 46): the entry's name, the reviewed
+/// root, and the explicit files under it as (path relative to the root, absolute source).
+/// The relative paths are recorded exactly as given, so the material keeps the reviewed
+/// layout; nothing outside the list is copied.
+#[derive(Debug, Clone)]
+pub struct MigrationGroupSource {
+    pub name: String,
+    pub root: PathBuf,
+    pub files: Vec<(String, PathBuf)>,
+}
+
+/// Grouped migration bounds; the wire contract carries the same numbers.
+pub const MIGRATION_GROUPS_LIMIT: usize = 200;
+pub const MIGRATION_FILES_LIMIT: usize = 20_000;
+
+/// A group's name becomes an entry folder name: no separators, reserved characters or edge
+/// spaces, and not empty after trimming.
+pub fn migration_group_name_valid(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().count() <= 80
+        && name.trim() == name
+        && !name.chars().any(|c| c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'))
+        && !name.ends_with('.')
+}
+
+/// A recorded group path must stay inside its root and be representable in the warehouse.
+pub fn migration_group_relative_valid(relative: &str) -> bool {
+    !relative.is_empty()
+        && relative.len() <= 512
+        && !relative.starts_with('/')
+        && !relative.contains('\\')
+        && !relative.contains(':')
+        && relative.split('/').all(|part| !part.is_empty() && part != "." && part != ".." && part.len() <= 255)
 }
 
 impl<'a> WarehouseImporter<'a> {
@@ -186,20 +227,48 @@ impl<'a> WarehouseImporter<'a> {
             return Err(ImportError::SourceInsideWarehouse(source_folder.to_path_buf()));
         }
 
-        let now = self.clock.now_rfc3339();
-        let item = self
-            .store
-            .create_warehouse_item(&display_name, IMPORT_ENTRY_KIND, &now)?;
-        let entry_folder = self.warehouse_root.join(&item.folder_name);
-        std::fs::create_dir_all(&entry_folder)?;
-
         let mut sources = Vec::new();
         let mut skipped = Vec::new();
         if source_is_file {
-            sources.push((display_name, source_folder.to_path_buf()));
+            sources.push((display_name.clone(), source_folder.to_path_buf()));
         } else {
             collect_files(source_folder, source_folder, &mut sources, &mut skipped, cancelled)?;
         }
+        self.import_entry(&display_name, sources, skipped, retain_all, cancelled, progress)
+    }
+
+    /// A migration group becomes one entry: the copy, verification, ZIP expansion and
+    /// artifact recording are the folder import's own, driven by an explicit file list
+    /// instead of a directory walk.
+    pub fn import_migration_group(&self, group: &MigrationGroupSource, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+        if cancelled() { return Err(ImportError::Cancelled); }
+        if !migration_group_name_valid(&group.name) { return Err(ImportError::InvalidGroupName(group.name.clone())); }
+        std::fs::create_dir_all(&self.warehouse_root)?;
+        let canonical_root = std::fs::canonicalize(&self.warehouse_root)?;
+        let mut sources = Vec::with_capacity(group.files.len());
+        for (relative, source) in &group.files {
+            if !migration_group_relative_valid(relative) { return Err(ImportError::InvalidGroupPath(relative.clone())); }
+            let metadata = std::fs::symlink_metadata(source)?;
+            if crate::zip_intake::is_reparse(&metadata) || !metadata.is_file() {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput,
+                    format!("migration source is not an ordinary file: {}", source.to_string_lossy())).into());
+            }
+            let canonical = std::fs::canonicalize(source)?;
+            if canonical.starts_with(&canonical_root) { return Err(ImportError::SourceInsideWarehouse(source.clone())); }
+            // The warehouse records native separators; the reviewed document uses `/`.
+            sources.push((relative.replace('/', std::path::MAIN_SEPARATOR_STR), canonical));
+        }
+        self.import_entry(&group.name, sources, Vec::new(), true, cancelled, progress)
+    }
+
+    fn import_entry(&self, display_name: &str, mut sources: Vec<(String, PathBuf)>, mut skipped: Vec<SkippedSourceFile>, retain_all: bool, cancelled: &dyn Fn() -> bool, progress: &dyn Fn(usize, u64)) -> Result<WarehouseImportReport, ImportError> {
+        let now = self.clock.now_rfc3339();
+        std::fs::create_dir_all(&self.warehouse_root)?;
+        let item = self
+            .store
+            .create_warehouse_item(display_name, IMPORT_ENTRY_KIND, &now)?;
+        let entry_folder = self.warehouse_root.join(&item.folder_name);
+        std::fs::create_dir_all(&entry_folder)?;
         sources.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut imported = Vec::new();
@@ -405,6 +474,140 @@ pub struct WarehouseImportTaskResult {
     pub reports: Vec<WarehouseImportReport>,
 }
 
+/// One migration batch of named material groups. Groups are independent: a group that fails
+/// is reported and the rest still import, so completed and unfinished work stay separable.
+#[derive(Debug, Clone)]
+pub struct MigrationImportTaskSpec {
+    pub correlation_id: String,
+    pub groups: Vec<MigrationGroupSource>,
+    pub warehouse_root: PathBuf,
+    pub auto_generate: Option<AutoGenerateSpec>,
+}
+
+/// A group that did not import, with the same typed code the single-folder face reports.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationGroupFailure {
+    pub name: String,
+    pub code: String,
+    pub message: String,
+}
+
+/// Task-layer result payload for grouped intake (Done exit): landing entries and failures in
+/// submission order. `groupsImported + failures.len() == groupsRequested` holds unless the
+/// task was cancelled, which reports neither.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationImportTaskResult {
+    pub correlation_id: String,
+    pub groups_requested: usize,
+    pub groups_imported: usize,
+    pub reports: Vec<WarehouseImportReport>,
+    pub failures: Vec<MigrationGroupFailure>,
+}
+
+fn migration_import_job(
+    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
+    spec: MigrationImportTaskSpec,
+) -> TaskJob {
+    let auto_generate = spec.auto_generate.clone();
+    Box::new(move |ctx| {
+        let mut reports = Vec::new();
+        let mut failures = Vec::new();
+        for group in &spec.groups {
+            if ctx.check_cancel() {
+                ctx.emit_progress(serde_json::json!({
+                    "kind": "warehouse.migration.cancelled",
+                    "cancelledBeforeGroup": group.name,
+                    "groupsImported": reports.len(),
+                }));
+                return Ok(TaskExit::Cancelled);
+            }
+            let importer = WarehouseImporter::new(&store, &*clock, spec.warehouse_root.clone());
+            match importer.import_migration_group(group, &|| ctx.check_cancel(), &|files, bytes| {
+                ctx.emit_progress(serde_json::json!({
+                    "operation": "library.importGroups",
+                    "group": group.name,
+                    "files": files,
+                    "bytes": bytes,
+                }))
+            }) {
+                Ok(report) => {
+                    if !report.skipped.is_empty() || report.expansions.iter().any(|e| e.state != "expanded") { ctx.warn(); }
+                    // The entry has landed: the import-orchestrated generation hook (proposal
+                    // 010 path A) evaluates the composed default per landing, exactly as the
+                    // folder faces do.
+                    if let Some(auto) = &auto_generate {
+                        if let Ok(composed) = store.global_default_mode() {
+                            if composed.unwrap_or(auto.env_initial) == ArtifactMode::GenerateVpm {
+                                let generation_correlation = format!("{}-auto-{}", spec.correlation_id, report.entry.warehouse_item_id);
+                                if let Err(error) = submit_generate_vpm(
+                                    &runtime, store.clone(), auto.executor.clone(),
+                                    GenerateVpmTaskSpec {
+                                        correlation_id: generation_correlation,
+                                        warehouse_item_id: report.entry.warehouse_item_id.clone(),
+                                        warehouse_root: spec.warehouse_root.clone(),
+                                        global_default: composed.unwrap_or(auto.env_initial),
+                                        import_correlation_id: Some(spec.correlation_id.clone()),
+                                    },
+                                    None,
+                                ) {
+                                    ctx.emit_progress(serde_json::json!({
+                                        "kind": "warehouse.import.generationSubmitFailed",
+                                        "warehouseItemId": report.entry.warehouse_item_id,
+                                        "reason": format!("{error:?}"),
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                    ctx.emit_progress(serde_json::json!({
+                        "kind": "warehouse.migration.groupImported",
+                        "group": group.name,
+                        "entryId": report.entry.warehouse_item_id,
+                        "groupsImported": reports.len() + 1,
+                    }));
+                    reports.push(report);
+                }
+                Err(error) => {
+                    if matches!(error, ImportError::Cancelled) { return Ok(TaskExit::Cancelled); }
+                    let app = import_error_to_app(error, &spec.correlation_id, &group.root);
+                    failures.push(MigrationGroupFailure {
+                        name: group.name.clone(),
+                        code: app.code.clone(),
+                        message: format!("{app:?}"),
+                    });
+                }
+            }
+        }
+        let result = MigrationImportTaskResult {
+            correlation_id: spec.correlation_id.clone(),
+            groups_requested: spec.groups.len(),
+            groups_imported: reports.len(),
+            reports,
+            failures,
+        };
+        let payload = serde_json::to_value(&result).expect("task result serializes infallibly (plain data shapes only)");
+        if ctx.check_cancel() { Ok(TaskExit::Cancelled) } else { Ok(TaskExit::Done(payload)) }
+    })
+}
+
+/// Grouped intake has its own idempotency namespace: a replayed command returns the same task,
+/// and the fingerprint binds the group names and files it was submitted with.
+pub fn submit_library_import_groups(
+    runtime: TaskRuntime, store: Arc<BdlStore>, clock: Arc<dyn Clock>,
+    spec: MigrationImportTaskSpec, command_id: &str,
+) -> Result<vua_orchestrator::CommandAcceptedV1, vua_orchestrator::AppErrorV1> {
+    let fingerprint = serde_json::json!({"groups": spec.groups.iter().map(|group| serde_json::json!({
+        "name": group.name,
+        "root": group.root.to_string_lossy(),
+        "files": group.files.iter().map(|(relative, _)| relative).collect::<Vec<_>>(),
+    })).collect::<Vec<_>>(), "autoGenerate": spec.auto_generate.is_some()}).to_string();
+    let correlation_id = spec.correlation_id.clone();
+    let job = migration_import_job(runtime.clone(), store, clock, spec);
+    runtime.submit_idempotent(SubmitRequest { correlation_id: Some(correlation_id), timeout: None, job }, "library.importGroups", command_id, &fingerprint)
+}
+
 fn import_error_to_app(
     error: ImportError,
     correlation_id: &str,
@@ -413,7 +616,8 @@ fn import_error_to_app(
     let (code, category) = match &error {
         ImportError::Store(_) => ("vua.warehouse.storeFailed", ErrorCategory::Internal),
         ImportError::Io(_) => ("vua.warehouse.importIoFailed", ErrorCategory::ExternalFailure),
-        ImportError::UnnamedSource(_) | ImportError::SourceInsideWarehouse(_) => {
+        ImportError::UnnamedSource(_) | ImportError::SourceInsideWarehouse(_)
+        | ImportError::InvalidGroupName(_) | ImportError::InvalidGroupPath(_) => {
             ("vua.warehouse.invalidSource", ErrorCategory::Validation)
         }
         ImportError::CopySizeMismatch { .. } => {
@@ -645,6 +849,70 @@ mod tests {
         assert_eq!(store.library_copy_evidence().unwrap().len(), 9);
         assert_eq!(std::fs::read(archive_path).unwrap(), original);
         assert!(store.library_copy_evidence().unwrap().iter().any(|c| c.copy.relative_path.ends_with("avatar/sub/Avatar.unitypackage")));
+    }
+
+    #[test]
+    fn a_migration_group_becomes_one_entry_with_the_reviewed_layout() {
+        let store = BdlStore::open_in_memory().unwrap();
+        let warehouse_root = unique_dir("vua-migration", "wh");
+        let clock = FixedClock::new(&["2026-10-30T09:00:00.000Z"]);
+        let importer = WarehouseImporter::new(&store, &clock, &warehouse_root);
+        let root = unique_dir("vua-migration", "collection");
+        std::fs::create_dir_all(root.join("Outfit").join("Textures")).unwrap();
+        std::fs::create_dir_all(root.join("Shared")).unwrap();
+        std::fs::write(root.join("Outfit").join("Outfit.unitypackage"), b"PK outfit").unwrap();
+        std::fs::write(root.join("Outfit").join("Textures").join("body.png"), b"png").unwrap();
+        std::fs::write(root.join("Shared").join("README.txt"), b"readme").unwrap();
+        // A loose sibling file joins the group: the reviewed selection, not a folder walk.
+        std::fs::write(root.join("LICENSE.txt"), b"license").unwrap();
+        let group = MigrationGroupSource {
+            name: "Meiyun coat".into(),
+            root: root.clone(),
+            files: vec![
+                ("Outfit/Outfit.unitypackage".into(), root.join("Outfit").join("Outfit.unitypackage")),
+                ("Outfit/Textures/body.png".into(), root.join("Outfit").join("Textures").join("body.png")),
+                ("LICENSE.txt".into(), root.join("LICENSE.txt")),
+            ],
+        };
+        let report = importer.import_migration_group(&group, &|| false, &|_, _| {}).unwrap();
+        assert_eq!(report.entry.display_name, "Meiyun coat");
+        assert_eq!(report.entry.kind, "imported_material");
+        let mut imported = report.imported.iter().map(|file| file.relative_path.replace('\\', "/")).collect::<Vec<_>>();
+        imported.sort();
+        assert_eq!(imported, vec!["LICENSE.txt", "Outfit/Outfit.unitypackage", "Outfit/Textures/body.png"]);
+        assert!(report.imported.iter().all(|file| file.artifact_sha256.starts_with("sha256:")));
+        // The files outside the reviewed selection stay out, and every original is unchanged.
+        assert!(!report.imported.iter().any(|file| file.relative_path.contains("README")));
+        assert_eq!(std::fs::read(root.join("Shared").join("README.txt")).unwrap(), b"readme");
+        assert_eq!(std::fs::read(root.join("LICENSE.txt")).unwrap(), b"license");
+    }
+
+    #[test]
+    fn a_migration_group_refuses_unsafe_names_paths_and_links() {
+        let store = BdlStore::open_in_memory().unwrap();
+        let warehouse_root = unique_dir("vua-migration-refuse", "wh");
+        let clock = FixedClock::new(&["2026-10-30T09:00:00.000Z"]);
+        let importer = WarehouseImporter::new(&store, &clock, &warehouse_root);
+        let root = unique_dir("vua-migration-refuse", "collection");
+        std::fs::write(root.join("a.unitypackage"), b"a").unwrap();
+        let file = root.join("a.unitypackage");
+        let refuse = |name: &str, relative: &str| {
+            let group = MigrationGroupSource { name: name.into(), root: root.clone(), files: vec![(relative.into(), file.clone())] };
+            importer.import_migration_group(&group, &|| false, &|_, _| {}).unwrap_err()
+        };
+        assert!(matches!(refuse("bad/name", "a.unitypackage"), ImportError::InvalidGroupName(_)));
+        assert!(matches!(refuse("Coat.", "a.unitypackage"), ImportError::InvalidGroupName(_)));
+        assert!(matches!(refuse("Coat", "../escape.unitypackage"), ImportError::InvalidGroupPath(_)));
+        assert!(matches!(refuse("Coat", "C:/absolute.unitypackage"), ImportError::InvalidGroupPath(_)));
+        // A file inside the warehouse would copy the destination into itself.
+        let inside = warehouse_root.join("already-there.txt");
+        std::fs::create_dir_all(&warehouse_root).unwrap();
+        std::fs::write(&inside, b"x").unwrap();
+        let group = MigrationGroupSource { name: "Coat".into(), root: root.clone(), files: vec![("already.txt".into(), inside)] };
+        assert!(matches!(importer.import_migration_group(&group, &|| false, &|_, _| {}).unwrap_err(), ImportError::SourceInsideWarehouse(_)));
+        // A missing source fails before an entry claims to hold it.
+        let group = MigrationGroupSource { name: "Coat".into(), root: root.clone(), files: vec![("gone.unitypackage".into(), root.join("gone.unitypackage"))] };
+        assert!(importer.import_migration_group(&group, &|| false, &|_, _| {}).is_err());
     }
 
     #[test]

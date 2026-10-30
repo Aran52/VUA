@@ -34,6 +34,15 @@ export const FIXTURES = {
     readyGlobal: "libraryNavigationReview",
     viewport: () => ({ width: 1200, height: 900 }),
   },
+  "migration-planner": {
+    prefix: "/__migration-planner",
+    shell: ({ locale }) =>
+      `<html><body data-module="production" data-vua-shape-scope="amf"><div id="root"></div>`
+      + `<script>localStorage.setItem('vua-locale',${JSON.stringify(locale)})</script>`
+      + `<script type="module" src="/scripts/fixtures/migration-planner.tsx"></script></body></html>`,
+    themeMode: "attribute",
+    viewport: () => ({ width: 1200, height: 900 }),
+  },
   "library-bulk": {
     prefix: "/__library-bulk",
     shell: ({ locale }) =>
@@ -219,6 +228,15 @@ export const VIEWS = [
   { id: "library-entries", fixture: "library-entries", area: "library", steps: ["await window.n5EntriesReview.run()"], settleMs: 600 },
   { id: "library-maintenance", fixture: "library-maintenance", area: "library", steps: ["await window.n5MaintenanceReview.run()"], settleMs: 600 },
   { id: "library-adaptations", fixture: "library-navigation", area: "library", steps: ["await window.libraryNavigationReview.run()", "await window.libraryNavigationReview.showAdaptations()"], settleMs: 600 },
+
+  { id: "migration-plan", fixture: "migration-planner", area: "library", steps: [
+    "for (let i = 0; i < 60 && !document.querySelector('[data-nav-id]'); i++) await new Promise(resolve => setTimeout(resolve, 100))",
+    "[...document.querySelectorAll('[data-nav-id]')].find(el => el.dataset.navId === 'migration-material-Meiyun Coat')?.click()",
+    "await new Promise(resolve => setTimeout(resolve, 500))",
+    "[...document.querySelectorAll('[data-nav-id]')].find(el => el.dataset.navId === 'migration-material-Meiyun Hat')?.click()",
+    "await new Promise(resolve => setTimeout(resolve, 500))",
+    "for (const name of ['README.txt', 'LICENSE.txt', 'extra-poses.unitypackage']) [...document.querySelectorAll('[data-nav-id]')].find(el => el.dataset.navId === 'migration-exclude-file-' + name)?.click()",
+  ], settleMs: 900 },
 
   // Whole-shell App states via first-run-review. The fixture renders the real
   // App only inside mount() (internal), so states are driven through its

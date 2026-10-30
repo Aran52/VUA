@@ -69,7 +69,14 @@ const firstUseNotice = () => js('!!document.querySelector("[data-first-use-notic
 const home = () => js('!!document.querySelector(".vua-home") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")');
 const skip = () => js('document.querySelector(".vua-tour__actions button").click()');
 const next = () => js('document.querySelector(".vua-tour__nav button:last-child").click()');
-const reload = async source => { const loaded = new Promise(resolve => main.webContents.once("did-finish-load", resolve)); await js(`${source};location.reload()`); await loaded; };
+const reload = async source => {
+  const loaded = new Promise(resolve => main.webContents.once("did-finish-load", resolve));
+  await js(`${source};location.reload()`);
+  await loaded;
+  // A document load does not guarantee React has mounted. Use the same bounded
+  // startup budget as the initial native load before checking the next UI state.
+  await waitFor(() => js('!!document.querySelector(".vua-shell, .vua-onboarding")'), "renderer after reload", 30_000);
+};
 const fits = selector => js(`(()=>{const c=document.querySelector(${JSON.stringify(selector)}),r=c.getBoundingClientRect();return r.left>=-1&&r.top>=-1&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1&&c.scrollWidth<=c.clientWidth+1})()`);
 async function startTour() {
   await js('document.querySelector("[data-nav-id=shell-help]").click()');
@@ -227,6 +234,7 @@ async function run() {
     exitCode = 0;
   } catch (error) {
     console.error(error);
+    if (main && !main.isDestroyed()) fs.writeFileSync(path.join(output, "failure-state.json"), JSON.stringify(await js('({readyState:document.readyState,url:location.href,root:document.querySelector("#root")?.innerHTML,styles:document.documentElement.dataset})'), null, 2));
     if (main && !main.isDestroyed()) await capture(main, "failure");
     console.error(JSON.stringify({ evidence: output, rendererErrors: errors }));
   } finally { childProcess.spawn = spawn; clearTimeout(deadline); app.quit(); }

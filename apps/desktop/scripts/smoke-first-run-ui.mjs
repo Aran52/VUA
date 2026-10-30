@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
 import { writeFile } from "node:fs/promises";
-import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -41,7 +40,8 @@ try {
     resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },
     cacheDir: path.join(os.tmpdir(), "vua-first-run-ui-vite"),
     define: { __VUA_BUILD_INFO__: JSON.stringify({ version: "synthetic-ui", commit: "synthetic", dirty: false }) },
-    server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
+    // This fixed-source interaction check does not need a live-reload socket.
+    server: { host: "127.0.0.1", port: 0, hmr: false }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
   server.middlewares.use(async (req, res, next) => {
     const route = req.url?.split("?")[0];
     if (route !== "/__first-run-review" && route !== "/__task-window-review") return next();
@@ -61,14 +61,9 @@ try {
   window.webContents.debugger.attach("1.3");
   await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
   await waitForReview();
-  const navigation = once(window.webContents, "did-navigate");
-  // Language confirmation replaces the fixture context; continue in the new one.
-  void window.webContents.executeJavaScript("window.firstRunReview.run()").catch(error => console.error("Initial first-run context ended:", error));
-  await navigation;
-  await waitForReview();
-  if (!await window.webContents.executeJavaScript(`JSON.parse(localStorage.getItem("vua-goals") ?? "null")?.onboarding === "completed"`)) throw new Error("Language confirmation was not persisted through reload");
   const checks = await window.webContents.executeJavaScript("window.firstRunReview.run().catch(error => { throw new Error(error.stack ?? String(error)); })");
-  checks.unshift("First-run language confirmation survives the actual page reload");
+  if (!await window.webContents.executeJavaScript('JSON.parse(localStorage.getItem("vua-goals") ?? "null")?.onboarding === "completed"')) throw new Error("First-use acknowledgment was not persisted");
+  checks.unshift("Both first-use entries persist completion without requiring a renderer reload");
   console.log(`First-run controlled UI: ${checks.length} checks passed`);
   await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", { enabled: true });
   for (const key of ["Enter", "ArrowRight", "Home"]) {

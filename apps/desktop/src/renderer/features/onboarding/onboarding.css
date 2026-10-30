@@ -12,7 +12,7 @@
   flex-direction: column;
   gap: var(--vua-space-5);
   width: 100%;
-  max-width: 520px;
+  max-width: 672px;
 }
 
 .vua-onboarding__header {
@@ -30,19 +30,35 @@
   font: var(--vua-font-body);
 }
 
-.vua-onboarding__language {
+.vua-onboarding__part {
   display: grid;
   gap: var(--vua-space-2);
   color: var(--vua-text-strong);
   font: var(--vua-font-body);
 }
 
-.vua-onboarding__language .vua-settings-select {
-  width: 100%;
+.vua-onboarding__part h2 {
+  margin: 0;
+  font: var(--vua-font-body);
+  font-weight: var(--vua-weight-strong);
+}
+
+.vua-onboarding__part p {
+  margin: 0;
+  color: var(--vua-text-secondary);
+}
+
+.vua-onboarding__part a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--vua-space-6);
+  width: fit-content;
+  color: var(--vua-accent-text);
 }
 
 .vua-onboarding__footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--vua-space-2);
 }

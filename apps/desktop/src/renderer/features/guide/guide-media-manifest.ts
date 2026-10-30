@@ -32,7 +32,8 @@ export const GUIDE_SCREENSHOTS: Record<GuideScreenshotId, GuideScreenshot> = {
 };
 
 const TARGET_MEDIA: Record<string, GuideScreenshotId> = {
-  "guide-vua/first-run-language": "vua-first-run",
+  // The older language-choice capture does not illustrate the first-use notice.
+  // F8 supplies current-build captures after the interface has settled.
   "guide-vua/window-tour": "vua-help",
   "guide-vua/environment-page": "vua-avatar-preparation",
   "guide-vua/settings-basics": "vua-theme-presets",

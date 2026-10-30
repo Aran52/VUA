@@ -1,0 +1,25 @@
+.vua-beginner-wizard {
+  display: grid;
+  align-content: start;
+  gap: var(--vua-space-5);
+  max-width: 880px;
+}
+
+.vua-beginner-wizard__progress,
+.vua-beginner-wizard__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--vua-space-3);
+}
+
+.vua-beginner-wizard__article {
+  display: grid;
+  justify-items: start;
+  gap: var(--vua-space-4);
+}
+
+.vua-beginner-wizard p,
+.vua-beginner-wizard h2 {
+  margin: 0;
+}

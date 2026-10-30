@@ -86,10 +86,7 @@ test("real VUA media is local, described and separated from unavailable game cap
     assert.equal(meta.license, "Apache-2.0");
   }
   assert.match(GUIDE_SCREENSHOTS["vua-avatar-preparation"].privacy, /Cropped/);
-  const media = guideMediaForSection("guide-vua", "first-run-language");
-  assert.ok(media);
-  assert.equal(media.kind, "screenshot");
-  assert.equal(media.aspectRatio, `${GUIDE_SCREENSHOTS["vua-first-run"].width} / ${GUIDE_SCREENSHOTS["vua-first-run"].height}`);
-  assert.ok(media.caption.includes("+dirty"));
+  assert.equal(guideMediaForSection("guide-vua", "first-run-language"), null,
+    "The old language-choice capture must not illustrate the new notice");
   assert.equal(guideMediaForSection("guide-avatars", "visibility"), null);
 });

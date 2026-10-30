@@ -747,7 +747,7 @@ function AppShell({
 
   // 命令面板(C-EFFICIENCY,ui-ux §6.1):Ctrl/Cmd+P 开关;命令 = 全部页面跳转 + 主题切换
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // Explicit replay starts the tour; it never opens automatically on startup.
+  // An explicit first-use choice or replay starts the tour; bookmarks never start it.
   const [tourStartRequest, setTourStartRequest] = useState(0);
   const [tourActive, setTourActive] = useState(false);
   const [contextGuideReplay, setContextGuideReplay] = useState(0);
@@ -1085,7 +1085,10 @@ function AppShell({
             {aiPort ? <AiRequestsHere page={contentPage} /> : null}
             {renderPage(contentPage, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}
           </div> : null}
-          {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={onOnboardingComplete} /></div> : null}
+          {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={result => {
+            onOnboardingComplete(result);
+            if (result.tour) setTourStartRequest(value => value + 1);
+          }} /></div> : null}
           {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}</div> : null}
         </main>
       </div>

@@ -4,6 +4,7 @@ import { App } from "../../src/renderer/App.tsx";
 import { currentLocale, format, strings } from "../../src/renderer/i18n/index.ts";
 import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
 import { TOUR_STEPS } from "../../src/renderer/features/tour/tour-model.ts";
+import { BEGINNER_CONCEPTS } from "../../src/renderer/features/help/beginner-wizard-model.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 
@@ -33,7 +34,7 @@ function syntheticPlay(route: string) {
 const check = (name: string, value: unknown) => { if (!value) throw new Error(name); checks.push(name); };
 const wait = async (predicate: () => unknown, label = "") => {
   const start = Date.now();
-  while (!predicate()) { if (Date.now() - start > 10000) throw new Error(`UI condition timed out: ${label || predicate.toString().slice(0, 160)}; wizard=${document.querySelector("[data-first-run-language]")?.getAttribute("data-first-run-language")}`); await new Promise(r => setTimeout(r, 25)); }
+  while (!predicate()) { if (Date.now() - start > 10000) throw new Error(`UI condition timed out: ${label || predicate.toString().slice(0, 160)}; wizard=${document.querySelector("[data-first-use-notice]")?.getAttribute("data-first-use-notice")}`); await new Promise(r => setTimeout(r, 25)); }
 };
 const visible = (el: Element) => el.getClientRects().length > 0 && !el.closest("[hidden]");
 const detailsBelowCard = (control: Element) => {
@@ -98,14 +99,12 @@ window.vua = {
 
 let autoConfirmFirstRun = true;
 async function completeFirstRun(keepGuide = false) {
-  await wait(() => document.querySelector("[data-first-run-language]"));
+  await wait(() => document.querySelector("[data-first-use-notice]"));
   if (!autoConfirmFirstRun) return;
-  const select = document.querySelector<HTMLSelectElement>(".vua-onboarding__language select")!;
-  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, currentLocale);
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-  await click(strings.onboarding.continue);
-  await wait(() => document.querySelector(".vua-home") && !document.querySelector("[data-first-run-language]"));
-  await wait(() => !document.querySelector(".vua-tour"));
+  document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-beginner"]')!.click();
+  await wait(() => document.querySelector('[data-wizard-step="vrchat"]'));
+  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
+  await wait(() => document.querySelector(".vua-home") && !document.querySelector("[data-first-use-notice]") && !document.querySelector(".vua-tour"));
   if (!keepGuide) {
     const guide = document.querySelector('[data-context-guide="home"]');
     if (guide) [...guide.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === strings.contextGuide.dismiss)?.click();
@@ -128,7 +127,7 @@ async function mount(mode: typeof scenario = "installed", legacyMode = "desktop"
   await wait(() => document.querySelector(".vua-shell"));
   await wait(() => !document.querySelector(".vua-boot-splash"));
   if (mode === "restored" || previousGoals !== null) {
-    await wait(() => !document.querySelector("[data-first-run-language]"));
+    await wait(() => !document.querySelector("[data-first-use-notice]"));
     if (!keepGuide) {
       const guide = document.querySelector('[data-context-guide="home"]');
       if (guide) [...guide.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === strings.contextGuide.dismiss)?.click();
@@ -136,8 +135,7 @@ async function mount(mode: typeof scenario = "installed", legacyMode = "desktop"
   } else await completeFirstRun(keepGuide);
 }
 async function mountPreview(inventory: typeof creatorInventory = "all") {
-  // Preview states are not first-run acceptance. Avoid the language confirmation's
-  // intentional full reload, which would invalidate the caller's pending Promise.
+  // Preview states use a completed profile; dedicated first-use checks cover both choices.
   localStorage.setItem(storageKeys.goals, JSON.stringify({ version: 1, onboarding: "completed", goals: [], environments: [] }));
   await mount("installed", "desktop", previewTheme, inventory);
 }
@@ -148,12 +146,61 @@ async function prepare() {
   await click(strings.scenarioEnvironment.plan);
 }
 const review = {
+  async previewFirstUse() {
+    localStorage.removeItem(storageKeys.goals);
+    autoConfirmFirstRun = false;
+    try { await mount("installed", "desktop", previewTheme); }
+    finally { autoConfirmFirstRun = true; }
+    await settlePage();
+  },
+  async previewBeginner() {
+    await review.previewFirstUse();
+    document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-beginner"]')!.click();
+    await wait(() => document.querySelector('[data-wizard-step="vrchat"]'));
+    await settlePage();
+  },
+  async firstUseChoices() {
+    localStorage.removeItem(storageKeys.goals);
+    autoConfirmFirstRun = false;
+    try { await mount(); } finally { autoConfirmFirstRun = true; }
+    check("first use has four notice parts, two choices and no language question",
+      document.querySelectorAll("[data-first-use-part]").length === 4
+      && document.querySelectorAll("[data-first-use-notice] button").length === 2
+      && !document.querySelector("[data-first-use-notice] select, [data-first-use-notice] input"));
+    document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-beginner"]')!.click();
+    await wait(() => document.querySelector('[data-wizard-step="vrchat"]'));
+    check("beginner choice starts with VRChat without a feature tour", !document.querySelector(".vua-tour"));
+    document.querySelector<HTMLButtonElement>('[data-nav-id="wizard-want"]')!.click();
+    await wait(() => document.querySelector('[data-tour-anchor="play-environments"]'));
+    check("Want this opens actual play setup without requesting a plan", intents.length === 0);
+    await click(copy.help); await click(copy.wizard);
+    for (const concept of BEGINNER_CONCEPTS) {
+      await wait(() => document.querySelector("[data-wizard-step]")?.getAttribute("data-wizard-step") === concept.id);
+      check("one concept per page: " + concept.id, document.querySelectorAll(".vua-beginner-wizard__article").length === 1);
+      document.querySelector<HTMLButtonElement>('[data-nav-id="wizard-next"]')!.click();
+    }
+    await wait(() => document.querySelector(".vua-home"));
+    check("reading concepts preserves language and does not fabricate completed setup",
+      localStorage.getItem(storageKeys.locale) === currentLocale && intents.length === 0
+      && localStorage.getItem(storageKeys.guideReading) === null);
+    localStorage.removeItem(storageKeys.goals);
+    autoConfirmFirstRun = false;
+    try { await mount(); } finally { autoConfirmFirstRun = true; }
+    document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-enter"]')!.click();
+    await wait(() => document.querySelector(".vua-tour")?.getAttribute("data-tour-step") === "welcome");
+    check("Got it starts the light feature tour", !document.querySelector("[data-first-use-notice]"));
+    document.querySelector<HTMLButtonElement>(".vua-tour__actions button")!.click();
+    await wait(() => !document.querySelector(".vua-tour"));
+    check("the first-use tour is skippable and neither choice changes language",
+      localStorage.getItem(storageKeys.locale) === currentLocale && JSON.parse(localStorage.getItem(storageKeys.goals)!).onboarding === "completed");
+  },
   async run() {
+    await review.firstUseChoices();
     await mount("installed", "desktop", undefined, undefined, true);
     check("a new session defaults to Dark with the system set to Light", localStorage.getItem(storageKeys.theme) === "dark" && document.documentElement.dataset.theme === "dark");
     await wait(() => document.querySelector('[data-context-guide="home"]'));
-    check("language-first startup has no mandatory tour or retired wizard", !document.querySelector(".vua-tour") && !document.querySelector("[data-first-run-language]"));
-    check("language selection and page introductions request no deployment plan", intents.length === 0);
+    check("returning from the concept wizard leaves no forced tour or notice", !document.querySelector(".vua-tour") && !document.querySelector("[data-first-use-notice]"));
+    check("reading guidance and page introductions request no deployment plan", intents.length === 0);
     await click(strings.contextGuide.later);
     check("later snoozes only for this session", localStorage.getItem(storageKeys.contextGuide) === null && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
     await click(copy.help); await click(copy.wizard);
@@ -178,7 +225,7 @@ const review = {
     check("account return preserves the originating environment workflow", !!document.querySelector('[data-route-stage="prepare"]'));
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => document.querySelector(".vua-home"));
-    check("home is reachable without completing a global wizard", !document.querySelector("[data-first-run-language]"));
+    check("home is reachable without completing a global wizard", !document.querySelector("[data-first-use-notice]"));
     check("only the logo is the Home action", document.querySelectorAll('[data-nav-id="logo-home"]').length === 1 && !document.querySelector(".vua-shell__tabs"));
     check("home has no tile subtitles", !document.querySelector(".vua-home .vua-route-tile__description"));
     check("header no longer repeats the page title beside the logo", !document.querySelector(".vua-shell__location strong"));
@@ -188,7 +235,7 @@ const review = {
     check("ready task capability retains the bell without mounting a bottom taskbar", !!document.querySelector(".vua-shell__notify") && !document.querySelector(".vua-shell__taskbar"));
     await mount("installed", "desktop");
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
-    await wait(() => !document.querySelector("[data-first-run-language]"));
+    await wait(() => !document.querySelector("[data-first-use-notice]"));
     check("AMF remains inactive until explicit enablement", !document.querySelector('.vua-shell__sidebar [data-module="production"]') && !!document.querySelector('[data-nav-id="nav-enable-amf"]'));
     check("bottom-left duplicate settings and help entries are gone", !document.querySelector(".vua-shell__sidebar-global") && !document.querySelector('.vua-shell__sidebar [data-nav-id="nav-settings-theme"]'));
     check("desktop sidebar is narrower and retains frosted glass", document.querySelector(".vua-shell__sidebar")!.getBoundingClientRect().width === 176 && getComputedStyle(document.querySelector(".vua-shell__sidebar")!).backdropFilter.includes("blur"));
@@ -266,7 +313,7 @@ const review = {
   },
   async runEnvironmentCards() {
     const startAt = checks.length;
-    await mount("installed", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-run-language]"));
+    await mount("installed", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]"));
     check("Software & connections is absent from the fixed directory", !document.querySelector('[data-nav-id="nav-software"]') && !document.querySelector('[data-nav-id="home-software"]'));
     await click(copy.play); const card = () => document.querySelector<HTMLElement>('[data-card="route-desktop"]')!;
     await wait(() => card()?.dataset.action === "start", "desktop card ready to start");
@@ -315,7 +362,7 @@ const review = {
       control.click();
       await wait(() => control.getAttribute('aria-expanded') === 'false');
     }
-    await mount("missing", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-run-language]")); await click(copy.play);
+    await mount("missing", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]")); await click(copy.play);
     await wait(() => card()?.dataset.action === "prepare"); document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click();
     await wait(() => document.querySelector(".vua-play-page .vua-scenario-preparation [role=status]"), "plus shows the software check");
     check("plus checks software without planning, installing or launching", playCalls.length === 0 && !button(strings.deployment.execute));
@@ -336,7 +383,7 @@ const review = {
     return checks.slice(startAt);
   },
   async previewEnvironment(page: "play" | "create", inventory: typeof creatorInventory = "all") {
-    await mountPreview(inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-run-language]"));
+    await mountPreview(inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]"));
     await click(copy[page]);
     await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-editor-status]')?.textContent?.includes("2022.3.22f1"));
     await settlePage();
@@ -344,14 +391,14 @@ const review = {
   async previewSettings() {
     await mountPreview();
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
-    await wait(() => !document.querySelector("[data-first-run-language]"));
+    await wait(() => !document.querySelector("[data-first-use-notice]"));
     document.querySelector<HTMLButtonElement>('[data-nav-id="shell-settings"]')!.click();
     await wait(() => location.hash === "#settings-theme" && document.querySelector(".vua-theme-choice"));
     await settlePage();
     check("settings capture owns the settings-theme route and actual appearance controls",
       location.hash === "#settings-theme" && document.querySelectorAll(".vua-theme-choice").length === 2
       && document.querySelectorAll(".vua-theme-choice__button").length === 5
-      && !document.querySelector("[data-first-run-language]"));
+      && !document.querySelector("[data-first-use-notice]"));
     check("settings capture preserves its requested appearance preference",
       document.documentElement.dataset.theme === previewTheme
       && document.querySelector(`[data-nav-id="theme-${previewTheme}"][aria-pressed="true"]`));
@@ -434,7 +481,7 @@ const review = {
   async previewTools() {
     await mountPreview();
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
-    await wait(() => !document.querySelector("[data-first-run-language]"));
+    await wait(() => !document.querySelector("[data-first-use-notice]"));
     await click(copy.tools);
     await wait(() => document.querySelector(".vua-tools-hub"));
     await settlePage();
@@ -446,20 +493,24 @@ const review = {
       localStorage.removeItem(storageKeys.goals);
       await mount();
       autoConfirmFirstRun = true;
-      await wait(() => document.querySelector('[data-nav-id="first-run-language-continue"]'), "language confirmation for native Enter");
+      await wait(() => document.querySelector('[data-nav-id="first-use-enter"]'), "first-use Got it for native Enter");
       sessionStorage.setItem("vua-test-native-first-run-enter", "pending");
-      document.querySelector<HTMLButtonElement>('[data-nav-id="first-run-language-continue"]')!.focus();
+      document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-enter"]')!.focus();
     }
   },
   async afterKey(key: string) {
     if (key === "Enter") {
-      const confirmed = sessionStorage.getItem("vua-test-native-first-run-enter") === "pending"
-        && JSON.parse(localStorage.getItem(storageKeys.goals) ?? "null")?.onboarding === "completed";
+      await wait(() => document.querySelector(".vua-tour")?.getAttribute("data-tour-step") === "welcome");
+      check("native Enter acknowledges the notice and starts only the welcome step",
+        sessionStorage.getItem("vua-test-native-first-run-enter") === "pending"
+        && JSON.parse(localStorage.getItem(storageKeys.goals) ?? "null")?.onboarding === "completed"
+        && !document.querySelector("[data-first-use-notice]"));
+      document.querySelector<HTMLButtonElement>(".vua-tour__actions button")!.click();
       await mount();
-      check("native Enter confirms language and reaches Home after the actual reload", confirmed
-        && !!document.querySelector(".vua-home") && !document.querySelector("[data-first-run-language]") && !document.querySelector(".vua-tour"));
+      check("a returning completed profile does not repeat the first-use tour",
+        !!document.querySelector(".vua-home") && !document.querySelector(".vua-tour"));
     } else await wait(() => !document.querySelector(".vua-shell[data-display-mode]"));
-    return `Chromium ${key}: ${key === "Enter" ? "language confirmation reaches Home" : "no retired wizard or directional shell navigation"}`;
+    return "Chromium " + key + ": " + (key === "Enter" ? "Got it starts the tour welcome" : "no retired directional shell navigation");
   },
   async setThemePreference(theme: "light" | "dark" | "system") {
     if (!document.querySelector('[data-nav-id="nav-settings-theme"]')) {

@@ -37,9 +37,9 @@ const en = {
     avatarPreparation: { alt: "Avatar preparation showing full-account and New User upload requirements", caption: "Actual VUA build {build} · {date}. Isolated test profile; no account or private assets." },
     themes: { alt: "VUA Theme settings with all four English theme names", caption: "Actual VUA build {build} · {date}. Isolated test profile; no account or private assets." },
   },
-  firstRun: { id: "first-run-language", title: "Language first, then Home", paragraphs: [
-    "Choose a language on first launch. VUA then opens Home; the feature tour and page tips are optional.",
-    "You can change the language later in Settings. Choosing a language does not install software, start production or select a goal for you.",
+  firstRun: { id: "first-run-language", title: "First launch and getting started", paragraphs: [
+    "VUA uses the first supported system language. The first-use notice covers the app, its changes, free Apache 2.0 source and third-party licenses. Language can be changed in Settings.",
+    "Got it starts the skippable feature tour. I have no idea what to do opens a concept wizard: I want this opens the matching setup, and Got it advances to the next concept.",
   ] },
 };
 
@@ -82,9 +82,9 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
       avatarPreparation: { alt: "制作准备页面说明完整账号和 New User 上传条件", caption: "VUA 实机界面 · 构建 {build} · {date}。隔离测试环境，不含账号或私有素材。" },
       themes: { alt: "VUA 主题设置中四个英文主题名称", caption: "VUA 实机界面 · 构建 {build} · {date}。隔离测试环境，不含账号或私有素材。" },
     },
-    firstRun: { id: "first-run-language", title: "先选语言，再进入首页", paragraphs: [
-      "第一次打开 VUA 时只需选择界面语言，确认后进入首页。功能导览和板块提示都可以稍后再看。",
-      "之后可以在设置中更换语言。选择语言不会安装软件、启动制作任务，也不会替你决定使用目标。",
+    firstRun: { id: "first-run-language", title: "首次启动与入门向导", paragraphs: [
+      "VUA 使用系统首选项中受支持的语言。首次使用说明包含用途、更新、Apache 2.0 开源与免费下载说明，以及第三方许可证。之后可在设置中更换语言。",
+      "“知道了”进入可跳过的功能导览；“我完全不知道要做什么”打开逐页介绍概念的向导。“我要这个”进入相应准备页面，“我知道了”进入下一个概念。",
     ] },
   },
   "zh-TW": {
@@ -124,9 +124,9 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
       avatarPreparation: { alt: "製作準備頁面說明完整帳號和 New User 上傳條件", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
       themes: { alt: "VUA 主題設定中四個英文主題名稱", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
     },
-    firstRun: { id: "first-run-language", title: "先選語言，再進入首頁", paragraphs: [
-      "第一次打開 VUA 時只需選擇介面語言，確認後進入首頁。功能導覽和板塊提示都可以稍後再看。",
-      "之後可以在設定中更換語言。選擇語言不會安裝軟體、啟動製作任務，也不會替你決定使用目標。",
+    firstRun: { id: "first-run-language", title: "首次啟動與入門精靈", paragraphs: [
+      "VUA 使用系統偏好設定中支援的語言。首次使用說明包含用途、更新、Apache 2.0 開放原始碼與免費下載說明，以及第三方授權條款。之後可在設定中更換語言。",
+      "「知道了」進入可略過的功能導覽；「我完全不知道要做什麼」開啟逐頁介紹概念的精靈。「我要這個」進入對應準備頁面，「我知道了」進入下一個概念。",
     ] },
   },
   ja: {
@@ -166,9 +166,9 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
       avatarPreparation: { alt: "正式アカウントと New User のアップロード条件を表示した制作準備画面", caption: "VUA の実機画面 · ビルド {build} · {date}。アカウントや私有アセットを含まない隔離環境。" },
       themes: { alt: "四つのテーマ名を英語で表示した VUA のテーマ設定", caption: "VUA の実機画面 · ビルド {build} · {date}。アカウントや私有アセットを含まない隔離環境。" },
     },
-    firstRun: { id: "first-run-language", title: "言語を選んでからホームへ", paragraphs: [
-      "初回起動では言語だけを選びます。確認するとホームに進み、ツアーやページ別の案内はあとから利用できます。",
-      "言語は設定であとから変更できます。選択しても、ソフトのインストール、制作の開始、目的の決定は行われません。",
+    firstRun: { id: "first-run-language", title: "初回起動とはじめてのガイド", paragraphs: [
+      "VUA はシステムの優先言語から対応言語を選びます。初回の説明には用途、変更点、Apache 2.0 での公開と無料配布、サードパーティーのライセンスを掲載しています。言語は設定で変更できます。",
+      "「わかりました」でスキップ可能な機能ツアーを開始します。「何から始めればよいかわかりません」では、概念を一つずつ学べます。「これを使いたい」で準備画面へ、「わかりました」で次の項目へ進みます。",
     ] },
   },
   ko: {
@@ -208,9 +208,9 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
       avatarPreparation: { alt: "정식 계정과 New User 업로드 조건을 보여주는 제작 준비 화면", caption: "VUA 실제 화면 · 빌드 {build} · {date}. 계정과 개인 에셋이 없는 격리된 테스트 환경." },
       themes: { alt: "네 가지 테마 이름을 영어로 표시한 VUA 테마 설정", caption: "VUA 실제 화면 · 빌드 {build} · {date}. 계정과 개인 에셋이 없는 격리된 테스트 환경." },
     },
-    firstRun: { id: "first-run-language", title: "언어를 고른 다음 홈으로", paragraphs: [
-      "첫 실행에서는 언어만 고릅니다. 확인하면 홈으로 이동하며 투어와 페이지 안내는 나중에 볼 수 있어요.",
-      "언어는 설정에서 바꿀 수 있어요. 언어를 선택한다고 소프트웨어 설치, 제작 시작, 목적 선택이 이루어지지는 않아요.",
+    firstRun: { id: "first-run-language", title: "첫 실행과 처음 시작하기", paragraphs: [
+      "VUA는 시스템의 기본 언어 목록에서 지원하는 언어를 선택해요. 첫 사용 안내에는 용도, 변경 사항, Apache 2.0 오픈 소스와 무료 다운로드, 타사 라이선스가 있어요. 언어는 설정에서 바꿀 수 있어요.",
+      "‘알겠어요’는 건너뛸 수 있는 기능 투어를 시작해요. ‘무엇부터 해야 할지 모르겠어요’는 개념을 하나씩 소개해요. ‘이걸 사용할래요’는 해당 준비 화면을 열고 ‘알겠어요’는 다음 개념으로 넘어가요.",
     ] },
   },
 };

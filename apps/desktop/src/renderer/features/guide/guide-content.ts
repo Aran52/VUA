@@ -11,6 +11,7 @@ import type { TutorialContentPackV1 } from "../../app/tutorial-content-pack.ts";
 import { currentLocale, strings } from "../../i18n/index.ts";
 import { guideAvatarCopy } from "../../i18n/guide-avatar-copy.ts";
 import { encyclopediaCopy } from "../../i18n/encyclopedia-copy.ts";
+import { firstUseCopy } from "../../i18n/first-use-copy.ts";
 import { resolveGuideScreenshot } from "./guide-media-manifest.ts";
 
 export interface GuideSectionContent {
@@ -73,6 +74,7 @@ export function guidePage(topic: GuideTopicId, copy: typeof strings.guide = stri
   const key = GUIDE_TOPIC_COPY_KEY[topic];
   if (key === "avatars") return guideAvatarCopy[currentLocale];
   const page = copy.pages[key];
+  if (key === "start") return { ...page, sections: [firstUseCopy[currentLocale].vrchat, ...page.sections] };
   return key === "vua" ? { ...page, sections: [encyclopediaCopy[currentLocale].firstRun, ...page.sections] } : page;
 }
 

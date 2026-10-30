@@ -44,7 +44,7 @@ application use cases without a generic module registry or runtime composition f
 Core catalog entries represent trusted behavior built directly into VUA and gain no authority through
 runtime registration. The future community plugin host provides a separate capability context.
 
-## Startup and first-use language
+## Startup and first use
 
 The author's 2026-10-10 approval replaces the full-window text/grid opening with a centered,
 frameless 480 × 320 DIP startup surface. It begins white; five thick black rays travel from the
@@ -65,9 +65,10 @@ Main now supplies Windows' ordered preferred UI languages through local preload 
 instead of letting Electron's browser language decide first use. Native input is bounded in
 preload; browser previews retain their navigator fallback. The saved manual choice always wins,
 and inferred choices do not become a saved override. PICO distribution and network targets
-remain independent. First use asks only for a language and then enters the fixed Home, as defined by
-[guidance architecture](guidance.md#2-first-run-and-contextual-introductions). The feature tour and
-module introductions are optional and do not enable AMF.
+remain independent. First use opens a four-part notice without asking for a language. Acknowledging
+it starts the skippable feature tour; the beginner choice opens the concept wizard, as defined by
+[guidance architecture](guidance.md#2-first-run-and-contextual-introductions). Neither choice enables AMF
+or starts a business task; installed module choices keep their existing authority.
 
 Main returns normalized navigation/download events through narrow ports and retains `Session`,
 `WebContents` and `DownloadItem` handles. Browser storage owns cookies/tokens; they are not copied
@@ -80,9 +81,8 @@ The main shell has one fixed Home, opened by its left logo, and a fixed
 Environment/Avatar directory in the sidebar. The 2026-10-10 user ruling retires big-screen mode:
 Theme and tray entries, alternate layouts and directional shell navigation are removed.
 Startup removes the old local layout preference without interpreting it. `nav-model.ts` retains internal page ownership for tasks and deep links without
-restoring the old two-tab presentation. The 2026-10-27 C+A ruling replaces the global
-route wizard with one language choice followed by contextual module introductions. Neither changes
-the fixed directory or hides features. The [design standard](../design/design-standard.md#3-platform-and-information-architecture)
+restoring the old two-tab presentation. The first-use notice, concept wizard and contextual
+introductions keep the fixed directory and do not hide features. The [design standard](../design/design-standard.md#3-platform-and-information-architecture)
 owns the accepted layout, logo colors, unavailable peers and preserved visual preferences.
 
 Environment contains Play, Tools and Avatar editing. Tools groups the planned tracking,

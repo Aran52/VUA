@@ -40,6 +40,11 @@ const modularAvatar: GuideSourceRef = { url: "https://modular-avatar.nadena.dev/
 const checked = { reviewStatus: "source-checked", reviewedAt: "2026-10-27" } as const;
 
 const ARTICLE_META: Record<string, Partial<Pick<GuideArticle, "kind" | "aliases" | "sourceRefs" | "reviewStatus" | "reviewedAt">>> = {
+  "guide-start/what-is-vrchat": {
+    kind: "concept",
+    sourceRefs: [{ url: "https://hello.vrchat.com/", publisher: "VRChat", kind: "official", checkedAt: "2026-10-30" }],
+    reviewStatus: "source-checked", reviewedAt: "2026-10-30",
+  },
   "guide-creator/upload-eligibility": { kind: "procedure", sourceRefs: [firstAvatar], ...checked },
   "guide-creator/trust-rank": { kind: "concept", sourceRefs: [safety], ...checked },
   "guide-creator/improve-trust": { kind: "procedure", sourceRefs: [safety], ...checked },

@@ -1,12 +1,14 @@
 // Production Main/preload/renderer, disposable profile, labelled synthetic tool actions.
 // One native read-only discovery runs through the real provider; no vendor launches/modules.
 import { app, BrowserWindow, ipcMain } from "electron";
+import { enterHomeFromFirstUse } from "./smoke-first-use.mjs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+app.getPreferredSystemLanguages = () => ["zh-CN"];
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = fs.mkdtempSync(path.join(os.tmpdir(), "vua-vrcft-ui-")), home = path.join(output, "home"), profile = path.join(output, "profile");
 for (const dir of [home, profile, path.join(home, "AppData/Roaming"), path.join(home, "AppData/Local"), path.join(profile, "modules")]) fs.mkdirSync(dir, { recursive: true });
@@ -52,9 +54,7 @@ async function run() {
       const [w, h] = window.getSize(); window.setSize(w + 1, h); await delay(50); window.setSize(w, h); await delay(200);
       fs.writeFileSync(path.join(output, `${name}.png`), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
     };
-    await waitFor(() => js('!!document.querySelector("[data-first-run-language]")'), "first-use language");
-    await js('(()=>{const select=document.querySelector(".vua-onboarding__language select");Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(select,"zh-CN");select.dispatchEvent(new Event("change",{bubbles:true}));})()');
-    await waitFor(() => js('document.querySelector(".vua-onboarding__language select").value==="zh-CN"'), "Chinese language selected"); await click('[data-nav-id=first-run-language-continue]');
+    await enterHomeFromFirstUse(js, waitFor);
     await waitFor(() => js('document.documentElement.lang==="zh-CN" && !!document.querySelector("[data-nav-id=nav-tools-discover]") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "directory");
     nativeRead = true;
     const observed = await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"native-tool-read",method:"tools.observeConnection",params:{toolId:"vrcft"}})');

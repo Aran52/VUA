@@ -1,12 +1,12 @@
-# Guidance architecture: language-first onboarding, VUA instructions, encyclopedia and game guide
+# Guidance architecture: first use, concept wizard, encyclopedia and game guide
 
-> Updated: 2026-10-28
-> Scope: First-use language selection, contextual guidance, Help and the VRChat game guide
-> Status: C+A adopted by the author on 2026-10-27; validation continues on this branch
+> Updated: 2026-10-30
+> Scope: First-use notice, concept wizard, contextual guidance, Help and the VRChat game guide
+> Status: Implements freeze-plan section 6; human acceptance remains separate
 
 VUA teaches three activities in different places: using VUA, learning VRChat and acting inside a
-game. First-run language selection and module introductions support these activities; they are not
-another long wizard. Reading never installs software, enables AMF, accepts a plan, starts a game or
+game. A first-use notice, concept wizard and module introductions support these activities.
+Reading never installs software, enables AMF, accepts a plan, starts a game or
 uploads content.
 
 The [product boundary](../product-boundary.md) owns scope and permissions. Delivery acceptance
@@ -27,22 +27,30 @@ SteamVR's desktop view is a separate acceptance path.
 
 ## 2. First run and contextual introductions
 
-A new profile first chooses only a UI language. Confirming it stores the language and the existing
-onboarding completion marker, then enters the fixed Home. Skipping uses the current language without
-inventing business goals or environment facts. Legacy `vua-goals` data is still parsed and migrated;
-old route-wizard bookmarks do not reopen that wizard. `help-wizard` remains as an internal route but
-now presents the VUA guide, not a global production wizard.
+A new profile uses the first supported system language, falling back to English. A saved language
+choice still wins. The first-use notice contains the app's purpose, the changelog, its Apache 2.0
+open-source/free-download statement and third-party license links.
 
-The feature tour never starts automatically. A fresh profile, an upgraded profile and an old active
-tour bookmark do not force it open. Help or command search starts it explicitly, with the existing
-anchors, Back/Next/Skip and focus restoration. The tour navigates and explains only; it does not
-execute business work.
+The acknowledgment explicitly starts the light feature tour with Back/Next/Skip and focus
+restoration. The beginner choice opens `help-wizard`, starting with what VRChat is and presenting
+one concept per page. Both choices record only the existing onboarding completion marker, with no
+inferred business goals or environment facts. Completed and upgraded profiles retain their settings;
+an old active tour bookmark does not force a tour open.
+
+The concept wizard reads the same sections as the encyclopedia and VUA manual. Each page offers a
+setup entry and an acknowledgment that moves to the next concept. Setup opens the corresponding
+existing destination; that destination owns inspection, plans and consent. A concept bookmark stores
+only its stable identifier, not a task, install result or acceptance. The final acknowledgment returns
+Home. The manual and full encyclopedia remain available, with independent reading positions.
+
+Help or command search can replay the feature tour. The tour navigates and explains only; it does
+not execute business work.
 
 Main modules can offer one small introduction on their first visit: Home, Play, Tools, Avatar
 editing, Warehouse, Recipe, Workshop, Release and Packages. These introductions are non-modal, have
 no backdrop and do not take focus. The underlying page remains usable. They offer Later, a permanent
 dismissal and, where useful, a link to an actual article or the explicit feature tour. An active
-feature tour suppresses them. They do not appear over language selection or Settings.
+feature tour suppresses them. They do not appear over the first-use notice or Settings.
 
 - Permanent dismissal is versioned by stable module ID and revision in local storage.
 - Later is session-local and independent of permanent dismissal, task facts and readiness.
@@ -135,13 +143,14 @@ not guarantee appearance or behavior. Final upload remains a user-confirmed offi
 `GuideOverlayView` accepts a topic set, initial topic/fallback, reading key and whether to record
 encyclopedia history. Defaults preserve the existing reader. The encyclopedia shows hardware, play,
 basics, safety, creator, devices and tutorials/reference content. The VUA guide uses only `guide-vua`,
-an independent `vua-vua-guide-reading-v1` bookmark and no encyclopedia hash writes. Legacy VUA guide
-targets open `help-wizard`; old `guide-vua` IDs remain valid for migration. The legacy `guide-tutorials`
+an independent `vua-vua-guide-reading-v1` bookmark and no encyclopedia hash writes. `help-wizard`
+defaults to the concept wizard; explicit `guide-vua` targets open its manual reader. Old article IDs,
+including the first-use article's ID, remain valid for bookmarks. The legacy `guide-tutorials`
 meta-reading topic is retained as a valid bookmark ID but is not a main encyclopedia category.
 
 Articles use stable topic/section targets, reading recovery, keyboard navigation and original diagrams
-with captions. The VUA guide offers replay of module introductions, not a replay of the old global
-wizard. All five supported UI languages are structurally checked; additional wording review is not a
+with captions. The VUA guide offers replay of module introductions. All five supported UI languages are
+structurally checked; additional wording review is not a
 claim of native-speaker acceptance. Real software screenshots are added only with explicit source and
 version evidence. SVG illustrations are labeled as diagrams, not game or application screenshots.
 
@@ -149,7 +158,8 @@ version evidence. SVG illustrations are labeled as diagrams, not game or applica
 
 | State | Owner and persistence |
 | --- | --- |
-| Language and onboarding completion | Existing renderer preference and legacy `vua-goals`; no inferred goal from language |
+| Language and onboarding completion | Existing renderer preference and legacy `vua-goals`; inferred system language is not saved as a manual override |
+| Beginner concept | Independent `vua-beginner-wizard-v1` UI bookmark; no setup or task state |
 | App-tour position, completion and skip | Local UI preferences, entered only after an explicit start |
 | Encyclopedia topic/section | Existing `vua-guide-reading` bookmark |
 | VUA-guide topic/section | Independent `vua-vua-guide-reading-v1` bookmark |

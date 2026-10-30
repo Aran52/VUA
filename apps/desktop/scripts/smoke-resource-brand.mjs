@@ -1,6 +1,7 @@
 // Real Main/preload/renderer; read-only native sensors and labelled synthetic
 // UI states. Disposable profile, no vendor, account, material or headset actions.
 import { app, BrowserWindow, ipcMain } from "electron";
+import { enterHomeFromFirstUse } from "./smoke-first-use.mjs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -60,9 +61,8 @@ async function run() {
       await delay(100);
       await fs.promises.writeFile(path.join(output, filename), (await window.webContents.capturePage(undefined, { stayHidden: true, stayAwake: true })).toPNG());
     };
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=first-run-language-continue]")'), "first-use language");
-    await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "fresh AMF navigation");
+    await enterHomeFromFirstUse(js, waitFor);
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]")'), "fresh AMF navigation");
     const actual = await js("window.vua.system.readResourceUsageV2()");
     const old = await js("window.vua.system.readResourceUsage()");
     assert(actual.schemaVersion === 2 && actual.ramTotalBytes > 0 && [actual.cpuUsagePercent, actual.gpuUsagePercent].every(value => value === null || Number.isFinite(value) && value >= 0 && value <= 100), "Real V2 IPC returns valid measured/nullable resources");

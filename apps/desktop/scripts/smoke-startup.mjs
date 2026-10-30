@@ -50,17 +50,20 @@ app.on("browser-window-created", (_event, window) => {
   window.webContents.on("console-message", event => { if (event.level === "error") errors.push(event.message); });
 });
 let main;
+let lastStep = "initialization", lastJavaScript = "";
 let exitCode = 1;
 app.on("will-quit", () => { if (exitCode) app.exit(exitCode); });
-const deadline = setTimeout(() => { console.error("Startup UI smoke timed out"); app.quit(); }, 75_000);
+const deadline = setTimeout(() => { console.error(JSON.stringify({ failure: "Startup UI smoke timed out", wait: lastStep, operation: lastJavaScript, url: main?.webContents.getURL(), loading: main?.webContents.isLoading() })); app.quit(); }, 120_000);
 async function waitFor(check, label, timeoutMs = 7_500) {
+  lastStep = label;
+  console.log("Startup UI: " + label);
   const expires = performance.now() + timeoutMs;
   while (performance.now() < expires) { if (await check()) return; await delay(50); }
   throw new Error(`Timeout: ${label}`);
 }
-const js = source => main.webContents.executeJavaScript(source, true);
+const js = source => { lastJavaScript = source.slice(0, 180); return main.webContents.executeJavaScript(source, true); };
 const welcome = () => js('document.querySelector(".vua-tour")?.dataset.tourStep==="welcome"');
-const languageChoice = () => js('!!document.querySelector("[data-first-run-language]") && !document.querySelector(".vua-tour")');
+const firstUseNotice = () => js('!!document.querySelector("[data-first-use-notice]") && !document.querySelector(".vua-tour")');
 const home = () => js('!!document.querySelector(".vua-home") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")');
 const skip = () => js('document.querySelector(".vua-tour__actions button").click()');
 const next = () => js('document.querySelector(".vua-tour__nav button:last-child").click()');
@@ -117,50 +120,78 @@ async function run() {
       const rejected = await splash.webContents.executeJavaScript('window.vua.startup.complete().then(()=>false,()=>true)');
       assert(rejected, "The splash cannot announce main-frame readiness");
     }
-    await waitFor(languageChoice, "first-use language choice");
-    assert(!await js('!!document.querySelector(".vua-tour")'), "First use asks only for language without starting a tour");
-    assert(await js('document.querySelectorAll(".vua-onboarding select option").length===5 && document.querySelectorAll(".vua-onboarding input").length===0'), "All five delivered languages are available without a goals questionnaire");
+    await waitFor(firstUseNotice, "first-use notice");
+    assert(!await js('!!document.querySelector(".vua-tour")'), "The notice waits for an explicit entry choice");
+    assert(await js('document.querySelectorAll("[data-first-use-part]").length===4 && document.querySelectorAll(".vua-onboarding button").length===2 && !document.querySelector(".vua-onboarding select, .vua-onboarding input")'), "Four notice parts and two choices replace the language question");
+    assert(await js('document.querySelector("[data-first-use-part=source]").textContent.includes("Apache 2.0") && document.querySelector("[data-first-use-part=licenses] a").href.endsWith("/THIRD_PARTY_NOTICES.md")'), "The first-use notice links its free source and third-party licenses");
     await waitFor(() => splash.isDestroyed(), "startup window teardown");
     assert(shown.filter(item => item.window === main.id).length === 1 && shown.filter(item => item.window === main.id).every(item => !item.loading), "Main opens once after loading and the small splash is destroyed");
-    if (slowProvider) assert(slowedProvider && await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"slow-startup",method:"app.snapshot",params:{}}).then(result=>result.ok)'), "A delayed native handshake still reaches the first-use UI with a working Gateway");
+    if (slowProvider) assert(slowedProvider && await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"slow-startup",method:"app.snapshot",params:{}}).then(result=>result.ok)'), "A delayed native handshake reaches the notice with a working Gateway");
     const nativeLanguages = app.getPreferredSystemLanguages();
-    assert(await js(`JSON.stringify(window.vua.startup.systemLanguages)===${JSON.stringify(JSON.stringify(nativeLanguages))}`), "Preload supplies the Windows language preference list");
+    assert(await js('JSON.stringify(window.vua.startup.systemLanguages)===' + JSON.stringify(JSON.stringify(nativeLanguages))), "Preload supplies the Windows language preference list");
     const match = nativeLanguages.map(tag => tag.trim().toLowerCase()).map(tag => /^zh-(hant|tw|hk|mo)(-|$)/.test(tag) ? "zh-TW" : tag.startsWith("zh") ? "zh-CN" : tag.startsWith("en") ? "en" : tag.startsWith("ja") ? "ja" : tag.startsWith("ko") ? "ko" : null).find(Boolean) ?? "en";
-    assert(await js(`document.documentElement.lang===${JSON.stringify(match)} && localStorage.getItem("vua-locale")===null`), "First use selects the first supported system language without saving a manual override");
+    assert(await js('document.documentElement.lang===' + JSON.stringify(match) + ' && localStorage.getItem("vua-locale")===null'), "First use adopts the first supported system language without a manual override");
     if (localeCase === "unmatched") assert(match === "en", "Unsupported system languages fall back to English");
-    if (localeCase === "ordered") assert(match === "ko", "An unsupported first preference does not hide a later supported language");
-    await js('document.querySelector(".vua-onboarding__footer button").click()');
-    await waitFor(home, "skip language choice to Home");
-    assert(await js('localStorage.getItem("vua-locale")===null && JSON.parse(localStorage.getItem("vua-goals")).onboarding==="skipped"'), "Skipping preserves system language and records only onboarding completion");
+    if (localeCase === "ordered") assert(match === "ko", "A later supported language is selected");
+    await js('document.querySelector("[data-nav-id=first-use-beginner]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat]") && !document.querySelector(".vua-tour")'), "beginner entry starts with VRChat");
+    assert(await js('localStorage.getItem("vua-locale")===null && JSON.parse(localStorage.getItem("vua-goals")).onboarding==="completed"'), "The beginner entry preserves system language and records completion");
+    await js('document.querySelector("[data-nav-id=logo-home]").click()');
+    await waitFor(home, "leave the beginner wizard");
     await reload("");
-    await waitFor(home, "skipped first-use choice remains skipped");
-    assert(!await js('!!document.querySelector(".vua-tour")'), "A skipped profile never auto-starts the feature tour");
+    await waitFor(home, "completed first use stays completed");
+    assert(!await js('!!document.querySelector(".vua-tour")'), "A returning profile does not repeat the first-use tour");
 
     if (localeCase === "native") {
       main.setSize(960, 600);
       for (const locale of ["zh-CN", "zh-TW", "en", "ja", "ko"]) {
-        await reload(`localStorage.setItem("vua-locale",${JSON.stringify(locale)});localStorage.removeItem("vua-goals");localStorage.removeItem("vua-context-guide-v1");sessionStorage.removeItem("vua-context-guide-snoozed-v1");localStorage.setItem("vua-theme","dark")`);
-        await waitFor(languageChoice, `${locale} language choice`);
-        assert(await js(`document.documentElement.lang===${JSON.stringify(locale)} && document.querySelector(".vua-onboarding select").value===${JSON.stringify(locale)}`), `${locale} honors the saved language`);
-        assert(await fits(".vua-onboarding__panel"), `${locale} language choice fits a short desktop window`);
-        await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
-        await waitFor(home, `${locale} confirmed choice enters Home`);
-        assert(await js(`localStorage.getItem("vua-locale")===${JSON.stringify(locale)} && JSON.parse(localStorage.getItem("vua-goals")).goals.length===0`), `${locale} confirmation preserves language without inventing goals`);
-        await waitFor(() => js('!!document.querySelector("[data-context-guide=home]")'), `${locale} optional Home introduction`);
-        assert(await fits(".vua-context-guide"), `${locale} contextual guide fits the window`);
-        await js('document.querySelector(".vua-context-guide__actions button:last-child").click()');
-        await reload("");
-        await waitFor(home, `${locale} return to Home`);
-        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), `${locale} dismissal survives reload without opening a tour`);
-        await startTour();
-        assert(await fits(".vua-tour__card"), `${locale} explicit tour fits the window`);
+        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-context-guide-v1");sessionStorage.removeItem("vua-context-guide-snoozed-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
+        await reload(reset);
+        await waitFor(firstUseNotice, locale + " notice");
+        assert(await js('document.documentElement.lang===' + JSON.stringify(locale) + ' && !document.querySelector(".vua-onboarding select")'), locale + " respects the saved language without asking again");
+        await js('document.querySelector("[data-nav-id=first-use-enter]").scrollIntoView({block:"center"})');
+        assert(await fits(".vua-onboarding__footer"), locale + " entry choices remain reachable in a short window");
+        await js('document.querySelector("[data-nav-id=first-use-enter]").click()');
+        await waitFor(welcome, locale + " Got it opens the tour");
+        assert(await js('localStorage.getItem("vua-locale")===' + JSON.stringify(locale) + ' && JSON.parse(localStorage.getItem("vua-goals")).goals.length===0'), locale + " acknowledgment preserves language and invents no goals");
+        assert(await fits(".vua-tour__card"), locale + " first-use tour fits the window");
         if (locale === "zh-CN") await capture(main, "welcome-zh-dark");
         await next();
         await waitFor(() => js('document.querySelector(".vua-tour")?.dataset.tourStep==="route" && !!document.querySelector(".vua-tour__highlight")'), "first highlighted feature");
         await js('document.querySelector(".vua-tour__nav button:first-child").click()');
         await waitFor(welcome, "Back to welcome");
         await skip();
-        await waitFor(home, `${locale} exit explicit tour`);
+        await waitFor(home, locale + " skips the light tour");
+        await waitFor(() => js('!!document.querySelector("[data-context-guide=home]")'), locale + " optional Home introduction");
+        assert(await fits(".vua-context-guide"), locale + " contextual guide fits");
+        await js('document.querySelector(".vua-context-guide__actions button:last-child").click()');
+        await reload("");
+        await waitFor(home, locale + " returns Home");
+        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " dismissal survives reload");
+        await startTour();
+        assert(await fits(".vua-tour__card"), locale + " explicit replay fits");
+        await skip();
+        await waitFor(home, locale + " exits replay");
+
+        await reload(reset);
+        await waitFor(firstUseNotice, locale + " beginner choice");
+        await js('document.querySelector("[data-nav-id=first-use-beginner]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat]")'), locale + " first concept");
+        assert(await js('document.querySelectorAll(".vua-beginner-wizard__article").length===1 && !document.querySelector(".vua-tour")'), locale + " shows one concept without a tour");
+        await js('document.querySelector("[data-nav-id=wizard-next]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-wizard-step=steam]")'), locale + " next concept");
+        await js('document.querySelector("[data-nav-id=wizard-want]").click()');
+        await waitFor(() => js('!!document.querySelector(".vua-account-grid")'), locale + " wants Steam account setup");
+        await js('document.querySelector("[data-nav-id=shell-help]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-nav-id=help-wizard]")'), "Help wizard entry");
+        await js('document.querySelector("[data-nav-id=help-wizard]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-wizard-step=steam]")'), "concept bookmark restored");
+        await js('document.querySelector("[data-nav-id=wizard-previous]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat]")'), "previous concept");
+        await js('document.querySelector("[data-guide-entry=what-is-vrchat]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-guide-section=what-is-vrchat]") && localStorage.getItem("vua-guide-reading")?.includes("what-is-vrchat")'), locale + " shares the encyclopedia explanation");
+        await js('document.querySelector("[data-nav-id=logo-home]").click()');
+        await waitFor(home, locale + " leaves the wizard freely");
       }
       for (const legacy of [{v:2,status:"active",step:2}, {v:1,status:"active",step:4}]) {
         await reload(`localStorage.setItem("vua-tour-progress",${JSON.stringify(JSON.stringify(legacy))});localStorage.setItem("vua-last-page","home")`);
@@ -189,7 +220,7 @@ async function run() {
       staticSplash.destroy();
     }
     assert(errors.length === 0, `Renderer errors: ${errors.join("; ")}`);
-    fs.writeFileSync(path.join(output, "checks.json"), JSON.stringify({ checks, localeCase, scope: "Controlled UI startup, language and navigation only; no hardware/vendor/four-language human acceptance" }, null, 2));
+    fs.writeFileSync(path.join(output, "checks.json"), JSON.stringify({ checks, localeCase, scope: "Controlled UI startup, language and navigation only; no hardware/vendor or human language acceptance" }, null, 2));
     console.log(JSON.stringify({ passed: checks.length, localeCase, evidence: output }));
     exitCode = 0;
   } catch (error) {

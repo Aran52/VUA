@@ -1,5 +1,6 @@
 // Real Main/preload/production renderer in a disposable profile. No vendor actions.
 import { app, BrowserWindow, ipcMain } from "electron";
+import { enterHomeFromFirstUse } from "./smoke-first-use.mjs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -7,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
+app.getPreferredSystemLanguages = () => ["zh-CN"];
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const guideMediaOutput = process.env.VUA_GUIDE_MEDIA_OUTPUT ? path.resolve(process.env.VUA_GUIDE_MEDIA_OUTPUT) : null;
 const publishableCaptures = new Set(["first-run", "help-faq", "avatar-preparation", "theme-presets"]);
@@ -141,13 +143,10 @@ async function run() {
         fs.writeFileSync(path.join(guideMediaOutput, "captures.json"), JSON.stringify(captureMetadata, null, 2));
       }
     };
-    await waitFor(() => js('!!document.querySelector("[data-first-run-language]")'), "first-run language choice");
+    await waitFor(() => js('!!document.querySelector("[data-first-use-notice]")'), "first-use notice");
     await capture("first-run");
-    assert(await js('!document.querySelector(".vua-tour")'), "No automatic app tour on fresh entry");
-    await js('(()=>{const select=document.querySelector(".vua-onboarding__language select");Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(select,"zh-CN");select.dispatchEvent(new Event("change",{bubbles:true}));})()');
-    await waitFor(() => js('document.querySelector(".vua-onboarding__language select").value==="zh-CN"'), "Chinese language selected");
-    await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
-    await waitFor(() => js('document.documentElement.lang==="zh-CN" && !!document.querySelector("[data-nav-id=shell-help]")'), "Chinese language applied after confirmation");
+    assert(await js('document.documentElement.lang==="zh-CN" && localStorage.getItem("vua-locale")===null && !document.querySelector(".vua-onboarding select")'), "The first-use notice adopts Chinese system language");
+    await enterHomeFromFirstUse(js, waitFor);
     assert(await js('(()=>{const h=document.querySelector("[data-nav-id=shell-help]"),s=document.querySelector("[data-nav-id=shell-settings]");return h.closest("header")&&h.nextElementSibling===s&&!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-help]")&&getComputedStyle(h).transform===getComputedStyle(s).transform})()'), "Help shares Settings parallelogram styling in the topbar with no sidebar duplicate");
     await js('document.querySelector("[data-nav-id=shell-help]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help for the first encyclopedia catalog");
@@ -254,7 +253,7 @@ async function run() {
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help landing");
     await capture("help-faq");
     assert(await js('["trust-rank","shield","personal-space","untrusted-urls"].every(id=>!!document.querySelector(`[data-faq="${id}"]`))'), "Help shows trust, shield, personal-space and untrusted-link answers directly");
-    assert(await js('document.querySelector("[data-nav-id=help-wizard]").textContent.includes("VUA 使用指南") && document.querySelector("[data-nav-id=help-encyclopedia]").textContent.includes("知识百科") && document.querySelector("[data-nav-id=help-game-assistant]").textContent.includes("游戏内助手")'), "Help separates VUA instructions, encyclopedia and game assistant");
+    assert(await js('document.querySelector("[data-nav-id=help-wizard]").textContent.includes("入门向导") && document.querySelector("[data-nav-id=help-encyclopedia]").textContent.includes("知识百科") && document.querySelector("[data-nav-id=help-game-assistant]").textContent.includes("游戏内助手")'), "Help separates VUA instructions, encyclopedia and game assistant");
     await js('document.querySelector("[data-faq=trust-rank] [data-guide-entry=improve-trust]").click()');
     await waitFor(() => js('!!document.querySelector("[data-guide-section=improve-trust]")'), "Trust improvement opens the matching local answer");
     assert(await js('document.querySelector("[data-guide-source=guide-creator]")?.title.includes("creating-your-first-avatar")'), "Upload answers link the official creator documentation");
@@ -272,7 +271,7 @@ async function run() {
       await waitFor(() => js(`location.hash.startsWith('#${child}') && !!document.querySelector('[data-nav-id=help-child-back]')`), `${child} mouse Forward`);
       assert(await js('document.querySelector("[data-nav-id=shell-help]").getAttribute("aria-current")==="page"'), `${child} restores on mouse Forward`);
       if (child === 'help-wizard') {
-        await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !document.querySelector("[data-wizard-step]")'), "VUA guide replaces the retired wizard");
+        await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !!document.querySelector("[data-wizard-step=vrchat]")'), "Help opens the concept wizard at VRChat");
         await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"production-line"})');
         await waitFor(() => js('localStorage.getItem("vua-vua-guide-reading-v1")?.includes("production-line") && !localStorage.getItem("vua-guide-reading")?.includes("production-line")'), "VUA guide has a separate bookmark");
         assert(true, "VUA guide navigation does not rewrite the encyclopedia bookmark");
@@ -350,8 +349,8 @@ async function run() {
     await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), "Forward returns to the catalog");
     assert(await js('localStorage.getItem("vua-guide-reading")?.includes("visibility") && !localStorage.getItem("vua-vua-guide-reading-v1")?.includes("visibility")'), "Catalog and article preserve the encyclopedia bookmark only");
     await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"first-run-language"})');
-    await waitFor(() => js('document.querySelector("figure[data-media-kind=screenshot] img")?.complete && document.querySelector("figure[data-media-kind=screenshot] img")?.naturalWidth>0'), "Actual VUA screenshot loads in the VUA guide");
-    assert(true, "Real VUA screenshot loads with its source caption in the VUA guide");
+    await waitFor(() => js('!!document.querySelector("[data-guide-section=first-run-language]") && !document.querySelector("figure img[src$=\"/first-run.png\"]")'), "Updated first-use explanation excludes the retired language-choice capture");
+    assert(true, "The first-use manual reflects the notice without reusing an older UI capture");
     await capture("vua-guide-media");
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
     await js('document.querySelector("[data-nav-id=help-encyclopedia]").click()');

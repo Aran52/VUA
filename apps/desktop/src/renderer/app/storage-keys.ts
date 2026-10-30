@@ -40,6 +40,8 @@ export const storageKeys = {
   guideReading: "vua-guide-reading",
   /** VUA's own guide has an independent reading bookmark. */
   vuaGuideReading: "vua-vua-guide-reading-v1",
+  /** Concept bookmark only; never an installation or task result. */
+  beginnerWizard: "vua-beginner-wizard-v1",
   /** Non-modal module introductions: permanent dismissal and session-only snooze. */
   contextGuide: "vua-context-guide-v1",
   contextGuideSnoozed: "vua-context-guide-snoozed-v1",

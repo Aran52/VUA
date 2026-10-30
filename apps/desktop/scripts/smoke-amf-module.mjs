@@ -1,6 +1,7 @@
 // Real Main/preload/renderer and both native providers, isolated disposable data.
 // No vendor launches, account actions, material imports or Unity operations.
 import { app, BrowserWindow } from "electron";
+import { enterHomeFromFirstUse } from "./smoke-first-use.mjs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -47,9 +48,7 @@ async function run() {
       return Boolean(window && !window.webContents.isLoading());
     }, "production renderer");
     const js = source => window.webContents.executeJavaScript(source);
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=first-run-language-continue]")'), "first-use language");
-    await js('document.querySelector("[data-nav-id=first-run-language-continue]").click()');
-    await waitFor(() => js('!!document.querySelector(".vua-home") && !document.querySelector(".vua-onboarding") && !document.querySelector(".vua-tour")'), "fresh Home");
+    await enterHomeFromFirstUse(js, waitFor);
     const checks = [];
     const assert = (condition, label) => { if (!condition) throw new Error(label); checks.push(label); };
     await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="ready")'), "fresh default AMF startup");

@@ -37,7 +37,7 @@ if (component === "amf") {
   copy(path.join(target, "vua-distribution.exe"), "launcher/VUA.exe");
   const bootstrap = ownedPath(output, "bootstrap-source"); fs.mkdirSync(bootstrap);
   fs.writeFileSync(path.join(bootstrap, "main.cjs"), fs.readFileSync(path.join(desktop, "distribution/bootstrap.cjs"), "utf8").replace("__VUA_RELEASE_PUBLIC_KEY__", trust.publicKey), { flag: "wx" });
-  fs.writeFileSync(path.join(bootstrap, "package.json"), JSON.stringify({ name: "vua-desktop", productName: "VUA", version: pkg.version, main: "main.cjs", private: true }), { flag: "wx" });
+  fs.writeFileSync(path.join(bootstrap, "package.json"), JSON.stringify({ name: "vua-desktop", productName: "Virtual Unified Assistant", version: pkg.version, main: "main.cjs", private: true }), { flag: "wx" });
   const builder = createRequire(require.resolve("electron-builder")); const library = createRequire(builder.resolve("app-builder-lib"));
   fs.mkdirSync(ownedPath(payload, "bootstrap"));
   await library("@electron/asar").createPackage(bootstrap, ownedPath(payload, "bootstrap/app.asar"));

@@ -49,7 +49,7 @@ Project and package management prepares the required Unity environment and depen
 
 [v0.7.0 Stone Age (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) brings the first Avatar production path: choose an Avatar and outfits from your library, and VUA assembles them in its own Unity project, checks them with the VRChat SDK and uploads after you confirm. Online and offline Windows x64 NSIS installers include AMF. Development follows the [N1–N7 sequence](docs/development-outline.md).
 
-The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.7.0 scope, checks and limitations](docs/release/v0.7.0.md).
+The download above is the published 0.7.0 Beta. Source now prepares **v1.0.0 Brave New World**: a stable host with independently updated AMF Beta. The [draft freeze release notes](docs/release/v1.0.0.md) record its scope and pending author checks; source preparation does not publish installers or close N-stage acceptance.
 
 ### Current delivery and starting points
 

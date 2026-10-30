@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Updated: 2026-10-16
+> Updated: 2026-10-30
 
 The N sequence schedules VUA's work toward the [north star](north-star.md). Each stage names a
 player task, the acceptance rows that show it works and the evidence those rows need. The
@@ -21,8 +21,9 @@ and the [version policy](release/versioning.md) owns release numbers.
 - Audit existing code before replacing it, and keep what works. The earlier M/W schedule is
   archived in Git history; old tags, artifacts and release notes stay as published.
 
-VUA stays in Beta until the author chooses another stage. A stage can span several releases and a
-release can carry slices from several stages; a stage closes when its acceptance rows pass.
+The [version policy](release/versioning.md) records the author's selection of a stable host for
+the freeze release and AMF's continuing Beta. An N stage can span several releases and a release
+can carry slices from several stages; a stage closes when its acceptance rows pass.
 
 ## New sequence
 

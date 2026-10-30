@@ -1,5 +1,6 @@
 appId: org.vua-project.desktop
-productName: VUA
+productName: Virtual Unified Assistant
+executableName: VUA
 asar: true
 # Use the pinned official runtime prepared by install-electron. This also avoids
 # re-downloading it and the builder's Windows temporary-directory rename path.

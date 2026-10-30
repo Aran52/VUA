@@ -4,9 +4,9 @@ Unicode true
 !include "WinVer.nsh"
 !include "FileFunc.nsh"
 Var Isolated
-Name "VUA ${VERSION}"
+Name "Virtual Unified Assistant ${VERSION}"
 !ifdef PREVIEW
-  Name "VUA ${VERSION} — CI PREVIEW"
+  Name "Virtual Unified Assistant ${VERSION} — CI PREVIEW"
 !endif
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\VUA"
@@ -14,15 +14,15 @@ InstallDirRegKey HKCU "Software\VUA" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
-BrandingText "VUA · Ibis Beta"
+BrandingText "Virtual Unified Assistant · VUA"
 !ifndef VERSION_NUMBER
   !define VERSION_NUMBER "${VERSION}.0"
 !endif
 VIProductVersion "${VERSION_NUMBER}"
-VIAddVersionKey /LANG=1033 "ProductName" "VUA"
+VIAddVersionKey /LANG=1033 "ProductName" "Virtual Unified Assistant"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
-VIAddVersionKey /LANG=1033 "FileDescription" "VUA Installer"
+VIAddVersionKey /LANG=1033 "FileDescription" "Virtual Unified Assistant Installer"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "VUA Project contributors"
 !define MUI_ABORTWARNING
 !insertmacro MUI_PAGE_WELCOME
@@ -97,7 +97,7 @@ Section "VUA"
   CreateDirectory "$SMPROGRAMS\VUA"
   CreateShortCut "$SMPROGRAMS\VUA\VUA.lnk" "$INSTDIR\VUA.exe"
   WriteRegStr HKCU "Software\VUA" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "DisplayName" "VUA"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "DisplayName" "Virtual Unified Assistant"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "Publisher" "VUA Project contributors"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\VUA" "UninstallString" '"$INSTDIR\Uninstall.exe"'

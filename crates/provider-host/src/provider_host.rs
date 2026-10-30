@@ -5607,9 +5607,16 @@ fn library_download_request(state: &HostState, method: &str, request: &Value, re
             }
         });
     }
-    if matches!(method, "library.importFolders" | "library.importPaths") {
+    if matches!(method, "library.importFolders" | "library.importPaths" | "library.importGroups") {
         if request["kind"] != "command" { return warehouse_invalid_params(request_id, correlation_id); }
         let Some(params) = request.get("params").and_then(Value::as_object) else { return warehouse_invalid_params(request_id, correlation_id); };
+        if method == "library.importGroups" {
+            if params.get("schemaVersion").and_then(Value::as_str) != Some("0.1")
+                || !params.keys().all(|key| matches!(key.as_str(), "schemaVersion" | "groups" | "autoGenerate")) {
+                return warehouse_invalid_params(request_id, correlation_id);
+            }
+            return library_import_groups_submit(warehouse.clone(), request, request_id, correlation_id);
+        }
         let (version, source_key) = if method == "library.importPaths" { ("0.2", "sourcePaths") } else { ("0.1", "sourceFolders") };
         if params.get("schemaVersion").and_then(Value::as_str) != Some(version)
             || !params.keys().all(|key| key == "schemaVersion" || key == "autoGenerate" || key == source_key) {
@@ -6770,6 +6777,95 @@ fn warehouse_import_submit(
 
 fn library_import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
     import_submit(warehouse, request, request_id, correlation_id, true)
+}
+
+/// Grouped migration intake (freeze row F4 / slice 46): each group is a named material with
+/// explicit files under one reviewed root. The provider re-checks every declared file against
+/// the disk before anything is copied — a move, removal, type change, size or modification-time
+/// change invalidates the review — refuses a root inside the library storage, and refuses the
+/// same file in two groups instead of dropping one silently.
+fn library_import_groups_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
+    use vua_acquisition::warehouse_import::{migration_group_name_valid, migration_group_relative_valid,
+        MIGRATION_FILES_LIMIT, MIGRATION_GROUPS_LIMIT};
+    let invalid = || FrameOutcome::Response(application_error(request_id, correlation_id,
+        "vua.migration.invalidParams", "errors.migration.invalidParams", "validation"));
+    let Some(groups) = request.pointer("/params/groups").and_then(Value::as_array) else { return invalid(); };
+    if groups.is_empty() || groups.len() > MIGRATION_GROUPS_LIMIT { return invalid(); }
+    // The warehouse root may not exist yet; compare the reviewed roots with its own path, and
+    // let each group's copy check the canonical files again before it writes anything.
+    let normalized = |path: &std::path::Path| path.to_string_lossy().replace('\\', "/").trim_end_matches('/').to_lowercase();
+    let warehouse_path = normalized(&std::fs::canonicalize(&warehouse.warehouse_root)
+        .unwrap_or_else(|_| warehouse.warehouse_root.clone()));
+    let within = |parent: &str, child: &str| child == parent || child.starts_with(&format!("{parent}/"));
+    let mut sources = Vec::with_capacity(groups.len());
+    let mut names = std::collections::HashSet::new();
+    let mut seen_files = std::collections::HashSet::new();
+    let mut files_total = 0usize;
+    for group in groups {
+        let Some(object) = group.as_object().filter(|object| object.len() == 3) else { return invalid(); };
+        let (Some(name), Some(root), Some(files)) = (object.get("name").and_then(Value::as_str),
+            object.get("root").and_then(Value::as_str), object.get("files").and_then(Value::as_array)) else { return invalid(); };
+        if !migration_group_name_valid(name) || !names.insert(name.to_lowercase())
+            || root.contains('\0') || !std::path::Path::new(root).is_absolute() || files.is_empty() {
+            return invalid();
+        }
+        let Ok(canonical_root) = std::fs::canonicalize(root) else { return invalid(); };
+        // The reviewed folder and the library storage must not contain one another.
+        let root_path = normalized(&canonical_root);
+        if within(&root_path, &warehouse_path) || within(&warehouse_path, &root_path) { return invalid(); }
+        let mut entries = Vec::with_capacity(files.len());
+        for file in files {
+            let Some(file) = file.as_object().filter(|file| file.len() == 3) else { return invalid(); };
+            let (Some(path), Some(bytes), Some(modified_ms)) = (file.get("path").and_then(Value::as_str),
+                file.get("bytes").and_then(Value::as_u64), file.get("modifiedMs").and_then(Value::as_u64)) else { return invalid(); };
+            if !migration_group_relative_valid(path) || bytes > 1 << 40 { return invalid(); }
+            let key = format!("{}\u{0}{}", canonical_root.to_string_lossy().to_lowercase(), path.to_lowercase());
+            if !seen_files.insert(key) {
+                return FrameOutcome::Response(application_error(request_id, correlation_id,
+                    "vua.migration.overlap", "errors.migration.overlap", "validation"));
+            }
+            let source = canonical_root.join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            let stale = || FrameOutcome::Response(application_error(request_id, correlation_id,
+                "vua.migration.stale", "errors.migration.stale", "validation"));
+            let Ok(metadata) = std::fs::symlink_metadata(&source) else { return stale(); };
+            let modified = metadata.modified().ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|elapsed| elapsed.as_millis() as u64);
+            if metadata.is_symlink() || !metadata.is_file() || metadata.len() != bytes || modified != Some(modified_ms) {
+                return stale();
+            }
+            entries.push((path.to_owned(), source));
+        }
+        files_total += entries.len();
+        if files_total > MIGRATION_FILES_LIMIT { return invalid(); }
+        sources.push(vua_acquisition::warehouse_import::MigrationGroupSource { name: name.to_owned(), root: canonical_root, files: entries });
+    }
+    if request.pointer("/params/autoGenerate") == Some(&Value::Bool(true)) && warehouse.executor.is_none() {
+        return FrameOutcome::Response(application_error(request_id, correlation_id,
+            "vua.warehouse.unavailable", "errors.warehouse.unavailable", "unavailable"));
+    }
+    let auto_generate = match (request.pointer("/params/autoGenerate"), warehouse.executor.clone()) {
+        (Some(Value::Bool(true)), Some(executor)) => Some(vua_acquisition::AutoGenerateSpec { env_initial: warehouse.global_default, executor }),
+        (Some(Value::Bool(true)), None) => return invalid(),
+        (None | Some(Value::Bool(false)), _) => None,
+        _ => return invalid(),
+    };
+    let Some(command_id) = request.get("commandId").and_then(Value::as_str).filter(|id| !id.is_empty()) else { return invalid(); };
+    let spec = vua_acquisition::warehouse_import::MigrationImportTaskSpec {
+        correlation_id: correlation_id.to_owned(), groups: sources,
+        warehouse_root: warehouse.warehouse_root.clone(), auto_generate,
+    };
+    match vua_acquisition::warehouse_import::submit_library_import_groups(
+        warehouse.runtime.clone(), warehouse.bdl.clone(), Arc::new(SystemClock), spec, command_id)
+    {
+        Ok(accepted) => FrameOutcome::Response(application_success(request_id, json!({
+            "schemaVersion": "0.1",
+            "operation": "library.importGroups",
+            "taskId": accepted.task_id,
+            "correlationId": correlation_id,
+        }))),
+        Err(_) => warehouse_store_failed(request_id, correlation_id),
+    }
 }
 
 fn import_submit(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str, retain_all: bool) -> FrameOutcome {

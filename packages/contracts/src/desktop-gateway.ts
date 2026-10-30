@@ -25,6 +25,7 @@ import { isBoothSearchParamsV01, type BoothSearchParamsV01 } from "./booth-searc
 import { isLibraryDownloadParamsV01, type LibraryDownloadStatusV01 } from "./library-download-v01.js";
 import { isLibraryImportParamsV01, type LibraryImportParamsV01 } from "./library-intake-v01.js";
 import { isLibraryImportPathsParamsV02, type LibraryImportPathsParamsV02 } from "./library-intake-v02.js";
+import { isLibraryImportGroupsParamsV01, type LibraryImportGroupsParamsV01 } from "./library-migration-v01.js";
 import { isLibraryEntryMetadataParamsV01, type LibraryEntryMetadataQueryV01, type LibraryEntryMetadataUpdateV01 } from "./library-entry-metadata-v01.js";
 import { isLibraryRemoveLocalEntriesV01, type LibraryRemoveLocalEntriesV01 } from "./library-records-v01.js";
 import { isLibraryRemoveCardsV02, type LibraryRemoveCardsV02 } from "./library-records-v02.js";
@@ -278,6 +279,10 @@ export interface LibraryImportRequestV1 {
 export interface LibraryImportPathsRequestV1 {
   readonly schemaVersion: 1; readonly requestId: string; readonly method: "library.importPaths";
   readonly params: LibraryImportPathsParamsV02 & { readonly commandId: string };
+}
+export interface LibraryImportGroupsRequestV1 {
+  readonly schemaVersion: 1; readonly requestId: string; readonly method: "library.importGroups";
+  readonly params: LibraryImportGroupsParamsV01 & { readonly commandId: string };
 }
 export type LibraryEntryMetadataRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & (
   | { readonly method: "library.entryMetadata"; readonly params: LibraryEntryMetadataQueryV01 }
@@ -1135,6 +1140,7 @@ export type DesktopGatewayRequestV1 =
   | LibraryMaintenanceQueryRequestV1 | LibraryMaintenanceCommandRequestV1
   | LibraryImportRequestV1
   | LibraryImportPathsRequestV1
+  | LibraryImportGroupsRequestV1
   | LibraryEntryMetadataRequestV1
   | RecipeDraftQueryRequestV1 | RecipeDraftCommandRequestV1
   | CatalogDetailRequestV1
@@ -1235,6 +1241,7 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "library.removeFiles": "command",
   "library.importFolders": "command",
   "library.importPaths": "command",
+  "library.importGroups": "command",
   "library.entryMetadata": "query",
   "library.updateEntryMetadata": "command",
   "library.removeLocalEntries": "command",
@@ -2168,6 +2175,11 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
       if (!hasExactKeys(value, REQUEST_KEYS)) return false;
       const { commandId, ...params } = value.params as Record<string, unknown>;
       return isIdentifier(commandId) && isLibraryImportPathsParamsV02(params);
+    }
+    case "library.importGroups": {
+      if (!hasExactKeys(value, REQUEST_KEYS)) return false;
+      const { commandId, ...params } = value.params as Record<string, unknown>;
+      return isIdentifier(commandId) && isLibraryImportGroupsParamsV01(params);
     }
     case "library.entryMetadata":
       return hasExactKeys(value, REQUEST_KEYS) && isLibraryEntryMetadataParamsV01(value.method, value.params);

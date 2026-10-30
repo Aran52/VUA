@@ -7,7 +7,7 @@ import type {
 } from "./warehouse-commands-port.ts";
 import { registerTaskIdentity } from "./task-identity.ts";
 import { strings } from "../i18n/index.ts";
-import { isLibraryImportAcceptedV01, isLibraryImportPathsAcceptedV02 } from "@vua/contracts";
+import { isLibraryImportAcceptedV01, isLibraryImportGroupsAcceptedV01, isLibraryImportPathsAcceptedV02 } from "@vua/contracts";
 
 /**
  * F4-9 live 写命令端口:warehouse.setArtifactMode / generateVpm /
@@ -203,6 +203,19 @@ export function createWarehouseCommands(client: GatewayClient): WarehouseCommand
             // 弹窗,不再持独立页;任务「回到来源页」落回其宿主页面
             originPage: "warehouse",
           })
+        : response.ok ? { ok: false, error: { kind: "unavailable" } } : outcomeFromClientError(response.error);
+    },
+    // 迁移分组(library-migration v0.1):每个命名组一个条目;受理即任务身份
+    importGroups: async (groups, options) => {
+      const response = await client.invoke({
+        schemaVersion: 1, requestId: crypto.randomUUID(), method: "library.importGroups",
+        params: {
+          schemaVersion: "0.1", groups: [...groups], commandId: options?.commandId ?? `whcmd-${crypto.randomUUID()}`,
+          ...(options?.autoGenerate === true ? { autoGenerate: true } : {}),
+        },
+      });
+      return response.ok && isLibraryImportGroupsAcceptedV01(response.value)
+        ? acceptWithIdentity(response.value, { title: strings.taskTitles.importBatch, originPage: "warehouse" })
         : response.ok ? { ok: false, error: { kind: "unavailable" } } : outcomeFromClientError(response.error);
     },
     importPaths: async (sourcePaths, options) => {

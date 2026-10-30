@@ -1075,3 +1075,72 @@ fn library_use_filters_before_pagination_and_never_grants_unknown_permission() {
     assert!(response_schema.is_valid(&result["value"]),"{result}");
     for entry in std::fs::read_dir(root.join("examples")).unwrap() {let path=entry.unwrap().path();let name=path.file_name().unwrap().to_string_lossy();let value:Value=serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();let valid=name.contains(".valid.");if name.ends_with("request.json"){assert_eq!(request_schema.is_valid(&value),valid,"{name}");assert_eq!(host.call("library.list",value["params"].clone())["ok"],valid,"{name}");}else{assert_eq!(response_schema.is_valid(&value),valid,"{name}");}}
 }
+
+#[test]
+fn grouped_migration_intake_copies_reviewed_materials_and_refuses_stale_or_overlapping_groups() {
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let collection = world.base.join("collection");
+    std::fs::create_dir_all(collection.join("Coat").join("Textures")).unwrap();
+    std::fs::create_dir_all(collection.join("Hat")).unwrap();
+    let coat_package = collection.join("Coat").join("Coat.unitypackage");
+    let coat_texture = collection.join("Coat").join("Textures").join("body.png");
+    let hat_package = collection.join("Hat").join("Hat.unitypackage");
+    std::fs::write(&coat_package, b"PK coat").unwrap();
+    std::fs::write(&coat_texture, b"png body").unwrap();
+    std::fs::write(&hat_package, b"PK hat").unwrap();
+    let describe = |path: &std::path::Path| {
+        let metadata = std::fs::metadata(path).unwrap();
+        let modified = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        json!({"path": "", "bytes": metadata.len(), "modifiedMs": modified})
+    };
+    let file = |path: &std::path::Path, relative: &str| { let mut value = describe(path); value["path"] = json!(relative); value };
+    let groups = json!([
+        { "name": "Meiyun coat", "root": collection, "files": [
+            file(&coat_package, "Coat/Coat.unitypackage"), file(&coat_texture, "Coat/Textures/body.png") ] },
+        { "name": "Meiyun hat", "root": collection, "files": [ file(&hat_package, "Hat/Hat.unitypackage") ] },
+    ]);
+    let params = json!({"schemaVersion":"0.1","groups":groups});
+    let accepted = host.call_command("library.importGroups", params.clone(), Some("migration-once"));
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    assert_eq!(accepted["value"]["operation"], "library.importGroups");
+    let task_id = accepted["value"]["taskId"].as_str().unwrap();
+    let start = Instant::now();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded); break; }
+        assert!(start.elapsed() < WIRE_WAIT); std::thread::sleep(Duration::from_millis(5));
+    }
+    let cards = world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+    assert_eq!(cards.len(), 2, "{cards:?}");
+    let names = cards.iter().map(|card| card.display_name.clone()).collect::<Vec<_>>();
+    assert!(names.contains(&"Meiyun coat".to_string()) && names.contains(&"Meiyun hat".to_string()), "{names:?}");
+    let copies = world.bdl.library_copy_evidence().unwrap();
+    assert_eq!(copies.len(), 3);
+    assert!(copies.iter().any(|copy| copy.copy.relative_path.replace('\\', "/").ends_with("Coat/Textures/body.png")));
+    // Originals are untouched, and a replay with the same command id keeps one task.
+    assert_eq!(std::fs::read(&coat_package).unwrap(), b"PK coat");
+    let replay = host.call_command("library.importGroups", params, Some("migration-once"));
+    assert_eq!(replay["value"]["taskId"], accepted["value"]["taskId"]);
+
+    // A source edited after the review is refused before anything is copied: the declaration
+    // still carries the reviewed size and modification time.
+    let hat_as_reviewed = file(&hat_package, "Hat/Hat.unitypackage");
+    std::fs::write(&hat_package, b"PK hat edited after the review").unwrap();
+    let stale = json!({"schemaVersion":"0.1","groups":[
+        { "name": "Meiyun hat", "root": collection, "files": [ hat_as_reviewed ] } ]});
+    let refused = host.call_command("library.importGroups", stale, Some("migration-stale"));
+    assert_eq!(refused["ok"], false, "{refused}");
+    assert_eq!(refused["error"]["code"], "vua.migration.stale");
+    // The same file in two materials is an overlap, not a silent drop.
+    let overlap = json!({"schemaVersion":"0.1","groups":[
+        { "name": "First", "root": collection, "files": [ file(&coat_package, "Coat/Coat.unitypackage") ] },
+        { "name": "Second", "root": collection, "files": [ file(&coat_package, "Coat/Coat.unitypackage") ] } ]});
+    let refused = host.call_command("library.importGroups", overlap, Some("migration-overlap"));
+    assert_eq!(refused["error"]["code"], "vua.migration.overlap", "{refused}");
+    // A root that contains the library storage is refused instead of copied into itself.
+    let recursive = json!({"schemaVersion":"0.1","groups":[
+        { "name": "Everything", "root": world.base, "files": [ file(&coat_package, "collection/Coat/Coat.unitypackage") ] } ]});
+    assert_eq!(host.call_command("library.importGroups", recursive, Some("migration-recursive"))["error"]["code"], "vua.migration.invalidParams");
+    // No entry was created by any refused command.
+    assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 2);
+}

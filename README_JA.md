@@ -1,8 +1,8 @@
-# VUA — VRC Ultra Assistant
+# VUA — Virtual Unified Assistant
 
 [English](README.md) | [简体中文](README_ZH.md) | 日本語 | [한국어](README_KO.md)
 
-**VUA（VRC Ultra Assistant）** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
+**VUA（Virtual Unified Assistant）** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
 シナリオ導入・管理・起動アプリです。シナリオは目的、必要なソフト、準備・起動・復旧の手順を
 まとめたものです。PC 画面でのプレイ、PICO へのストリーミング、選んだモジュールでの Avatar 編集など、
 やりたいことから次の手順を案内します。

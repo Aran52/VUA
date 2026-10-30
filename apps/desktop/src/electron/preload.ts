@@ -1,4 +1,3 @@
-import { isReceivedRecipeLink, isPublishedRecipeLink, isShareImageSaved } from "@vua/contracts";
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
 import type {
   ApplicationEventV01,
@@ -170,15 +169,15 @@ const api: VuaDesktopApiV7 = Object.freeze({
   }),
   dialog: Object.freeze({
     recipeSharing: Object.freeze({
-      exportImage:(options:import("@vua/contracts").ShareImageOptions)=>ipcRenderer.invoke("vua:share:export",options).then(value => { if (!isShareImageSaved(value)) throw new Error("share_invalid"); return value; }),
-      readInput:(text:string)=>ipcRenderer.invoke("vua:share:read",text).then(value => { if (!isReceivedRecipeLink(value)) throw new Error("share_invalid"); return value; }),
+      exportImage:(options:import("@vua/contracts").ShareImageOptions)=>ipcRenderer.invoke("vua:share:export",options),
+      readInput:(text:string)=>ipcRenderer.invoke("vua:share:read",text),
       readImage:(files:readonly File[])=>{
         if(!Array.isArray(files)||files.length!==1)return Promise.reject(new Error("share_image_invalid"));
         const paths=files.map(file=>webUtils.getPathForFile(file));
         if(paths.some(value=>!value))return Promise.reject(new Error("share_image_invalid"));
-        return ipcRenderer.invoke("vua:share:read-image",paths).then(value => { if (!isReceivedRecipeLink(value)) throw new Error("share_invalid"); return value; });
+        return ipcRenderer.invoke("vua:share:read-image",paths);
       },
-      list:(recipeId?:string)=>ipcRenderer.invoke("vua:share:list",recipeId).then(value => { if (!Array.isArray(value) || !value.every(isPublishedRecipeLink)) throw new Error("share_invalid"); return value; }),
+      list:(recipeId?:string)=>ipcRenderer.invoke("vua:share:list",recipeId),
       withdraw:(code:string)=>ipcRenderer.invoke("vua:share:withdraw",code),
       hasPending:()=>ipcRenderer.invoke("vua:share:has-pending"),
       takePending:()=>ipcRenderer.invoke("vua:share:take-pending"),

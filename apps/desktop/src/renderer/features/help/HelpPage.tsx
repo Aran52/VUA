@@ -12,11 +12,10 @@ import { EncyclopediaPage } from "./EncyclopediaPage.tsx";
 import { GuideEntryButton } from "../guide/GuideEntryButton.tsx";
 import { GUIDE_TARGETS } from "../guide/guide-target.ts";
 
-export function HelpPage({ page, navigate, startTour, replayContextGuides, guideRequest, acknowledgeGuide }: {
+export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeGuide }: {
   page: "help" | "help-wizard" | "help-tour" | "help-game-assistant" | "help-encyclopedia" | "help-ai";
   navigate: (page: PageId) => void;
   startTour: () => void;
-  replayContextGuides: () => void;
   guideRequest: GuideRequest | null;
   acknowledgeGuide: (nonce: number) => void;
 }) {
@@ -29,7 +28,7 @@ export function HelpPage({ page, navigate, startTour, replayContextGuides, guide
     <AiToolsPage navigate={navigate} />
   </div>;
   if (page === "help-encyclopedia") return <EncyclopediaPage onBack={() => navigate("help")} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
-  if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} onReplay={replayContextGuides} navigate={navigate} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
+  if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} navigate={navigate} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
   if (page === "help-tour" || page === "help-game-assistant") return <div className="vua-page vua-help-child" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{page === "help-tour" ? strings.tour.paletteEntry : copy.gameGuide}</h1>{back}</header>
     <section className="vua-environment-detail">

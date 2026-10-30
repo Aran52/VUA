@@ -205,8 +205,9 @@ const review = {
     check("later snoozes only for this session", localStorage.getItem(storageKeys.contextGuide) === null && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
     await click(copy.help); await click(copy.wizard);
     await wait(() => document.querySelector(".vua-vua-guide"));
-    await click(strings.contextGuide.replay);
-    check("replaying page tips clears only their own state", localStorage.getItem(storageKeys.contextGuide) === null && sessionStorage.getItem(storageKeys.contextGuideSnoozed) === null && localStorage.getItem(storageKeys.theme) === "dark");
+    check("the concept wizard offers neither the VUA manual nor a page-tip replay", !document.querySelector('[data-nav-id="wizard-manual"]') && ![...document.querySelectorAll("button")].some(button => button.textContent?.trim() === strings.contextGuide.replay));
+    // Later is session-local: a new session (an empty sessionStorage) shows the tip again.
+    sessionStorage.removeItem(storageKeys.contextGuideSnoozed);
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => document.querySelector('[data-context-guide="home"]'));
     await click(strings.contextGuide.dismiss);

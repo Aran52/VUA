@@ -143,7 +143,7 @@
 .vua-play-hardware { align-self: flex-start; }
 html[data-effects='off'] .vua-environment-card__spin { animation: none; }
 @media (prefers-reduced-motion: reduce) { .vua-environment-card__spin { animation: none; } .vua-environment-card > button { transition: none; } }
-.vua-shell__sidebar-label { border: 0; background: none; text-align: start; cursor: pointer; }
+.vua-shell__sidebar-label { border: 0; background: none; text-align: start; cursor: default; user-select: none; }
 
 .vua-compact-environments > * { flex-shrink: 0; }
 .vua-route-tile[data-selected='true'] { border-color: var(--vua-accent); background: var(--vua-accent-tint); }

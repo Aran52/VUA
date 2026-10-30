@@ -6,12 +6,13 @@ import { useGateway } from "../../gateway/index.ts";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { strings, format, recipeShareCopy, recipeShareError } from "../../i18n/index.ts";
+import { recipeSharing } from "./recipe-sharing.ts";
 
 const copy = strings.amfProduction;
 export function AmfRecipeImportDialog({ onClose, onImported, onOpen, initial }: {
   onClose: () => void; onImported: () => void; onOpen: (recipeId: string) => void; initial?: PendingRecipeShare | null;
 }) {
-  const port = useGateway().amfProduction, sharing = window.vua?.dialog?.recipeSharing;
+  const port = useGateway().amfProduction, sharing = recipeSharing();
   const [image, setImage] = useState<string | null>(null);
   const [contentRevision, setContentRevision] = useState(0);
   const [text, setText] = useState("");

@@ -40,7 +40,8 @@ try {
     resolve: { alias: { "@vua/contracts": path.resolve(root, "../../packages/contracts/src/index.ts") } },
     cacheDir: path.join(os.tmpdir(), "vua-first-run-ui-vite"),
     define: { __VUA_BUILD_INFO__: JSON.stringify({ version: "synthetic-ui", commit: "synthetic", dirty: false }) },
-    server: { host: "127.0.0.1", port: 0 }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
+    // This fixed-source interaction check does not need a live-reload socket.
+    server: { host: "127.0.0.1", port: 0, hmr: false }, optimizeDeps: { force: true, include: ["react", "react-dom/client", "@vua/contracts"] } });
   server.middlewares.use(async (req, res, next) => {
     const route = req.url?.split("?")[0];
     if (route !== "/__first-run-review" && route !== "/__task-window-review") return next();

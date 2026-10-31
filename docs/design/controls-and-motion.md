@@ -44,6 +44,11 @@ uses the same class; feature layouts still own width and path direction. Existin
 other deliberately styled fields keep their own appearance, and the AMF geometry scope still
 owns their rectangular shape.
 
+The Workshop automation selector shows its label above the current mode in a
+64 px control with the module accent border and tint. Its header and the rail's
+New line button share that height and baseline; new lines expose the selector
+before work starts (author follow-up, 2026-10-31).
+
 ### Size steps
 
 Controls come in three steps; a page uses one step for its main controls and may use a smaller
@@ -82,7 +87,10 @@ VUA host and in AMF content (author ruling, 2026-10-28; it replaces the 2026-10-
 direction). Only the module accent colour differs between host and AMF pages.
 The material card's upper-left status/action marker is a named exception: a 40 px
 triangle attached to the corner, restored by the author ruling of 2026-10-31.
-Its keyboard focus follows the triangle; the card itself keeps the container geometry.
+Its 72 px decorative tail fades to transparency down-right at 45 degrees and passes
+pointer input through to the preview. The marker paints above the card frame in resting,
+hover and selected states. Its triangular outline appears only for keyboard focus;
+the card itself keeps the container geometry (author follow-up, 2026-10-31).
 
 Corners are set per **role group**, one radius per group:
 

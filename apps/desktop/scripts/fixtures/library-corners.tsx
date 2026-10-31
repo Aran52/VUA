@@ -35,7 +35,12 @@ const publicSummary = (id: string) => ({ ...cloud.product, productId: id, title:
 const ok = (value: unknown) => ({ ok: true, value });
 const invoke = async (request: any) => {
   calls.push(structuredClone(request));
-  if (request.method === "library.list") { libraryReads++; return ok({ ...structuredClone(library), sourceCategories: cloud.sourceCategory ? [cloud.sourceCategory] : [] }); }
+  if (request.method === "library.list") {
+    libraryReads++;
+    const result = { ...structuredClone(library), sourceCategories: cloud.sourceCategory ? [cloud.sourceCategory] : [] };
+    if (request.params.schemaVersion === "0.2") { result.schemaVersion = "0.2"; for (const item of result.items) item.use = { presetId: request.params.use, status: "allowed" }; }
+    return ok(result);
+  }
   if (request.method === "library.entryMetadata") return ok(structuredClone(records.get(request.params.entryId)));
   if (request.method === "library.productFiles") return ok({ schemaVersion: "0.1", productId: request.params.productId, items: [{ downloadableId: 901, fileName: "synthetic.zip", managedCopyId: null, copies: [] }] });
   if (request.method === "library.downloadStatus") {
@@ -95,6 +100,7 @@ document.documentElement.lang = currentLocale; document.body.dataset.module = "p
 document.documentElement.dataset.effects = "off";
 const root = createRoot(document.getElementById("root")!); const checks: string[] = [];
 const wait = () => new Promise<void>(resolve => setTimeout(resolve, 40));
+const painted = async () => { await document.fonts.ready; await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))); };
 const text = () => document.body.textContent ?? "";
 const check = (value: unknown, label: string) => { if (!value) throw Error(label); checks.push(label); };
 const until = async (test: () => boolean, label: string) => { const end = performance.now() + 7000; while (!test()) { if (performance.now() > end) throw Error(`${label}: ${text()}`); await wait(); } };
@@ -102,10 +108,25 @@ const card = (id: string) => [...document.querySelectorAll<HTMLElement>("[data-s
 const corner = (id: string) => card(id)?.querySelector<HTMLButtonElement>(".vua-library-corner")!;
 const button = (label: string, within: ParentNode = document) => { const found = [...within.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
 let generation = 0;
-async function showLibrary() { root.render(<StrictMode><GatewayProvider gateway={gateway}><WarehousePage key={++generation} /></GatewayProvider></StrictMode>); await until(() => document.querySelectorAll("[data-selection-id]").length === 5, "five library cards"); await wait(); }
+async function showLibrary() { root.render(<StrictMode><GatewayProvider gateway={gateway}><WarehousePage key={++generation} /></GatewayProvider></StrictMode>); await until(() => document.querySelectorAll("[data-selection-id]").length === 5, "five library cards"); await painted(); }
 async function closeDialog() { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await until(() => !document.querySelector('[role="dialog"]'), "match dialog closed"); }
 async function run() {
   await showLibrary();
+  const filtersAligned = () => {
+    const filters = document.querySelector<HTMLElement>('.vua-warehouse__filters')!;
+    const controls = [...filters.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select')].map(node=>node.getBoundingClientRect());
+    const row = filters.getBoundingClientRect();
+    return controls.every(rect=>Math.abs(rect.bottom-controls[0]!.bottom)<1)
+      && Math.abs(controls.at(-1)!.right-row.right)<1 && filters.scrollWidth<=filters.clientWidth;
+  };
+  check(filtersAligned(), 'material filters share one baseline and fill the content width');
+  const use = document.querySelector<HTMLSelectElement>('.vua-library-use-filter select')!;
+  const setUse = (value:string) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value')!.set!.call(use,value); use.dispatchEvent(new Event('change',{bubbles:true})); };
+  setUse(use.options[1]!.value);
+  await until(()=>document.querySelectorAll('.vua-library-use-filter select').length===2&&document.querySelectorAll('[data-selection-id]').length===5,'expanded use filters');
+  check(filtersAligned(), 'the use-mode filter joins the same aligned row');
+  setUse(''); await until(()=>document.querySelectorAll('.vua-library-use-filter select').length===1&&document.querySelectorAll('[data-selection-id]').length===5,'ordinary use filter restored');
+  await until(()=>!document.querySelector('.vua-skeleton'),'filter results settled'); await painted();
   const bodyRows = card("booth:90").querySelector(".vua-warehouse-card__body")!;
   check([...bodyRows.children].slice(0, 3).map(node => node.className).join("|").includes("__title|vua-caption vua-text-secondary vua-warehouse-card__shop|vua-warehouse-card__variant"), "card text order is title, shop, then variant");
   check(corner("booth:90").dataset.cornerState === "cloud" && corner("wh-imported").dataset.cornerState === "local", "cloud/local facts use green cloud and purple computer corners");
@@ -119,7 +140,8 @@ async function run() {
   }
   for (const node of document.querySelectorAll<HTMLElement>("[data-selection-id]")) {
     const menu = node.querySelector<HTMLElement>(".vua-warehouse-card__menu")!;
-    check(Math.abs(node.getBoundingClientRect().bottom - menu.getBoundingClientRect().bottom - 13) < 6, "card menu stays at the card bottom regardless of title/badges");
+    const menuGap = node.getBoundingClientRect().bottom - menu.getBoundingClientRect().bottom;
+    check(Math.abs(menuGap - 13) < 6, `card menu stays at the card bottom regardless of title/badges (${menuGap}px; card ${node.clientHeight}/${node.scrollHeight}; ${node.getBoundingClientRect().height}px)`);
   }
   corner("booth:90").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await until(() => !!document.querySelector('[role="tooltip"]'), "corner explanation");
   check(document.querySelector('[role="tooltip"]')!.textContent === copy.corner.cloud, "corner has localized tooltip");

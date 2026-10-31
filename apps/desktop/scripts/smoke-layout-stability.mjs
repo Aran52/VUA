@@ -133,6 +133,34 @@ async function creatorMotion(theme) {
     &&row.closingMiddle>0&&row.closingMiddle<row.expanded&&row.closed<1,`${theme} ${row.id}: both directions animate through an intermediate height and closed content is inert: ${JSON.stringify(row)}`);
   checks.push(`creator ${theme}: all ${motion.length} available cards animate opening and closing, with closed details inert`);
 }
+async function workshopAlignment(theme) {
+  const read = () => evaluate(`(() => {
+    const page=document.querySelector('.vua-workshop'), rail=page.querySelector('.vua-workshop__rail'), main=page.querySelector('.vua-workshop__main');
+    const box=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height}};
+    const header=main.querySelector('.vua-line__header'), mode=main.querySelector('[data-nav-id="workshop-mode"]');
+    return {page:box(page),rail:box(rail),main:box(main),newLine:box(rail.firstElementChild),header:box(header),mode:box(mode),
+      stations:main.querySelector('.vua-line__stations')?box(main.querySelector('.vua-line__stations')):null,
+      label:mode.querySelector('.vua-mode-picker__value > span')?.textContent, fits:page.scrollWidth<=page.clientWidth+1};
+  })()`);
+  const layout = await read();
+  assert.ok(Math.abs(layout.newLine.top-layout.header.top)<1 && Math.abs(layout.newLine.bottom-layout.header.bottom)<1,`${theme}: workshop columns share a header baseline`);
+  assert.ok(Math.abs(layout.mode.right-layout.main.right)<1 && Math.abs(layout.stations.left-layout.header.left)<1
+    && Math.abs(layout.stations.top-layout.newLine.bottom-16)<1,`${theme}: mode, station strip and rail share the content grid`);
+  assert.ok(layout.label && layout.mode.height>=64);
+  await click('[data-nav-id="workshop-mode"]');
+  assert.equal(await evaluate(`document.activeElement?.getAttribute('aria-checked')`),'true','opening the mode menu focuses the active permission');
+  const current = await evaluate(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-label')`);
+  win.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'}); win.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+  await until(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-expanded')==='false'`,'Escape closes mode menu');
+  assert.equal(await evaluate(`document.activeElement?.dataset.navId`),'workshop-mode');
+  assert.equal(await evaluate(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-label')`),current,'opening and dismissing the menu never changes automation');
+  await evaluate(`document.querySelector('.vua-workshop__rail > .vua-button').click()`); await pause(300);
+  assert.ok((await read()).label,'a new line exposes its automation before work starts');
+  win.setContentSize(640,900); await pause(300);
+  const narrow=await read();
+  assert.ok(narrow.fits&&narrow.mode.left>=narrow.main.left-1&&narrow.mode.right<=narrow.main.right+1,`${theme}: the prominent mode control fits a narrow workshop`);
+  checks.push(`workshop ${theme}: columns and mode align, keyboard dismissal preserves permissions, and new/narrow lines expose the control`);
+}
 async function main() {
   try {
     await app.whenReady();
@@ -164,6 +192,7 @@ async function main() {
       await until("!!document.querySelector('[data-nav-id=\"workshop-station-inspect\"]')", "workshop did not load");
       await click('[data-nav-id="workshop-station-inspect"]');
       await overflowRoundTrip(".vua-workshop",'[data-nav-id="workshop-station-check"]','[data-nav-id="workshop-station-inspect"]',`workshop ${theme}`);
+      await workshopAlignment(theme);
     }
     for(const check of checks)console.log(`✔ ${check}`);
     console.log(JSON.stringify({scope:"Real Chromium components; synthetic data; no device or material acceptance",passed:checks.length}));

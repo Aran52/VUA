@@ -98,6 +98,7 @@ when" runs on real machines remain and are listed in the v1.0.0 release notes.
 | F14 | Creator editor and manager details use the shared opening and closing slide motion | Each available card animates both directions in light and dark appearance; closed details are inert |
 | F15 | AMF first reads avoid duplicate environment/catalog scans; interactive repository metadata has a two-second network budget and retains the existing cache fallback | The real isolated renderer finishes the first local read on Materials, Recipes, Workshop, Release and Packages within five seconds; stalled-feed tests retain cached packages |
 | F16 | Restore material corner triangles and quiet Grid's inner card HUD marks, following the 2026-10-31 author ruling | Material states use the attached triangle; HUD colour follows the [design standard](../design/controls-and-motion.md#corners) |
+| F17 | Align Workshop and Materials content; emphasize the Workshop automation selector with a visible label and current mode; paint material status markers above frames with a diagonal transparent tail (author follow-up, 2026-10-31) | Workshop columns and mode share their header baseline; new lines expose their mode; material filters align in ordinary and expanded states at wide/narrow widths; marker tails blend and pass pointer input through |
 
 ### 4. AMF checks by the community
 

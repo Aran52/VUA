@@ -108,7 +108,12 @@ const card = (id: string) => [...document.querySelectorAll<HTMLElement>("[data-s
 const corner = (id: string) => card(id)?.querySelector<HTMLButtonElement>(".vua-library-corner")!;
 const button = (label: string, within: ParentNode = document) => { const found = [...within.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
 let generation = 0;
-async function showLibrary() { root.render(<StrictMode><GatewayProvider gateway={gateway}><WarehousePage key={++generation} /></GatewayProvider></StrictMode>); await until(() => document.querySelectorAll("[data-selection-id]").length === 5, "five library cards"); await painted(); }
+async function showLibrary() {
+  const visit = ++generation;
+  root.render(<StrictMode><GatewayProvider gateway={gateway}><div data-library-review={visit} style={{display:"contents"}}><WarehousePage key={visit} /></div></GatewayProvider></StrictMode>);
+  await until(() => document.querySelectorAll(`[data-library-review="${visit}"] [data-selection-id]`).length === 5, "five cards from the current library visit");
+  await painted();
+}
 async function closeDialog() { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await until(() => !document.querySelector('[role="dialog"]'), "match dialog closed"); }
 async function run() {
   await showLibrary();

@@ -23,7 +23,8 @@ fn interactive_repo_catalog_bounds_a_stalled_refresh_and_keeps_cached_packages()
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
         let mut bytes = [0; 4096];
-        stream.read(&mut bytes).unwrap();
+        let received = stream.read(&mut bytes).unwrap();
+        assert!(received > 0, "the client sends a request before waiting for the stalled feed");
         started.send(()).unwrap();
         let _ = held.recv_timeout(std::time::Duration::from_secs(6));
     });

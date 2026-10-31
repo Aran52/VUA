@@ -145,7 +145,7 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-mode-picker__text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); overflow-wrap: anywhere; }
 .vua-mode-picker__mark { display: grid; place-items: center; color: var(--vua-text-strong); }
 /* Stations are places on the line: each opens its own panel below the strip. */
-.vua-line__stations { position: relative; margin: 0; padding: 4px 0; list-style: none; }
+.vua-line__stations { position: relative; margin: 0; padding: 0; list-style: none; }
 .vua-line__stations > li { display: flex; position: relative; }
 .vua-line__stations > li:not(:last-of-type)::after { content: ""; position: absolute; top: 28px; inset-inline-end: -8px; width: 8px; height: 1px; background: var(--vua-border); }
 .vua-line__stations > li[data-state="done"]::after, .vua-line__stations > li[data-state="running"]::after { background: var(--vua-accent); }

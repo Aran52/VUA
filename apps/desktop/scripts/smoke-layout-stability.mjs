@@ -140,6 +140,8 @@ async function workshopAlignment(theme) {
     const header=main.querySelector('.vua-line__header'), mode=main.querySelector('[data-nav-id="workshop-mode"]');
     return {page:box(page),rail:box(rail),main:box(main),newLine:box(rail.firstElementChild),header:box(header),mode:box(mode),
       stations:main.querySelector('.vua-line__stations')?box(main.querySelector('.vua-line__stations')):null,
+      station:main.querySelector('.vua-line__station')?box(main.querySelector('.vua-line__station')):null,
+      firstLine:rail.querySelector('.vua-workshop__line')?box(rail.querySelector('.vua-workshop__line')):null,
       label:mode.querySelector('.vua-mode-picker__value > span')?.textContent, fits:page.scrollWidth<=page.clientWidth+1};
   })()`);
   const layout = await read();
@@ -147,6 +149,7 @@ async function workshopAlignment(theme) {
   assert.ok(Math.abs(layout.mode.right-layout.main.right)<1 && Math.abs(layout.stations.left-layout.header.left)<1
     && Math.abs(layout.stations.top-layout.newLine.bottom-16)<1,`${theme}: mode, station strip and rail share the content grid`);
   assert.ok(layout.label && layout.mode.height>=64);
+  assert.ok(layout.firstLine&&layout.station&&Math.abs(layout.firstLine.top-layout.station.top)<1,`${theme}: visible line rows and station cards share their top edge`);
   await click('[data-nav-id="workshop-mode"]');
   assert.equal(await evaluate(`document.activeElement?.getAttribute('aria-checked')`),'true','opening the mode menu focuses the active permission');
   const current = await evaluate(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-label')`);

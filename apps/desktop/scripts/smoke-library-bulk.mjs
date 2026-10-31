@@ -87,10 +87,16 @@ async function main() {
           if(!await fits())throw Error(`${locale}/${theme}: material filters overflow a narrow page`);
           await window.webContents.executeJavaScript(`(async()=>{
             const use=document.querySelector('.vua-library-use-filter select');
-            Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(use,use.options[1].value);use.dispatchEvent(new Event('change',{bubbles:true}));
+            if(use.value!==use.options[1].value){Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(use,use.options[1].value);use.dispatchEvent(new Event('change',{bubbles:true}));}
             await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
           })()`);
           if(!await fits())throw Error(`${locale}/${theme}: expanded use filters overflow a narrow page`);
+          await window.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
+            let attempts=0;const timer=setInterval(()=>{
+              if(document.querySelectorAll('[data-selection-id]').length===5&&!document.querySelector('.vua-skeleton')){clearInterval(timer);resolve();}
+              else if(++attempts>100){clearInterval(timer);reject(Error('narrow material results did not settle'));}
+            },40);
+          })`);
           checks.push(`${locale}/${theme}: ordinary and expanded material filters stay aligned inside a 640 px page`);
           await new Promise(resolve=>setTimeout(resolve,350));
           await writeFile(path.join(output,`corners-${locale}-${theme}-narrow.png`),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());

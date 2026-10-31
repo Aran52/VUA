@@ -1,6 +1,6 @@
 import { lazy, useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import type { AmfUiGenerationV01, AmfUiRuntimeSnapshotV01 } from "@vua/contracts";
-import { useGateway } from "../../gateway/index.ts";
+import { useAmfModule, useGateway } from "../../gateway/index.ts";
 import { format, strings, TERMS } from "../../i18n/index.ts";
 import { AmfBoundary } from "./AmfBoundary.tsx";
 import { canUnloadAmfUi, disposeAmfUi, loadAmfPages, splitAmfUi } from "./amf-ui-loader.ts";
@@ -22,8 +22,15 @@ export function useAmfUiRuntime() {
 /** Always mounted in the shell, including when no AMF page is visible. */
 export function AmfUiRuntimeBridge() {
   const { port, view } = useAmfUiRuntime();
+  const amf = useAmfModule();
   const previous = useRef<AmfUiGenerationV01 | undefined>(undefined);
   const candidate = useRef<AmfUiGenerationV01 | undefined>(undefined);
+  useEffect(() => {
+    if (amf.state !== "ready" || splitAmfUi()) return;
+    // Load the optional UI while the shell is idle, before the first station
+    // visit. This mounts no page and starts no library/project reads.
+    void loadAmfPages().catch(() => { /* The page boundary reports a failed load on entry. */ });
+  }, [amf.state]);
   useLayoutEffect(() => {
     if (view.candidate) candidate.current = view.candidate;
     if (view.phase !== "idle") return;

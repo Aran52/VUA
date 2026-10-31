@@ -120,7 +120,7 @@
 .vua-creator-page .vua-route-tile__tag { position: static; grid-column: 3; grid-row: 1; font: var(--vua-font-caption); }
 .vua-creator-page .vua-manager-card__status { position: static; grid-column: 3; grid-row: 1; max-width: 44ch; text-align: end; }
 .vua-creator-page .vua-environment-section > h2 { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
-.vua-creator-page .vua-card-entry > .vua-environment-detail { margin: 0; padding: 20px; border: 0; border-top: 1px solid var(--vua-border); border-radius: 0; }
+  .vua-creator-page .vua-creator-drawer .vua-environment-detail { margin: 0; padding: 20px; border: 0; border-top: 1px solid var(--vua-border); border-radius: 0; }
 .vua-creator-page [data-amf-setup] .vua-page__stack[data-module] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 20px; }
 .vua-creator-page [data-amf-setup] .vua-page__stack[data-module] > :first-child { grid-column: 1; grid-row: 1; }
 .vua-creator-page [data-amf-setup] .vua-title { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }

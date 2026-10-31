@@ -5,6 +5,11 @@ licenses; the repository's Apache-2.0 license does not replace them.
 
 ## Current source dependencies
 
+Tool icons are fetched at runtime and cached locally, rather than bundled. VRCS uses
+the unmodified [Dreaminko/VRCS GitHub icon](https://github.com/Dreaminko/VRCS/blob/a7fa889dfa94c11398850eeb42765ca82b8cea82/apps/desktop/src-tauri/icons/128x128.png)
+from its AGPL-3.0 repository. Names and marks identify the external tools and remain
+with their respective owners.
+
 The desktop runtime uses Electron (MIT, with separate Chromium/Node notices), React/React DOM
 (MIT), Three.js (MIT) and the official MCP TypeScript SDK packages `@modelcontextprotocol/server`
 and `@modelcontextprotocol/node` (Apache-2.0) for the local agent adapter;

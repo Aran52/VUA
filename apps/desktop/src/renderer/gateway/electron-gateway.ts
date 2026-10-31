@@ -146,7 +146,8 @@ function createLiveTaskPort(client: GatewayClient): TaskPort {
 }
 
 function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
-  const fetchView = async (): Promise<EnvironmentView> => {
+  let pending: Promise<EnvironmentView> | undefined;
+  const readView = async (): Promise<EnvironmentView> => {
     const result = await client.invoke({
       schemaVersion: 1,
       requestId: crypto.randomUUID(),
@@ -158,6 +159,12 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
     // 不再唯一收窄——A1 TS 面落地连带修复,桌面域,2026-09-19)
     if (!result.ok || !("capturedAt" in result.value)) throw new Error("environment_snapshot_unavailable");
     return projectEnvironmentSnapshot(result.value);
+  };
+  // Startup, capability notifications and page checks may overlap. One native
+  // scan serves those readers; never queue identical network/tool probes.
+  const fetchView = (): Promise<EnvironmentView> => {
+    pending ??= readView().finally(() => { pending = undefined; });
+    return pending;
   };
   return {
     deployment: createLiveDeploymentPort(client),
@@ -186,15 +193,8 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
       return { kind: "unavailable" };
     },
     async capability(): Promise<CapabilityReport> {
-      const result = await client.invoke({
-        schemaVersion: 1,
-        requestId: crypto.randomUUID(),
-        method: "environment.getSnapshot",
-        params: {},
-      });
-      return result.ok
-        ? { state: "ready" }
-        : { state: "unavailable", detailKey: "detectorsMissing" };
+      try { await fetchView(); return { state: "ready" }; }
+      catch { return { state: "unavailable", detailKey: "detectorsMissing" }; }
     },
   };
 }

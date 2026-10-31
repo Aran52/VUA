@@ -382,12 +382,13 @@ const review = {
     await click(copy.create); await wait(() => document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
     check("creator lists complete discovered versions beside the fixed Unity entries", document.querySelector('[data-nav-id="route-unity2022"]') && document.querySelector('[data-nav-id="editor-2021.3.45f1"]') && document.querySelector('[data-nav-id="route-unity6"] .vua-route-tile__tag')?.textContent === copy.developing);
     check("Hub, VCC and ALCOM have separate detected statuses", ["unity_hub", "vcc", "alcom"].every(id => document.querySelector(`[data-manager="${id}"] [role="status"]`)) && document.querySelector('[data-manager="alcom"]')!.textContent?.includes(strings.environmentCards.notFound));
-    document.querySelector<HTMLButtonElement>('[data-nav-id="manager-vcc"]')!.click(); await wait(() => !document.querySelector<HTMLElement>("#manager-vcc-details")!.hidden);
+    document.querySelector<HTMLButtonElement>('[data-nav-id="manager-vcc"]')!.click(); await wait(() => document.querySelector<HTMLElement>("#manager-vcc-details")!.dataset.open === "true");
     check("manager configuration is shown separately from executable detection", document.querySelector("#manager-vcc-details")!.textContent?.includes(strings.environmentCards.configFound));
     document.querySelector<HTMLButtonElement>('[data-nav-id="manager-vcc"]')!.click();
     for (const control of document.querySelectorAll<HTMLButtonElement>('.vua-creator-page .vua-card-entry [aria-controls]')) {
       control.click();
       await wait(() => control.getAttribute('aria-expanded') === 'true');
+      await wait(() => detailsBelowCard(control), `${control.dataset.navId} drawer reaches its expanded position`);
       check(`${control.dataset.navId} opens details immediately below its own card`, detailsBelowCard(control));
       control.click();
       await wait(() => control.getAttribute('aria-expanded') === 'false');

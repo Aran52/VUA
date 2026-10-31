@@ -15,7 +15,7 @@ function loadLogo(id: string): Promise<string | null> {
   return request;
 }
 
-/** The tool's own icon from Steam; the group glyph while it is unavailable. */
+/** The tool's own icon from its configured upstream; the group glyph while it is unavailable. */
 export function ToolLogo({ id, icon }: { id: string; icon: IconName }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {

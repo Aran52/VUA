@@ -110,6 +110,13 @@ async function run() {
   check([...bodyRows.children].slice(0, 3).map(node => node.className).join("|").includes("__title|vua-caption vua-text-secondary vua-warehouse-card__shop|vua-warehouse-card__variant"), "card text order is title, shop, then variant");
   check(corner("booth:90").dataset.cornerState === "cloud" && corner("wh-imported").dataset.cornerState === "local", "cloud/local facts use green cloud and purple computer corners");
   check(corner("booth:91").dataset.cornerState === "error" && corner("booth:92").dataset.cornerState === "linked", "missing files use red cross; stored linked files use orange computer");
+  for (const marker of document.querySelectorAll<HTMLElement>(".vua-library-corner")) {
+    const style = getComputedStyle(marker);
+    const rect = marker.getBoundingClientRect(), cardRect = marker.closest("[data-selection-id]")!.getBoundingClientRect();
+    check(style.clipPath === "polygon(0px 0px, 100% 0px, 0px 100%)" && rect.width === 40 && rect.height === 40
+      && Math.abs(rect.left - cardRect.left) <= 1 && Math.abs(rect.top - cardRect.top) <= 1,
+      "every material state uses a triangle attached to the upper-left corner");
+  }
   for (const node of document.querySelectorAll<HTMLElement>("[data-selection-id]")) {
     const menu = node.querySelector<HTMLElement>(".vua-warehouse-card__menu")!;
     check(Math.abs(node.getBoundingClientRect().bottom - menu.getBoundingClientRect().bottom - 13) < 6, "card menu stays at the card bottom regardless of title/badges");

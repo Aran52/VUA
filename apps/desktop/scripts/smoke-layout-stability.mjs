@@ -106,6 +106,33 @@ async function creatorNarrow(theme) {
   assert.ok(layout.rows.every(row=>Math.abs(row.x-layout.rows[0].x)<0.75&&Math.abs(row.w-layout.rows[0].w)<0.75),`creator ${theme}: narrow rows align`);
   checks.push(`creator ${theme}: 640 px window keeps software rows and AMF controls aligned without horizontal overflow`);
 }
+async function creatorMotion(theme) {
+  const motion = await evaluate(`(async () => {
+    const results=[];
+    for (const control of document.querySelectorAll('.vua-creator-page .vua-route-tile:not(:disabled)')) {
+      const drawer=document.getElementById(control.getAttribute('aria-controls'));
+      if (!drawer) continue;
+      const height=()=>drawer.getBoundingClientRect().height;
+      control.click();
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const opening=drawer.getAnimations().some(animation=>animation.transitionProperty==='grid-template-rows');
+      await new Promise(resolve=>setTimeout(resolve,70)); const middle=height();
+      await new Promise(resolve=>setTimeout(resolve,300)); const expanded=height();
+      control.click();
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const closing=drawer.getAnimations().some(animation=>animation.transitionProperty==='grid-template-rows');
+      const inaccessible=drawer.inert&&drawer.getAttribute('aria-hidden')==='true';
+      await new Promise(resolve=>setTimeout(resolve,70)); const closingMiddle=height();
+      await new Promise(resolve=>setTimeout(resolve,300));
+      results.push({id:control.dataset.navId,opening,closing,inaccessible,middle,expanded,closingMiddle,closed:height()});
+    }
+    return results;
+  })()`);
+  assert.ok(motion.length>=4);
+  for(const row of motion) assert.ok(row.opening&&row.closing&&row.inaccessible&&row.middle>0&&row.middle<row.expanded
+    &&row.closingMiddle>0&&row.closingMiddle<row.expanded&&row.closed<1,`${theme} ${row.id}: both directions animate through an intermediate height and closed content is inert: ${JSON.stringify(row)}`);
+  checks.push(`creator ${theme}: all ${motion.length} available cards animate opening and closing, with closed details inert`);
+}
 async function main() {
   try {
     await app.whenReady();
@@ -126,6 +153,7 @@ async function main() {
       await sidebar(); await creatorRows(`creator ${theme} / standard`);
       await overflowRoundTrip(".vua-creator-page",'[data-nav-id="manager-vcc"]','[data-nav-id="manager-vcc"]',`creator ${theme}`);
       await firstRun(theme,'window.firstRunReview.previewEnvironment("create")'); await creatorRows(`creator ${theme} / extra editors`);
+      await creatorMotion(theme);
       await creatorNarrow(theme);
       await firstRun(theme,'window.firstRunReview.previewEnvironment("play")');
       await overflowRoundTrip(".vua-play-page",'[data-nav-id="route-desktop"]','[data-nav-id="route-desktop"]',`play ${theme}`);

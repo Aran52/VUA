@@ -35,7 +35,7 @@ function ToolGroup({ group, selected, onSelect, onPrepareSteam }: {
   const cards = group.tools.map(tool => <div className="vua-card-entry" data-card-entry={`tool-${tool.id}`} key={tool.id}>
     {tool.id === "vrcft" ? <VrcftCard selected={selected === tool.id} onDetails={() => toggle(tool.id)} onReveal={() => reveal(tool.id)} onPrepareSteam={onPrepareSteam} />
       : tool.id === "vrcs" || tool.id === "liv" ? <>
-        <EnvironmentCard title={tool.title} icon={group.icon} logo={tool.id === "liv" ? <ToolLogo id="liv" icon={group.icon} /> : undefined}
+        <EnvironmentCard title={tool.title} icon={group.icon} logo={<ToolLogo id={tool.id} icon={group.icon} />}
           id={`tool-${tool.id}`} action="unknown" status="" developing iconOnlyAction actionHint={strings.journey.developingTip}
           selected={selected === tool.id} onDetails={() => toggle(tool.id)} />
         <ToolDetails id={tool.id} title={tool.title} selected={selected === tool.id}>

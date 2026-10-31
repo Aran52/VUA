@@ -69,3 +69,9 @@
   flex-wrap: wrap;
   gap: var(--vua-space-2);
 }
+
+.vua-tools-drawer .vua-environment-detail { min-width: 0; padding: var(--vua-space-4); }
+.vua-tools-drawer .vua-environment-detail[hidden] { display: none; }
+.vua-tools-drawer .vua-environment-heading { flex-wrap: wrap; gap: var(--vua-space-3); }
+.vua-tools-drawer .vua-environment-heading h2 { overflow-wrap: anywhere; }
+.vua-tools-hub .vua-environment-card .vua-environment-card__action { justify-content: center; }

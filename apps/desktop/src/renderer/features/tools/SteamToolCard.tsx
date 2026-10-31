@@ -6,6 +6,7 @@ import { EnvironmentCard } from "../home/EnvironmentCard.tsx";
 import { deriveToolCardState, type ToolConnectionStatusKey } from "./tool-connection-state.ts";
 import { useToolConnection } from "./use-tool-connection.ts";
 import { ToolLogo } from "./ToolLogo.tsx";
+import { ToolDetails } from "./ToolDetails.tsx";
 import "./tools.css";
 
 /** Shared Steam connection card for the five non-VRCFT N2 tools: same state machine as VrcftCard without the hardware gate. */
@@ -20,6 +21,9 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
   const state = deriveToolCardState(live);
   const text = (template: string) => format(template, { tool: title });
   const status = (key: ToolConnectionStatusKey) => text(copy[key]);
+  const actionHint = live.pending || waiting ? status(state.status) : !s || live.failed ? copy.recheck
+    : s.canStop ? text(copy.closeApp) : !s.steamReady ? copy.prepareSteam
+    : s.presence === "installed" ? text(copy.openApp) : s.presence === "unknown" ? copy.recheck : copy.install;
   const act = () => {
     onReveal();
     if (!s || live.failed) { void live.refresh(); return; }
@@ -31,9 +35,9 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
   };
   return <>
     <EnvironmentCard title={title} icon={icon} logo={<ToolLogo id={toolId} icon={icon} />} id={`tool-${toolId}`}
-      selected={selected} action={state.action} status={status(state.status)} onDetails={onDetails} onAction={act}
+      selected={selected} action={state.action} status={status(state.status)} actionHint={actionHint} iconOnlyAction onDetails={onDetails} onAction={act}
       disabled={live.pending || waiting} spinning={live.pending || waiting} warning={!!s?.issue && s.canStop} />
-    <section id={`tool-${toolId}-details`} className="vua-environment-detail" hidden={!selected} aria-label={title}>
+    <ToolDetails id={toolId} title={title} selected={selected}>
       <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>
       <p>{strings.helpUi[toolId]}</p>
       <div className="vua-tool-connection-actions"><Button variant="subtle" onClick={() => { void live.refresh(); }}>{copy.recheck}</Button></div>
@@ -46,6 +50,6 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
         {waiting && s.activity !== "stopping" ? <div><p>{s.activity === "install_requested" ? copy.waitInstall : copy.waitOpen}</p><Button disabled={live.pending} variant="subtle" onClick={() => { void live.act("cancel"); }}>{copy.cancelWait}</Button></div> : null}
         {s.running && !s.canStop ? <p className="vua-text-secondary">{text(copy.existing)}</p> : null}
       </> : <p role="status">{status("checking")}</p>}
-    </section>
+    </ToolDetails>
   </>;
 }

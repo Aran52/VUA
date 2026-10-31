@@ -56,6 +56,8 @@
 .vua-account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 24px; }
 .vua-account-grid .vua-settings-account { gap: 16px; }
 .vua-environment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(310px, 100%), 1fr)); gap: var(--vua-space-4); }
+.vua-environment-grid > .vua-slide-drawer { grid-column: 1 / -1; }
+.vua-environment-grid > .vua-slide-drawer:not([data-open='true']) { margin-top: calc(-1 * var(--vua-space-4)); }
 .vua-card-entry { display: flex; flex-direction: column; align-self: start; gap: 12px; min-width: 0; }
 .vua-card-entry > .vua-route-tile { width: 100%; }
 .vua-card-entry > .vua-environment-detail { min-width: 0; padding: 16px; }
@@ -68,14 +70,16 @@
 .vua-play-page, .vua-creator-page, .vua-tools-hub { padding: 8px; }
 .vua-environment-card { position: relative; display: grid; grid-template-columns: 1fr 1fr; height: var(--vua-environment-height, 176px); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); overflow: hidden; background-color: var(--vua-bg-panel); background-image: var(--vua-surface-highlight, none); box-shadow: var(--vua-card-material, none); outline: var(--vua-card-stitch, none); outline-offset: var(--vua-card-stitch-offset); }
 .vua-environment-card[data-selected='true'] { border-color: var(--vua-accent); }
-.vua-environment-card > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--vua-space-4); padding: var(--vua-space-5) 16px; border: 0; color: var(--vua-text-strong); background: transparent; cursor: pointer; font: var(--vua-font-body); transition: background 140ms ease; min-width: 0; }
-.vua-environment-card > button:hover:not(:disabled) { background: var(--vua-accent-tint); }
-.vua-environment-card > button:focus-visible { outline: 3px solid var(--vua-accent); outline-offset: -4px; }
-.vua-environment-card > button:disabled { cursor: default; color: var(--vua-text-secondary); }
+.vua-environment-card :is(.vua-environment-card__details, .vua-environment-card__action) { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--vua-space-4); padding: var(--vua-space-5) 16px; border: 0; color: var(--vua-text-strong); background: transparent; cursor: pointer; font: var(--vua-font-body); transition: background 140ms ease; min-width: 0; }
+.vua-environment-card > .vua-tooltip-anchor { display: flex; min-width: 0; }
+.vua-environment-card > .vua-tooltip-anchor > .vua-environment-card__action { width: 100%; height: 100%; }
+.vua-environment-card :is(.vua-environment-card__details, .vua-environment-card__action):hover:not(:disabled) { background: var(--vua-accent-tint); }
+.vua-environment-card :is(.vua-environment-card__details, .vua-environment-card__action):focus-visible { outline: 3px solid var(--vua-accent); outline-offset: -4px; }
+.vua-environment-card :is(.vua-environment-card__details, .vua-environment-card__action):disabled { cursor: default; color: var(--vua-text-secondary); }
 /* A card without details keeps its title at full contrast, level with its peers. */
 .vua-environment-card > .vua-environment-card__details:disabled { color: var(--vua-text-strong); }
 .vua-environment-card strong { font: var(--vua-font-title); }
-.vua-environment-card > .vua-environment-card__action { position: relative; flex-direction: row; flex-wrap: wrap; align-content: center; justify-content: flex-start; gap: 8px; border-left: 1px solid var(--vua-border); color: var(--vua-accent-text); }
+.vua-environment-card .vua-environment-card__action { position: relative; flex-direction: row; flex-wrap: wrap; align-content: center; justify-content: flex-start; gap: 8px; border-left: 1px solid var(--vua-border); color: var(--vua-accent-text); }
 .vua-environment-card__action > svg { width: 20px; height: 20px; }
 .vua-environment-card__action > span[role='status'] { font: var(--vua-font-caption); color: var(--vua-text-secondary); text-align: center; }
 .vua-environment-card__warning { position: absolute; top: 16px; right: 16px; width: 20px; height: 20px; color: var(--vua-text-strong); }
@@ -129,7 +133,7 @@
   .vua-creator-page [data-amf-setup] .vua-page__stack[data-module] { grid-template-columns: minmax(0, 1fr); }
   .vua-creator-page [data-amf-setup] .vua-page__stack[data-module] > :is(:first-child, .vua-settings-toggle, .vua-page__actions:not(:first-child), p.vua-caption, p[role="status"]) { grid-column: 1; grid-row: auto; }
 }
-.vua-compact-environments .vua-environment-card > button { padding: var(--vua-space-2) 16px; gap: 8px; }
+.vua-compact-environments .vua-environment-card :is(.vua-environment-card__details, .vua-environment-card__action) { padding: var(--vua-space-2) 16px; gap: 8px; }
 .vua-compact-environments .vua-environment-card__details { flex-direction: row; }
 .vua-compact-environments .vua-environment-card__details .vua-route-tile__icon { width: 30px; height: 30px; flex-shrink: 0; }
 /* Device names stay on one line: the name side takes three fifths of a compact card. */
@@ -146,7 +150,7 @@
 .vua-play-page .vua-network-tile__results { gap: 4px 16px; }
 .vua-play-hardware { align-self: flex-start; }
 html[data-effects='off'] .vua-environment-card__spin { animation: none; }
-@media (prefers-reduced-motion: reduce) { .vua-environment-card__spin { animation: none; } .vua-environment-card > button { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .vua-environment-card__spin { animation: none; } .vua-environment-card :is(.vua-environment-card__details, .vua-environment-card__action) { transition: none; } }
 .vua-shell__sidebar-label { border: 0; background: none; text-align: start; cursor: default; user-select: none; }
 
 .vua-compact-environments > * { flex-shrink: 0; }

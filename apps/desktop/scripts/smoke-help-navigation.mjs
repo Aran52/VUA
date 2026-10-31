@@ -85,6 +85,14 @@ async function run() {
         && detailRect.top>=cardRect.bottom && detailRect.top-cardRect.bottom<=14
         && detail.scrollWidth<=detail.clientWidth+2;
     })()`);
+    const toolDrawerFits = button => js(`(()=>{
+      const control=document.querySelector('[data-nav-id="${button}"]'), entry=control.closest('[data-card-entry]');
+      const detail=document.getElementById(control.getAttribute('aria-controls')), drawer=detail.closest('.vua-tools-drawer');
+      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect(), grid=entry.parentElement.getBoundingClientRect();
+      return drawer.dataset.open==='true' && !detail.hidden && panel.top>=card.bottom
+        && Math.abs(panel.left-grid.left)<1 && Math.abs(panel.width-grid.width)<1 && panel.height>40
+        && detail.scrollWidth<=detail.clientWidth+2;
+    })()`);
     const languageFooterFits = () => js(`(()=>{
       const select=document.querySelector('[data-nav-id=settings-language-select]'), language=select.parentElement;
       const search=document.querySelector('[data-nav-id=settings-search]');
@@ -173,9 +181,10 @@ async function run() {
     for (const button of await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__details")].map(b=>b.dataset.navId)')) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true' && !document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
-      assert(await inlineDetailFits(button), `${button} details are directly below their own card and fit its width`);
+      await waitFor(() => toolDrawerFits(button), `${button} full-row sliding details`);
+      assert(true, `${button} details slide below their row and span the full grid width`);
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='false' && document.getElementById('${button}-details').hidden`), `${button} closes on a second click`);
+      assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='false' && document.getElementById('${button}-details').closest('.vua-tools-drawer').inert`), `${button} closes on a second click and makes its retained details inert`);
     }
     await capture("tools-dark");
     assert(await toolLabelsFit(), "Compact tool names fit completely inside their detail buttons");

@@ -60,9 +60,6 @@
 html[data-effects='off'] .vua-flow-button, html[data-effects='off'] .vua-flow-button__label { transition: none; animation: none; }
 @media (prefers-reduced-motion: reduce) { .vua-flow-button, .vua-flow-button__label { transition: none; animation: none; } }
 
-/* The drawers take the full content width below the row of the card that opened them. */
-.vua-environment-grid > .vua-slide-drawer { grid-column: 1 / -1; }
-.vua-environment-grid > .vua-slide-drawer:not([data-open='true']) { margin-top: calc(-1 * var(--vua-space-4)); }
 .vua-play-drawer .vua-play-flow[hidden] { display: none; }
 .vua-play-devices { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); margin: 0; padding: 0; list-style: none; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-play-devices li { display: inline-flex; align-items: center; gap: 8px; color: var(--vua-text-strong); }

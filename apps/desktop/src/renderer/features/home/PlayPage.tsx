@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { PLAY_ROUTES, type PlayRoute } from "@vua/contracts";
 import { currentLocale, strings } from "../../i18n/index.ts";
 import { playFlowCopy } from "../../i18n/play-flow-copy.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
+import { useGridColumns } from "../../components/use-grid-columns.ts";
 import { RouteGlyph } from "../../components/RouteTile.tsx";
 import { useEnvironmentView, useGateway, type EnvironmentView } from "../../gateway/index.ts";
 import { CHECK_GROUPS } from "../deployer/deployer-model.ts";
@@ -42,21 +43,6 @@ function useDeviceScan() {
   const members: readonly string[] = CHECK_GROUPS[0].memberIds;
   const devices = evidence?.items.filter(item => members.includes(item.id) && item.status === "ok") ?? [];
   return { run, busy: busy || phase.kind === "running", scanned: evidence !== null, devices };
-}
-
-/** Columns the grid lays out now, so a drawer opens below the row of the card that asked for it. */
-function useGridColumns(ref: RefObject<HTMLElement | null>): number {
-  const [columns, setColumns] = useState(1);
-  useLayoutEffect(() => {
-    const grid = ref.current;
-    if (!grid) return;
-    const measure = () => setColumns(Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [ref]);
-  return columns;
 }
 
 export function PlayPage({ onAccounts }: { onAccounts: () => void }) {

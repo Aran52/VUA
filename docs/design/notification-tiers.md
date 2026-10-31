@@ -31,6 +31,8 @@ drawer and Windows notifications for work that ends in the background, is slice 
 
 - **Tooltip.** Shows 350 ms after the pointer arrives, at once on keyboard focus; Escape, scrolling
   or a press hides it. It works on a disabled control. Text only, at most two short lines.
+  Tool-card action buttons use a 1,200 ms pointer delay (author ruling, 2026-10-31); they show
+  only a symbol at rest and explain their actual next operation in the tooltip and accessible name.
 - **Toast.** Bottom center, at most three stacked; the same text twice replaces the first. The stack
   is a polite live region. No buttons: anything with an action is an alert.
 - **Alert.** Sits at the top of the page, panel or dialog it concerns. Tones: info, success, warning,

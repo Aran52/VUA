@@ -63,6 +63,33 @@ async function run() {
     assert(observed.ok && observed.value.toolConnection.toolId === "vrcft" && nativeSchema === "vua.external-tool/v0.2", "Native host returns VRCFT v0.2 facts while AMF is disabled");
     const nativePresence = observed.value.toolConnection.presence; nativeRead = false;
     await click('[data-nav-id=nav-tools-discover]'); await waitFor(() => js('!!document.querySelector("[data-nav-id=tool-vrcft-action]")'), "tool card"); await refresh();
+    assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].length===8 && [...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].every(button=>(button.textContent.trim()==="" || button.textContent.trim()==="—") && !!button.getAttribute("aria-label"))'), "All eight tool actions show only symbols and retain accessible operation names");
+    for (const scale of [1, 1.5]) {
+      window.setSize(960, 800); window.webContents.setZoomFactor(scale);
+      for (const toolId of ['vrcft','space','vrcs','translator','advanced','toolkit','oyasumi','liv']) {
+        await click(`[data-nav-id=tool-${toolId}]`);
+        await waitFor(() => js(`(()=>{
+          const trigger=document.querySelector('[data-nav-id=tool-${toolId}]'), entry=trigger.closest('[data-card-entry]');
+          const detail=document.getElementById(trigger.getAttribute('aria-controls')), drawer=detail.closest('.vua-tools-drawer');
+          const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect(), grid=entry.parentElement.getBoundingClientRect();
+          return trigger.getAttribute('aria-expanded')==='true' && drawer.dataset.open==='true' && !detail.hidden
+            && panel.top>=card.bottom && Math.abs(panel.left-grid.left)<1 && Math.abs(panel.width-grid.width)<1
+            && panel.height>40 && detail.scrollWidth<=detail.clientWidth+2;
+        })()`), `${toolId} full-row drawer at ${scale} scale`);
+        assert(true, `${toolId}: full-row sliding details fit at ${scale} page scale`);
+        await click(`[data-nav-id=tool-${toolId}]`);
+        assert(await js(`document.getElementById('tool-${toolId}-details').closest('.vua-tools-drawer').inert`), `${toolId}: closed details stay mounted and inert`);
+      }
+    }
+    window.webContents.setZoomFactor(1); window.setSize(1440,960);
+    const actionRect = await js('(()=>{const b=document.querySelector("[data-nav-id=tool-vrcft-action]");b.scrollIntoView({block:"center"});const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,label:b.getAttribute("aria-label")}})()');
+    window.webContents.sendInputEvent({type:"mouseMove",x:Math.round(actionRect.x+actionRect.w/2),y:Math.round(actionRect.y+actionRect.h/2)});
+    await delay(1000);
+    assert(await js('!document.querySelector("[role=tooltip]")'), "Tool action text stays hidden during the first second of pointer hover");
+    await waitFor(() => js(`!![...document.querySelectorAll('[role=tooltip]')].find(t=>t.textContent===${JSON.stringify(actionRect.label)})`), "tool action explanation after 1.2-second hover");
+    assert(await js(`(()=>{const r=document.querySelector('[data-nav-id=tool-vrcft-action]').getBoundingClientRect();return Math.abs(r.x-${actionRect.x})<1 && Math.abs(r.width-${actionRect.w})<1})()`), "Delayed operation text does not move or resize the action button");
+    window.webContents.sendInputEvent({type:"mouseMove",x:5,y:5});
+    await waitFor(() => js('!document.querySelector("[role=tooltip]")'), "tool tooltip leaves with the pointer");
     await click('[data-nav-id=tool-vrcft-action]'); await waitFor(() => js('!!document.querySelector("[role=dialog]")'), "picker");
     assert(await js('document.querySelector("[role=dialog]").textContent.includes("可用的设备") && !!document.querySelector("[data-tracking-device-choice=quest-pro]") && !!document.querySelector("[data-tracking-device-choice=iphone]") && !!document.querySelector("[data-tracking-device-choice=eyetrackvr]")'), "Picker includes headsets, phone and add-on trackers beyond PICO");
     await capture('devices-dark'); await click('[data-tracking-device-choice=pico4-pro]');
@@ -94,7 +121,7 @@ async function run() {
     await click('[data-tracking-step=module] a'); await delay(100);
     assert(guideUrls.at(-1) === "https://docs.vrcft.io/docs/hardware/vr/meta/quest-pro/virtual-desktop", "Module help opens the matching upstream guide through native popup routing");
     synthetic = { ...synthetic, steamReady: false, presence: 'missing', buildId: null, running: false }; await refresh();
-    assert(await js('document.querySelector("[data-nav-id=tool-vrcft-action]").textContent.includes("准备 Steam")'), "Missing Steam offers prerequisite preparation instead of a dead install action");
+    assert(await js('document.querySelector("[data-nav-id=tool-vrcft-action]").getAttribute("aria-label").includes("准备 Steam")'), "Missing Steam offers prerequisite preparation instead of a dead install action");
     await click('[data-nav-id=tool-vrcft-action]'); await waitFor(() => js('!!document.querySelector(".vua-play-page")'), "Steam preparation");
     await click('[data-nav-id=nav-tools-discover]'); await click('[data-nav-id=tool-vrcft]');
     assert(await js('document.querySelector("[data-tracking-device=quest-pro]")?.dataset.trackingMethod==="vd"'), "Returning from prerequisites retains device and connection");

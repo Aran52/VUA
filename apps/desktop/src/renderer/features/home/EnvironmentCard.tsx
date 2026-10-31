@@ -3,6 +3,7 @@ import type { IconName } from "@vua/design-system";
 import { strings, format } from "../../i18n/index.ts";
 import { RouteGlyph } from "../../components/RouteTile.tsx";
 import type { VrBrand } from "../../components/vr-brand-glyphs.ts";
+import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 export type EnvironmentAction = "prepare" | "start" | "stop" | "busy" | "attention" | "unknown";
 export function ActionGlyph({ action, spinning = false }: { action: EnvironmentAction; spinning?: boolean }) {
   return <svg className={spinning ? "vua-environment-card__spin" : undefined} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -10,19 +11,24 @@ export function ActionGlyph({ action, spinning = false }: { action: EnvironmentA
   </svg>;
 }
 /** Two sibling buttons; neither half is nested inside the other control. */
-export function EnvironmentCard({ title, titleContent, kind, brand, icon, id, action, status, selected, onDetails, onAction, disabled, spinning, warning, developing, children }: {
-  title: string; titleContent?: ReactNode; kind?: "screen" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName; id: string; action: EnvironmentAction; status: string;
+export function EnvironmentCard({ title, titleContent, kind, brand, icon, logo, id, action, status, actionHint, iconOnlyAction = false, selected, onDetails, onAction, disabled, spinning, warning, developing, children }: {
+  title: string; titleContent?: ReactNode; kind?: "screen" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName;
+  /** The item's own logo, shown in place of the glyph. */
+  logo?: ReactNode; id: string; action: EnvironmentAction; status: string;
+  actionHint?: string; iconOnlyAction?: boolean;
   selected?: boolean; onDetails?: () => void; onAction?: () => void; disabled?: boolean; spinning?: boolean; warning?: boolean; developing?: boolean; children?: ReactNode;
 }) {
   const copy = strings.environmentCards;
   const label = action === "prepare" ? copy.prepare : action === "start" ? copy.start : action === "stop" ? copy.stop : copy.details;
+  const actionLabel = actionHint ? actionHint.includes(title) ? actionHint : `${title} · ${actionHint}` : format(label, { name: title });
+  const actionButton = <button type="button" className="vua-environment-card__action" data-nav-id={`${id}-action`} disabled={disabled || developing} aria-label={actionLabel} aria-busy={spinning} onClick={onAction}>
+    {developing ? <span aria-hidden="true">—</span> : <><ActionGlyph action={action} spinning={!!spinning} />{warning && action === "stop" ? <span className="vua-environment-card__warning"><ActionGlyph action="attention" /></span> : null}{!iconOnlyAction ? <span role="status">{status}</span> : null}</>}
+  </button>;
   return <article className="vua-environment-card" data-card={id} data-action={action} data-selected={selected}>
     {developing ? <span className="vua-route-tile__tag">{strings.journey.developing}</span> : null}
     <button type="button" className="vua-environment-card__details" data-nav-id={id} disabled={!onDetails} aria-label={format(copy.details, { name: title })} aria-expanded={onDetails ? !!selected : undefined} aria-controls={onDetails ? `${id}-details` : undefined} onClick={onDetails}>
-      <RouteGlyph kind={kind} brand={brand} icon={icon} /><strong>{titleContent ?? title}</strong>{children}
+      {logo ?? <RouteGlyph kind={kind} brand={brand} icon={icon} />}<strong>{titleContent ?? title}</strong>{children}
     </button>
-    <button type="button" className="vua-environment-card__action" data-nav-id={`${id}-action`} disabled={disabled || developing} aria-label={format(label, { name: title })} aria-busy={spinning} onClick={onAction}>
-      {developing ? <span aria-hidden="true">—</span> : <><ActionGlyph action={action} spinning={!!spinning} />{warning && action === "stop" ? <span className="vua-environment-card__warning"><ActionGlyph action="attention" /></span> : null}<span role="status">{status}</span></>}
-    </button>
+    {iconOnlyAction ? <Tooltip content={actionLabel} delayMs={1200} block>{actionButton}</Tooltip> : actionButton}
   </article>;
 }

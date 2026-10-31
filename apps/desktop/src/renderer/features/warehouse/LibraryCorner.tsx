@@ -11,14 +11,17 @@ export function LibraryCorner({ state, onAction, busy = false }: { state: Librar
   const action = onAction !== undefined && state !== "searching" && !busy;
   const hoveredIcon = state === "cloud" || state === "error" ? "download" : state === "local" ? "refresh" : state === "downloading" ? "pause" : state === "paused" ? "anim" : icons[state];
   return <>
-    <button type="button" className="vua-library-corner" data-vua-control-role="indicator" data-corner-state={state} data-action={action || undefined}
-      aria-label={copy[state]} aria-describedby={anchor === null ? undefined : id} aria-disabled={!action}
-      onMouseEnter={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left, top: rect.bottom + 8 }); }}
-      onMouseLeave={() => setAnchor(null)} onFocus={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left, top: rect.bottom + 8 }); }} onBlur={() => setAnchor(null)}
-      onClick={event => { event.stopPropagation(); if (action) onAction?.(); }} onDoubleClick={event => event.stopPropagation()}>
-      <span className="vua-library-corner__rest"><Icon name={icons[state]} size={16} /></span>
-      <span className="vua-library-corner__hover"><Icon name={action ? hoveredIcon : icons[state]} size={16} /></span>
-    </button>
+    <span className="vua-library-marker" data-corner-state={state}>
+      <button type="button" className="vua-library-corner" data-vua-control-role="indicator" data-corner-state={state} data-action={action || undefined}
+        aria-label={copy[state]} aria-describedby={anchor === null ? undefined : id} aria-disabled={!action}
+        onMouseEnter={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left, top: rect.bottom + 8 }); }}
+        onMouseLeave={() => setAnchor(null)} onFocus={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left, top: rect.bottom + 8 }); }} onBlur={() => setAnchor(null)}
+        onClick={event => { event.stopPropagation(); if (action) onAction?.(); }} onDoubleClick={event => event.stopPropagation()}>
+        <span className="vua-library-corner__rest"><Icon name={icons[state]} size={16} /></span>
+        <span className="vua-library-corner__hover"><Icon name={action ? hoveredIcon : icons[state]} size={16} /></span>
+        <svg className="vua-library-corner__focus" viewBox="0 0 40 40" aria-hidden="true"><path d="M2 2H38L2 38Z" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+      </button>
+    </span>
     {anchor === null ? null : createPortal(<div id={id} role="tooltip" className="vua-library-corner__tooltip" style={{ left: Math.max(8, Math.min(anchor.left, window.innerWidth - 280)), top: Math.max(8, Math.min(anchor.top, window.innerHeight - 80)) }}>{copy[state]}</div>, document.body)}
   </>;
 }

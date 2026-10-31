@@ -1,6 +1,8 @@
 /* Warehouse 目录浏览(G8):只消费 Token,不引入新的视觉值 */
 
 .vua-warehouse {
+  width: 100%;
+  min-width: 0;
   max-width: none;
   /* 仓库页不做页面级滚动:滚动限定在图片墙区域(用户反馈 #2),
    * hero/工具栏/详情抽屉常驻 */
@@ -123,9 +125,12 @@
 
 .vua-warehouse__filters {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) repeat(3, minmax(130px, 180px));
+  grid-template-columns: minmax(200px, 2fr) repeat(4, minmax(0, 1fr));
   align-items: end;
   gap: var(--vua-space-3);
+}
+.vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) {
+  grid-template-columns: minmax(200px, 2fr) repeat(5, minmax(0, 1fr));
 }
 .vua-warehouse__search-controls {
   display: flex; align-items: flex-end; gap: var(--vua-space-2); min-width: 0;
@@ -166,8 +171,13 @@
 @media (max-width: 1000px) {
   /* At narrow widths/large zoom the header and controls need ordinary page scroll. */
   .vua-warehouse { overflow-y: auto; }
-  .vua-warehouse__filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vua-warehouse__filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .vua-warehouse__search-controls { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .vua-warehouse__filters, .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) > .vua-warehouse__field:last-of-type { grid-column: 1 / -1; }
 }
 
 .vua-warehouse__toolbar {
@@ -220,10 +230,13 @@
 }
 
 .vua-warehouse-card {
+  --vua-library-frame-color: var(--vua-border);
+  --vua-library-frame-width: 1px;
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--vua-border);
+  border: 0;
   border-radius: var(--vua-radius-card);
   /* 玻璃卡:半透明底透出画布氛围(整墙卡片不上 backdrop-filter,性能优先) */
   background: var(--vua-bg-panel);
@@ -236,8 +249,17 @@
   /* 卡片抬升:hover 上浮 + 指针微倾斜(use-card-spotlight 写入 --rx/--ry)+ 辖区色边框 + 柔光 */
   transition:
     transform 120ms ease-out,
-    border-color 120ms ease-out,
     box-shadow 120ms ease-out;
+}
+.vua-warehouse-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: var(--vua-library-frame-width) solid var(--vua-library-frame-color);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color var(--vua-motion-fast);
 }
 
 /* 指针聚光:跟随光斑(use-card-spotlight 写入 --px/--py);
@@ -264,9 +286,9 @@
 }
 
 .vua-warehouse-card:hover {
+  --vua-library-frame-color: var(--vua-accent);
   transform: translateY(-2px) perspective(600px) rotateX(var(--rx, 0deg))
     rotateY(var(--ry, 0deg));
-  border-color: var(--vua-accent);
   box-shadow: var(--vua-glow-accent-soft);
 }
 
@@ -302,10 +324,9 @@
 
 /* 选中:辖区色描边 + 描边环 + 柔光 */
 .vua-warehouse-card[data-selected] {
-  border-color: var(--vua-accent);
-  box-shadow:
-    0 0 0 1px var(--vua-accent),
-    var(--vua-glow-accent-soft);
+  --vua-library-frame-color: var(--vua-accent);
+  --vua-library-frame-width: 2px;
+  box-shadow: var(--vua-glow-accent-soft);
 }
 
 .vua-warehouse-card__media {
@@ -362,33 +383,54 @@
 
 /* 骨架占位:与卡片媒体同形(1:1),避免布局跳动 */
 .vua-warehouse-card__menu { margin-top: auto; align-self: stretch; }
-.vua-library-corner {
+.vua-library-marker {
   --corner-color: var(--vua-success);
-  appearance: none;
   position: absolute;
-  inset: var(--vua-space-2) auto auto var(--vua-space-2);
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
+  inset: 0 auto auto 0;
+  z-index: 4;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+/* The 40 px status triangle continues down-right into a 72 px diagonal wash.
+ * Its decorative tail passes pointer input through to the material preview. */
+.vua-library-marker::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 72px;
+  height: 72px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  background: linear-gradient(135deg, var(--corner-color) 28%, transparent 50%);
+}
+.vua-library-corner {
+  appearance: none;
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 0;
-  border-radius: var(--vua-radius-badge);
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
   background: var(--corner-color);
   color: var(--vua-accent-contrast);
   cursor: default;
+  pointer-events: auto;
 }
 .vua-library-corner[data-action] { cursor: pointer; }
-.vua-library-corner[data-corner-state="local"], .vua-library-corner[data-corner-state="searching"] { --corner-color: var(--vua-purple); }
-.vua-library-corner[data-corner-state="linked"] { --corner-color: var(--vua-orange); }
-.vua-library-corner[data-corner-state="paused"], .vua-library-corner[data-corner-state="uncertain"] { --corner-color: var(--vua-warning); }
-.vua-library-corner[data-corner-state="error"] { --corner-color: var(--vua-error); }
-.vua-library-corner > span { grid-area: 1 / 1; line-height: 0; }
+.vua-library-marker[data-corner-state="local"], .vua-library-marker[data-corner-state="searching"] { --corner-color: var(--vua-purple); }
+.vua-library-marker[data-corner-state="linked"] { --corner-color: var(--vua-orange); }
+.vua-library-marker[data-corner-state="paused"], .vua-library-marker[data-corner-state="uncertain"] { --corner-color: var(--vua-warning); }
+.vua-library-marker[data-corner-state="error"] { --corner-color: var(--vua-error); }
+.vua-library-corner > span { position: absolute; left: 6px; top: 6px; line-height: 0; }
 .vua-library-corner__hover { opacity: 0; }
 .vua-library-corner[data-action]:is(:hover, :focus-visible) .vua-library-corner__rest { opacity: 0; }
 .vua-library-corner[data-action]:is(:hover, :focus-visible) .vua-library-corner__hover { opacity: 1; }
-
+.vua-library-corner:focus-visible { outline: none; }
+.vua-library-corner__focus { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--vua-accent-contrast); opacity: 0; pointer-events: none; }
+.vua-library-corner:focus-visible .vua-library-corner__focus { opacity: 1; }
 .vua-library-corner:is([data-corner-state="downloading"], [data-corner-state="searching"]) .vua-library-corner__rest svg { animation: vua-corner-spin 1.2s linear infinite; }
 .vua-library-corner[data-corner-state="searching"] .vua-library-corner__hover svg { animation: vua-corner-spin 1.2s linear infinite; }
 @keyframes vua-corner-spin { to { transform: rotate(360deg); } }
@@ -770,7 +812,7 @@
  *  仅保留本地特有的小块样式 ---- */
 
 /* 隔离 = 安全异常:展柜模块仅异常用红(§6.1),卡片左侧红线 */
-.vua-warehouse-card[data-verdict="quarantined"] {
+.vua-warehouse-card[data-verdict="quarantined"]::after {
   border-left: 3px solid var(--vua-error);
 }
 
@@ -1089,12 +1131,6 @@
 }
 
 
-/* 多选模式卡片选中态(用户裁决 2026-10-04):橙色描边 + 角标计数 */
-.vua-warehouse-card[data-selected] {
-  outline: 2px solid var(--vua-accent, #ff8c42);
-  outline-offset: -2px;
-}
-
 /* 加入 Recipe 小窗 */
 .vua-add-to-recipe {
   display: flex;
@@ -1284,7 +1320,8 @@
 .vua-terms__items div[data-value="contact_licensor"] dd { color: var(--vua-warning-text); }
 .vua-terms__link { border: 0; padding: 0; background: none; color: var(--vua-accent-text, var(--vua-accent)); font: inherit; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
 
-.vua-library-use-filter { display:flex; gap:var(--vua-space-3); grid-column:span 2; min-width:0; }
+.vua-library-use-filter { display:flex; gap:var(--vua-space-3); min-width:0; }
+.vua-library-use-filter:has(> label + label) { grid-column:span 2; }
 .vua-library-use-filter > label { flex:1; min-width:0; }
 .vua-library-use-filter select { width:100%; min-width:0; }
 

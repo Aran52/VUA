@@ -106,6 +106,64 @@ async function creatorNarrow(theme) {
   assert.ok(layout.rows.every(row=>Math.abs(row.x-layout.rows[0].x)<0.75&&Math.abs(row.w-layout.rows[0].w)<0.75),`creator ${theme}: narrow rows align`);
   checks.push(`creator ${theme}: 640 px window keeps software rows and AMF controls aligned without horizontal overflow`);
 }
+async function creatorMotion(theme) {
+  const motion = await evaluate(`(async () => {
+    const results=[];
+    for (const control of document.querySelectorAll('.vua-creator-page .vua-route-tile:not(:disabled)')) {
+      const drawer=document.getElementById(control.getAttribute('aria-controls'));
+      if (!drawer) continue;
+      const height=()=>drawer.getBoundingClientRect().height;
+      control.click();
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const opening=drawer.getAnimations().some(animation=>animation.transitionProperty==='grid-template-rows');
+      await new Promise(resolve=>setTimeout(resolve,70)); const middle=height();
+      await new Promise(resolve=>setTimeout(resolve,300)); const expanded=height();
+      control.click();
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const closing=drawer.getAnimations().some(animation=>animation.transitionProperty==='grid-template-rows');
+      const inaccessible=drawer.inert&&drawer.getAttribute('aria-hidden')==='true';
+      await new Promise(resolve=>setTimeout(resolve,70)); const closingMiddle=height();
+      await new Promise(resolve=>setTimeout(resolve,300));
+      results.push({id:control.dataset.navId,opening,closing,inaccessible,middle,expanded,closingMiddle,closed:height()});
+    }
+    return results;
+  })()`);
+  assert.ok(motion.length>=4);
+  for(const row of motion) assert.ok(row.opening&&row.closing&&row.inaccessible&&row.middle>0&&row.middle<row.expanded
+    &&row.closingMiddle>0&&row.closingMiddle<row.expanded&&row.closed<1,`${theme} ${row.id}: both directions animate through an intermediate height and closed content is inert: ${JSON.stringify(row)}`);
+  checks.push(`creator ${theme}: all ${motion.length} available cards animate opening and closing, with closed details inert`);
+}
+async function workshopAlignment(theme) {
+  const read = () => evaluate(`(() => {
+    const page=document.querySelector('.vua-workshop'), rail=page.querySelector('.vua-workshop__rail'), main=page.querySelector('.vua-workshop__main');
+    const box=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,height:r.height}};
+    const header=main.querySelector('.vua-line__header'), mode=main.querySelector('[data-nav-id="workshop-mode"]');
+    return {page:box(page),rail:box(rail),main:box(main),newLine:box(rail.firstElementChild),header:box(header),mode:box(mode),
+      stations:main.querySelector('.vua-line__stations')?box(main.querySelector('.vua-line__stations')):null,
+      station:main.querySelector('.vua-line__station')?box(main.querySelector('.vua-line__station')):null,
+      firstLine:rail.querySelector('.vua-workshop__line')?box(rail.querySelector('.vua-workshop__line')):null,
+      label:mode.querySelector('.vua-mode-picker__value > span')?.textContent, fits:page.scrollWidth<=page.clientWidth+1};
+  })()`);
+  const layout = await read();
+  assert.ok(Math.abs(layout.newLine.top-layout.header.top)<1 && Math.abs(layout.newLine.bottom-layout.header.bottom)<1,`${theme}: workshop columns share a header baseline`);
+  assert.ok(Math.abs(layout.mode.right-layout.main.right)<1 && Math.abs(layout.stations.left-layout.header.left)<1
+    && Math.abs(layout.stations.top-layout.newLine.bottom-16)<1,`${theme}: mode, station strip and rail share the content grid`);
+  assert.ok(layout.label && layout.mode.height>=64);
+  assert.ok(layout.firstLine&&layout.station&&Math.abs(layout.firstLine.top-layout.station.top)<1,`${theme}: visible line rows and station cards share their top edge`);
+  await click('[data-nav-id="workshop-mode"]');
+  assert.equal(await evaluate(`document.activeElement?.getAttribute('aria-checked')`),'true','opening the mode menu focuses the active permission');
+  const current = await evaluate(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-label')`);
+  win.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'}); win.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+  await until(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-expanded')==='false'`,'Escape closes mode menu');
+  assert.equal(await evaluate(`document.activeElement?.dataset.navId`),'workshop-mode');
+  assert.equal(await evaluate(`document.querySelector('[data-nav-id="workshop-mode"]').getAttribute('aria-label')`),current,'opening and dismissing the menu never changes automation');
+  await evaluate(`document.querySelector('.vua-workshop__rail > .vua-button').click()`); await pause(300);
+  assert.ok((await read()).label,'a new line exposes its automation before work starts');
+  win.setContentSize(640,900); await pause(300);
+  const narrow=await read();
+  assert.ok(narrow.fits&&narrow.mode.left>=narrow.main.left-1&&narrow.mode.right<=narrow.main.right+1,`${theme}: the prominent mode control fits a narrow workshop`);
+  checks.push(`workshop ${theme}: columns and mode align, keyboard dismissal preserves permissions, and new/narrow lines expose the control`);
+}
 async function main() {
   try {
     await app.whenReady();
@@ -126,6 +184,7 @@ async function main() {
       await sidebar(); await creatorRows(`creator ${theme} / standard`);
       await overflowRoundTrip(".vua-creator-page",'[data-nav-id="manager-vcc"]','[data-nav-id="manager-vcc"]',`creator ${theme}`);
       await firstRun(theme,'window.firstRunReview.previewEnvironment("create")'); await creatorRows(`creator ${theme} / extra editors`);
+      await creatorMotion(theme);
       await creatorNarrow(theme);
       await firstRun(theme,'window.firstRunReview.previewEnvironment("play")');
       await overflowRoundTrip(".vua-play-page",'[data-nav-id="route-desktop"]','[data-nav-id="route-desktop"]',`play ${theme}`);
@@ -136,6 +195,7 @@ async function main() {
       await until("!!document.querySelector('[data-nav-id=\"workshop-station-inspect\"]')", "workshop did not load");
       await click('[data-nav-id="workshop-station-inspect"]');
       await overflowRoundTrip(".vua-workshop",'[data-nav-id="workshop-station-check"]','[data-nav-id="workshop-station-inspect"]',`workshop ${theme}`);
+      await workshopAlignment(theme);
     }
     for(const check of checks)console.log(`✔ ${check}`);
     console.log(JSON.stringify({scope:"Real Chromium components; synthetic data; no device or material acceptance",passed:checks.length}));

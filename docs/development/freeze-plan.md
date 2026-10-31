@@ -86,6 +86,20 @@ when" runs on real machines remain and are listed in the v1.0.0 release notes.
 | F7 | Recognize outfits that carry VRCFury components and show the VRCFury guide, with VRCFury listed in the known packages as `guide` delivery after its license check (slice 33 item 5) | An outfit with VRCFury components shows the guide at intake |
 | F8 | A minimal user guide: installation, first run, and one complete production from materials to the SDK, with screenshots of the v1.0.0 build in the five UI languages. N7's full illustrated guide waits until after the freeze | The author follows the guide on the clean VM from section 5 without other help |
 
+**After the author's local test (author ruling, 2026-10-31)**
+
+| Row | Change | Done when |
+| --- | --- | --- |
+| F9 | Each tool in the Tools tab shows its own icon, fetched from the publisher's Steam CDN or, for VRCS, its pinned GitHub icon and cached in the profile, with logos and names in left-aligned columns. The VRCS source choice follows the author ruling of 2026-10-31. Tool details reuse Play's full-row sliding drawer; action buttons show symbols, with the actual next operation after 1.2 seconds of pointer hover (author follow-up, 2026-10-31) | Every tool shows its own icon in each theme; without a connection the cached icon or glyph remains. All eight detail panels open below their card's row, and icon actions explain the operation without resizing the cards |
+| F10 | Play scans for devices the first time it opens in a session; 刷新设备识别 scans again | Opening Play lists the detected VR software without a click |
+| F11 | Play's latency and route details slide open across the full page width. Each route has one button that names the next step: check the environment, confirm the checklist, run, retry after a failure, launch | A desktop route goes from a fresh check to launch through that one button |
+| F12 | The encyclopedia and in-game assistant leave the environment cards; AI tools move to a top-bar button beside Help and Settings | No environment card links the encyclopedia or in-game assistant, and the top bar opens AI tools |
+| F13 | The concept wizard drops its manual and page-tip replay buttons; sidebar group headings are plain labels with the default cursor | The wizard shows only its concept buttons, and the headings do nothing on click |
+| F14 | Creator editor and manager details use the shared opening and closing slide motion | Each available card animates both directions in light and dark appearance; closed details are inert |
+| F15 | AMF first reads avoid duplicate environment/catalog scans; interactive repository metadata has a two-second network budget and retains the existing cache fallback | The real isolated renderer finishes the first local read on Materials, Recipes, Workshop, Release and Packages within five seconds; stalled-feed tests retain cached packages |
+| F16 | Restore material corner triangles and quiet Grid's inner card HUD marks, following the 2026-10-31 author ruling | Material states use the attached triangle; HUD colour follows the [design standard](../design/controls-and-motion.md#corners) |
+| F17 | Align Workshop and Materials content; emphasize the Workshop automation selector with a visible label and current mode; paint material status markers above frames with a diagonal transparent tail (author follow-up, 2026-10-31) | Workshop columns and mode share their header baseline; new lines expose their mode; material filters align in ordinary and expanded states at wide/narrow widths; marker tails blend and pass pointer input through |
+
 ### 4. AMF checks by the community
 
 AMF's real-material checks move to community testers after v1.0.0 is published. They report

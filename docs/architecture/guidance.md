@@ -1,6 +1,6 @@
 # Guidance architecture: first use, concept wizard, encyclopedia and game guide
 
-> Updated: 2026-10-30
+> Updated: 2026-10-31
 > Scope: First-use notice, concept wizard, contextual guidance, Help and the VRChat game guide
 > Status: Implements freeze-plan section 6; human acceptance remains separate
 
@@ -41,7 +41,9 @@ The concept wizard reads the same sections as the encyclopedia and VUA manual. E
 setup entry and an acknowledgment that moves to the next concept. Setup opens the corresponding
 existing destination; that destination owns inspection, plans and consent. A concept bookmark stores
 only its stable identifier, not a task, install result or acceptance. The final acknowledgment returns
-Home. The manual and full encyclopedia remain available, with independent reading positions.
+Home. The wizard has no manual or tip-replay buttons: for using VUA itself, the feature tour is the
+guide. Explicit `guide-vua` targets still open the manual reader, and the full encyclopedia keeps its
+own reading position.
 
 Help or command search can replay the feature tour. The tour navigates and explains only; it does
 not execute business work.
@@ -54,7 +56,6 @@ feature tour suppresses them. They do not appear over the first-use notice or Se
 
 - Permanent dismissal is versioned by stable module ID and revision in local storage.
 - Later is session-local and independent of permanent dismissal, task facts and readiness.
-- Replay in the VUA guide clears only these two kinds of introduction state.
 - A source association, detected runtime, installation, account authentication, production plan or
   upload is never completed by an introduction.
 
@@ -149,7 +150,7 @@ including the first-use article's ID, remain valid for bookmarks. The legacy `gu
 meta-reading topic is retained as a valid bookmark ID but is not a main encyclopedia category.
 
 Articles use stable topic/section targets, reading recovery, keyboard navigation and original diagrams
-with captions. The VUA guide offers replay of module introductions. All five supported UI languages are
+with captions. All five supported UI languages are
 structurally checked; additional wording review is not a
 claim of native-speaker acceptance. Real software screenshots are added only with explicit source and
 version evidence. SVG illustrations are labeled as diagrams, not game or application screenshots.

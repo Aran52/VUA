@@ -73,7 +73,8 @@ button.vua-factory__alert { cursor: pointer; }
 
 /* Workshop: the line list beside the selected line. */
 .vua-page.vua-workshop { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: var(--vua-space-5); max-width: 1180px; }
-.vua-workshop__rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: 8px; }
+.vua-workshop__rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: var(--vua-space-4); min-width: 0; }
+.vua-workshop__rail > .vua-button:first-child { min-height: 64px; }
 .vua-workshop__lines { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .vua-workshop__line-item { position: relative; display: grid; gap: 4px; }
 .vua-workshop__line-item > .vua-workshop__line { width: 100%; padding-inline-end: 36px; }
@@ -107,11 +108,11 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-line__status[data-status="waiting"] { color: var(--vua-warning-text); }
 .vua-line__status[data-status="attention"] { color: var(--vua-error-text); }
 .vua-line__status[data-status="finished"] { color: var(--vua-success-text); }
-.vua-line__header { display: flex; align-items: center; gap: var(--vua-space-4); flex-wrap: wrap; }
+.vua-line__header { display: flex; align-items: center; min-height: 64px; gap: var(--vua-space-4); flex-wrap: wrap; }
 .vua-line__header h1 { margin: 0; overflow-wrap: anywhere; }
-.vua-line__object { display: grid; gap: 4px; }
+.vua-line__object { display: grid; gap: var(--vua-space-1); min-width: 0; }
 .vua-line__skin-motif { flex: 0 0 76px; width: 76px; max-height: 52px; margin-inline-start: auto; }
-.vua-line__header > .vua-mode-picker { margin-inline-start: 0; }
+.vua-line__header > .vua-mode-picker { margin-inline-start: auto; }
 @media (max-width: 760px) {
   .vua-line__skin-motif { display: none; }
 }
@@ -124,22 +125,27 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-line__source-details dd { margin: 4px 0; }
 .vua-line__source-details small { display: block; margin-block: 4px; }
 /* Permission mode: a button naming the mode in effect, and a card of the three modes below it. */
-.vua-mode-picker { position: relative; display: inline-flex; margin-inline-start: auto; }
-.vua-mode-picker__button { display: inline-flex; align-items: center; gap: var(--vua-space-2); min-height: 34px; padding: 4px var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-body); cursor: pointer; }
-.vua-mode-picker__button:hover, .vua-mode-picker__button[aria-expanded="true"] { border-color: var(--vua-border-strong); }
-.vua-mode-picker__button > svg:last-child { color: var(--vua-text-secondary); }
+.vua-mode-picker { position: relative; display: inline-flex; max-width: 100%; margin-inline-start: auto; }
+.vua-mode-picker__button { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--vua-space-3); min-height: 64px; max-width: 100%; padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-accent); border-radius: var(--vua-radius-control); background: var(--vua-accent-tint); color: var(--vua-text-strong); font: var(--vua-font-body); cursor: pointer; }
+.vua-mode-picker__button:hover, .vua-mode-picker__button[aria-expanded="true"] { background: color-mix(in srgb, var(--vua-accent) 18%, var(--vua-bg-panel)); }
+.vua-mode-picker__button > svg { flex: none; color: var(--vua-accent-text); }
+.vua-mode-picker__button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-mode-picker__value { display: grid; min-width: 0; text-align: start; }
+.vua-mode-picker__value > span { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-mode-picker__value > strong { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); overflow-wrap: anywhere; }
 .vua-mode-picker__card { position: absolute; top: calc(100% + 6px); inset-inline-end: 0; z-index: 30; display: grid; gap: var(--vua-space-1); width: max-content; max-width: min(380px, calc(100vw - 32px)); padding: var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-elevated); box-shadow: 0 10px 30px color-mix(in srgb, var(--vua-bg-canvas) 55%, transparent); }
 .vua-mode-picker__card[data-closing] { pointer-events: none; }
 .vua-mode-picker__item { display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: 12px; padding: 9px var(--vua-space-2); border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-strong); font: inherit; text-align: start; cursor: pointer; }
 .vua-mode-picker__item:hover { background: color-mix(in srgb, var(--vua-text-strong) 6%, transparent); }
+.vua-mode-picker__item[aria-checked="true"] { background: var(--vua-accent-tint); }
 .vua-mode-picker__item:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
 .vua-mode-picker__item > svg { color: var(--vua-text-secondary); }
-.vua-mode-picker__text { display: grid; gap: var(--vua-space-1); }
+.vua-mode-picker__text { display: grid; gap: var(--vua-space-1); min-width: 0; }
 .vua-mode-picker__text strong { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
-.vua-mode-picker__text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); white-space: nowrap; }
+.vua-mode-picker__text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); overflow-wrap: anywhere; }
 .vua-mode-picker__mark { display: grid; place-items: center; color: var(--vua-text-strong); }
 /* Stations are places on the line: each opens its own panel below the strip. */
-.vua-line__stations { position: relative; margin: 0; padding: 4px 0; list-style: none; }
+.vua-line__stations { position: relative; margin: 0; padding: 0; list-style: none; }
 .vua-line__stations > li { display: flex; position: relative; }
 .vua-line__stations > li:not(:last-of-type)::after { content: ""; position: absolute; top: 28px; inset-inline-end: -8px; width: 8px; height: 1px; background: var(--vua-border); }
 .vua-line__stations > li[data-state="done"]::after, .vua-line__stations > li[data-state="running"]::after { background: var(--vua-accent); }

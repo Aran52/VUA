@@ -44,6 +44,11 @@ uses the same class; feature layouts still own width and path direction. Existin
 other deliberately styled fields keep their own appearance, and the AMF geometry scope still
 owns their rectangular shape.
 
+The Workshop automation selector shows its label above the current mode in a
+64 px control with the module accent border and tint. Its header and the rail's
+New line button share that height and baseline; new lines expose the selector
+before work starts (author follow-up, 2026-10-31).
+
 ### Size steps
 
 Controls come in three steps; a page uses one step for its main controls and may use a smaller
@@ -80,6 +85,12 @@ A theme defines the following token groups. Components only consume them.
 Grid uses rectangles and rounded rectangles only, with small radii, and the same geometry in the
 VUA host and in AMF content (author ruling, 2026-10-28; it replaces the 2026-10-25 cut-corner
 direction). Only the module accent colour differs between host and AMF pages.
+The material card's upper-left status/action marker is a named exception: a 40 px
+triangle attached to the corner, restored by the author ruling of 2026-10-31.
+Its 72 px decorative tail fades to transparency down-right at 45 degrees and passes
+pointer input through to the preview. The marker paints above the card frame in resting,
+hover and selected states. Its triangular outline appears only for keyboard focus;
+the card itself keeps the container geometry (author follow-up, 2026-10-31).
 
 Corners are set per **role group**, one radius per group:
 
@@ -101,7 +112,7 @@ Corners are set per **role group**, one radius per group:
   skin). Cut, bevel, notch and parallelogram corners are not part of any theme.
 - **Nesting:** an inner corner is never larger than the corner of the element around it.
 - **Special shapes** are allowed for named roles only: the brand mark, avatar circles, activity
-  spinners and status dots. A feature does not invent its own shape.
+  spinners, status dots and the material card corner marker. A feature does not invent its own shape.
 - **Futuristic feel without shapes.** Grid's character comes from precision and light: 1 px
   hairlines; 2 px solid accent light bars for state (the selected tab's lower edge, the current
   navigation item, a base-map room's leading edge, a panel's short top bar); cool near-black
@@ -110,6 +121,10 @@ Corners are set per **role group**, one radius per group:
   ticks on large containers and a light bar along the top of the running step card (author ruling,
   2026-10-28); and short, exact motion without bounce. Gradient buttons, neon glow and card shadows
   are not used.
+
+Grid's inner card HUD ticks use `--vua-grid-hud-color`, mixed at 65% of
+`--vua-border-strong` with transparency (author follow-up, 2026-10-31).
+This quiets the decoration while preserving ordinary borders and focus indicators.
 
 Implementation. Each theme sets the role radii as `--vua-corners-<role>` tokens and the host
 radii as `--vua-radius-*`; in Grid both resolve to the table above. The shared

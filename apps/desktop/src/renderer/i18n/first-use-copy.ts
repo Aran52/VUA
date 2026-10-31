@@ -33,7 +33,6 @@ const en = {
     "previous": "Previous concept",
     "article": "Read the full explanation",
     "manual": "VUA manual",
-    "resume": "Back to getting started",
     "unavailable": "This explanation is unavailable. Open Help to choose another topic."
   }
 };
@@ -74,7 +73,6 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "previous": "上一个概念",
     "article": "查看完整说明",
     "manual": "VUA 使用手册",
-    "resume": "返回入门向导",
     "unavailable": "这条说明暂不可用。可在帮助中选择其他主题。"
   }
 },
@@ -111,7 +109,6 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "previous": "上一個概念",
     "article": "查看完整說明",
     "manual": "VUA 使用手冊",
-    "resume": "返回入門精靈",
     "unavailable": "這則說明暫時無法使用。可在說明中選擇其他主題。"
   }
 },
@@ -148,7 +145,6 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "previous": "前の項目",
     "article": "詳しい説明を読む",
     "manual": "VUA マニュアル",
-    "resume": "はじめてのガイドに戻る",
     "unavailable": "この説明は現在利用できません。ヘルプから別の項目を選んでください。"
   }
 },
@@ -185,7 +181,6 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "previous": "이전 개념",
     "article": "전체 설명 보기",
     "manual": "VUA 사용 설명서",
-    "resume": "처음 시작하기로 돌아가기",
     "unavailable": "이 설명을 불러올 수 없어요. 도움말에서 다른 주제를 선택하세요."
   }
 }

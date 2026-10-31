@@ -9,6 +9,47 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[test]
+fn interactive_repo_catalog_bounds_a_stalled_refresh_and_keeps_cached_packages() {
+    use std::io::Read as _;
+    let base = unique_dir("catalog-read-budget");
+    let root = base.join("environment");
+    let cache = root.join("Repos/slow.json");
+    fs::create_dir_all(cache.parent().unwrap()).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/index.json", listener.local_addr().unwrap());
+    let (release, held) = std::sync::mpsc::channel();
+    let (started, accepted) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut bytes = [0; 4096];
+        stream.read(&mut bytes).unwrap();
+        started.send(()).unwrap();
+        let _ = held.recv_timeout(std::time::Duration::from_secs(6));
+    });
+    fs::write(&cache, serde_json::json!({"repo": {
+        "id":"com.vua.test.slow", "name":"Slow feed", "url":url,
+        "packages":{"com.vua.test.cached":{"versions":{"1.0.0":{
+            "name":"com.vua.test.cached", "version":"1.0.0", "unity":"2022.3", "vpmDependencies":{}
+        }}}}
+    }}).to_string()).unwrap();
+    fs::write(root.join("settings.json"), serde_json::json!({
+        "ignoreOfficialRepository":true, "ignoreCuratedRepository":true,
+        "userRepos":[{"id":"com.vua.test.slow", "name":"Slow feed", "url":url, "localPath":cache}]
+    }).to_string()).unwrap();
+    let backend = VrcGetLibBackend::with_environment_root(root, false).unwrap();
+    let before = std::time::Instant::now();
+    let result = backend.repo_catalog(None, &[]);
+    let elapsed = before.elapsed();
+    release.send(()).unwrap();
+    accepted.recv_timeout(std::time::Duration::from_secs(1)).expect("online refresh was attempted");
+    server.join().unwrap();
+    let catalog = result.unwrap();
+    assert!(elapsed < std::time::Duration::from_secs(4), "interactive read held for {elapsed:?}");
+    assert!(catalog.repos.iter().any(|repo| repo.cached && repo.packages.iter().any(|package| package.package_id == "com.vua.test.cached")), "a slow refresh must retain cached packages");
+    fs::remove_dir_all(base).unwrap();
+}
+
 use vua_orchestrator::{
     FakeProcessRunner, FixedClock, PackageRequestV1, PackageSourceV01, ProcessOutcome,
     ProjectRef, VpmBackend, CREDENTIAL_ENV_REMOVALS,

@@ -363,7 +363,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           </Popconfirm>
         : <Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{closeOffer !== null && closeOffer.message === error ? editorClose.held : error}</Alert>}
     {run === null ? <>
-      <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></header>
+      <header className="vua-line__header"><div className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></div><PermissionModePicker value={effective} onChoose={chooseLevel} /></header>
       {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
         if (!port) return; setRequesting(true); setError(null);
         void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));

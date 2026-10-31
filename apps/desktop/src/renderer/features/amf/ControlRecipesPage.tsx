@@ -17,6 +17,7 @@ import { buildRecipeGraph, materialNodeId, pinnedVersions, prefabLabel, recipeNo
 import { NODE_ICONS, NodeShape, RecipeGraphCanvas } from "./ControlRecipeGraph.tsx";
 import { SkinSlot } from "./control-slots.tsx";
 import "./control-center.css";
+import { recipeSharing } from "./recipe-sharing.ts";
 
 const copy = strings.controlCenter.recipes;
 const production = strings.amfProduction;
@@ -44,7 +45,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   const [importing, setImporting] = useState(false);
   const [incoming, setIncoming] = useState<PendingRecipeShare | null>(null);
   useEffect(() => {
-    const api = window.vua?.dialog?.recipeSharing;
+    const api = recipeSharing();
     if (!api || !port) return;
     let alive = true;
     const take = () => { void api.takePending().then(value => { if (alive && value) { setIncoming(value); setImporting(true); } }).catch(() => {}); };

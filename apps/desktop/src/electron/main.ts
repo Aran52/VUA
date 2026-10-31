@@ -120,6 +120,7 @@ import { ComponentUpdater, componentHelper, isUpdateComponent, runComponentHelpe
 import { UpdatePlanUpdater } from "./update-plan-updater.js";
 import { AmfGenerations } from "./amf-generations.js";
 import { AmfHotUpdater } from "./amf-hot-updater.js";
+import { createToolLogos, isToolLogoId } from "./tool-logos.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -549,6 +550,12 @@ function registerIpc(provider: ModuleProvider): void {
     assertAiSender(event);
     if (!isUpdateComponent(component) || typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity");
     return componentUpdates.stage(component, id);
+  });
+  const toolLogos = createToolLogos({ cacheRoot: path.join(app.getPath("userData"), "tool-logos"), fetch: (url, init) => net.fetch(url, init) });
+  ipcMain.handle("vua:tools:logo", (event, id: unknown) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (!isToolLogoId(id)) throw new Error("invalid tool logo request");
+    return toolLogos(id);
   });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));

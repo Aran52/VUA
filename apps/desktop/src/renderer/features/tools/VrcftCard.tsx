@@ -5,6 +5,8 @@ import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { EnvironmentCard, type EnvironmentAction } from "../home/EnvironmentCard.tsx";
 import { TRACKING_DEVICES, TRACKING_STEPS, readTrackingSetup, trackingChoice, type TrackingDevice, type TrackingSetup, type TrackingStep } from "./vrcft-devices.ts";
 import { useVrcft } from "./use-vrcft.ts";
+import { ToolLogo } from "./ToolLogo.tsx";
+import { ToolDetails } from "./ToolDetails.tsx";
 import "./vrcft.css";
 const key = "vua-vrcft-setup";
 function initialSetup() { try { return readTrackingSetup(localStorage.getItem(key)); } catch { return null; } }
@@ -32,6 +34,9 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
   if (live.failed && choice) { action = "unknown"; status = copy.unknown; }
   else if (!s && choice) { action = "unknown"; status = copy.checking; }
   if (live.pending || waiting) { action = "busy"; status = s?.activity === "install_requested" ? copy.waitInstall : s?.activity === "stopping" ? copy.waitClose : copy.waitOpen; }
+  const actionHint = live.pending || waiting ? status : !choice ? copy.chooseDevice : !s || live.failed ? copy.recheck
+    : s.canStop ? copy.closeApp : !s.steamReady ? copy.prepareSteam
+    : s.presence === "installed" ? copy.openApp : s.presence === "unknown" ? copy.recheck : copy.install;
   const act = () => { onReveal(); if (!choice) { pick(); return; } if (!s || live.failed) { void live.refresh(); return; }
     if (s.canStop) void live.act("stop"); else if (!s.steamReady) onPrepareSteam(); else if (s.presence === "installed") void live.act("start"); else if (s.presence === "unknown") void live.refresh(); else void live.act("install");
   };
@@ -40,10 +45,10 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
     persist({ ...setup, completed });
   };
   return <>
-    <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" id="tool-vrcft"
-      selected={selected} action={action} status={status} onDetails={onDetails} onAction={act}
+    <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" logo={<ToolLogo id="vrcft" icon="avatar" />} id="tool-vrcft"
+      selected={selected} action={action} status={status} actionHint={actionHint} iconOnlyAction onDetails={onDetails} onAction={act}
       disabled={live.pending || waiting} spinning={live.pending || waiting} warning={!!s?.issue && s.canStop} />
-    <section id="tool-vrcft-details" className="vua-environment-detail vua-vrcft-detail" hidden={!selected} aria-label="VRCFaceTracking">
+    <ToolDetails id="vrcft" title="VRCFaceTracking" selected={selected} className="vua-vrcft-detail">
       <header className="vua-environment-heading"><h2>VRCFaceTracking</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>
       <p>{copy.intro}</p>
       <div className="vua-vrcft-actions"><Button onClick={pick}>{choice ? copy.changeDevice : copy.chooseDevice}</Button>
@@ -72,7 +77,7 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
         </li>)}</ol>
         {setup.completed.length === 4 ? <p className="vua-text-secondary">{copy.finished}</p> : null}
       </div> : null}
-    </section>
+    </ToolDetails>
     <ContentDialog open={picker} title={candidate ? copy.connectionTitle : copy.devicesTitle} closeLabel={strings.environmentCards.closeDetails} onClose={() => setPicker(false)}>
       <div className="vua-vrcft-picker">
         {candidate ? <><p>{format(copy.connectionHint, { device: candidate.name })}</p><div className="vua-vrcft-choices">{candidate.methods.map(method => <Button key={method.id} data-tracking-choice={method.id} onClick={() => choose(candidate, method.id)}>{method.name}</Button>)}</div><Button variant="subtle" onClick={() => setCandidate(null)}>{copy.back}</Button></> : <>

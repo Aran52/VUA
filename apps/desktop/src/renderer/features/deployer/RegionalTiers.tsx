@@ -67,14 +67,14 @@ export function RegionalTierList({ states, ready, onTest }: {
 }) {
   const tiers = tiersOf(states);
   return <section className="vua-network__references" aria-label={copy.regionTitle}>
-    <h2>{copy.regionTitle}</h2><p className="vua-text-secondary">{copy.regionScope}</p>
+    <p className="vua-text-secondary">{copy.regionScope}</p>
     <ul>{tiers.map((row, index) => {
       const region = referenceOf(row.id);
       const state = states[region.url];
       const phrase = regionalTierPhrase(tiers, index);
       const ms = state && !state.busy ? referenceElapsed(region, state.result) : null;
       return <li key={row.id}>
-        <span><strong>{copy.regionCities[row.id]}</strong><span className="vua-text-secondary">Oracle Cloud · {row.id.toUpperCase()}</span></span>
+        <span title={`Oracle Cloud · ${row.id.toUpperCase()}`}><strong>{copy.regionCities[row.id]}</strong></span>
         {phrase !== null ? <span className="vua-network__tier">{phraseText(phrase)}{row.unsteady
           ? <Tooltip content={copy.regionUnsteadyHint}><span tabIndex={0} className="vua-network__unsteady">{copy.regionUnsteady}</span></Tooltip>
           : null}</span> : null}

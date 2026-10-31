@@ -54,7 +54,6 @@ import { OnboardingPage, type OnboardingResult } from "./features/onboarding/Onb
 import { NavigationConfirmOverlay } from "./app/NavigationConfirmOverlay.tsx";
 import { AppTour } from "./features/tour/AppTour.tsx";
 import { ContextGuidance } from "./features/guidance/ContextGuidance.tsx";
-import { resetContextGuides } from "./features/guidance/context-guidance.ts";
 import { LoginBrowserOverlay } from "./app/LoginBrowserOverlay.tsx";
 import { closeLoginBrowser } from "./app/login-browser-store.ts";
 import { closeBrowserModal } from "./components/primitives/modal-layer.tsx";
@@ -532,7 +531,6 @@ interface PageActions {
   navigate: (target: PageId) => void;
   openAccounts: () => void;
   startTour: () => void;
-  replayContextGuides: () => void;
 }
 
 /** 主题页偏好管道(C-I18N/主题页):AppShell 持有的主题偏好/HC/资源节约状态下传给主题设置页 */
@@ -571,7 +569,7 @@ function renderPage(
     case "home": case "environment-hub":
       return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
     case "help": case "help-wizard": case "help-tour": case "help-game-assistant": case "help-encyclopedia": case "help-ai":
-      return <HelpPage page={page} navigate={actions.navigate} startTour={actions.startTour} replayContextGuides={actions.replayContextGuides} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
+      return <HelpPage page={page} navigate={actions.navigate} startTour={actions.startTour} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
     case "env-play": case "env-create":
       return <RouteEnvironmentPage zone={page === "env-play" ? "play" : "create"} onAccounts={actions.openAccounts} onOpenAmf={() => actions.navigate("warehouse")} onWorkshop={() => actions.navigate("workshop")} />;
     case "warehouse": case "asset-browser": case "recipe": case "release": case "packages": case "workshop":
@@ -622,7 +620,7 @@ function AppShell({
   startupComplete: boolean;
   onOnboardingComplete: (result: OnboardingResult) => void;
   /** 壳层注入的动作(openPalette/navigate 由 AppShell 内部补齐,见 pageActions) */
-  actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour" | "replayContextGuides">;
+  actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour">;
 }) {
   // 008 路径 a 桌面接线(W19):删除偏好开启时,生成完成即逐条目发起独立删除任务
   const amf = useAmfModule();
@@ -750,11 +748,6 @@ function AppShell({
   // An explicit first-use choice or replay starts the tour; bookmarks never start it.
   const [tourStartRequest, setTourStartRequest] = useState(0);
   const [tourActive, setTourActive] = useState(false);
-  const [contextGuideReplay, setContextGuideReplay] = useState(0);
-  const replayContextGuides = () => {
-    resetContextGuides(localStorage, sessionStorage);
-    setContextGuideReplay(value => value + 1);
-  };
   const startTour = () => {
     if (showOnboarding) onOnboardingComplete({ status: "skipped", goals: [], environments: [] });
     setTourStartRequest(value => value + 1);
@@ -825,7 +818,6 @@ function AppShell({
     navigate,
     openAccounts: () => navigate("settings-accounts"),
     startTour,
-    replayContextGuides,
   };
 
   useLayoutEffect(() => {
@@ -996,7 +988,11 @@ function AppShell({
         </div>
         {/* Resource headroom summary; details retain each measured resource. */}
         <ResourceMonitor />
-        <button type="button" className="vua-shell__tab vua-shell__help" aria-current={page.startsWith("help") ? "page" : undefined} data-nav-id="shell-help" onClick={() => navigate("help")}>
+        {/* External AI tools sit beside Help and Settings: their connection and pending requests are one page. */}
+        <button type="button" className="vua-shell__tab vua-shell__ai" aria-current={page === "help-ai" ? "page" : undefined} data-nav-id="shell-ai" onClick={() => navigate("help-ai")}>
+          <span className="vua-shell__tab-label">{strings.aiTools.shortTitle}</span>
+        </button>
+        <button type="button" className="vua-shell__tab vua-shell__help" aria-current={page.startsWith("help") && page !== "help-ai" ? "page" : undefined} data-nav-id="shell-help" onClick={() => navigate("help")}>
           <span className="vua-shell__tab-label">{strings.journey.help}</span>
         </button>
         {/* 设置固定最右侧(§2.1):与业务 Tab 同款平行四边形 pressed 卡;
@@ -1056,7 +1052,7 @@ function AppShell({
           {settingsOpen ? <div className="vua-shell__sidebar-group vua-shell__sidebar-group--settings" data-module="settings">
             {moduleDef("settings").groups.flatMap(g => g.pages).map(p => <button type="button" key={p.id} className="vua-shell__sidebar-item" aria-current={page === p.id ? "page" : undefined} onClick={() => navigate(p.id)} data-nav-id={`nav-${p.id}`}>{pageLabel(p)}</button>)}
           </div> : (["env", "production"] as const).filter(group => group !== "production" || amf.installed).map(group => <div className="vua-shell__sidebar-group" key={group} data-module={group}>
-            <button type="button" className="vua-shell__sidebar-label" onClick={() => navigate(group === "env" ? "environment-hub" : "avatar-hub")}>{group === "env" ? strings.journey.environment : TERMS.amf}</button>
+            <span className="vua-shell__sidebar-label">{group === "env" ? strings.journey.environment : TERMS.amf}</span>
             {directory[group].map(item => <button type="button" key={item.id} className="vua-shell__sidebar-item" aria-current={page === item.id || ("pages" in item && (item.pages as readonly string[]).includes(page)) ? "page" : undefined} onClick={() => navigate(item.id)} data-nav-id={`nav-${item.id}`}>{item.title}</button>)}
           </div>)}
           {!settingsOpen && !amf.installed ? <div className="vua-shell__sidebar-group" data-module="amf-enablement">
@@ -1096,7 +1092,7 @@ function AppShell({
       <NavigationConfirmOverlay />
       <AmfUiRuntimeBridge />
       <FileDropImporter onOpenLibrary={() => navigate("warehouse")} />
-      <ContextGuidance page={page} startTour={startTour} replayToken={contextGuideReplay} suppressed={!startupComplete || showOnboarding || settingsOpen || tourActive} />
+      <ContextGuidance page={page} startTour={startTour} suppressed={!startupComplete || showOnboarding || settingsOpen || tourActive} />
       {!showOnboarding && startupComplete ? <AppTour page={page} navigate={navigate} startRequest={tourStartRequest} onActiveChange={setTourActive} /> : null}
       {/* 窗口级登录浏览器(2026-10-05 用户裁决):无开启意图时零渲染;视图
           生命周期归组件(卸载即关),宿主不依赖任何页面/弹窗 */}
@@ -1229,7 +1225,7 @@ export function App() {
     if (result.page) navigate(result.page);
   }
 
-  const actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour" | "replayContextGuides"> = {
+  const actions: Omit<PageActions, "openPalette" | "navigate" | "openAccounts" | "startTour"> = {
     prepareEnv: () => navigate("env-create"),
   };
 

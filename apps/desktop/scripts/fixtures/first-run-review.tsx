@@ -125,6 +125,7 @@ async function mount(mode: typeof scenario = "installed", legacyMode = "desktop"
   creatorInventory = inventory;
   const previousGoals = localStorage.getItem(storageKeys.goals);
   root?.unmount(); localStorage.clear(); sessionStorage.clear(); location.hash = ""; scenario = mode; playUnavailable = false; installationRunning = false; websiteCalls = 0; borrowedSteam = true; playStates.desktop_play = "idle"; playStates.pico_pcvr = "idle"; playCalls.length = 0;
+  intents.length = 0; checkIntents.length = 0;
   localStorage.setItem(storageKeys.locale, currentLocale);
   if (previousGoals !== null) localStorage.setItem(storageKeys.goals, previousGoals);
   if (theme) localStorage.setItem(storageKeys.theme, theme);
@@ -152,6 +153,9 @@ async function mountPreview(inventory: typeof creatorInventory = "all") {
 }
 async function prepare() {
   await click(copy.play);
+  // Remounting the fixture retains the app session's route checks. Refresh after
+  // changing synthetic software facts so the next step uses the current scenario.
+  await click(flowCopy.refreshDevices);
   await click(copy.desktop);
   await wait(() => document.querySelector('[data-route-stage="prepare"]'));
   // The flow checks the environment by itself; the checklist is the next step.
@@ -218,14 +222,27 @@ const review = {
     await click(copy.help); await click(copy.wizard);
     await wait(() => document.querySelector(".vua-vua-guide"));
     check("the concept wizard offers neither the VUA manual nor a page-tip replay", !document.querySelector('[data-nav-id="wizard-manual"]') && ![...document.querySelectorAll("button")].some(button => button.textContent?.trim() === strings.contextGuide.replay));
-    // Later is session-local: a new session (an empty sessionStorage) shows the tip again.
-    sessionStorage.removeItem(storageKeys.contextGuideSnoozed);
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
+    await wait(() => document.querySelector(".vua-home"));
+    check("returning from the wizard keeps the page tip snoozed for this session",
+      !document.querySelector('[data-context-guide="home"]') && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
+    // A new session remounts the app as well as clearing session storage; the
+    // mounted guidance keeps its own snooze state while navigating between pages.
+    const savedGoals = localStorage.getItem(storageKeys.goals);
+    const savedTheme = localStorage.getItem(storageKeys.theme);
+    root!.unmount(); sessionStorage.clear(); location.hash = "";
+    root = createRoot(document.getElementById("root")!); root.render(<App />);
     await wait(() => document.querySelector('[data-context-guide="home"]'));
+    check("a new session restores the tip without losing preferences or first-use completion",
+      sessionStorage.getItem(storageKeys.contextGuideSnoozed) === null
+      && localStorage.getItem(storageKeys.goals) === savedGoals && localStorage.getItem(storageKeys.theme) === savedTheme
+      && !document.querySelector("[data-first-use-notice]") && !document.querySelector(".vua-tour"));
     await click(strings.contextGuide.dismiss);
     check("dismissal is remembered without a wizard or forced tour", JSON.parse(localStorage.getItem(storageKeys.contextGuide)!).dismissed.home === 1 && !document.querySelector(".vua-tour"));
     await prepare();
-    check("desktop checks only desktop prerequisites and plans nothing yet", checkIntents.at(-1)?.join() === "desktop_play" && intents.length === 0);
+    check("Play checks each route independently and plans nothing yet",
+      ["desktop_play", "pico_pcvr"].every(route => checkIntents.some(intent => intent.join() === route))
+      && checkIntents.every(intent => intent.length === 1) && intents.length === 0);
     await wait(() => document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start");
     document.querySelector<HTMLButtonElement>('[data-nav-id="shell-settings"]')!.click();
     await wait(() => document.querySelector('[data-nav-id="nav-settings-accounts"]'));
@@ -376,6 +393,7 @@ const review = {
       await wait(() => control.getAttribute('aria-expanded') === 'false');
     }
     await mount("missing", "desktop");  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]")); await click(copy.play);
+    await click(flowCopy.refreshDevices);
     await wait(() => card()?.dataset.action === "prepare"); document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click();
     await wait(() => flowPhase() === "confirm", "plus shows the checked flow");
     check("plus checks software without planning, installing or launching", playCalls.length === 0 && intents.length === 0);

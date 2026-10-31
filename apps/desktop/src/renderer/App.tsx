@@ -988,7 +988,11 @@ function AppShell({
         </div>
         {/* Resource headroom summary; details retain each measured resource. */}
         <ResourceMonitor />
-        <button type="button" className="vua-shell__tab vua-shell__help" aria-current={page.startsWith("help") ? "page" : undefined} data-nav-id="shell-help" onClick={() => navigate("help")}>
+        {/* External AI tools sit beside Help and Settings: their connection and pending requests are one page. */}
+        <button type="button" className="vua-shell__tab vua-shell__ai" aria-current={page === "help-ai" ? "page" : undefined} data-nav-id="shell-ai" onClick={() => navigate("help-ai")}>
+          <span className="vua-shell__tab-label">{strings.aiTools.shortTitle}</span>
+        </button>
+        <button type="button" className="vua-shell__tab vua-shell__help" aria-current={page.startsWith("help") && page !== "help-ai" ? "page" : undefined} data-nav-id="shell-help" onClick={() => navigate("help")}>
           <span className="vua-shell__tab-label">{strings.journey.help}</span>
         </button>
         {/* 设置固定最右侧(§2.1):与业务 Tab 同款平行四边形 pressed 卡;

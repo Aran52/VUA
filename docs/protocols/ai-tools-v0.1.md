@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.10.0
+> Document version: 0.10.1
 > Status: Candidate
-> Updated: 2026-10-29
+> Updated: 2026-10-31
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -12,7 +12,7 @@ slice does not retrofit historical release artifacts or declare N acceptance.
 
 ## Connection and lifetime
 
-The player opens **Help → Connect external AI tools**, enables the connection, copies the supplied
+The player opens **AI tools** in the top bar, beside Help and Settings, enables the connection, copies the supplied
 prompt, and pastes it into an AI tool on the same computer that supports local Streamable HTTP.
 VUA remains open. The prompt explains host/AMF functions, the actual URL and Authorization header,
 available tools, novice explanation guidance and the optional
@@ -230,6 +230,7 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.10.1 (2026-10-31): the connection page opens from its own top-bar button instead of Help.
 - 0.10.0 (2026-10-29): expose all six connected Steam tools through contract-derived MCP tool IDs, retaining player approval on the Tools page and installation/process-only observations.
 - 0.9.0 (2026-10-24): expose complete Recipe material checklists and reviewed mapping differences.
 

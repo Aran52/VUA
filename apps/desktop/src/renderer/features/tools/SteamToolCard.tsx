@@ -5,6 +5,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { EnvironmentCard } from "../home/EnvironmentCard.tsx";
 import { deriveToolCardState, type ToolConnectionStatusKey } from "./tool-connection-state.ts";
 import { useToolConnection } from "./use-tool-connection.ts";
+import { ToolLogo } from "./ToolLogo.tsx";
 import "./tools.css";
 
 /** Shared Steam connection card for the five non-VRCFT N2 tools: same state machine as VrcftCard without the hardware gate. */
@@ -29,7 +30,7 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
     else void live.act("install");
   };
   return <>
-    <EnvironmentCard title={title} icon={icon} id={`tool-${toolId}`}
+    <EnvironmentCard title={title} icon={icon} logo={<ToolLogo id={toolId} icon={icon} />} id={`tool-${toolId}`}
       selected={selected} action={state.action} status={status(state.status)} onDetails={onDetails} onAction={act}
       disabled={live.pending || waiting} spinning={live.pending || waiting} warning={!!s?.issue && s.canStop} />
     <section id={`tool-${toolId}-details`} className="vua-environment-detail" hidden={!selected} aria-label={title}>

@@ -5,6 +5,7 @@ import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { EnvironmentCard, type EnvironmentAction } from "../home/EnvironmentCard.tsx";
 import { TRACKING_DEVICES, TRACKING_STEPS, readTrackingSetup, trackingChoice, type TrackingDevice, type TrackingSetup, type TrackingStep } from "./vrcft-devices.ts";
 import { useVrcft } from "./use-vrcft.ts";
+import { ToolLogo } from "./ToolLogo.tsx";
 import "./vrcft.css";
 const key = "vua-vrcft-setup";
 function initialSetup() { try { return readTrackingSetup(localStorage.getItem(key)); } catch { return null; } }
@@ -40,7 +41,7 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
     persist({ ...setup, completed });
   };
   return <>
-    <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" id="tool-vrcft"
+    <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" logo={<ToolLogo id="vrcft" icon="avatar" />} id="tool-vrcft"
       selected={selected} action={action} status={status} onDetails={onDetails} onAction={act}
       disabled={live.pending || waiting} spinning={live.pending || waiting} warning={!!s?.issue && s.canStop} />
     <section id="tool-vrcft-details" className="vua-environment-detail vua-vrcft-detail" hidden={!selected} aria-label="VRCFaceTracking">

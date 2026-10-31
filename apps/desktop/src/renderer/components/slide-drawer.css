@@ -1,0 +1,30 @@
+/* The drawer opens by animating its single row from 0fr to 1fr, so it needs no measured height. */
+.vua-slide-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--vua-motion-normal, 240ms) var(--vua-motion-ease-exit, cubic-bezier(0.4, 0, 0.8, 0.4)),
+    opacity var(--vua-motion-fast, 150ms) linear,
+    transform var(--vua-motion-normal, 240ms) var(--vua-motion-ease-exit, cubic-bezier(0.4, 0, 0.8, 0.4)),
+    margin var(--vua-motion-normal, 240ms) var(--vua-motion-ease-exit, cubic-bezier(0.4, 0, 0.8, 0.4)),
+    visibility 0s linear var(--vua-motion-normal, 240ms);
+}
+.vua-slide-drawer[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--vua-motion-normal, 240ms) var(--vua-motion-ease-enter, cubic-bezier(0.22, 0.8, 0.3, 1)),
+    opacity var(--vua-motion-normal, 240ms) linear,
+    transform var(--vua-motion-normal, 240ms) var(--vua-motion-ease-enter, cubic-bezier(0.22, 0.8, 0.3, 1)),
+    margin var(--vua-motion-normal, 240ms) var(--vua-motion-ease-enter, cubic-bezier(0.22, 0.8, 0.3, 1)),
+    visibility 0s;
+}
+.vua-slide-drawer__inner { min-height: 0; overflow: hidden; }
+html[data-effects='off'] .vua-slide-drawer { transition: none; }
+@media (prefers-reduced-motion: reduce) { .vua-slide-drawer { transition: none; } }

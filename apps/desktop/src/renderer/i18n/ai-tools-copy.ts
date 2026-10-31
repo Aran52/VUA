@@ -1,6 +1,7 @@
 export const aiToolsCopy = {
   en: {
     title: "Connect external AI tools",
+    shortTitle: "AI tools",
     enable: "Enable connection", disable: "Disable connection", off: "Connection is off", on: "Ready to connect", unavailable: "AI tools connect in desktop VUA",
     first: "1. Enable the connection",
     second: "2. Give the instructions to the AI",
@@ -23,6 +24,7 @@ export const aiToolsCopy = {
   },
   "zh-CN": {
     title: "连接外部AI工具",
+    shortTitle: "AI 工具",
     enable: "开启连接", disable: "关闭连接", off: "连接未开启", on: "可连接", unavailable: "AI 工具需在桌面版 VUA 中连接",
     first: "1. 开启连接",
     second: "2. 将说明交给 AI",
@@ -45,6 +47,7 @@ export const aiToolsCopy = {
   },
   "zh-TW": {
     title: "連線外部AI工具",
+    shortTitle: "AI 工具",
     enable: "開啟連線", disable: "關閉連線", off: "連線未開啟", on: "可連線", unavailable: "AI 工具需在桌面版 VUA 中連線",
     first: "1. 開啟連線",
     second: "2. 將說明交給 AI",
@@ -67,6 +70,7 @@ export const aiToolsCopy = {
   },
   ja: {
     title: "外部 AI ツールに接続",
+    shortTitle: "AI ツール",
     enable: "接続を有効にする", disable: "接続を無効にする", off: "接続は無効です", on: "接続可能", unavailable: "AI ツールはデスクトップ版 VUA で接続します",
     first: "1. 接続を有効にする",
     second: "2. 説明を AI に渡す",
@@ -89,6 +93,7 @@ export const aiToolsCopy = {
   },
   ko: {
     title: "외부 AI 도구 연결",
+    shortTitle: "AI 도구",
     enable: "연결 켜기", disable: "연결 끄기", off: "연결이 꺼져 있어요", on: "연결 가능", unavailable: "AI 도구는 데스크톱 VUA에서 연결해요",
     first: "1. 연결 켜기",
     second: "2. 설명을 AI에 전달",

@@ -136,6 +136,10 @@
 .vua-compact-environments .vua-environment-card { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
 .vua-compact-environments .vua-environment-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
 .vua-tools-hub .vua-environment-card strong { font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading); }
+/* Tools: logos share one column and names start at the same edge; a long name takes two lines. */
+.vua-tools-hub .vua-environment-card > .vua-environment-card__details { display: grid; grid-template-columns: 32px minmax(0, 1fr); justify-content: stretch; justify-items: start; align-items: center; column-gap: 12px; padding-inline: 20px; text-align: start; }
+.vua-tools-hub .vua-environment-card__details strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; }
+.vua-tool-logo { display: block; width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
 .vua-compact-environments .vua-environment-card__action > svg { width: 24px; height: 24px; }
 .vua-play-page .vua-network-tile > .vua-environment-card__details { gap: var(--vua-space-2) 12px; }
 .vua-play-page .vua-network-tile > .vua-environment-card__action { flex-direction: row; }

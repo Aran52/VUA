@@ -22,6 +22,11 @@ export interface DesktopAmfUiRuntimeApiV01 {
   respond(transactionId: string, phase: AmfUiTransitionV01, accepted: boolean, reason?: "busy" | "restart_required" | "failed"): Promise<void>;
   subscribe(listener: (snapshot: AmfUiRuntimeSnapshotV01) => void): () => void;
 }
+/** Each connected tool's own icon as a data URL, or null while it cannot be fetched. */
+export interface DesktopToolLogosApiV01 {
+  logo(toolId: string): Promise<string | null>;
+}
 export interface VuaDesktopApiV7 extends VuaDesktopApiV6 {
   readonly amfUiRuntime?: DesktopAmfUiRuntimeApiV01;
+  readonly toolLogos?: DesktopToolLogosApiV01;
 }

@@ -24,7 +24,7 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
   const [openFailed, setOpenFailed] = useState(false);
   const back = <Button variant="subtle" data-back data-nav-id="help-child-back" onClick={() => navigate("help")}>{copy.backToHelp}</Button>;
   if (page === "help-ai") return <div className="vua-page vua-help-child" data-focus-scope>
-    <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.aiTools.title}</h1>{back}</header>
+    <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.aiTools.title}</h1></header>
     <AiToolsPage navigate={navigate} />
   </div>;
   if (page === "help-encyclopedia") return <EncyclopediaPage onBack={() => navigate("help")} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
@@ -77,7 +77,6 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
         <RouteTile title={copy.wizard} icon="arrow-right" onClick={() => navigate("help-wizard")} id="help-wizard" />
         <RouteTile title={strings.tour.paletteEntry} icon="question" onClick={() => navigate("help-tour")} id="help-tour" />
         <RouteTile title={copy.gameGuide} icon="anim" onClick={() => navigate("help-game-assistant")} id="help-game-assistant" />
-        <RouteTile title={strings.aiTools.title} icon="computer" onClick={() => navigate("help-ai")} id="help-ai" />
       </div>
     </section>
     <section className="vua-help-section" aria-labelledby="help-encyclopedia-title">

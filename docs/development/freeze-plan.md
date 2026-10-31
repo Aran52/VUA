@@ -87,6 +87,16 @@ section 6. Each row is one slice and one pull request; the slice prompt names it
 | F7 | Recognize outfits that carry VRCFury components and show the VRCFury guide, with VRCFury listed in the known packages as `guide` delivery after its license check (slice 33 item 5) | An outfit with VRCFury components shows the guide at intake |
 | F8 | A minimal user guide: installation, first run, and one complete production from materials to the SDK, with screenshots of the v1.0.0 build in the five UI languages. N7's full illustrated guide waits until after the freeze | The author follows the guide on the clean VM from section 5 without other help |
 
+**After the author's local test (author ruling, 2026-10-31)**
+
+| Row | Change | Done when |
+| --- | --- | --- |
+| F9 | Each tool in the Tools tab shows its own icon, the publisher's Steam client icon fetched from Steam's CDN and cached in the profile, with logos and names in left-aligned columns. VRCS keeps its glyph until the author decides how to source its logo: its repository is AGPL-3.0 | Every Steam tool shows its own icon in each theme; without a connection the glyph remains |
+| F10 | Play scans for devices the first time it opens in a session; 刷新设备识别 scans again | Opening Play lists the detected VR software without a click |
+| F11 | Play's latency and route details slide open across the full page width. Each route has one button that names the next step: check the environment, confirm the checklist, run, retry after a failure, launch | A desktop route goes from a fresh check to launch through that one button |
+| F12 | The encyclopedia and in-game assistant leave the environment cards; AI tools move to a top-bar button beside Help and Settings | No environment card links the encyclopedia or in-game assistant, and the top bar opens AI tools |
+| F13 | The concept wizard drops its manual and page-tip replay buttons; sidebar group headings are plain labels with the default cursor | The wizard shows only its concept buttons, and the headings do nothing on click |
+
 ### 4. AMF checks by the community
 
 AMF's real-material checks move to community testers after v1.0.0 is published. They report

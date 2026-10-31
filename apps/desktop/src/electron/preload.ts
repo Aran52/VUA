@@ -163,6 +163,9 @@ const api: VuaDesktopApiV7 = Object.freeze({
     },
     previewDirectory: (path: string) => ipcRenderer.invoke("vua:library:preview-directory", path),
   }),
+  toolLogos: Object.freeze({
+    logo: (toolId: string) => ipcRenderer.invoke("vua:tools:logo", toolId),
+  }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
     invoke: (request: DesktopGatewayRequestV1) => ipcRenderer.invoke("vua:gateway:invoke", request),

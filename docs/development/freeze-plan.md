@@ -55,12 +55,8 @@ Merged into `slice/n3-n4-ma-production` on 2026-10-29 (Aran52/VUA#68–#81): the
 updates, the theme styles and Grid audit, terms everywhere, turntable sharing, the share-link
 service, local material entry and the first freeze plan.
 
-Still open:
-
-| Branch | Content |
-| --- | --- |
-| `slice/unity-license-step` | Slice 11's license step, shown in Avatar-editing preparation, with the run retained across Host and AMF |
-| `slice/steam-tools-acceptance` | All connected Steam tools exposed through MCP, and the tool named on its approval card |
+Merged on 2026-10-30: slice 11's license step in Avatar-editing preparation (Aran52/VUA#84) and
+MCP access to all six connected Steam tools, named on the approval card (Aran52/VUA#82).
 
 Delete branches that are fully merged.
 
@@ -68,6 +64,9 @@ Delete branches that are fully merged.
 
 Author ruling, 2026-10-30. These rows are the only feature work left before v1.0.0, besides
 section 6. Each row is one slice and one pull request; the slice prompt names its row.
+
+F1, F2 and F4–F8 merged on 2026-10-30 (Aran52/VUA#85–#90, #94); F3 is approved. Their "Done
+when" runs on real machines remain and are listed in the v1.0.0 release notes.
 
 **Remove or hide what players can see but cannot use**
 
@@ -187,6 +186,7 @@ author lifts the freeze.
 | 45, 47, 48 | Source hints, migration through the player's agent, identical-content choice |
 | 49, 51 | Turntable sharing and creator-trusted Recipes beyond the merged state |
 | 50 | Optional AI connection changes |
+| 52 | Signed Windows releases (on hold since 2026-10-25) |
 | 53 | Interface consistency audit beyond its first report |
 | 11 (item 3) | Testing the Unity CLI that Hub installs |
 | — | N7's full illustrated user guide (F8 ships the minimal guide) |

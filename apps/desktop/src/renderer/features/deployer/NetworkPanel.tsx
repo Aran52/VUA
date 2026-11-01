@@ -9,6 +9,7 @@ import { storageKeys } from "../../app/storage-keys.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
+import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { DEFAULT_TEST_WEBSITES, normalizeWebsiteUrl, parseTestWebsites, type TestWebsite } from "./website-model.ts";
 import { brandGlyphPath } from "./website-glyphs.ts";
 import { REGIONAL_REFERENCES } from "./regional-reference.ts";
@@ -98,8 +99,9 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
   const regionViaProxy = regionalMeasuredViaProxy(referenceStates);
   const regionSites = REGIONAL_REFERENCES.map(region => ({ name: copy.regionCities[region.id], url: region.url }));
   return <>
+    <div className={compact ? "vua-network-block" : undefined}>
     {compact ? <article className="vua-environment-card vua-network-tile" data-proxy={regionViaProxy || undefined}>
-      <button type="button" className="vua-environment-card__details" data-nav-id="play-network-details" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
+      <button type="button" className="vua-environment-card__details" data-nav-id="play-network-details" aria-expanded={expanded} aria-controls="play-network-drawer" onClick={() => setExpanded(value => !value)}>
         <span className="vua-route-tile__icon" aria-hidden="true"><Icon name="gauge" size={24} /></span><strong>{copy.regionTitle}</strong>
         <RegionalTierSummary states={referenceStates} />
       </button>
@@ -108,7 +110,7 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
       </button>
       {regionViaProxy ? <p className="vua-network-tile__proxy">{copy.regionViaProxy}</p> : null}
     </article> : null}
-    <Card className="vua-network" hidden={compact && !expanded}>
+    <SlideDrawer id="play-network-drawer" open={!compact || expanded} label={copy.title}><Card className="vua-network">
     {compact ? <RegionalTierList states={referenceStates} ready={ready} onTest={region => { void test([{ name: copy.regionCities[region.id], url: region.url }], true); }} /> : null}
     <header className="vua-network__header">
       {/* 仪表盘字形:本面板测的是到站耗时(ms),不是信号有无 */}
@@ -140,7 +142,7 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
     {!sites.length ? <p className="vua-network__note">{copy.empty}</p> : null}
     {ready === false ? <p className="vua-network__note" role="status">{copy.unavailable}</p> : null}
     {storageFailed ? <p className="vua-network__note" role="status">{copy.storageFailed}</p> : null}
-  </Card><ContentDialog open={editor !== null} title={editor?.original ? copy.edit : copy.add} closeLabel={copy.cancel} onClose={() => setEditor(null)}>
+  </Card></SlideDrawer></div><ContentDialog open={editor !== null} title={editor?.original ? copy.edit : copy.add} closeLabel={copy.cancel} onClose={() => setEditor(null)}>
       {editor ? <form className="vua-network__form" onSubmit={saveEditor}>
         <label>{copy.name}<input autoFocus required maxLength={40} value={editor.name} onChange={e => setEditor({ ...editor, name: e.target.value })} /></label>
         <label>{copy.url}<input required maxLength={2048} placeholder="https://" value={editor.url} onChange={e => setEditor({ ...editor, url: e.target.value })} /></label>

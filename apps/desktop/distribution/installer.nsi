@@ -3,6 +3,8 @@ Unicode true
 !include "x64.nsh"
 !include "WinVer.nsh"
 !include "FileFunc.nsh"
+!define MUI_ICON "${VUA_ICON}"
+!define MUI_UNICON "${VUA_ICON}"
 Var Isolated
 Name "Virtual Unified Assistant ${VERSION}"
 !ifdef PREVIEW

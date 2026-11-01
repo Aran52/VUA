@@ -15,7 +15,7 @@ function locate(page: PageId): { group: string | null; title: string } {
       }
     }
   }
-  return { group: null, title: page.startsWith("settings") ? strings.nav.tabs.settings : page.startsWith("help") ? strings.journey.help : strings.journey.home };
+  return { group: null, title: page.startsWith("settings") ? strings.nav.tabs.settings : page === "help-ai" ? strings.aiTools.title : page.startsWith("help") ? strings.journey.help : strings.journey.home };
 }
 
 /** Vista's breadcrumb address bar and search box, inside the glass header. */
@@ -35,12 +35,13 @@ export function ThemeAddress({ page, navigate, openPalette }: { page: PageId; na
   </div>;
 }
 
-/** Vista's dark command bar: the header's help and settings, and the module list. */
+/** Vista's dark command bar: the header's AI tools, help and settings, and the module list. */
 export function ThemeCommandBar({ page, navigate, openSettings }: { page: PageId; navigate: (page: PageId) => void; openSettings: () => void }) {
   const family = useSkinFamily();
   if (family !== "frutiger-aero") return null;
   return <div className="vua-theme-commandbar" role="toolbar" aria-label={strings.app.sidebarAria}>
-    <button type="button" aria-pressed={page.startsWith("help")} onClick={() => navigate("help")}>{strings.journey.help}</button>
+    <button type="button" aria-pressed={page === "help-ai"} onClick={() => navigate("help-ai")}>{strings.aiTools.shortTitle}</button>
+    <button type="button" aria-pressed={page.startsWith("help") && page !== "help-ai"} onClick={() => navigate("help")}>{strings.journey.help}</button>
     <button type="button" aria-pressed={page.startsWith("settings")} onClick={openSettings}>{strings.nav.tabs.settings}</button>
     <button type="button" onClick={() => navigate("settings-modules")}>{strings.amfModule.title}</button>
   </div>;

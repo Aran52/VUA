@@ -51,7 +51,7 @@ Object.assign(window, { networkReview: { run: async () => {
   const regionalPending = pending!;
   assert(regionalPending.urls.join() === REGIONAL_REFERENCES.map(region => region.url).join() && regionAction().disabled, "one explicit regional batch uses four documented origins with duplicate clicks disabled");
   document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-details]")!.click(); await tick();
-  assert(!document.querySelector(".vua-network")!.closest("[hidden]") && document.querySelectorAll("[data-region-test]").length === 4, "details reveal all four cities and independent retry actions");
+  assert(document.querySelector(".vua-network")!.closest(".vua-slide-drawer")?.getAttribute("data-open") === "true" && document.querySelectorAll("[data-region-test]").length === 4, "details reveal all four cities and independent retry actions");
   assert(document.body.textContent?.includes(strings.websiteTests.regionScope), "details explain the approximate HTTPS metric");
   await click(strings.websiteTests.testAll);
   assert(pending?.urls.length === 3 && button(strings.websiteTests.testAll).disabled, "test all uses one bounded batch");

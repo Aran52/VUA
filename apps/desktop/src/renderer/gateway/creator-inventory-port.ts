@@ -10,8 +10,14 @@ export interface CreatorManagers {
   readonly apps: ManagerAppsResult["managerApps"]["apps"] | null;
 }
 function record(v: unknown): v is Record<string, unknown> { return v !== null && typeof v === "object" && !Array.isArray(v); }
-export function createCreatorInventoryPort(client: GatewayClient): { inspect(): Promise<CreatorManagers> } {
-  return { async inspect() {
+export interface CreatorInventoryPort {
+  inspect(options?: { refresh?: boolean }): Promise<CreatorManagers>;
+  peek?(): CreatorManagers | null;
+}
+export function createCreatorInventoryPort(client: GatewayClient): CreatorInventoryPort {
+  let cached: CreatorManagers | null = null;
+  let pending: Promise<CreatorManagers> | null = null;
+  const inspect = async (): Promise<CreatorManagers> => {
     const [appsRequest, environmentRequest, managerRequest] = await Promise.allSettled([
       client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "environment.inspectManagerApps", params: {} }),
       client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "environment.getSnapshot", params: {} }),
@@ -48,5 +54,12 @@ export function createCreatorInventoryPort(client: GatewayClient): { inspect(): 
       editors.push({ version: value.version, path: value.exePath, classification: value.classification });
     }
     return { editors, editorsKnown, vcc, alcom, apps };
+  };
+  return { peek: () => cached, inspect(options) {
+    if (pending) return pending;
+    if (cached && !options?.refresh) return Promise.resolve(cached);
+    if (options?.refresh) cached = null;
+    pending = inspect().then(value => { cached = value; return value; }).finally(() => { pending = null; });
+    return pending;
   } };
 }

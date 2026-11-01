@@ -41,3 +41,7 @@
 .vua-network-tile .vua-environment-card__spin { display: inline-flex; }
 @media (max-width: 600px) { .vua-network__references ul { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .vua-network__header { padding: 12px; gap: var(--vua-space-2); } .vua-network__cards { padding: 12px; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); } }
+
+/* The compact tile and its details drawer; a closed drawer takes no gap. */
+.vua-network-block { display: flex; flex-direction: column; gap: var(--vua-space-3); }
+.vua-network-block > .vua-slide-drawer:not([data-open='true']) { margin-top: calc(-1 * var(--vua-space-3)); }

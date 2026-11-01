@@ -1,5 +1,5 @@
 /** A product's VN3 terms in the library drawer: what each use allows, the creator's special note and every item. */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isTermsProductId, TERMS_PRESET_IDS, type ProductTermsV01, type TermItem, type TermsPresetId, type TermsUseDecision } from "@vua/contracts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { useGateway, type TermsPort } from "../../gateway/index.ts";
@@ -31,9 +31,10 @@ function useDecisions(port: TermsPort, productId: string, terms: ProductTermsV01
   return uses;
 }
 
-export function ProductTerms({ productId, title }: { productId: string; title: string }) {
+export function ProductTerms({ productId, title, onUpdated }: { productId: string; title: string; onUpdated?: () => void }) {
   const gateway = useGateway();
   const port = gateway.terms;
+  const updated = useRef(onUpdated); updated.current = onUpdated;
   const [terms, setTerms] = useState<ProductTermsV01 | null>(null);
   const [reading, setReading] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export function ProductTerms({ productId, title }: { productId: string; title: s
       void gateway.task.snapshot().then(view => {
         const task = view.tasks.find(item => item.id === reading);
         if (task !== undefined && !ENDED.includes(task.status)) return;
-        setReading(null); void load();
+        setReading(null); void load().then(() => updated.current?.());
       }, () => {});
     }, 1500);
     return () => clearInterval(timer);

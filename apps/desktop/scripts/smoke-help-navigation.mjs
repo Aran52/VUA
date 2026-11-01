@@ -68,6 +68,14 @@ async function run() {
       console.error("Renderer evaluation failed:", source);
       throw error;
     });
+    // The Play drawer opens below the row of its card and takes the grid's full width.
+    const playDrawerBelow = button => js(`(()=>{
+      const entry=document.querySelector('[data-nav-id="${button}"]').closest('[data-card-entry]');
+      const drawer=document.querySelector('.vua-play-drawer'), grid=drawer.parentElement;
+      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect(), row=grid.getBoundingClientRect();
+      return drawer.dataset.open==='true' && !document.getElementById('${button}-details').hidden
+        && panel.top>=card.bottom && Math.abs(panel.width-row.width)<1 && panel.height>40;
+    })()`);
     const inlineDetailFits = button => js(`(()=>{
       const control=document.querySelector('[data-nav-id="${button}"]');
       const entry=control.closest('[data-card-entry]'), detail=document.getElementById(control.getAttribute('aria-controls'));
@@ -75,6 +83,14 @@ async function run() {
       return detail.parentElement===entry && card.nextElementSibling===detail && !detail.hidden
         && Math.abs(detailRect.left-cardRect.left)<1 && Math.abs(detailRect.width-cardRect.width)<1
         && detailRect.top>=cardRect.bottom && detailRect.top-cardRect.bottom<=14
+        && detail.scrollWidth<=detail.clientWidth+2;
+    })()`);
+    const toolDrawerFits = button => js(`(()=>{
+      const control=document.querySelector('[data-nav-id="${button}"]'), entry=control.closest('[data-card-entry]');
+      const detail=document.getElementById(control.getAttribute('aria-controls')), drawer=detail.closest('.vua-tools-drawer');
+      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect(), grid=entry.parentElement.getBoundingClientRect();
+      return drawer.dataset.open==='true' && !detail.hidden && panel.top>=card.bottom
+        && Math.abs(panel.left-grid.left)<1 && Math.abs(panel.width-grid.width)<1 && panel.height>40
         && detail.scrollWidth<=detail.clientWidth+2;
     })()`);
     const languageFooterFits = () => js(`(()=>{
@@ -165,16 +181,17 @@ async function run() {
     for (const button of await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__details")].map(b=>b.dataset.navId)')) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true' && !document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
-      assert(await inlineDetailFits(button), `${button} details are directly below their own card and fit its width`);
+      await waitFor(() => toolDrawerFits(button), `${button} full-row sliding details`);
+      assert(true, `${button} details slide below their row and span the full grid width`);
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='false' && document.getElementById('${button}-details').hidden`), `${button} closes on a second click`);
+      assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='false' && document.getElementById('${button}-details').closest('.vua-tools-drawer').inert`), `${button} closes on a second click and makes its retained details inert`);
     }
     await capture("tools-dark");
     assert(await toolLabelsFit(), "Compact tool names fit completely inside their detail buttons");
     const toolWidths = await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card")].map(c=>c.getBoundingClientRect().width)');
     assert(toolWidths.every(width=>Math.abs(width-toolWidths[0])<1), "Every tool has the same card width, including the single Capture entry");
     await js('document.querySelector("[data-nav-id=nav-env-play]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-hardware-help]")'), "Play cards");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-refresh-devices]")'), "Play cards");
     window.setSize(1180, 820);
     await delay(100);
     if (process.env.VUA_TEST_NETWORK_LIVE === "1") {
@@ -194,10 +211,10 @@ async function run() {
     for (const button of ['route-desktop','route-pico']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`!document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
-      assert(await inlineDetailFits(button), `${button} details are directly below their own card and fit its width`);
+      await waitFor(() => playDrawerBelow(button), `${button} drawer opens below its row across the page`);
       if (button === 'route-desktop') await capture('play-inline-details');
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      assert(await js(`document.getElementById('${button}-details').hidden`), `${button} closes on a second click`);
+      await waitFor(() => js(`document.querySelector('.vua-play-drawer').dataset.open==='false'`), `${button} closes on a second click`);
     }
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-creator-page [data-nav-id=toggle-amf]")'), "AMF setup in Avatar editing");
@@ -235,8 +252,8 @@ async function run() {
     await js('document.querySelector(".vua-creator-page").scrollTop=0; document.querySelector("main").scrollTop=0');
     await capture("create-dark");
     await js('document.querySelector("[data-nav-id=nav-env-play]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-hardware-help]")'), "Play return");
-    await js('document.querySelector("[data-nav-id=play-hardware-help]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-refresh-devices]")'), "Play return");
+    await js('window.vua.window.showEncyclopedia({topic:"guide-hardware",section:"identify-device"})');
     await waitFor(() => js('document.querySelector("[role=tab][aria-selected=true]")?.textContent==="硬件介绍"'), "Hardware introduction in Help");
     assert(BrowserWindow.getAllWindows().length === 1, "Hardware help opens inside the main window");
     assert(await js('document.querySelector("[data-nav-id=shell-help]").getAttribute("aria-current")==="page" && !!document.querySelector("[data-guide-section=identify-device]")'), "Encyclopedia keeps Help selected and targets hardware");
@@ -469,7 +486,7 @@ async function run() {
     await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !!document.querySelector("[data-nav-id=help-child-back]") && !document.querySelector(".vua-shell__sidebar--settings")'), "Retired goal destination migration");
     assert(true, "Old goal-reselection links open Help's VUA guide");
     await js('document.querySelector("[data-nav-id=nav-env-play]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-hardware-help]")'), "Ordinary Play after migration");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-refresh-devices]")'), "Ordinary Play after migration");
     assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "Retired preferences never enlarge Play cards");
     const encyclopediaLocales = [
       ["en", "What do you want to know?", "Avatars & outfits"],

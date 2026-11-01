@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.10.0
+> Document version: 0.11.0
 > Status: Candidate
-> Updated: 2026-10-29
+> Updated: 2026-11-01
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -12,7 +12,7 @@ slice does not retrofit historical release artifacts or declare N acceptance.
 
 ## Connection and lifetime
 
-The player opens **Help → Connect external AI tools**, enables the connection, copies the supplied
+The player opens **MCP** in the top bar (the command bar in Frutiger Aero), enables the connection, copies the supplied
 prompt, and pastes it into an AI tool on the same computer that supports local Streamable HTTP.
 VUA remains open. The prompt explains host/AMF functions, the actual URL and Authorization header,
 available tools, novice explanation guidance and the optional
@@ -208,6 +208,16 @@ argument for `vua_request_amf_upload` and refuses it for every other request.
 Its state/version is `0.1`; prior V1–V3 browser/window/distribution behavior remains intact.
 The prompt token is intentionally absent from `AiToolsSnapshotV01` and approval history.
 
+The Candidate control face also offers optional `clear(ids)`. Only verified local Main-window
+IPC can call it; MCP callers cannot clear or confirm requests. The renderer sends the exact
+displayed IDs (at most 32), so a new arrival during **Clear all** remains visible. Clearing a
+pending request records a rejection without dispatching it. Clearing a running or decided
+request hides its card without cancelling work. Main persists the hidden flag alongside its
+bounded receipt; `vua_action_status` still returns the decision or result after clearing and
+after a restart, subject to the existing receipt retention limit. The snapshot, notifications
+and workflow pages omit hidden cards. The MCP page supplies per-request **Clear** and **Clear all**
+controls, with an inline explanation of pending and running behavior.
+
 Verification uses the official SDK HTTP client for initialization, tool discovery, real calls,
 pending deduplication, local-only approval, stale plans, backend rejection, pairing/Origin/Host
 refusal, body limits, expiration and shutdown. These checks are synthetic execution evidence;
@@ -230,6 +240,7 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.10.1 (2026-10-31): the connection page opens from its own top-bar button instead of Help.
 - 0.10.0 (2026-10-29): expose all six connected Steam tools through contract-derived MCP tool IDs, retaining player approval on the Tools page and installation/process-only observations.
 - 0.9.0 (2026-10-24): expose complete Recipe material checklists and reviewed mapping differences.
 

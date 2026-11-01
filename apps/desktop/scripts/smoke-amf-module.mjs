@@ -50,6 +50,7 @@ async function run() {
     const js = source => window.webContents.executeJavaScript(source);
     await enterHomeFromFirstUse(js, waitFor);
     const checks = [];
+    const firstLoads = [];
     const assert = (condition, label) => { if (!condition) throw new Error(label); checks.push(label); };
     await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="ready")'), "fresh default AMF startup");
     assert(JSON.parse(fs.readFileSync(path.join(profile, "modules/amf.json"), "utf8")).enabled === true, "fresh AMF default is retained before host data is created");
@@ -57,6 +58,22 @@ async function run() {
     await waitFor(() => js('!!document.querySelector("[data-nav-id=home-modules]")'), "home module entry");
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && !!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh editing navigation");
     assert(await js('!!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh users can reach editing directly");
+    // The real optional worker and renderer must finish the first read on every
+    // local AMF page. External website loading is outside this local budget.
+    for (const [page, ready] of [
+      ["warehouse", '.vua-warehouse:not(:has(.vua-skeleton))'],
+      ["recipe", '.vua-control__empty, .vua-control__body'],
+      ["workshop", '.vua-workshop .vua-n3__toolbar'],
+      ["release", '.vua-album__cover, .vua-album'],
+      ["packages", '.vua-control__screen'],
+    ]) {
+      const started = performance.now();
+      await js(`location.hash=${JSON.stringify(`/${page}`)}`);
+      await waitFor(() => js(`!!document.querySelector(${JSON.stringify(ready)}) && !document.querySelector('main').textContent.includes('正在读取…')`), `first ${page} read`);
+      const ms = Math.round(performance.now() - started);
+      firstLoads.push({ page, ms });
+      assert(ms < 5000, `first ${page} read finishes within the five-second local budget (${ms} ms)`);
+    }
     await js('window.vua.amfModule.setEnabled(false)');
     await waitFor(() => js('!document.querySelector("[data-nav-id=nav-warehouse]")'), "explicit opt-out hides editing");
     // Goal preference must not install a module or expose its deep link.
@@ -96,7 +113,7 @@ async function run() {
     assert(core.ok && core.value.capabilities.operations.some(row => row.operationId === "environment.executeDeployment" && row.availability === "available"), "host preparation remains available");
     assert(errors.length === 0, `renderer errors: ${errors.join("; ")}`);
     fs.writeFileSync(path.join(output, "checks.json"), JSON.stringify({ scope: "Real application with isolated module data; no hardware/material/vendor acceptance", checks }, null, 2));
-    console.log(JSON.stringify({ passed: checks.length, evidence: output }));
+    console.log(JSON.stringify({ passed: checks.length, firstLoads, evidence: output }));
     exitCode = 0;
   } catch (error) {
     console.error(error);

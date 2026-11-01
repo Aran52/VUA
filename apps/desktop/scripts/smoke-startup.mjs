@@ -107,6 +107,7 @@ async function run() {
       return splash && !splash.webContents.isLoading();
     }, "native splash");
     assert(splash.getContentSize().join(",") === "480,320" && !splash.isResizable() && !splash.isMaximizable() && !splash.isMinimizable(), `Startup uses a small fixed-size native window: ${JSON.stringify({ content: splash.getContentSize(), resizable: splash.isResizable(), maximizable: splash.isMaximizable(), minimizable: splash.isMinimizable() })}`);
+    await waitFor(() => splash.webContents.executeJavaScript('!!document.querySelector(".vua-boot-splash__loader") && document.querySelector(".vua-boot-splash__logo")?.complete && document.querySelector(".vua-boot-splash__logo").naturalWidth>0'), "splash artwork loaded");
     assert(await splash.webContents.executeJavaScript('document.querySelectorAll("button,input,select").length===0 && !!document.querySelector(".vua-boot-splash__loader") && document.querySelector(".vua-boot-splash__logo").naturalWidth===992 && !document.querySelector(".vua-shell")'), "Splash shows only the supplied logo and loader, without the main application");
     // Inspect the actual angle even when a CI runner hides rays for reduced motion.
     // Chromium's floating-point matrix serialization is not an angle contract.

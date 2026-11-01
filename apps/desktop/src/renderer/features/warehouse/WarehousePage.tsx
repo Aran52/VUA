@@ -1,4 +1,5 @@
 import { LibraryUseFilter } from "./LibraryUseFilter.tsx";
+import { LibraryTermsRead } from "./LibraryTermsRead.tsx";
 import { termsEverywhereCopy } from "../../i18n/index.ts";
 import type { TermsPresetId } from "@vua/contracts";
 import {
@@ -1549,6 +1550,7 @@ export function WarehousePage({
         </label>
         <LibraryUseFilter value={usePreset} mode={useMode} disabled={dataSource !== "live"} onChange={(purpose,mode)=>{ changeFilters(()=>{setUsePreset(purpose);setUseMode(mode);});setLibraryPage(null);setListState({kind:"loading"}); }}/>
       </div>
+      {usePreset && dataSource === "live" ? <LibraryTermsRead onUpdated={() => setReloadKey(key => key + 1)} /> : null}
 
       {true ? (
         <>
@@ -1858,7 +1860,7 @@ export function WarehousePage({
                   <LibraryBadges facts={libraryPage?.facts.get(selectedId)} />
                   <Button onClick={() => void openBooth(selectedId)}>{copy.sourceSearch.openBooth}</Button>
                   <Button variant="default" onClick={() => setChecklistProduct({ productId: selectedId, title: detailState.view.kind === "detail" ? detailState.view.product.title ?? selectedId : selectedId })}>{copy.libraryState.manageFiles}</Button>
-                  <ProductTerms key={`terms-${selectedId}`} productId={selectedId} title={detailState.view.product.title ?? selectedId} />
+                  <ProductTerms key={`terms-${selectedId}`} productId={selectedId} title={detailState.view.product.title ?? selectedId} onUpdated={() => setReloadKey(key => key + 1)} />
                 </div><DetailContent
                   key={detailState.view.product.productId}
                   product={detailState.view.product}

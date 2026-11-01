@@ -42,6 +42,10 @@ export const storageKeys = {
   vuaGuideReading: "vua-vua-guide-reading-v1",
   /** Concept bookmark only; never an installation or task result. */
   beginnerWizard: "vua-beginner-wizard-v1",
+  /** The play checklist each route's player confirmed, by route and checklist signature; never readiness. */
+  playChecklist: "vua-play-checklist-v1",
+  /** How the player connects PICO: "usb" or "wifi". */
+  picoConnection: "vua-pico-connection-v1",
   /** Non-modal module introductions: permanent dismissal and session-only snooze. */
   contextGuide: "vua-context-guide-v1",
   contextGuideSnoozed: "vua-context-guide-snoozed-v1",

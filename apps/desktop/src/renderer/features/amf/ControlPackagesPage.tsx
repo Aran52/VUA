@@ -81,7 +81,7 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
     let alive = true;
     void gateway.packages.repoCatalog(null, null).then(outcome => { if (alive) setCatalog(outcome.kind === "ok" ? outcome.result.repos : null); });
     return () => { alive = false; };
-  }, [gateway, blocks?.repoCatalog, catalogReload, view]);
+  }, [gateway, blocks?.repoCatalog, catalogReload]);
 
   const projects = useMemo(() => controlProjects(work ?? [], registered), [work, registered]);
   const repos = useMemo(() => repoRows(view.kind === "ready-p2" ? view.repos : [], catalog), [view, catalog]);

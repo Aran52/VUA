@@ -28,6 +28,7 @@ export interface GatewayClient {
 }
 
 export interface DesktopGatewayHost {
+  readonly catalogSync?: import("@vua/contracts").CatalogSyncApiV1;
   readonly aiTools?: import("@vua/contracts").DesktopAiToolsApiV01;
   readonly distribution?: import("@vua/contracts").DesktopDistributionApiV01;
   readonly componentUpdates?: import("@vua/contracts").DesktopComponentUpdatesApiV02;

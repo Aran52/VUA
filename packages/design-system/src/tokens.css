@@ -136,15 +136,16 @@
   --vua-glyph-empty: none;
   /* An overlay drawn on large containers: Grid's HUD corner ticks (author ruling 2026-10-28);
    * the presets swap in a stripe band or a lace hem. */
+  --vua-grid-hud-color: color-mix(in srgb, var(--vua-border-strong) 65%, transparent);
   --vua-card-decor:
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px 4px / 10px 1px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px 4px / 1px 10px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) 4px / 10px 1px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) 4px / 1px 10px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px calc(100% - 4px) / 10px 1px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) 4px calc(100% - 4px) / 1px 10px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) calc(100% - 4px) / 10px 1px no-repeat,
-    linear-gradient(var(--vua-border-strong), var(--vua-border-strong)) calc(100% - 4px) calc(100% - 4px) / 1px 10px no-repeat;
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) 4px 4px / 10px 1px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) 4px 4px / 1px 10px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) calc(100% - 4px) 4px / 10px 1px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) calc(100% - 4px) 4px / 1px 10px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) 4px calc(100% - 4px) / 10px 1px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) 4px calc(100% - 4px) / 1px 10px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) calc(100% - 4px) calc(100% - 4px) / 10px 1px no-repeat,
+    linear-gradient(var(--vua-grid-hud-color), var(--vua-grid-hud-color)) calc(100% - 4px) calc(100% - 4px) / 1px 10px no-repeat;
   /* Grid's light bar on the running step card (author ruling 2026-10-28). */
   --vua-running-bar: 2px;
   /* Image tiles: one hangs below the shell header, one along the lower edge of dialogs. */

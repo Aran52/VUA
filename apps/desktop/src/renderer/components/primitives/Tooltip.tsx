@@ -14,11 +14,13 @@ const SHOW_DELAY_MS = 350;
 const GAP = 8;
 const EDGE = 8;
 
-export function Tooltip({ content, placement = "top", block = false, children }: {
+export function Tooltip({ content, placement = "top", block = false, delayMs = SHOW_DELAY_MS, children }: {
   content: ReactNode;
   placement?: "top" | "bottom";
   /** The anchor fills its container, for a whole card or tile. */
   block?: boolean;
+  /** Pointer dwell time; keyboard focus still explains the control immediately. */
+  delayMs?: number;
   /** One element; it receives `aria-describedby`. A disabled control still shows its tooltip. */
   children: ReactElement<{ "aria-describedby"?: string | undefined }>;
 }) {
@@ -68,7 +70,7 @@ export function Tooltip({ content, placement = "top", block = false, children }:
   const describedBy = [children.props["aria-describedby"], open ? id : null].filter(Boolean).join(" ") || undefined;
   return <>
     <span ref={anchor} className="vua-tooltip-anchor" data-block={block || undefined}
-      onPointerEnter={() => show(SHOW_DELAY_MS)} onPointerLeave={hide}
+      onPointerEnter={() => show(delayMs)} onPointerLeave={hide}
       onFocus={event => { if ((event.target as HTMLElement).matches(":focus-visible")) show(0); }} onBlur={hide}
       onPointerDown={hide}>
       {cloneElement(children, { "aria-describedby": describedBy })}

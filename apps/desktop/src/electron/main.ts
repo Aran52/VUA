@@ -4,6 +4,7 @@ import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
+import { vuaAppIcon } from "./app-icon.js";
 import type { AiBuildIdentity } from "./ai-tool-results.js";
 import { aiConnectionStore, aiRequestStore } from "./ai-connection-store.js";
 declare const __VUA_BUILD_INFO__: AiBuildIdentity;
@@ -120,6 +121,7 @@ import { ComponentUpdater, componentHelper, isUpdateComponent, runComponentHelpe
 import { UpdatePlanUpdater } from "./update-plan-updater.js";
 import { AmfGenerations } from "./amf-generations.js";
 import { AmfHotUpdater } from "./amf-hot-updater.js";
+import { createToolLogos, isToolLogoId } from "./tool-logos.js";
 
 function localWindowWebPreferences(preload: string) {
   return {
@@ -476,6 +478,11 @@ function registerIpc(provider: ModuleProvider): void {
     return aiTools!.resolve(id, decision, confirmation);
   });
   ipcMain.handle("vua:ai-tools:attention", event => { assertAiSender(event); requestAttention(); });
+  ipcMain.handle("vua:ai-tools:clear", (event, ids: unknown) => {
+    assertAiSender(event);
+    if (!Array.isArray(ids) || ids.length > 32 || !ids.every(id => typeof id === "string" && id.length > 0 && id.length <= 100)) throw new Error("invalid_ai_clear");
+    return aiTools!.clear(ids);
+  });
   const updates = new DistributionUpdater({ context: installedContext(),
     prepareRestart: () => provider.prepareForUpdate(),
     restart: command => { shutdownStarted = true; app.relaunch({ execPath: path.join(installedContext()!.root, "VUA.exe"), args: [command] }); app.quit(); },
@@ -549,6 +556,12 @@ function registerIpc(provider: ModuleProvider): void {
     assertAiSender(event);
     if (!isUpdateComponent(component) || typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id)) throw Error("invalid_update_identity");
     return componentUpdates.stage(component, id);
+  });
+  const toolLogos = createToolLogos({ cacheRoot: path.join(app.getPath("userData"), "tool-logos"), fetch: (url, init) => net.fetch(url, init) });
+  ipcMain.handle("vua:tools:logo", (event, id: unknown) => {
+    assertLocalSender(senderFrameUrl(event));
+    if (!isToolLogoId(id)) throw new Error("invalid tool logo request");
+    return toolLogos(id);
   });
   ipcMain.handle("vua:amf-module:snapshot", (event) => {
     assertLocalSender(senderFrameUrl(event));
@@ -1710,6 +1723,7 @@ async function gameGuideFollowTick(): Promise<void> {
 async function createWindow(): Promise<void> {
   const preload = path.join(__dirname, "preload.js");
   mainWindow = new BrowserWindow({
+    icon: vuaAppIcon(),
     /* 默认 1440×900(2026-09-25):顶栏新增占用查看器后,1280 下全量 Tab
      * 排不下(两级折叠会收进折叠按钮);1440 保证默认窗口即完整顶栏 */
     width: 1440,
@@ -1915,6 +1929,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === "win32") app.setAppUserModelId(app.isPackaged ? "org.vua-project.desktop" : "org.vua-project.desktop.dev");
   installAmfUiProtocol(amfGenerations, packagedSmoke ? url => packagedSmoke.blocksAmfUi(url) : undefined);
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);

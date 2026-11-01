@@ -219,6 +219,40 @@ describe("live Electron Gateway (F2)", () => {
     await expect(gateway.environment.snapshot()).rejects.toThrow("environment_snapshot_unavailable");
   });
 
+  it("shares an in-flight environment scan across startup, notifications and capability readers", async () => {
+    let release!: (value: unknown) => void;
+    const scan = new Promise(resolve => { release = resolve; });
+    const { host, calls, emit } = stubHost(() => scan);
+    const environment = createElectronGateway(host, null).environment;
+    const observed = vi.fn();
+    const unsubscribe = environment.subscribe(observed);
+    const first = environment.snapshot();
+    const capability = environment.capability();
+    emit({ contractVersion: APPLICATION_CONTRACT_VERSION, eventId: "amf-ready", revision: 1,
+      occurredAt: "2026-10-31T00:00:00.000Z", correlationId: "startup", kind: "capability.changed",
+      payload: { revision: 1, operations: [] } });
+    expect(calls).toHaveLength(1);
+    release(ok({ contractVersion: APPLICATION_CONTRACT_VERSION, revision: 1,
+      capturedAt: "2026-10-31T00:00:00.000Z", items: [] }));
+    await first;
+    await expect(capability).resolves.toEqual({ state: "ready" });
+    expect(observed).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    await environment.runCheck("create");
+    expect(calls).toHaveLength(2); // An explicit later check still reads fresh facts.
+  });
+
+  it("releases a failed environment scan so retry can recover", async () => {
+    let fail = true;
+    const { host, calls } = stubHost(() => fail ? Promise.reject(new Error("offline"))
+      : ok({ contractVersion: APPLICATION_CONTRACT_VERSION, revision: 1, capturedAt: "2026-10-31T00:00:00.000Z", items: [] }));
+    const environment = createElectronGateway(host, null).environment;
+    await expect(environment.snapshot()).rejects.toThrow();
+    fail = false;
+    await expect(environment.capability()).resolves.toEqual({ state: "ready" });
+    expect(calls).toHaveLength(2);
+  });
+
   it("projects the environment snapshot and derives the module capability", async () => {
     const { host } = stubHost((call) =>
       call.method === "environment.getSnapshot"

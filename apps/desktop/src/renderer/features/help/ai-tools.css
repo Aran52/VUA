@@ -4,4 +4,6 @@
 .vua-ai-tools__prompt { display: block; box-sizing: border-box; width: 100%; resize: vertical; min-height: 190px; max-height: 60dvh; margin-block: 16px; padding: 16px; font: inherit; font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading); color: var(--vua-text-strong); background: var(--vua-bg-panel); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); }
 .vua-ai-tools__prompt:focus-visible { outline: 2px solid var(--vua-accent); outline-offset: 3px; }
 .vua-ai-tools__requests { display: grid; gap: 16px; }
+.vua-ai-tools__request-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.vua-ai-tools__request-heading h2 { margin: 0; }
 .vua-ai-tools__requests > h2, .vua-ai-tools__requests > p { margin: 0; }

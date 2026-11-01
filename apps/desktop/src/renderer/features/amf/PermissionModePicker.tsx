@@ -40,7 +40,7 @@ export function PermissionModePicker({ value, onChoose }: { value: AutomationLev
   return <div className="vua-mode-picker" ref={root}>
     <button ref={button} type="button" className="vua-mode-picker__button" aria-haspopup="menu" aria-expanded={open} aria-controls={menuId}
       aria-label={`${factory.automation}: ${factory.levels[value].name}`} onClick={() => setOpen(!open)} data-nav-id="workshop-mode">
-      <Icon name={ICONS[value]} size={16} /><span>{factory.levels[value].name}</span><Icon name="chevron-down" size={16} />
+      <Icon name={ICONS[value]} size={20} /><span className="vua-mode-picker__value"><span>{factory.automation}</span><strong>{factory.levels[value].name}</strong></span><Icon name="chevron-down" size={16} />
     </button>
     {shown && <div ref={card} id={menuId} role="menu" aria-label={factory.automation} className="vua-mode-picker__card"
       data-closing={open ? undefined : true} onKeyDown={keys}>

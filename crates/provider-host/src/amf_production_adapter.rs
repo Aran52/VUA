@@ -505,6 +505,20 @@ fn normalize_observed_selection(facts: &mut serde_json::Value) -> Result<(), App
     if *selection == serde_json::json!({"avatarPrefab":"", "outfits":[]}) {
         *selection = serde_json::Value::Null;
     } else if !selection.is_null() {
+        // JsonUtility serializes the request-only inline FitObjects class on observed
+        // outfits too, even though these newly observed outfits have no fit request.
+        // Only its empty sentinel is removable; real fit data and unknown fields must
+        // still fail this closed receipt rather than being silently discarded.
+        if let Some(outfits) = selection.get_mut("outfits").and_then(serde_json::Value::as_array_mut) {
+            for outfit in outfits {
+                if let Some(fit) = outfit.get("fit") {
+                    if !fit.is_null() && *fit != serde_json::json!({"objects":[]}) {
+                        return Err(err("receipt_invalid", "An observed outfit carries unexpected fit request data."));
+                    }
+                    outfit.as_object_mut().expect("fit field belongs to an object").remove("fit");
+                }
+            }
+        }
         let observed: AssemblySelection = serde_json::from_value(selection.clone())
             .map_err(|e| err("receipt_invalid", e))?;
         if observed.avatar_prefab.is_empty() || observed.outfits.is_empty() || observed.outfits.len() > 64 {
@@ -1917,6 +1931,28 @@ mod tests {
         assert!(facts["observedSelection"].is_null());
         let mut malformed = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/A.prefab","outfits":[]}});
         assert!(normalize_observed_selection(&mut malformed).is_err());
+    }
+
+    #[test]
+    fn unity_observed_outfits_drop_only_the_empty_fit_serializer_sentinel() {
+        let outfit = serde_json::json!({"sourceId":"outfit","prefabPath":"Assets/Coat.prefab",
+            "mode":"merge_armature","bone":"","toggleName":"Coat","active":true,"saved":true,"group":""});
+        for fit in [serde_json::Value::Null, serde_json::json!({"objects":[]})] {
+            let mut wire = outfit.clone(); wire["fit"] = fit;
+            let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
+            normalize_observed_selection(&mut facts).unwrap();
+            assert_eq!(facts["observedSelection"]["outfits"][0], outfit);
+            let observed: AssemblySelection = serde_json::from_value(facts["observedSelection"].clone()).unwrap();
+            assert_eq!(observed.outfits[0].toggle_name, "Coat");
+        }
+        for fit in [serde_json::json!({"objects":[{"path":"Hips"}]}), serde_json::json!({"objects":[],"extra":true}), serde_json::json!(false)] {
+            let mut wire = outfit.clone(); wire["fit"] = fit;
+            let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
+            assert!(normalize_observed_selection(&mut facts).is_err(), "nonempty or malformed fit must not be silently discarded");
+        }
+        let mut wire = outfit; wire["fit"] = serde_json::Value::Null; wire["unexpected"] = true.into();
+        let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
+        assert!(normalize_observed_selection(&mut facts).is_err(), "the observed selection remains closed");
     }
 
     fn preview_project(name: &str) -> PathBuf {

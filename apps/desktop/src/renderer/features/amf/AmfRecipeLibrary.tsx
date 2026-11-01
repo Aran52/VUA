@@ -8,6 +8,7 @@ import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { strings } from "../../i18n/index.ts";
 import "./amf-production.css";
+import { recipeSharing } from "./recipe-sharing.ts";
 
 /** Saved production declarations, distinct from unfinished selection drafts. */
 export function AmfRecipeLibrary({ onOpen, disabled = false, refreshKey = 0 }: {
@@ -21,7 +22,7 @@ export function AmfRecipeLibrary({ onOpen, disabled = false, refreshKey = 0 }: {
   const [importOpen, setImportOpen] = useState(false);
   const [incoming, setIncoming] = useState<PendingRecipeShare | null>(null);
   useEffect(() => {
-    const sharing = window.vua?.dialog?.recipeSharing;
+    const sharing = recipeSharing();
     if (!sharing || disabled || !port) return;
     let alive = true;
     const take = () => { void sharing.takePending().then(value => { if (alive && value) { setIncoming(value); setImportOpen(true); } }).catch(() => {}); };

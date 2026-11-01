@@ -12,9 +12,8 @@ import { BEGINNER_CONCEPTS, parseBeginnerBookmark, serializeBeginnerBookmark } f
 import "../overlay/overlay.css";
 import "./beginner-wizard.css";
 
-export function VuaGuide({ onBack, onReplay, navigate, guideRequest, acknowledgeGuide }: {
+export function VuaGuide({ onBack, navigate, guideRequest, acknowledgeGuide }: {
   onBack: () => void;
-  onReplay: () => void;
   navigate: (page: PageId) => void;
   guideRequest: GuideRequest | null;
   acknowledgeGuide: (nonce: number) => void;
@@ -40,8 +39,6 @@ export function VuaGuide({ onBack, onReplay, navigate, guideRequest, acknowledge
   return <div className="vua-page vua-knowledge vua-vua-guide" data-focus-scope>
     <header className="vua-page__hero vua-environment-heading">
       <h1 className="vua-title">{manual ? copy.manual : copy.title}</h1>
-      <Button variant="subtle" data-nav-id="wizard-manual" onClick={() => setManual(value => !value)}>{manual ? copy.resume : copy.manual}</Button>
-      <Button variant="subtle" onClick={onReplay}>{strings.contextGuide.replay}</Button>
       <Button variant="subtle" data-back data-nav-id="help-child-back" onClick={onBack}>{strings.journey.backToHelp}</Button>
     </header>
     {manual ? <div className="vua-overlay__body vua-knowledge__body">

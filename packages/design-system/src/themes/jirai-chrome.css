@@ -65,6 +65,7 @@
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile { border-radius: 18px; outline-offset: -7px; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile:hover:not(:disabled), [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile[aria-pressed="true"] { border-color: var(--vua-purple); box-shadow: 0 0 0 3px rgb(242 166 201 / 0.25), 0 10px 24px rgb(0 0 0 / 0.5); background-color: #2a1520; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile__icon { width: 64px; height: 58px; padding-bottom: 6px; color: #120810; background: url("../../skins/jirai/motifs/heart-filled.svg") center / contain no-repeat; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile__icon > svg { width: 62%; height: 62%; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-tile strong { font-family: var(--vua-font-title-family); font-size: 24px; font-weight: 400; color: #ffe3ef; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-route-grid > :nth-child(3n + 2) .vua-route-tile::after {
   content: ""; position: absolute; inset-inline-end: -10px; top: 18px; width: 56px; height: 20px; pointer-events: none;

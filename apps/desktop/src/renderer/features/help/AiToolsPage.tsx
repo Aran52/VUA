@@ -52,6 +52,7 @@ export function AiToolsPage({ navigate }: { navigate: (page: PageId) => void }) 
     setBusy(true); setError(false);
     try { await action(); } catch { setError(true); } finally { setBusy(false); }
   };
+  const clear = port?.clear ? (ids: readonly string[]) => { void act(async () => setSnapshot(await port.clear!(ids))); } : undefined;
   if (!port) return <Card><p role="status">{copy.unavailable}</p></Card>;
   return <div className="vua-ai-tools">
     <Card>
@@ -69,11 +70,13 @@ export function AiToolsPage({ navigate }: { navigate: (page: PageId) => void }) 
       <h3>{copy.third}</h3><p>{copy.thirdHint}</p>
     </Card> : null}
     <section ref={approvalSection} className="vua-ai-tools__requests" aria-label={copy.requests}>
-      <h2>{copy.requests}</h2>{snapshot?.requests.length ? null : <p>{copy.noRequests}</p>}
+      <header className="vua-ai-tools__request-heading"><h2>{copy.requests}</h2>
+        {clear ? <Button variant="subtle" disabled={busy || !snapshot?.requests.length} onClick={() => clear(snapshot?.requests.map(request => request.id) ?? [])}>{copy.clearAll}</Button> : null}</header>
+      {snapshot?.requests.length ? <p className="vua-caption">{copy.clearHint}</p> : <p>{copy.noRequests}</p>}
       {[...(snapshot?.requests ?? [])].reverse().map(request => requestPage(request) === "help-ai"
-        ? <AiRequestCard key={request.id} request={request} busy={busy}
+        ? <AiRequestCard key={request.id} request={request} busy={busy} onClear={clear ? () => clear([request.id]) : undefined}
           onResolve={decision => { void act(async () => setSnapshot(await port.resolve(request.id, decision))); }} />
-        : <AiRequestCard key={request.id} request={request} busy={busy} onOpen={() => revealRequest(request, navigate)} />)}
+        : <AiRequestCard key={request.id} request={request} busy={busy} onClear={clear ? () => clear([request.id]) : undefined} onOpen={() => revealRequest(request, navigate)} />)}
     </section>
   </div>;
 }

@@ -17,10 +17,11 @@ const numericVersion = [version.major, version.minor, version.patch, revision];
 if (numericVersion.some(value => value > 65535)) throw Error("Installer file version exceeds the Windows limit");
 const preview = process.argv.includes("--preview");
 const script = path.join(input, "installer.nsi");
+const icon = path.join(desktop, "packaging/icon.ico");
 fs.writeFileSync(script, "\ufeff" + fs.readFileSync(path.join(desktop, "distribution/installer.nsi"), "utf8"));
 for (const offline of [false, true]) {
   const output = path.join(input, `VUA-${metadata.version}-windows-x64-${preview ? "preview-" : ""}${offline ? "offline" : "setup"}.exe`);
-  const result = spawnSync(tool.path, ["/V2", `/DVERSION=${metadata.version}`, `/DVERSION_NUMBER=${numericVersion.join(".")}`, `/DINPUT=${input}`, `/DOUTPUT=${output}`, ...(offline ? ["/DOFFLINE"] : []), ...(preview ? ["/DPREVIEW"] : []), script],
+  const result = spawnSync(tool.path, ["/V2", `/DVERSION=${metadata.version}`, `/DVERSION_NUMBER=${numericVersion.join(".")}`, `/DINPUT=${input}`, `/DOUTPUT=${output}`, `/DVUA_ICON=${icon}`, ...(offline ? ["/DOFFLINE"] : []), ...(preview ? ["/DPREVIEW"] : []), script],
     { cwd: desktop, env: { ...process.env, ...tool.env }, windowsHide: true, stdio: "inherit" });
   if (result.error) throw result.error;
   if (result.status !== 0) throw Error(`NSIS failed (${result.status})`);

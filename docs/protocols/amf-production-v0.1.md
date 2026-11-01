@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.38.0
+> Document version: 0.39.0
 > Status: Candidate
-> Updated: 2026-10-30
+> Updated: 2026-11-01
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -12,6 +12,14 @@ lifecycle and tasks, not material roles or assembly semantics. It does not repla
 `production.*`, Recipe, plan/job, or Bridge v1-v4 faces.
 
 ## Methods
+
+The provider normalizes Unity's empty request-only `fit` placeholder (`null` or `{objects: []}`)
+out of `facts.observedSelection` before validating the closed desktop selection. JsonUtility
+writes this placeholder because request and observed outfit DTOs share a class. Nonempty or
+malformed fit payloads and unrelated fields still fail receipt validation. Observed adjustment
+facts remain in their existing fit fields. Earlier failed task records are retained; fixing the
+reader does not retry work or rewrite those records.
+
 
 All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 

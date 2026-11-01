@@ -4,6 +4,7 @@ import { dialogStrings, startupFailureCopy } from "./dialog-i18n.js";
 import { quitStrings, runningTaskCount } from "./quit-guard.js";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, screen, session, shell } from "electron";
 import { AiToolsServer } from "./ai-tools-server.js";
+import { vuaAppIcon } from "./app-icon.js";
 import type { AiBuildIdentity } from "./ai-tool-results.js";
 import { aiConnectionStore, aiRequestStore } from "./ai-connection-store.js";
 declare const __VUA_BUILD_INFO__: AiBuildIdentity;
@@ -1722,6 +1723,7 @@ async function gameGuideFollowTick(): Promise<void> {
 async function createWindow(): Promise<void> {
   const preload = path.join(__dirname, "preload.js");
   mainWindow = new BrowserWindow({
+    icon: vuaAppIcon(),
     /* 默认 1440×900(2026-09-25):顶栏新增占用查看器后,1280 下全量 Tab
      * 排不下(两级折叠会收进折叠按钮);1440 保证默认窗口即完整顶栏 */
     width: 1440,
@@ -1927,6 +1929,7 @@ async function ensureAmfShell(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === "win32") app.setAppUserModelId(app.isPackaged ? "org.vua-project.desktop" : "org.vua-project.desktop.dev");
   installAmfUiProtocol(amfGenerations, packagedSmoke ? url => packagedSmoke.blocksAmfUi(url) : undefined);
   installImageCacheProtocol();
   installPermissionDenyPolicy(session.defaultSession);

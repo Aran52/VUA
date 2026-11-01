@@ -3,6 +3,8 @@ Unicode true
 !include "x64.nsh"
 !include "WinVer.nsh"
 !include "FileFunc.nsh"
+!define MUI_ICON "${__FILEDIR__}\..\packaging\icon.ico"
+!define MUI_UNICON "${__FILEDIR__}\..\packaging\icon.ico"
 Var Isolated
 Name "Virtual Unified Assistant ${VERSION}"
 !ifdef PREVIEW

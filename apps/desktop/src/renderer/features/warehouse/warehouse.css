@@ -1326,3 +1326,5 @@
 .vua-library-use-filter select { width:100%; min-width:0; }
 
 .vua-library-list__source { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.vua-library-terms-read { display: grid; justify-items: start; gap: 8px; }
+.vua-library-terms-read > p { margin: 0; }

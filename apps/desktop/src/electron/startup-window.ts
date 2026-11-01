@@ -1,4 +1,5 @@
 import { BrowserWindow, type WebPreferences } from "electron";
+import { vuaAppIcon } from "./app-icon.js";
 
 /** A presentation-only window; no Gateway, account or installation work runs here. */
 export async function createStartupWindow(options: {
@@ -10,6 +11,7 @@ export async function createStartupWindow(options: {
     width: 480, height: 320, useContentSize: true, frame: false, thickFrame: false, show: false,
     resizable: false, maximizable: false, minimizable: false,
     backgroundColor: "#ffffff", title: "VUA", webPreferences: options.preferences,
+    icon: vuaAppIcon(),
   });
   window.center();
   window.setMenu(null);

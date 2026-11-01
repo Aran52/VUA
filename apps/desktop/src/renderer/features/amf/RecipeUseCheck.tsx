@@ -33,7 +33,7 @@ export function RecipeUseCheck({document,onUpdated}:{document:AmfSharedRecipe;on
         {product.advisories.map((item,index)=><small key={`a-${index}`}>{terms.line.advisories[item.reason as keyof typeof terms.line.advisories]??blocker(item)}</small>)}
         {product.hasSpecialNote&&<details><summary>{copy.special}</summary>{product.specialNotes.map((note,index)=><p key={index}>{note.text}</p>)}</details>}
         {product.sourceState!=="parsed"&&<Button disabled={reading[product.productId]!==undefined} onClick={()=>{
-          if(!port)return;setError(null);setReading(current=>({...current,[product.productId]:"starting"}));void readRecipeTerms(product.productId,product.productId,(id,title)=>port.refreshProduct(id,title),window.vua?.catalogSync ? id=>window.vua!.catalogSync!.fetchProduct(id) : undefined).then(value=>{setReading(current=>({...current,[product.productId]:value.taskId}));onUpdated?.();}).catch(()=>{setError(copy.failed);setReading(current=>Object.fromEntries(Object.entries(current).filter(([id])=>id!==product.productId)));});
+          if(!port)return;setError(null);setReading(current=>({...current,[product.productId]:"starting"}));void readRecipeTerms(product.productId,product.productId,(id,title)=>port.refreshProduct(id,title)).then(value=>{setReading(current=>({...current,[product.productId]:value.taskId}));onUpdated?.();}).catch(()=>{setError(copy.failed);setReading(current=>Object.fromEntries(Object.entries(current).filter(([id])=>id!==product.productId)));});
         }}>{reading[product.productId]?copy.reading:copy.read}</Button>}
       </li>)}</ul>
     </>:<p role="status">{strings.amfProduction.loading}</p>}

@@ -3550,6 +3550,7 @@ dependencies = [
 name = "vua-distribution"
 version = "0.1.0"
 dependencies = [
+ "cc",
  "ed25519-dalek",
  "jsonschema",
  "reqwest",

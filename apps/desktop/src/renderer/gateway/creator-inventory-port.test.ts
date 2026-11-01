@@ -10,6 +10,32 @@ const apps = { managerApps: { schemaVersion: "vua.manager-apps/v0.1", capturedAt
 const managers = (editors: unknown[]) => ({ operation: "project.environmentManagers", result: { schemaVersion: "vua.environment-managers-snapshot/v0.1", editors, vcc: { presence: "found" }, alcom: { presence: "not_found" } } });
 const environment = (editors: unknown[]) => ({ contractVersion: "0.1", revision: 0, capturedAt: "synthetic", items: [{ checkId: "unity_editors", zone: "create", presence: "detected", facts: { editors } }] });
 describe("creator inventory Gateway port", () => {
+  it("shares the first scan and reuses its facts until an explicit refresh", async () => {
+    const invoke = vi.fn<GatewayClient["invoke"]>(async request => request.method === "environment.inspectManagerApps" ? reply(apps)
+      : request.method === "environment.getSnapshot" ? reply(environment([])) : unavailable);
+    const port = createCreatorInventoryPort({ invoke, subscribe: () => () => {} });
+    expect(port.peek?.()).toBeNull();
+    const first = port.inspect(), overlapping = port.inspect();
+    expect(overlapping).toBe(first);
+    const snapshot = await first;
+    expect(await port.inspect()).toBe(snapshot);
+    expect(port.peek?.()).toBe(snapshot);
+    expect(invoke).toHaveBeenCalledTimes(3);
+    await port.inspect({ refresh: true });
+    expect(invoke).toHaveBeenCalledTimes(6);
+  });
+  it("does not cache a failed scan", async () => {
+    const invoke = vi.fn<GatewayClient["invoke"]>(async () => unavailable);
+    const port = createCreatorInventoryPort({ invoke, subscribe: () => () => {} });
+    await expect(port.inspect()).rejects.toThrow("creator_inventory_unavailable");
+    expect(port.peek?.()).toBeNull();
+    invoke.mockResolvedValue(reply(apps));
+    expect((await port.inspect()).apps).not.toBeNull();
+    expect(invoke).toHaveBeenCalledTimes(6);
+    invoke.mockResolvedValue(unavailable);
+    await expect(port.inspect({ refresh: true })).rejects.toThrow("creator_inventory_unavailable");
+    expect(port.peek?.()).toBeNull();
+  });
   it("does not treat configuration or an editor directory as installed software", async () => {
     const invoke = vi.fn<GatewayClient["invoke"]>(async request => {
       if (request.method === "environment.inspectManagerApps") return reply(apps);

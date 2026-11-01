@@ -38,6 +38,7 @@ extraResources:
   - from: node_modules/three/LICENSE
     to: notices/LICENSE-three.txt
 win:
+  icon: packaging/icon.ico
   target:
     - target: zip
       arch: [x64]

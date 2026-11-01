@@ -46,6 +46,7 @@ async function main() { try {
     win.setContentSize(1280, 1000);
     await win.loadURL(`${base}__themes?themeFamily=${family}`);
     await until("!!window.firstRunReview");
+    if (family === "grid") checks.push(...await evaluate("window.firstRunReview.creatorSession()"));
     await evaluate('window.firstRunReview.previewEnvironment("play")');
     await until(`document.documentElement.dataset.themeFamily === ${JSON.stringify(family)}`);
     const entry = await evaluate(`({top:document.querySelector('[data-nav-id="shell-ai"]')?.textContent?.trim()??null,

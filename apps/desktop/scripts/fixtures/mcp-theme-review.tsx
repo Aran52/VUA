@@ -7,6 +7,9 @@ import { AiToolsPage } from "../../src/renderer/features/help/AiToolsPage.tsx";
 import { SteamToolCard } from "../../src/renderer/features/tools/SteamToolCard.tsx";
 import { VrcftCard } from "../../src/renderer/features/tools/VrcftCard.tsx";
 import { strings } from "../../src/renderer/i18n/index.ts";
+import { LibraryTermsRead } from "../../src/renderer/features/warehouse/LibraryTermsRead.tsx";
+import { libraryTermsCopy } from "../../src/renderer/i18n/library-terms-copy.ts";
+import type { TaskCenterView } from "../../src/renderer/gateway/index.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 import "../../src/renderer/features/home/home.css";
@@ -32,7 +35,20 @@ const aiTools: DesktopAiToolsApiV01 = {
 };
 const pendingTools: { resolve(value: ExternalToolSnapshot): void; reject(error: Error): void }[] = [];
 const base = emptyGateway(null);
-const gateway = { ...base, aiTools, environment: { ...base.environment, tools: {
+let termsCalls = 0, libraryReloads = 0, failTerms = false;
+let tasks: TaskCenterView = { schemaVersion: 1, tasks: [] };
+const taskListeners = new Set<(view: TaskCenterView) => void>();
+const finishTerms = (status: "completed" | "completedWithWarnings") => {
+  tasks = { ...tasks, tasks: tasks.tasks.map(task => ({ ...task, status })) }; taskListeners.forEach(listener => listener(tasks));
+};
+const gateway = { ...base, aiTools,
+  task: { ...base.task, async snapshot() { return tasks; }, subscribe(listener: (view: TaskCenterView) => void) { taskListeners.add(listener); return () => { taskListeners.delete(listener); }; } },
+  terms: { async product() { throw Error("not used"); }, async checkUse() { throw Error("not used"); }, async refreshProduct() { throw Error("not used"); },
+    async refreshLibrary(title: string) {
+      if (failTerms) { failTerms = false; throw Error("Synthetic terms failure"); }
+      termsCalls++; tasks = { schemaVersion: 1, tasks: [{ id: `terms-${termsCalls}`, title, status: "running", originPage: "warehouse", cancellable: true }] };
+      taskListeners.forEach(listener => listener(tasks)); return { taskId: `terms-${termsCalls}` };
+    } }, environment: { ...base.environment, tools: {
   observe: () => new Promise<ExternalToolSnapshot>((resolve, reject) => { pendingTools.push({ resolve, reject }); }),
   async act() { throw Error("Should not act on tools"); },
 } } };
@@ -43,6 +59,7 @@ createRoot(document.getElementById("root")!).render(<GatewayProvider gateway={ga
     <VrcftCard selected={false} onDetails={() => {}} onReveal={() => {}} onPrepareSteam={() => {}} />
   </div></div>
   <AiToolsPage navigate={() => {}} />
+  <LibraryTermsRead onUpdated={() => { libraryReloads++; }} />
 </GatewayProvider>);
 const wait = () => new Promise(resolve => setTimeout(resolve, 30));
 async function until(predicate: () => unknown) { for (let i = 0; i < 160; i++) { if (predicate()) return; await wait(); } throw Error(`UI timeout: ${predicate}`); }
@@ -72,5 +89,21 @@ Object.assign(window, { mcpReview: { async run() {
   await until(() => section.querySelectorAll("[data-ai-request]").length === 0);
   check(cleared.length === 2 && [...cleared[1]!].sort().join() === "accepted,failed,running", "Clear all sends the currently displayed IDs");
   check(button(section, strings.aiTools.clearAll)!.disabled && section.textContent?.includes(strings.aiTools.noRequests), "Empty list disables clear all and explains the empty state");
+  const termsSection = document.querySelector(".vua-library-terms-read")!;
+  check(termsCalls === 0, "Opening the filter performs no background license downloads");
+  button(termsSection, libraryTermsCopy.read)!.click();
+  await until(() => termsCalls === 1 && !!button(termsSection, libraryTermsCopy.reading)?.disabled);
+  check(true, "An explicit library terms read stays busy while its task runs");
+  finishTerms("completedWithWarnings");
+  await until(() => libraryReloads === 1 && termsSection.textContent?.includes(libraryTermsCopy.stopped));
+  check(true, "Partial reading refreshes the filter and explains unresolved evidence");
+  failTerms = true; button(termsSection, libraryTermsCopy.read)!.click();
+  await until(() => termsSection.textContent?.includes(libraryTermsCopy.failed) && !button(termsSection, libraryTermsCopy.read)!.disabled);
+  check(termsCalls === 1 && libraryReloads === 1, "Failed submission cannot claim a successful license refresh");
+  button(termsSection, libraryTermsCopy.read)!.click();
+  await until(() => termsCalls === 2 && !!button(termsSection, libraryTermsCopy.reading)?.disabled);
+  finishTerms("completed");
+  await until(() => libraryReloads === 2 && termsSection.textContent?.includes(libraryTermsCopy.done));
+  check(true, "Completed reading refreshes use decisions and allows another explicit read");
   return checks;
 } } });

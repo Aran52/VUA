@@ -15,20 +15,22 @@ const copy = strings.environmentCards;
 export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; onWorkshop?: (() => void) | undefined }) {
   const [licenseRequest] = useState(consumeLicenseStep);
   const port = useGateway().environment.managers;
-  const [inventory, setInventory] = useState<CreatorManagers | null>(null); const [busy, setBusy] = useState(true); const [failed, setFailed] = useState(false);
+  const [inventory, setInventory] = useState<CreatorManagers | null>(() => port?.peek?.() ?? null); const [busy, setBusy] = useState(() => !port?.peek?.()); const [failed, setFailed] = useState(false);
   const [purpose, setPurpose] = useState<"pc_avatar" | "quest_avatar">("pc_avatar");
   const [detail, setDetail] = useState<CreatorEditor | "unity2022" | "unity6" | "unity_hub" | "vcc" | "alcom" | null>(licenseRequest ? "unity2022" : null);
   const [unityVisited, setUnityVisited] = useState(false);
   useEffect(() => { if (detail === "unity2022") setUnityVisited(true); }, [detail]);
   const toggle = (next: NonNullable<typeof detail>) => setDetail(current => typeof current === "object" && current && typeof next === "object" ? current.path === next.path ? null : next : current === next ? null : next);
   const generation = useRef(0); const alive = useRef(false);
-  const inspect = useCallback(async () => {
+  const inspect = useCallback(async (refresh = true) => {
+    const cached = !refresh ? port?.peek?.() : null;
+    if (cached) { setInventory(cached); setBusy(false); setFailed(false); return; }
     const ticket = ++generation.current; setBusy(true); setFailed(false);
-    try { if (!port) throw new Error("unavailable"); const snapshot = await port.inspect(); if (alive.current && ticket === generation.current) setInventory(snapshot); }
+    try { if (!port) throw new Error("unavailable"); const snapshot = await port.inspect({ refresh }); if (alive.current && ticket === generation.current) setInventory(snapshot); }
     catch { if (alive.current && ticket === generation.current) setFailed(true); }
     finally { if (alive.current && ticket === generation.current) setBusy(false); }
   }, [port]);
-  useEffect(() => { alive.current = true; void inspect(); return () => { alive.current = false; generation.current += 1; }; }, [inspect]);
+  useEffect(() => { alive.current = true; void inspect(false); return () => { alive.current = false; generation.current += 1; }; }, [inspect]);
   const editors = inventory?.editors ?? [];
   const unity2022 = editors.find(e => e.version === "2022.3.22f1") ?? editors.find(e => e.version === "2022.3.22f1c1");
   const unity2022Status = busy ? copy.checking : failed ? copy.unknown : unity2022 ? `${copy.installed} · ${unity2022.version}` : inventory?.editorsKnown ? copy.notFound : copy.unknown;
@@ -39,7 +41,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
   const official = (app: "unity_hub" | "vcc" | "alcom") => app === "unity_hub" ? "https://unity.com/download" : app === "vcc" ? "https://vrchat.com/home/download" : "https://vrc-get.anatawa12.com/alcom/";
   const detailHeader = (title: string) => <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" data-back onClick={() => setDetail(null)}>{copy.closeDetails}</Button></header>;
   return <div className="vua-page vua-route-page vua-creator-page" data-route-stage={detail === "unity2022" ? "prepare" : "pick"}>
-    <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.journey.create}</h1><Button variant="subtle" disabled={busy} onClick={() => void inspect()}>{busy ? copy.checking : copy.inspect}</Button></header>
+    <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.journey.create}</h1><Button variant="subtle" data-nav-id="creator-refresh-environment" disabled={busy} onClick={() => void inspect()}>{busy ? copy.checking : copy.inspect}</Button></header>
     <UploadEligibilityNote />
     <section className="vua-environment-section"><h2>{copy.editors}</h2><div className="vua-route-grid vua-route-grid--devices">
       <div className="vua-card-entry" data-card-entry="route-unity2022">

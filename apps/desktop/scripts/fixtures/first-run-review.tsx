@@ -23,6 +23,7 @@ const checkIntents: string[][] = [];
 const checks: string[] = [];
 let shellCommand: ((command: DesktopShellCommandV1) => void) | undefined;
 let updateChecks = 0;
+let creatorInventoryReads = 0;
 let playUnavailable = false, installationRunning = false, websiteCalls = 0, borrowedSteam = true;
 const playStates: Record<string, string> = { desktop_play: "idle", pico_pcvr: "idle" };
 const playCalls: string[] = [];
@@ -79,7 +80,7 @@ window.vua = {
     }
     if (req.method === "project.environmentManagers") value = { operation: req.method, result: { schemaVersion: "vua.environment-managers-snapshot/v0.1", editors: editorVersions().map(version => ({ version, path: `C:/Synthetic/Unity/${version}`, classification: "other_unity_version" })), vcc: { presence: "found" }, alcom: { presence: "not_found" } } };
     if (req.method === "environment.verifyEditor") value = { verdict: "verified", version: req.params!.path!.split("/").at(-1), exePath: req.params!.path! + "/Editor/Unity.exe", classification: "other_unity_version" };
-    if (req.method === "environment.inspectManagerApps") value = { managerApps: { schemaVersion: "vua.manager-apps/v0.1", capturedAt: new Date().toISOString(), apps: ["unity_hub", "vcc", "alcom"].map(component => ({ component, presence: component === "alcom" ? "not_found" : "found", path: component === "alcom" ? null : `C:/Synthetic/${component}.exe` })) } };
+    if (req.method === "environment.inspectManagerApps") { creatorInventoryReads++; value = { managerApps: { schemaVersion: "vua.manager-apps/v0.1", capturedAt: new Date().toISOString(), apps: ["unity_hub", "vcc", "alcom"].map(component => ({ component, presence: component === "alcom" ? "not_found" : "found", path: component === "alcom" ? null : `C:/Synthetic/${component}.exe` })) } }; }
     if (req.method === "environment.planDeployment") {
       intents.push([...req.params!.intent!.purposes]);
       value = { deploymentPlan: { schemaVersion: "vua.environment-deployment/v0.1", intent: req.params!.intent, digest: "a".repeat(64), prerequisitesReady: scenario === "installed", installer: null,
@@ -413,6 +414,21 @@ const review = {
     await wait(() => !document.querySelector<HTMLElement>('#route-desktop-details')!.hidden);
     check("closing and switching card details retains the live installation flow and receipt", panel === document.querySelector('#route-desktop-details .vua-play-flow') && receipt !== null && receipt === localStorage.getItem(`${storageKeys.deploymentReceiptPlay}.desktop_play`) && card().dataset.action === 'busy');
     return checks.slice(startAt);
+  },
+  async creatorSession() {
+    const start = checks.length;
+    await mountPreview(); await click(copy.create);
+    const refresh = () => document.querySelector<HTMLButtonElement>('[data-nav-id="creator-refresh-environment"]')!;
+    await wait(() => !!refresh() && !refresh().disabled);
+    const scanned = creatorInventoryReads;
+    await click(copy.play); await wait(() => document.querySelector(".vua-play-page"));
+    await click(copy.create); await wait(() => document.querySelector(".vua-creator-page"));
+    check("returning to Creator immediately restores the checked inventory", !refresh().disabled && !refresh().textContent?.includes(strings.environmentCards.checking));
+    await new Promise(resolve => setTimeout(resolve, 100));
+    check("returning to Creator starts no new scan", creatorInventoryReads === scanned);
+    refresh().click(); await wait(() => creatorInventoryReads === scanned + 1 && !refresh().disabled);
+    check("Creator's explicit refresh still runs a new scan", creatorInventoryReads === scanned + 1);
+    return checks.slice(start);
   },
   async previewEnvironment(page: "play" | "create", inventory: typeof creatorInventory = "all") {
     await mountPreview(inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]"));

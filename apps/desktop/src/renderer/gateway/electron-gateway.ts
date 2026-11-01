@@ -233,7 +233,7 @@ export function createElectronGateway(
     libraryBrowser: createLiveLibraryBrowserPort(client),
     amfRelease: createAmfReleasePort(client),
     vrchat: createVrchatPort(client),
-    terms: createTermsPort(client),
+    terms: createTermsPort(client, host?.catalogSync ? id => host.catalogSync!.fetchProduct(id) : undefined),
     distribution: createDistributionPort(host?.distribution),
     componentUpdates: host?.componentUpdates,
     updatePlans: host?.updatePlans,

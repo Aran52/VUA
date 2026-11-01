@@ -13,6 +13,7 @@ import { AiToolFailure, errorFields, isRunId, librarySummary, releaseSummary, ru
 export interface StoredAiApproval {
   view: AiActionRequestV01;
   request: DesktopGatewayRequestV1;
+  cleared?: boolean;
 }
 type Approval = StoredAiApproval;
 interface ClientSession { server: Server; transport: NodeStreamableHTTPServerTransport; touched: number }
@@ -86,7 +87,7 @@ export class AiToolsServer {
   }
   snapshot(): AiToolsSnapshotV01 {
     return { schemaVersion: "0.1", enabled: this.enabled, endpoint: this.endpoint, connections: this.sessions.size,
-      requests: [...this.approvals.values()].map(a => structuredClone(a.view)), error: this.error };
+      requests: [...this.approvals.values()].filter(a => a.cleared !== true).map(a => structuredClone(a.view)), error: this.error };
   }
   subscribe(listener: (snapshot: AiToolsSnapshotV01) => void): () => void {
     this.listeners.add(listener); return () => this.listeners.delete(listener);
@@ -446,6 +447,17 @@ export class AiToolsServer {
     // Keep bounded receipts, including decided and withdrawn requests; never evict waiting ones.
     for (const [key, a] of this.approvals) if (this.approvals.size > MAX_KEPT && a.view.state !== "pending" && a.view.state !== "running") this.approvals.delete(key);
     this.changed(); return structuredClone(view);
+  }
+  /** Clearing the local list keeps AI receipts and never dispatches or cancels work. */
+  clear(ids: readonly string[]): AiToolsSnapshotV01 {
+    if (this.disposed) throw new Error("connection_closed");
+    for (const id of ids) {
+      const approval = this.approvals.get(id);
+      if (!approval || approval.cleared) continue;
+      if (approval.view.state === "pending") approval.view = { ...approval.view, state: "rejected" };
+      approval.cleared = true;
+    }
+    this.changed(); return this.snapshot();
   }
   /** Only the local, verified Main-window IPC can reach this method. */
   async resolve(id: string, decision: "approve" | "reject", confirmation?: AiUploadConfirmationV01): Promise<AiToolsSnapshotV01> {

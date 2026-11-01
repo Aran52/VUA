@@ -39,6 +39,7 @@
     "smoke:amf-production": "pnpm --filter @vua/contracts build && electron scripts/smoke-amf-production.mjs",
     "smoke:ai-native": "node scripts/smoke-ai-native.mjs",
     "smoke:ai-ui": "electron scripts/smoke-ai-ui.mjs",
+    "smoke:mcp-theme-ui": "electron scripts/smoke-mcp-theme-ui.mjs",
     "smoke:ai-bundle": "node scripts/smoke-ai-bundle.mjs",
     "smoke:first-run-ui": "electron scripts/smoke-first-run-ui.mjs",
     "smoke:amf-module": "electron scripts/smoke-amf-module.mjs",

@@ -989,9 +989,9 @@ function AppShell({
         {/* Resource headroom summary; details retain each measured resource. */}
         <ResourceMonitor />
         {/* External AI tools sit beside Help and Settings: their connection and pending requests are one page. */}
-        <button type="button" className="vua-shell__tab vua-shell__ai" aria-current={page === "help-ai" ? "page" : undefined} data-nav-id="shell-ai" onClick={() => navigate("help-ai")}>
+        {resolvedThemeFamily !== "frutiger-aero" ? <button type="button" className="vua-shell__tab vua-shell__ai" aria-current={page === "help-ai" ? "page" : undefined} data-nav-id="shell-ai" onClick={() => navigate("help-ai")}>
           <span className="vua-shell__tab-label">{strings.aiTools.shortTitle}</span>
-        </button>
+        </button> : null}
         <button type="button" className="vua-shell__tab vua-shell__help" aria-current={page.startsWith("help") && page !== "help-ai" ? "page" : undefined} data-nav-id="shell-help" onClick={() => navigate("help")}>
           <span className="vua-shell__tab-label">{strings.journey.help}</span>
         </button>

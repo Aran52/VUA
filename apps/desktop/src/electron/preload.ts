@@ -124,6 +124,7 @@ const api: VuaDesktopApiV7 = Object.freeze({
       return () => ipcRenderer.removeListener("vua:ai-tools:changed", wrapped);
     },
     attention: () => ipcRenderer.invoke("vua:ai-tools:attention"),
+    clear: (ids: readonly string[]) => ipcRenderer.invoke("vua:ai-tools:clear", ids),
   }),
   distribution: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:distribution:snapshot"),

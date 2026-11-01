@@ -79,18 +79,20 @@ function TechnicalDetails({ request }: { request: AiActionRequestV01 }) {
 export const requestClock = (iso: string) => new Date(iso).toLocaleTimeString(currentLocale, { hour: "2-digit", minute: "2-digit" });
 
 /** One AI request. On its own page the player decides here; elsewhere the card links to that page. */
-export function AiRequestCard({ request, busy, revealed = false, onResolve, onOpen }: {
+export function AiRequestCard({ request, busy, revealed = false, onResolve, onOpen, onClear }: {
   request: AiActionRequestV01;
   busy: boolean;
   /** The player arrived from a notification for this request. */
   revealed?: boolean;
   onResolve?: (decision: "approve" | "reject") => void;
   onOpen?: () => void;
+  onClear?: (() => void) | undefined;
 }) {
   // Why a request was withdrawn or could not start, e.g. the project changed after the AI asked.
   const reason = request.error ? (copy.reasons as Record<string, string>)[request.error] : undefined;
   return <Card data-ai-request={request.id} data-revealed={revealed ? "" : undefined}>
-    <header className="vua-ai-request__header"><h3>{requestTitle(request)}</h3><span role="status">{copy.states[request.state]}</span></header>
+    <header className="vua-ai-request__header"><h3>{requestTitle(request)}</h3><span role="status">{copy.states[request.state]}</span>
+      {onClear ? <Button variant="subtle" disabled={busy} onClick={onClear}>{copy.clear}</Button> : null}</header>
     <p>{outcome(request)}</p>
     <Review request={request} />
     {request.state === "pending" ? <>

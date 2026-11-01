@@ -477,6 +477,11 @@ function registerIpc(provider: ModuleProvider): void {
     return aiTools!.resolve(id, decision, confirmation);
   });
   ipcMain.handle("vua:ai-tools:attention", event => { assertAiSender(event); requestAttention(); });
+  ipcMain.handle("vua:ai-tools:clear", (event, ids: unknown) => {
+    assertAiSender(event);
+    if (!Array.isArray(ids) || ids.length > 32 || !ids.every(id => typeof id === "string" && id.length > 0 && id.length <= 100)) throw new Error("invalid_ai_clear");
+    return aiTools!.clear(ids);
+  });
   const updates = new DistributionUpdater({ context: installedContext(),
     prepareRestart: () => provider.prepareForUpdate(),
     restart: command => { shutdownStarted = true; app.relaunch({ execPath: path.join(installedContext()!.root, "VUA.exe"), args: [command] }); app.quit(); },

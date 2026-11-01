@@ -32,9 +32,9 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
   else if (choice && s?.presence === "unknown") { action = "unknown"; status = copy.unknown; }
   if (choice && s && !s.steamReady && !s.canStop) { action = "prepare"; status = copy.prepareSteam; }
   if (live.failed && choice) { action = "unknown"; status = copy.unknown; }
-  else if (!s && choice) { action = "unknown"; status = copy.checking; }
+  else if (!s && choice) { action = "busy"; status = copy.checking; }
   if (live.pending || waiting) { action = "busy"; status = s?.activity === "install_requested" ? copy.waitInstall : s?.activity === "stopping" ? copy.waitClose : copy.waitOpen; }
-  const actionHint = live.pending || waiting ? status : !choice ? copy.chooseDevice : !s || live.failed ? copy.recheck
+  const actionHint = action === "busy" ? status : !choice ? copy.chooseDevice : !s || live.failed ? copy.recheck
     : s.canStop ? copy.closeApp : !s.steamReady ? copy.prepareSteam
     : s.presence === "installed" ? copy.openApp : s.presence === "unknown" ? copy.recheck : copy.install;
   const act = () => { onReveal(); if (!choice) { pick(); return; } if (!s || live.failed) { void live.refresh(); return; }
@@ -47,7 +47,7 @@ export function VrcftCard({ selected, onDetails, onReveal, onPrepareSteam }: { s
   return <>
     <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" logo={<ToolLogo id="vrcft" icon="avatar" />} id="tool-vrcft"
       selected={selected} action={action} status={status} actionHint={actionHint} iconOnlyAction onDetails={onDetails} onAction={act}
-      disabled={live.pending || waiting} spinning={live.pending || waiting} warning={!!s?.issue && s.canStop} />
+      disabled={action === "busy"} spinning={action === "busy"} warning={!!s?.issue && s.canStop} />
     <ToolDetails id="vrcft" title="VRCFaceTracking" selected={selected} className="vua-vrcft-detail">
       <header className="vua-environment-heading"><h2>VRCFaceTracking</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>
       <p>{copy.intro}</p>

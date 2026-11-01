@@ -42,6 +42,42 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>): Record<string, u
   return JSON.parse(text?.type === "text" ? text.text : "{}") as Record<string, unknown>;
 }
 describe("built-in MCP, using the official HTTP client", () => {
+  it("clears exact displayed requests, rejects waiting ones and keeps their AI receipts", async () => {
+    const { service, client, calls } = await setup();
+    await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
+    const first = service.snapshot().requests[0]!;
+    const writes = () => calls.filter(call => call.method === "environment.startPlay");
+    const displayedIds = [first.id];
+    await client.callTool({ name: "vua_request_play", arguments: { route: "pico_pcvr", action: "start" } });
+    const second = service.snapshot().requests[1]!;
+    expect(service.clear(displayedIds).requests.map(request => request.id)).toEqual([second.id]);
+    expect(writes()).toHaveLength(0);
+    expect(data(await client.callTool({ name: "vua_action_status", arguments: { approvalId: first.id } })).data).toMatchObject({ id: first.id, state: "rejected" });
+    await expect(service.resolve(first.id, "approve")).rejects.toThrow("approval_resolved_or_withdrawn");
+    await service.resolve(second.id, "approve");
+    expect(service.clear([second.id, "already-gone"]).requests).toEqual([]);
+    expect(data(await client.callTool({ name: "vua_action_status", arguments: { approvalId: second.id } })).data).toMatchObject({ id: second.id, state: "accepted" });
+    expect(writes()).toHaveLength(1);
+    expect(service.clear(displayedIds).requests).toEqual([]);
+  });
+  it("keeps a cleared running dispatch alive and restores its hidden receipt after restart", async () => {
+    let finish!: () => void, saved: unknown = [{ view: { id: "running-clear", tool: "vua_request_play", state: "pending" },
+      request: { schemaVersion: 1, requestId: "test", method: "environment.startPlay", params: { route: "desktop_play", commandId: "clear-test" } } }];
+    const dispatch = new Promise<void>(resolve => { finish = resolve; });
+    const options = { version: "test", build, port: 0, load: () => ({ enabled: false, token }), save: () => {},
+      loadRequests: () => saved, saveRequests: (approvals: readonly unknown[]) => { saved = structuredClone(approvals); },
+      invoke: async (request: DesktopGatewayRequestV1) => { await dispatch; return envelope(request, { observed: "finished" }); } };
+    const service = new AiToolsServer(options); cleanups.push(() => service.dispose());
+    await service.setEnabled(true);
+    const resolving = service.resolve("running-clear", "approve");
+    expect(service.snapshot().requests[0]!.state).toBe("running");
+    expect(service.clear(["running-clear"]).requests).toEqual([]);
+    finish(); await resolving;
+    expect(service.snapshot().requests).toEqual([]);
+    expect(saved).toMatchObject([{ cleared: true, view: { state: "accepted", result: { observed: "finished" } } }]);
+    const restarted = new AiToolsServer(options); cleanups.push(() => restarted.dispose());
+    expect(restarted.snapshot().requests).toEqual([]);
+  });
   it("requires local player approval before saving and closing Unity", async () => {
     const {client,calls,service}=await setup();
     await client.callTool({name:"vua_request_amf_close_editor",arguments:{runId:"n3-test"}});

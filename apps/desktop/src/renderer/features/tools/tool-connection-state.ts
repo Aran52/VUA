@@ -14,7 +14,8 @@ export function deriveToolCardState(live: { snapshot: ExternalToolSnapshot | nul
   const s = live.snapshot;
   const waiting = !!s && s.activity !== "idle";
   if (live.pending || waiting) return { action: "busy", status: s?.activity === "install_requested" ? "waitInstall" : s?.activity === "stopping" ? "waitClose" : "waitOpen" };
-  if (!s || live.failed) return { action: "unknown", status: live.failed ? "unknown" : "checking" };
+  if (live.failed) return { action: "unknown", status: "unknown" };
+  if (!s) return { action: "busy", status: "checking" };
   if (s.canStop) return { action: "stop", status: "closeApp" };
   if (!s.steamReady) return { action: "prepare", status: "prepareSteam" };
   if (s.presence === "installed") return { action: "start", status: s.running ? "running" : "openApp" };

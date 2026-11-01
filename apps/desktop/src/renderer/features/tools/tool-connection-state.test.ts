@@ -7,7 +7,7 @@ const live = (snapshot: ExternalToolSnapshot | null, pending = false, failed = f
 
 describe("SteamToolCard state derivation", () => {
   it("waits for the first observation and reports provider failure as unknown", () => {
-    expect(deriveToolCardState(live(null))).toEqual({ action: "unknown", status: "checking" });
+    expect(deriveToolCardState(live(null))).toEqual({ action: "busy", status: "checking" });
     expect(deriveToolCardState(live(null, false, true))).toEqual({ action: "unknown", status: "unknown" });
   });
   it("offers install only for a readable absence with Steam ready", () => {

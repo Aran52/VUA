@@ -21,7 +21,7 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
   const state = deriveToolCardState(live);
   const text = (template: string) => format(template, { tool: title });
   const status = (key: ToolConnectionStatusKey) => text(copy[key]);
-  const actionHint = live.pending || waiting ? status(state.status) : !s || live.failed ? copy.recheck
+  const actionHint = state.action === "busy" ? status(state.status) : !s || live.failed ? copy.recheck
     : s.canStop ? text(copy.closeApp) : !s.steamReady ? copy.prepareSteam
     : s.presence === "installed" ? text(copy.openApp) : s.presence === "unknown" ? copy.recheck : copy.install;
   const act = () => {
@@ -36,7 +36,7 @@ export function SteamToolCard({ toolId, title, icon, selected, onDetails, onReve
   return <>
     <EnvironmentCard title={title} icon={icon} logo={<ToolLogo id={toolId} icon={icon} />} id={`tool-${toolId}`}
       selected={selected} action={state.action} status={status(state.status)} actionHint={actionHint} iconOnlyAction onDetails={onDetails} onAction={act}
-      disabled={live.pending || waiting} spinning={live.pending || waiting} warning={!!s?.issue && s.canStop} />
+      disabled={state.action === "busy"} spinning={state.action === "busy"} warning={!!s?.issue && s.canStop} />
     <ToolDetails id={toolId} title={title} selected={selected}>
       <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>
       <p>{strings.helpUi[toolId]}</p>

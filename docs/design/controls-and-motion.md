@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-10-28
+> Updated: 2026-11-01
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 
@@ -79,6 +79,11 @@ The steps are theme-independent; a theme changes shapes, colours and motion, nev
 ## The theme's language
 
 A theme defines the following token groups. Components only consume them.
+
+Compact Play cards keep one icon column and one title column in every theme. Their icons and
+titles share a vertical centre; a long title truncates inside its own column. Theme motifs
+remain inside the icon slot, with the glyph inset into Jirai's heart rather than filling or
+extending beyond it (author follow-up, 2026-11-01).
 
 ### Corners
 

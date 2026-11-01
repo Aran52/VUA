@@ -82,6 +82,10 @@ async function run() {
       }
     }
     window.webContents.setZoomFactor(1); window.setSize(1440,960);
+    // Electron acknowledges a native resize before Chromium lays out the new viewport.
+    // Measure the hover baseline only after that resize, fonts and grid observers settle.
+    await waitFor(() => js(`innerWidth===${window.getContentSize()[0]}`), "tooltip test viewport resized");
+    await js('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))');
     const actionRect = await js('(()=>{const b=document.querySelector("[data-nav-id=tool-vrcft-action]");b.scrollIntoView({block:"center"});const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,label:b.getAttribute("aria-label")}})()');
     window.webContents.sendInputEvent({type:"mouseMove",x:Math.round(actionRect.x+actionRect.w/2),y:Math.round(actionRect.y+actionRect.h/2)});
     await delay(1000);

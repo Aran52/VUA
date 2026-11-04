@@ -51,10 +51,10 @@ async function main() {
       const label = url.hostname.replace(/[^\w.-]/g, "");
       return new Response(`<!doctype html><html><head><title>${label} ${url.pathname}</title><style>body{font:20px system-ui;padding:24px;min-height:2400px;background:#fafafa;color:#17142e}a{display:block;margin:20px 0}</style></head><body><h1>${label}</h1><a id="next" href="/second">Next page</a><a id="new-tab" href="/child" target="_blank">New tab</a><a id="outside" href="https://example.test/">Outside shortcut list</a><textarea id="note"></textarea><p>Isolated browser smoke fixture; no real account or material data.</p></body></html>`, { headers: { "content-type": "text/html; charset=utf-8" } });
     });
+    // Cold native startup has its own budget; ordinary UI operations retain 12 seconds.
     await waitFor(() => {
       window = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith("file:") && !candidate.webContents.getURL().includes("surface="));
       return window && !window.webContents.isLoading();
-    // Cold native startup has its own budget; ordinary UI operations retain 12 seconds.
     }, "production renderer", 30_000);
     rendererReadyMs = Date.now() - startedAt;
     // A failing script names itself, so a CI failure points at its step.
@@ -267,7 +267,7 @@ async function main() {
     }) };
     fs.writeFileSync(path.join(output, "failure.json"), JSON.stringify({ error: error.stack, checks, errors, views, startup }, null, 2));
     console.error(JSON.stringify({ startup }));
-    console.error(output); clearTimeout(deadline); app.quit();
+    console.error(output); clearTimeout(deadline); app.exit(1);
   }
 }
 void main();

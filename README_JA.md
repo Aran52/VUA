@@ -47,13 +47,13 @@ AMF が管理し、無効にしてもデータは残ります。
 
 ## 開発状況
 
-[v0.7.0 Stone Age（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) は初めてのアバター制作の流れを届けます。ライブラリからアバターと衣装を選ぶと、VUA が専用の Unity プロジェクトで組み上げ、VRChat SDK で確認し、あなたの確認のあとでアップロードします。Windows x64 のオンライン・オフライン NSIS インストーラーは AMF を同梱します。[N1–N7 の開発順序](docs/development-outline.md)に沿って開発を続けます。
+[v1.0.0 Brave New World](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0) はホスト初の安定版で、個別更新の **AMF 0.3.0 Beta** を同梱します。素材移行プランナー、制作の見積もり、初回ガイドを追加し、ツール詳細、環境確認の再利用、VN3 更新を修正しました。Windows x64 のオンライン・オフラインインストーラーを提供します。
 
-上記のダウンロードは公開済みの 0.7.0 Beta です。ソースでは **v1.0.0 Brave New World** を準備しています。ホストは安定版となり、AMF は Beta のまま個別に更新されます。[凍結版リリースノートの草稿](docs/release/v1.0.0_JA.md)に範囲と作者の確認待ち項目を記載しています。ソースの準備はインストーラーの公開や N 段階の受入完了を意味しません。
+[リリースノート](docs/release/v1.0.0_JA.md)に提供範囲と未確認の実機・人手のチェックを記載しています。公開だけで [N1–N7 の受入](docs/development-outline.md)は完了しません。
 
 ### 現在の提供状況と開始方法
 
-- [公式ダウンロードページ](https://ph-r.com/projects/vua/#download)または [GitHub リリース](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)から **VUA-0.7.0-windows-x64-setup.exe** をダウンロードします。通信が不安定な場合は **VUA-0.7.0-windows-x64-offline.exe** を選んでください。どちらも同じファイルです。インストール後、スタートメニューから VUA を開きます。Node、pnpm、Rust、ソースは不要です。未署名のため、Windows が不明な発行元の警告を表示する場合があります。
+- [GitHub リリース](https://github.com/VUA-Project/VUA/releases/tag/v1.0.0)から **VUA-1.0.0-windows-x64-setup.exe** を取得します。ランタイム同梱版は **VUA-1.0.0-windows-x64-offline.exe** です。[公式ミラー](https://ph-r.com/vua/downloads/)には現在の提供版が表示されます。インストール後、スタートメニューから VUA を開きます。Node、pnpm、Rust、ソースは不要です。Authenticode 未署名のため、Windows が不明な発行元の警告を表示する場合があります。
 - 初回の機能ツアーとガイドから始めるか、プレイ・ツール・Avatar 編集を直接開きます。新規ユーザーの AMF は有効で、設定 → モジュールから無効にできます。Steam/PICO/Unity とアカウント操作は公式アプリで行います。
 - VUA の更新時は作業を終えてアプリを終了し、新しいインストーラーを実行します。AMF は設定 → モジュールまたは「このアプリについて」で個別に更新し、明示的に再起動できます。データは %APPDATA%\VUA に保持され、ZIP 版から移行しても同じプロファイルを使用できます。未検証の手順や手動の引き継ぎはリリースノートに記載し、問題は [Issues](https://github.com/VUA-Project/VUA/issues/new/choose) で受け付けます。
 - 開発者は[依存関係の導入・アプリ起動・検査](apps/desktop/README.md#development-commands)と[コントリビューション](CONTRIBUTING.md)を参照してください。
@@ -63,7 +63,7 @@ AMF が管理し、無効にしてもデータは残ります。
 - [ドキュメントガイド](docs/README.md)——タスクごとの最小ルート
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
-- [v0.7.0 リリースノート](docs/release/v0.7.0_JA.md)
+- [v1.0.0 リリースノート](docs/release/v1.0.0_JA.md)
 - [1.0.0 最小ガイド（候補版、五言語）](docs/user-guide/v1.0.0/ja.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
 

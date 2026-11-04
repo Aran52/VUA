@@ -9,3 +9,7 @@ allowBuilds:
   electron-winstaller: false
 minimumReleaseAgeExclude:
   - electron@44.9.3
+overrides:
+  # Security fixes for the existing HTTP clients; keep Hono's v4 peer API.
+  undici@6.29.0: 6.29.1
+  '@hono/node-server@^1.19.9': 2.1.3

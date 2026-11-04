@@ -59,11 +59,11 @@ The current Rust workspace directly declares the following third-party crates:
 | `sha2` | MIT OR Apache-2.0 | content hashing |
 | `scraper` | ISC | HTML parsing for BOOTH page extraction |
 | `url` | MIT OR Apache-2.0 | VPM repository and public terms URL parsing |
-| `pdf-extract` 0.10.0 | MIT | Pure Rust text extraction from locally cached VN3 PDFs |
+| `pdf-extract` 0.12.1 | MIT | Pure Rust text extraction from locally cached VN3 PDFs; uses the bounded parser in `lopdf` 0.42.0 |
 | `regex` | MIT OR Apache-2.0 | Versioned VN3 document structure recognition |
 | `unicode-normalization` | MIT OR Apache-2.0 | VN3 typography normalization with preserved source fragments |
 | `flate2`, `tar` | MIT OR Apache-2.0 | gzip/tar archive handling for `.unitypackage` materials |
-| `zip` | MIT | zip archive writing for local VPM artifacts |
+| `zip` 9.0.5 | MIT | ZIP inspection and bounded extraction, runtime acquisition and local VPM artifact writing |
 | `md-5` | MIT OR Apache-2.0 | official Unity Editor manifest checksum comparison |
 | `windows-sys` | MIT OR Apache-2.0 | Windows Job Object process-tree supervision, Win32 window enumeration and focus for editor handoff, and native installer elevation |
 | `windows` | MIT OR Apache-2.0 | Read-only desktop resource adapter: language-neutral PDH utilization, DXGI hardware identity/capacity and D3D12 UMA classification |

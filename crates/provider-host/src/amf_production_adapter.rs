@@ -165,7 +165,10 @@ impl NativeAmfProduction {
             )
             .map_err(|e| err("source_invalid", e))?;
             let entry = archive
-                .by_name(member)
+                .by_name_with_options(
+                    member,
+                    zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+                )
                 .map_err(|e| err("source_invalid", e))?;
             const LIMIT: u64 = 8 * 1024 * 1024 * 1024;
             if entry.size() > LIMIT {
@@ -705,15 +708,15 @@ impl AmfProductionPlatform for NativeAmfProduction {
                         let inner = archive
                             .by_index_raw(index)
                             .map_err(|e| err("source_invalid", e))?;
-                        let member = inner.name();
+                        let member = inner.name().map_err(|e| err("source_invalid", e))?;
                         if inner.is_dir()
                             || !member.to_ascii_lowercase().ends_with(".unitypackage")
-                            || !safe_zip_member(member)
+                            || !safe_zip_member(&member)
                         {
                             continue;
                         }
                         result.push(ProductionSource {
-                            source_id: format!("{}-{}", copy.copy_id, &hash_text(member)[..24]),
+                            source_id: format!("{}-{}", copy.copy_id, &hash_text(&member)[..24]),
                             item_id: entry.warehouse_item_id.clone(),
                             item_name: entry.display_name.clone(),
                             name: member.replace('\\', "/"),

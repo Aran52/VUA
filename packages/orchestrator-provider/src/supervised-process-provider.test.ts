@@ -20,6 +20,8 @@ class FakeProviderProcess extends EventEmitter {
   readonly stdio = [this.stdin, this.stdout, this.stderr];
   killed = false;
   shutdownAfterExit = false;
+  holdRequests = false;
+  readonly heldRequests: Record<string, unknown>[] = [];
   #buffer = "";
   readonly #handshakePayload: unknown;
 
@@ -82,6 +84,7 @@ class FakeProviderProcess extends EventEmitter {
       return;
     }
     const request = frame.payload as ApplicationRequestV01;
+    if (this.holdRequests) { this.heldRequests.push(frame); return; }
     this.#respond(frameId, {
       contractVersion: "0.1",
       requestId: request.requestId,
@@ -114,6 +117,8 @@ class FakeProviderProcess extends EventEmitter {
       },
     })}\n`);
   }
+
+  respond(frameId: string, payload: unknown): void { this.#respond(frameId, payload); }
 
   #respond(frameId: string, payload: unknown): void {
     this.stdout.write(`${JSON.stringify({
@@ -156,6 +161,65 @@ function getRequest(): ApplicationRequestV01 {
 }
 
 describe("supervised process Provider v0.1", () => {
+  it("shares overlapping environment inspections across callers and refreshes after completion", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    const child = processes[0]!;
+    child.holdRequests = true;
+    const request = (id: string): ApplicationRequestV01 => ({ contractVersion: "0.1", kind: "query", method: "environment.getSnapshot", params: {}, requestId: id, correlationId: `correlation-${id}` });
+    const first = provider.invoke(request("first"));
+    const reloaded = provider.invoke(request("reloaded"));
+    expect(child.heldRequests).toHaveLength(1);
+    const value = { contractVersion: "0.1", revision: 1, capturedAt: "2026-11-05T00:00:00Z", items: [] };
+    child.respond(child.heldRequests[0]!.frameId as string, { contractVersion: "0.1", requestId: "first", ok: true, value });
+    await expect(first).resolves.toEqual({ contractVersion: "0.1", requestId: "first", ok: true, value });
+    await expect(reloaded).resolves.toEqual({ contractVersion: "0.1", requestId: "reloaded", ok: true, value });
+    const refreshed = provider.invoke(request("manual"));
+    expect(child.heldRequests).toHaveLength(2);
+    const freshValue = { ...value, capturedAt: "2026-11-05T00:00:10Z" };
+    child.respond(child.heldRequests[1]!.frameId as string, { contractVersion: "0.1", requestId: "manual", ok: true, value: freshValue });
+    await expect(refreshed).resolves.toMatchObject({ requestId: "manual", value: freshValue });
+    await provider.prepareShutdown({ timeoutMs: 1_000 });
+  });
+
+  it("keeps each environment caller's error identity and does not share invalid query parameters", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    const child = processes[0]!;
+    child.holdRequests = true;
+    const request = (id: string): ApplicationRequestV01 => ({ contractVersion: "0.1", kind: "query", method: "environment.getSnapshot", params: {}, requestId: id, correlationId: `correlation-${id}` });
+    const first = provider.invoke(request("first"));
+    const second = provider.invoke(request("second"));
+    const invalid = provider.invoke({ ...request("invalid"), params: { unexpected: true } });
+    expect(child.heldRequests).toHaveLength(2);
+    const error = { contractVersion: "0.1", code: "vua.environment.unavailable", category: "unavailable", messageKey: "errors.environment.unavailable", recoverable: true, retryable: true, correlationId: "correlation-first" };
+    child.respond(child.heldRequests[0]!.frameId as string, { contractVersion: "0.1", requestId: "first", ok: false, error });
+    child.respond(child.heldRequests[1]!.frameId as string, { contractVersion: "0.1", requestId: "invalid", ok: false, error: { ...error, correlationId: "correlation-invalid" } });
+    await expect(first).resolves.toMatchObject({ requestId: "first", error: { correlationId: "correlation-first" } });
+    await expect(second).resolves.toMatchObject({ requestId: "second", error: { correlationId: "correlation-second" } });
+    await expect(invalid).resolves.toMatchObject({ requestId: "invalid", ok: false });
+    await provider.prepareShutdown({ timeoutMs: 1_000 });
+  });
+
+  it("clears a shared inspection when the native process exits before replying", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    const request = (id: string): ApplicationRequestV01 => ({ contractVersion: "0.1", kind: "query", method: "environment.getSnapshot", params: {}, requestId: id, correlationId: id });
+    processes[0]!.holdRequests = true;
+    const first = provider.invoke(request("first"));
+    const second = provider.invoke(request("second"));
+    processes[0]!.crash();
+    const failures = await Promise.allSettled([first, second]);
+    expect(failures.map(result => result.status)).toEqual(["rejected", "rejected"]);
+    await provider.start();
+    processes[1]!.holdRequests = true;
+    const retry = provider.invoke(request("retry"));
+    expect(processes[1]!.heldRequests).toHaveLength(1);
+    processes[1]!.respond(processes[1]!.heldRequests[0]!.frameId as string, { contractVersion: "0.1", requestId: "retry", ok: true, value: { contractVersion: "0.1", revision: 1, capturedAt: "2026-11-05T00:00:00Z", items: [] } });
+    await expect(retry).resolves.toMatchObject({ requestId: "retry", ok: true });
+    await provider.prepareShutdown({ timeoutMs: 1_000 });
+  });
+
   it("drains the final shutdown response after native exit before settling pending calls", async () => {
     let child: ChildProcessWithoutNullStreams;
     const provider = new SupervisedProcessProviderV01({ executablePath: process.execPath, databasePath: path.resolve("unused.db") }, () => {

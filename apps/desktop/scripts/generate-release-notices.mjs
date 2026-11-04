@@ -107,7 +107,10 @@ function npmDependency(name, resolver = require) {
   const childResolver = createRequire(manifest);
   for (const child of Object.keys(item.dependencies ?? {})) npmDependency(child, childResolver);
 }
-for (const name of ["react", "react-dom", "three"]) npmDependency(name);
+// Main bundles the MCP runtime too; first-party workspace packages use VUA's notices.
+const npmRoots = component === "amf" ? ["react", "react-dom", "three"]
+  : Object.entries(pkg.dependencies).filter(([, specifier]) => !specifier.startsWith("workspace:")).map(([name]) => name);
+for (const name of npmRoots) npmDependency(name);
 let electron;
 if (component !== "amf") {
   const electronRoot = path.dirname(require.resolve("electron/package.json"));

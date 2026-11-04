@@ -19,7 +19,7 @@ regex = "1"
 unicode-normalization = "0.1"
 url = "2"
 reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "stream"] }
-tokio = { version = "1.53.1", default-features = false, features = ["rt", "time", "net", "macros"] }
+tokio = { version = "1.53.3", default-features = false, features = ["rt", "time", "net", "macros"] }
 zip = { version = "=9.0.5", default-features = false, features = ["deflate"] }
 vua-bdl-store = { path = "../bdl-store" }
 vua-orchestrator = { path = "../orchestrator" }

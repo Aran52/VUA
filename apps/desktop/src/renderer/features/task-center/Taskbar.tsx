@@ -40,8 +40,6 @@ export function Taskbar({ navigate }: { navigate: (target: PageId) => void }) {
           <NotificationList
             notifications={center.notifications}
             rejectedId={center.rejectedId}
-            showCompleted={center.showCompleted}
-            onShowCompletedChange={center.setShowCompleted}
             onCancel={(id) => void center.cancel(id)}
             onRetry={(id) => void center.retry(id)}
             dismissible={center.dismissible}

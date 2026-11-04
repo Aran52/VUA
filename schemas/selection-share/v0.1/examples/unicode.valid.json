@@ -1,0 +1,6 @@
+{
+  "kind": "vua.selection",
+  "formatVersion": "0.1",
+  "title": "素材一覧 / 소재 목록",
+  "products": [{ "productId": "1000001", "shopName": "サンプルのお店 🧵", "variantName": "白 / 흰색" }]
+}

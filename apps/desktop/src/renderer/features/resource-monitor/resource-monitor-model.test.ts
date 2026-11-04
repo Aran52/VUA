@@ -1,22 +1,31 @@
 import { describe, expect, it } from "vitest";
 import type { SystemResourceUsageV2 } from "@vua/contracts";
-import { formatGigabytes, percentOf, usagePercents } from "./resource-monitor-model.ts";
+import { formatGigabytes, loadStateOf, percentOf, usagePercents } from "./resource-monitor-model.ts";
 const snapshot = (patch: Partial<SystemResourceUsageV2> = {}): SystemResourceUsageV2 => ({
   schemaVersion: 2, ramUsedBytes: 30, ramTotalBytes: 100, vramUsedBytes: 60, vramTotalBytes: 100,
   cpuUsagePercent: 10, gpuUsagePercent: 20, gpuName: "Synthetic GPU", gpuKind: "discrete", sampledAt: "2026-10-10T00:00:00Z", ...patch });
-describe("resource headroom", () => {
-  it("uses the four available readings, not the old dominant RAM/VRAM percent", () => {
-    expect(usagePercents(snapshot())).toMatchObject({ measuredCount: 4, headroomPct: 70, constrained: null });
+describe("tightest resource (F6)", () => {
+  it("names the highest reading across the four available dimensions", () => {
+    expect(usagePercents(snapshot())).toMatchObject({ measuredCount: 4, tightest: "vram", tightestPct: 60, loadState: "plenty" });
   });
-  it("keeps saturation visible even if the mean indicates considerable headroom", () => {
+  it("keeps saturation visible even if the other readings are low", () => {
     expect(usagePercents(snapshot({ cpuUsagePercent: 100, gpuUsagePercent: 0, ramUsedBytes: 0, vramUsedBytes: 0 })))
-      .toMatchObject({ headroomPct: 75, constrained: "cpu", constrainedPct: 100 });
-    expect(usagePercents(snapshot({ vramUsedBytes: 98 }))).toMatchObject({ constrained: "vram", constrainedPct: 98 });
+      .toMatchObject({ tightest: "cpu", tightestPct: 100, loadState: "tight" });
+    expect(usagePercents(snapshot({ vramUsedBytes: 98 }))).toMatchObject({ tightest: "vram", tightestPct: 98, loadState: "tight" });
   });
-  it("excludes missing or zero-capacity readings rather than inflating the mean", () => {
+  it("reads 70% as getting tight and keeps the boundary stable", () => {
+    expect(loadStateOf(69)).toBe("plenty");
+    expect(loadStateOf(70)).toBe("gettingTight");
+    expect(usagePercents(snapshot({ cpuUsagePercent: 80, gpuUsagePercent: 0, ramUsedBytes: 0, vramUsedBytes: 0 })))
+      .toMatchObject({ tightest: "cpu", tightestPct: 80, loadState: "gettingTight" });
+    expect(loadStateOf(89)).toBe("gettingTight");
+    expect(loadStateOf(90)).toBe("tight");
+    expect(loadStateOf(null)).toBe("plenty");
+  });
+  it("excludes missing or zero-capacity readings rather than distorting the tightest", () => {
     expect(usagePercents(snapshot({ cpuUsagePercent: null, gpuUsagePercent: null, vramTotalBytes: null })))
-      .toMatchObject({ measuredCount: 1, headroomPct: 70, vramPct: null });
-    expect(usagePercents(snapshot({ vramTotalBytes: 0 }))).toMatchObject({ measuredCount: 3, headroomPct: 80 });
+      .toMatchObject({ measuredCount: 1, tightest: "ram", tightestPct: 30, vramPct: null });
+    expect(usagePercents(snapshot({ vramTotalBytes: 0 }))).toMatchObject({ measuredCount: 3, tightest: "ram", tightestPct: 30 });
   });
   it("does not guess unknown sensor readings and clamps valid percentages", () => {
     expect(usagePercents(snapshot({ cpuUsagePercent: NaN, gpuUsagePercent: 200 }))).toMatchObject({ cpuPct: null, gpuPct: 100, measuredCount: 3 });

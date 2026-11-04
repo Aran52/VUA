@@ -1,4 +1,4 @@
-import type { AiActionRequestV01 } from "@vua/contracts";
+import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, type AiActionRequestV01, type ExternalToolId } from "@vua/contracts";
 import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -42,6 +42,7 @@ function Review({ request }: { request: AiActionRequestV01 }) {
       {step.version ? ` (${String(step.version)})` : ""}
     </li>)}</ul></> : null}
     {params.route ? <p>{strings.deployment.purposes[params.route as keyof typeof strings.deployment.purposes] ?? String(params.route)}</p> : null}
+    {(EXTERNAL_TOOL_IDS as readonly unknown[]).includes(params.toolId) ? <p><strong>{EXTERNAL_TOOL_NAMES[params.toolId as ExternalToolId]}</strong></p> : null}
     {params.action ? <p>{copy.actions[params.action as keyof typeof copy.actions] ?? String(params.action)}</p> : null}
     {materials.length > 0 ? <><h4>{copy.materials}</h4><ul>{materials.map(({ source, fact }, i) => fact
       ? <Material key={i} role={fact.role ?? source.role} name={fact.name} item={fact.itemName} />
@@ -78,18 +79,20 @@ function TechnicalDetails({ request }: { request: AiActionRequestV01 }) {
 export const requestClock = (iso: string) => new Date(iso).toLocaleTimeString(currentLocale, { hour: "2-digit", minute: "2-digit" });
 
 /** One AI request. On its own page the player decides here; elsewhere the card links to that page. */
-export function AiRequestCard({ request, busy, revealed = false, onResolve, onOpen }: {
+export function AiRequestCard({ request, busy, revealed = false, onResolve, onOpen, onClear }: {
   request: AiActionRequestV01;
   busy: boolean;
   /** The player arrived from a notification for this request. */
   revealed?: boolean;
   onResolve?: (decision: "approve" | "reject") => void;
   onOpen?: () => void;
+  onClear?: (() => void) | undefined;
 }) {
   // Why a request was withdrawn or could not start, e.g. the project changed after the AI asked.
   const reason = request.error ? (copy.reasons as Record<string, string>)[request.error] : undefined;
   return <Card data-ai-request={request.id} data-revealed={revealed ? "" : undefined}>
-    <header className="vua-ai-request__header"><h3>{requestTitle(request)}</h3><span role="status">{copy.states[request.state]}</span></header>
+    <header className="vua-ai-request__header"><h3>{requestTitle(request)}</h3><span role="status">{copy.states[request.state]}</span>
+      {onClear ? <Button variant="subtle" disabled={busy} onClick={onClear}>{copy.clear}</Button> : null}</header>
     <p>{outcome(request)}</p>
     <Review request={request} />
     {request.state === "pending" ? <>

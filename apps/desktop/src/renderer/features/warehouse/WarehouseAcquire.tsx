@@ -22,6 +22,7 @@ import {
   type WarehouseCommandOutcome,
   type WarehouseEntryDetail,
   type CatalogProductSummary,
+  type LibraryCardFacts,
 } from "../../gateway/index.ts";
 import { format, strings, termLabel } from "../../i18n/index.ts";
 import {
@@ -201,9 +202,11 @@ function commandErrorTextFor(error: {
 export function EntryDetail({
   entryId,
   globalDefault,
+  facts,
 }: {
   entryId: string;
   globalDefault: GlobalDefaultInference;
+  facts?: LibraryCardFacts | undefined;
 }) {
   const gateway = useGateway();
   const [state, setState] = useState<DetailState>({ kind: "loading" });
@@ -229,7 +232,7 @@ export function EntryDetail({
     };
   }, [gateway, entryId, reloadKey]);
 
-  // 事实层类型(entryDetail 读取面):D-6 预览组合读消费 artifacts[].mappedProductIds
+  // Artifact facts remain independent of the library's current source association.
   const loadedEntry: WarehouseEntryDetail | null =
     state.kind === "loaded" && state.view.kind === "detail" ? state.view.entry : null;
 
@@ -238,9 +241,8 @@ export function EntryDetail({
     if (loadedEntry !== null) setModeDraft(loadedEntry.artifactMode ?? "follow");
   }, [loadedEntry]);
 
-  // D-6 预览组合读:条目事实到达后按 mappedProductIds 定向查目录(方案 c);
-  // 重载(reloadKey → entryDetail 重取 → loadedEntry 换引用)即随事实重查。
-  // readEntryPreview 永不 reject,失败已按裁决归并为诚实空态视图。
+  // Refresh media when either artifact facts or the saved source association changes.
+  // Individual catalog failures are represented by readEntryPreview's empty states.
   useEffect(() => {
     if (loadedEntry === null) {
       setPreview({ kind: "loading" });
@@ -248,13 +250,13 @@ export function EntryDetail({
     }
     let active = true;
     setPreview({ kind: "loading" });
-    void readEntryPreview(catalogBrowser, loadedEntry).then((view) => {
+    void readEntryPreview(catalogBrowser, loadedEntry, facts).then((view) => {
       if (active) setPreview({ kind: "done", view });
     });
     return () => {
       active = false;
     };
-  }, [loadedEntry]);
+  }, [loadedEntry, facts]);
 
   async function runCommand(run: () => Promise<WarehouseCommandOutcome>): Promise<void> {
     setBusy(true);

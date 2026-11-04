@@ -29,5 +29,8 @@ export interface DesktopAiToolsApiV01 {
   subscribe(listener:(snapshot:AiToolsSnapshotV01)=>void):()=>void;
   /** While VUA is not the foreground window: blink the tray icon and flash the taskbar button. */
   attention?():Promise<void>;
+  /** Clear only these displayed requests. Pending requests are rejected; running work continues.
+   * Main retains bounded receipts for the AI, including after a restart. */
+  clear?(ids: readonly string[]): Promise<AiToolsSnapshotV01>;
 }
 export interface VuaDesktopApiV4 extends VuaDesktopApiV3 {readonly aiTools?:DesktopAiToolsApiV01}

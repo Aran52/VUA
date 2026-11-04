@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@vua/design-system";
 import { usePresenceMotion } from "./motion.ts";
 import "./drawer.css";
+import { useShapeScope } from "./ShapeScope.tsx";
 
 /**
  * Tier 5, drawer: a panel that slides in from the right under the title bar for longer content
@@ -20,6 +21,7 @@ export function Drawer({ open, title, closeLabel, onClose, children, width = 420
   actions?: ReactNode;
 }) {
   const id = useId();
+  const shapeScope = useShapeScope();
   const panel = useRef<HTMLElement>(null);
   const [top, setTop] = useState(0);
   // Rendered in a portal, so it takes the module color of the page that opened it.
@@ -39,7 +41,7 @@ export function Drawer({ open, title, closeLabel, onClose, children, width = 420
 
   if (!shown) return null;
   return createPortal(<aside ref={panel} className="vua-drawer" role="dialog" aria-modal="false" aria-labelledby={`${id}-title`}
-    data-closing={open ? undefined : true} data-module={module} style={{ top, width: `min(${width}px, calc(100vw - 32px))` }}
+    data-closing={open ? undefined : true} data-module={module} data-vua-shape-scope={shapeScope} style={{ top, width: `min(${width}px, calc(100vw - 32px))` }}
     onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>
     <header className="vua-drawer__header">
       <h2 id={`${id}-title`} className="vua-drawer__title">{title}</h2>

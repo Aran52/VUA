@@ -630,8 +630,8 @@ function P2ReposSection({
           // 此位 = 启停控制不渲染(状态不可知不猜测——行族分派经
           // repoLifecycleToggleAvailable,148 批反向审查修复:原实现仅按
           // blocks.repoLifecycle 门控,v0.1 行误渲染启停按钮且词面恒为
-          // 「禁用」)。repoId null 行不在词面可达范围(removeRepo 同边界)
-          // 无任何控制。禁用行在列不隐藏
+          // 「禁用」)。Rows without an identifier reserve a disabled refresh slot;
+          // they never dispatch a lifecycle command. Disabled rows remain visible.
           const rowEnabled = "enabled" in repo ? repo.enabled : undefined;
           const lifecycleRow = lifecycleEnabled === true
             && onLifecycle
@@ -684,16 +684,15 @@ function P2ReposSection({
                         : copy.repoWrite.lifecycle.disableAction}
                   </Button>
                 ) : null}
-                {lifecycleRow ? (
-                  <Button
-                    variant="subtle"
-                    disabled={anyLifecycleBusy}
-                    aria-label={format(copy.repoWrite.lifecycle.refreshAria, { name: title })}
-                    onClick={() => onLifecycle("refresh", repo.repoId as string)}
-                  >
-                    {lifecycleRefreshing ? copy.repoWrite.lifecycle.refreshing : copy.repoWrite.lifecycle.refreshAction}
-                  </Button>
-                ) : null}
+                <Button
+                  variant="subtle"
+                  className="vua-packages__repo-refresh"
+                  disabled={!lifecycleRow || anyLifecycleBusy}
+                  aria-label={format(copy.repoWrite.lifecycle.refreshAria, { name: title })}
+                  onClick={() => { if (lifecycleRow && repo.repoId !== null) onLifecycle?.("refresh", repo.repoId); }}
+                >
+                  {lifecycleRefreshing ? copy.repoWrite.lifecycle.refreshing : copy.repoWrite.lifecycle.refreshAction}
+                </Button>
                 {onRemoveRequest && repo.repoId !== null ? (
                   <Button
                     variant="subtle"
@@ -813,7 +812,7 @@ function RegisterSection({
       <div className="vua-packages__register-row">
         <input
           type="text"
-          className="vua-packages__register-input"
+        className="vua-text-input vua-packages__register-input"
           placeholder={copy.register.placeholder}
           aria-label={copy.register.inputAria}
           value={path}
@@ -922,7 +921,7 @@ function RepoWriteSection({
         <div className="vua-packages__register-row">
           <input
             type="text"
-            className="vua-packages__register-input"
+            className="vua-text-input vua-packages__register-input"
             placeholder={copy.repoWrite.remoteUrlPlaceholder}
             aria-label={copy.repoWrite.remoteUrlAria}
             value={remoteUrl}
@@ -933,7 +932,7 @@ function RepoWriteSection({
           />
           <input
             type="text"
-            className="vua-packages__register-input vua-packages__repowrite-name"
+            className="vua-text-input vua-packages__register-input vua-packages__repowrite-name"
             placeholder={copy.repoWrite.remoteNamePlaceholder}
             aria-label={copy.repoWrite.remoteNameAria}
             value={remoteName}
@@ -969,7 +968,7 @@ function RepoWriteSection({
         <div className="vua-packages__register-row">
           <input
             type="text"
-            className="vua-packages__register-input"
+            className="vua-text-input vua-packages__register-input"
             placeholder={copy.repoWrite.localPathPlaceholder}
             aria-label={copy.repoWrite.localPathAria}
             value={localPath}
@@ -980,7 +979,7 @@ function RepoWriteSection({
           />
           <input
             type="text"
-            className="vua-packages__register-input vua-packages__repowrite-name"
+            className="vua-text-input vua-packages__register-input vua-packages__repowrite-name"
             placeholder={copy.repoWrite.localNamePlaceholder}
             aria-label={copy.repoWrite.localNameAria}
             value={localName}
@@ -1120,7 +1119,7 @@ function CreateSection({
         <div className="vua-packages__register-row">
           <input
             type="text"
-            className="vua-packages__register-input"
+            className="vua-text-input vua-packages__register-input"
             placeholder={copy.create.parentPlaceholder}
             aria-label={copy.create.parentAria}
             value={parent}
@@ -1131,7 +1130,7 @@ function CreateSection({
           />
           <input
             type="text"
-            className="vua-packages__register-input vua-packages__repowrite-name"
+            className="vua-text-input vua-packages__register-input vua-packages__repowrite-name"
             placeholder={copy.create.namePlaceholder}
             aria-label={copy.create.nameAria}
             value={name}
@@ -1166,7 +1165,7 @@ function CreateSection({
           ) : (
             <input
               type="text"
-              className="vua-packages__register-input"
+              className="vua-text-input vua-packages__register-input"
               placeholder={copy.create.templatePlaceholder}
               aria-label={copy.create.templateAria}
               value={template}
@@ -2265,9 +2264,9 @@ export function PackagesPage() {
   };
 
   /* ---- F4 仓库生命周期(027 v0.6 消费批):启停/刷新三方法任务化写命
-   * 令——params 单键 {repoId} verbatim(id 缺席行不在词面可达范围,UI 不
-   * 构造入口);无 digest 无确认链,用户显式点击即确认。能力缺席臂照 F5
-   * TemplatesFace 五态机先例:blocks.repoLifecycle false = 控制不渲染
+   * 令——params 单键 {repoId} verbatim。Refresh keeps a disabled layout slot
+   * when the identifier or lifecycle capability is absent; no command is sent.
+   * Toggle availability still follows the returned lifecycle capability.
    * (订阅行照常呈现,降级非错误);v0.1 族行无 enabled 位 = 启停控制不
    * 渲染(状态不可知不猜测),刷新控制不依赖 enabled 位。禁用语义如实
    * 呈现:禁用行离开包集合世界但在列不隐藏(W25 裁决 (c):VUA 自有状态,

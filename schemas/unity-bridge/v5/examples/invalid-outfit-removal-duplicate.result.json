@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-command",
+  "operation": "amf_inspect",
+  "status": "succeeded",
+  "changedPaths": [
+    "Assets/VUA/Production.unity",
+    "Assets/VUA/Ownership.json"
+  ],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1c1",
+    "projectFingerprint": "scene-after",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "synthetic-avatar",
+    "prefabs": [],
+    "instances": [
+      {
+        "sourceId": "outfit",
+        "prefabPath": "Assets/Outfit.prefab",
+        "globalObjectId": "synthetic-outfit",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true
+      },
+      {
+        "sourceId": "outfit2",
+        "prefabPath": "Assets/Outfit2.prefab",
+        "globalObjectId": "synthetic-outfit2",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true
+      }
+    ],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "outfitRemoval": [
+      {
+        "sourceId": "outfit",
+        "avatarGlobalObjectId": "synthetic-avatar",
+        "roots": [
+          {
+            "kind": "outfit",
+            "globalObjectId": "synthetic-outfit"
+          },
+          {
+            "kind": "menu",
+            "globalObjectId": "synthetic-menu"
+          }
+        ],
+        "objects": [
+          {
+            "globalObjectId": "synthetic-outfit",
+            "path": "Coat",
+            "typeName": "UnityEngine.GameObject",
+            "manual": false
+          },
+          {
+            "globalObjectId": "synthetic-menu",
+            "path": "Switch",
+            "typeName": "UnityEngine.GameObject",
+            "manual": false
+          },
+          {
+            "globalObjectId": "synthetic-ma",
+            "path": "Switch",
+            "typeName": "nadena.dev.modular_avatar.core.ModularAvatarObjectToggle",
+            "manual": false
+          },
+          {
+            "globalObjectId": "synthetic-added",
+            "path": "Coat/Added child",
+            "typeName": "UnityEngine.GameObject",
+            "manual": true
+          },
+          {
+            "globalObjectId": "synthetic-outfit",
+            "path": "Coat",
+            "typeName": "UnityEngine.GameObject",
+            "manual": false
+          }
+        ],
+        "blockedReason": ""
+      }
+    ]
+  }
+}

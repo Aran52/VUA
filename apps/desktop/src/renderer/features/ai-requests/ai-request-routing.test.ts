@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AiActionRequestV01 } from "@vua/contracts";
+import { EXTERNAL_TOOL_IDS, type AiActionRequestV01 } from "@vua/contracts";
 import { requestPage, requestRunId, visibleRequests } from "./ai-request-routing.ts";
 
 const request = (tool: string, parameters: Record<string, unknown> = {}, extra: Partial<AiActionRequestV01> = {}): AiActionRequestV01 => ({
@@ -25,6 +25,9 @@ describe("AI requests are confirmed on the page they change", () => {
     expect(requestPage(request("vua_request_installation", { intent: { purposes: ["desktop_play", "pico_pcvr"] } }))).toBe("env-play");
     expect(requestPage(request("vua_request_installation", { intent: { purposes: ["desktop_play", "pc_avatar"] } }))).toBe("env-create");
     expect(requestPage(request("vua_request_installation", {}))).toBe("env-create");
+  });
+  it.each(EXTERNAL_TOOL_IDS)("routes %s approval to the tools page", toolId => {
+    expect(requestPage(request("vua_request_tool", { toolId, action: "start" }))).toBe("tools-discover");
   });
   it("sends a stop request to the page its task came from", () => {
     const cancel = request("vua_request_cancel_task", { taskId: "task-1" });

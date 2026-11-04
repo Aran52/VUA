@@ -1,5 +1,5 @@
 import {
-  isProductTermsV01, isTermsAcceptedV01, isTermsUseCheckV01,
+  isProductTermsV01, isTermsAcceptedV01, isTermsUseCheckV01, isTermsProductId,
   type ProductTermsV01, type TermsPresetId, type TermsUseCheckV01,
 } from "@vua/contracts";
 import type { GatewayClient, GatewayClientError } from "./gateway-client.ts";
@@ -13,9 +13,11 @@ export interface TermsPort {
   checkUse(presetId: TermsPresetId, productIds: readonly string[]): Promise<TermsUseCheckV01>;
   /** Reads the product's description again and fetches its public VN3 documents. */
   refreshProduct(productId: string, title: string): Promise<{ readonly taskId: string }>;
+  /** Read the public documents linked from product descriptions already recorded in this library. */
+  refreshLibrary?(title: string): Promise<{ readonly taskId: string }>;
 }
 
-export function createTermsPort(client: GatewayClient): TermsPort {
+export function createTermsPort(client: GatewayClient, capture?: (id: string) => Promise<{ readonly ok: boolean }>): TermsPort {
   const fail = (response: { readonly error: GatewayClientError }) =>
     new Error(response.error.kind === "application" ? response.error.error.code : response.error.kind);
   return {
@@ -32,7 +34,16 @@ export function createTermsPort(client: GatewayClient): TermsPort {
       return response.value;
     },
     async refreshProduct(productId, title) {
+      if (!isTermsProductId(productId)) throw new Error("terms_invalid");
+      if (capture && !(await capture(productId)).ok) throw new Error("terms_capture_failed");
       const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "terms.refreshProduct", params: { schemaVersion: "0.1", productId } });
+      if (!response.ok) throw fail(response);
+      if (!isTermsAcceptedV01(response.value)) throw new Error("terms_invalid");
+      registerTaskIdentity(response.value.taskId, { title, originPage: "warehouse", notifyOnComplete: false });
+      return { taskId: response.value.taskId };
+    },
+    async refreshLibrary(title) {
+      const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "terms.refreshLibrary", params: { schemaVersion: "0.1" } });
       if (!response.ok) throw fail(response);
       if (!isTermsAcceptedV01(response.value)) throw new Error("terms_invalid");
       registerTaskIdentity(response.value.taskId, { title, originPage: "warehouse", notifyOnComplete: false });

@@ -5,6 +5,7 @@ import { Icon } from "@vua/design-system";
 import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type AmfSdkIssue, type AmfUpload, type VrchatAvatarCheck } from "../../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
 import { sdkMessageKey } from "./sdk-messages.ts";
+import { UploadGuide, scrollToUploadGuide } from "./UploadGuide.tsx";
 import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
@@ -108,6 +109,7 @@ function SdkReviewBlock({ run, busy, onFix, onCheckAgain }: { run: AmfProduction
   if (!view) return run.result?.facts ? <section className="vua-album__block vua-sdk-review">
     <h3>{sdkCopy.title}</h3><p className="vua-caption vua-text-secondary">{sdkCopy.notRun}</p>{again}</section> : null;
   const clear = view.mustFix.length === 0 && view.reminders.length === 0;
+  const hasItems = view.mustFix.length + view.reminders.length + view.rankItems.length + view.notes.length > 0;
   const fixable = [...view.mustFix, ...view.reminders].filter(issue => issue.canFix);
   const applied = run.result?.facts?.sdkFixesApplied?.length ?? 0;
   return <section className="vua-album__block vua-sdk-review">
@@ -140,6 +142,7 @@ function SdkReviewBlock({ run, busy, onFix, onCheckAgain }: { run: AmfProduction
         <SdkIssues issues={view.notes} icon="question" /></details>}
     </>}
     {again}
+    {hasItems && <button type="button" className="vua-release-upload__link" onClick={() => scrollToUploadGuide(3)}>{copy.uploadGuide.jumpTo}</button>}
   </section>;
 }
 
@@ -219,6 +222,8 @@ function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrc
     {upload.errors.length > 0 && <ul className="vua-release-upload__errors">{upload.errors.map((error, index) => <li key={index}>{error}</li>)}</ul>}
     {upload.detail && <details><summary>{copy.upload.details}</summary><p>{upload.detail}</p></details>}
     {onCheckAgain && (reason === "avatar_missing" || reason === "thumbnail_missing") && <button type="button" className="vua-release-upload__link" onClick={onCheckAgain}>{copy.upload.checkAgain}</button>}
+    {reason === "avatar_missing" && <button type="button" className="vua-release-upload__link" onClick={() => scrollToUploadGuide(1)}>{copy.uploadGuide.jumpTo}</button>}
+    {reason === "thumbnail_missing" && <button type="button" className="vua-release-upload__link" onClick={() => scrollToUploadGuide(2)}>{copy.uploadGuide.jumpTo}</button>}
   </div>;
 }
 
@@ -280,5 +285,6 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, terms,
         <ul>{earlier.map(upload => <li key={upload.uploadId}>{format(copy.upload.historyLine, { time: time(upload.endedAt ?? upload.startedAt), result: copy.upload.results[upload.state] })}
           {upload.blueprintId && <code>{upload.blueprintId}</code>}</li>)}</ul></details>}
     </section>
+    <UploadGuide />
   </div>;
 }

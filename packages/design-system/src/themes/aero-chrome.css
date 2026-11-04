@@ -1,0 +1,235 @@
+/* Frutiger Aero as a Windows Vista window (author approval of the from-scratch mockup, 2026-10-28).
+ * Theme-scoped structure: a glass frame with glare over the Aurora wallpaper, an orb, Vista's
+ * caption buttons, a breadcrumb address bar, a dark command bar, Explorer's navigation pane and
+ * selection, Control Panel style links, group boxes, a green progress bar and a details pane.
+ * Light mode is classic Vista; dark mode is Vista's black glass. */
+
+[data-theme-family="frutiger-aero"] {
+  --aero-wall:
+    radial-gradient(ellipse 60% 22% at 38% 62%, rgb(150 230 130 / 0.35), transparent 70%),
+    radial-gradient(ellipse 80% 16% at 58% 54%, rgb(110 210 240 / 0.3), transparent 70%),
+    radial-gradient(ellipse 40% 60% at 85% 20%, rgb(40 120 200 / 0.55), transparent 70%),
+    linear-gradient(165deg, #03141d 0%, #06323d 45%, #052a20 75%, #021109 100%);
+  --aero-glass: rgb(16 34 52 / 0.72);
+  --aero-glass-shine: rgb(255 255 255 / 0.18);
+  --aero-glare: rgb(255 255 255 / 0.07);
+  --aero-frame-edge: rgb(0 0 0 / 0.85);
+  --aero-command: linear-gradient(180deg, #3d4f60 0%, #22303d 48%, #111a23 50%, #1b2733 100%);
+  --aero-client-edge: #000000;
+  --aero-pane: linear-gradient(90deg, #0d1c2a, #0a1622);
+  --aero-pane-line: #1f3446;
+  --aero-details: linear-gradient(180deg, #13212e, #0a141d);
+  --aero-details-line: #2d4c63;
+  --aero-field: linear-gradient(#1a2a38, #101c27);
+  --aero-field-edge: #3c5468;
+  --aero-field-text: #9fb8cc;
+  --aero-group: #24435a;
+  --aero-label: #8fd0ff;
+  --aero-link: #7fc8ff;
+  --aero-hover: linear-gradient(180deg, rgb(120 200 255 / 0.12), rgb(120 200 255 / 0.2));
+  --aero-hover-edge: rgb(120 200 255 / 0.45);
+  --aero-select: linear-gradient(180deg, rgb(120 200 255 / 0.34), rgb(60 150 215 / 0.2));
+  --aero-select-edge: rgb(120 200 255 / 0.75);
+  --aero-track: linear-gradient(180deg, #0b1722, #16232f);
+  --aero-track-edge: #3c5468;
+}
+
+[data-theme-family="frutiger-aero"][data-theme="light"] {
+  --aero-wall:
+    radial-gradient(ellipse 60% 22% at 38% 62%, rgb(190 255 160 / 0.55), transparent 70%),
+    radial-gradient(ellipse 80% 16% at 58% 54%, rgb(120 230 255 / 0.5), transparent 70%),
+    radial-gradient(ellipse 40% 60% at 85% 20%, rgb(40 140 220 / 0.7), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 10% 90%, rgb(40 160 70 / 0.8), transparent 70%),
+    linear-gradient(165deg, #062b3a 0%, #0b5a6a 40%, #0d6b4a 70%, #04261c 100%);
+  --aero-glass: rgb(120 180 215 / 0.5);
+  --aero-glass-shine: rgb(255 255 255 / 0.5);
+  --aero-glare: rgb(255 255 255 / 0.22);
+  --aero-frame-edge: rgb(0 0 0 / 0.7);
+  --aero-command: linear-gradient(180deg, #6d95ba 0%, #3a6b95 48%, #224f7a 50%, #2f6390 100%);
+  --aero-client-edge: #0a2238;
+  --aero-pane: linear-gradient(90deg, #ffffff, #f4f8fb);
+  --aero-pane-line: #d5dfe5;
+  --aero-details: linear-gradient(180deg, #fafcff, #dce8f4);
+  --aero-details-line: #a0b4c8;
+  --aero-field: linear-gradient(#fdfdfd, #eef3f8);
+  --aero-field-edge: #66788a;
+  --aero-field-text: #6a6a6a;
+  --aero-group: #c6d4e0;
+  --aero-label: #1e3287;
+  --aero-link: #0066cc;
+  --aero-hover: linear-gradient(180deg, #fafbfd, #ebf3fd);
+  --aero-hover-edge: #b8d6fb;
+  --aero-select: linear-gradient(180deg, #f1f7fe, #cfe3fb);
+  --aero-select-edge: #84acdd;
+  --aero-track: linear-gradient(180deg, #e6e6e6, #f7f7f7 50%, #ececec);
+  --aero-track-edge: #a7a7a7;
+}
+
+/* ---- The window: a glass frame around the client area ---- */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell {
+  padding: 0 7px 7px;
+  background:
+    linear-gradient(180deg, var(--aero-glass-shine), rgb(255 255 255 / 0.1) 40px, rgb(255 255 255 / 0) 41px),
+    repeating-linear-gradient(118deg, rgb(255 255 255 / 0) 0 220px, var(--aero-glare) 220px 250px, rgb(255 255 255 / 0) 250px 300px, var(--aero-glare) 300px 312px, rgb(255 255 255 / 0) 312px 560px),
+    linear-gradient(var(--aero-glass), var(--aero-glass)),
+    var(--aero-wall);
+  box-shadow: inset 0 0 0 1px var(--aero-frame-edge), inset 0 0 0 2px rgb(255 255 255 / 0.4);
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__header {
+  height: 48px; padding: 0 128px 0 4px; gap: 10px; border: 0;
+  background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__help,
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__settings { display: none; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__logo-home {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #bfe9ff 0 18%, transparent 40%), radial-gradient(circle at 50% 70%, #3cb8ff, #0a5aa8 70%);
+  box-shadow: inset 0 -3px 6px rgb(0 40 90 / 0.6), inset 0 2px 2px rgb(255 255 255 / 0.8), 0 0 0 1px rgb(0 30 60 / 0.7), 0 0 10px rgb(120 220 255 / 0.8);
+}
+/* Home is a house inside the orb (author ruling 2026-10-28); Grid keeps the VUA mark. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__wordmark { display: none; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__logo-home::before { content: ""; width: 18px; height: 18px; background: #ffffff; mask: url("../../skins/frutiger-aero/motifs/house.svg") center / contain no-repeat; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__location { flex: 1; min-width: 0; }
+
+/* Vista's caption buttons: one glass group, the close button red. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__window-controls {
+  position: absolute; top: 0; right: 0; gap: 0; border: 1px solid rgb(0 0 0 / 0.7); border-top: 0; border-radius: 0 0 5px 5px; overflow: hidden;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.4);
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__window-button {
+  width: 27px; height: 20px; padding: 0; border: 0; border-right: 1px solid rgb(0 0 0 / 0.45); border-radius: 0; color: #ffffff;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.2) 50%, rgb(0 0 0 / 0.05) 51%, rgb(255 255 255 / 0.25));
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__window-button svg { width: 12px; height: 12px; filter: drop-shadow(0 0 1px #000000); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__window-button:hover { background: linear-gradient(180deg, #d9f2ff, #7cc6f0 50%, #3a9be0 51%, #6fc0ef); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__window-button--close { width: 46px; border-right: 0; background: linear-gradient(180deg, #e8a493, #d0654f 50%, #b8331b 51%, #d26a4f); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__window-button--close:hover { background: linear-gradient(180deg, #f6b7a6, #e8755c 50%, #d43a1c 51%, #ec7a5c); box-shadow: 0 0 8px rgb(255 90 50 / 0.8); }
+
+/* Breadcrumb address bar and search box. */
+.vua-theme-address { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vua-theme-address__crumbs {
+  display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; height: 26px; padding: 0 8px;
+  border: 1px solid var(--aero-field-edge); border-radius: 2px; background: var(--aero-field); color: var(--vua-text-strong);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12); white-space: nowrap; overflow: hidden;
+}
+.vua-theme-address__crumbs > span[aria-hidden] { color: var(--aero-field-text); font-size: 9px; }
+.vua-theme-address__crumbs button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.vua-theme-address__crumbs button:hover { color: var(--aero-link); text-decoration: underline; }
+.vua-theme-address__search {
+  position: relative; width: 210px; height: 26px; padding: 0 8px 0 26px; border: 1px solid var(--aero-field-edge); border-radius: 2px;
+  background: var(--aero-field); color: var(--aero-field-text); font: inherit; font-style: italic; text-align: start; cursor: text;
+}
+.vua-theme-address__search::before { content: ""; position: absolute; left: 8px; top: 6px; width: 8px; height: 8px; border: 2px solid #2a6ab3; border-radius: 50%; }
+.vua-theme-address__search::after { content: ""; position: absolute; left: 17px; top: 16px; width: 2px; height: 6px; background: #2a6ab3; transform: rotate(-45deg); }
+
+/* The dark command bar. */
+.vua-theme-commandbar {
+  display: flex; flex-shrink: 0; gap: 2px; align-items: center; height: 32px; padding: 0 6px;
+  border: 1px solid var(--aero-client-edge); border-bottom: 0; border-radius: 3px 3px 0 0; background: var(--aero-command);
+}
+.vua-theme-commandbar button {
+  height: 24px; padding: 0 10px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #ffffff;
+  font: inherit; text-shadow: 0 -1px 0 rgb(0 0 0 / 0.5); cursor: pointer;
+}
+.vua-theme-commandbar button:hover, .vua-theme-commandbar button[aria-pressed="true"] {
+  background: linear-gradient(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.1)); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.45);
+}
+.vua-theme-commandbar button:focus-visible { outline: 2px solid #ffffff; outline-offset: -2px; }
+
+/* Client area: navigation pane and content. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__body { border: 1px solid var(--aero-client-edge); border-top: 0; background: var(--vua-client-fill); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__main { box-shadow: none; border-radius: 0; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__sidebar { padding: 12px 6px; border-right: 1px solid var(--aero-pane-line); background: var(--aero-pane); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__skin-motif { display: none; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__sidebar-label { color: var(--aero-label); font-weight: var(--vua-weight-strong); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__sidebar-item { min-height: 28px; padding: 3px 10px; border: 1px solid transparent; border-radius: 3px; color: var(--vua-text-strong); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__sidebar-item:hover { border-color: var(--aero-hover-edge); background: var(--aero-hover); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__sidebar-item[aria-current="page"],
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__sidebar-item[aria-current="page"]:hover {
+  border-color: var(--aero-select-edge); background: var(--aero-select); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5); color: var(--vua-text-strong); font-weight: 400;
+}
+
+/* The details pane. */
+.vua-theme-details {
+  display: flex; flex-shrink: 0; align-items: center; gap: 12px; height: 52px; padding: 0 14px;
+  border: 1px solid var(--aero-client-edge); border-top: 1px solid var(--aero-details-line); background: var(--aero-details); color: var(--vua-text-secondary);
+}
+.vua-theme-details svg { color: #2a6ab3; }
+.vua-theme-details strong { display: block; color: var(--vua-text-strong); font-weight: var(--vua-weight-strong); }
+.vua-theme-details span { font: var(--vua-font-caption); }
+
+/* ---- Pages ---- */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-page__hero h1 { font-weight: 400; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-home__activity { position: relative; padding: 18px 14px 6px; border: 1px solid var(--aero-group); border-radius: 3px; background: transparent; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-home__activity h2 { position: absolute; top: -10px; left: 10px; padding: 0 5px; background: var(--vua-client-fill); color: var(--aero-label); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-home__activity > button { padding: 6px 0; border-bottom: 0; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-home__section h2 { padding-bottom: 4px; color: var(--aero-label); font: var(--vua-font-body); font-weight: var(--vua-weight-strong);
+  border-bottom: 1px solid; border-image: linear-gradient(90deg, var(--aero-select-edge), transparent) 1; }
+
+/* Control Panel style links: a glossy icon, a colored title, a gray line. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; column-gap: 12px; min-height: 0; padding: 10px;
+  border: 1px solid transparent; border-radius: 3px; background: transparent; box-shadow: none; outline: 0;
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile::before { display: none; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile:hover:not(:disabled),
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile[aria-pressed="true"] { transform: none; border-color: var(--aero-hover-edge); background: var(--aero-hover); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile:focus-visible { outline: 1px dotted var(--vua-text-strong); outline-offset: -3px; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile__icon {
+  grid-row: span 2; width: 52px; height: 52px; border-radius: 10px; color: #ffffff;
+  background: linear-gradient(180deg, #9ccdf6 0%, #3d8ad6 50%, #2369b7 51%, #3f8ad6 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), inset 0 -2px 4px rgb(0 0 0 / 0.25), 0 2px 4px rgb(0 0 0 / 0.25);
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-grid > :nth-child(3n + 1) .vua-route-tile__icon { background: linear-gradient(180deg, #8fe07c 0%, #3fae2b 50%, #2a8f1a 51%, #49b934 100%); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-grid > :nth-child(3n) .vua-route-tile__icon { background: linear-gradient(180deg, #f7c97a 0%, #e48f1d 50%, #c9700b 51%, #e59324 100%); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile strong { align-self: end; color: var(--aero-link); font-weight: 400; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-route-tile__description { grid-column: 2; align-self: start; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-home__utilities .vua-button--subtle { color: var(--aero-link); }
+
+/* Group boxes. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-card { border-color: var(--aero-group); }
+
+/* Primary buttons: Vista's default button, light blue and glowing. */
+[data-theme-family="frutiger-aero"][data-theme="light"]:not([data-hc="on"]) .vua-button--primary,
+[data-theme-family="frutiger-aero"][data-theme="light"]:not([data-hc="on"]) [data-module="production"] .vua-button--primary {
+  color: #000000; border-color: #3c7fb1;
+  background: linear-gradient(180deg, #eaf6fd 0%, #d9f0fc 49%, #bee6fd 50%, #a7d9f5 100%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.7), 0 0 5px rgb(60 160 230 / 0.7);
+}
+[data-theme-family="frutiger-aero"][data-theme="light"]:not([data-hc="on"]) .vua-button--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f2fafe 0%, #e3f5fe 49%, #cdeefe 50%, #b6e3fa 100%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.8), 0 0 8px rgb(60 160 230 / 0.9);
+}
+[data-theme-family="frutiger-aero"][data-theme="light"]:not([data-hc="on"]) .vua-button--primary:active:not(:disabled) {
+  background: linear-gradient(180deg, #e5f4fc 0%, #c4e5f6 49%, #98d1ef 50%, #68b3db 100%);
+}
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-mode-picker__button {
+  border: 1px solid var(--vua-button-border); background-image: var(--vua-button-gloss); color: var(--vua-text-strong);
+}
+
+/* Workshop: steps sit in one Explorer strip; progress is Vista's green bar. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-line__stations { padding: 0; border: 1px solid var(--aero-group); border-radius: 3px; background: var(--aero-hover); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-line__stations > li:not(:last-of-type)::after { display: none; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-line__station { border-color: transparent; background: transparent; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-line__station[aria-pressed="true"] { border-color: var(--aero-select-edge); background: var(--aero-select); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-line__bar { height: 15px; border: 1px solid var(--aero-track-edge); background: var(--aero-track); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-line__bar > span {
+  position: relative; overflow: hidden;
+  background: linear-gradient(180deg, #c8f5bd 0%, #63d24c 45%, #2fb017 50%, #5bd245 100%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35);
+}
+
+/* High contrast keeps the ordinary shell: the Vista parts step aside. */
+[data-hc="on"] .vua-theme-address,
+[data-hc="on"] .vua-theme-commandbar,
+[data-hc="on"] .vua-theme-details { display: none; }
+@media (forced-colors: active) {
+  .vua-theme-address, .vua-theme-commandbar, .vua-theme-details { display: none; }
+  [data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__help, [data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-shell__settings { display: inline-flex; }
+}
+
+/* The line list is one Explorer list: borderless rows, the current one selected. */
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__lines { gap: 2px; padding: 2px; border: 1px solid var(--aero-group); border-radius: 3px; background: var(--vua-bg-panel); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__line { background-image: none; }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__line:hover { border-color: var(--aero-hover-edge); background-image: var(--aero-hover); }
+[data-theme-family="frutiger-aero"]:not([data-hc="on"]) .vua-workshop__line[aria-current] { border-color: var(--aero-select-edge); background-image: var(--aero-select); }

@@ -1,0 +1,94 @@
+name: Independent component build
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: Component to build independently (no signing key or live publication)
+        type: choice
+        required: true
+        options: [host, amf]
+  pull_request:
+    paths:
+      - 'apps/desktop/distribution/component-index.mjs'
+      - 'apps/desktop/scripts/*component*'
+      - 'apps/desktop/scripts/build-windows-provider.mjs'
+      - 'apps/desktop/scripts/generate-release-notices.mjs'
+      - 'apps/desktop/scripts/prepare-distribution.mjs'
+      - 'apps/desktop/package.json'
+      - 'pnpm-lock.yaml'
+      - 'schemas/windows-distribution/v0.2/**'
+      - '.github/workflows/component-build.yml'
+permissions:
+  contents: read
+concurrency:
+  group: component-build-${{ github.ref }}-${{ inputs.component || 'tools' }}
+  cancel-in-progress: true
+jobs:
+  publication-tools:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Shared native vectors, independent packaging and atomic publication
+        run: node --test --test-concurrency=1 apps/desktop/scripts/component-index.test.mjs apps/desktop/scripts/prepare-component-release.test.mjs
+      - name: Export self-contained operator tool with public trust anchor
+        run: node apps/desktop/scripts/export-component-publisher.mjs apps/desktop/out/component-publisher
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VUA-component-publisher-${{ github.sha }}
+          path: apps/desktop/out/component-publisher/
+          if-no-files-found: error
+          retention-days: 7
+  component:
+    needs: publication-tools
+    runs-on: windows-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.component) || '["host","amf"]') }}
+    env:
+      VUA_COMPONENT: ${{ matrix.component }}
+      ELECTRON_SKIP_BINARY_DOWNLOAD: ${{ matrix.component == 'amf' && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+      - name: Obtain exact host runtime notices
+        if: matrix.component == 'host'
+        run: node -e "const {createRequire}=require('node:module');const r=createRequire(process.cwd()+'/apps/desktop/package.json');require(r.resolve('electron/install.js'))"
+      - run: pnpm --filter @vua/orchestrator-provider build
+      - name: Build only selected native component
+        shell: pwsh
+        run: node apps/desktop/scripts/build-windows-provider.mjs "--component=$env:VUA_COMPONENT"
+      - name: Bundle host Main and preload
+        if: matrix.component == 'host'
+        run: node apps/desktop/scripts/build-electron.mjs
+      - name: Build only selected renderer
+        shell: pwsh
+        run: node --experimental-strip-types apps/desktop/scripts/build-components.mjs "--component=$env:VUA_COMPONENT"
+      - name: Generate fresh component notices
+        shell: pwsh
+        run: node apps/desktop/scripts/generate-release-notices.mjs "--component=$env:VUA_COMPONENT" --output=apps/desktop/out/component-notices
+      - name: Assemble payload and exact-source receipt
+        shell: pwsh
+        run: node apps/desktop/scripts/assemble-component.mjs $env:VUA_COMPONENT apps/desktop/out/component-build apps/desktop/out/component-notices
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VUA-${{ matrix.component }}-${{ github.sha }}
+          path: |
+            apps/desktop/out/component-build/payload/
+            apps/desktop/out/component-build/component-build.json
+          if-no-files-found: error
+          retention-days: 7

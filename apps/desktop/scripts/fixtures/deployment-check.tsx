@@ -19,7 +19,7 @@ const openedUrls: string[] = [];
 const openedGuides: GuideTarget[] = [];
 // Observe navigation requests without opening external pages or an actual guide window.
 window.open = url => { openedUrls.push(String(url)); return {} as Window; };
-Object.assign(window, { vua: { window: { showReader: async (target: GuideTarget) => { openedGuides.push(target); } } } });
+Object.assign(window, { vua: { window: { showEncyclopedia: async (target: GuideTarget) => { openedGuides.push(target); } } } });
 const listeners = new Set<(progress: DeploymentProgress) => void>();
 let executions = 0, statuses = 0, plans = 0, generation = 0;
 let snapshot: TaskSnapshotV01 = { contractVersion: "0.1", taskId: "synthetic-acquisition", revision: 1,

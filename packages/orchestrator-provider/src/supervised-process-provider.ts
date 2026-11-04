@@ -80,6 +80,7 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
   }
 
   async start(): Promise<ProviderHandshakeV01> {
+    if (this.#child !== undefined) throw new Error("Provider cannot start before its previous process has closed");
     if (this.#state === "starting" || this.#state === "ready" || this.#state === "stopping") {
       throw new Error(`Provider cannot start while ${this.#state}`);
     }
@@ -93,11 +94,23 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
     try { child = this.#processFactory(this.#options.executablePath, this.#options.databasePath); }
     catch (error) { this.#fail(asError(error)); throw error; }
     this.#child = child;
+    let exited = false;
     child.stdout.on("data", (chunk: Buffer) => this.#receiveStdout(chunk));
     child.stderr.on("data", (chunk: Buffer) => this.#receiveStderr(chunk));
     child.once("error", (error) => this.#fail(error));
-    child.once("exit", (code, signal) => this.#handleExit(code, signal));
-    this.#childExit = new Promise<void>((resolve) => { child.once("exit", () => resolve()); });
+    child.once("exit", () => {
+      exited = true;
+      this.#acceptingCalls = false;
+      this.#publishStatus();
+    });
+    // Exit can precede the final stdout response. Settle pending frames only
+    // after close, when Node has drained the child's stdio streams.
+    this.#childExit = new Promise<void>((resolve) => {
+      child.once("close", (code, signal) => {
+        this.#handleClose(code, signal);
+        resolve();
+      });
+    });
 
     try {
       const handshake = await this.#withTimeout(
@@ -105,6 +118,7 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
         this.#options.handshakeTimeoutMs ?? 5_000,
       );
       if (!isHandshake(handshake)) throw new Error("Provider returned an invalid handshake");
+      if (exited) throw new Error("Provider exited during handshake");
       this.#state = "ready";
       this.#acceptingCalls = true;
       this.#publishStatus();
@@ -276,7 +290,7 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
     this.#stderr += chunk.toString("utf8").slice(0, MAX_STDERR_BYTES - this.#stderr.length);
   }
 
-  #handleExit(code: number | null, signal: NodeJS.Signals | null): void {
+  #handleClose(code: number | null, signal: NodeJS.Signals | null): void {
     const expected = this.#expectedExit;
     this.#child = undefined;
     this.#acceptingCalls = false;

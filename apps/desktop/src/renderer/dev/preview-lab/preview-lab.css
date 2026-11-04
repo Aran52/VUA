@@ -93,7 +93,7 @@
   flex-shrink: 0;
   padding: 2px var(--vua-space-2);
   border: 1px solid var(--vua-border-strong);
-  border-radius: var(--vua-radius-badge);
+  border-radius: var(--vua-radius-control);
   font: var(--vua-font-caption);
   color: var(--vua-text-secondary);
 }

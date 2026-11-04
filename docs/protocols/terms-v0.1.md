@@ -1,8 +1,8 @@
 # VN3 terms v0.1
 
-> Document version: 0.1.0
+> Document version: 0.3.0
 > Status: Candidate
-> Updated: 2026-10-19
+> Updated: 2026-11-01
 > Owner: AMF
 
 This face records public license links from captured BOOTH descriptions, refreshes linked
@@ -25,6 +25,15 @@ recorded account-library or locally mapped products, excluding removed cards. Pr
 recorded product that is outside the account library. Queries use stored evidence.
 
 ## Sources and acquisition
+
+Desktop purpose filtering reads stored evidence and starts no downloads on tab entry or a filter
+change. Its explicit **Read recorded terms** control submits `terms.refreshLibrary` for links
+in recorded descriptions, follows the task, and refreshes the library decisions on completion
+or warnings. An unread description is still unknown. The product detail's explicit read first
+captures the current official product page through the existing catalog API, then submits
+`terms.refreshProduct`; a failed page capture does not claim a successful refresh of stale data.
+That completed read also refreshes the active library filter. Unknown evidence never passes an
+available-only purpose filter.
 
 Pure link recognition reads anchors in the captured author-description container and URL text
 in its visible description. Drive files and Docs documents become downloadable candidates;
@@ -123,7 +132,17 @@ The request/result schemas and executable examples are in
 [`schemas/terms/v0.1`](../../schemas/terms/v0.1). Candidate refresh tasks use the AMF task
 store and place local PDFs under AMF's `terms/<source-kind>/<file-id>/<sha256>.pdf` directory.
 
+## Library and Recipe consumers
+
+[Library view v0.2](library-view-v0.2.md) reuses these stored-evidence decisions for purpose
+filtering before pagination. Recipe import uses the same per-product and strictest-combination
+check and explicit refresh command, without blocking import or introducing new presets.
+
 ## Document changelog
+
+- 0.2.0 (2026-10-29): document library purpose filtering and informational Recipe consumers;
+  the v0.1 wire shape, seven presets and decision rules remain unchanged.
+
 
 - 0.1.0 (2026-10-19): add captured license links, explicit local refresh tasks, versioned
   VN3 parsing and stored-evidence use/combination queries.

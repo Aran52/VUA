@@ -1095,17 +1095,21 @@ mod tests {
     #[test]
     fn regional_timeouts_http_errors_redirects_and_closures_stay_failures() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        for (scripts, status, code) in [
+        // Only the timeout case races the client's limit against the server's delay; the others
+        // answer at once and get seconds, so a busy runner cannot turn them into timeouts.
+        let answered = Duration::from_secs(5);
+        for (scripts, status, code, timeout) in [
             (
                 vec![
                     vec![
                         (404u16, Duration::ZERO, false),
-                        (404, Duration::from_millis(200), false),
+                        (404, Duration::from_millis(800), false),
                     ];
                     3
                 ],
                 NetworkStatus::Timeout,
                 None,
+                Duration::from_millis(150),
             ),
             (
                 vec![
@@ -1117,16 +1121,19 @@ mod tests {
                 ],
                 NetworkStatus::HttpError,
                 Some(429),
+                answered,
             ),
             (
                 vec![vec![(302u16, Duration::ZERO, false)]; 3],
                 NetworkStatus::Redirected,
                 Some(302),
+                answered,
             ),
             (
                 vec![vec![(404u16, Duration::ZERO, true)]; 3],
                 NetworkStatus::ProbeError,
                 None,
+                answered,
             ),
         ] {
             let (url, _log, server) = serve_regional(scripts);
@@ -1135,7 +1142,7 @@ mod tests {
                     Client::builder()
                         .no_proxy()
                         .redirect(Policy::none())
-                        .timeout(Duration::from_millis(80))
+                        .timeout(timeout)
                         .build()
                         .ok()
                 })

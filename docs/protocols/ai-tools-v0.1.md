@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.8.0
+> Document version: 0.11.0
 > Status: Candidate
-> Updated: 2026-10-20
+> Updated: 2026-11-01
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -12,7 +12,7 @@ slice does not retrofit historical release artifacts or declare N acceptance.
 
 ## Connection and lifetime
 
-The player opens **Help → Connect external AI tools**, enables the connection, copies the supplied
+The player opens **MCP** in the top bar (the command bar in Frutiger Aero), enables the connection, copies the supplied
 prompt, and pastes it into an AI tool on the same computer that supports local Streamable HTTP.
 VUA remains open. The prompt explains host/AMF functions, the actual URL and Authorization header,
 available tools, novice explanation guidance and the optional
@@ -49,7 +49,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
 | `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
-| `vua_tool_status`, `vua_request_tool` | Candidate VRCFT connection; no invented hardware/module acceptance |
+| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR and OVR Overlay Translator |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
@@ -58,6 +58,14 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_request_cancel_task` | Existing revision-bound cancellation request |
 | `vua_action_status` | Local approval receipt; never grants approval |
 | `vua_withdraw_request` | Withdraws a request still waiting for the player; nothing runs |
+
+The two Steam tools accept the `toolId` values from `EXTERNAL_TOOL_IDS` in
+`packages/contracts/src/external-tool.ts`; other IDs are rejected by the MCP input schema.
+For example, `vua_tool_status {"toolId":"space"}` reads Space Calibrator's installation and
+process facts. `vua_request_tool {"toolId":"space","action":"start"}` queues a request for the
+player to approve on the Tools page before dispatch. Actions and observed fields follow
+[external tool connection v0.2](external-tool-v0.2.md). Installation or a running process does
+not establish module, hardware, tracking or OSC configuration.
 
 `vua_amf_plan` without a selection plans VUA's [recommendation](amf-production-v0.1.md) and returns
 its reasons; when candidates are equally plausible it returns `recommendation_needs_player` with
@@ -200,6 +208,16 @@ argument for `vua_request_amf_upload` and refuses it for every other request.
 Its state/version is `0.1`; prior V1–V3 browser/window/distribution behavior remains intact.
 The prompt token is intentionally absent from `AiToolsSnapshotV01` and approval history.
 
+The Candidate control face also offers optional `clear(ids)`. Only verified local Main-window
+IPC can call it; MCP callers cannot clear or confirm requests. The renderer sends the exact
+displayed IDs (at most 32), so a new arrival during **Clear all** remains visible. Clearing a
+pending request records a rejection without dispatching it. Clearing a running or decided
+request hides its card without cancelling work. Main persists the hidden flag alongside its
+bounded receipt; `vua_action_status` still returns the decision or result after clearing and
+after a restart, subject to the existing receipt retention limit. The snapshot, notifications
+and workflow pages omit hidden cards. The MCP page supplies per-request **Clear** and **Clear all**
+controls, with an inline explanation of pending and running behavior.
+
 Verification uses the official SDK HTTP client for initialization, tool discovery, real calls,
 pending deduplication, local-only approval, stale plans, backend rejection, pairing/Origin/Host
 refusal, body limits, expiration and shutdown. These checks are synthetic execution evidence;
@@ -208,7 +226,23 @@ The real isolated host check observed this workstation's installed C1 without an
 or installation task. The bundled-MCP check forbids external module loads and checks older HTTP
 clients, guarding against Node/browser dependency-resolution differences in the shipping bundle.
 
+## Recipe material reads
+
+`vua_recipe_materials(recipeId, materialChoices?)` reads the full local material checklist before
+preparation. `vua_recipe_apply_plan(runId, recipeId, avatarGlobalObjectId?, materialChoices?)`
+returns the same checklist and observed `recipeDifferences`. `vua_amf_plan` preserves the prepared
+Recipe selection and returns its checklist and differences, rather than recommending replacement
+prefabs when a Recipe target is missing. The Agent explains all purchase/download/choice needs
+and every difference before requesting a change. `vua_request_amf_assemble` accepts optional
+`recipeDifferencesConfirmed: true`, required by AMF when the exact digest-bound difference list is
+nonempty. The ordinary player approval remains required; a read never approves or downloads.
+The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and difference shapes.
+
 ## Document changelog
+
+- 0.10.1 (2026-10-31): the connection page opens from its own top-bar button instead of Help.
+- 0.10.0 (2026-10-29): expose all six connected Steam tools through contract-derived MCP tool IDs, retaining player approval on the Tools page and installation/process-only observations.
+- 0.9.0 (2026-10-24): expose complete Recipe material checklists and reviewed mapping differences.
 
 - 0.8.0 (2026-10-20): add bounded task summaries and filters, full run/release Resources, compact AMF/library reads, build identity, sanitized error envelopes, AMF change evidence and approved-request task attribution.
 - 0.7.0 (2026-10-19): read recorded VN3 terms through `vua_terms` and check one use across several products through `vua_terms_check`.

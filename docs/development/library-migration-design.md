@@ -1,7 +1,8 @@
 # Local library migration: material boundaries and preview
 
-> Status: Draft — grouping design for author review; not migration acceptance
-> Updated: 2026-10-12
+> Status: Implemented for the freeze release (freeze row F4); the author's real-collection run
+> remains the acceptance
+> Updated: 2026-10-30
 > Owner: AMF
 
 ## Delivered entry points
@@ -9,14 +10,23 @@
 The library offers **Import a local item**, retaining explicit folder/file copy-in semantics.
 Each selected entry is one library card; its companion files stay in its details. A small adjacent
 arrow opens **Import multiple items (library migration)** on click or hover. The migration entry
-currently provides a read-only structural preview of explicitly selected directories. It lists
-ordinary files without interpreting their purpose, expands directories on demand, reports links,
-read failures and limits, and never extracts archives or submits an import. Every boundary remains
-unconfirmed. Directory reads are capped at 1000 immediate entries and the UI at 16 levels; these
-limits mean incomplete review, never an empty or fully classified source.
+reviews explicitly selected directories, then lets the player confirm material boundaries:
 
-This checkpoint deliberately supplies no automatic grouping writer. The design below must be
-resolved before adding migration execution. Existing [intake](../protocols/library-intake-v0.2.md),
+- every directory offers **one material**, **collection — review its contents**, or **exclude**;
+- one bulk command turns the selected sibling folders into separate materials;
+- loose files can be grouped into one named material, chosen individually, or excluded;
+- each edit steps back with **undo**;
+- confirmed materials, unassigned items, excluded items and unreadable/skipped entries are shown
+  separately, and the import stays blocked while any observed file is unresolved;
+- **Copy the migration manifest** writes the reviewed plan as the `vua.migration` v0.1 document.
+
+The import sends only confirmed, complete groups through
+[`library.importGroups`](../protocols/library-migration-v0.1.md), which re-validates freshness,
+overlap and recursion and then copies through the existing intake. Directory reads are capped at
+1000 immediate entries and the UI at 16 levels; these limits mean incomplete review, never an
+empty or fully classified source.
+
+Existing [intake](../protocols/library-intake-v0.2.md),
 [file/reference maintenance](../decisions/library-file-maintenance.md) and
 [N5 acceptance](../development-outline.md#n5-audit-and-redo-material-management) remain authoritative.
 
@@ -148,8 +158,10 @@ is an observable grouping/coverage decision, not merely successful traversal.
 
 ## Delivery sequence
 
-The current change finishes single-item card scope, origin filtering, scroll-aware selection,
-card removal and the directory picker, then exposes the read-only migration preview. The next
-slice should implement the boundary-editing model and coverage tests from this matrix before
-adding grouped copying. Real mixed-library acceptance and human UI review stay in N5; this draft
-does not declare them complete or introduce a new release prerequisite.
+The boundary-editing model, its coverage rules and grouped copying are implemented for the freeze
+release (freeze row F4): the planner confirms materials over the structural review, the model
+keeps one disposition per observed file and refuses overlaps, and
+[`library.importGroups`](../protocols/library-migration-v0.1.md) copies each confirmed group as one
+entry after re-validating freshness. Slice 47 (an agent writing the same manifest) stays after the
+freeze. Real mixed-library acceptance and human UI review stay in N5; this document does not
+declare them complete or introduce a new release prerequisite.

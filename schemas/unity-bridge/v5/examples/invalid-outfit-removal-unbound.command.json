@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-command",
+  "projectId": "n3-vector",
+  "operation": "amf_outfit_remove",
+  "dryRun": false,
+  "payload": {
+    "avatarGlobalObjectId": "",
+    "avatarArmatureGlobalObjectId": "",
+    "outfitGlobalObjectId": "",
+    "outfitArmatureGlobalObjectId": "",
+    "toggleName": "",
+    "planRef": ".vua/bridge/n3-vector-command.amf-plan.json",
+    "planHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

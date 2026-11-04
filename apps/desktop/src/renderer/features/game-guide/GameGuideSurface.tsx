@@ -42,11 +42,13 @@ import {
   type GameGuideDecision,
   type GameGuideProgressV1,
 } from "./game-guide-model.ts";
+import { useSurfaceAppearance } from "../../app/surface-appearance.ts";
 import "./game-guide.css";
 
 const copy = strings.gameGuide;
 
 export function GameGuideSurface() {
+  useSurfaceAppearance();
   const [progress, setProgress] = useState<GameGuideProgressV1>(() => loadGameGuideProgress() ?? restartGameGuide());
   const [opacity, setOpacity] = useState<number>(() => loadGameGuideOpacity());
   const [following, setFollowing] = useState<boolean>(() => loadGameGuideFollowing().enabled);

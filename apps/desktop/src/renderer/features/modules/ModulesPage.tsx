@@ -4,7 +4,9 @@ import { format, strings, TERMS } from "../../i18n/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Badge } from "../../components/primitives/Badge.tsx";
-import { DistributionPanel } from "./DistributionPanel.tsx";
+import { ComponentUpdatePanel } from "./ComponentUpdatePanel.tsx";
+import { UpdatePlanPanel } from "./UpdatePlanPanel.tsx";
+import { useAmfUiRuntime } from "./AmfSurface.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 
 export function ModulesPage({ onOpen, embedded = false, activationSwitch = false }: { onOpen: () => void; embedded?: boolean; activationSwitch?: boolean }) {
@@ -12,7 +14,9 @@ export function ModulesPage({ onOpen, embedded = false, activationSwitch = false
   const gateway = useGateway();
   const copy = strings.amfModule;
   const text = (key: keyof typeof copy) => format(copy[key], { amf: TERMS.amf });
-  const [changing, setChanging] = useState(false);
+  const [changingRequest, setChanging] = useState(false);
+  const { view: runtime } = useAmfUiRuntime();
+  const changing = changingRequest || runtime.phase !== "idle";
   const [outcome, setOutcome] = useState<"busy" | "failed" | null>(null);
   const change = async (enabled: boolean) => {
     setChanging(true); setOutcome(null);
@@ -39,6 +43,7 @@ export function ModulesPage({ onOpen, embedded = false, activationSwitch = false
         {outcome ? <p role="status">{outcome === "busy" ? text("busy") : text("changeFailed")}</p> : null}
       </div>
     </Card>
-    {!embedded ? <DistributionPanel /> : null}
+    {!embedded ? <ComponentUpdatePanel component="amf" /> : null}
+    {!embedded ? <UpdatePlanPanel /> : null}
   </div>;
 }

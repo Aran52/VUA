@@ -1,7 +1,7 @@
 export * from "./application-contract.js";
 export * from "./amf-production-v01.js";
 export * from "./amf-recommendation.js";
-export * from "./amf-recipe-v04.js";
+export * from "./amf-recipe-v05.js";
 export * from "./catalog-sync.js";
 export * from "./catalog-sync-v03.js";
 export * from "./library-download-v01.js";
@@ -10,6 +10,7 @@ export * from "./library-view-v01.js";
 export * from "./library-maintenance-v01.js";
 export * from "./library-intake-v01.js";
 export * from "./library-intake-v02.js";
+export * from "./library-migration-v01.js";
 export * from "./library-entry-metadata-v01.js";
 export * from "./library-records-v01.js";
 export * from "./library-records-v02.js";
@@ -29,8 +30,20 @@ export * from "./external-tool.js";
 export * from "./manager-apps.js";
 export * from "./amf-module.js";
 export * from "./desktop-distribution.js";
+export * from "./component-updates.js";
+export * from "./update-plans.js";
+export * from "./amf-ui-runtime.js";
 export * from "./scenario-environment.js";
 export * from "./unity-license-v01.js";
 export * from "./desktop-ai-tools.js";
 export * from "./terms-v01.js";
 export * from "./face-tracking-v01.js";
+export * from "./parameter-budget-v01.js";
+export * from "./texture-memory-v01.js";
+
+export * from "./outfit-removal-v01.js";
+
+export * from "./amf-recipe-materials.js";
+export * from "./share-links-v01.js";
+
+export * from "./library-view-v02.js";

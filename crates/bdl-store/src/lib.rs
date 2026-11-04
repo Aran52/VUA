@@ -5,6 +5,7 @@ pub mod bdl_queries;
 pub mod bdl_store;
 pub mod dependency_extract;
 pub mod download_events;
+pub mod recovery;
 pub use bdl_store::terms;
 
 pub use bdl_queries::{

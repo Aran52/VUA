@@ -5,6 +5,7 @@ import { isAmfAvatarName, type AiUploadConfirmationV01 } from "@vua/contracts";
 import { ContentDialog } from "../../../components/primitives/ContentDialog.tsx";
 import { Button } from "../../../components/primitives/Button.tsx";
 import { format, strings } from "../../../i18n/index.ts";
+import { UploadEligibilityNote } from "../../help/UploadEligibilityNote.tsx";
 
 const copy = strings.releaseRoom;
 
@@ -42,6 +43,7 @@ export function ReleaseUploadDialog({ proposedName, avatarId, picture, requested
           <input type="checkbox" checked={rights} onChange={event => setRights(event.target.checked)} data-nav-id="release-rights" />
           <span>{copy.dialog.rights}</span>
         </label>
+        <UploadEligibilityNote />
         <div className="vua-release-dialog__unity">
           <strong>{copy.dialog.inUnity}</strong>
           <ol>{[copy.dialog.inUnity1, copy.dialog.inUnity2, copy.dialog.inUnity3].map(step => <li key={step}>{step}</li>)}</ol>

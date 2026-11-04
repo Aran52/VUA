@@ -1,7 +1,7 @@
 # Windows distribution and independent AMF updates
 
 > Status: Draft
-> Updated: 2026-10-13
+> Updated: 2026-10-26
 > Scope: NSIS installation, mirrored Electron runtime acquisition and bundled AMF incremental updates
 
 The author approved the delivery direction on 2026-10-11: use NSIS for VUA, automatically
@@ -229,8 +229,84 @@ authorized by this planning request. The author can supply the later test enviro
   release configuration. Prepare artifacts and tests before requesting publication-specific input.
 - Initially use file-level AMF incremental delivery. Consider chunk/binary delta only if measured
   changed-file sizes justify it; always retain a verified full-file/package fallback.
-- Host-wide differential download, cross-application runtime sharing, automatic module hot swap
-  and a generic plugin update platform are outside the first delivery.
+- Host-wide differential download and module hot replacement extend the original D sequence
+  through the author-approved U sequence below. Cross-application runtime sharing and a generic
+  plugin update platform remain outside this delivery.
+
+## 9. Independent component update sequence
+
+The author approved implementation on 2026-10-26: use PH-R.COM for independent VUA/AMF
+discovery, in-app host download with restart activation, and idle AMF UI/backend replacement
+without restarting VUA. Reuse the existing trusted distribution engine and exact runtime.
+This extends the first delivery; it does not declare a new published product version or pass N7.
+
+| Slice | Deliverable | Acceptance |
+| --- | --- | --- |
+| U1 — independent contracts | Signed component indexes, compatible-version selection, immutable inventory binding and additive typed API; keep old client formats | Schema/negative/signature vectors; old v0.1 tests still pass; incompatible latest AMF does not hide a compatible update |
+| U2 — publishing | Independently build/export host or AMF artifacts and complete immutable objects before switching either official Beta index | Host-only and AMF-only publications; exact hashes and byte-range delivery; old joint feed still works |
+| U3 — detection and UI | Separate checks, targets, preferences, progress and errors in About / Modules; disabled AMF can be checked | One component's failure/cancel does not overwrite the other; absent/failed feeds do not claim latest |
+| U4 — host update | Verify/reuse files and runtime, stage into owned payload directories, atomically select and restart with health/recovery support | Compatible AMF retains its version; unchanged runtime transfers zero bytes; failed launch has a usable restore path |
+| U5 — AMF hot activation | Quiesce module work, replace only its provider/UI generation, validate both and commit or restore | Host process remains alive; UI/provider build identities agree; busy/disabled/data-migration cases preserve data and choices |
+| U6 — transition and real acceptance | Bridge installer for legacy helpers, fault injection, real signed test publication and clean-Windows/human review | GitHub-blocked discovery/object transfer; interruption/low-disk/corruption/rollback; existing profiles and production paths remain usable |
+
+U1 now has a native consumer, typed API and 27 positive/negative vectors. All 17 distribution
+tests, native Clippy with warnings denied, contract/provider builds and desktop type checks pass.
+U2 adds independent native/renderer build modes, exact-source receipts, signed component export,
+and the atomic filesystem publisher. All 45 publication/legacy-export checks pass, including an
+actual child-process exit immediately before channel promotion. The AMF-only native build reports
+0.2.0; its renderer, provider and fresh notices assemble without building host binaries/renderer
+or acquiring an Electron distribution. The local diagnostic receipt is labelled dirty and is
+not a publication artifact. CI separately builds host/AMF artifacts and an operator-tool export.
+U3 exposes independent native checks through Main/preload and Gateway panels in About and
+Modules. Fixed official feeds are authenticated before selection; per-component durable signed
+indexes reject replay and equal-sequence equivocation. Independent jobs/preferences keep one
+channel's failure or cancellation from replacing the other, including checks while AMF is disabled.
+The legacy read-only host check remains an installer-transition fallback. All 19 native tests,
+Clippy, desktop type checks, 13 update-controller/preference checks, UI boundary and five-language
+table checks pass. This slice deliberately has no download/apply button; U4/U5 own activation.
+U4 adds native per-component staging, explicit pair plans for dependency cycles, payload-local
+helpers, root-launcher capability admission, a durable restart journal and compatible component
+or pair recovery. Staging preserves loaded code and a shared runtime bootstrap until exit. All
+22 native checks, Clippy, desktop type checks and 21 update-controller/preference checks pass.
+Seven actual Chromium control checks pass with synthetic ports; dark/light control captures
+are local diagnostic evidence. The independent host renderer builds successfully. Actual signed
+remote discovery, real restart/health/recovery, migration backups and human review remain U6
+gates; these controlled checks do not complete them. The new component endpoints are not yet
+published.
+
+U5 core adds generation-bound Main/provider/UI replacement, a Desktop v7 lifecycle handshake,
+exact native/UI source identities, retry-safe relative imports, effect/style cleanup and disabled
+module preservation. An open AMF page, unsaved draft, active task or shell transfer refuses hot
+replacement before stopping it. Failed provider/UI health restores only AMF; the host continues.
+All 23 default native checks, Clippy, type/boundary/i18n checks and 42 focused desktop tests pass.
+Actual Chromium checks pass for 11 generation/import/cleanup interactions and seven update
+controls, with synthetic code/ports. The separate real-artifact native test uses independently
+built AMF UI/provider artifacts under an installation lock. This is not a live host update.
+[AMF UI runtime v0.1](../protocols/amf-ui-runtime-v0.1.md) owns the lifecycle rules.
+
+U5 data protection adds AMF-owned SQLite snapshots, native manifest/profile/receipt binding,
+offline migration and a startup fence until provider/UI health commits. Five backup checks cover
+WAL, corrupted inventory/payload, absent databases, committed snapshots and a real 0.10-to-0.11
+SQL migration/restore. The focused desktop suite now has 45 passing checks; the module isolation
+check uses both real providers. Writer-changing updates require a capable root, host and AMF;
+older combinations require the installer. The separate native artifact trial verifies migration,
+pre-health restore and refusal to erase post-health work. Those controlled runs use synthetic
+inventories/data and do not claim a live host process update.
+
+U6 now has a real signed, restricted ph-r.com QA publication and installed-process evidence for
+the legacy bridge, independent discovery/deltas, Host restart/health recovery, process-preserving
+AMF provider/UI replacement, disabled activation, data retention, cancellation, helper interruption,
+corrupt responses and 200 full-pack fallback. Main's readiness subscription now resumes module
+shell/image-cache services after successful replacement and recovery. The author accepted the
+opened About/Modules pages and their theme/check/disable/restore review on 2026-10-26. Clean
+Windows and bounded-volume low-space acceptance remain pending by the author's explicit ruling;
+the exact evidence scope and further limits are recorded below. No production channel or release
+has been published. Use sequential `slice/*`
+branches and PRs. Keep the ongoing Grid UI review in its own checkout. Do not advertise full hot
+updating from a passing contract or staged-download test.
+
+The [installed update acceptance procedure](windows-update-acceptance.md) records U6's exact
+matrix and isolated operator/diagnostic controls. Its presence does not pass the matrix.
 
 ## Technical references
 

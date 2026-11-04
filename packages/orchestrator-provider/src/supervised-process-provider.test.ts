@@ -1,4 +1,5 @@
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
@@ -18,6 +19,7 @@ class FakeProviderProcess extends EventEmitter {
   readonly stderr = new PassThrough();
   readonly stdio = [this.stdin, this.stdout, this.stderr];
   killed = false;
+  shutdownAfterExit = false;
   #buffer = "";
   readonly #handshakePayload: unknown;
 
@@ -44,12 +46,17 @@ class FakeProviderProcess extends EventEmitter {
 
   kill(): boolean {
     this.killed = true;
-    queueMicrotask(() => this.emit("exit", 0, null));
+    queueMicrotask(() => this.finish(0));
     return true;
   }
 
   crash(): void {
-    this.emit("exit", 23, null);
+    this.finish(23);
+  }
+
+  finish(code: number): void {
+    this.emit("exit", code, null);
+    this.emit("close", code, null);
   }
 
   #handle(frame: Record<string, unknown>): void {
@@ -60,12 +67,18 @@ class FakeProviderProcess extends EventEmitter {
       return;
     }
     if (kind === "prepare_shutdown" || kind === "continue_shutdown") {
-      this.#respond(frameId, {
+      const respond = () => this.#respond(frameId, {
         contractVersion: "0.1",
         outcome: "safe_to_stop",
         blockingTasks: [],
       });
-      queueMicrotask(() => this.emit("exit", 0, null));
+      if (this.shutdownAfterExit) {
+        this.emit("exit", 0, null);
+        queueMicrotask(() => { respond(); this.emit("close", 0, null); });
+      } else {
+        respond();
+        queueMicrotask(() => this.finish(0));
+      }
       return;
     }
     const request = frame.payload as ApplicationRequestV01;
@@ -143,6 +156,41 @@ function getRequest(): ApplicationRequestV01 {
 }
 
 describe("supervised process Provider v0.1", () => {
+  it("drains the final shutdown response after native exit before settling pending calls", async () => {
+    let child: ChildProcessWithoutNullStreams;
+    const provider = new SupervisedProcessProviderV01({ executablePath: process.execPath, databasePath: path.resolve("unused.db") }, () => {
+      child = spawn(process.execPath, ["-e", `
+        const readline = require('node:readline');
+        readline.createInterface({ input: process.stdin }).on('line', line => {
+          const frame = JSON.parse(line);
+          const payload = frame.kind === 'handshake'
+            ? { contractVersion: '0.1', supportedContractVersions: ['0.1'], providerBuildId: 'stream-order', providerInstanceId: 'isolated', downloadIngest: false }
+            : { contractVersion: '0.1', outcome: 'safe_to_stop', blockingTasks: [] };
+          process.stdout.write(JSON.stringify({ frameVersion: '0.1', frameId: frame.frameId, kind: 'response', payload }) + '\\n', () => {
+            if (frame.kind !== 'handshake') process.exit(0);
+          });
+        });
+      `], { windowsHide: true, stdio: "pipe" });
+      return child;
+    });
+    try {
+      await provider.start();
+      // Force the documented exit-before-stdio-close ordering with a real OS
+      // process, without depending on CI scheduling or a compiled Rust binary.
+      child!.stdout.pause();
+      const exited = once(child!, "exit");
+      const shutdown = provider.prepareShutdown({ timeoutMs: 1_000 }).then(value => value, error => ({ error: String(error) }));
+      await exited;
+      const streamsDrained = provider.waitForExit(1_000);
+      child!.stdout.resume();
+      await expect(shutdown).resolves.toMatchObject({ outcome: "safe_to_stop" });
+      await expect(streamsDrained).resolves.toBe(true);
+      expect(provider.status()).toMatchObject({ state: "stopped", acceptingCalls: false });
+    } finally {
+      child!?.stdout.resume();
+      child!?.kill();
+    }
+  });
   it("publishes failed rather than staying starting when process creation throws", async () => {
     const provider = new SupervisedProcessProviderV01({ executablePath: path.resolve("absent.exe"), databasePath: path.resolve("absent.db") }, () => { throw new Error("spawn refused"); });
     const states: string[] = [];
@@ -169,6 +217,27 @@ describe("supervised process Provider v0.1", () => {
       .resolves.toMatchObject({ outcome: "safe_to_stop" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(provider.status()).toMatchObject({ state: "stopped", acceptingCalls: false });
+  });
+
+  it("drains the final shutdown response when exit arrives before stdout", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    processes[0]!.shutdownAfterExit = true;
+    const shutdown = provider.prepareShutdown({ timeoutMs: 1_000 });
+    expect(provider.status().acceptingCalls).toBe(false);
+    await expect(shutdown).resolves.toMatchObject({ outcome: "safe_to_stop" });
+    await expect(provider.waitForExit(1_000)).resolves.toBe(true);
+    expect(provider.status()).toMatchObject({ state: "stopped", acceptingCalls: false });
+  });
+
+  it("rejects an unanswered request after an unexpected exit closes its streams", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    processes[0]!.stdin.removeAllListeners("data");
+    const request = provider.invoke(getRequest());
+    processes[0]!.crash();
+    await expect(request).rejects.toThrow("Provider exited");
+    expect(provider.status()).toMatchObject({ state: "failed", acceptingCalls: false });
   });
 
   it("reports an unexpected process exit and permits an explicit restart", async () => {

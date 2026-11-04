@@ -526,14 +526,14 @@ impl FileSystemSnapshotStore {
         }
     }
 
-    /// Deletes every snapshot directory under this project's `.vua/snapshots` except `keep`.
-    /// Each entry's name must pass the snapshot-identifier grammar and symlinks are never
-    /// followed or removed, so nothing outside the project's own snapshot directory can be
+    /// Deletes every snapshot directory under this project's `.vua/snapshots` except those named
+    /// in `keep`. Each entry's name must pass the snapshot-identifier grammar and symlinks are
+    /// never followed or removed, so nothing outside the project's own snapshot directory can be
     /// touched. Removal problems are returned as diagnostics; pruning never fails the caller.
-    pub fn prune_unreferenced(&self, project_root: &Path, keep: &str) -> Vec<String> {
+    pub fn prune_unreferenced(&self, project_root: &Path, keep: &[&str]) -> Vec<String> {
         let mut diagnostics = Vec::new();
-        if validate_identifier(keep).is_err() {
-            diagnostics.push(format!("snapshot id {keep} is invalid; nothing pruned"));
+        if let Some(invalid) = keep.iter().find(|id| validate_identifier(id).is_err()) {
+            diagnostics.push(format!("snapshot id {invalid} is invalid; nothing pruned"));
             return diagnostics;
         }
         let directory = project_root.join(".vua/snapshots");
@@ -551,7 +551,7 @@ impl FileSystemSnapshotStore {
                 diagnostics.push("a snapshot entry with a non-UTF-8 name was left in place".to_string());
                 continue;
             };
-            if name == keep {
+            if keep.contains(&name) {
                 continue;
             }
             if validate_identifier(name).is_err() {

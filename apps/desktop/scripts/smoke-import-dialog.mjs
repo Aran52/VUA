@@ -25,7 +25,8 @@ async function main() {
     });
     await server.listen();
     window = new BrowserWindow({ show: false, width: 1280, height: 900,
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+      // Keep hidden-window CSS animations advancing through dialog closure.
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, offscreen: true } });
     window.webContents.on("console-message", (event) => { if (event.level === "error") console.error(event.message); });
     await window.loadURL(`http://127.0.0.1:${server.httpServer.address().port}/__import-dialog`);
     await window.webContents.executeJavaScript('new Promise((resolve, reject) => { let attempts = 0; const timer = setInterval(() => { if(window.importDialog) { clearInterval(timer); resolve(); } else if (++attempts > 200) { clearInterval(timer); reject(new Error("fixture load timeout")); } }, 50); })');

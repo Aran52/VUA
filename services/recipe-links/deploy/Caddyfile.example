@@ -1,0 +1,21 @@
+# Standalone alternative; do not start on ports already served by Nginx.
+{
+    log default {
+        exclude http.log.access http.log.error
+    }
+}
+
+shares.example.com {
+    @shares path_regexp shares (?i)^/(r(/|$)|api/shares(/|$))
+    handle @shares {
+        reverse_proxy 127.0.0.1:6191 {
+            header_up X-Real-IP {remote_host}
+            header_up -X-Vua-Source-IP
+        }
+    }
+    handle {
+        header Content-Type application/json
+        respond `{"error":"not_found","message":"This route does not exist."}` 404
+    }
+    # Access logging is intentionally not enabled. Do not add a log directive.
+}

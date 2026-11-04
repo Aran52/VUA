@@ -1,8 +1,8 @@
-# VUA — VRC Ultra Assistant
+# VUA — Virtual Unified Assistant
 
 [English](README.md) | 简体中文 | [日本語](README_JA.md) | [한국어](README_KO.md)
 
-**VUA（VRC Ultra Assistant）** 是面向 VRChat 玩家的 Windows 优先、本地优先的「情景」安装、管理、启动器。
+**VUA（Virtual Unified Assistant）** 是面向 VRChat 玩家的 Windows 优先、本地优先的「情景」安装、管理、启动器。
 一个情景包含目标、所需软件，以及准备、启动和恢复的步骤：用电脑屏幕游玩、用 PICO 串流，
 或选择一个模块改模。从想做的事出发，由 VUA 帮你理清下一步。
 
@@ -47,7 +47,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 
 [v0.7.0 Stone Age（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) 带来第一条 Avatar 制作路径：从素材库选好 Avatar 和衣服，VUA 在自己的 Unity 工程里装配，用 VRChat SDK 检查，经你确认后上传。Windows x64 在线与离线 NSIS 安装包随包包含 AMF。开发仍按 [N1–N7 序列](docs/development-outline.md) 推进。
 
-项目保持 Beta。发布不代表 N1/N5 或尚未完成的真机、素材及人工审查已通过。实际范围、检查与限制见 [v0.7.0 发行说明](docs/release/v0.7.0_ZH.md)。
+以上下载仍为已发布的 0.7.0 Beta。源码正在准备 **v1.0.0 Brave New World**：本体进入稳定版，AMF 保持 Beta、独立更新。[冻结版发行说明草稿](docs/release/v1.0.0_ZH.md)列出范围和待作者检查的项目；源码准备不代表安装包已发布或 N 阶段验收通过。
 
 ### 当前交付与开始入口
 
@@ -62,7 +62,23 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - [产品边界](docs/product-boundary.md)
 - [系统架构](docs/architecture/system.md)
 - [v0.7.0 发行说明](docs/release/v0.7.0_ZH.md)
+- [1.0.0 最小指南（候选版，五种语言）](docs/user-guide/v1.0.0/zh-CN.md)
 - [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)
+
+## 里程碑
+日期为 GitHub 记录的发布和拉取请求时间。
+
+| 日期 | 里程碑 |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0)：首次从桌面应用经 Rust 编排器到真实 Unity 2022.3 工程，完成 Avatar 加一件衣装的装配 |
+| 2026-10-01 | [按目标部署游玩环境](https://github.com/VUA-Project/VUA/pull/60)，含按地区选择 Unity 下载源 |
+| 2026-10-08 | [BOOTH 素材库同步、选择性下载和本地文件管理](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)：首个公开测试版，AMF 作为内置模块 |
+| 2026-10-12 | [NSIS 安装包和 AMF 独立更新](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [素材优先的 Avatar 制作、Recipe 和本地 MCP 连接](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [发布室：60 帧转台图和托管上传](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 条款解析和按用途检查](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：首个带 Avatar 制作路径的版本 |
 
 ## 许可证
 

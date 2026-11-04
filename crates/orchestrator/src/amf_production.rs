@@ -10,16 +10,26 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
+mod editor_close;
+pub use editor_close::*;
 mod release;
 pub use release::*;
 mod lighting;
 pub use lighting::*;
+mod texture_memory;
+pub use texture_memory::*;
 mod revisions;
 pub use revisions::*;
 mod fits;
 pub use fits::*;
+mod outfit_removal;
+pub use outfit_removal::*;
 mod face_tracking;
 pub use face_tracking::*;
+mod parameter_budget;
+pub use parameter_budget::*;
+mod prediction;
+pub use prediction::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -69,6 +79,49 @@ pub struct OutfitSelection {
     pub bone: String,
     pub toggle_name: String,
     pub active: bool,
+    /// Whether the switch keeps its state across worlds; MA's default. Left out of the JSON when
+    /// true, so selections, plan digests and Recipes from before this field stay byte-identical.
+    #[serde(default = "switch_saved_default", skip_serializing_if = "switch_saved_is_default")]
+    pub saved: bool,
+    /// An exclusive group: switches sharing one turn each other off. Empty for an independent
+    /// switch, and then left out of the JSON.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub group: String,
+}
+
+pub(crate) fn switch_saved_default() -> bool {
+    true
+}
+pub(crate) fn switch_saved_is_default(saved: &bool) -> bool {
+    *saved
+}
+
+/// Checks the switch options of a whole selection: a group name is a short ASCII identifier
+/// (the Bridge derives the shared parameter from it), only an outfit with a switch can join a
+/// group, and at most one switch of a group is on by default.
+pub(crate) fn validate_switch_options<'a>(
+    outfits: impl IntoIterator<Item = (&'a str, &'a str, bool)>,
+) -> Result<(), AppErrorV1> {
+    let mut defaults = std::collections::BTreeMap::<&str, usize>::new();
+    for (toggle_name, group, active) in outfits {
+        if group.is_empty() {
+            continue;
+        }
+        if group.len() > 32 || !group.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') {
+            return Err(production_error("menu_invalid", "A switch group name is 1-32 letters, digits, '_' or '-'."));
+        }
+        if toggle_name.trim().is_empty() {
+            return Err(production_error("menu_invalid", "Only an outfit with a switch can join a switch group."));
+        }
+        let count = defaults.entry(group).or_default();
+        if active {
+            *count += 1;
+            if *count > 1 {
+                return Err(production_error("menu_invalid", "At most one switch of a group can be on by default."));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -85,6 +138,24 @@ pub struct AssemblySelection {
     pub outfits: Vec<OutfitSelection>,
 }
 
+/// One candidate's cost evidence, read from the imported prefab before assembly (freeze
+/// row F5). Counts are the asset's own; `texture_bytes` and `mesh_bytes` are decoded
+/// estimates, and each group says whether every term was decidable.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CandidateFootprint {
+    pub triangles: u64,
+    pub material_slots: u32,
+    pub meshes: u32,
+    pub skinned_meshes: u32,
+    pub texture_bytes: u64,
+    pub texture_complete: bool,
+    pub mesh_bytes: u64,
+    pub mesh_complete: bool,
+    pub phys_bones: u32,
+    pub phys_bones_known: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrefabCandidate {
@@ -99,6 +170,16 @@ pub struct PrefabCandidate {
     /// Work-project-relative PNG the Bridge rendered for this candidate during inspection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<String>,
+    /// Source evidence for the synced parameter budget; an older Bridge omits it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parameter_budget: Option<ParameterBudget>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prefab_guid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub object_paths: Option<Vec<String>>,
+    /// Pre-assembly cost evidence; an older Bridge omits it (freeze row F5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footprint: Option<CandidateFootprint>,
 }
 
 /// Bridge previews live in this work-project folder, one subfolder per Bridge command.
@@ -302,8 +383,8 @@ impl Drop for FingerprintCheck<'_> {
 fn interrupted_change(run: &ProductionRun) -> bool {
     run.phase == "assembling"
         && run.snapshot_id.is_some()
-        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking") && step.state == "running")
-            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| step.key == "face_tracking"))
+        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking" | "texture_memory" | "outfit_removal") && step.state == "running")
+            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| matches!(step.key.as_str(), "face_tracking" | "texture_memory" | "outfit_removal")))
 }
 
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
@@ -367,6 +448,10 @@ pub struct ProductionRun {
     /// The line's materials at the restore point, when that point was taken before they changed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_sources: Option<SourceSnapshot>,
+    /// The full copy taken before the creator patch, kept while the line carries its manual-replay
+    /// marker so later restore points cannot make the pre-patch state unreachable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ft_pre_patch_snapshot: Option<String>,
     /// The line's version records, newest first, taken before each protected change.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub revisions: Vec<ProductionRevision>,
@@ -392,9 +477,19 @@ pub struct ProductionRun {
     pub package_pins: BTreeMap<String, String>,
     #[serde(default)]
     pub recipe_source_hashes: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recipe_materials: Vec<crate::amf_recipe_materials::RecipeMaterialResolution>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub material_choices: crate::amf_recipe_materials::MaterialChoices,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub recipe_material_sources: BTreeMap<String,String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recipe_differences: Vec<crate::amf_recipe_materials::RecipeDifference>,
     pub result: serde_json::Value,
     pub error: Option<String>,
     pub recovery: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor_close: Option<EditorCloseResult>,
 }
 
 #[derive(Debug, Clone)]
@@ -412,6 +507,17 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn resolve_recipe_materials(&self, _: &[crate::amf_recipe::RecipeMaterial]) -> Result<BTreeMap<String, String>, AppErrorV1> {
         Err(production_error("recipe_unavailable", "Recipe input resolution is unavailable."))
     }
+    fn recipe_materials(&self, recipe: &crate::amf_recipe::ProductionRecipe, choices: &crate::amf_recipe_materials::MaterialChoices) -> Result<Vec<crate::amf_recipe_materials::RecipeMaterialResolution>,AppErrorV1> {
+        let resolved = self.resolve_recipe_materials(&recipe.materials)?;
+        if !choices.is_empty() { return Err(production_error("material_choices_invalid", "Material choices are unavailable on this platform.")); }
+        Ok(recipe.materials.iter().map(|m| crate::amf_recipe_materials::RecipeMaterialResolution {
+            material_id:m.id.clone(),package_name:m.package_name.clone(),booth_product_id:m.booth_product_id.clone(),
+            status:if resolved.contains_key(&m.id) {crate::amf_recipe_materials::MaterialStatus::Ready} else {crate::amf_recipe_materials::MaterialStatus::MaterialMissing},
+            resolved:resolved.get(&m.id).map(|id| crate::amf_recipe_materials::MaterialPackage {source_id:id.clone(),package_name:m.package_name.clone(),sha256:m.sha256.clone()}),
+            candidates:vec![],download_names:vec![],
+        }).collect())
+    }
+    fn recipe_shop_name(&self, _: &str) -> Result<Option<String>,AppErrorV1> { Ok(None) }
     fn recipe_source_candidates(&self, _: &[crate::amf_recipe::RecipeMaterial], _: &BTreeMap<String, Vec<String>>) -> Result<BTreeMap<String, Vec<String>>, AppErrorV1> { Ok(BTreeMap::new()) }
     fn editors(&self) -> Result<Vec<ProductionEditor>, AppErrorV1>;
     fn verify_editor(&self, path: &str) -> Result<ProductionEditor, AppErrorV1>;
@@ -471,7 +577,13 @@ pub trait AmfProductionPlatform: Send + Sync {
     ) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("sdk_fix_unavailable", "SDK fixes are unavailable on this platform."))
     }
+    fn remove_outfit(&self, _: &ProductionRun, _: &OutfitRemoval, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("outfit_removal_unavailable", "Owned outfit removal is unavailable on this platform."))
+    }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1>;
+    fn texture_import(&self, _: &ProductionRun, _: &[TextureImportChange], _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("texture_import_unavailable", "Texture import changes are unavailable on this platform."))
+    }
     fn face_tracking_patch(&self, _: &ProductionRun, _: &FaceTrackingPatch, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("face_tracking_unavailable", "Creator patch sessions are unavailable on this platform."))
     }
@@ -481,9 +593,10 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn source_content_hash(&self, _source_id: &str) -> Result<Option<String>, AppErrorV1> {
         Ok(None)
     }
-    /// Deletes every retained full-copy snapshot of the run's project except `keep`. Best
-    /// effort: problems come back as diagnostics and never fail the calling operation.
-    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &str) -> Vec<String> {
+    /// Deletes every retained full-copy snapshot of the run's project except those named in
+    /// `keep`. Best effort: problems come back as diagnostics and never fail the calling
+    /// operation.
+    fn prune_snapshots(&self, _run: &ProductionRun, _keep: &[&str]) -> Vec<String> {
         Vec::new()
     }
     fn open(&self, run: &ProductionRun, ctx: &TaskContext)
@@ -495,6 +608,13 @@ pub trait AmfProductionPlatform: Send + Sync {
     /// Hands one build-and-upload to the official VRChat SDK in the open Editor and waits for its receipt.
     fn upload(&self, _: &ProductionRun, _: &UploadRequest, _: &TaskContext, _: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
         Err(production_error("upload_unavailable", "Managed upload is unavailable on this platform."))
+    }
+    /// Captures the on-disk state before a confirmed Editor save, without writing project files.
+    fn snapshot_open_editor(&self, _: &ProductionRun) -> Result<String, AppErrorV1> {
+        Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))
+    }
+    fn close_editor(&self, _: &ProductionRun, _: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+        Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))
     }
     /// Whether a Unity Editor holds the work project now.
     fn editor_open(&self, _: &Path) -> bool { false }
@@ -518,14 +638,21 @@ pub const ACTIVE_PHASES: [&str; 4] = ["preparing", "inspecting", "assembling", "
 use crate::filesystem::remove_tree;
 
 pub fn production_error(code: &str, detail: impl Into<String>) -> AppErrorV1 {
-    AppErrorV1::new(
+    let detail = detail.into();
+    let mut error = AppErrorV1::new(
         format!("vua.amf_production.{code}"),
         ErrorCategory::Validation,
         "errors.amfProduction.failed",
         "amf-production",
     )
     .with_recoverable(true)
-    .with_param("detail", ParamValue::Text(detail.into()))
+    .with_param("detail", ParamValue::Text(if code == "project_open" {
+        format!("{detail} You can save and close Unity first.")
+    } else { detail }));
+    if code == "project_open" {
+        error = error.with_param("suggestedAction", ParamValue::Text("amf.production.closeEditor".into()));
+    }
+    error
 }
 
 fn io_error(error: impl std::fmt::Display) -> AppErrorV1 {
@@ -579,6 +706,10 @@ pub(crate) struct AssemblyExecution<'a> {
 }
 
 impl AmfProductionEngine {
+    /// Owned derived image cache; native paths never appear in renderer receipts.
+    pub fn share_image_root(&self) -> PathBuf { self.root.join("share-images") }
+    pub fn share_storage_boundary(&self) -> &Path { self.root.parent().unwrap_or(&self.root) }
+
     pub fn new(root: PathBuf, platform: Arc<dyn AmfProductionPlatform>) -> Self {
         Self { root, platform, live: Mutex::new(BTreeMap::new()), usual: Mutex::new(None) }
     }
@@ -775,7 +906,8 @@ impl AmfProductionEngine {
             run.project_fingerprint = current;
             self.save(&run)?;
         }
-        let recipe = crate::amf_recipe::ProductionRecipe::from_run(&run, recipe_id, title, current_adjustments(&run))?;
+        let mut recipe = crate::amf_recipe::ProductionRecipe::from_run(&run, recipe_id, title, current_adjustments(&run))?;
+        self.record_recipe_products(&run, &mut recipe)?;
         if self.recipe_store().get(recipe_id).map_err(io_error)?.is_some() { return Err(production_error("recipe_exists", "Save a revised Recipe under a new identity.")); }
         self.retain_recipe_origin(&run, &recipe)?;
         self.recipe_store().save(recipe_id, &serde_json::to_value(recipe).map_err(io_error)?, 0).map_err(io_error)
@@ -789,22 +921,57 @@ impl AmfProductionEngine {
         if recipe.recipe_id != recipe_id { return Err(production_error("recipe_invalid", "Recipe identity changed.")); }
         Ok(stored)
     }
+    pub fn recipe_material_plan(&self, recipe_id: &str, choices: &crate::amf_recipe_materials::MaterialChoices) -> Result<crate::amf_recipe_materials::RecipeMaterialPlan, AppErrorV1> {
+        let recipe = self.recipe_for_resolution(recipe_id)?;
+        let materials = self.platform.recipe_materials(&recipe, choices)?;
+        let ready = materials.iter().all(|m| m.status == crate::amf_recipe_materials::MaterialStatus::Ready);
+        let mut plan = crate::amf_recipe_materials::RecipeMaterialPlan { recipe_id:recipe_id.into(), materials, material_choices:choices.clone(), ready, plan_digest:String::new() };
+        plan.plan_digest = crate::recipe::document_digest(&serde_json::json!({"recipe":recipe,"plan":plan}))?.trim_start_matches("sha256:").into();
+        Ok(plan)
+    }
     pub fn begin_recipe(&self, run_id: &str, recipe_id: &str, editor_path: &str) -> Result<(), AppErrorV1> {
-        let recipe: crate::amf_recipe::ProductionRecipe = serde_json::from_value(self.get_recipe(recipe_id)?.recipe).map_err(io_error)?;
+        self.begin_recipe_with_choices(run_id,recipe_id,editor_path,&BTreeMap::new())
+    }
+    pub fn begin_recipe_with_choices(&self, run_id: &str, recipe_id: &str, editor_path: &str, material_choices: &crate::amf_recipe_materials::MaterialChoices) -> Result<(), AppErrorV1> {
+        let recipe = self.recipe_for_resolution(recipe_id)?;
         let editor = self.platform.verify_editor(editor_path)?;
         if editor.version != recipe.editor_version { return Err(production_error("recipe_editor_mismatch", format!("This Recipe was made with Unity {}. Select that exact Editor to reproduce it.", recipe.editor_version))); }
-        let resolved = self.platform.resolve_recipe_materials(&recipe.materials)?;
-        let selection = recipe.selection(&resolved)?;
+        let plan = self.recipe_material_plan(recipe_id, material_choices)?;
+        let resolved = crate::amf_recipe_materials::resolved_sources(&plan.materials)?;
         let choices = recipe.materials.iter().map(|material| SourceChoice {
             source_id: resolved[&material.id].clone(), role: if recipe.avatar.material_id == material.id { SourceRole::Avatar }
                 else if recipe.outfits.iter().any(|outfit| outfit.material_id == material.id) { SourceRole::Outfit } else { SourceRole::Dependency },
         }).collect();
         self.begin(run_id, choices, editor_path)?;
         let mut run = self.get(run_id)?;
-        run.recipe_source_hashes = recipe.materials.iter().map(|material| (resolved[&material.id].clone(), material.sha256.clone())).collect();
-        run.recipe_id = Some(recipe_id.into()); run.package_pins = recipe.packages; run.selection = Some(selection);
-        run.recipe_adjustments = recipe.adjustments.clone();
+        run.recipe_source_hashes = plan.materials.iter().filter_map(|m| m.resolved.as_ref().map(|p| (p.source_id.clone(),p.sha256.clone()))).collect();
+        run.recipe_material_sources = resolved;
+        run.recipe_materials = plan.materials;
+        run.material_choices = material_choices.clone();
+        run.recipe_id = Some(recipe_id.into()); run.package_pins = recipe.packages.clone();
+        run.recipe_adjustments = recipe.adjustments;
         self.save(&run)
+    }
+    fn refresh_recipe_mapping(&self, run: &mut ProductionRun) -> Result<(),AppErrorV1> {
+        // Mapping prepares a Recipe's first assembly. Later observations describe the line itself.
+        if run.confirmed_digest.is_some() { return Ok(()); }
+        if let Some(id) = &run.recipe_id {
+            let recipe = self.recipe_for_resolution(id)?;
+            if run.recipe_materials.is_empty() {
+                let inventory = run.sources.iter().map(|s| crate::amf_recipe_materials::MaterialInventory {
+                    package:crate::amf_recipe_materials::MaterialPackage {source_id:s.source_id.clone(),package_name:s.name.rsplit(['/', '\\']).next().unwrap_or(&s.name).into(),sha256:s.sha256.trim_start_matches("sha256:").into()},product_ids:vec![]
+                }).collect::<Vec<_>>();
+                run.recipe_materials = crate::amf_recipe_materials::resolve_materials(&recipe,&inventory,&BTreeMap::new(),&BTreeMap::new())?;
+                run.recipe_material_sources = crate::amf_recipe_materials::resolved_sources(&run.recipe_materials)?;
+            }
+            let mapped = crate::amf_recipe_materials::map_recipe(&recipe,run,&run.recipe_materials)?;
+            if run.confirmed_digest.is_none() {
+                run.selection = mapped.selection;
+                run.recipe_adjustments = mapped.adjustments;
+            }
+            run.recipe_differences = mapped.differences;
+        }
+        Ok(())
     }
     pub fn begin(
         &self,
@@ -852,6 +1019,7 @@ impl AmfProductionEngine {
             snapshot_id: None,
             snapshot_selection: None,
             snapshot_sources: None,
+            ft_pre_patch_snapshot: None,
             revisions: Vec::new(),
             sdk_fixes_applied: Vec::new(),
             recipe_adjustments: None,
@@ -861,9 +1029,11 @@ impl AmfProductionEngine {
             recipe_id: None,
             package_pins: BTreeMap::new(),
             recipe_source_hashes: BTreeMap::new(),
+            recipe_materials:Vec::new(),material_choices:BTreeMap::new(),recipe_material_sources:BTreeMap::new(),recipe_differences:Vec::new(),
             result: serde_json::Value::Null,
             error: None,
             recovery: None,
+            editor_close: None,
         })
     }
     fn step(
@@ -955,13 +1125,24 @@ impl AmfProductionEngine {
             }
         }
     }
-    /// Keeps exactly one full-copy snapshot per line: once the run record naming the current
-    /// restore point is persisted, every unreferenced snapshot directory under
-    /// `.vua/snapshots/` is deleted. Pruning is best-effort; problems are recorded in a
-    /// bounded diagnostics file and never fail the operation they follow.
+    /// Keeps the run's named full-copy snapshots per line: the current restore point and, while
+    /// the line carries the creator-patch marker, the pre-patch copy. Once the run record naming
+    /// them is persisted, every unreferenced snapshot directory under `.vua/snapshots/` is
+    /// deleted. Pruning is best-effort; problems are recorded in a bounded diagnostics file and
+    /// never fail the operation they follow.
     fn prune_snapshots(&self, run: &ProductionRun) {
-        let Some(keep) = run.snapshot_id.as_deref() else { return };
-        let diagnostics = self.platform.prune_snapshots(run, keep);
+        let mut keep: Vec<&str> = Vec::new();
+        if let Some(id) = run.snapshot_id.as_deref() {
+            keep.push(id);
+        }
+        // The pre-patch copy is kept only while the line still carries the creator-patch marker.
+        if let Some(id) = run.ft_pre_patch_snapshot.as_deref().filter(|_| face_tracking::manual_face_tracking(run)) {
+            keep.push(id);
+        }
+        if keep.is_empty() {
+            return;
+        }
+        let diagnostics = self.platform.prune_snapshots(run, &keep);
         if diagnostics.is_empty() {
             return;
         }
@@ -1037,6 +1218,7 @@ impl AmfProductionEngine {
         run.result = observed.result;
         run.fit_changes = serde_json::from_value(run.result["facts"]["fitChanges"].clone()).unwrap_or_default();
         run.observed_at = Some(fit_now());
+        self.refresh_recipe_mapping(run)?;
         let _check = FingerprintCheck::begin(self, run, ctx);
         run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
         run.revision = run
@@ -1130,6 +1312,7 @@ impl AmfProductionEngine {
             }).filter(|selection| !selection.avatar_prefab.is_empty() || !selection.outfits.is_empty());
             run.recipe_id = None;
             run.recipe_source_hashes.clear();
+            run.recipe_materials.clear(); run.material_choices.clear(); run.recipe_material_sources.clear(); run.recipe_differences.clear();
             // The fresh work scene holds no applied fits anymore.
             run.applied_fits.clear();
             run.completed_at = None;
@@ -1318,6 +1501,10 @@ impl AmfProductionEngine {
             if outfit.toggle_name.trim().is_empty() { outfit.toggle_name.clear(); }
         }
         let selection = &normalized;
+        if run.recipe_differences.iter().any(|d| d.kind == crate::amf_recipe_materials::RecipeDifferenceKind::PrefabMissing) {
+            return Ok(serde_json::json!({"schemaVersion":"0.1","runId":run.run_id,"planDigest":plan_digest(&run,selection)?,"selection":selection,
+                "inputs":[],"materials":run.recipe_materials,"materialChoices":run.material_choices,"recipeDifferences":run.recipe_differences,"canAssemble":false,"preserveOriginals":true,"officialSdkChecks":"not_run","editor":run.editor,"projectRoot":run.project_root}));
+        }
         validate_selection(&run, selection)?;
         let recipe_fits = run.recipe_adjustments.as_ref().map(|adjustments| adjustments.fits.as_slice()).unwrap_or(&[]);
         let fits = self.planned_fits(&run, selection, recipe_fits);
@@ -1346,10 +1533,11 @@ impl AmfProductionEngine {
         Ok(
             serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "planDigest":digest,"inputs":inputs,
             "selection":selection,"editor":run.editor,"projectRoot":run.project_root,
-            "rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
+            "canAssemble":true,"rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
             "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
                 "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes})),
-            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>()}),
+            "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>(),
+            "parameterBudget":plan_parameter_budget(&run, selection),"prediction":plan_prediction(&run, selection),"materials":run.recipe_materials,"materialChoices":run.material_choices,"recipeDifferences":run.recipe_differences}),
         )
     }
     pub fn assemble(
@@ -1359,7 +1547,16 @@ impl AmfProductionEngine {
         digest: &str,
         ctx: &TaskContext,
     ) -> Result<(), AppErrorV1> {
+        self.assemble_with_review(run_id,selection,digest,false,ctx)
+    }
+    pub fn assemble_with_review(&self,run_id:&str,selection:AssemblySelection,digest:&str,differences_confirmed:bool,ctx:&TaskContext) -> Result<(),AppErrorV1> {
         let mut run = self.get(run_id)?;
+        if !run.recipe_differences.is_empty() && !differences_confirmed {
+            return Err(production_error("recipe_differences_confirmation_required", "Confirm the exact Recipe differences in the reviewed plan before assembly."));
+        }
+        if run.recipe_differences.iter().any(|d| d.kind == crate::amf_recipe_materials::RecipeDifferenceKind::PrefabMissing) {
+            return Err(production_error("recipe_prefab_missing", "Resolve the missing Recipe prefabs before assembly."));
+        }
         validate_selection(&run, &selection)?;
         // The reviewed digest bound the fits resolved at plan time; resolve them again and
         // let the digest comparison prove they still match.
@@ -1481,7 +1678,7 @@ impl AmfProductionEngine {
             if let Some(adjustments) = &adjustments {
                 if !adjustments.lighting.is_empty() {
                     self.step(&mut run, ctx, "lighting", "Write the Recipe's recorded lighting values")?;
-                    self.apply_lighting_values(&mut run, &adjustments.lighting, ctx)?;
+                    self.apply_lighting_values(&mut run, &adjustments.lighting.iter().map(|entry| entry.values()).collect::<Vec<_>>(), ctx)?;
                 }
                 if !adjustments.sdk_fixes.is_empty() {
                     self.step(&mut run, ctx, "sdk_fix", "Run the Recipe's recorded SDK fixes")?;
@@ -1553,17 +1750,33 @@ impl AmfProductionEngine {
             production_error("snapshot_missing", "This project has no retained restore point.")
         })?;
         let (unchanged, current) = self.project_state(&run)?;
-        let digest = rollback_digest(&run, &current)?;
-        Ok(serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
+        let digest = rollback_digest(&run, &current, RollbackTarget::RestorePoint)?;
+        let mut plan = serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id,
             "planDigest":digest, "snapshotId":snapshot, "projectRoot":run.project_root,
-            "currentChanged":!unchanged, "preserveCurrent":true}))
+            "currentChanged":!unchanged, "preserveCurrent":true});
+        // While the line carries the creator-patch marker, its pre-patch copy stays a second
+        // reviewed target; when it equals the restore point the default restore already reaches it.
+        if run.ft_pre_patch_snapshot.as_deref().is_some_and(|id| id != snapshot)
+            && face_tracking::manual_face_tracking(&run) {
+            plan["prePatch"] = serde_json::json!({
+                "snapshotId":run.ft_pre_patch_snapshot,
+                "planDigest":rollback_digest(&run, &current, RollbackTarget::PreCreatorPatch)?});
+        }
+        Ok(plan)
     }
     /// A restore is itself reversible. Persist the current-state snapshot before
     /// touching the project so a crash, failed inspection or cancellation cannot
     /// discard the player's latest edits.
-    pub fn rollback(&self, run_id: &str, digest: &str, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+    pub fn rollback(&self, run_id: &str, digest: &str, target: Option<RollbackTarget>, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let target = target.unwrap_or(RollbackTarget::RestorePoint);
         let plan = self.rollback_plan(run_id)?;
-        if plan["planDigest"].as_str() != Some(digest) {
+        let reviewed = match target {
+            RollbackTarget::RestorePoint => plan["planDigest"].as_str(),
+            RollbackTarget::PreCreatorPatch => Some(plan["prePatch"]["planDigest"].as_str().ok_or_else(|| {
+                production_error("snapshot_missing", "This line no longer keeps a state from before the creator patch.")
+            })?),
+        };
+        if reviewed != Some(digest) {
             return Err(production_error("plan_drift", "The project or restore point changed. Review the restore again."));
         }
         let mut run = self.get(run_id)?;
@@ -1575,10 +1788,20 @@ impl AmfProductionEngine {
                 step.ended_at = Some(SystemClock.now_rfc3339());
             }
         }
-        let target = run.snapshot_id.clone().expect("reviewed restore point");
-        let target_selection = run.snapshot_selection.clone();
+        let target_kind = target;
+        let (target, target_selection, target_sources) = match target {
+            RollbackTarget::RestorePoint => (
+                run.snapshot_id.clone().expect("reviewed restore point"),
+                run.snapshot_selection.clone(),
+                run.snapshot_sources.clone(),
+            ),
+            RollbackTarget::PreCreatorPatch => (
+                run.ft_pre_patch_snapshot.clone().expect("reviewed pre-patch copy"),
+                run.selection.clone(),
+                None,
+            ),
+        };
         let current_selection = run.selection.clone();
-        let target_sources = run.snapshot_sources.clone();
         let current_sources = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
         run.task_id = ctx.task_id().into();
         run.phase = "restoring".into();
@@ -1592,7 +1815,7 @@ impl AmfProductionEngine {
         let result = (|| {
             self.step(&mut run, ctx, "protect_current", "Protect the current project before restoring")?;
             let current = self.platform.fingerprint(Path::new(&run.project_root))?;
-            if rollback_digest(&run, &current)? != digest {
+            if rollback_digest(&run, &current, target_kind)? != digest {
                 return Err(production_error("plan_drift", "The project changed before restoration. Review it again."));
             }
             safety = Some(self.platform.snapshot(&run)?);
@@ -1616,6 +1839,11 @@ impl AmfProductionEngine {
             run.selection = target_selection;
             run.phase = "ready".into();
             run.completed_at = None;
+            // A successful return to the pre-patch state ends the marker's retention: the
+            // copy is spent and the protected current (patched) state is the restore point.
+            if target_kind == RollbackTarget::PreCreatorPatch {
+                run.ft_pre_patch_snapshot = None;
+            }
             Ok(())
         })();
         if result.is_err() && mutated {
@@ -1707,7 +1935,7 @@ pub(crate) fn current_adjustments(run: &ProductionRun) -> Option<crate::amf_reci
         return None;
     }
     Some(crate::amf_recipe::RecipeAdjustments {
-        lighting,
+        lighting:lighting.into_iter().map(Into::into).collect(),
         sdk_fixes: run.sdk_fixes_applied.clone(),
         fits,
     })
@@ -1861,6 +2089,7 @@ fn validate_selection_inner(run: &ProductionRun, selection: &AssemblySelection, 
             _ => {}
         }
     }
+    validate_switch_options(selection.outfits.iter().map(|outfit| (outfit.toggle_name.as_str(), outfit.group.as_str(), outfit.active)))?;
     if require_all && !required.is_subset(&selected) {
         return Err(production_error(
             "outfits_invalid",
@@ -1898,7 +2127,7 @@ pub fn plan_digest_with_fits(
         "sources":run.sources,"prefabs":run.prefabs,"projectFingerprint":run.project_fingerprint,
         "unityFingerprint":run.unity_fingerprint,"selection":selection,"recipeId":run.recipe_id,
         "recipeSourceHashes":run.recipe_source_hashes,"packagePins":run.package_pins,
-        "recipeAdjustments":run.recipe_adjustments,"fits":fits});
+        "recipeAdjustments":run.recipe_adjustments,"recipeMaterials":run.recipe_materials,"materialChoices":run.material_choices,"recipeMaterialSources":run.recipe_material_sources,"recipeDifferences":run.recipe_differences,"fits":fits});
     Ok(
         Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
             .iter()
@@ -1907,11 +2136,86 @@ pub fn plan_digest_with_fits(
     )
 }
 
-fn rollback_digest(run: &ProductionRun, current_fingerprint: &str) -> Result<String, AppErrorV1> {
-    let value = serde_json::json!({"operation":"restore", "runId":run.run_id,
+fn rollback_digest(
+    run: &ProductionRun,
+    current_fingerprint: &str,
+    target: RollbackTarget,
+) -> Result<String, AppErrorV1> {
+    // A marked line's selection and materials cannot change, so the pre-patch copy restores to
+    // the selection the line still wears; the digest names which retained copy a review bound.
+    let (target_name, snapshot_id, snapshot_selection) = match target {
+        RollbackTarget::RestorePoint => (
+            "restore_point",
+            run.snapshot_id.clone(),
+            run.snapshot_selection.clone(),
+        ),
+        RollbackTarget::PreCreatorPatch => (
+            "pre_creator_patch",
+            run.ft_pre_patch_snapshot.clone(),
+            run.selection.clone(),
+        ),
+    };
+    let value = serde_json::json!({"operation":"restore", "target":target_name, "runId":run.run_id,
         "revision":run.revision, "editor":run.editor, "projectRoot":run.project_root,
-        "snapshotId":run.snapshot_id, "snapshotSelection":run.snapshot_selection,
+        "snapshotId":snapshot_id, "snapshotSelection":snapshot_selection,
         "currentFingerprint":current_fingerprint});
     Ok(Sha256::digest(serde_json::to_vec(&value).map_err(io_error)?)
         .iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+/// Which retained full copy a reviewed restore returns the line to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollbackTarget {
+    /// The line's current restore point.
+    RestorePoint,
+    /// The copy kept from before the creator patch, present while the line carries its marker.
+    PreCreatorPatch,
+}
+
+impl RollbackTarget {
+    /// The wire name of the target; `None` names the default restore point for older callers.
+    pub fn parse(value: Option<&str>) -> Result<Self, AppErrorV1> {
+        match value {
+            None | Some("restorePoint") => Ok(Self::RestorePoint),
+            Some("prePatch") => Ok(Self::PreCreatorPatch),
+            Some(_) => Err(production_error(
+                "params_invalid",
+                "Choose the restore point or the state before the creator patch.",
+            )),
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod switch_option_tests {
+    use super::*;
+
+    fn outfit(json: serde_json::Value) -> OutfitSelection {
+        serde_json::from_value(json).expect("outfit selection")
+    }
+
+    #[test]
+    fn default_switch_options_stay_out_of_the_json() {
+        let plain = serde_json::json!({"sourceId":"coat","prefabPath":"Assets/Coat.prefab","mode":"merge_armature","bone":"","toggleName":"Coat","active":true});
+        let read = outfit(plain.clone());
+        assert!(read.saved && read.group.is_empty());
+        // Selections, plan digests and Recipes written before the options read and write unchanged.
+        assert_eq!(serde_json::to_value(&read).unwrap(), plain);
+        let mut grouped = plain.clone();
+        grouped["saved"] = false.into(); grouped["group"] = "main".into();
+        assert_eq!(serde_json::to_value(outfit(grouped.clone())).unwrap(), grouped);
+    }
+
+    #[test]
+    fn a_group_holds_switches_with_one_default_on() {
+        let ok = [("Coat", "main", true), ("Dress", "main", false), ("Hat", "", true)];
+        assert!(validate_switch_options(ok).is_ok());
+        let two_on = [("Coat", "main", true), ("Dress", "main", true)];
+        assert_eq!(validate_switch_options(two_on).unwrap_err().code, "vua.amf_production.menu_invalid");
+        assert!(validate_switch_options([("", "main", false)]).is_err(), "an outfit without a switch joins no group");
+        assert!(validate_switch_options([("Coat", "主服装", false)]).is_err(), "group names are ASCII identifiers");
+        let long = "g".repeat(33);
+        assert!(validate_switch_options([("Coat", long.as_str(), false)]).is_err());
+    }
 }

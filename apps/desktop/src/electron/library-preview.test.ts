@@ -15,6 +15,12 @@ test("migration previews preserve mixed structure, report limits, avoid links an
     const result = await previewLibraryDirectory(source, warehouse);
     expect(result.state).toBe("ready"); expect(result.truncated).toBe(false);
     expect(result.items.map(item => [item.name, item.kind])).toEqual([["Versions", "directory"], ["linked", "link"], ["original.zip", "file"], ["README", "file"]]);
+    // The freshness re-check needs the review's own size and modification time, never a guess.
+    const zip = result.items.find(item => item.name === "original.zip");
+    const zipStat = await fs.stat(path.join(source, "original.zip"));
+    expect(zip?.sizeBytes).toBe(zipStat.size);
+    expect(zip?.modifiedMs).toBe(Math.trunc(zipStat.mtimeMs));
+    expect(result.items.find(item => item.name === "Versions")?.modifiedMs).toBeNull();
     expect((await previewLibraryDirectory(source, warehouse, 2)).truncated).toBe(true);
     for (const target of [root, warehouse, path.join(source, "linked"), path.join(source, "original.zip"), path.join(root, "missing"), "relative"]) expect((await previewLibraryDirectory(target, warehouse)).state).toBe("unavailable");
     expect(await fs.readFile(path.join(source, "original.zip"), "utf8")).toBe("unchanged invalid zip");

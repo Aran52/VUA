@@ -1,3 +1,4 @@
+import { isLibraryListParamsV02, type LibraryListParamsV02, type LibraryListV02 } from "./library-view-v02.js";
 import { isUnityLicenseParams } from "./unity-license-v01.js";
 import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
 import { isTermsParams, type TermsPresetId, type ProductTermsV01, type TermsUseCheckV01, type TermsAcceptedV01 } from "./terms-v01.js";
@@ -15,6 +16,7 @@ import { isCatalogSyncParamsV03, type CatalogSyncBeginV03, type CatalogSyncPageV
 import { isLibraryDownloadParamsV01, type LibraryDownloadBeginV01, type LibraryDownloadObservationV01, type LibraryDownloadStatusV01 } from "./library-download-v01.js";
 import { isLibraryImportParamsV01, type LibraryImportParamsV01, type LibraryImportAcceptedV01 } from "./library-intake-v01.js";
 import { isLibraryImportPathsParamsV02, type LibraryImportPathsParamsV02, type LibraryImportPathsAcceptedV02 } from "./library-intake-v02.js";
+import { isLibraryImportGroupsParamsV01, type LibraryImportGroupsParamsV01 } from "./library-migration-v01.js";
 import { isLibraryEntryMetadataParamsV01, type LibraryEntryMetadataQueryV01, type LibraryEntryMetadataUpdateV01, type LibraryEntryMetadataV01 } from "./library-entry-metadata-v01.js";
 import { isLibraryRemoveLocalEntriesV01, type LibraryRemoveLocalEntriesV01, type LibraryRemovedLocalEntriesV01 } from "./library-records-v01.js";
 import { isLibraryRemoveCardsV02, type LibraryRemoveCardsV02 } from "./library-records-v02.js";
@@ -2011,7 +2013,7 @@ export interface LibraryDownloadQueryV01 extends ApplicationRequestBaseV01 {
   readonly kind: "query"; readonly method: "library.downloadStatus"; readonly params: LibraryDownloadStatusV01;
 }
 export type LibraryViewQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "query" } & (
-  | { readonly method: "library.list"; readonly params: LibraryListParamsV01 }
+  | { readonly method: "library.list"; readonly params: LibraryListParamsV01 | LibraryListParamsV02 }
   | { readonly method: "library.productFiles"; readonly params: LibraryProductFilesParamsV01 }
 );
 export type RecipeDraftQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "query" } & (
@@ -2032,6 +2034,9 @@ export interface LibraryImportCommandV01 extends ApplicationRequestBaseV01 {
 }
 export interface LibraryImportPathsCommandV02 extends ApplicationRequestBaseV01 {
   readonly kind: "command"; readonly method: "library.importPaths"; readonly commandId: string; readonly params: LibraryImportPathsParamsV02;
+}
+export interface LibraryImportGroupsCommandV01 extends ApplicationRequestBaseV01 {
+  readonly kind: "command"; readonly method: "library.importGroups"; readonly commandId: string; readonly params: LibraryImportGroupsParamsV01;
 }
 export type LibraryEntryMetadataRequestV01 = ApplicationRequestBaseV01 & (
   | { readonly kind: "query"; readonly method: "library.entryMetadata"; readonly params: LibraryEntryMetadataQueryV01 }
@@ -2841,6 +2846,8 @@ export interface DeploymentPlanQuery extends ApplicationRequestBaseV01 { readonl
 export interface DeploymentExecuteCommand extends ApplicationRequestBaseV01 { readonly kind: "command"; readonly method: "environment.executeDeployment"; readonly commandId: string; readonly params: DeploymentExecuteParams }
 
 export type ApplicationRequestV01 =
+  | (ApplicationRequestBaseV01 & {readonly kind:"query";readonly method:"amf.production.readShareImage";readonly params:Readonly<Record<string,unknown>>})
+  | (ApplicationRequestBaseV01 & {readonly kind:"command";readonly commandId:string;readonly method:"amf.production.exportShareImage";readonly params:Readonly<Record<string,unknown>>})
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.getProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.checkUse"; readonly params: {readonly schemaVersion: "0.1"; readonly presetId: TermsPresetId; readonly productIds: readonly string[]} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
@@ -2848,8 +2855,8 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.unityLicense"; readonly params: {readonly schemaVersion: "0.1"} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "environment.checkUnityLicense"; readonly params: {readonly schemaVersion: "0.1"; readonly editorPath: string} })
-  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame" | "amf.production.faceTrackingPlan" | "amf.production.planLighting" | "amf.production.listFits"; readonly params: Readonly<Record<string, unknown>> })
-  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollback" | "amf.production.restoreRevision" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.faceTrackingPatch" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity" | "amf.production.applyLighting" | "amf.production.saveFit" | "amf.production.renameFit" | "amf.production.deleteFit"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame" | "amf.production.faceTrackingPlan" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.rollback" | "amf.production.restoreRevision" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.faceTrackingPatch" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity" | "amf.production.removeOutfit" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.saveFit" | "amf.production.renameFit" | "amf.production.deleteFit"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } })
@@ -2886,6 +2893,7 @@ export type ApplicationRequestV01 =
   | LibraryMaintenanceQueryV01 | LibraryMaintenanceCommandV01
   | LibraryImportCommandV01
   | LibraryImportPathsCommandV02
+  | LibraryImportGroupsCommandV01
   | LibraryEntryMetadataRequestV01
   | RecipeDraftQueryV01 | RecipeDraftCommandV01
   | WarehouseListEntriesQueryV03
@@ -3029,7 +3037,7 @@ export type ApplicationSuccessValueV01 =
   | NetworkResult
   | WebsiteTestResult
   | GameWindowObservationResultV1
-  | LibraryListV01 | LibraryProductFilesV01
+  | LibraryListV01 | LibraryListV02 | LibraryProductFilesV01
   | RecipeDraftListV01 | RecipeDraftReadV01
   | LibraryRemovalPreviewV01 | LibraryRemovalSnapshotV01 | RecipeDraftSelectionStatusV01
   | LibraryPendingRemovalsV01
@@ -3242,8 +3250,8 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
       && isUnityLicenseParams(value.method, value.params);
   }
   if (typeof value.method === "string" && value.method.startsWith("amf.production.")) {
-    const query = ["amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.revisionPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage", "amf.production.releaseState", "amf.production.turntableFrame", "amf.production.faceTrackingPlan", "amf.production.planLighting", "amf.production.listFits"].includes(value.method);
-    const command = ["amf.production.prepare", "amf.production.assemble", "amf.production.reinspect", "amf.production.open", "amf.production.rollback", "amf.production.restoreRevision", "amf.production.saveRecipe", "amf.production.prepareRecipe", "amf.production.exportRecipe", "amf.production.importRecipe", "amf.production.applyRecipe", "amf.production.bakeTurntable", "amf.production.upload", "amf.production.faceTrackingPatch", "amf.production.sdkFix", "amf.production.changeSources", "amf.production.delete", "amf.production.setCapacity", "amf.production.applyLighting", "amf.production.saveFit", "amf.production.renameFit", "amf.production.deleteFit"].includes(value.method);
+    const query = ["amf.production.readShareImage", "amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.revisionPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeMaterialPlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage", "amf.production.releaseState", "amf.production.turntableFrame", "amf.production.faceTrackingPlan", "amf.production.planOutfitRemoval", "amf.production.planLighting", "amf.production.planTextureMemory", "amf.production.listFits"].includes(value.method);
+    const command = ["amf.production.exportShareImage", "amf.production.prepare", "amf.production.assemble", "amf.production.reinspect", "amf.production.open", "amf.production.closeEditor", "amf.production.rollback", "amf.production.restoreRevision", "amf.production.saveRecipe", "amf.production.prepareRecipe", "amf.production.exportRecipe", "amf.production.importRecipe", "amf.production.applyRecipe", "amf.production.bakeTurntable", "amf.production.upload", "amf.production.faceTrackingPatch", "amf.production.sdkFix", "amf.production.changeSources", "amf.production.delete", "amf.production.setCapacity", "amf.production.removeOutfit", "amf.production.applyLighting", "amf.production.applyTextureMemory", "amf.production.saveFit", "amf.production.renameFit", "amf.production.deleteFit"].includes(value.method);
     return ((query && value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"]))
       || (command && value.kind === "command" && isIdentifier(value.commandId) && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])))
       && isAmfProductionParams(value.method, value.params);
@@ -3774,6 +3782,9 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (value.method === "library.importPaths") {
     return value.kind === "command" && isIdentifier(value.commandId) && isLibraryImportPathsParamsV02(value.params);
   }
+  if (value.method === "library.importGroups") {
+    return value.kind === "command" && isIdentifier(value.commandId) && isLibraryImportGroupsParamsV01(value.params);
+  }
   if (value.method === "library.entryMetadata" || value.method === "library.updateEntryMetadata") {
     const query = value.method === "library.entryMetadata";
     return value.kind === (query ? "query" : "command") && (query || isIdentifier(value.commandId)) && isLibraryEntryMetadataParamsV01(value.method, value.params);
@@ -3792,7 +3803,7 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   }
   if (value.method === "library.list" || value.method === "library.productFiles") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
-      && isLibraryViewParamsV01(value.method, value.params);
+      && (isLibraryViewParamsV01(value.method, value.params) || value.method === "library.list" && isLibraryListParamsV02(value.params));
   }
   if (value.method === "catalog.searchProducts") {
     return value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])

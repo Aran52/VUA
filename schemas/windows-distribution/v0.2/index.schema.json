@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VUA component update index v0.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "product",
+    "platform",
+    "arch",
+    "channel",
+    "component",
+    "sequence",
+    "releases"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.2"
+    },
+    "product": {
+      "const": "VUA"
+    },
+    "platform": {
+      "const": "windows"
+    },
+    "arch": {
+      "const": "x64"
+    },
+    "channel": {
+      "const": "beta"
+    },
+    "component": {
+      "enum": [
+        "host",
+        "amf"
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "releases": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/release"
+      }
+    }
+  },
+  "$defs": {
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "build",
+        "releaseUrl",
+        "manifest",
+        "compatibility",
+        "activation"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?(?:\\+[A-Za-z0-9.-]+)?$"
+        },
+        "build": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "releaseUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^https://"
+        },
+        "manifest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "bytes",
+            "sources"
+          ],
+          "properties": {
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4194304
+            },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "maxLength": 2048,
+                "pattern": "^https://"
+              }
+            }
+          }
+        },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "host",
+            "uiAbi",
+            "react",
+            "application",
+            "bridge",
+            "bdlWrite",
+            "bdlRead"
+          ],
+          "properties": {
+            "host": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uiAbi": {
+              "const": "amf-ui/0.1"
+            },
+            "react": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"
+            },
+            "application": {
+              "const": "0.1"
+            },
+            "bridge": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bdlWrite": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bdlRead": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "activation": {
+          "enum": [
+            "restart",
+            "reload"
+          ]
+        },
+        "runtimeVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?(?:\\+[A-Za-z0-9.-]+)?$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "component": {
+            "const": "host"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "releases": {
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/release"
+                },
+                {
+                  "required": [
+                    "runtimeVersion"
+                  ],
+                  "properties": {
+                    "activation": {
+                      "const": "restart"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "releases": {
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/release"
+                },
+                {
+                  "not": {
+                    "required": [
+                      "runtimeVersion"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

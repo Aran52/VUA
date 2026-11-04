@@ -2,7 +2,8 @@
  * 通知中心呈现模型(proposal 007 路径 B,核心两条件下):
  * - 任务权威(SQLite 九态)与快照面不动;通知 = 终态任务的呈现层投影;
  * - 默认只显示活动任务(核心条件二前半:重启后终态任务默认不再作为通知);
- * - 「显示已完成」开启时,未被用户清除的终态任务作为通知显示,并逐条提供清除;
+ * - 「显示已完成」设置随 F2 移除(从未生效:会话终态集从未接入 hook),
+ *   终态任务仅 notifyOnComplete 保留的最新一条可见,并逐条提供清除;
  * - 已清除集合(localStorage 持久化)只影响呈现——任务权威事实仍可经任务
  *   列表/详情面查询(核心条件一:清除的是通知,不是事实)。
  */
@@ -21,12 +22,10 @@ export function isTerminalStatus(status: TaskStatus): boolean {
   return TERMINAL.includes(status);
 }
 
-/** 通知列表投影:活动任务恒显;终态任务需「显示已完成」开启且未被清除 */
+/** 通知列表投影:活动任务恒显;终态任务仅 notifyOnComplete 保留的最新一条可见 */
 export function visibleNotifications(
   tasks: readonly TaskItem[],
   dismissed: ReadonlySet<string>,
-  showCompleted: boolean,
-  terminalThisSession: ReadonlySet<string> = new Set(),
 ): readonly TaskItem[] {
   // notifyOnComplete(用户裁决 2026-10-02):短任务的完成通知保留到手动
   // 清除——默认"终态不显示"对秒级完成的任务是零反馈。同族只保留最新
@@ -40,30 +39,11 @@ export function visibleNotifications(
     if (dismissed.has(task.id)) return false;
     if (task.notifyOnComplete === true) return !isTerminalStatus(task.status) || task.id === latestPersistentId;
     if (isTerminalStatus(task.status)) {
-      // 会话终态集(人审 2026-10-06):启动前已终态的历史任务即使开着
-      // 「显示已完成」也不再堆在通知里;任务事实仍可经任务列表查询
-      return showCompleted && terminalThisSession.has(task.id);
+      // 终态即不显示(F2 移除「显示已完成」);任务事实仍可经任务列表查询
+      return false;
     }
     return true;
   });
-}
-
-/** 会话终态集推进(纯函数):首帧即终态 = 启动残留,不入集;会话内
- *  从非终态走到终态的任务入集(「显示已完成」只呈现这些) */
-export function advanceTerminalSessionSet(
-  previousStatuses: ReadonlyMap<string, TaskStatus>,
-  tasks: readonly TaskItem[],
-): Set<string> {
-  const next = new Set<string>();
-  for (const [id, status] of previousStatuses) {
-    if (isTerminalStatus(status)) next.add(id);
-  }
-  for (const task of tasks) {
-    if (!isTerminalStatus(task.status)) continue;
-    if (!previousStatuses.has(task.id)) continue;
-    next.add(task.id);
-  }
-  return next;
 }
 
 /** 清除动作的合法性:仅终态通知可清除(活动任务不可清除,取消走任务取消) */

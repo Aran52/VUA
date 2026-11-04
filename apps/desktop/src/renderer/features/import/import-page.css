@@ -105,7 +105,7 @@
 /* close hover 用错误红淡底 + 红图标,与壳窗口控制钮 hover 语言一致 */
 .vua-import__browse-button--close:hover:not(:disabled) {
   background: color-mix(in srgb, var(--vua-error) 16%, transparent);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-import__browse-url {

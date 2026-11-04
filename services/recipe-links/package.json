@@ -1,0 +1,21 @@
+{
+  "name": "@vua/recipe-links",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.14.0" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-schemas.mjs",
+    "start": "node dist/src/node.js",
+    "test": "pnpm --filter @vua/contracts build && pnpm build && node --test dist/test/*.test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vua/contracts": "workspace:*",
+    "ajv": "8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2"
+  }
+}

@@ -1890,6 +1890,15 @@ function assertReadyP2(view: PackagesView): void {
 }
 
 describe("packages live port (027 F2 consumption)", () => {
+  it("shares overlapping catalog reads without retaining stale facts or merging different scopes", async () => {
+    const requests: DesktopGatewayRequestV1[] = [];
+    const port = createLivePackages(clientWith({ snapshot: F2_AVAILABLE, onRepoCatalogRequest: request => { requests.push(request); } }));
+    const [first, second] = await Promise.all([port.repoCatalog(null, null), port.repoCatalog(null, null), port.repoCatalog("official", null)]);
+    expect(first).toEqual(second);
+    expect(requests).toHaveLength(2);
+    await port.repoCatalog(null, null);
+    expect(requests).toHaveLength(3);
+  });
   it("flips the repoCatalog block from the repoCatalogOps served row (declared-none stays honestly hidden)", async () => {
     const hidden = await createLivePackages(clientWith()).snapshot();
     assertReadyP2(hidden);

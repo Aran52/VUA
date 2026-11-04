@@ -1,4 +1,7 @@
+import { isAmfMaterialChoices, type AmfMaterialChoices } from "./amf-recipe-materials.js";
 /** Candidate AMF material-first production. Frozen legacy production faces are separate. */
+import { isTexturePlatform, isTextureTargetRank, isTexturePath } from "./texture-memory-v01.js";
+import type { TexturePlatform, TextureTargetRank } from "./texture-memory-v01.js";
 import { isFaceTrackingDigest } from "./face-tracking-v01.js";
 export type AmfSourceRole = "auto" | "avatar" | "outfit" | "dependency";
 export interface AmfSourceChoice { readonly sourceId: string; readonly role: AmfSourceRole }
@@ -6,11 +9,24 @@ export interface AmfOutfitSelection {
   readonly sourceId: string; readonly prefabPath: string;
   readonly mode: "merge_armature" | "attach_to_bone"; readonly bone: string;
   readonly toggleName: string; readonly active: boolean;
+  /** Whether the switch keeps its state across worlds; absent means saved. */
+  readonly saved?: boolean;
+  /** An exclusive group shared with other switches; absent or empty means independent. */
+  readonly group?: string;
+}
+/** A switch group name: letters, digits, `_` and `-`; empty in Unity's reports means none. */
+export const AMF_SWITCH_GROUP = /^[A-Za-z0-9_-]{0,32}$/u;
+/** The optional switch options of an outfit entry, checked alongside its required keys. */
+export function hasAmfSwitchOptions(value: Record<string, unknown>, required: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return required.every(key => key in value) && keys.every(key => required.includes(key) || key === "saved" || key === "group")
+    && (value.saved === undefined || typeof value.saved === "boolean")
+    && (value.group === undefined || (typeof value.group === "string" && AMF_SWITCH_GROUP.test(value.group)));
 }
 export interface AmfAssemblySelection { readonly avatarPrefab: string; readonly outfits: readonly AmfOutfitSelection[] }
 export type AmfRecipeApplyChoice = "recipe_wins" | "avatar_wins" | "new_avatar";
 /** Which state of the line a revision recorded; `restore` is the protected current state. */
-export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "face_tracking" | "lighting" | "restore";
+export type AmfProductionRevisionKind = "materials" | "assembly" | "rebuild" | "sdk_fix" | "face_tracking" | "editor_save" | "outfit_removal" | "lighting" | "texture_memory" | "restore";
 export type AmfProductionCapacity = 1 | 2 | 3;
 /** The lilToon brightness limits of one material, as serialized in its file. */
 export interface AmfLightingLimits { readonly min: string; readonly max: string }
@@ -29,11 +45,17 @@ export interface AmfProductionLaneV01 {
   readonly queue: readonly AmfProductionWorkV01[];
 }
 export type AmfProductionBodyV01 =
+  | { readonly method: "amf.production.exportShareImage"; readonly params: { readonly schemaVersion:"0.1"; readonly runId:string; readonly format:"png"|"gif"; readonly index:number; readonly code:string|null } }
+  | { readonly method: "amf.production.readShareImage"; readonly params: { readonly schemaVersion:"0.1"; readonly inputId:string } }
+  | { readonly method: "amf.production.planTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank } }
+  | { readonly method: "amf.production.applyTextureMemory"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly platform: TexturePlatform; readonly targetRank: TextureTargetRank; readonly planDigest: string; readonly textures: readonly string[] } }
+  | { readonly method: "amf.production.planOutfitRemoval"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sourceId: string } }
+  | { readonly method: "amf.production.removeOutfit"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sourceId: string; readonly planDigest: string; readonly confirmed: true } }
   | { readonly method: "amf.production.faceTrackingPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string } }
   | { readonly method: "amf.production.faceTrackingPatch"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly menuId: string; readonly planDigest: string; readonly confirmTrustedCode: true } }
   | { readonly method: "amf.production.setCapacity"; readonly params: { readonly schemaVersion: "0.1"; readonly capacity: AmfProductionCapacity } }
-  | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string } }
-  | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string } }
+  | { readonly method: "amf.production.recipeApplyPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly avatarGlobalObjectId?: string; readonly materialChoices?: AmfMaterialChoices } }
+  | { readonly method: "amf.production.applyRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly recipeId: string; readonly planDigest: string; readonly choice: AmfRecipeApplyChoice; readonly avatarGlobalObjectId?: string; readonly materialChoices?: AmfMaterialChoices; readonly recipeDifferencesConfirmed?: true } }
   | { readonly method: "amf.production.previewRecipeShare" | "amf.production.importRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly text: string } }
   | { readonly method: "amf.production.exportRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly planDigest: string; readonly sources: Readonly<Record<string,string>> } }
   | { readonly method: "amf.production.list"; readonly params: { readonly schemaVersion: "0.1" } }
@@ -45,18 +67,20 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.turntableFrame"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly index: number } }
   | { readonly method: "amf.production.upload"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly avatarName: string; readonly rightsConfirmed: true } }
   /** Runs the VRChat SDK's own Auto Fix for the chosen items of its Avatar check, named by the SDK's exact words. */
+  | { readonly method: "amf.production.closeEditor"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly confirmed: true } }
   | { readonly method: "amf.production.sdkFix"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly fixes: readonly string[] } }
   /** Changes the line's own materials; the line keeps its identity and plans again. */
   | { readonly method: "amf.production.changeSources"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly sources: readonly AmfSourceChoice[] } }
   /** Deletes a line with its work project and release record. */
   | { readonly method: "amf.production.delete"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
-  | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string } }
+  | { readonly method: "amf.production.recipeMaterialPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly materialChoices?: AmfMaterialChoices } }
+  | { readonly method: "amf.production.prepareRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly editorPath: string; readonly materialChoices?: AmfMaterialChoices } }
   | { readonly method: "amf.production.get" | "amf.production.reinspect" | "amf.production.open" | "amf.production.rollbackPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   /** Reviews the lilToon brightness alignment of an assembled line. */
   | { readonly method: "amf.production.planLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
   /** Aligns the chosen reviewed materials' lilToon brightness limits with the Avatar's, behind a restore point. */
   | { readonly method: "amf.production.applyLighting"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly materials: readonly string[] } }
-  | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string } }
+  | { readonly method: "amf.production.rollback"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly target?: "restorePoint" | "prePatch" } }
   | { readonly method: "amf.production.revisionPlan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string } }
   | { readonly method: "amf.production.restoreRevision"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly revisionId: string; readonly planDigest: string } }
   | { readonly method: "amf.production.listFits"; readonly params: { readonly schemaVersion: "0.1" } }
@@ -66,7 +90,12 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.deleteFit"; readonly params: { readonly schemaVersion: "0.1"; readonly fitId: string } }
   | { readonly method: "amf.production.prepare"; readonly params: { readonly schemaVersion: "0.1"; readonly sources: readonly AmfSourceChoice[]; readonly editorPath: string } }
   | { readonly method: "amf.production.plan"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly selection: AmfAssemblySelection } }
-  | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection } };
+  | { readonly method: "amf.production.assemble"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection; readonly recipeDifferencesConfirmed?: true } };
+export interface AmfEditorCloseResult {
+  readonly schemaVersion: "0.1"; readonly runId: string; readonly closeId: string;
+  readonly outcome: "saved" | "failed"; readonly scenesSaved: boolean; readonly assetsSaved: boolean;
+  readonly editorClosed: boolean; readonly reason: string; readonly detail: string;
+}
 export type AmfProductionRequestV1 = { readonly schemaVersion: 1; readonly requestId: string } & AmfProductionBodyV01;
 
 /** Run phases. `inspecting` covers reinspection ("continue"); `stopped` keeps the work project and its materials. */
@@ -75,7 +104,7 @@ export type AmfRunPhaseV01 = typeof AMF_RUN_PHASES[number];
 /** Phases during which a task works on the run. */
 export const AMF_ACTIVE_PHASES: readonly AmfRunPhaseV01[] = ["preparing", "inspecting", "assembling", "restoring"];
 /** Recorded steps, in the order a production meets them. */
-export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "lighting"] as const;
+export const AMF_STEP_KEYS = ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "sdk_fix", "face_tracking", "editor_close", "outfit_removal", "lighting", "texture_memory"] as const;
 export type AmfStepKey = typeof AMF_STEP_KEYS[number];
 export const AMF_STEP_STATES = ["running", "succeeded", "failed", "stopped", "interrupted"] as const;
 export type AmfStepState = typeof AMF_STEP_STATES[number];
@@ -133,6 +162,16 @@ export function isAmfRunProgress(value: unknown): value is AmfRunProgressV01 {
     && count(value.elapsedSeconds) && (value.usualSeconds === null || count(value.usualSeconds))
     && (value.unity === undefined || isAmfUnityProgress(value.unity));
 }
+/** Validates optional saving facts retained by a close task, separately from project release. */
+export function isAmfEditorCloseResult(value: unknown): value is AmfEditorCloseResult {
+  if (!record(value) || !exact(value, ["schemaVersion", "runId", "closeId", "outcome", "scenesSaved", "assetsSaved", "editorClosed", "reason", "detail"])
+    || value.schemaVersion !== "0.1" || !runId(value.runId) || !runId(value.closeId)
+    || !["saved", "failed"].includes(String(value.outcome)) || typeof value.scenesSaved !== "boolean"
+    || typeof value.assetsSaved !== "boolean" || typeof value.editorClosed !== "boolean"
+    || typeof value.reason !== "string" || !["", "scene_save_failed", "asset_save_failed", "untitled_scene", "editor_busy", "expired", "cancelled", "save_failed", "timeout"].includes(value.reason)
+    || typeof value.detail !== "string" || value.detail.length > 1000 || value.detail.includes("\0")) return false;
+  return value.outcome === "saved" ? value.scenesSaved && value.assetsSaved && ["", "timeout"].includes(value.reason) : value.reason !== "";
+}
 /** Reads the payload of an `amf.production` task progress event; anything else is `null`. */
 export function readAmfProductionProgress(payload: unknown): AmfProductionProgressV01 | null {
   if (!record(payload) || payload.operation !== "amf.production"
@@ -162,7 +201,7 @@ export function isAmfAvatarName(value: unknown): value is string {
 }
 export function isAmfAssemblySelection(value: unknown): value is AmfAssemblySelection {
   if (!record(value) || !exact(value, ["avatarPrefab", "outfits"]) || !text(value.avatarPrefab) || !Array.isArray(value.outfits) || value.outfits.length < 1 || value.outfits.length > 64) return false;
-  return value.outfits.every(outfit => record(outfit) && exact(outfit, ["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"])
+  return value.outfits.every(outfit => record(outfit) && hasAmfSwitchOptions(outfit, ["sourceId", "prefabPath", "mode", "bone", "toggleName", "active"])
     && text(outfit.sourceId, 256) && text(outfit.prefabPath) && (outfit.mode === "merge_armature" || outfit.mode === "attach_to_bone")
     && typeof outfit.bone === "string" && outfit.bone.length <= 80 && typeof outfit.toggleName === "string" && outfit.toggleName.length <= 80
     && !/[\u0000-\u001f]/u.test(outfit.toggleName) && typeof outfit.active === "boolean");
@@ -172,14 +211,16 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
   switch (method) {
     case "amf.production.setCapacity": return exact(value, ["schemaVersion", "capacity"]) && isAmfProductionCapacity(value.capacity);
     case "amf.production.recipeApplyPlan": case "amf.production.applyRecipe":
-      return exact(value, [...(method === "amf.production.recipeApplyPlan" ? ["schemaVersion","runId","recipeId"] : ["schemaVersion","runId","recipeId","planDigest","choice"]), ...("avatarGlobalObjectId" in value ? ["avatarGlobalObjectId"] : [])])
+      return exact(value, [...(method === "amf.production.recipeApplyPlan" ? ["schemaVersion","runId","recipeId"] : ["schemaVersion","runId","recipeId","planDigest","choice"]), ...("avatarGlobalObjectId" in value ? ["avatarGlobalObjectId"] : []),...("materialChoices" in value ? ["materialChoices"] : []),...(method === "amf.production.applyRecipe" && "recipeDifferencesConfirmed" in value ? ["recipeDifferencesConfirmed"] : [])])
         && (!("avatarGlobalObjectId" in value) || text(value.avatarGlobalObjectId,256))
         && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId)
+        && (value.materialChoices === undefined || isAmfMaterialChoices(value.materialChoices))
+        && (value.recipeDifferencesConfirmed === undefined || value.recipeDifferencesConfirmed === true)
         && (method === "amf.production.recipeApplyPlan" || (typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest) && ["recipe_wins","avatar_wins","new_avatar"].includes(String(value.choice))));
     case "amf.production.previewRecipeShare": case "amf.production.importRecipe": return exact(value,["schemaVersion","text"]) && text(value.text,349557);
     case "amf.production.exportRecipe": return exact(value,["schemaVersion","recipeId","planDigest","sources"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId)
       && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest) && record(value.sources) && Object.keys(value.sources).length <= 64
-      && Object.entries(value.sources).every(([id,booth]) => /^m-[a-f0-9]{64}$/u.test(id) && typeof booth === "string" && /^[1-9][0-9]{0,19}$/u.test(booth));
+      && Object.entries(value.sources).every(([id,booth]) => /^[a-zA-Z0-9_-]{1,100}$/u.test(id) && typeof booth === "string" && /^[1-9][0-9]{0,19}$/u.test(booth));
     case "amf.production.list": case "amf.production.listRecipes": return exact(value, ["schemaVersion"]);
     case "amf.production.getRecipe": case "amf.production.recipeSharePlan": return exact(value, ["schemaVersion", "recipeId"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId);
     case "amf.production.saveRecipe": return exact(value, ["schemaVersion", "runId", "title"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
@@ -188,14 +229,22 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
       && text(value.path,512) && isAmfPreviewPath(value.path);
     case "amf.production.releaseState": case "amf.production.bakeTurntable":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.readShareImage": return exact(value,["schemaVersion","inputId"]) && typeof value.inputId === "string" && /^input-[a-f0-9-]{36}\.bin$/u.test(value.inputId);
+    case "amf.production.exportShareImage": return exact(value,["schemaVersion","runId","format","index","code"]) && runId(value.runId)
+      && ["png","gif"].includes(String(value.format)) && Number.isInteger(value.index) && Number(value.index)>=0 && Number(value.index)<60
+      && (value.code===null || (typeof value.code==="string" && /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{12}$/u.test(value.code)));
     case "amf.production.turntableFrame": return exact(value, ["schemaVersion", "runId", "index"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && Number.isInteger(value.index) && Number(value.index) >= 0 && Number(value.index) < AMF_TURNTABLE_FRAMES;
     // The player confirms the content rights statement in VUA for each upload.
     case "amf.production.upload": return exact(value, ["schemaVersion", "runId", "avatarName", "rightsConfirmed"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && isAmfAvatarName(value.avatarName) && value.rightsConfirmed === true;
+    case "amf.production.planOutfitRemoval": return exact(value, ["schemaVersion", "runId", "sourceId"]) && runId(value.runId) && text(value.sourceId,256);
+    case "amf.production.removeOutfit": return exact(value, ["schemaVersion", "runId", "sourceId", "planDigest", "confirmed"])
+      && runId(value.runId) && text(value.sourceId,256) && isFaceTrackingDigest(value.planDigest) && value.confirmed === true;
     case "amf.production.faceTrackingPlan": return exact(value, ["schemaVersion", "runId", "menuId"]) && runId(value.runId) && isFaceTrackingDigest(value.menuId);
     case "amf.production.faceTrackingPatch": return exact(value, ["schemaVersion", "runId", "menuId", "planDigest", "confirmTrustedCode"])
       && runId(value.runId) && isFaceTrackingDigest(value.menuId) && isFaceTrackingDigest(value.planDigest) && value.confirmTrustedCode === true;
+    case "amf.production.closeEditor": return exact(value, ["schemaVersion", "runId", "confirmed"]) && runId(value.runId) && value.confirmed === true;
     case "amf.production.sdkFix": return exact(value, ["schemaVersion", "runId", "fixes"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && Array.isArray(value.fixes) && value.fixes.length >= 1 && value.fixes.length <= AMF_SDK_FIX_LIMIT
       && value.fixes.every(fix => text(fix, 600)) && new Set(value.fixes).size === value.fixes.length;
@@ -204,17 +253,26 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && value.sources.every(source => record(source) && exact(source, ["sourceId", "role"]) && text(source.sourceId, 256) && typeof source.role === "string" && roles.includes(source.role))
         && new Set(value.sources.map((source: AmfSourceChoice) => source.sourceId)).size === value.sources.length;
     case "amf.production.delete": return exact(value, ["schemaVersion", "runId"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
-    case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId", "editorPath"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && text(value.editorPath);
+    case "amf.production.recipeMaterialPlan": case "amf.production.prepareRecipe": return exact(value, ["schemaVersion", "recipeId",...(method === "amf.production.prepareRecipe" ? ["editorPath"] : []),...("materialChoices" in value ? ["materialChoices"] : [])]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && (method === "amf.production.recipeMaterialPlan" || text(value.editorPath)) && (value.materialChoices === undefined || isAmfMaterialChoices(value.materialChoices));
     case "amf.production.get": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollbackPlan": case "amf.production.planLighting":
       return exact(value, ["schemaVersion", "runId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId);
+    case "amf.production.planTextureMemory":
+      return exact(value, ["schemaVersion", "runId", "platform", "targetRank"]) && runId(value.runId) && isTexturePlatform(value.platform) && isTextureTargetRank(value.targetRank);
+    case "amf.production.applyTextureMemory":
+      return exact(value, ["schemaVersion", "runId", "platform", "targetRank", "planDigest", "textures"]) && runId(value.runId)
+        && isTexturePlatform(value.platform) && isTextureTargetRank(value.targetRank) && isFaceTrackingDigest(value.planDigest)
+        && Array.isArray(value.textures) && value.textures.length > 0 && value.textures.length <= 2048
+        && value.textures.every(isTexturePath) && new Set(value.textures).size === value.textures.length;
     case "amf.production.applyLighting":
       return exact(value, ["schemaVersion", "runId", "planDigest", "materials"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)
         && Array.isArray(value.materials) && value.materials.length >= 1 && value.materials.length <= 512
         && value.materials.every(isAmfMaterialPath) && new Set(value.materials).size === value.materials.length;
     case "amf.production.rollback":
-      return exact(value, ["schemaVersion", "runId", "planDigest"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
-        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest);
+      return exact(value, ["schemaVersion", "runId", "planDigest", ...("target" in value ? ["target"] : [])])
+        && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
+        && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)
+        && (!("target" in value) || ["restorePoint", "prePatch"].includes(String(value.target)));
     case "amf.production.revisionPlan":
       return exact(value, ["schemaVersion", "runId", "revisionId"]) && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
         && text(value.revisionId, 128) && /^[A-Za-z0-9_-]+$/u.test(value.revisionId);
@@ -236,8 +294,9 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
         && value.sources.every(source => record(source) && exact(source, ["sourceId", "role"]) && text(source.sourceId, 256) && typeof source.role === "string" && roles.includes(source.role))
         && new Set(value.sources.map((source: AmfSourceChoice) => source.sourceId)).size === value.sources.length;
     case "amf.production.plan": case "amf.production.assemble":
-      return exact(value, method === "amf.production.plan" ? ["schemaVersion", "runId", "selection"] : ["schemaVersion", "runId", "selection", "planDigest"])
+      return exact(value, method === "amf.production.plan" ? ["schemaVersion", "runId", "selection"] : ["schemaVersion", "runId", "selection", "planDigest",...("recipeDifferencesConfirmed" in value ? ["recipeDifferencesConfirmed"] : [])])
         && text(value.runId, 100) && /^[a-zA-Z0-9-]+$/u.test(value.runId) && isAmfAssemblySelection(value.selection)
+        && (value.recipeDifferencesConfirmed === undefined || value.recipeDifferencesConfirmed === true)
         && (method === "amf.production.plan" || (typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest)));
     default: return false;
   }

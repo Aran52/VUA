@@ -82,7 +82,7 @@ const pause = () => new Promise<void>(resolve => setTimeout(resolve, 35));
 const text = () => document.body.textContent ?? "";
 const check = (value: unknown, label: string) => { if (!value) throw Error(label); checks.push(label); };
 const until = async (test: () => boolean, label: string) => { const deadline = performance.now() + 6000; while (!test()) { if (performance.now() > deadline) throw Error(`${label}: ${text()}`); await pause(); } };
-const button = (label: string) => { const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
+const button = (label: string) => { const scope = document.querySelector('[role="dialog"]') ?? document; const found = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
 const click = async (label: string) => { const node = button(label); if (node.disabled) throw Error(`Disabled ${label}`); node.click(); await pause(); };
 const cards = () => [...document.querySelectorAll<HTMLElement>("[data-selection-id]")];
 async function menu() {
@@ -110,6 +110,7 @@ async function run() {
   await click(copy.cardMenu.openFolder); await until(() => !!document.querySelector('[role="dialog"]'), "product folder choice");
   check(text().includes(copy.cardMenu.chooseFolder) && openedFolders.length === 1, "a product with multiple directories offers a choice instead of opening a guessed root");
   await click("installed.zip");
+  await until(() => openedFolders.at(-1) === "whi-synthetic" && !document.querySelector('[role="dialog"]'), "chosen product folder opens and the chooser finishes closing");
   check(openedFolders.at(-1) === "whi-synthetic" && !document.querySelector('[role="dialog"]'), "chosen product directory uses its recorded entry identity");
   await menu();
   check(![...document.querySelectorAll(".vua-context-menu button")].some(button => button.textContent?.trim() === copy.cardMenu.openFolder), "multi-card selection never exposes a folder action");
@@ -158,7 +159,7 @@ async function run() {
     { id: "transfer-known", title: "Download · synthetic-material-with-a-long-filename.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 5 * 1024 ** 2, expectedBytes: 20 * 1024 ** 2, bytesPerSecond: 2 * 1024 ** 2, sampledAt: Date.now() } },
     { id: "transfer-unknown", title: "Download · unknown-size.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 1024, expectedBytes: null, bytesPerSecond: null, sampledAt: Date.now() } },
     ...(["queued", "preparing", "running", "waitingInput", "paused", "completed", "completedWithWarnings", "failed", "cancelled"] as const).map(status => ({ id: `sync-${status}`, title: `BOOTH library sync · ${status}`, status, originPage: "warehouse" as const, cancellable: status === "running" })),
-  ]} rejectedId={null} showCompleted={false} onShowCompletedChange={() => {}} onCancel={() => {}} onRetry={() => {}} dismissible={() => undefined} onBackToOrigin={() => {}} emptyText={null} replay={null} /></div>);
+  ]} rejectedId={null} onCancel={() => {}} onRetry={() => {}} dismissible={() => undefined} onBackToOrigin={() => {}} emptyText={null} replay={null} /></div>);
   await pause();
   check(document.querySelectorAll("progress").length === 2 && document.querySelectorAll("progress:indeterminate").length === 1, "known size renders measured progress; unknown size remains indeterminate");
   check(text().includes("MiB/s") && text().includes(strings.taskCenter.speedUnavailable), "notification rows show transfer speed and an honest measuring state");

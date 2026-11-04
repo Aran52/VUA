@@ -12,7 +12,7 @@ const fileName = (path: string) => path.split("/").pop()!.replace(/\.mat$/iu, ""
 
 export function LightingCard({ port, run, level, disabled, onStarted, onError }: {
   port: AmfProductionPort; run: AmfProductionRun; level: AutomationLevel; disabled: boolean;
-  onStarted: (taskId: string) => void; onError: (message: string) => void;
+  onStarted: (taskId: string) => void; onError: (error: unknown) => void;
 }) {
   const [plan, setPlan] = useState<AmfLightingPlan | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "needs_check" | "unavailable">("loading");
@@ -37,7 +37,7 @@ export function LightingCard({ port, run, level, disabled, onStarted, onError }:
     if (!plan || starting) return;
     setStarting(true);
     try { onStarted((await port.applyLighting(run.runId, plan, [...chosen])).taskId); }
-    catch (error) { onError(error instanceof Error ? error.message : copy.title); }
+    catch (error) { onError(error); }
     finally { setStarting(false); }
   };
   const perMaterial = level === "ask";
@@ -56,7 +56,7 @@ export function LightingCard({ port, run, level, disabled, onStarted, onError }:
         </li>)}</ul>
         {plan.skipped.length > 0 && <p className="vua-caption vua-text-secondary">{format(copy.shared, { count: String(plan.skipped.length) })}</p>}
         <p className="vua-caption vua-text-secondary">{copy.restoreNote}</p>
-        <div className="vua-n3__actions"><Button variant="primary" disabled={disabled || starting || chosen.size === 0} onClick={() => { void apply(); }} data-nav-id="workshop-lighting-apply">
+        <div className="vua-n3__actions"><Button disabled={disabled || starting || chosen.size === 0} onClick={() => { void apply(); }} data-nav-id="workshop-lighting-apply">
           {starting ? copy.applying : format(copy.apply, { count: String(chosen.size) })}</Button></div>
       </>}
   </Card>;

@@ -1,6 +1,8 @@
 /* Warehouse 目录浏览(G8):只消费 Token,不引入新的视觉值 */
 
 .vua-warehouse {
+  width: 100%;
+  min-width: 0;
   max-width: none;
   /* 仓库页不做页面级滚动:滚动限定在图片墙区域(用户反馈 #2),
    * hero/工具栏/详情抽屉常驻 */
@@ -24,7 +26,7 @@
   padding: var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -51,14 +53,14 @@
 
 .vua-warehouse__track-choice > svg {
   flex: 0 0 auto;
-  margin-top: 2px;
+  margin-top: var(--vua-space-1);
   color: var(--vua-text-secondary);
 }
 
 .vua-warehouse__track-choice-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--vua-space-1);
   min-width: 0;
 }
 
@@ -101,7 +103,7 @@
   min-height: 0;
   overflow-y: auto;
   /* 卡片 hover 上浮(-2px)在滚动区内不裁切 */
-  padding-top: 2px;
+  padding-top: var(--vua-space-1);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -123,9 +125,12 @@
 
 .vua-warehouse__filters {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) repeat(3, minmax(130px, 180px));
+  grid-template-columns: minmax(200px, 2fr) repeat(4, minmax(0, 1fr));
   align-items: end;
   gap: var(--vua-space-3);
+}
+.vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) {
+  grid-template-columns: minmax(200px, 2fr) repeat(5, minmax(0, 1fr));
 }
 .vua-warehouse__search-controls {
   display: flex; align-items: flex-end; gap: var(--vua-space-2); min-width: 0;
@@ -166,8 +171,13 @@
 @media (max-width: 1000px) {
   /* At narrow widths/large zoom the header and controls need ordinary page scroll. */
   .vua-warehouse { overflow-y: auto; }
-  .vua-warehouse__filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vua-warehouse__filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .vua-warehouse__search-controls { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .vua-warehouse__filters, .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) > .vua-warehouse__field:last-of-type { grid-column: 1 / -1; }
 }
 
 .vua-warehouse__toolbar {
@@ -184,7 +194,7 @@
   padding: 0 var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-bg-panel) 70%, transparent);
+  background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
   font: inherit;
 }
@@ -201,7 +211,7 @@
   padding: 0 calc(var(--vua-space-3) + 20px) 0 var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
-  background: color-mix(in srgb, var(--vua-bg-panel) 70%, transparent);
+  background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
   font: inherit;
   cursor: pointer;
@@ -220,13 +230,16 @@
 }
 
 .vua-warehouse-card {
+  --vua-library-frame-color: var(--vua-border);
+  --vua-library-frame-width: 1px;
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--vua-border);
+  border: 0;
   border-radius: var(--vua-radius-card);
   /* 玻璃卡:半透明底透出画布氛围(整墙卡片不上 backdrop-filter,性能优先) */
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   overflow: hidden;
   cursor: pointer;
   /* 309 张卡片的长墙:视口外卡片跳过布局/绘制;auto 记住实测尺寸,
@@ -236,8 +249,17 @@
   /* 卡片抬升:hover 上浮 + 指针微倾斜(use-card-spotlight 写入 --rx/--ry)+ 辖区色边框 + 柔光 */
   transition:
     transform 120ms ease-out,
-    border-color 120ms ease-out,
     box-shadow 120ms ease-out;
+}
+.vua-warehouse-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: var(--vua-library-frame-width) solid var(--vua-library-frame-color);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: border-color var(--vua-motion-fast);
 }
 
 /* 指针聚光:跟随光斑(use-card-spotlight 写入 --px/--py);
@@ -264,9 +286,9 @@
 }
 
 .vua-warehouse-card:hover {
+  --vua-library-frame-color: var(--vua-accent);
   transform: translateY(-2px) perspective(600px) rotateX(var(--rx, 0deg))
     rotateY(var(--ry, 0deg));
-  border-color: var(--vua-accent);
   box-shadow: var(--vua-glow-accent-soft);
 }
 
@@ -302,10 +324,9 @@
 
 /* 选中:辖区色描边 + 描边环 + 柔光 */
 .vua-warehouse-card[data-selected] {
-  border-color: var(--vua-accent);
-  box-shadow:
-    0 0 0 1px var(--vua-accent),
-    var(--vua-glow-accent-soft);
+  --vua-library-frame-color: var(--vua-accent);
+  --vua-library-frame-width: 2px;
+  box-shadow: var(--vua-glow-accent-soft);
 }
 
 .vua-warehouse-card__media {
@@ -362,31 +383,54 @@
 
 /* 骨架占位:与卡片媒体同形(1:1),避免布局跳动 */
 .vua-warehouse-card__menu { margin-top: auto; align-self: stretch; }
-.vua-library-corner {
+.vua-library-marker {
   --corner-color: var(--vua-success);
-  appearance: none;
   position: absolute;
   inset: 0 auto auto 0;
-  z-index: 3;
-  width: 58px;
-  height: 58px;
+  z-index: 4;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+/* The 40 px status triangle continues down-right into a 72 px diagonal wash.
+ * Its decorative tail passes pointer input through to the material preview. */
+.vua-library-marker::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 72px;
+  height: 72px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  background: linear-gradient(135deg, var(--corner-color) 28%, transparent 50%);
+}
+.vua-library-corner {
+  appearance: none;
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 0;
+  border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 0 100%);
   background: var(--corner-color);
   color: var(--vua-accent-contrast);
   cursor: default;
+  pointer-events: auto;
 }
 .vua-library-corner[data-action] { cursor: pointer; }
-.vua-library-corner[data-corner-state="local"], .vua-library-corner[data-corner-state="searching"] { --corner-color: var(--vua-purple); }
-.vua-library-corner[data-corner-state="linked"] { --corner-color: var(--vua-orange); }
-.vua-library-corner[data-corner-state="paused"], .vua-library-corner[data-corner-state="uncertain"] { --corner-color: var(--vua-warning); }
-.vua-library-corner[data-corner-state="error"] { --corner-color: var(--vua-error); }
-.vua-library-corner > span { position: absolute; left: 9px; top: 9px; line-height: 0; }
+.vua-library-marker[data-corner-state="local"], .vua-library-marker[data-corner-state="searching"] { --corner-color: var(--vua-purple); }
+.vua-library-marker[data-corner-state="linked"] { --corner-color: var(--vua-orange); }
+.vua-library-marker[data-corner-state="paused"], .vua-library-marker[data-corner-state="uncertain"] { --corner-color: var(--vua-warning); }
+.vua-library-marker[data-corner-state="error"] { --corner-color: var(--vua-error); }
+.vua-library-corner > span { position: absolute; left: 6px; top: 6px; line-height: 0; }
 .vua-library-corner__hover { opacity: 0; }
 .vua-library-corner[data-action]:is(:hover, :focus-visible) .vua-library-corner__rest { opacity: 0; }
 .vua-library-corner[data-action]:is(:hover, :focus-visible) .vua-library-corner__hover { opacity: 1; }
-.vua-library-corner:focus-visible { outline: none; filter: brightness(1.2); }
+.vua-library-corner:focus-visible { outline: none; }
+.vua-library-corner__focus { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--vua-accent-contrast); opacity: 0; pointer-events: none; }
+.vua-library-corner:focus-visible .vua-library-corner__focus { opacity: 1; }
 .vua-library-corner:is([data-corner-state="downloading"], [data-corner-state="searching"]) .vua-library-corner__rest svg { animation: vua-corner-spin 1.2s linear infinite; }
 .vua-library-corner[data-corner-state="searching"] .vua-library-corner__hover svg { animation: vua-corner-spin 1.2s linear infinite; }
 @keyframes vua-corner-spin { to { transform: rotate(360deg); } }
@@ -571,9 +615,9 @@
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
   background: var(--vua-bg-canvas);
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--vua-font-mono);
+  font-size: var(--vua-text-caption-size);
+  line-height: var(--vua-text-caption-leading);
   max-height: 280px;
   overflow: auto;
   user-select: text;
@@ -691,7 +735,8 @@
   border: none;
   padding: 0;
   background: transparent;
-  font-size: 28px;
+  font-size: var(--vua-text-display-size);
+  line-height: var(--vua-text-display-leading);
   color: var(--vua-text-strong);
   text-shadow: 0 0 4px var(--vua-bg-canvas);
   opacity: 0;
@@ -758,7 +803,8 @@
   border-radius: var(--vua-radius-control);
   background: var(--vua-bg-panel);
   color: var(--vua-text-strong);
-  font-size: 18px;
+  font-size: var(--vua-text-title-size);
+  line-height: var(--vua-text-title-leading);
   cursor: pointer;
 }
 
@@ -766,7 +812,7 @@
  *  仅保留本地特有的小块样式 ---- */
 
 /* 隔离 = 安全异常:展柜模块仅异常用红(§6.1),卡片左侧红线 */
-.vua-warehouse-card[data-verdict="quarantined"] {
+.vua-warehouse-card[data-verdict="quarantined"]::after {
   border-left: 3px solid var(--vua-error);
 }
 
@@ -839,7 +885,7 @@
 }
 
 .vua-flow__phase[data-tone="error"] {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-flow__phase[data-tone="neutral"] {
@@ -890,7 +936,7 @@
   padding: var(--vua-space-2) var(--vua-space-3);
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-panel) 78%, transparent);
+  background: var(--vua-bg-panel);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -1016,7 +1062,7 @@
 /* 意图拒绝的行内提示(role=alert;红仅表达动作未生效) */
 .vua-flow__rejection {
   margin: 0;
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }
 
 .vua-flow__skeleton {
@@ -1034,7 +1080,8 @@
 
 .vua-warehouse__group-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
   font-weight: 600;
 }
 
@@ -1050,7 +1097,8 @@
 
 /* 卡片变体标记行(购买变体名;用户裁决 2026-10-03) */
 .vua-warehouse-card__variant {
-  font-size: 0.875rem;
+  font-size: var(--vua-text-body-size);
+  line-height: var(--vua-text-body-leading);
   font-weight: 600;
   color: var(--vua-text-primary);
   white-space: nowrap;
@@ -1070,9 +1118,10 @@
 .vua-library-list__cell:last-child, .vua-library-list__heading:last-child { border-right: 0; }
 .vua-library-list__title { gap: var(--vua-space-2); }
 .vua-library-list__title > span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.vua-library-list__title > button { flex-shrink: 0; min-height: 28px; padding: 0 6px; }
+.vua-library-list__title > button { flex-shrink: 0; min-height: 28px; padding: 0 var(--vua-space-2); }
 .vua-library-list__heading { position: relative; user-select: none; }
-.vua-library-list__resize { position: absolute; right: -5px; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 1; }
+.vua-library-list__resize { position: absolute; right: -12px; top: 0; bottom: 0; width: 24px; cursor: col-resize; z-index: 1; }
+.vua-library-list__resize:focus-visible { outline-offset: -2px; }
 .vua-library-list__resize:hover, .vua-library-list__resize:focus-visible { background: color-mix(in srgb, var(--vua-accent) 40%, transparent); }
 .vua-library-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: var(--vua-space-2); }
 
@@ -1081,12 +1130,6 @@
   background: var(--vua-bg-hover, rgba(255, 255, 255, 0.06));
 }
 
-
-/* 多选模式卡片选中态(用户裁决 2026-10-04):橙色描边 + 角标计数 */
-.vua-warehouse-card[data-selected] {
-  outline: 2px solid var(--vua-accent, #ff8c42);
-  outline-offset: -2px;
-}
 
 /* 加入 Recipe 小窗 */
 .vua-add-to-recipe {
@@ -1111,7 +1154,7 @@
   width: 100%;
   padding: var(--vua-space-2) var(--vua-space-3);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -1123,7 +1166,7 @@
 }
 
 .vua-add-to-recipe__name {
-  font-weight: 500;
+  font-weight: var(--vua-weight-strong);
   flex: 1;
 }
 
@@ -1161,7 +1204,7 @@
   gap: var(--vua-space-1);
   padding: var(--vua-space-2) var(--vua-space-3);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
 }
 
 .vua-compatible-items__main {
@@ -1172,14 +1215,15 @@
 }
 
 .vua-compatible-items__name {
-  font-weight: 500;
+  font-weight: var(--vua-weight-strong);
 }
 
 .vua-compatible-items__kind {
-  font-size: 0.75rem;
+  font-size: var(--vua-text-caption-size);
+  line-height: var(--vua-text-caption-leading);
   padding: 0 var(--vua-space-2);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 999px;
+  border-radius: 0;
   color: var(--vua-text-secondary);
   white-space: nowrap;
 }
@@ -1236,7 +1280,7 @@
 .vua-download-checklist__row {
   padding: var(--vua-space-1) var(--vua-space-2);
   border: 1px solid var(--vua-border, rgba(255, 255, 255, 0.1));
-  border-radius: 6px;
+  border-radius: var(--vua-radius-md);
 }
 
 .vua-download-checklist__label {
@@ -1259,19 +1303,28 @@
 .vua-terms__uses { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .vua-terms__uses li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--vua-border); }
 .vua-terms__uses small { grid-column: 1 / -1; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
-.vua-terms__uses li[data-decision="conforms"] strong { color: var(--vua-success); }
-.vua-terms__uses li[data-decision="contact_licensor"] strong { color: var(--vua-warning); }
-.vua-terms__uses li[data-decision="nonconforming"] strong { color: var(--vua-error); }
-.vua-terms__uses li[data-decision="unknown"] strong, .vua-terms__uses li[data-decision="pending"] strong { color: var(--vua-text-secondary); font-weight: 500; }
+.vua-terms__uses li[data-decision="conforms"] strong { color: var(--vua-success-text); }
+.vua-terms__uses li[data-decision="contact_licensor"] strong { color: var(--vua-warning-text); }
+.vua-terms__uses li[data-decision="nonconforming"] strong { color: var(--vua-error-text); }
+.vua-terms__uses li[data-decision="unknown"] strong, .vua-terms__uses li[data-decision="pending"] strong { color: var(--vua-text-secondary); font-weight: var(--vua-weight-strong); }
 .vua-terms__note { display: grid; gap: 4px; }
 .vua-terms__note blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--vua-warning); background: var(--vua-bg-elevated);
   white-space: pre-wrap; overflow-wrap: anywhere; max-height: 14rem; overflow: auto; }
 .vua-terms__items summary { cursor: pointer; color: var(--vua-text-secondary); }
-.vua-terms__items dl { margin: 8px 0 0; display: grid; gap: 2px; }
-.vua-terms__items dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; padding: 2px 0; }
+.vua-terms__items dl { margin: 8px 0 0; display: grid; gap: var(--vua-space-1); }
+.vua-terms__items dl > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; padding: var(--vua-space-1) 0; }
 .vua-terms__items dt { overflow-wrap: anywhere; }
 .vua-terms__items dt span { display: inline-block; min-width: 1.2em; color: var(--vua-text-secondary); font-variant-numeric: tabular-nums; }
 .vua-terms__items dd { margin: 0; text-align: right; color: var(--vua-text-secondary); }
-.vua-terms__items div[data-value="prohibited"] dd { color: var(--vua-error); }
-.vua-terms__items div[data-value="contact_licensor"] dd { color: var(--vua-warning); }
+.vua-terms__items div[data-value="prohibited"] dd { color: var(--vua-error-text); }
+.vua-terms__items div[data-value="contact_licensor"] dd { color: var(--vua-warning-text); }
 .vua-terms__link { border: 0; padding: 0; background: none; color: var(--vua-accent-text, var(--vua-accent)); font: inherit; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+
+.vua-library-use-filter { display:flex; gap:var(--vua-space-3); min-width:0; }
+.vua-library-use-filter:has(> label + label) { grid-column:span 2; }
+.vua-library-use-filter > label { flex:1; min-width:0; }
+.vua-library-use-filter select { width:100%; min-width:0; }
+
+.vua-library-list__source { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.vua-library-terms-read { display: grid; justify-items: start; gap: 8px; }
+.vua-library-terms-read > p { margin: 0; }

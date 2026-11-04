@@ -1,0 +1,11 @@
+{
+  "method": "amf.production.exportShareImage",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "run-1",
+    "format": "png",
+    "index": 59,
+    "code": "3P3J7H0EGWP1"
+  }
+}

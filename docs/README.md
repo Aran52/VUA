@@ -20,7 +20,7 @@ before editing. Report verified results and open gaps separately.
 | What is VUA for, and how is progress measured? | [North star](north-star.md), [North Star Eval](eval/README.md) |
 | How do I develop and submit changes? | [Contributing](../CONTRIBUTING.md) |
 | What does the product include? | [Product boundary](product-boundary.md) |
-| What comes next and what counts as passing? | [Current plan](development/current-plan.md), [N sequence](development-outline.md) |
+| What comes next and what counts as passing? | [Freeze plan](development/freeze-plan.md), [current plan](development/current-plan.md), [N sequence](development-outline.md) |
 | Where does each responsibility live? | [System map](architecture/system.md) |
 | How do scenarios and the optional AMF module relate? | [Host and modules](architecture/modules.md) |
 | Which exact contract do I need? | [Protocol guide](protocols/README.md) |
@@ -32,7 +32,7 @@ Pull requests follow the [protected-main policy](meta/protected-main.md).
 
 | Reader | Read in order | Ready to act when |
 | --- | --- | --- |
-| Player | [Current delivery](../README.md#current-delivery-and-starting-points) → latest release notes in `release/` → [questions and bugs](../CONTRIBUTING.md#reporting-and-assets) | The available build and its known issues are clear |
+| Player | [Current delivery](../README.md#current-delivery-and-starting-points) → latest release notes in `release/` → [1.0.0 candidate minimal guide](user-guide/v1.0.0/README.md) → [questions and bugs](../CONTRIBUTING.md#reporting-and-assets) | The available build and its known issues are clear |
 | Human developer | [Contributor workflow](../CONTRIBUTING.md#develop-one-useful-slice) → [local setup and launch](../apps/desktop/README.md#development-commands) → the relevant task below | The app starts and the checks relevant to the change are known |
 | Frontend UI/UX | [Product scope](product-boundary.md) + [N acceptance](development-outline.md#new-sequence) → [Desktop](architecture/desktop.md) → [interaction rules](design/design-standard.md#6-interaction-and-feedback) and [i18n/accessibility](design/design-standard.md#9-accessibility-internationalization-and-performance) | Required states, real Gateway data and human UI acceptance are known; account flows also read the [account-guide browser](architecture/desktop.md#account-guide-browser) |
 | Environment logic | [N1](development-outline.md#n1-purpose-driven-deployment) / [N2](development-outline.md#n2-external-gameplay-tools) → [deployment flow](architecture/evolution.md#deployment-architecture-first-slice) → [standalone Unity deployment](architecture/unity-deployment.md) → [external integrations](architecture/integrations-and-overlays.md#external-integration-modes) → [contract status](protocols/README.md#delivery-status-and-implementation-entry-points) | Detection, installation handoff, mutation ownership and needed contracts are known |
@@ -47,12 +47,14 @@ Pull requests follow the [protected-main policy](meta/protected-main.md).
 | First desktop/PICO play release | [Accepted scope](product-boundary.md#first-play-release-user-ruling-2026-10-03), [release acceptance](development-outline.md#first-play-release-acceptance), [delivery plan](development/first-play-delivery-plan.md) | NSIS, runtime and AMF update work; desktop/PICO play; recovery; human review |
 | App tour, Help reader or game guide | [Guidance architecture](architecture/guidance.md), [delivery plan](development/first-play-delivery-plan.md#2-next-focus-deliver-the-three-guidance-contexts), [Desktop](architecture/desktop.md) | Context routing, independent state, VRChat-window following |
 | N1 deployment / N2 tools | [N1 delivery plan](development/n1-delivery-plan.md), [network checks](architecture/network-onboarding.md), [system map](architecture/system.md), [integrations](architecture/integrations-and-overlays.md), [evolution](architecture/evolution.md) | Device routes, installation activity, account and network guide, Editor compatibility, Gateway contract |
+| Player performance feedback / PypyDance video loading | [Screenshot-derived requirements](research/player-performance-requirements-2026-10-26.md), [PypyDance integration research](research/pypydance-integration-2026-10-26.md) | Proposed N1/N2/N6 work; source/license and interface qualification, measured playback, recovery and human review remain open |
 | N3 production / N4 Recipe | [AMF and Unity](architecture/amf-unity.md), [Orchestrator](architecture/orchestrator.md), Eval cases `P-` | Production, material, Recipe and SDK handoff contracts; real-run evidence |
 | N5 materials | [Capability audit](development/n5-capability-audit.md), [rework plan](development/n5-rework-plan.md), [BDL](architecture/bdl.md), [AMF](architecture/amf-unity.md) | Current UI/Gateway/code/tests; account listing, selective download and import contracts |
 | Library storage (backlog) | [Library storage plan](development/library-storage-plan.md) | Multi-library rulings, scheduled after N5 |
-| UI changes | [Desktop](architecture/desktop.md), [design standard](design/design-standard.md), [notification tiers](design/notification-tiers.md), [writing style](meta/documentation-governance.md#6-writing-style) | [Guidance contexts](architecture/guidance.md) for guides; human UI acceptance |
+| UI changes | [Desktop](architecture/desktop.md), [design standard](design/design-standard.md), [controls and motion](design/controls-and-motion.md), [design audit](design/design-audit.md), [Grid normalization](development/grid-theme-normalization.md), [notification tiers](design/notification-tiers.md), [writing style](meta/documentation-governance.md#6-writing-style) | [Guidance contexts](architecture/guidance.md) for guides; human UI acceptance; automated audit reports for token and consistency drift |
 | Recovery | [Orchestrator](architecture/orchestrator.md) | Task store, failure/retry format and tests |
 | Versions / N7 distribution | [Version policy](release/versioning.md), [N7 acceptance](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide), [Windows distribution plan](development/windows-distribution-plan.md) | NSIS, mirrored runtime, AMF incremental updates, screenshots |
+| Independent Host / AMF updates | [Component publication](release/component-updates.md), [distribution v0.2](protocols/windows-distribution-v0.2.md), [U sequence](development/windows-distribution-plan.md#9-independent-component-update-sequence) | Separate channels, component build receipts, in-app activation and recovery |
 | Contract change | [Protocol guide](protocols/README.md) | Schema and consumer tests; older numbered faces can still be served |
 | Documentation | [Governance](meta/documentation-governance.md) | [Registry](REGISTRY.md), [archive index](archive/README.md) |
 
@@ -69,6 +71,7 @@ Pull requests follow the [protected-main policy](meta/protected-main.md).
 | `development/` | Engineering and evidence rules, scoped delivery plans |
 | `decisions/` | Accepted decisions with their rationale |
 | `release/` | Version policy and release notes |
+| `user-guide/` | Minimal player procedures and actual-version screenshots; capture provenance and pending walkthroughs |
 | `tool-catalog/` | Core, plugin and external tool classification |
 | `meta/` | Documentation governance and the protected-main policy |
 | `migration/` | Legacy asset migration ledger |

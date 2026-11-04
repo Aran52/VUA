@@ -12,5 +12,5 @@ export interface DesktopLibraryDirectoryPreviewV01 {
   readonly path: string;
   readonly state: "ready" | "unavailable";
   readonly truncated: boolean;
-  readonly items: readonly { readonly name: string; readonly path: string; readonly kind: "directory" | "file" | "link" | "other"; readonly sizeBytes: number | null }[];
+  readonly items: readonly { readonly name: string; readonly path: string; readonly kind: "directory" | "file" | "link" | "other"; readonly sizeBytes: number | null; readonly modifiedMs: number | null }[];
 }

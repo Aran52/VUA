@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="128" viewBox="0 0 192 128">
+  <defs>
+    <linearGradient id="wing" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.65" stop-color="#f2faff"/>
+      <stop offset="1" stop-color="#c8e7fb"/>
+    </linearGradient>
+    <linearGradient id="halo" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#79b6e5" stop-opacity="0.7"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#6eaddf" stop-opacity="0.65"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="98" cy="24" rx="38" ry="10" fill="none" stroke="url(#halo)" stroke-width="5"/>
+  <ellipse cx="98" cy="24" rx="31" ry="6" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.75"/>
+  <path d="M28 100C17 77 25 47 69 39C56 52 48 65 50 77C63 65 78 59 94 60C80 81 58 96 28 100Z" fill="url(#wing)" stroke="#679ed0" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M31 89C43 77 57 65 73 55M38 93C52 82 65 72 79 65M29 77C36 64 48 52 60 47" fill="none" stroke="#8dbbe2" stroke-width="2" stroke-linecap="round"/>
+  <path d="M31 96C45 91 60 84 74 74" fill="none" stroke="#b0d2ee" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M25 108C31 102 39 102 45 108S57 114 63 108S75 102 81 108" fill="none" stroke="#98c4e8" stroke-width="1.4" opacity="0.65"/>
+  <g transform="rotate(-24 127 94)">
+    <rect x="102" y="82" width="51" height="25" rx="10" fill="#f5fbff" stroke="#73a8d4" stroke-width="1.4"/>
+    <path d="M127 88V100M121 94H133" stroke="#6398c8" stroke-width="2.4" stroke-linecap="round"/>
+    <g fill="#c3e0f4">
+      <circle cx="112" cy="91" r="1.6"/><circle cx="142" cy="91" r="1.6"/>
+      <circle cx="112" cy="98" r="1.6"/><circle cx="142" cy="98" r="1.6"/>
+    </g>
+  </g>
+  <g transform="rotate(28 157 56)">
+    <rect x="150" y="43" width="14" height="27" rx="7" fill="#ffffff" stroke="#a8ccec"/>
+    <path d="M150 56.5H164V63A7 7 0 0 1 150 63Z" fill="#b6dcf7"/>
+    <path d="M150 56.5H164" stroke="#a8ccec"/>
+  </g>
+  <path d="M29 22L31.5 29.5L39 32L31.5 34.5L29 42L26.5 34.5L19 32L26.5 29.5Z" fill="#c0b2ed" opacity="0.8"/>
+  <path d="M159 87L160.8 92.2L166 94L160.8 95.8L159 101L157.2 95.8L152 94L157.2 92.2Z" fill="#a5d2f2"/>
+  <path d="M122 48V58M117 53H127" stroke="#b8d9f2" stroke-width="2" stroke-linecap="round"/>
+</svg>

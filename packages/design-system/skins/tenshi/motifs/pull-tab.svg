@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 40" width="22" height="40">
+  <title>Tenshi zipper pull with a star</title>
+  <defs><linearGradient id="m" x1="0" x2="1"><stop offset="0" stop-color="#9fb0c2"/><stop offset="0.45" stop-color="#ffffff"/><stop offset="1" stop-color="#8496aa"/></linearGradient></defs>
+  <rect x="5" y="0" width="12" height="10" rx="3" fill="url(#m)" stroke="#5d7088"/>
+  <rect x="4" y="9" width="14" height="26" rx="7" fill="url(#m)" stroke="#5d7088"/>
+  <rect x="8" y="15" width="6" height="14" rx="3" fill="#cfe6ff" stroke="#5d7088"/>
+  <path d="M11 33l1 3 3 .2-2.4 2 .8 3-2.4-1.7-2.4 1.7.8-3-2.4-2 3-.2z" fill="#4a9be8"/>
+</svg>

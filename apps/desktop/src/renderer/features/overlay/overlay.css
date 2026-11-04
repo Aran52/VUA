@@ -26,7 +26,8 @@ body:has(.vua-overlay) {
 /* ---------- 桌面形态(键鼠):紧凑面板,目标 32–40px ---------- */
 
 .vua-overlay--desktop {
-  font-size: calc(14px * var(--vua-overlay-text-scale, 1));
+  font-size: calc(var(--vua-text-body-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-body-leading) * var(--vua-overlay-text-scale, 1));
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-overlay);
 }
@@ -49,7 +50,7 @@ body:has(.vua-overlay) {
 
 .vua-overlay__title {
   flex: 1;
-  font-size: 0.86em;
+  font: var(--vua-font-caption);
   color: var(--vua-text-secondary);
 }
 
@@ -92,7 +93,7 @@ body:has(.vua-overlay) {
   display: flex;
   gap: var(--vua-space-2);
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding-bottom: var(--vua-space-1);
   flex: none;
 }
 
@@ -118,7 +119,7 @@ body:has(.vua-overlay) {
 
 .vua-overlay-guide__topic[data-active] {
   background: var(--vua-accent, var(--vua-bg-elevated));
-  color: var(--vua-on-accent, var(--vua-text-strong));
+  color: var(--vua-accent-contrast);
 }
 
 .vua-overlay-guide__content {
@@ -130,7 +131,7 @@ body:has(.vua-overlay) {
 
 .vua-overlay-guide__title {
   margin: 0;
-  font-size: 1.15em;
+  font: var(--vua-font-title);
   color: var(--vua-text-strong);
 }
 
@@ -149,14 +150,15 @@ body:has(.vua-overlay) {
 
 .vua-overlay-guide__section-title {
   margin: 0;
-  font-size: 0.95em;
+  font: var(--vua-font-body);
+  font-weight: var(--vua-weight-strong);
   color: var(--vua-text-strong);
 }
 
 .vua-overlay-guide__paragraph {
   margin: 0;
   color: var(--vua-text-secondary);
-  line-height: 1.55;
+  line-height: var(--vua-text-body-leading);
 }
 
 /* 插图与四语言图注:图注明示示意图属性,与真实软件截图区分(首玩 ibis A) */
@@ -326,6 +328,23 @@ body:has(.vua-overlay) {
   display: flex;
   justify-content: flex-end;
   gap: var(--vua-space-2);
+}
+
+/* Desktop type roles retain the player's text-scale multiplier. */
+.vua-overlay--desktop .vua-overlay__status-title {
+  font-size: calc(var(--vua-text-title-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-title-leading) * var(--vua-overlay-text-scale, 1));
+}
+
+.vua-overlay--desktop :is(.vua-overlay__task-title, .vua-overlay__production-line) {
+  font-size: calc(var(--vua-text-body-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-body-leading) * var(--vua-overlay-text-scale, 1));
+}
+
+.vua-overlay--desktop :is(.vua-overlay__title, .vua-overlay__status-detail, .vua-overlay__section-label,
+  .vua-overlay__task-meta, .vua-overlay__production-meta, .vua-overlay__hint, .vua-overlay__reason) {
+  font-size: calc(var(--vua-text-caption-size) * var(--vua-overlay-text-scale, 1));
+  line-height: calc(var(--vua-text-caption-leading) * var(--vua-overlay-text-scale, 1));
 }
 
 /* ---------- VR 形态(激光点按):1024×768 设计预算,目标 ≥56px,

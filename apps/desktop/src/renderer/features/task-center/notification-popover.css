@@ -32,15 +32,15 @@
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
+  border-radius: var(--vua-radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--vua-accent);
   color: var(--vua-accent-contrast);
   font: var(--vua-font-caption);
-  font-size: 10px;
-  line-height: 1;
+  font-size: var(--vua-text-caption-size);
+  line-height: var(--vua-text-caption-leading);
 }
 
 /* 整屏毛玻璃:半透明暗化 + 模糊,让背后壳层失焦 */

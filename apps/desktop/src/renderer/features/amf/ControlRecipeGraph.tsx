@@ -4,7 +4,7 @@ import { Icon, type IconName } from "@vua/design-system";
 import { adjacency, graphCaption, type GraphNode, type GraphNodeKind, type RecipeGraph } from "./control-graph-model.ts";
 import { bounds, createSimulation, hold, isSettled, nearestInDirection, place, reheat, release, settle, tick, type Simulation } from "./control-physics.ts";
 import { GRAPH_CONFIG } from "./control-graph-config.ts";
-import { useEffectsOn } from "./RoomCanvas.tsx";
+import { useEffectsOn } from "./motion.ts";
 
 const { nodeRadius: NODE_RADIUS, linkLength: LINK_LENGTH, view: VIEW, label: LABEL } = GRAPH_CONFIG;
 export const NODE_ICONS: Record<GraphNodeKind, IconName> = { recipe: "file", avatar: "avatar", outfit: "outfit", material: "shader", package: "download" };

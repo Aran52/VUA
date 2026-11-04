@@ -1,36 +1,49 @@
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
 import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AmfAssemblySelection, AmfOutfitSelection } from "@vua/contracts";
-import { Icon } from "@vua/design-system";
-import { useGateway, type AmfPrefab, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
+import { Icon, SkinMotif } from "@vua/design-system";
+import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
-import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
 import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
-import { strings, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { toast } from "../../components/primitives/toast-store.ts";
+import { strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
+import { openExternalUrl } from "../../app/open-external.ts";
+import { compactSourceLabel } from "./line-presentation.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
+import { TextureMemoryCard } from "./TextureMemoryCard.tsx";
+import { OutfitRemovalCard } from "./OutfitRemovalCard.tsx";
 import { LightingCard } from "./LightingCard.tsx";
+import { FaceTrackingCard, FtLockNote } from "./FaceTrackingCard.tsx";
+import { RevisionsCard } from "./RevisionsCard.tsx";
+import { FitSaveCard } from "./FitSaveCard.tsx";
+import { PlanImages } from "./PlanImages.tsx";
 import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
 import { onProductionRunRequested, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
-import { requestUnityLicenseGuide } from "../settings/account-guide-navigation.ts";
-import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, stopsAt, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey } from "./factory-model.ts";
+import { requestLicenseStep } from "../deployer/license-step-navigation.ts";
+import { isUnityLicenseFailure, productionErrorMessage } from "./unity-license-failure.ts";
+import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey, needsFullAutoNotice } from "./factory-model.ts";
+import { FullAutoConfirm, type FullAutoReason } from "./FullAutoConfirm.tsx";
 import "./factory.css";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import type { AmfRunProgress } from "../../gateway/index.ts";
-import { formatDuration, lineLabels, queueAhead } from "./factory-model.ts";
+import { formatDuration, lineLabels, queueAhead, runStartedAt } from "./factory-model.ts";
 
 const copy = strings.amfProduction;
 const factory = strings.factory;
+const editorClose = strings.amfProduction.editorClose;
+/** The one switch group the workshop offers: main outfits, worn one at a time. */
+const MAIN_GROUP = "main";
 /** The running step's live state: Unity's stage and count, a running clock, the usual time on this computer, and Unity's silence. */
 function LiveProgress({ progress }: { progress: AmfRunProgress }) {
   const [now, setNow] = useState(() => Date.now());
@@ -50,7 +63,7 @@ function LiveProgress({ progress }: { progress: AmfRunProgress }) {
     {quiet && <span className="vua-line__quiet">{format(factory.quiet, { time: new Date(quietSince).toLocaleTimeString() })}</span>}
   </div>;
 }
-const STATION_ICONS = { prepare: "folder", inspect: "flask", plan: "edit", assemble: "outfit", check: "square-check" } as const;
+const STATION_ICONS = { prepare: "folder", inspect: "flask", plan: "edit", assemble: "outfit", check: "square-check", face: "avatar" } as const;
 /** A recorded step's state, in the words of the stations. */
 const stepState = (state: string) => state === "succeeded" ? "done" : state === "failed" ? "failed" : state === "running" ? "running" : "stopped";
 const unavailable = format(copy.unavailable, { amf: termLabel("amf") });
@@ -65,6 +78,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   onNavigate: (page: PageId) => void; onPrepareEnv: () => void;
 }) {
   const gateway = useGateway(); const port = gateway.amfProduction;
+  // Work started elsewhere (an AI request, the release room, another line) changes the task list;
+  // the line list and the open line read again whenever a task starts or changes state.
+  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
+  const [runReload, setRunReload] = useState(0);
   const [list, setList] = useState<AmfProductionList | null>(null);
   const [sourceIds, setSourceIds] = useState<readonly string[]>(storedMaterials);
   const [editorPath, setEditorPath] = useState("");
@@ -90,9 +107,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskQueued, setTaskQueued] = useState(false);
   const [queuedAhead, setQueuedAhead] = useState(1);
-  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | null>(null);
+  const [taskAction, setTaskAction] = useState<"prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources" | "lighting" | "restoreRevision" | "texture_memory" | "faceTracking" | "closeEditor" | null>(null);
+  // A project_open refusal offers saving and closing Unity; the refused action continues afterwards.
+  const [closeOffer, setCloseOffer] = useState<{ readonly message: string; readonly retry: (() => void) | null } | null>(null);
+  const afterClose = useRef<(() => void) | null>(null);
   const [level, setLevel] = useState<AutomationLevel>(storedAutomationLevel);
-  const [confirmFull, setConfirmFull] = useState(false);
+  const [confirmFull, setConfirmFull] = useState<FullAutoReason | null>(null);
   const [adjusting, setAdjusting] = useState(false);
   // The station the player opened; without one the page follows the line.
   const [chosenStation, setChosenStation] = useState<StationKey | null>(null);
@@ -100,7 +120,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [changing, setChanging] = useState<readonly string[] | null>(null);
   const applyLevel = (next: AutomationLevel) => { setLevel(next); rememberAutomationLevel(next); };
   // Full access changes the work project without asking, so the player reads what that means first.
-  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull(true); else applyLevel(next); };
+  const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull("switch"); else applyLevel(next); };
   const unattended = useRef(new Set<string>());
   const initialized = useRef("");
   const refreshList = useCallback(async () => {
@@ -109,14 +129,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const observed = await port.list(); setList(observed); setRecipeRefresh(value => value + 1);
       const present = new Set(observed.sources.map(source => source.sourceId));
       setSourceIds(ids => ids.filter(id => present.has(id)));
-    } catch (e) { setError(e instanceof Error ? e.message : unavailable); }
+    } catch (e) { setError(productionErrorMessage(e, unavailable)); }
   }, [port]);
-  useEffect(() => { void refreshList(); }, [refreshList]);
+  useEffect(() => { void refreshList(); setRunReload(value => value + 1); }, [refreshList, taskKey]);
   useEffect(() => {
     if (!port || !requestedRecipe) return;
     let alive = true; setRequesting(true); remember(runKey, "");
     void port.getRecipe(requestedRecipe).then(value => { if (alive) setRecipePreview(value); })
-      .catch(e => { if (alive) setError(e instanceof Error ? e.message : copy.taskFailed); })
+      .catch(e => { if (alive) setError(productionErrorMessage(e, copy.taskFailed)); })
       .finally(() => { if (alive) setRequesting(false); });
     return () => { alive = false; };
   }, [port, requestedRecipe]);
@@ -137,11 +157,11 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         }
         // A reinspection keeps the previous phase until it ends; a running step still needs fresh facts.
         if (["preparing", "inspecting", "assembling", "restoring"].includes(loaded.phase) || loaded.steps.some(step => step.state === "running") || taskId !== null) timer = setTimeout(() => { void load(); }, 1000);
-      } catch (e) { if (alive) { loadFailed = true; setError(e instanceof Error ? e.message : unavailable); timer = setTimeout(() => { void load(); }, 2000); } }
+      } catch (e) { if (alive) { loadFailed = true; setError(productionErrorMessage(e, unavailable)); timer = setTimeout(() => { void load(); }, 2000); } }
     };
     void load();
     return () => { alive = false; if (timer !== undefined) clearTimeout(timer); };
-  }, [port, runId, taskId]);
+  }, [port, runId, taskId, runReload]);
   useEffect(() => {
     if (taskId === null) return;
     let alive = true; let timer: ReturnType<typeof setTimeout> | undefined;
@@ -156,6 +176,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
           if (task.status === "failed") setError(task.errorText ?? copy.taskFailed);
           if (taskAction === "rollback" && ["completed", "completedWithWarnings"].includes(task.status)) setRestored(true);
           if (taskAction === "open" && ["completed", "completedWithWarnings"].includes(task.status)) setOpened(runId);
+          if (taskAction === "closeEditor") {
+            const next = afterClose.current; afterClose.current = null;
+            if (["completed", "completedWithWarnings"].includes(task.status)) { if (next) next(); else toast(editorClose.closed, "success"); }
+          }
           return;
         }
       } catch { /* Keep waiting for an authoritative terminal task fact. */ }
@@ -167,7 +191,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const edit = (next: AmfAssemblySelection) => { setSelection(next); setPlan(null); setError(null); };
   const outfit = (id: string, patch: Partial<AmfOutfitSelection> | null) => edit(updateOutfitSelection(selection, id, patch));
   const busy = requesting || taskId !== null || (run !== null && ["preparing", "inspecting", "assembling", "restoring"].includes(run.phase));
-  const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources") => {
+  const command = async (action: "prepare" | "assemble" | "reinspect" | "rollback" | "open" | "changeSources", rollbackTarget?: "restorePoint" | "prePatch") => {
     if (!port || busy) return;
     if ((action === "assemble" && !plan) || (action === "rollback" && !restorePlan) || (action === "changeSources" && !changing)) return;
     setRequesting(true); setError(null); setChosenStation(null);
@@ -175,7 +199,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const response = action === "prepare" ? await port.prepare(sourceIds.map(sourceId => ({ sourceId, role: "auto" })), editorPath || list?.editors[0]?.path || "")
         : action === "changeSources" && changing !== null ? await port.changeSources(runId, changing.map(sourceId => ({ sourceId, role: "auto" })))
         : action === "assemble" && plan !== null ? await port.assemble(runId, plan)
-        : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan)
+        : action === "rollback" && restorePlan !== null ? await port.rollback(runId, restorePlan, rollbackTarget)
         : action === "reinspect" ? await port.reinspect(runId) : await port.open(runId);
       setTaskId(response.taskId); setTaskAction(action);
       setRestored(false); setRestorePlan(null); setOpened(null);
@@ -183,7 +207,22 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       if (action === "reinspect" || action === "rollback" || action === "changeSources") { initialized.current = ""; setPlan(null); setAdjusting(false); }
       if (action === "changeSources") setChanging(null);
       setRunId(response.runId); remember(runKey, response.runId);
-    } catch (e) { setError(e instanceof Error ? e.message : copy.taskFailed); }
+    } catch (e) { fail(e, () => { void command(action, rollbackTarget); }); }
+    finally { setRequesting(false); }
+  };
+  /** Shows a refusal; Unity holding the project offers saving and closing it, then `retry`. */
+  const fail = (e: unknown, retry: (() => void) | null = null) => {
+    const message = productionErrorMessage(e, copy.taskFailed);
+    setError(message);
+    setCloseOffer(e instanceof AmfProductionError && e.suggestedAction === "amf.production.closeEditor" ? { message, retry } : null);
+  };
+  const closeUnity = async (retry: (() => void) | null) => {
+    if (!port || busy) return;
+    setRequesting(true); setError(null); setCloseOffer(null);
+    try {
+      const accepted = await port.closeEditor(runId, true, editorClose.task);
+      afterClose.current = retry; setOpened(null); setTaskId(accepted.taskId); setTaskAction("closeEditor");
+    } catch (e) { fail(e); }
     finally { setRequesting(false); }
   };
   const newPreparation = () => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(""); setRun(null); setPlan(null); setRestorePlan(null); setRestored(false); setSelection(blank); setError(null); remember(runKey, ""); void refreshList(); };
@@ -196,7 +235,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const accepted = await port.prepareRecipe(recipePreview.recipe.recipeId, editor.path);
       initialized.current = ""; setPlan(null); setRun(null); setSelection(blank); setRestorePlan(null); setSavedRecipe(null); setRecipePreview(null);
       setRunId(accepted.runId); remember(runKey, accepted.runId); setTaskId(accepted.taskId); setTaskAction("prepare");
-    } catch (e) { setError(e instanceof Error ? e.message : copy.taskFailed); }
+    } catch (e) { setError(productionErrorMessage(e, copy.taskFailed)); }
     finally { setRequesting(false); }
   };
   // Fully automatic: the one-sentence plan is the stop; confirming it reviews and assembles in one go.
@@ -207,17 +246,20 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       const reviewed = await port.plan(runId, selection);
       const response = await port.assemble(runId, reviewed);
       setPlan(null); setAdjusting(false); setChosenStation(null); setTaskId(response.taskId); setTaskAction("assemble"); setRunId(response.runId);
-    } catch (e) { setError(e instanceof Error ? e.message : copy.taskFailed); }
+    } catch (e) { setError(productionErrorMessage(e, copy.taskFailed)); }
     finally { setRequesting(false); }
   };
   const selectLine = (id: string) => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(id); remember(runKey, id); setPlan(null); setRestorePlan(null); setAdjusting(false); setError(null); };
   const avatars = [...new Map((run?.prefabs.filter(p => p.isAvatar && !p.hasMissingScripts && run.sources.some(s => s.sourceId === p.sourceId && (s.role === "avatar" || s.role === "auto"))) ?? []).map(p => [p.path,p])).values()];
   const avatar = avatars.find(p => p.path === selection.avatarPrefab);
+  // F7: outfits whose observed prefabs carry VRCFury integration components get the
+  // official guide at intake; the observation is a hint, never proof of a working setup.
+  const vrcFuryOutfits = run ? [...new Set(run.prefabs.filter(p => p.hasVrcFury === true && !p.isAvatar)
+    .map(p => run.sources.find(s => s.sourceId === p.sourceId)?.itemName ?? p.sourceId))] : [];
 
   const states = run ? lineStations(run) : null;
   const status: LineStatus | null = run ? lineStatus(run) : null;
   const effective: AutomationLevel = level;
-  const stops = stopsAt(effective);
   // One layout for every mode; the modes differ in where the line stops.
   const showDetails = adjusting;
   const chosen = !!selection.avatarPrefab && selection.outfits.length > 0;
@@ -229,16 +271,68 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     unattended.current.add(key);
     void assembleNow();
   });
-  const lineName = (names: readonly string[]) => [...new Set(names.map(name => name.replace(/\.zip$/iu, "")))].join(" + ");
+  const ui = presentationCopy.workshop;
+  const objectName = run?.result?.facts?.avatarName?.trim() || avatar?.name || (avatars.length === 1 ? avatars[0]?.name : null) || ui.unknownAvatar;
   const labels = lineLabels(list?.runs ?? [], date => formatShortDateTime(date));
   const runningStep = run?.steps.find(item => item.state === "running");
+  // A creator-patched line locks the operations that cannot replay its manual steps (face_tracking_manual_replay).
+  const ftLocked = run?.result?.facts?.faceTracking?.manualReplayRequired === true;
+  const reviewRestore = () => {
+    if (!port) return; setRequesting(true); setError(null);
+    void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
+  };
+  const ftRestore = run?.snapshotId ? reviewRestore : null;
+  // Fits the working selection would apply, by name; a Recipe's own fits carry no name.
+  const fitNames = [...new Set((run?.availableFits ?? [])
+    .filter(fit => fit.name !== null && selection.outfits.some(outfit => outfit.sourceId === fit.sourceId))
+    .map(fit => fit.name as string))];
+  // Main outfits share one switch group and are worn one at a time.
+  const mainOutfits = selection.outfits.filter(item => item.group === MAIN_GROUP).map(item => item.toggleName);
+  const planFitNames = [...new Set((plan?.fits ?? [])
+    .filter(fit => fit.name !== null).map(fit => fit.name as string))];
 
   const panels = factory.panels;
-  const lines: RailLine[] = (list?.runs ?? []).map(recent => ({ runId: recent.runId, name: labels.get(recent.runId)?.name ?? recent.runId,
-    extra: labels.get(recent.runId)?.extra ?? null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
+  // One card per run, even if a list read ever repeats an entry.
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: recent.runId === run?.runId ? objectName : compactSourceLabel(recent.sourceNames[0] ?? "") || ui.unknownAvatar,
+    extra: runStartedAt(recent.runId) ? labels.get(recent.runId)?.extra ?? null : null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
     : !lineBusy(run) && run.phase === "succeeded" ? "check" : !lineBusy(run) && run.phase === "ready" ? "plan" : currentStation(states));
+  const stationsRef = useRef<HTMLOListElement | null>(null);
+  const [stationIndicator, setStationIndicator] = useState<{ x: number; y: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const list = stationsRef.current;
+    if (!list) return;
+    let active = true;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!active) return;
+        const selected = list.querySelector<HTMLElement>(".vua-line__station[aria-pressed='true']");
+        if (!selected) { setStationIndicator(null); return; }
+        const listRect = list.getBoundingClientRect();
+        const rect = selected.getBoundingClientRect();
+        const next = {
+          x: rect.left - listRect.left + list.scrollLeft + 12,
+          y: rect.bottom - listRect.top + list.scrollTop - 2,
+          width: Math.max(0, rect.width - 24),
+        };
+        setStationIndicator(previous => previous?.x === next.x && previous.y === next.y && previous.width === next.width ? previous : next);
+      });
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(list);
+    list.querySelectorAll(".vua-line__station").forEach(element => observer.observe(element));
+    update();
+    void document.fonts.ready.then(update);
+    return () => {
+      active = false;
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [shown, runId]);
+  const executing = states ? STATIONS.find(key => states[key] === "running") : undefined;
   const observed = run?.result?.facts?.observedSelection ?? null;
   const planOpen = run !== null && !busy && restorePlan === null && (run.phase === "ready" || run.phase === "succeeded");
   const unchangedPlan = run?.phase === "succeeded" && observed !== null && sameSelection(selection, observed);
@@ -257,19 +351,22 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
     <div className="vua-workshop__main">
-    <ConfirmDialog open={confirmFull} danger title={factory.fullAccess.title} cancelLabel={factory.fullAccess.cancel} confirmLabel={factory.fullAccess.confirm}
-      onCancel={() => setConfirmFull(false)} onConfirm={() => { setConfirmFull(false); applyLevel("full"); }}>
-      <p className="vua-confirm-dialog__text">{factory.fullAccess.body}</p>
-    </ConfirmDialog>
+    <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
+      onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void command("prepare"); }} />
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
-    {run === null && error !== null && /license/iu.test(error) ? <Alert tone="warning" title={strings.unityLicense.retry}
-      action={<Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
-      : error !== null && <Alert tone="error" title={copy.error} action={<Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{error}</Alert>}
+    {error !== null && isUnityLicenseFailure(error) && !isUnityLicenseFailure(run?.error) ? <Alert tone="warning" title={strings.unityLicense.retry}
+      action={<Button onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button>}>{strings.unityLicense.retryHint}</Alert>
+      : error !== null && !isUnityLicenseFailure(error) && <Alert tone="error" title={copy.error} action={closeOffer !== null && closeOffer.message === error && run !== null
+        ? <Popconfirm title={editorClose.confirmTitle} description={editorClose.confirmBody} confirmLabel={editorClose.confirm} cancelLabel={editorClose.cancel}
+            onConfirm={() => { void closeUnity(closeOffer.retry); }}>
+            <Button variant="subtle" disabled={busy} data-nav-id="workshop-close-unity">{closeOffer.retry ? editorClose.actionContinue : editorClose.action}</Button>
+          </Popconfirm>
+        : <Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{closeOffer !== null && closeOffer.message === error ? editorClose.held : error}</Alert>}
     {run === null ? <>
-      <header className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></header>
+      <header className="vua-line__header"><div className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></div><PermissionModePicker value={effective} onChoose={chooseLevel} /></header>
       {!recipePreview && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
         if (!port) return; setRequesting(true); setError(null);
-        void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+        void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
       }}/>}
       {recipePreview && <Card><Button disabled={busy} onClick={() => setSharingRecipe(recipePreview.recipe.recipeId)}>{copy.shareRecipe}</Button><h2>{recipePreview.recipe.title}</h2><p>{format(copy.recipeSummary,{materials:recipePreview.recipe.materials.length,outfits:recipePreview.recipe.outfits.length})}</p>
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
@@ -277,24 +374,28 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {!recipePreview && (list === null ? <Card><EmptyState title={requesting ? copy.loading : unavailable} description={copy.loading} /></Card> : <Card>
         <MaterialPicker sources={list.sources} chosen={sourceIds} onChange={setSourceIds} disabled={busy} />
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { void command("prepare"); }}>{copy.prepare}</Button></div>
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("warehouse")}>{copy.library}</Button><Button variant="primary" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{copy.prepare}</Button></div>
         {list.editors.length === 0 ? <div className="vua-n3__notice"><p>{copy.editorMissing}</p><Button onClick={onPrepareEnv}>{copy.environment}</Button></div> : <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><label>{copy.editor}<select value={editorPath || list.editors[0]?.path || ""} onChange={e => setEditorPath(e.target.value)}>{list.editors.map(editor => <option key={editor.path} value={editor.path}>{editor.version} — {editor.path}</option>)}</select></label></details>}
-        <Button variant="subtle" onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button>
+        <Button variant="subtle" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button>
       </Card>)}
     </> : <>
       <header className="vua-line__header">
-        <h1 className="vua-title">{lineName(run.sources.map(source => source.itemName)) || run.runId}</h1>
-        {labels.get(run.runId)?.extra && <span className="vua-workshop__line-extra">{labels.get(run.runId)?.extra}</span>}
+        <div className="vua-line__object"><h1 className="vua-title">{objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
         {status && <StatusChip status={status}/>}
+        <SkinMotif slot="control-panel-corner" className="vua-line__skin-motif" />
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
       </header>
-      {states && <ol className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key}>
-        <button type="button" className="vua-line__station" data-state={states[key]} aria-pressed={shown === key} aria-current={currentStation(states) === key ? "step" : undefined}
+      {states && <ol ref={stationsRef} className="vua-line__stations" aria-label={factory.lineList}>{STATIONS.map(key => <li key={key} data-state={states[key]}>
+        <button type="button" className="vua-line__station" data-vua-surface-role="workshop-step" data-state={states[key]} aria-pressed={shown === key} aria-current={executing === key ? "step" : undefined}
           onClick={() => setChosenStation(key)} data-nav-id={`workshop-station-${key}`}>
           <Icon name={STATION_ICONS[key]} size={20}/>
           <strong>{factory.stations[key]}</strong><small>{factory.stationState[states[key]]}</small>
-          {stops.has(key) && ["todo", "waiting"].includes(states[key]) && <span className="vua-line__stop">{factory.stopsHere}</span>}
-        </button></li>)}</ol>}
+        </button></li>)}
+        {stationIndicator && <span key={runId} className="vua-line__station-indicator" aria-hidden="true"
+          style={{ width: stationIndicator.width, transform: `translate(${stationIndicator.x}px, ${stationIndicator.y}px)` }} />}
+      </ol>}
+      <div className="vua-line__context" role="status"><strong>{format(ui.viewing, { step: factory.stations[shown] })}</strong><span>{executing ? format(ui.executing, { step: factory.stations[executing] }) : ui.idle}</span></div>
+      <details className="vua-line__source-details"><summary>{ui.details}</summary><dl><dt>{ui.lineId}</dt><dd>{run.runId}</dd></dl><ul>{materials.map(material => <li key={material.id}>{material.item}<small>{material.name} · {material.id}</small></li>)}</ul></details>
       {lineBusy(run) && <Card className="vua-line__live" aria-live="polite">
         <div className="vua-line__live-head"><span className="vua-n3__spinner" aria-hidden="true"/>
           <strong>{runningStep ? copy.step[runningStep.key as keyof typeof copy.step] ?? runningStep.name : run.phase === "assembling" ? copy.assembling : run.phase === "restoring" ? copy.restoring : copy.preparing}</strong></div>
@@ -305,15 +406,15 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {!lineBusy(run) && (status === "attention" || status === "stopped") && <Card className="vua-line__attention" data-status={status}>
         <h2>{status === "stopped" ? factory.status.stopped : factory.attentionTitle}</h2>
-        {run.error && /license/iu.test(run.error) ? <><p role="alert">{strings.unityLicense.retryHint}</p>
-          <Button onClick={() => { requestUnityLicenseGuide(); onNavigate("settings-accounts"); }}>{strings.unityLicense.open}</Button></>
+        {run.error && isUnityLicenseFailure(run.error) ? <><p role="alert">{strings.unityLicense.retryHint}</p>
+          <Button onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button></>
           : run.error && <p role="alert">{run.error.replace(/^vua.[a-z_.]+ — detail: /u, "")}</p>}
         {run.recovery && <p className="vua-n3__notice">{run.recovery === "restored" ? copy.recovered : copy.recoveryFailed}</p>}
         {interruptedChange(run) && <p>{factory.interrupted.hint}</p>}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={newPreparation}>{factory.newLine}</Button>
           {interruptedChange(run) && run.snapshotId && <Button disabled={busy || requesting} onClick={() => {
             if (!port) return; setRequesting(true); setError(null);
-            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }} data-nav-id="workshop-restore-interrupted">{factory.interrupted.restore}</Button>}
           {run.sources.length > 0 && <Button variant="primary" disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
         <details className="vua-n3__advanced"><summary>{factory.details}</summary><ul className="vua-n3__progress">{run.steps.map((item,index) => <li key={`${item.key}-${index}`} data-state={item.state}>
@@ -324,19 +425,23 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {restored && !busy && <Card><p role="status">{copy.restored}</p></Card>}
       {restorePlan && !busy && <Card><h2>{copy.restoreTitle}</h2><p>{copy.restoreHint}</p>
         {restorePlan.currentChanged && <p className="vua-n3__notice">{copy.restoreChanged}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
+        {restorePlan.prePatch && <p className="vua-n3__notice">{copy.restorePrePatchHint}</p>}
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRestorePlan(null)}>{copy.back}</Button>
+          {restorePlan.prePatch && <Button variant="subtle" onClick={() => { void command("rollback", "prePatch"); }}>{copy.restorePrePatch}</Button>}
+          <Button variant="primary" onClick={() => { void command("rollback"); }}>{copy.restoreConfirm}</Button></div>
       </Card>}
       {shown === "prepare" && <Card className="vua-line__panel">
         <h2>{panels.materials.title}</h2>
         {changing === null && <ul className="vua-line__materials">{materials.map(item => <li key={item.id}><strong>{item.item}</strong>{item.name && <small>{item.name}</small>}</li>)}</ul>}
-        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button></div> : <>
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
+        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange || ftLocked} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button></div> : <>
           <h3>{panels.materials.changeTitle}</h3>
           <MaterialPicker sources={list?.sources ?? []} chosen={changing} onChange={setChanging} disabled={busy} />
           {sameMaterials && <p className="vua-caption vua-text-secondary">{panels.materials.unchanged}</p>}
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setChanging(null)}>{panels.materials.cancel}</Button>
             <Popconfirm title={panels.materials.confirmTitle} description={panels.materials.confirmBody} confirmLabel={panels.materials.confirm} cancelLabel={panels.materials.cancel}
               onConfirm={() => { void command("changeSources"); }}>
-              <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button>
+              <Button variant="primary" disabled={!canChange || sameMaterials || changing.length === 0 || ftLocked} data-nav-id="workshop-apply-materials">{panels.materials.apply}</Button>
             </Popconfirm></div>
         </>}
       </Card>}
@@ -349,6 +454,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             return count > 0 ? <li key={source.sourceId}>{format(panels.inspect.outfits, { source: source.itemName, count })}</li> : null;
           })}
         </ul>}
+        {vrcFuryOutfits.length > 0 && <p role="status" className="vua-n3__notice">{format(panels.inspect.vrcFury, { sources: vrcFuryOutfits.join(" · ") })}
+          <Button variant="subtle" onClick={() => { void openExternalUrl("https://vrcfury.com/download"); }}>{panels.inspect.vrcFuryGuide}</Button></p>}
         {run.result?.diagnostics?.filter(d => d.severity !== "info").map(d => <p role="status" className="vua-n3__notice" key={d.code}>{d.message}</p>)}
         {lastInspection?.endedAt && <p className="vua-caption vua-text-secondary">{format(panels.inspect.checkedAt, { time: formatDateMinute(lastInspection.endedAt) })}</p>}
         <div className="vua-n3__actions"><Button disabled={busy || run.sources.length === 0} onClick={() => { void command("reinspect"); }} data-nav-id="workshop-recheck">{panels.inspect.recheck}</Button></div>
@@ -357,12 +464,16 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {shown === "plan" && planOpen && plan === null && !showDetails && <Card className="vua-line__summary">
         <h2>{factory.stations.plan}</h2>
         <p className="vua-line__sentence">{format(factory.planSentence, { avatar: avatar?.name ?? copy.choosePrefab, outfits: selection.outfits.map(item => item.toggleName).join(" · ") || copy.needOutfit })}</p>
+        <PlanImages run={run} selection={selection} librarySources={list?.sources ?? []} />
+        {mainOutfits.length > 1 && <p className="vua-caption vua-text-secondary">{format(copy.switchMainNote, { names: mainOutfits.join(" · ") })}</p>}
+        {fitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: fitNames.join(" · ") })}</p>}
         {run.selection === null && !run.result?.facts?.observedSelection && <RecommendationNote recommendation={recommendAssembly(run.prefabs, run.sources)} prefabs={run.prefabs} />}
         {port && avatar && <AmfCandidateGallery port={port} runId={run.runId} candidates={[avatar, ...run.prefabs.filter(p => selection.outfits.some(o => o.prefabPath === p.path))]} chosen={avatar.path} label={copy.chooseAvatar} onChoose={() => setAdjusting(true)}/>}
         {rebuilding ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
         {unchangedPlan && <p className="vua-caption vua-text-secondary">{panels.plan.current}</p>}
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(true)} data-nav-id="workshop-plan-adjust">{factory.adjust}</Button>
-          <Button variant="primary" disabled={requesting || unchangedPlan || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
+          <Button variant="primary" disabled={requesting || unchangedPlan || !selection.avatarPrefab || selection.outfits.length === 0 || ftLocked} onClick={() => { void assembleNow(); }}>{factory.placeOrder}</Button></div>
       </Card>}
       {shown === "plan" && planOpen && plan === null && showDetails && <>
         <Card><h2>{copy.menuTitle}</h2><p className="vua-caption vua-text-secondary">{copy.menuHint}</p>
@@ -386,19 +497,31 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
                 <option value="merge_armature" disabled={!candidate?.hasSkinnedMesh && !candidate?.hasMergeArmature}>{copy.merge}</option><option value="attach_to_bone" disabled={candidate?.hasSkinnedMesh}>{copy.attach}</option></select></label></details>
               {chosen.mode === "attach_to_bone" && <label>{copy.bone}<select value={chosen.bone} onChange={e => outfit(source.sourceId,{bone:e.target.value})}><option value="">{copy.chooseBone}</option>{avatar?.humanoidBones.map(bone => <option key={bone} value={bone}>{bone}</option>)}</select></label>}
               <label className="vua-n3__check"><input type="checkbox" checked={chosen.active} onChange={e => outfit(source.sourceId,{active:e.target.checked})}/>{copy.active}</label>
+              <label className="vua-n3__check"><input type="checkbox" checked={chosen.group === MAIN_GROUP} disabled={!chosen.toggleName.trim()}
+                onChange={e => outfit(source.sourceId,{group:e.target.checked ? MAIN_GROUP : ""})} data-nav-id={`workshop-switch-main-${source.sourceId}`}/>{copy.switchMain}</label>
+              <label className="vua-n3__check"><input type="checkbox" checked={chosen.saved !== false} disabled={!chosen.toggleName.trim()}
+                onChange={e => outfit(source.sourceId,{saved:e.target.checked})}/>{copy.switchSaved}</label>
             </div>}</div></Card>;
         })}
         {selection.outfits.length === 0 && <p className="vua-text-secondary">{copy.needOutfit}</p>}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} onClick={() => {
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAdjusting(false)}>{copy.back}</Button><Button variant="primary" disabled={requesting || !selection.avatarPrefab || selection.outfits.length === 0} data-nav-id="workshop-plan-review" onClick={() => {
           if (!port) return; setRequesting(true); setError(null);
-          void port.plan(runId,selection).then(setPlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+          void port.plan(runId,selection).then(setPlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
         }}>{copy.reviewCta}</Button></div>
       </>}
+      {shown === "plan" && run.phase === "succeeded" && port && !busy && <OutfitRemovalCard port={port} run={run} disabled={busy}
+        onStarted={task => { initialized.current = ""; setTaskId(task); setTaskAction("assemble"); setPlan(null); setAdjusting(false); setChosenStation(null); }} onError={e => fail(e)}/>}
       {shown === "plan" && (run.phase === "ready" || run.phase === "succeeded") && plan !== null && !busy && <Card><h2>{copy.reviewTitle}</h2>
         <ul className="vua-n3__review">{plan.inputs.map(input => <li key={input.sourceId}><strong>{input.name}</strong><span>{input.role === "avatar" ? copy.avatar : input.role === "outfit" ? copy.outfit : copy.importOnly}</span></li>)}</ul>
-        <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}</span><span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
+        <ul className="vua-n3__review">{plan.selection.outfits.map(item => <li key={item.sourceId}><span>{item.toggleName || copy.importedOnly}
+          {item.group ? <small className="vua-n3__tag">{copy.switchMainTag}</small> : null}{item.saved === false ? <small className="vua-n3__tag">{copy.switchUnsavedTag}</small> : null}</span>
+          <span>{item.mode === "merge_armature" ? copy.merge : `${copy.attach} · ${item.bone}`}</span></li>)}</ul>
+        {planFitNames.length > 0 && <p className="vua-caption vua-text-secondary">{format(panels.plan.fits, { names: planFitNames.join(" · ") })}</p>}
+        {plan.parameterBudget && <ParameterBudgetNote budget={plan.parameterBudget}/>}
+        {plan.prediction && <PredictionNote prediction={plan.prediction}/>}
         {plan.rebuild ? <p className="vua-n3__notice">{copy.rebuildNote}</p> : null}
-        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
+        <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setPlan(null)}>{copy.back}</Button><Button variant="primary" disabled={ftLocked} onClick={() => { void command("assemble"); }}>{copy.confirm}</Button></div>
       </Card>}
       {shown === "assemble" && <Card className="vua-line__panel">
         <h2>{factory.stations.assemble}</h2>
@@ -407,10 +530,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {run.snapshotId && !busy && !restorePlan && !plan && run.phase !== "inspect_required" && <>
           <div className="vua-n3__actions"><Button variant="subtle" onClick={() => {
             if (!port) return; setRequesting(true); setError(null);
-            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+            void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }} data-nav-id="workshop-restore">{copy.restore}</Button></div>
         </>}
       </Card>}
+      {shown === "assemble" && port && <RevisionsCard port={port} run={run} disabled={busy}
+        onStarted={accepted => { setTaskId(accepted); setTaskAction("restoreRevision"); }} />}
       {shown === "check" && !(run.phase === "succeeded" && !restorePlan) && <Card className="vua-line__panel"><h2>{factory.stations.check}</h2><p className="vua-text-secondary">{panels.check.waiting}</p></Card>}
       {shown === "check" && run.phase === "succeeded" && !restorePlan && <Card><h2>{copy.completed}</h2><p>{copy.next}</p>
         {port && <AmfResultViews port={port} run={run}/>}
@@ -426,21 +551,33 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{panels.check.toRelease}</Button><Button variant="primary" disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button></div>
         {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
+        {taskAction === "closeEditor" && <p role="status" className="vua-caption vua-text-secondary">{editorClose.closing}</p>}
         {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}
+        {opened === runId && taskAction !== "open" && <div className="vua-n3__actions">
+          <Popconfirm title={editorClose.confirmTitle} description={editorClose.confirmBody} confirmLabel={editorClose.confirm} cancelLabel={editorClose.cancel}
+            onConfirm={() => { void closeUnity(null); }}>
+            <Button variant="subtle" disabled={busy} data-nav-id="workshop-done-checking">{editorClose.doneChecking}</Button>
+          </Popconfirm></div>}
       </Card>}
+      {shown === "check" && !restorePlan && (run.phase === "succeeded" || (busy && !!run.result?.facts?.textureMemory?.length)) && port && <TextureMemoryCard port={port} run={run} level={level} disabled={busy}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("texture_memory"); }} onError={e => fail(e)}/>}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <LightingCard port={port} run={run} level={level} disabled={busy}
-        onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={setError}/>}
+        onStarted={taskId => { setTaskId(taskId); setTaskAction("lighting"); }} onError={e => fail(e)}/>}
+      {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && port && <FitSaveCard port={port} run={run} disabled={busy} />}
       {shown === "check" && !busy && !restorePlan && run.phase === "succeeded" && run.result?.facts?.observedSelection && <Card>
-        <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
+        <div className="vua-n3__toolbar"><h2>{copy.saveRecipe}</h2><Button disabled={ftLocked} onClick={() => setApplyingRecipe(true)}>{copy.applyRecipe}</Button></div>
+        {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
         {savedRecipe ? <><Button disabled={busy} onClick={() => setSharingRecipe(savedRecipe.recipe.recipeId)}>{copy.shareRecipe}</Button><p role="status">{format(copy.recipeSaved,{title:savedRecipe.recipe.title})}</p><Button onClick={() => { setSavedRecipe(null); newPreparation(); }}>{copy.recipes}</Button></> :
           <form onSubmit={event => {
             event.preventDefault(); if (!port) return; setRequesting(true); setError(null);
             void port.saveRecipe(runId,recipeTitle.trim() || run.result?.facts?.avatarName || copy.title).then(setSavedRecipe)
-              .catch(e => setError(e instanceof Error ? e.message : copy.taskFailed)).finally(() => setRequesting(false));
+              .catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }}><label className="vua-n3__field">{copy.recipeName}<input value={recipeTitle} maxLength={120} placeholder={run.result.facts.avatarName || copy.title} onChange={e => setRecipeTitle(e.target.value)}/></label>
-          <Button type="submit" variant="primary">{copy.saveRecipe}</Button></form>}
+          <Button type="submit" variant="primary" disabled={ftLocked}>{copy.saveRecipe}</Button></form>}
       </Card>}
       <details className="vua-n3__advanced"><summary>{copy.advanced}</summary><p>{run.editor.version}</p><code>{run.projectRoot}</code></details>
+      {shown === "face" && port && <FaceTrackingCard port={port} run={run} disabled={busy} onUnityHolds={e => fail(e)}
+        onStarted={id => { setTaskId(id); setTaskAction("faceTracking"); }} onRestore={ftRestore} onNewLine={newPreparation} />}
     </>}
     </div>
     {sharingRecipe && <AmfRecipeShareDialog recipeId={sharingRecipe} onClose={() => setSharingRecipe(null)}/>}
@@ -451,9 +588,56 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   </div>;
 }
 
+/** The plan's estimate of the synced parameter bits the assembled Avatar would use, with the
+ *  sources that spend them. MA merges parameters at build time, so the number is an estimate. */
+function ParameterBudgetNote({ budget }: { budget: AmfParameterBudgetPlanV01 }) {
+  const budgetCopy = copy.parameterBudget;
+  const kind = (source: AmfParameterBudgetPlanV01["sources"][number]) =>
+    source.kind === "expression_parameters" ? budgetCopy.own : source.origin === "avatar_base" ? budgetCopy.embedded : budgetCopy.outfit;
+  if (budget.state === "unknown") return <p className="vua-caption vua-text-secondary">{budgetCopy.unknown}</p>;
+  return <div className="vua-line__budget">
+    <p className={budget.state === "over_limit" ? "vua-n3__notice" : undefined} role={budget.state === "over_limit" ? "alert" : undefined}>
+      {budgetCopy.title} · {budgetCopy.estimate} · {format(budgetCopy.total, { used: String(budget.estimateBits), limit: String(budget.limitBits) })}
+      {budget.state === "over_limit" ? ` ${budgetCopy.overLimit}` : budget.state === "near_limit" ? ` ${budgetCopy.nearLimit}` : ""}
+    </p>
+    <ul className="vua-n3__review">{budget.sources.map((source, index) => <li key={`${source.kind}-${source.name}-${index}`}>
+      <strong>{source.name}</strong><span>{kind(source)} · {source.bits} bit</span></li>)}</ul>
+    {budget.unresolvedPrefixConfigs > 0 && <p className="vua-caption vua-text-secondary">
+      {format(budgetCopy.prefixNote, { count: String(budget.unresolvedPrefixConfigs) })}</p>}
+  </div>;
+}
+
+/** The plan's pre-assembly cost prediction (freeze row F5): one row per Avatar or outfit with
+ *  its size, triangles, material slots, texture memory, PhysBones and parameter bits. */
+function PredictionNote({ prediction }: { prediction: AmfPlanPrediction }) {
+  const predictionCopy = copy.prediction;
+  if (!prediction.available) return <p className="vua-caption vua-text-secondary">{predictionCopy.unavailable}</p>;
+  const megabytes = (bytes: number) => `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  const cells = (row: { triangles: number; materialSlots: number; textureBytes: number; physBones: number; parameterBits: number | null; uncompressedBytes: number }) => [
+    `≈ ${megabytes(row.uncompressedBytes)}`, row.triangles.toLocaleString(), String(row.materialSlots), `≈ ${megabytes(row.textureBytes)}`,
+    String(row.physBones), row.parameterBits === null ? "—" : `${row.parameterBits} / 256`,
+  ];
+  const columns = ["size", "triangles", "materialSlots", "textureMemory", "physBones", "parameterBits"] as const;
+  return <div className="vua-line__prediction">
+    <p>{predictionCopy.title}</p>
+    <table className="vua-line__prediction-table">
+      <thead><tr><th scope="col"/>{columns.map(column => <th key={column} scope="col">{predictionCopy.columns[column]}</th>)}</tr></thead>
+      <tbody>
+        {prediction.rows.map(row => <tr key={`${row.role}-${row.sourceId}`}>
+          <th scope="row">{row.name}{row.role === "avatar" && <small>{copy.avatar}</small>}</th>
+          {cells(row).map((cell, index) => <td key={columns[index]}>{cell}</td>)}
+        </tr>)}
+        {prediction.total && <tr className="vua-line__prediction-total"><th scope="row">{predictionCopy.total}</th>
+          {cells(prediction.total).map((cell, index) => <td key={columns[index]}>{cell}</td>)}</tr>}
+      </tbody>
+    </table>
+    <p className="vua-caption vua-text-secondary">{predictionCopy.note}</p>
+    {prediction.rows.some(row => !row.complete) && <p className="vua-caption vua-text-secondary">{predictionCopy.incomplete}</p>}
+  </div>;
+}
+
 /** Why VUA chose the Avatar and outfits it starts the plan with, in its stated rules. */
-function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {
-  const reasons = strings.factory.reasons;
+function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {  const reasons = strings.factory.reasons;
   const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
   const parts = [
     ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),

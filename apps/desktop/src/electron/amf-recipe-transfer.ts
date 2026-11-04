@@ -5,5 +5,5 @@ export function recipeTransferText(document: unknown): { fileText: string; share
   const compact = JSON.stringify(document);
   const fileText = JSON.stringify(document, null, 2);
   if (Buffer.byteLength(fileText, "utf8") > 262144) throw new Error("amf_recipe_share_too_large");
-  return { fileText, shareCode: "vuar0.4." + Buffer.from(compact, "utf8").toString("base64url") };
+  return { fileText, shareCode: `vuar${document.formatVersion}.` + Buffer.from(compact, "utf8").toString("base64url") };
 }

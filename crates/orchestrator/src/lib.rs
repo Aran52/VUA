@@ -172,6 +172,7 @@ pub use win_registry::{FakeRegistrySource, RegistryHive, RegistrySource, Windows
 pub mod deployment;
 pub mod amf_production;
 pub mod amf_recipe;
+pub mod amf_recipe_materials;
 pub mod amf_recipe_share;
 pub mod amf_recipe_apply;
 pub mod scenario_environment;

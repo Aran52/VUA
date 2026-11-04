@@ -1,0 +1,54 @@
+# Design audit (optional, non-blocking).
+#
+# Runs the automated UI design review on every PR that touches renderer code
+# and uploads the screenshots/JSON/report as artifacts. The audit fails the
+# job when results are unusable (capture failures or element totals below the
+# documented floors), but it is not a required check, so merge is never
+# blocked. The audit's --check-baseline gate is available locally but
+# intentionally not wired into required CI yet.
+name: design-audit
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "packages/design-system/**"
+      - ".github/workflows/design-audit.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: design-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+      - name: Build workspace packages the renderer imports
+        run: |
+          pnpm --filter @vua/contracts build
+          pnpm --filter @vua/orchestrator-provider build
+      - name: Design-audit tool tests (rules unit + synthetic-page end-to-end)
+        run: pnpm --filter @vua/desktop test:design-audit
+      - name: Full design audit
+        run: pnpm --filter @vua/desktop audit:design
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-audit-${{ github.run_id }}
+          path: apps/desktop/_local_design_audit/**/
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   REGIONAL_REFERENCES, REGIONAL_TIER_ABSOLUTE_MS, REGIONAL_TIER_RELATIVE,
-  REGIONAL_UNSTEADY_ABSOLUTE_MS, REGIONAL_UNSTEADY_RELATIVE, referenceElapsed, regionalTiers,
+  REGIONAL_UNSTEADY_ABSOLUTE_MS, REGIONAL_UNSTEADY_RELATIVE, referenceElapsed, regionalTierPhrase, regionalTiers,
 } from "./regional-reference.ts";
 import type { WebsiteObservation } from "@vua/contracts";
 
@@ -88,5 +88,43 @@ describe("regional tiers", () => {
     ]);
     expect(tiers.map(tier => [tier.id, tier.value, tier.tier, tier.unsteady]))
       .toEqual([["jp", 20, 0, false], ["eu", 240, 1, false], ["usw", null, null, false], ["use", null, null, false]]);
+  });
+});
+
+describe("regional tier phrases", () => {
+  it("reads the first region as closest, tier mates as about the same, later tiers by number", () => {
+    const tiers = regionalTiers([
+      { reference: reference("eu"), observation: observation("eu", 240) },
+      { reference: reference("jp"), observation: observation("jp", 20) },
+      { reference: reference("usw"), observation: observation("usw", 30) },
+      { reference: reference("use"), observation: observation("use", 120) },
+    ]);
+    expect(tiers.map((_, index) => regionalTierPhrase(tiers, index))).toEqual(["closest", "about_same", 2, 3]);
+  });
+  it("gives unmeasured regions no phrase, including a first row when nothing measured", () => {
+    const tiers = regionalTiers([
+      { reference: reference("usw"), observation: failed("usw") },
+      { reference: reference("jp") },
+    ]);
+    expect(tiers.map((_, index) => regionalTierPhrase(tiers, index))).toEqual([null, null]);
+    expect(regionalTierPhrase(tiers, 4)).toBeNull();
+    const partial = regionalTiers([
+      { reference: reference("jp"), observation: observation("jp", 45) },
+      { reference: reference("eu") },
+    ]);
+    expect(partial.map((_, index) => regionalTierPhrase(partial, index))).toEqual(["closest", null]);
+  });
+  it("keeps the phrase stable under the 15 ms boundary data of the tier tests", () => {
+    const shared = regionalTiers([
+      { reference: reference("jp"), observation: observation("jp", 100) },
+      { reference: reference("usw"), observation: observation("usw", 115) },
+      { reference: reference("eu") },
+    ]);
+    expect(shared.map((_, index) => regionalTierPhrase(shared, index))).toEqual(["closest", "about_same", null]);
+    const split = regionalTiers([
+      { reference: reference("jp"), observation: observation("jp", 100) },
+      { reference: reference("usw"), observation: observation("usw", 116) },
+    ]);
+    expect(split.map((_, index) => regionalTierPhrase(split, index))).toEqual(["closest", 2]);
   });
 });

@@ -78,7 +78,7 @@ export function configureDesktopProfile(
  * Renderer page titles must not replace the checkout label after navigation. */
 export function tagDevelopmentWindow(window: BrowserWindow, profile: DesktopProfile): void {
   if (profile.developmentLabel === undefined) return;
-  const title = `VUA [DEV ${profile.developmentLabel}]`;
+  const title = `Virtual Unified Assistant [DEV ${profile.developmentLabel}]`;
   window.setTitle(title);
   window.on("page-title-updated", (event) => {
     event.preventDefault();

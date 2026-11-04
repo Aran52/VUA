@@ -75,7 +75,7 @@ impl AmfProductionServices {
     pub(crate) fn submit(&self, request: SubmitRequest, run_id: &str, operation: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
         let mut entries = self.entries.lock().expect("lane entries poisoned");
         let policy = TaskLanePolicy { key: Some(run_id.to_owned()),
-            exclusive: matches!(operation, "amf.production.upload" | "amf.production.open" | "amf.production.delete") };
+            exclusive: matches!(operation, "amf.production.upload" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.delete") };
         let accepted = self.runtime.submit_in_lane_with_policy(request, &self.lane, policy)?;
         let snapshot = self.lane.snapshot();
         let live: Vec<String> = snapshot.running.into_iter().chain(snapshot.waiting).collect();
@@ -161,7 +161,7 @@ fn wire_run(run: ProductionRun) -> Value {
     object.remove("appliedFits");
     object.remove("observedAt");
     // A version list shows each record's summary; the full replay state stays in the record.
-    if let Some(revisions) = value["revisions"].as_array_mut() {
+    if let Some(revisions) = value.get_mut("revisions").and_then(Value::as_array_mut) {
         for revision in revisions {
             revision
                 .as_object_mut()
@@ -184,13 +184,14 @@ fn route(
     method: &str,
     request: &Value,
 ) -> Result<Value, vua_orchestrator::AppErrorV1> {
+    if let Some(result) = super::amf_share_routes::route(&service, method, request) { return result; }
     if let Some(result) = super::amf_release_routes::route(&service, method, request) {
         return result;
     }
     let query = matches!(
         method,
         "amf.production.faceTrackingPlan" |
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planLighting" | "amf.production.listFits"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -204,12 +205,15 @@ fn route(
         .and_then(Value::as_object)
         .ok_or_else(|| production_error("params_invalid", "Missing params."))?;
     let keys: &[&str] = match method {
+        "amf.production.planOutfitRemoval" => &["schemaVersion", "runId", "sourceId"],
+        "amf.production.removeOutfit" => &["schemaVersion", "runId", "sourceId", "planDigest", "confirmed"],
         "amf.production.faceTrackingPlan" => &["schemaVersion", "runId", "menuId"],
         "amf.production.faceTrackingPatch" => &["schemaVersion", "runId", "menuId", "planDigest", "confirmTrustedCode"],
         "amf.production.list" | "amf.production.listRecipes" | "amf.production.listFits" => &["schemaVersion"],
         "amf.production.saveFit" => &["schemaVersion", "runId", "sourceId", "name", "changesDigest"],
         "amf.production.renameFit" => &["schemaVersion", "fitId", "name"],
         "amf.production.deleteFit" => &["schemaVersion", "fitId"],
+        "amf.production.closeEditor" => &["schemaVersion", "runId", "confirmed"],
         "amf.production.setCapacity" => &["schemaVersion", "capacity"],
         "amf.production.getRecipe" | "amf.production.recipeSharePlan" => &["schemaVersion", "recipeId"],
         "amf.production.previewRecipeShare" | "amf.production.importRecipe" => &["schemaVersion", "text"],
@@ -217,6 +221,7 @@ fn route(
         "amf.production.saveRecipe" => &["schemaVersion", "runId", "title"],
         "amf.production.previewImage" => &["schemaVersion", "runId", "path"],
         "amf.production.prepareRecipe" => &["schemaVersion", "recipeId", "editorPath"],
+        "amf.production.recipeMaterialPlan" => &["schemaVersion", "recipeId"],
         "amf.production.recipeApplyPlan" if params.contains_key("avatarGlobalObjectId") => &["schemaVersion", "runId", "recipeId", "avatarGlobalObjectId"],
         "amf.production.recipeApplyPlan" => &["schemaVersion", "runId", "recipeId"],
         "amf.production.applyRecipe" if params.contains_key("avatarGlobalObjectId") => &["schemaVersion", "runId", "recipeId", "planDigest", "choice", "avatarGlobalObjectId"],
@@ -227,9 +232,12 @@ fn route(
         "amf.production.prepare" => &["schemaVersion", "sources", "editorPath"],
         "amf.production.plan" => &["schemaVersion", "runId", "selection"],
         "amf.production.assemble" => &["schemaVersion", "runId", "planDigest", "selection"],
+        "amf.production.rollback" if params.contains_key("target") => &["schemaVersion", "runId", "planDigest", "target"],
         "amf.production.rollback" => &["schemaVersion", "runId", "planDigest"],
         "amf.production.revisionPlan" => &["schemaVersion", "runId", "revisionId"],
         "amf.production.restoreRevision" => &["schemaVersion", "runId", "revisionId", "planDigest"],
+        "amf.production.planTextureMemory" => &["schemaVersion", "runId", "platform", "targetRank"],
+        "amf.production.applyTextureMemory" => &["schemaVersion", "runId", "platform", "targetRank", "planDigest", "textures"],
         "amf.production.applyLighting" => &["schemaVersion", "runId", "planDigest", "materials"],
         "amf.production.sdkFix" => &["schemaVersion", "runId", "fixes"],
         "amf.production.changeSources" => &["schemaVersion", "runId", "sources"],
@@ -241,7 +249,13 @@ fn route(
             ))
         }
     };
-    if params.len() != keys.len()
+    let optional_keys: &[&str] = match method {
+        "amf.production.recipeMaterialPlan" | "amf.production.prepareRecipe" | "amf.production.recipeApplyPlan" => &["materialChoices"],
+        "amf.production.applyRecipe" => &["materialChoices","recipeDifferencesConfirmed"],
+        "amf.production.assemble" => &["recipeDifferencesConfirmed"],
+        _ => &[],
+    };
+    if params.keys().any(|key| !keys.contains(&key.as_str()) && !optional_keys.contains(&key.as_str()))
         || keys.iter().any(|key| !params.contains_key(*key))
         || params["schemaVersion"] != "0.1"
     {
@@ -250,6 +264,18 @@ fn route(
             "Unknown keys or unsupported production version.",
         ));
     }
+    let material_choices: vua_orchestrator::amf_recipe_materials::MaterialChoices = match params.get("materialChoices") {
+        Some(value) => serde_json::from_value(value.clone()).map_err(|_| production_error("params_invalid", "Material choices map material IDs to source IDs."))?,
+        None => Default::default(),
+    };
+    if material_choices.len() > 64 || material_choices.iter().any(|(id,source)| !vua_orchestrator::amf_recipe::valid_material_id(id) || source.is_empty() || source.len() > 256 || source.contains('\0')) {
+        return Err(production_error("params_invalid", "Invalid Recipe material choices."));
+    }
+    let differences_confirmed = match params.get("recipeDifferencesConfirmed") {
+        None => false,
+        Some(Value::Bool(true)) => true,
+        _ => return Err(production_error("params_invalid", "Confirm the reviewed Recipe differences explicitly.")),
+    };
     let string = |key: &str| -> Result<String, vua_orchestrator::AppErrorV1> {
         params
             .get(key)
@@ -258,6 +284,9 @@ fn route(
             .map(str::to_owned)
             .ok_or_else(|| production_error("params_invalid", format!("Missing {key}.")))
     };
+    if method == "amf.production.closeEditor" && params.get("confirmed") != Some(&Value::Bool(true)) {
+        return Err(production_error("confirmation_required", "Confirm saving the open scenes and assets and closing Unity."));
+    }
     let avatar_id = if params.contains_key("avatarGlobalObjectId") {
         let id = string("avatarGlobalObjectId")?;
         if id.len() > 256 || id.contains('\0') { return Err(production_error("params_invalid", "Invalid Avatar identity.")); }
@@ -270,12 +299,16 @@ fn route(
         }
         Some(id)
     } else { None };
-    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
+    if matches!(method, "amf.production.assemble" | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch" | "amf.production.removeOutfit") {
         let digest = string("planDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(production_error("params_invalid", "A reviewed plan digest is required."));
         }
     }
+    // The restore target names which reviewed copy the digest bound; absent keeps the default.
+    let rollback_target = if method == "amf.production.rollback" {
+        Some(RollbackTarget::parse(params.get("target").and_then(Value::as_str))?)
+    } else { None };
     if method == "amf.production.saveFit" {
         let digest = string("changesDigest")?;
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
@@ -378,6 +411,9 @@ fn route(
     if method == "amf.production.getRecipe" {
         return Ok(json!({"schemaVersion":"0.1", "document":service.engine.get_recipe(&string("recipeId")?)?}));
     }
+    if method == "amf.production.recipeMaterialPlan" {
+        return Ok(json!({"schemaVersion":"0.1","plan":service.engine.recipe_material_plan(&string("recipeId")?, &material_choices)?}));
+    }
     if method == "amf.production.recipeSharePlan" {
         return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_share_plan(&string("recipeId")?)?}));
     }
@@ -415,6 +451,31 @@ fn route(
         }
         return service.engine.plan(&run_id, &selection);
     }
+    let texture_options = if matches!(method, "amf.production.planTextureMemory" | "amf.production.applyTextureMemory") {
+        let platform: TexturePlatform = serde_json::from_value(params["platform"].clone()).map_err(|_| production_error("params_invalid", "Choose PC or Android."))?;
+        let target: TextureRank = serde_json::from_value(params["targetRank"].clone()).map_err(|_| production_error("params_invalid", "Choose a target texture rank."))?;
+        if target.budget(platform).is_none() { return Err(production_error("params_invalid", "Choose Excellent, Good, Medium or Poor.")); }
+        Some((platform, target))
+    } else { None };
+    if method == "amf.production.planTextureMemory" {
+        let id = string("runId")?;
+        if service.run_busy(&id) { return Err(production_error("busy", "This line has work running or waiting.")); }
+        let (platform, target) = texture_options.expect("validated texture options");
+        return service.engine.plan_texture_memory(&id, platform, target);
+    }
+    let removal_source = if matches!(method, "amf.production.planOutfitRemoval" | "amf.production.removeOutfit") {
+        let id = string("sourceId")?;
+        if id.chars().count() > 256 || id.contains('\0') { return Err(production_error("params_invalid", "Invalid outfit source identity.")); }
+        if method == "amf.production.removeOutfit" && params["confirmed"] != true {
+            return Err(production_error("confirmation_required", "Confirm the reviewed outfit removal."));
+        }
+        Some(id)
+    } else { None };
+    if method == "amf.production.planOutfitRemoval" {
+        let run_id = string("runId")?;
+        if service.run_busy(&run_id) { return Err(production_error("busy", "This line has work running or waiting.")); }
+        return service.engine.plan_outfit_removal(&run_id, removal_source.as_deref().expect("validated outfit"));
+    }
     if method == "amf.production.planLighting" {
         let run_id = string("runId")?;
         if service.run_busy(&run_id) {
@@ -432,7 +493,7 @@ fn route(
         if service.run_busy(&run_id) {
             return Err(production_error("busy", "This line has work running or waiting."));
         }
-        return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_for(&run_id, &string("recipeId")?, avatar_id.as_deref())?}));
+        return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_with_choices_for(&run_id, &string("recipeId")?, avatar_id.as_deref(), &material_choices)?}));
     }
     let recipe_file = matches!(method, "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.saveRecipe");
     if recipe_file && service.busy() {
@@ -453,7 +514,7 @@ fn route(
     }
     let run_id = if method == "amf.production.prepareRecipe" {
         let id = format!("n3-{}", uuid_v7_identity());
-        service.engine.begin_recipe(&id, &string("recipeId")?, &string("editorPath")?)?;
+        service.engine.begin_recipe_with_choices(&id, &string("recipeId")?, &string("editorPath")?, &material_choices)?;
         id
     } else if method == "amf.production.prepare" {
         let choices: Vec<SourceChoice> = serde_json::from_value(params["sources"].clone())
@@ -468,8 +529,8 @@ fn route(
         service.engine.precheck_open(&run_id)?;
     }
     if matches!(method, "amf.production.reinspect" | "amf.production.assemble" | "amf.production.changeSources" | "amf.production.sdkFix"
-        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.delete"
-        | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch") {
+        | "amf.production.rollback" | "amf.production.applyRecipe" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.delete"
+        | "amf.production.restoreRevision" | "amf.production.faceTrackingPatch" | "amf.production.removeOutfit") {
         service.engine.precheck_closed(&run_id)?;
     }
     if method == "amf.production.delete" && service.run_busy(&run_id) {
@@ -524,6 +585,14 @@ fn route(
         }
         materials
     } else { Vec::new() };
+    let textures: Vec<String> = if method == "amf.production.applyTextureMemory" {
+        let paths: Vec<String> = serde_json::from_value(params["textures"].clone()).map_err(|_| production_error("params_invalid", "Name reviewed textures."))?;
+        if paths.is_empty() || paths.len() > 2048 || paths.iter().any(|p| !safe_texture_path(p))
+            || paths.iter().collect::<std::collections::BTreeSet<_>>().len() != paths.len() {
+            return Err(production_error("params_invalid", "Choose distinct reviewed texture paths."));
+        }
+        paths
+    } else { Vec::new() };
     let operation_run = run_id.clone();
     let worker = service.clone();
     let accepted = service.submit(SubmitRequest {
@@ -535,30 +604,39 @@ fn route(
         job: Box::new(move |ctx| {
             match action.as_str() {
                 "amf.production.prepare" | "amf.production.prepareRecipe" => worker.engine.prepare(&operation_run, ctx)?,
-                "amf.production.assemble" => worker.engine.assemble(
+                "amf.production.assemble" => worker.engine.assemble_with_review(
                     &operation_run,
                     selection.expect("assemble selection validated"),
                     &digest,
+                    differences_confirmed,
                     ctx,
                 )?,
                 "amf.production.reinspect" => worker.engine.reinspect(&operation_run, ctx)?,
                 "amf.production.sdkFix" => worker.engine.sdk_fix(&operation_run, sdk_fixes, ctx)?,
                 "amf.production.faceTrackingPatch" => worker.engine.face_tracking_patch(&operation_run,
                     ft_menu.as_deref().expect("confirmed menu"), &digest, true, ctx)?,
+                "amf.production.applyTextureMemory" => {
+                    let (platform, target) = texture_options.expect("validated texture options");
+                    worker.engine.apply_texture_memory(&operation_run, platform, target, &digest, &textures, ctx)?;
+                }
+                "amf.production.removeOutfit" => worker.engine.remove_outfit(&operation_run, removal_source.as_deref().expect("confirmed outfit"), &digest, true, ctx)?,
                 "amf.production.applyLighting" => worker.engine.apply_lighting(&operation_run, &digest, &lighting_materials, ctx)?,
                 "amf.production.changeSources" => worker.engine.change_sources(&operation_run, changed_sources, ctx)?,
                 "amf.production.delete" => worker.engine.delete_run(&operation_run)?,
                 "amf.production.applyRecipe" => {
                     let (recipe, choice) = recipe_application.expect("Recipe application validated");
-                    worker.engine.apply_recipe_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, ctx)?;
+                    worker.engine.apply_recipe_with_review_to(&operation_run, &recipe, avatar_id.as_deref(), choice, &digest, &material_choices, differences_confirmed, ctx)?;
                 }
-                "amf.production.rollback" => worker.engine.rollback(&operation_run, &digest, ctx)?,
+                "amf.production.rollback" => worker.engine.rollback(&operation_run, &digest, rollback_target, ctx)?,
                 "amf.production.restoreRevision" => worker.engine.restore_revision(
                     &operation_run,
                     revision_id.as_deref().expect("version record identity validated"),
                     &digest,
                     ctx,
                 )?,
+                "amf.production.closeEditor" => {
+                    return worker.engine.close_editor(&operation_run, true, ctx).map(TaskExit::Done)
+                }
                 "amf.production.open" => {
                     return worker.engine.open(&operation_run, ctx).map(TaskExit::Done)
                 }
@@ -585,6 +663,29 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use vua_orchestrator::{NanosTaskIdGenerator, SqliteTaskStore, SystemClock};
+
+    #[test]
+    fn wire_run_preserves_absent_revisions_and_hides_retained_replay_state() {
+        let mut run: ProductionRun = serde_json::from_value(json!({
+            "schemaVersion":"0.1", "runId":"n3-wire", "phase":"ready", "taskId":"task-wire",
+            "editor":{"path":"Unity.exe","version":"2022.3.22f1"}, "projectRoot":"synthetic-project",
+            "choices":[], "sources":[], "prefabs":[], "projectFingerprint":"", "unityFingerprint":"",
+            "steps":[], "selection":null, "confirmedDigest":null, "result":null, "error":null, "recovery":null
+        })).unwrap();
+        assert!(wire_run(run.clone()).get("revisions").is_none(),
+            "An empty optional version list must stay absent, not become null");
+        run.revisions.push(serde_json::from_value(json!({
+            "id":"rev-wire", "before":"assembly", "takenAt":"2026-10-25T00:00:00Z",
+            "state":{}, "summary":{"avatar":null,"outfits":[],"sources":[],"lightingMaterials":0,"sdkFixes":[]},
+            "editedInUnity":false
+        })).unwrap());
+        let view = wire_run(run);
+        let revisions = view.get("revisions").and_then(Value::as_array).unwrap();
+        assert_eq!(revisions.len(), 1);
+        assert_eq!(revisions[0]["id"], "rev-wire");
+        assert_eq!(revisions[0]["summary"]["lightingMaterials"], 0);
+        assert!(revisions[0].get("state").is_none(), "Replay state stays inside the local record");
+    }
 
     #[test]
     fn work_whose_task_ended_reads_interrupted_with_its_usual_durations() {
@@ -668,6 +769,23 @@ mod tests {
             TaskRuntime::with_sqlite(Arc::new(SqliteTaskStore::open(root.join("tasks.db")).unwrap()),
                 Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap(),
         ))
+    }
+
+    #[test]
+    fn texture_routes_require_exact_platform_target_digest_and_explicit_paths() {
+        let root = std::env::temp_dir().join(format!("vua-texture-routes-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let params = json!({"schemaVersion":"0.1","runId":"n3-missing","platform":"pc","targetRank":"good"});
+        let error = route(service.clone(), "amf.production.planTextureMemory", &json!({"kind":"query","params":params})).unwrap_err();
+        assert_eq!(error.code, "vua.amf_production.run_not_found", "valid input reaches the owning engine");
+        for (key, invalid) in [("platform", json!("ios")), ("targetRank", json!("unknown")), ("extra", json!(true))] {
+            let mut bad = params.clone(); bad[key] = invalid;
+            let error = route(service.clone(), "amf.production.planTextureMemory", &json!({"kind":"query","params":bad})).unwrap_err();
+            assert_eq!(error.code, "vua.amf_production.params_invalid");
+        }
+        let error = route(service.clone(), "amf.production.applyTextureMemory", &json!({"kind":"command","params":params})).unwrap_err();
+        assert_eq!(error.code, "vua.amf_production.params_invalid", "a mutation cannot omit the reviewed digest and path list");
+        drop(service); std::fs::remove_dir_all(root).unwrap();
     }
 
     fn list(service: &Arc<AmfProductionServices>) -> Value {
@@ -768,6 +886,9 @@ mod tests {
         let err = |method: &str, kind: &str, params: Value| {
             route(service.clone(), method, &json!({"kind":kind,"params":params})).unwrap_err().code
         };
+        assert_eq!(err("amf.production.closeEditor", "query", json!({"schemaVersion":"0.1","runId":"n3-x","confirmed":true})), "vua.amf_production.params_invalid");
+        assert_eq!(err("amf.production.closeEditor", "command", json!({"schemaVersion":"0.1","runId":"n3-x","confirmed":false})), "vua.amf_production.confirmation_required");
+        assert_eq!(err("amf.production.closeEditor", "command", json!({"schemaVersion":"0.1","runId":"n3-x"})), "vua.amf_production.params_invalid");
         // The kind must match the operation.
         assert_eq!(err("amf.production.revisionPlan", "command", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1"})), "vua.amf_production.params_invalid");
         assert_eq!(err("amf.production.restoreRevision", "query", json!({"schemaVersion":"0.1","runId":"n3-x","revisionId":"rev-1","planDigest":"a".repeat(64)})), "vua.amf_production.params_invalid");
@@ -811,7 +932,7 @@ mod tests {
 
     #[test]
     fn upload_open_and_delete_are_exclusive_and_preserve_queue_order() {
-        for operation in ["amf.production.upload", "amf.production.open", "amf.production.delete"] {
+        for operation in ["amf.production.upload", "amf.production.open", "amf.production.closeEditor", "amf.production.delete"] {
             let root = std::env::temp_dir().join(format!("vua-amf-exclusive-{}", uuid_v7_identity()));
             let service = services_at(&root);
             capacity(&service, json!(2)).unwrap();

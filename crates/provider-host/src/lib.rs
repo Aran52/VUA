@@ -9,6 +9,7 @@
 pub mod handoff_adapter;
 pub mod provider_host;
 pub mod runtime;
+pub mod share_image;
 pub mod fs_navigation;
 #[cfg(windows)]
 pub mod provider_job;
@@ -36,5 +37,6 @@ pub mod unity_license;
 mod unity_license_routes;
 mod amf_production_routes;
 mod amf_release_routes;
+mod amf_share_routes;
 mod scenario_routes;
 mod terms_routes;

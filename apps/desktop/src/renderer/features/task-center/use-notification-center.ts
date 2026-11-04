@@ -25,10 +25,9 @@ export function useNotificationCenter() {
   const view = useTaskCenter();
   const [capability, setCapability] = useState<CapabilityReport | null>(null);
   const [rejectedId, setRejectedId] = useState<string | null>(null);
-  // 通知中心(proposal 007 路径 b):已清除终态通知(持久化)与「显示已完成」视图开关;
+  // 通知中心(proposal 007 路径 b):已清除终态通知(持久化);
   // 任务权威快照不动,清除只影响通知呈现,事实仍可经任务列表/详情面查询
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => loadDismissedIds());
-  const [showCompleted, setShowCompleted] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -40,10 +39,10 @@ export function useNotificationCenter() {
     };
   }, [gateway]);
 
-  // 通知投影:活动任务恒显;终态任务需「显示已完成」开启且未被清除
+  // 通知投影:活动任务恒显;终态任务仅 notifyOnComplete 保留的最新一条可见
   const notifications = useMemo(
-    () => visibleNotifications(view.tasks, dismissed, showCompleted),
-    [view.tasks, dismissed, showCompleted],
+    () => visibleNotifications(view.tasks, dismissed),
+    [view.tasks, dismissed],
   );
 
   const activeCount = useMemo(() => activeTaskCount(view.tasks), [view.tasks]);
@@ -81,8 +80,6 @@ export function useNotificationCenter() {
     notifications,
     activeCount,
     rejectedId,
-    showCompleted,
-    setShowCompleted,
     cancel,
     retry,
     dismissible,

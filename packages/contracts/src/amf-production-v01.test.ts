@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { isAmfProductionParams, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
+import { isAmfProductionParams, isAmfEditorCloseResult, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
 import { DESKTOP_GATEWAY_METHOD_KINDS, isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 
 const selection = { avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"outfit",prefabPath:"Assets/Outfit.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}] };
 describe("AMF material-first Candidate boundary", () => {
+  it("registers saving and closing as an explicitly confirmed command", () => {
+    const params={schemaVersion:"0.1",runId:"n3-test",confirmed:true};
+    expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"close",method:"amf.production.closeEditor",params})).toBe(true);
+    expect(isApplicationRequestV01({contractVersion:"0.1",requestId:"close",correlationId:"close",commandId:"cmd-close",kind:"command",method:"amf.production.closeEditor",params})).toBe(true);
+    for (const bad of [{...params,confirmed:false},{...params,confirmed:"true"},{schemaVersion:"0.1",runId:"n3-test"},{...params,force:true}]) {
+      expect(isAmfProductionParams("amf.production.closeEditor",bad)).toBe(false);
+    }
+    expect(isApplicationRequestV01({contractVersion:"0.1",requestId:"close",correlationId:"close",kind:"query",method:"amf.production.closeEditor",params})).toBe(false);
+  });
   it("registers capacity as a command with exactly three admitted values", () => {
     expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.setCapacity"]).toBe("command");
     for (const capacity of [1, 2, 3]) {
@@ -93,7 +102,8 @@ describe("AMF material-first Candidate boundary", () => {
       expect(readAmfProductionProgress(value) !== null, name).toBe(name.includes(".valid."));
     }
     const status = (v: Record<string, unknown>) => (AMF_RUN_PHASES as readonly unknown[]).includes(v.phase)
-      && Array.isArray(v.steps) && v.steps.every(isAmfStep) && isAmfUsualDurations(v.usualDurations) && (v.progress === null || isAmfRunProgress(v.progress));
+      && Array.isArray(v.steps) && v.steps.every(isAmfStep) && isAmfUsualDurations(v.usualDurations) && (v.progress === null || isAmfRunProgress(v.progress))
+      && (v.editorClose === undefined || isAmfEditorCloseResult(v.editorClose));
     for (const name of readdirSync(folder("status-examples"))) {
       const value = JSON.parse(readFileSync(new URL(name, folder("status-examples")), "utf8")) as Record<string, unknown>;
       expect(status(value), name).toBe(name.includes(".valid."));
@@ -108,5 +118,21 @@ describe("AMF material-first Candidate boundary", () => {
   it("accepts every step the AMF engine records, including release steps", () => {
     for (const key of ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"])
       expect(isAmfStep({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-17T15:00:00.000Z", endedAt: "2026-10-17T15:01:00.000Z" }), key).toBe(true);
+  });
+});
+
+describe("switch options in a selection", () => {
+  const outfit = { sourceId: "coat", prefabPath: "Assets/Coat.prefab", mode: "merge_armature", bone: "", toggleName: "Coat", active: true };
+  const selection = (extra: Record<string, unknown>) => ({ avatarPrefab: "Assets/Avatar.prefab", outfits: [{ ...outfit, ...extra }] });
+  it("accepts the options when present and keeps older selections valid", () => {
+    expect(isAmfAssemblySelection(selection({}))).toBe(true);
+    expect(isAmfAssemblySelection(selection({ saved: false, group: "main" }))).toBe(true);
+    // Unity reports an independent switch with an empty group.
+    expect(isAmfAssemblySelection(selection({ saved: true, group: "" }))).toBe(true);
+  });
+  it("rejects malformed options and unknown keys", () => {
+    for (const extra of [{ saved: "no" }, { group: "主服装" }, { group: "g".repeat(33) }, { group: "VUA/Group/main" }, { exclusive: true }]) {
+      expect(isAmfAssemblySelection(selection(extra))).toBe(false);
+    }
   });
 });

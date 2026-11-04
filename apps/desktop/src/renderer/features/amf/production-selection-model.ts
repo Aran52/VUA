@@ -13,7 +13,8 @@ export function initialProductionSelection(run: AmfProductionRun): AmfAssemblySe
 /** Two selections assemble the same Avatar: the same Avatar and the same outfits, in any order. */
 export function sameSelection(a: AmfAssemblySelection, b: AmfAssemblySelection): boolean {
   const key = (selection: AmfAssemblySelection) => JSON.stringify([selection.avatarPrefab,
-    selection.outfits.map(o => [o.sourceId, o.prefabPath, o.mode, o.bone, o.toggleName, o.active]).sort()]);
+    // Switch options compare by meaning: Unity reports the defaults that the editor leaves out.
+    selection.outfits.map(o => [o.sourceId, o.prefabPath, o.mode, o.bone, o.toggleName, o.active, o.saved !== false, o.group ?? ""]).sort()]);
   return key(a) === key(b);
 }
 
@@ -21,6 +22,12 @@ export function updateOutfitSelection(selection: AmfAssemblySelection, sourceId:
   const previous = selection.outfits.find(o => o.sourceId === sourceId);
   const others = selection.outfits.filter(o => o.sourceId !== sourceId);
   if (update === null) return { ...selection, outfits: others };
-  const next: AmfOutfitSelection = { sourceId, prefabPath: "", mode: "merge_armature", bone: "", toggleName: "", active: true, ...previous, ...update };
-  return { ...selection, outfits: [...others, next].sort((a,b) => a.sourceId.localeCompare(b.sourceId)) };
+  const merged: AmfOutfitSelection = { sourceId, prefabPath: "", mode: "merge_armature", bone: "", toggleName: "", active: true, ...previous, ...update };
+  // Switch options stay out of the selection at their defaults, as the engine writes them.
+  const { saved, group, ...plain } = merged;
+  const grouped = group && plain.toggleName.trim() ? group : "";
+  const next: AmfOutfitSelection = { ...plain, ...(saved === false ? { saved: false } : {}), ...(grouped ? { group: grouped } : {}) };
+  // A group's switches are worn one at a time: turning one on by default turns the others off.
+  const rest = grouped && next.active ? others.map(o => o.group === grouped && o.active ? { ...o, active: false } : o) : others;
+  return { ...selection, outfits: [...rest, next].sort((a,b) => a.sourceId.localeCompare(b.sourceId)) };
 }

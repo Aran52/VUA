@@ -22,8 +22,10 @@ import {
 import "../overlay/overlay.css";
 import "./reader.css";
 import { strings } from "../../i18n/index.ts";
+import { useSurfaceAppearance } from "../../app/surface-appearance.ts";
 
 export function ReaderSurface() {
+  useSurfaceAppearance();
   const [guideRequest, setGuideRequest] = useState<GuideRequest | null>(null);
   const guideRequestNonce = useRef(0);
 

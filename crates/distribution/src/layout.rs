@@ -46,6 +46,9 @@ pub struct Installation {
     key: [u8; 32],
 }
 impl Installation {
+    pub(crate) fn trust_key(&self) -> &[u8; 32] {
+        &self.key
+    }
     pub fn open(root: &Path, create: bool) -> Result<Self> {
         Self::with_key(root, create, PUBLIC_KEY)
     }
@@ -132,23 +135,39 @@ impl Installation {
             path.parent()
                 .ok_or_else(|| Error("invalid_release_path".into()))?,
         )?;
-        match fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-        {
-            Ok(mut file) => {
-                use std::io::Write;
-                file.write_all(bytes)?;
-                file.sync_all()?;
+        if path.exists() {
+            if fs::read(&path)? != bytes {
+                return Err(Error("manifest_integrity_failed".into()));
             }
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                if fs::read(&path)? != bytes {
-                    return Err(Error("manifest_integrity_failed".into()));
-                }
-            }
-            Err(error) => return Err(error.into()),
+            return Ok((id, manifest));
         }
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| Error("invalid_system_time".into()))?
+            .as_nanos();
+        let temporary = path.with_extension(format!("private-{}-{unique}", std::process::id()));
+        let result = (|| -> Result<()> {
+            use std::io::Write;
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)?;
+            file.write_all(bytes)?;
+            file.sync_all()?;
+            drop(file);
+            match fs::hard_link(&temporary, &path) {
+                Ok(()) => Ok(()),
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::AlreadyExists
+                        && fs::read(&path)? == bytes =>
+                {
+                    Ok(())
+                }
+                Err(error) => Err(error.into()),
+            }
+        })();
+        let _ = fs::remove_file(&temporary);
+        result?;
         Ok((id, manifest))
     }
     pub fn host_root(&self, manifest: &Manifest) -> Result<PathBuf> {
@@ -303,7 +322,7 @@ impl Installation {
         transfer.progress("ready", 1, 1);
         Ok(())
     }
-    async fn runtime(
+    pub(crate) async fn runtime(
         &self,
         manifest: &Manifest,
         input: &Path,
@@ -370,7 +389,7 @@ impl Installation {
         }
         self.verify_files(&root, &manifest.runtime.files)
     }
-    fn install_bootstrap(&self, manifest: &Manifest) -> Result<()> {
+    pub(crate) fn install_bootstrap(&self, manifest: &Manifest) -> Result<()> {
         let file = manifest
             .host
             .files
@@ -536,6 +555,14 @@ impl Installation {
         if let Some(pending) = self.pending()? {
             keep.push(self.manifest(&pending.manifest)?);
         }
+        for pair in self.component_retained_pairs()? {
+            keep.push(self.manifest(&pair.host_manifest)?);
+            keep.push(self.manifest(&pair.amf_manifest)?);
+        }
+        for pair in self.update_plan_retained_pairs()? {
+            keep.push(self.manifest(&pair.host_manifest)?);
+            keep.push(self.manifest(&pair.amf_manifest)?);
+        }
         for entry in fs::read_dir(owned_path(&self.root, "manifests")?)? {
             let name = entry?.file_name().to_string_lossy().into_owned();
             let Some(id) = name.strip_suffix(".json") else {
@@ -598,7 +625,7 @@ impl Installation {
     pub fn remove(&self) -> Result<()> {
         let _lock = self.lock("operation.lock")?;
         let _running = self.lock("running.lock")?;
-        for name in ["payloads", "runtime", "manifests", "cache"] {
+        for name in ["payloads", "runtime", "manifests", "cache", "updates-v02"] {
             let path = owned_path(&self.root, name)?;
             if path.exists() {
                 reject_links(&path)?;
@@ -629,7 +656,7 @@ fn version(value: &str) -> Result<semver::Version> {
     semver::Version::parse(value).map_err(|_| Error("invalid_version".into()))
 }
 #[cfg(windows)]
-fn free_space(root: &Path) -> Result<u64> {
+pub(crate) fn free_space(root: &Path) -> Result<u64> {
     use std::os::windows::ffi::OsStrExt;
     let wide: Vec<u16> = root.as_os_str().encode_wide().chain([0]).collect();
     let mut available = 0;
@@ -647,6 +674,6 @@ fn free_space(root: &Path) -> Result<u64> {
     Ok(available)
 }
 #[cfg(not(windows))]
-fn free_space(_: &Path) -> Result<u64> {
+pub(crate) fn free_space(_: &Path) -> Result<u64> {
     Ok(u64::MAX)
 }

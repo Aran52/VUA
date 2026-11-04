@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -18,6 +20,8 @@ import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
+import { contextGuideCopy } from "./context-guide-copy.ts";
+import { helpFaqCopy } from "./help-faq-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -28,11 +32,15 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} 이름은 소스 테이블과 정확히 일치해야 함.
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["ko"],
+  outfitRemoval: outfitRemovalCopy["ko"],
   faceTracking: faceTrackingCopy["ko"],
   toolConnection: toolConnectionCopy["ko"],
   browser: browserCopy["ko"],
   fileDrop: fileDropCopy["ko"],
   helpUi: helpCopy["ko"],
+  helpFaq: helpFaqCopy["ko"],
+  contextGuide: contextGuideCopy["ko"],
   distribution: distributionCopy["ko"],
   amfModule: moduleCopy["ko"],
   amfProduction: amfProductionCopy.ko,
@@ -55,10 +63,14 @@ export const strings: Strings = {
     invalid: "이름과 중복되지 않는 HTTPS 주소를 입력하세요. 로그인 정보나 프래그먼트는 넣을 수 없어요.",
     empty: "오른쪽 위 + 버튼으로 사이트를 추가하세요.", unavailable: "사이트 테스트를 쓸 수 없어요. 소프트웨어 설치에는 영향이 없어요.",
     storageFailed: "이번 세션에는 적용되지만 저장하지 못했습니다.",
-    europe: "유럽", america: "미국", japan: "일본", west: "서부", east: "동부", regionUnavailable: "지역 테스트를 사용할 수 없음",
+    regionUnavailable: "지역 테스트를 사용할 수 없음",
     regionTitle: "지역별 참고 지연", testRegions: "지역 테스트", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "산호세 · 미국 서부", use: "애슈번 · 워싱턴 인근", jp: "도쿄 · 일본", eu: "암스테르담 · 유럽" },
-    regionScope: "기준점은 각 게임 지역 근처의 Oracle Cloud 노드이고, HTTPS 응답 3회의 중앙값이에요. 지역 비교용이며 게임 내 핑과 다를 수 있어요.",
+    regionShort: { usw: "미국 서부", use: "미국 동부", jp: "일본", eu: "유럽" },
+    regionClosest: "가장 가까움", regionAboutSame: "비슷함", regionTierN: "{n}번째",
+    regionUnsteady: "불안정", regionUnsteadyHint: "측정할 때마다 차이가 커서 값은 참고용이에요.",
+    regionViaProxy: "이 컴퓨터의 프록시를 통해 측정했어요. 게임이 실제로 지나는 경로와 다를 수 있어요.",
+    regionScope: "각 지역 참조점까지의 지연이에요. VRChat 방 핑이 아니에요.",
     statuses: { timeout: "시간 초과", connection_failed: "실패", probe_error: "사용 불가", http_error: "HTTP 오류", redirected: "리디렉션", reachable: "연결됨" },
   },
   terms: {
@@ -182,7 +194,6 @@ export const strings: Strings = {
     backToOrigin: "원래 페이지로",
     cancel: "취소",
     clear: "지우기",
-    showCompleted: "완료 항목 표시",
     cancelRejected: "지금은 이 작업을 취소할 수 없습니다",
     retry: "재시도",
     retryRejected: "이 작업은 지금 다시 시도할 수 없습니다",
@@ -201,8 +212,11 @@ demoTaskTitle: "데모 작업",
   },
   /** 리소스 여유는 측정 가능한 CPU/GPU/RAM/VRAM으로 계산한다(2026-10-10 결정). */
   resourceMonitor: {
-    indicatorAria: "리소스 여유 {percent}%, 측정 가능한 {count}개 항목의 평균 — 자세히 보기",
-    headroom: "여유 {percent}%",
+    tightest: "{resource} {percent}%",
+    statePlenty: "여유",
+    stateGettingTight: "다소 부족",
+    stateTight: "부족",
+    tightestAria: "가장 여유가 없는 리소스는 {resource} {percent}%, {state} — 자세히 보기",
     title: "시스템 리소스",
     cpu: "CPU",
     gpu: "GPU",
@@ -213,7 +227,6 @@ demoTaskTitle: "데모 작업",
     unavailable: "측정할 수 없음",
     gpuKinds: {"discrete":"외장 GPU","integrated":"내장 GPU","unknown":"유형 확인 불가"},
     sharedMemory: "GPU가 시스템 메모리를 공유해 별도 VRAM 사용량이 없어요",
-    constrained: "{resource} {percent}%",
     closeAria: "리소스 상세 닫기",
   },
   nav: {
@@ -284,6 +297,51 @@ demoTaskTitle: "데모 작업",
     localTitle: '로컬 단일 소재 가져오기',
     importModes: "다른 가져오기 방법",
     migrationTitle: "여러 소재 가져오기 (자료실 이전)",
+    migration: {
+      description: "무엇이 같은 에셋인지 정한 뒤 가져오세요. 가져오기는 선택한 파일을 복사하고 원본은 그대로 둡니다.",
+      oneMaterial: "에셋 하나",
+      collection: "분류(계속 보기)",
+      excluded: "이번엔 제외",
+      decide: "이 폴더의 처리",
+      open: "열어서 확인",
+      nameLabel: "에셋 이름",
+      bulkHint: "선택한 형제 폴더: {count}",
+      bulkApply: "이 형제 폴더들은 각각 별도 에셋",
+      selectFolder: "폴더 {name} 선택",
+      selectFile: "파일 {name} 선택",
+      inGroup: "‘{name}’에 포함",
+      groupName: "묶을 파일의 이름",
+      groupNamePlaceholder: "예: 의상에 딸린 설명과 텍스처",
+      groupApply: "선택한 파일을 에셋 하나로 묶기",
+      empty: "빈 폴더",
+      truncated: "처음 1000개만 읽었어요. 나머지도 분류가 필요해요.",
+      depthLimit: "폴더가 너무 깊어요. 단독으로 확인하세요.",
+      failed: "폴더를 읽지 못했어요. 위치와 권한을 확인한 뒤 다시 시도하세요.",
+      undo: "되돌리기",
+      copyManifest: "이전 매니페스트 복사",
+      manifestCopied: "확인한 그룹을 이전 매니페스트로 복사했어요.",
+      manifestFailed: "클립보드를 쓸 수 없어요. 그룹은 이 창에 남아 있어요.",
+      coverageComplete: "확정된 에셋 {count}개",
+      coverageUnassigned: "미확정 {count}개",
+      coverageExcluded: "제외 {count}개",
+      coverageUnreadable: "읽을 수 없음 {count}개",
+      confirmed: "확정된 에셋",
+      files: "파일 {count}개",
+      none: "아직 없음",
+      unassignedTitle: "미확정",
+      excludedTitle: "제외됨",
+      unreadableTitle: "읽을 수 없거나 건너뜀",
+      more: "그 외 {count}개",
+      reasons: { link: "링크라 따라가지 않음", other: "지원하지 않는 항목이라 검사 안 함", unavailable: "읽지 못함", truncated: "읽기 한도 도달" },
+      problems: { not_reviewed: "이 폴더를 열면 모든 파일을 셀 수 있어요", truncated: "읽지 못한 파일이 있어요. 다시 확인하세요", unreadable: "읽을 수 없는 파일이 있어요", empty: "가져올 파일이 없어요", no_root: "확인한 폴더 밖에 있어요" },
+      importCta: "에셋 {count}개 가져오기",
+      importing: "가져오기를 시작하는 중…",
+      importAccepted: "가져오기를 시작했어요. 진행 상황과 결과는 작업 목록에 표시돼요.",
+      importFailed: "가져오기가 시작되지 않았어요. 그룹은 이 창에 남아 있어요.",
+      partialBlocked: "읽은 모든 파일에 처리가 정해져야 가져올 수 있어요.",
+      close: "닫기",
+      unknownSize: "크기 모름",
+    },
     migrationPreview: {
       description: "폴더를 펼쳐 라이브러리 구조 보기",
       planning: "그룹 나누기 전 미리 보기예요. 가져오지 않아요.",
@@ -481,6 +539,8 @@ demoTaskTitle: "데모 작업",
     },
   },
   onboarding: {
+    firstRunTitle: "언어 선택",
+    firstRunBody: "설정에서 언제든 바꿀 수 있어요. 다른 기능은 필요할 때 안내해요.",
     steps: {
       goals: "목표 선택",
       environments: "환경 세부 설정",
@@ -1173,7 +1233,8 @@ rolled_back: "롤백됨",
             id: "trust",
             title: "트러스트 등급과 세이프티 실드",
             paragraphs: [
-              "퀵 메뉴가 열려 있는 동안 네임플레이트에 트러스트 등급(Visitor부터 Trusted User까지)이 표시됩니다. 세이프티 페이지의 실드 레벨은 등급별로 보이는 아바타와 이펙트를 결정합니다. 기본값 Normal이 좋은 출발점입니다.",
+              "트러스트 등급은 계정의 신뢰도예요. 실드 레벨은 등급별로 표시할 아바타, 소리, 효과를 정해요. 둘 다 Avatar 성능 등급과는 별개예요.",
+              "퀵 메뉴에서 네임플레이트와 실드 설정을 확인해요. 먼저 Normal을 사용하고 방과 개인 취향에 맞게 조절할 수 있어요.",
             ],
           },
           {
@@ -1305,26 +1366,56 @@ rolled_back: "롤백됨",
           },
         ],
       },
+      creator: {
+        title: "업로드와 신뢰 등급",
+        intro: "업로드 조건, 신뢰 등급, 로컬 테스트에 대한 안내예요.",
+        sections: [
+          {
+            id: "upload-eligibility",
+            title: "업로드에 필요한 조건",
+            paragraphs: [
+              "Unity와 VRChat SDK로 커스텀 Avatar를 업로드하려면 VRChat.com 계정과 New User 이상의 신뢰 등급이 필요해요. Steam 또는 Meta 계정은 먼저 VRChat 계정과 연결해야 해요.",
+              "아직 업로드할 수 없어도 빌드하고 로컬에서 테스트할 수 있어요. 테스트 Avatar는 본인에게만 보여요. VUA가 등급을 부여하거나 공식 확인을 우회하지는 않아요.",
+            ],
+          },
+          {
+            id: "trust-rank",
+            title: "사용자 등급이란?",
+            paragraphs: [
+              "Trust Rank는 VRChat이 계정의 신뢰도를 나타내는 지표예요. Avatar 기능을 표시할지 정하는 Shield Level이나 Avatar의 렌더링 비용을 추정하는 Performance Rank와는 달라요.",
+              "퀵 메뉴에서 이름표와 등급을 확인할 수 있어요. VUA는 플레이 시간, 친구 수, 계정 이름으로 등급을 추측하지 않아요.",
+            ],
+          },
+          {
+            id: "improve-trust",
+            title: "New User가 되려면",
+            paragraphs: [
+              "평소처럼 VRChat을 사용하며 월드를 탐색하고 친구와 놀고, 자격을 얻은 뒤 콘텐츠를 만들어 보세요. Visitor에서 New User가 되면 VRChat이 알려줘요.",
+              "잠수, 대량 친구 추가, 저품질 콘텐츠 대량 업로드로는 등급이 오르지 않아요. 공인된 지름길이나 승급 시기 보장은 없어요. 등급이 잘못되었다고 생각하면 VRChat 지원에 문의하세요.",
+            ],
+          },
+        ],
+      },
       /** VUA 사용법 주제(2026-09-26 가이드 호스트 판정): 읽기 전용. 지금
        *  실제로 되는 것만 담고 미연결 기능을 약속하지 않음. */
       vua: {
-        title: "VUA 사용법",
-        intro: "VUA 창과 주요 흐름을 빠르게 소개합니다. 지금 실제로 되는 것만 담았습니다.",
+        title: "VUA 사용 안내",
+        intro: "소재, 제작, 설정, 업로드의 현재 경로를 안내해요.",
         sections: [
           {
             id: "window-tour",
-            title: "VUA 창 둘러보기",
+            title: "조작 위치 찾기",
             paragraphs: [
-              "상단 바에는 왼쪽부터 모듈 전환(환경 설정/아바타 제작), 설정, 기능 검색(Ctrl+P), 가이드, 알림이 있고, 왼쪽 사이드바에는 현재 모듈의 기능 그룹이 나열됩니다.",
-              "화면 하단의 작업 센터에 백그라운드 작업과 다운로드가 모이며, 오른쪽 위 종 아이콘으로 알림 목록을 엽니다.",
+              "상단 바에서 기능 검색과 설정을 열고, 왼쪽 사이드바에서 현재 모듈의 기능을 선택해요. 화면별 안내는 처음 방문할 때 표시돼요.",
+              "다운로드와 백그라운드 작업은 위쪽 종 아이콘에서 확인해요. 화면 아래쪽 작업 표시줄은 없어요.",
             ],
           },
           {
             id: "environment-page",
-            title: "환경 페이지",
+            title: "플레이와 아바타 제작 준비",
             paragraphs: [
-              "플레이/제작 환경 페이지에서는 먼저 환경 검사를 실행하고, 결과가 부족하면 수정 계획이 단계를 안내합니다.",
-              "도구 모음은 환경 모듈 사이드바의 「도구」 그룹에 있습니다. 아직 연결되지 않았으며 정직한 빈 상태를 표시합니다.",
+              "플레이에서는 Steam, VRChat, 스트리밍 환경을 확인해요. 아바타 편집에서는 Unity, 패키지 관리자와 {amf}를 확인해요. 실패한 항목에는 현재 상태와 가능한 해결 방법이 표시돼요.",
+              "도구는 용도별로 나뉘어요. 아직 구현되지 않은 항목은 개발 중으로 표시되며 설치된 것처럼 보이지 않아요.",
             ],
           },
           {
@@ -1332,23 +1423,31 @@ rolled_back: "롤백됨",
             title: "소재 가져오기 두 가지",
             paragraphs: [
               "로컬 소재: 라이브러리에서 폴더를 선택하여 가져옵니다. 일반 파일은 그대로 보관하고 ZIP은 원본을 보관하며 자동으로 압축을 풉니다. 제작에는 UnityPackage만 사용합니다.",
-              "BOOTH 상품: 내장 브라우저 창에서 상품 페이지를 열고 본인 계정으로 구매·다운로드한 뒤, 다운로드를 한 번 클릭해 창고에 받습니다.",
+              "BOOTH 구매 소재는 계정 페이지에서 로그인 후 동기화하거나 라이브러리에서 상품 페이지를 열 수 있어요. 필요한 파일만 다운로드하세요. 상품 연결은 출처 기록이며 파일 일치나 호환성을 보장하지 않아요.",
             ],
           },
           {
             id: "production-line",
             title: "제작 라인",
             paragraphs: [
-              "라인은 창고 → 레시피 → 작업장 → 출고 순으로 진행됩니다. 소재는 창고에 들어가 레시피에서 조합하고, 작업장에서 실행 계획을 확인해 진행합니다.",
-              "검사는 제작 기록에 통합됩니다. 결과는 기록과 함께 표시되며 별도 단계가 아닙니다.",
+              "소재에서 제작을 시작하고 레시피로 조합을 저장해 재사용해요. 레시피는 매번 거쳐야 하는 단계가 아니에요. 작업장은 실제 제작 라인과 자동화 상태를 보여줘요. 새 설정의 기본값은 완전 자동이며 확인한 소재를 한 번 조립해요. 기존 수동 검토와 제한 자동 설정은 유지돼요.",
+              "Avatar로 지정한 로컬 UnityPackage는 상품 연결 없이 제작을 시작할 수 있어요. 시작 전에 대상 Avatar와 자동화 권한을 확인하세요. 상품 연결은 호환성을 보장하지 않으며 업로드에는 공식 SDK와 본인 확인이 필요해요.",
             ],
           },
           {
             id: "settings-basics",
             title: "자주 쓰는 설정",
             paragraphs: [
-              "외관은 다크/라이트/시스템 설정 따름을 고를 수 있으며, 시스템 따름은 Windows의 밝기 모드를 실시간으로 따라갑니다.",
-              "리소스 절약 모드는 장식 애니메이션을 꺼서 부하를 낮추므로 VR이나 저사양 환경에 적합합니다.",
+              "Grid와 Frutiger Aero는 다크와 라이트를 지원해요. Tenshi Kaiwai는 라이트, Jirai Kei는 다크 전용이에요. 언어, 계정, 환경 경로는 설정의 각 페이지에서 바꿔요.",
+              "리소스 절약 모드는 장식 애니메이션, 질감과 일부 시각 효과를 끄고 글자와 조작은 유지해요.",
+            ],
+          },
+          {
+            id: "upload-prerequisites",
+            title: "업로드 전 계정 조건",
+            paragraphs: [
+              "커스텀 Avatar를 업로드하려면 정식 VRChat 계정과 New User 이상의 트러스트 등급이 필요해요. Unity 설치와는 별개이며 등급이 부족해도 로컬 테스트는 할 수 있어요.",
+              "아바타 제작 준비와 업로드 확인에서 트러스트 등급의 의미와 올리는 방법을 찾아볼 수 있어요. 업로드는 본인 확인 후 공식 SDK로 진행해요.",
             ],
           },
         ],
@@ -3001,7 +3100,7 @@ rolled_back: "롤백됨",
       pending: "번역 중",
     },
     version: {
-      heading: "VUA 데스크톱",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · 얼리 프리뷰",
       debugHeading: "디버그 모드",
       debugToggle: "상품 디버그 정보 표시",
@@ -3303,6 +3402,11 @@ rolled_back: "롤백됨",
     playSession: { unavailable: environmentCopy["ko"].unknown },
     recipe: { draftFailed: "레시피 초안 작업을 완료하지 못했습니다." },
     library: { downloadFailed: "내려받기가 끝나지 않았어요. 기존 파일은 남아요.", removalFailed: "로컬 파일을 삭제하지 못했어요. 파일 상태를 새로 고치고 작업을 확인하세요.", reconciliationFailed: "에셋 내용 확인이 끝나지 않았어요. 작업을 확인한 뒤 다시 동기화하세요." },
+    migration: {
+      invalidParams: "그룹 요청이 검증을 통과하지 못했어요.",
+      stale: "확인한 뒤 원본 파일이 바뀌었어요(이동·크기·수정 시각). 폴더를 다시 확인한 뒤 가져오세요.",
+      overlap: "같은 파일이 두 에셋에 들어 있어요. 한쪽 경계를 바꾼 뒤 가져오세요.",
+    },
     catalog: {
       syncFailed: "라이브러리 동기화가 끝나지 않았어요. 저장된 항목은 남아요. 작업 기록을 보세요.",
       productNotFound:

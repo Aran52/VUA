@@ -15,6 +15,9 @@ on:
     paths:
       - "apps/**"
       - "packages/**"
+      - "services/recipe-links/**"
+      - "schemas/amf-recipe/**"
+      - "schemas/selection-share/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -33,6 +36,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  share-links:
+    name: Share-link service (offline tests and typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Share-link contract, storage and material-page tests
+        run: pnpm --filter @vua/recipe-links test
+      - name: Share-link TypeScript boundary
+        run: pnpm --filter @vua/recipe-links typecheck
   check:
     runs-on: windows-latest
     steps:
@@ -50,24 +69,36 @@ jobs:
         run: pnpm check
       - name: Library maintenance interaction (isolated profile, synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:library-maintenance
+      - name: Local material entry and saved source display (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:material-entry
       - name: Bundle Main and preload for module interaction
         run: node apps/desktop/scripts/build-electron.mjs
       - name: Tray updates and exit (isolated process)
         run: pnpm --filter @vua/desktop smoke:system-tray
       - name: First-run UI and scenario receipt continuity (synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:first-run-ui
+      - name: Independent component and pair update controls (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:component-updates
+      - name: AMF module imports, failed replacement and generation cleanup (synthetic code)
+        run: pnpm --filter @vua/desktop smoke:amf-generations
       - name: AMF activation and isolation (isolated profile, native providers)
         run: pnpm --filter @vua/desktop smoke:amf-module
       - name: Help, knowledge and compact Play navigation (isolated profile)
         run: pnpm --filter @vua/desktop smoke:help-navigation
       - name: Wiki and AMF browser within shell navigation (isolated profile, synthetic websites)
         run: pnpm --filter @vua/desktop smoke:asset-browser
+      - name: Notifications above browsing and AMF shape ownership (isolated profile, synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:browser-shell
+      - name: Stable sidebar and page/card widths across detail scrolling (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:layout-stability
+      - name: MCP clearing, tool loading and Play alignment in all themes (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:mcp-theme-ui
       - name: Regional reference and website tests (four languages, synthetic observations)
         run: pnpm --filter @vua/desktop smoke:network
-      - name: Native splash and first-use tour (isolated profile)
+      - name: Native splash, first-use language and optional tour (isolated profile)
         run: pnpm --filter @vua/desktop smoke:startup
-      - name: Unsupported system language fallback
-        run: pnpm --filter @vua/desktop smoke:startup --locale-unmatched
+      - name: Unsupported system language fallback after a slow native handshake
+        run: pnpm --filter @vua/desktop smoke:startup --locale-unmatched --slow-provider
       - name: Ordered Windows language preferences
         run: pnpm --filter @vua/desktop smoke:startup --locale-ordered
       - name: Resource summary and jurisdiction logo (isolated profile)

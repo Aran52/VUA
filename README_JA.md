@@ -1,8 +1,8 @@
-# VUA — VRC Ultra Assistant
+# VUA — Virtual Unified Assistant
 
 [English](README.md) | [简体中文](README_ZH.md) | 日本語 | [한국어](README_KO.md)
 
-**VUA（VRC Ultra Assistant）** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
+**VUA（Virtual Unified Assistant）** は、VRChat プレイヤー向けの Windows 優先・ローカル優先の
 シナリオ導入・管理・起動アプリです。シナリオは目的、必要なソフト、準備・起動・復旧の手順を
 まとめたものです。PC 画面でのプレイ、PICO へのストリーミング、選んだモジュールでの Avatar 編集など、
 やりたいことから次の手順を案内します。
@@ -49,7 +49,7 @@ AMF が管理し、無効にしてもデータは残ります。
 
 [v0.7.0 Stone Age（Beta）](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) は初めてのアバター制作の流れを届けます。ライブラリからアバターと衣装を選ぶと、VUA が専用の Unity プロジェクトで組み上げ、VRChat SDK で確認し、あなたの確認のあとでアップロードします。Windows x64 のオンライン・オフライン NSIS インストーラーは AMF を同梱します。[N1–N7 の開発順序](docs/development-outline.md)に沿って開発を続けます。
 
-Beta は継続します。公開は N1/N5 や未完了の実機・素材・人によるレビューの受入完了を意味しません。[v0.7.0 の範囲・検証・制限事項](docs/release/v0.7.0_JA.md)を参照してください。
+上記のダウンロードは公開済みの 0.7.0 Beta です。ソースでは **v1.0.0 Brave New World** を準備しています。ホストは安定版となり、AMF は Beta のまま個別に更新されます。[凍結版リリースノートの草稿](docs/release/v1.0.0_JA.md)に範囲と作者の確認待ち項目を記載しています。ソースの準備はインストーラーの公開や N 段階の受入完了を意味しません。
 
 ### 現在の提供状況と開始方法
 
@@ -64,7 +64,23 @@ Beta は継続します。公開は N1/N5 や未完了の実機・素材・人�
 - [プロダクト境界](docs/product-boundary.md)
 - [アーキテクチャ](docs/architecture/system.md)
 - [v0.7.0 リリースノート](docs/release/v0.7.0_JA.md)
+- [1.0.0 最小ガイド（候補版、五言語）](docs/user-guide/v1.0.0/ja.md)
 - [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)
+
+## これまでの歩み
+日付は、各リリースとプルリクエストについて GitHub が記録した時刻です。
+
+| 日付 | できごと |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0)：デスクトップアプリから Rust のオーケストレーターを経て実際の Unity 2022.3 プロジェクトまでつながり、アバターに衣装を 1 着組み込めるようになりました |
+| 2026-10-01 | [目的に合わせたプレイ環境の準備](https://github.com/VUA-Project/VUA/pull/60)（地域に応じた Unity の入手先を含む） |
+| 2026-10-08 | [BOOTH ライブラリの同期、選んだ商品のダウンロード、ローカルファイルの管理](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6)：最初の公開ベータ版。AMF を同梱モジュールとして搭載 |
+| 2026-10-12 | [NSIS インストーラーと AMF の個別更新](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [素材から始めるアバター制作、Recipe、ローカル MCP 接続](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [60 フレームのターンテーブルとアップロードを備えたリリースルーム](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 規約の読み取りと用途別チェック](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)：アバター制作の流れを含む最初のリリース |
 
 ## ライセンス
 

@@ -20,23 +20,22 @@
   background: var(--vua-accent-tint);
   border-color: var(--vua-accent);
   color: var(--vua-accent-text);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--vua-accent) 25%, transparent);
 }
 
 .vua-badge[data-tone="success"] {
   background: color-mix(in srgb, var(--vua-success) 16%, transparent);
   border-color: var(--vua-success);
-  color: var(--vua-success);
+  color: var(--vua-success-text);
 }
 
 .vua-badge[data-tone="warning"] {
   background: color-mix(in srgb, var(--vua-warning) 16%, transparent);
   border-color: var(--vua-warning);
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
 }
 
 .vua-badge[data-tone="error"] {
   background: color-mix(in srgb, var(--vua-error) 16%, transparent);
   border-color: var(--vua-error);
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }

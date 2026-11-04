@@ -17,6 +17,7 @@ use vua_unity_bridge::UnityBatchBridge;
 use crate::known_packages::{self, KnownPackage};
 
 mod release_handoff;
+mod editor_close;
 
 pub struct NativeAmfProduction {
     pub bdl: Arc<BdlStore>,
@@ -74,10 +75,23 @@ fn ensure_repo(
 
 /// Optional payloads one Bridge v5 request may carry beyond the selection.
 struct BridgeExtras<'a> {
+    texture_changes: Option<&'a [TextureImportChange]>,
+    outfit_removal: Option<&'a OutfitRemoval>,
     face_tracking: Option<&'a FaceTrackingPatch>,
     apply_target: Option<&'a vua_orchestrator::amf_recipe_apply::RecipeApplyTarget>,
     sdk_fixes: Option<&'a [String]>,
     fits: &'a [OutfitFit],
+}
+
+/// How a known-package installation pins its version.
+enum InstallPin<'a> {
+    /// The newest resolving release.
+    Newest,
+    /// The newest cached stable release of one version line.
+    Line(&'a str),
+    /// One exact recorded release whose complete shader set was verified
+    /// against a bundled copy it replaces.
+    Release(&'a str),
 }
 
 impl NativeAmfProduction {
@@ -92,21 +106,24 @@ impl NativeAmfProduction {
         )?
         .with_cached_metadata()
     }
-    /// Installs a known package from its official feed: the newest resolving release, or the
-    /// newest release of one version line pinned through the request's exact version.
-    fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage, line: Option<&str>) -> Result<(), AppErrorV1> {
+    /// Installs a known package from its official feed: the newest resolving
+    /// release, the newest cached stable release of one version line, or one
+    /// exact recorded release — the last two pinned through the request's
+    /// exact `PackageRequestV1.version`.
+    fn install_known_package(&self, run: &ProductionRun, package: &KnownPackage, pin: InstallPin<'_>) -> Result<(), AppErrorV1> {
         let _environment = VPM_ENVIRONMENT_WRITE.lock().expect("AMF VPM environment poisoned");
         let backend = self.package_backend()?;
         ensure_repo(&backend, package.feed_url, package.display_name)?;
-        let version = match line {
-            Some(line) => Some(known_packages::latest_cached_line_version(
+        let version = match pin {
+            InstallPin::Line(line) => Some(known_packages::latest_cached_line_version(
                 &self.root.join("vpm-environment"),
                 package.feed_url,
                 package.id,
                 line,
             )
             .ok_or_else(|| err("dependencies_unavailable", format!("The {} feed offers no stable {line} release of {}.", package.display_name, package.id)))?),
-            None => None,
+            InstallPin::Release(version) => Some(version.to_owned()),
+            InstallPin::Newest => None,
         };
         let p = project(run);
         let request = [PackageRequestV1 { package_id: package.id.into(), version }];
@@ -232,7 +249,7 @@ impl NativeAmfProduction {
         fits: &[OutfitFit],
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, operation, selection, BridgeExtras { apply_target, sdk_fixes: None, fits, face_tracking: None }, watch)
+        self.bridge_request(run, operation, selection, BridgeExtras { texture_changes: None, apply_target, sdk_fixes: None, fits, face_tracking: None, outfit_removal: None }, watch)
     }
     /// One Bridge v5 run: the request file, the command and the observed result.
     fn bridge_request(
@@ -243,7 +260,7 @@ impl NativeAmfProduction {
         extras: BridgeExtras<'_>,
         watch: &UnityWatch,
     ) -> Result<ObservedProject, AppErrorV1> {
-        let BridgeExtras { apply_target, sdk_fixes, fits, face_tracking } = extras;
+        let BridgeExtras { texture_changes, apply_target, sdk_fixes, fits, face_tracking, outfit_removal } = extras;
         self.verify_editor(&run.editor.path)?;
         reject_editor_lock(Path::new(&run.project_root))?;
         clear_stale_lock(Path::new(&run.project_root));
@@ -275,8 +292,12 @@ impl NativeAmfProduction {
         if let Some(target) = apply_target {
             request["applyTarget"] = serde_json::to_value(target).map_err(|e| err("request_invalid", e))?;
         }
+        if let Some(changes) = texture_changes { request["textureChanges"] = serde_json::json!(changes); }
         if let Some(fixes) = sdk_fixes {
             request["sdkFixes"] = serde_json::json!(fixes);
+        }
+        if let Some(removal) = outfit_removal {
+            request["outfitRemoval"] = serde_json::to_value(removal).map_err(|e| err("request_invalid", e))?;
         }
         if let Some(patch) = face_tracking {
             request["faceTrackingPatch"] = serde_json::to_value(patch).map_err(|e| err("request_invalid", e))?;
@@ -301,7 +322,7 @@ impl NativeAmfProduction {
             operation,
             project_id: run.run_id.clone(),
             dry_run: operation == UnityOperation::AmfInspect,
-            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch)
+            expected_project_fingerprint: matches!(operation, UnityOperation::AmfAssemble | UnityOperation::AmfSdkFix | UnityOperation::AmfFtPatch | UnityOperation::AmfTextureImport | UnityOperation::AmfOutfitRemove)
                 .then(|| run.unity_fingerprint.clone()),
             payload: UnityPayload {
                 plan_ref: Some(plan_ref),
@@ -365,17 +386,22 @@ impl NativeAmfProduction {
             return Err(err("receipt_invalid", "Bridge returned another operation."));
         }
         let mut facts = result.data;
+        if let Some(textures) = facts.get("textureMemory") { validate_texture_memory(textures)?; }
         if let Some(ft) = facts.get("faceTracking") {
             validate_face_tracking(ft)?;
         }
+        validate_outfit_removal_facts(&facts)?;
         let omitted = normalize_previews(&mut facts, Path::new(&run.project_root), &id)?;
         let mut diagnostics = result.diagnostics;
         if !omitted.is_empty() {
             diagnostics.push(vua_orchestrator::Diagnostic { code: "amf.preview.failed".into(), severity: vua_orchestrator::DiagnosticSeverity::Warning,
                 message: format!("{} preview images were left out because their files are missing or too large.", omitted.len()) });
         }
-        let prefabs = serde_json::from_value(facts["prefabs"].clone())
+        vua_orchestrator::amf_recipe_materials::validate_inspection(&facts)?;
+        let prefabs: Vec<PrefabCandidate> = serde_json::from_value(facts["prefabs"].clone())
             .map_err(|e| err("receipt_invalid", e))?;
+        vua_orchestrator::amf_production::validate_prefab_parameter_budgets(&prefabs)?;
+        vua_orchestrator::amf_production::validate_prefab_footprints(&prefabs)?;
         let unity_fingerprint = facts["projectFingerprint"]
             .as_str()
             .filter(|s| !s.is_empty())
@@ -479,6 +505,20 @@ fn normalize_observed_selection(facts: &mut serde_json::Value) -> Result<(), App
     if *selection == serde_json::json!({"avatarPrefab":"", "outfits":[]}) {
         *selection = serde_json::Value::Null;
     } else if !selection.is_null() {
+        // JsonUtility serializes the request-only inline FitObjects class on observed
+        // outfits too, even though these newly observed outfits have no fit request.
+        // Only its empty sentinel is removable; real fit data and unknown fields must
+        // still fail this closed receipt rather than being silently discarded.
+        if let Some(outfits) = selection.get_mut("outfits").and_then(serde_json::Value::as_array_mut) {
+            for outfit in outfits {
+                if let Some(fit) = outfit.get("fit") {
+                    if !fit.is_null() && *fit != serde_json::json!({"objects":[]}) {
+                        return Err(err("receipt_invalid", "An observed outfit carries unexpected fit request data."));
+                    }
+                    outfit.as_object_mut().expect("fit field belongs to an object").remove("fit");
+                }
+            }
+        }
         let observed: AssemblySelection = serde_json::from_value(selection.clone())
             .map_err(|e| err("receipt_invalid", e))?;
         if observed.avatar_prefab.is_empty() || observed.outfits.is_empty() || observed.outfits.len() > 64 {
@@ -539,6 +579,40 @@ impl AmfProductionPlatform for NativeAmfProduction {
         Ok(matches)
     }
 
+    fn recipe_materials(&self, recipe: &vua_orchestrator::amf_recipe::ProductionRecipe, choices: &vua_orchestrator::amf_recipe_materials::MaterialChoices) -> Result<Vec<vua_orchestrator::amf_recipe_materials::RecipeMaterialResolution>,AppErrorV1> {
+        use vua_orchestrator::amf_recipe_materials::{MaterialInventory,MaterialPackage,resolve_materials};
+        let available = self.sources()?;
+        let mut known = HashMap::new();
+        for item_id in available.iter().map(|source| &source.item_id).collect::<BTreeSet<_>>() {
+            for copy in self.bdl.entry_copies(item_id).map_err(|e| err("library_failed",e))? {
+                known.insert(copy.copy_id,copy.artifact_sha256.trim_start_matches("sha256:").to_owned());
+            }
+        }
+        let mut inventory = Vec::new();
+        for source in available {
+            let product_ids = source.product_ids.iter().filter_map(|id| id.strip_prefix("booth:")).map(str::to_owned).collect::<Vec<_>>();
+            let by_hash = known.get(&source.source_id).is_some_and(|hash| recipe.materials.iter().any(|m| &m.sha256 == hash));
+            let by_product = recipe.materials.iter().any(|m| m.booth_product_id.as_ref().is_some_and(|id| product_ids.contains(id)));
+            // Retained hashes narrow plain files; archive members have their own content hashes.
+            if !by_hash && !by_product && source.archive_member.is_none() { continue; }
+            let sha256 = vua_unity_bridge::material_exec::sha256_file(&self.package_path(&source)?).map_err(|e| err("source_unreadable",e))?;
+            inventory.push(MaterialInventory {package:MaterialPackage {source_id:source.source_id,package_name:source.name.rsplit(['/', '\\']).next().unwrap_or(&source.name).into(),sha256:sha256.trim_start_matches("sha256:").into()},product_ids});
+        }
+        let mut purchased = BTreeMap::new();
+        for material in &recipe.materials {
+            if let Some(id) = &material.booth_product_id {
+                let product = format!("booth:{id}");
+                if !self.bdl.product_library_memberships(&product).map_err(|e| err("library_failed",e))?.is_empty() {
+                    purchased.insert(id.clone(),self.bdl.downloadables_for_product(&product).map_err(|e| err("library_failed",e))?.into_iter().map(|(_,name)|name).collect());
+                }
+            }
+        }
+        resolve_materials(recipe,&inventory,&purchased,choices)
+    }
+    fn recipe_shop_name(&self, id: &str) -> Result<Option<String>,AppErrorV1> {
+        Ok(self.bdl.library_product_summaries().map_err(|e| err("library_failed",e))?.into_iter().find(|p| p.product_id == format!("booth:{id}")).and_then(|p| p.shop_name)
+            .filter(|name| !name.trim().is_empty() && name.chars().count() <= 240 && !name.chars().any(char::is_control)))
+    }
     fn resolve_recipe_materials(&self, materials: &[vua_orchestrator::amf_recipe::RecipeMaterial]) -> Result<BTreeMap<String, String>, AppErrorV1> {
         let available = self.sources()?;
         let mut known = HashMap::new();
@@ -860,7 +934,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
             .map(Some)
             .map_err(|e| err("source_unreadable", e))
     }
-    fn prune_snapshots(&self, run: &ProductionRun, keep: &str) -> Vec<String> {
+    fn prune_snapshots(&self, run: &ProductionRun, keep: &[&str]) -> Vec<String> {
         FileSystemSnapshotStore.prune_unreferenced(Path::new(&run.project_root), keep)
     }
     fn open(
@@ -912,17 +986,33 @@ impl AmfProductionPlatform for NativeAmfProduction {
         ))
     }
     fn sdk_fix(&self, run: &ProductionRun, fixes: &[String], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
-        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { apply_target: None, sdk_fixes: Some(fixes), fits: &[], face_tracking: None }, watch)
+        self.bridge_request(run, UnityOperation::AmfSdkFix, None, BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: Some(fixes), fits: &[], face_tracking: None, outfit_removal: None }, watch)
+    }
+    fn texture_import(&self, run: &ProductionRun, changes: &[TextureImportChange], watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(run, UnityOperation::AmfTextureImport, None, BridgeExtras { texture_changes: Some(changes), apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: None }, watch)
+    }
+    fn remove_outfit(&self, run: &ProductionRun, removal: &OutfitRemoval, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        self.bridge_request(run, UnityOperation::AmfOutfitRemove, None,
+            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: None, outfit_removal: Some(removal) }, watch)
     }
     fn face_tracking_patch(&self, run: &ProductionRun, patch: &FaceTrackingPatch, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge_request(run, UnityOperation::AmfFtPatch, None,
-            BridgeExtras { apply_target: None, sdk_fixes: None, fits: &[], face_tracking: Some(patch) }, watch)
+            BridgeExtras { texture_changes: None, apply_target: None, sdk_fixes: None, fits: &[], face_tracking: Some(patch), outfit_removal: None }, watch)
     }
     fn turntable(&self, run: &ProductionRun, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         self.bridge(run, UnityOperation::AmfTurntable, None, watch)
     }
     fn upload(&self, run: &ProductionRun, request: &UploadRequest, ctx: &TaskContext, progress: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
         release_handoff::upload(self, run, request, ctx, progress)
+    }
+    fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
+        let id = format!("n3-{}", super::provider_host::uuid_v7_identity());
+        FileSystemSnapshotStore.create_verified(&project(run), &id, &["Assets", "Packages", "ProjectSettings"])
+            .map_err(|e| err("snapshot_failed", e))?;
+        Ok(id)
+    }
+    fn close_editor(&self, run: &ProductionRun, ctx: &TaskContext) -> Result<EditorCloseResult, AppErrorV1> {
+        editor_close::close(run, ctx)
     }
     fn editor_open(&self, project: &Path) -> bool {
         editor_holds_project(project)
@@ -1168,6 +1258,22 @@ fn open_editor(run: &ProductionRun) -> Result<(), AppErrorV1> {
     Ok(())
 }
 
+/// The task-facing behaviors the import path needs, so synthetic preparation
+/// tests drive the same code without a live task runtime.
+trait ImportEvents {
+    fn cancelled(&self) -> Option<AppErrorV1>;
+    fn progress(&self, payload: serde_json::Value);
+}
+
+impl ImportEvents for TaskContext {
+    fn cancelled(&self) -> Option<AppErrorV1> {
+        self.cancellation_error("amf-production")
+    }
+    fn progress(&self, payload: serde_json::Value) {
+        self.emit_progress(payload);
+    }
+}
+
 /// Imports the run's chosen materials into its work project. With `previous`, the project already
 /// holds those materials: the files only they used leave, changed files are replaced and the AMF
 /// work scene starts fresh.
@@ -1175,6 +1281,21 @@ fn import_choices(
     adapter: &NativeAmfProduction,
     run: &ProductionRun,
     ctx: &TaskContext,
+    previous: Option<&[PreparedSource]>,
+) -> Result<Vec<PreparedSource>, AppErrorV1> {
+    let available = adapter
+        .sources()?
+        .into_iter()
+        .map(|s| (s.source_id.clone(), s))
+        .collect::<HashMap<_, _>>();
+    import_choices_with(adapter, run, ctx, &available, previous)
+}
+
+fn import_choices_with(
+    adapter: &NativeAmfProduction,
+    run: &ProductionRun,
+    events: &dyn ImportEvents,
+    available: &HashMap<String, ProductionSource>,
     previous: Option<&[PreparedSource]>,
 ) -> Result<Vec<PreparedSource>, AppErrorV1> {
         let mut sources = Vec::new();
@@ -1191,13 +1312,8 @@ fn import_choices(
         // Legacy copies wait for the package action: only a copy the exact official
         // release covers completely leaves for that release; the others import as before.
         let mut pending_legacy: Vec<(usize, usize, PathBuf, String)> = Vec::new();
-        let available = adapter
-            .sources()?
-            .into_iter()
-            .map(|s| (s.source_id.clone(), s))
-            .collect::<HashMap<_, _>>();
         for choice in &run.choices {
-            if let Some(error) = ctx.cancellation_error("amf-production") {
+            if let Some(error) = events.cancelled() {
                 return Err(error);
             }
             let source = available.get(&choice.source_id).cloned().ok_or_else(|| {
@@ -1206,7 +1322,7 @@ fn import_choices(
                     "Selected local input is no longer present.",
                 )
             })?;
-            ctx.emit_progress(material_progress(run, &source.item_name));
+            events.progress(material_progress(run, &source.item_name));
             let package_path = adapter.package_path(&source)?;
             let sha256 = vua_unity_bridge::material_exec::sha256_file(&package_path)
                 .map_err(|e| err("source_unreadable", e))?;
@@ -1320,10 +1436,11 @@ fn import_choices(
         for (index, action) in actions {
             let Some(install) = action.install else { continue; };
             let package = &table[index];
-            ctx.emit_progress(material_progress(run, package.display_name));
+            events.progress(material_progress(run, package.display_name));
             match install {
-                known_packages::Install::Latest => adapter.install_known_package(run, package, None)?,
-                known_packages::Install::Line(line) => adapter.install_known_package(run, package, Some(line))?,
+                known_packages::Install::Latest => adapter.install_known_package(run, package, InstallPin::Newest)?,
+                known_packages::Install::Line(line) => adapter.install_known_package(run, package, InstallPin::Line(line))?,
+                known_packages::Install::Release(version) => adapter.install_known_package(run, package, InstallPin::Release(version))?,
             }
         }
         let project = Path::new(&run.project_root);
@@ -1484,12 +1601,358 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn recipe_attribution_reads_the_recorded_shop_outside_account_membership() {
+        let (root, adapter) = preparation_fixture();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
+        let page = vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+        let mut observed = vua_acquisition::library_item_to_observation(&page.items[0], &format!("sha256:{}", "b".repeat(64)), "2026-10-29T00:00:00Z", None, None);
+        observed.library_type = None;
+        observed.shop_name = Some("Synthetic creator shop".into());
+        adapter.bdl.record_product_observation(&observed).unwrap();
+        assert_eq!(adapter.recipe_shop_name("901").unwrap().as_deref(), Some("Synthetic creator shop"));
+        assert_eq!(adapter.recipe_shop_name("99999999").unwrap(), None);
+        drop(adapter);
+        assert!(root.starts_with(std::env::temp_dir()) && root.file_name().unwrap().to_string_lossy().starts_with("vua-amf-prepare-"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recipe_resolution_reads_local_ownership_download_names_and_all_product_packages() {
+        use vua_orchestrator::amf_recipe_materials::{MaterialStatus,MaterialChoices};
+        use vua_bdl_store::{ArtifactInspectionState,CopyRole,NewLocalArtifact};
+        let (root,adapter) = preparation_fixture();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
+        let page = vua_acquisition::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap();
+        let now = "2026-10-24T00:00:00Z";
+        adapter.bdl.record_product_observation(&vua_acquisition::library_item_to_observation(&page.items[0],&format!("sha256:{}","0".repeat(64)),now,None,Some("bought"))).unwrap();
+        adapter.bdl.upsert_product_downloadables("booth:901",&[(901,"Recorded download.zip".into())],now,None,Some("bought")).unwrap();
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json")).unwrap();
+        recipe.materials[0].booth_product_id = Some("901".into());
+        recipe.materials[1].booth_product_id = Some("902".into());
+        let checklist = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
+        assert_eq!(checklist[0].status,MaterialStatus::MaterialNotDownloaded);
+        assert_eq!(checklist[0].download_names,vec!["Recorded download.zip"]);
+        assert_eq!(checklist[1].status,MaterialStatus::MaterialNotOwned);
+        adapter.bdl.seed_product("booth:902","902").unwrap();
+        let mut source_ids = Vec::new();
+        for (index,name) in ["Coat-New-A.unitypackage","Coat-New-B.unitypackage"].iter().enumerate() {
+            let file = root.join(name);
+            write_unitypackage(&file,&[PackageEntry {guid:BODY_MAT,logical:"Assets/Body.mat",asset:format!("Synthetic variant {index}").into_bytes()}]);
+            let hash = vua_unity_bridge::material_exec::sha256_file(&file).unwrap();
+            adapter.bdl.record_untrusted_artifact(&NewLocalArtifact {artifact_sha256:hash.clone(),size_bytes:fs::metadata(&file).unwrap().len(),suggested_file_name:Some((*name).into()),download_id:None,first_seen_at:now.into()}).unwrap();
+            for state in [ArtifactInspectionState::Inspected,ArtifactInspectionState::Admitted] { adapter.bdl.transition_artifact(&hash,state,now,None).unwrap(); }
+            adapter.bdl.record_artifact_mapping(&hash,"booth:902",None,None,now).unwrap();
+            let item = adapter.bdl.create_warehouse_item("Synthetic coat","downloaded_material",now).unwrap();
+            let copy = adapter.bdl.record_artifact_copy(&item.warehouse_item_id,&hash,name,file.to_str().unwrap(),CopyRole::Original,now).unwrap();
+            source_ids.push(copy.copy_id);
+        }
+        let checklist = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
+        assert_eq!(checklist[1].status,MaterialStatus::MaterialChoiceRequired);
+        assert_eq!(checklist[1].candidates.len(),2);
+        let choices = MaterialChoices::from([(recipe.materials[1].id.clone(),source_ids[1].clone())]);
+        let chosen = adapter.recipe_materials(&recipe,&choices).unwrap();
+        assert_eq!(chosen[1].resolved.as_ref().unwrap().source_id,source_ids[1]);
+        recipe.materials[1].package_name = "Coat-New-A.unitypackage".into();
+        let named = adapter.recipe_materials(&recipe,&MaterialChoices::new()).unwrap();
+        assert_eq!(named[1].resolved.as_ref().unwrap().source_id,source_ids[0]);
+        drop(adapter); fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A stand-in task context for synthetic preparation runs: nothing cancels
+    /// and every progress step name is recorded.
+    struct ImportProbe {
+        progress: std::sync::Mutex<Vec<String>>,
+    }
+    impl ImportProbe {
+        fn new() -> Self {
+            Self { progress: std::sync::Mutex::new(Vec::new()) }
+        }
+        fn names(&self) -> Vec<String> {
+            self.progress.lock().expect("progress poisoned").clone()
+        }
+    }
+    impl ImportEvents for ImportProbe {
+        fn cancelled(&self) -> Option<AppErrorV1> {
+            None
+        }
+        fn progress(&self, payload: serde_json::Value) {
+            self.progress
+                .lock()
+                .expect("progress poisoned")
+                .push(payload.get("name").and_then(|name| name.as_str()).unwrap_or_default().to_owned());
+        }
+    }
+
+    /// One entry of a synthetic `.unitypackage`: the asset GUID names the
+    /// archive folder, `pathname` holds the logical path.
+    struct PackageEntry {
+        guid: &'static str,
+        logical: &'static str,
+        asset: Vec<u8>,
+    }
+
+    fn write_unitypackage(path: &std::path::Path, entries: &[PackageEntry]) {
+        let file = fs::File::create(path).unwrap();
+        let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::default());
+        let mut archive = tar::Builder::new(encoder);
+        for entry in entries {
+            let folder = entry.guid;
+            let mut add = |name: String, bytes: &[u8]| {
+                let mut header = tar::Header::new_gnu();
+                header.set_size(bytes.len() as u64);
+                archive.append_data(&mut header, name, bytes).unwrap();
+            };
+            add(format!("{folder}/pathname"), entry.logical.as_bytes());
+            add(format!("{folder}/asset"), &entry.asset);
+            add(format!("{folder}/asset.meta"), format!("fileFormatVersion: 2\nguid: {}\n", entry.guid).as_bytes());
+        }
+        archive.into_inner().unwrap().finish().unwrap();
+    }
+
+    /// Seeds `vpm-environment` with the official Poiyomi feed already cached —
+    /// a settings row plus the nested repository document vrc-get writes — and
+    /// the two recorded releases' package zips in vrc-get's own cache, so the
+    /// whole installation runs without network access.
+    fn seed_fake_poiyomi_feed(env: &std::path::Path) {
+        let feed_url = "https://poiyomi.github.io/vpm/index.json";
+        let repos = env.join("Repos");
+        let cache = repos.join(format!("{}.json", vua_orchestrator::fnv1a_hex(feed_url.as_bytes())));
+        let mut versions = serde_json::Map::new();
+        for version in ["9.3.64", "10.0.27"] {
+            // A minimal VPM package zip: only the manifest vrc-get reads.
+            let mut zip_bytes = Vec::new();
+            {
+                let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_bytes));
+                writer
+                    .start_file("package.json", zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                writer.write_all(
+                    serde_json::json!({
+                        "name": "com.poiyomi.toon", "displayName": "Poiyomi Toon Shader",
+                        "version": version, "unity": "2022.3",
+                        "legacyFolders": {"Assets\\_PoiyomiShaders": ""}
+                    })
+                    .to_string()
+                    .as_bytes(),
+                )
+                .unwrap();
+                writer.finish().unwrap();
+            }
+            let digest: String = Sha256::digest(&zip_bytes).iter().map(|b| format!("{b:02x}")).collect();
+            let package_cache = repos.join("com.poiyomi.toon");
+            fs::create_dir_all(&package_cache).unwrap();
+            fs::write(package_cache.join(format!("vrc-get-com.poiyomi.toon-{version}.zip")), &zip_bytes).unwrap();
+            fs::write(package_cache.join(format!("vrc-get-com.poiyomi.toon-{version}.zip.sha256")), &digest).unwrap();
+            versions.insert(
+                version.to_owned(),
+                serde_json::json!({
+                    "name": "com.poiyomi.toon", "displayName": "Poiyomi Toon Shader",
+                    "version": version, "unity": "2022.3", "zipSHA256": digest,
+                    "legacyFolders": {"Assets\\_PoiyomiShaders": ""}
+                }),
+            );
+        }
+        fs::create_dir_all(&repos).unwrap();
+        fs::write(
+            &cache,
+            serde_json::to_vec(&serde_json::json!({
+                "repo": {"name": "Poiyomi's VPM Repo", "id": "io.github.poiyomi.vpm", "url": feed_url,
+                    "packages": {"com.poiyomi.toon": {"versions": versions}}}
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            env.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "userRepos": [{
+                    "localPath": cache.to_string_lossy(),
+                    "name": "Poiyomi's VPM Repo",
+                    "url": feed_url,
+                    "id": "io.github.poiyomi.vpm"
+                }]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn preparation_run(project: &std::path::Path) -> ProductionRun {
+        serde_json::from_value(serde_json::json!({
+            "schemaVersion":"0.1","runId":"n3-prepare","phase":"preparing","taskId":"t",
+            "editor":{"path":"Unity.exe","version":"2022.3.22f1"},
+            "projectRoot": project.to_string_lossy(),
+            "choices":[{"sourceId":"outfit-1","role":"auto"}],
+            "sources":[],"prefabs":[],"projectFingerprint":"","unityFingerprint":"",
+            "steps":[{"key":"prepare","name":"Materials","state":"running","detail":""}],
+            "selection":null,"confirmedDigest":null,"result":null,"error":null,"recovery":null
+        }))
+        .unwrap()
+    }
+
+    fn preparation_fixture() -> (std::path::PathBuf, NativeAmfProduction) {
+        let root = std::env::temp_dir().join(format!(
+            "vua-amf-prepare-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        fs::create_dir_all(root.join("work/Assets")).unwrap();
+        fs::create_dir_all(root.join("work/Packages")).unwrap();
+        fs::write(root.join("work/Packages/manifest.json"), include_str!("amf_project_manifest.json")).unwrap();
+        fs::write(root.join("work/Packages/vpm-manifest.json"), "{\"dependencies\":{},\"locked\":{}}\n").unwrap();
+        fs::create_dir_all(root.join("work/ProjectSettings")).unwrap();
+        fs::write(root.join("work/ProjectSettings/ProjectVersion.txt"), "m_EditorVersion: 2022.3.22f1\n").unwrap();
+        let adapter = NativeAmfProduction {
+            bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
+            root: root.join("amf"),
+            editor_roots: vec![],
+            explicit_editor: None,
+            unity_hub: None,
+        };
+        fs::create_dir_all(adapter.root.join("vpm-environment")).unwrap();
+        seed_fake_poiyomi_feed(&adapter.root.join("vpm-environment"));
+        (root, adapter)
+    }
+
+    fn source_map(package: &std::path::Path) -> HashMap<String, ProductionSource> {
+        HashMap::from([(
+            "outfit-1".to_owned(),
+            ProductionSource {
+                source_id: "outfit-1".into(),
+                item_id: "item-1".into(),
+                item_name: "Meiyun".into(),
+                name: "Meiyun.unitypackage".into(),
+                product_ids: Vec::new(),
+                path: package.to_owned(),
+                archive_member: None,
+            },
+        )])
+    }
+
+    const BODY_MAT: &str = "11111111111111111111111111111111";
+    const TOON_81: &str = "034460dc851505a42baca2ba6514f9f0";
+    const TOON_92: &str = "73da03e2cd0afa940968d9c487e2474d";
+    const TOON_93: &str = "9444ce77bf4418748b1e8591b9d97f85";
+    const POIYOMI_EXTRAS: &str = "245e67c21ccaa9a43ad7e84d1c7bb5fc";
+    const UNKNOWN_SHADER: &str = "0123456789abcdef0123456789abcdef";
+
+    fn shader(guid: &'static str, logical: &'static str) -> PackageEntry {
+        PackageEntry { guid, logical, asset: format!("Shader {logical}\n").into_bytes() }
+    }
+
+    /// A material whose shader reference names the 9.3 Poiyomi Toon shader.
+    fn material_entry() -> PackageEntry {
+        PackageEntry {
+            guid: BODY_MAT,
+            logical: "Assets/Meiyun/Body.mat",
+            asset: format!("Material:\n  m_Name: Body\n  m_Shader: {{fileID: 4800000, guid: {TOON_93}, type: 3}}\n").into_bytes(),
+        }
+    }
+
+    #[test]
+    fn preparation_replaces_a_covered_bundled_copy_and_installs_the_official_package() {
+        let (root, adapter) = preparation_fixture();
+        let project = root.join("work");
+        // A 9.3-era bundled copy: several version lines, the utility shader
+        // outside the line folders and a plain file, plus the material.
+        let entries = vec![
+            material_entry(),
+            shader(TOON_81, "Assets/_PoiyomiShaders/Shaders/8.1/Toon/Poiyomi Toon.shader"),
+            shader(TOON_92, "Assets/_PoiyomiShaders/Shaders/9.2/Toon/Poiyomi Toon.shader"),
+            shader(TOON_93, "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader"),
+            shader(POIYOMI_EXTRAS, "Assets/_PoiyomiShaders/Shaders/Extras/PoiyomiFakeShadow.shader"),
+            PackageEntry { guid: "22222222222222222222222222222222", logical: "Assets/_PoiyomiShaders/README.txt", asset: b"bundled copy\n".to_vec() },
+        ];
+        let package = root.join("outfit.unitypackage");
+        write_unitypackage(&package, &entries);
+        let run = preparation_run(&project);
+        let events = ImportProbe::new();
+        let sources = import_choices_with(&adapter, &run, &events, &source_map(&package), None).unwrap();
+
+        // The material imports; the whole bundled copy leaves for the package.
+        assert!(project.join("Assets/Meiyun/Body.mat").is_file());
+        assert!(project.join("Assets/Meiyun/Body.mat.meta").is_file());
+        assert!(!project.join("Assets/_PoiyomiShaders").exists(), "the covered copy is not imported");
+        assert_eq!(sources[0].asset_paths, ["Assets/Meiyun/Body.mat"]);
+
+        // The official package was installed from the cached fake feed, pinned
+        // to the exact recorded release covering the copy.
+        let manifest: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(project.join("Packages/vpm-manifest.json")).unwrap()).unwrap();
+        assert_eq!(manifest["locked"]["com.poiyomi.toon"]["version"], "9.3.64");
+        assert!(project.join("Packages/com.poiyomi.toon/package.json").is_file());
+        assert!(events.names().contains(&"Poiyomi Toon Shader".to_owned()), "the install reports progress");
+
+        drop(adapter);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn preparation_keeps_an_uncovered_bundled_copy_and_installs_nothing() {
+        let (root, adapter) = preparation_fixture();
+        let project = root.join("work");
+        // An unknown shader inside the copy: no official release covers it.
+        let entries = vec![
+            material_entry(),
+            shader(TOON_93, "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader"),
+            shader(UNKNOWN_SHADER, "Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader"),
+        ];
+        let package = root.join("outfit.unitypackage");
+        write_unitypackage(&package, &entries);
+        let run = preparation_run(&project);
+        let events = ImportProbe::new();
+        let sources = import_choices_with(&adapter, &run, &events, &source_map(&package), None).unwrap();
+
+        // The material and every copy file import unchanged.
+        assert!(project.join("Assets/Meiyun/Body.mat").is_file());
+        assert!(project.join("Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader").is_file());
+        assert!(project.join("Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader").is_file());
+        assert_eq!(
+            sources[0].asset_paths,
+            [
+                "Assets/Meiyun/Body.mat",
+                "Assets/_PoiyomiShaders/Shaders/9.3/Toon/Poiyomi Toon.shader",
+                "Assets/_PoiyomiShaders/Shaders/Custom/Mod.shader",
+            ]
+        );
+        let manifest = fs::read_to_string(project.join("Packages/vpm-manifest.json")).unwrap();
+        assert_eq!(manifest, "{\"dependencies\":{},\"locked\":{}}\n", "nothing was installed");
+        assert!(!project.join("Packages/com.poiyomi.toon").exists());
+        assert!(!events.names().contains(&"Poiyomi Toon Shader".to_owned()));
+
+        drop(adapter);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn unity_null_selection_is_not_a_desktop_editing_selection() {
         let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"","outfits":[]}});
         normalize_observed_selection(&mut facts).unwrap();
         assert!(facts["observedSelection"].is_null());
         let mut malformed = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/A.prefab","outfits":[]}});
         assert!(normalize_observed_selection(&mut malformed).is_err());
+    }
+
+    #[test]
+    fn unity_observed_outfits_drop_only_the_empty_fit_serializer_sentinel() {
+        let outfit = serde_json::json!({"sourceId":"outfit","prefabPath":"Assets/Coat.prefab",
+            "mode":"merge_armature","bone":"","toggleName":"Coat","active":true,"saved":true,"group":""});
+        for fit in [serde_json::Value::Null, serde_json::json!({"objects":[]})] {
+            let mut wire = outfit.clone(); wire["fit"] = fit;
+            let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
+            normalize_observed_selection(&mut facts).unwrap();
+            assert_eq!(facts["observedSelection"]["outfits"][0], outfit);
+            let observed: AssemblySelection = serde_json::from_value(facts["observedSelection"].clone()).unwrap();
+            assert_eq!(observed.outfits[0].toggle_name, "Coat");
+        }
+        for fit in [serde_json::json!({"objects":[{"path":"Hips"}]}), serde_json::json!({"objects":[],"extra":true}), serde_json::json!(false)] {
+            let mut wire = outfit.clone(); wire["fit"] = fit;
+            let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
+            assert!(normalize_observed_selection(&mut facts).is_err(), "nonempty or malformed fit must not be silently discarded");
+        }
+        let mut wire = outfit; wire["fit"] = serde_json::Value::Null; wire["unexpected"] = true.into();
+        let mut facts = serde_json::json!({"observedSelection":{"avatarPrefab":"Assets/Avatar.prefab","outfits":[wire]}});
+        assert!(normalize_observed_selection(&mut facts).is_err(), "the observed selection remains closed");
     }
 
     fn preview_project(name: &str) -> PathBuf {

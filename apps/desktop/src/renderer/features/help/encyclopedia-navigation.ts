@@ -5,6 +5,9 @@ export function readEncyclopediaHash(hash: string): GuideTarget | null {
   const [page, query] = hash.replace(/^#\/?/, "").split("?");
   return page === "help-encyclopedia" && query ? parseGuideTargetFromSearch(`?${query}`) : null;
 }
+export function recordEncyclopediaCatalog(): void {
+  if (window.location.hash !== "#help-encyclopedia") window.location.hash = "#help-encyclopedia";
+}
 export function recordEncyclopediaTarget(target: GuideTarget, replace = false): void {
   const query = new URLSearchParams({ guideTopic: target.topic, ...(target.section ? { guideSection: target.section } : {}) });
   const hash = `#help-encyclopedia?${query}`;

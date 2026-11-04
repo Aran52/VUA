@@ -1,0 +1,14 @@
+{
+  "method": "amf.production.removeOutfit",
+  "kind": "command",
+  "params": {
+    "schemaVersion": "0.1",
+    "runId": "n3-test",
+    "sourceId": "outfit",
+    "planDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "confirmed": true,
+    "objects": [
+      "synthetic-outfit"
+    ]
+  }
+}

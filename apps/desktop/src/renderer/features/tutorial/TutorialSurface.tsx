@@ -13,6 +13,7 @@ import type { TutorialSnapshot } from "../../app/tutorial-port.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Icon } from "@vua/design-system";
 import { format, strings } from "../../i18n/index.ts";
+import { useSurfaceAppearance } from "../../app/surface-appearance.ts";
 import "./tutorial-surface.css";
 
 const copy = strings.tutorial;
@@ -33,6 +34,7 @@ function stepCopy(id: string | null) {
 }
 
 export function TutorialSurface() {
+  useSurfaceAppearance();
   const [snapshot, setSnapshot] = useState<TutorialSnapshot | null>(null);
   const [topmost, setTopmost] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);

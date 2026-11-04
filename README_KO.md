@@ -1,8 +1,8 @@
-# VUA — VRC Ultra Assistant
+# VUA — Virtual Unified Assistant
 
 [English](README.md) | [简体中文](README_ZH.md) | [日本語](README_JA.md) | 한국어
 
-**VUA(VRC Ultra Assistant)** 는 VRChat 플레이어를 위한 Windows 우선·로컬 우선 시나리오 설치·관리·실행
+**VUA(Virtual Unified Assistant)** 는 VRChat 플레이어를 위한 Windows 우선·로컬 우선 시나리오 설치·관리·실행
 앱입니다. 시나리오는 목표, 필요한 소프트웨어, 준비·실행·복구 단계를 묶은 것입니다. PC 화면으로 플레이하기,
 PICO로 스트리밍하기, 선택한 모듈로 Avatar 편집하기처럼 하고 싶은 일부터 다음 단계를 안내합니다.
 
@@ -47,7 +47,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 
 [v0.7.0 Stone Age(Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0)는 처음으로 아바타 제작 흐름을 제공합니다. 라이브러리에서 아바타와 의상을 고르면 VUA가 전용 Unity 프로젝트에서 조립하고 VRChat SDK로 확인한 뒤, 확인을 거쳐 업로드합니다. Windows x64 온라인·오프라인 NSIS 설치 파일에 AMF가 포함됩니다. [N1–N7 개발 순서](docs/development-outline.md)에 따라 개발을 이어 갑니다.
 
-Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·소재·사람의 검토가 통과했음을 뜻하지 않습니다. [v0.7.0 범위, 검사 및 제한 사항](docs/release/v0.7.0_KO.md)을 확인해 주세요.
+위 다운로드는 공개된 0.7.0 Beta입니다. 소스에서는 **v1.0.0 Brave New World**를 준비하고 있어요. 본체는 안정 버전이 되고 AMF는 Beta로 독립 업데이트를 이어 갑니다. [동결 버전 릴리스 노트 초안](docs/release/v1.0.0_KO.md)에 범위와 작성자 확인 대기 항목을 적었습니다. 소스 준비만으로 설치 파일이 공개되거나 N 단계의 검수가 끝나는 것은 아니에요.
 
 ### 현재 제공 상태와 시작 방법
 
@@ -62,7 +62,23 @@ Beta 상태를 유지합니다. 출시는 N1/N5나 미완료된 실제 기기·�
 - [제품 경계](docs/product-boundary.md)
 - [아키텍처](docs/architecture/system.md)
 - [v0.7.0 릴리스 노트](docs/release/v0.7.0_KO.md)
+- [1.0.0 최소 안내서(후보판, 다섯 언어)](docs/user-guide/v1.0.0/ko.md)
 - [기여 가이드](CONTRIBUTING.md) · [보안 정책](SECURITY.md)
+
+## 지나온 길
+날짜는 각 릴리스와 풀 리퀘스트에 대해 GitHub가 기록한 시각입니다.
+
+| 날짜 | 마일스톤 |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0): 데스크톱 앱에서 Rust 오케스트레이터를 거쳐 실제 Unity 2022.3 프로젝트까지 이어져, 아바타에 의상 한 벌을 조립 |
+| 2026-10-01 | [목적에 맞춘 플레이 환경 준비](https://github.com/VUA-Project/VUA/pull/60) (지역별 Unity 다운로드 경로 포함) |
+| 2026-10-08 | [BOOTH 라이브러리 동기화, 선택 다운로드, 로컬 파일 관리](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6): 첫 공개 베타, AMF를 내장 모듈로 포함 |
+| 2026-10-12 | [NSIS 설치 프로그램과 AMF 개별 업데이트](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [소재 중심 아바타 제작, Recipe, 로컬 MCP 연결](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [60프레임 턴테이블과 관리형 업로드를 갖춘 릴리스 룸](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 약관 해석과 용도별 검사](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0): 아바타 제작 흐름을 담은 첫 릴리스 |
 
 ## 라이선스
 

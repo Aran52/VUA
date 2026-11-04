@@ -16,7 +16,7 @@ for (const entry of ["main", "preload"]) {
   await build({
     configFile: false,
     publicDir: false,
-    define: { __VUA_BUILD_INFO__: JSON.stringify(buildInfo) },
+    define: { __VUA_BUILD_INFO__: JSON.stringify(buildInfo), __VUA_SHARE_ORIGIN__: JSON.stringify(process.env.VUA_SHARE_ORIGIN ?? "https://ph-r.com") },
     root: desktop,
     resolve: { conditions: ["node"], alias: {
       // Some Node adapters use bare builtins. Normalize these before Vite's

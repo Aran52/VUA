@@ -1,8 +1,8 @@
-# VUA — VRC Ultra Assistant
+# VUA — Virtual Unified Assistant
 
 English | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [한국어](README_KO.md)
 
-**VUA (VRC Ultra Assistant)** is a Windows-first, local-first scenario installer, manager and
+**VUA (Virtual Unified Assistant)** is a Windows-first, local-first scenario installer, manager and
 launcher for VRChat players. A scenario brings together a goal, the required software and the
 steps to prepare, launch and recover it: play on a PC screen, stream to a PICO, or edit an Avatar
 with a selected module. Start with what you want to do; VUA helps you work out what comes next.
@@ -49,7 +49,7 @@ Project and package management prepares the required Unity environment and depen
 
 [v0.7.0 Stone Age (Beta)](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0) brings the first Avatar production path: choose an Avatar and outfits from your library, and VUA assembles them in its own Unity project, checks them with the VRChat SDK and uploads after you confirm. Online and offline Windows x64 NSIS installers include AMF. Development follows the [N1–N7 sequence](docs/development-outline.md).
 
-The project remains in Beta. Publication does not declare N1/N5 or other pending physical, material and human-review outcomes accepted. See the [v0.7.0 scope, checks and limitations](docs/release/v0.7.0.md).
+The download above is the published 0.7.0 Beta. Source now prepares **v1.0.0 Brave New World**: a stable host with independently updated AMF Beta. The [draft freeze release notes](docs/release/v1.0.0.md) record its scope and pending author checks; source preparation does not publish installers or close N-stage acceptance.
 
 ### Current delivery and starting points
 
@@ -64,7 +64,23 @@ The project remains in Beta. Publication does not declare N1/N5 or other pending
 - [Product boundary](docs/product-boundary.md)
 - [Architecture](docs/architecture/system.md)
 - [v0.7.0 release notes](docs/release/v0.7.0.md)
+- [1.0.0 minimal guide (candidate, five languages)](docs/user-guide/v1.0.0/README.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
+
+## Milestones
+Dates are the times GitHub recorded for each release and pull request.
+
+| Date | Milestone |
+| --- | --- |
+| 2026-09-07 | [v0.5.0](https://github.com/VUA-Project/VUA/releases/tag/v0.5.0): the first path from the desktop app through the Rust orchestrator to a real Unity 2022.3 project, assembling an Avatar with an outfit |
+| 2026-10-01 | [Purpose-driven environment deployment](https://github.com/VUA-Project/VUA/pull/60) with regional Unity sources |
+| 2026-10-08 | [BOOTH library sync, selective downloads and local file management](https://github.com/VUA-Project/VUA/pull/66) |
+| 2026-10-11 | [v0.6.6 Ibis](https://github.com/VUA-Project/VUA/releases/tag/v0.6.6), the first public Beta, with AMF as a bundled module |
+| 2026-10-12 | [NSIS installers and independent AMF updates](https://github.com/VUA-Project/VUA/pull/80) |
+| 2026-10-15 | [Material-first Avatar production, Recipes and the local MCP adapter](https://github.com/VUA-Project/VUA/pull/84) |
+| 2026-10-17 | [Release room with the 60-frame turntable and managed upload](https://github.com/Aran52/VUA/pull/4) |
+| 2026-10-18 | [VN3 terms parsing and checks by use](https://github.com/Aran52/VUA/pull/31) |
+| 2026-10-22 | [v0.7.0 Stone Age](https://github.com/VUA-Project/VUA/releases/tag/v0.7.0), the first release with the Avatar production path |
 
 ## License
 

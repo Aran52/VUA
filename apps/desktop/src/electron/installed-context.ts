@@ -3,14 +3,15 @@ import path from "node:path";
 interface FileObject { readonly path: string; readonly bytes: number; readonly sha256: string; readonly offset: number }
 export interface InstalledManifest {
   readonly releaseVersion: string;
-  readonly host: { readonly version: string; readonly files: readonly FileObject[] };
-  readonly amf: { readonly version: string; readonly files: readonly FileObject[] };
+  readonly host: { readonly version: string; readonly build: string; readonly files: readonly FileObject[] };
+  readonly amf: { readonly version: string; readonly build: string; readonly files: readonly FileObject[] };
   readonly runtime: { readonly version: string };
 }
 export interface InstalledContext {
   readonly schemaVersion: "0.1";
   readonly root: string; readonly hostRoot: string; readonly amfRoot: string; readonly runtimeRoot: string;
   readonly host: InstalledManifest; readonly amf: InstalledManifest; readonly amfAvailable: boolean;
+  readonly hostManifestId?: string; readonly amfManifestId?: string;
 }
 
 /** Set only by the verified packaged bootstrap, never by an environment variable

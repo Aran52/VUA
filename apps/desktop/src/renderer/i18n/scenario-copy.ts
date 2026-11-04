@@ -1,5 +1,6 @@
 export const scenarioCopy = {
   en: {
+    licenseStepLink: "Go to the Unity account and license step below.",
     title: "Prepare the scenario", intro: "Steps, software check and install plan are available separately",
     sop: "Steps", check: "Check software only", plan: "Plan installation", checking: "Checking software…", done: "Software check done; nothing installed.",
     ready: "Required software found; follow the steps to sign in and connect.", missing: "Some software is missing or unconfirmed; see the install plan.",
@@ -14,7 +15,7 @@ export const scenarioCopy = {
       headset: { title: "Connect your headset", explanation: "Choose USB or Wi-Fi. USB needs a data cable and approval in the headset; Wi-Fi needs the same LAN, ideally with the PC wired.", result: "PICO Connect shows the connected headset" },
       stream: { title: "Start streaming", explanation: "Confirm the connection in PICO Connect, then start SteamVR.", result: "The headset displays the PC VR environment." },
       openxr: { title: "Check the OpenXR runtime when needed", explanation: "For OpenXR games, set SteamVR as the default runtime per the Help article.", result: "SteamVR is selected as the intended OpenXR runtime." },
-      "unity-license": { title: "Activate Unity before you start editing", explanation: "Editing runs the Unity Editor and needs a license. In Settings → Accounts → Unity, register, sign in to Hub and activate.", result: "Unity can start with an eligible Personal or assigned paid license." },
+      "unity-license": { title: "Activate Unity before you start editing", explanation: "Use the Unity account and license step below to sign in, activate and check the license.", result: "Unity can start with an eligible Personal or assigned paid license." },
       materials: { title: "Choose materials", explanation: "Pick local base and outfit packages in {amf}; a separate work project is created.", result: "Unity reports the actual prefab candidates." },
       assembly: { title: "Review the attachments and switches", explanation: "Confirm candidates, name toggles, then confirm the assembly plan.", result: "The retained result reports real checks and warnings." },
       sdk: { title: "Check the result in Unity", explanation: "Check looks and toggles, run the official SDK check, and decide whether to upload.", result: "Real looks and SDK check results" },
@@ -22,6 +23,7 @@ export const scenarioCopy = {
     },
   },
   "zh-CN": {
+    licenseStepLink: "前往下方的 Unity 登录与许可证步骤。",
     title: "准备情景", intro: "步骤、软件检查和安装计划可分别查看",
     sop: "操作步骤", check: "只检查软件", plan: "准备安装计划", checking: "正在检查软件…", done: "软件检查完成，未安装任何内容。",
     ready: "所需软件已找到，按步骤完成登录和连接。", missing: "部分软件缺失或未确定，见安装计划。",
@@ -36,7 +38,7 @@ export const scenarioCopy = {
       headset: { title: "连接头显", explanation: "选择 USB 或 Wi-Fi。USB 需数据线并在头显中允许连接；Wi-Fi 需同一局域网，电脑尽量用网线。", result: "PICO Connect 显示已连接的头显" },
       stream: { title: "开始串流", explanation: "在 PICO Connect 中确认连接，再启动 SteamVR。", result: "头显里能看到电脑的 VR 环境。" },
       openxr: { title: "需要时设置 OpenXR 运行时", explanation: "需要 OpenXR 的游戏可按百科说明将 SteamVR 设为默认运行时。", result: "SteamVR 中显示它是所选 OpenXR 运行时。" },
-      "unity-license": { title: "开始制作前激活 Unity", explanation: "改模会运行 Unity 编辑器，需要许可证。在设置 → 账号管理 → Unity 中按说明注册、登录 Hub 并激活。", result: "Unity 能使用符合条件的 Personal 或已分配的付费许可证启动。" },
+      "unity-license": { title: "开始制作前激活 Unity", explanation: "在下方的 Unity 登录与许可证步骤中完成登录、激活和检查。", result: "Unity 能使用符合条件的 Personal 或已分配的付费许可证启动。" },
       materials: { title: "选择素材", explanation: "在 {amf} 中选择本地素体和衣服包，将生成独立的工作工程。", result: "Unity 报告素材中实际存在的 prefab 候选。" },
       assembly: { title: "确认怎么穿、怎么切换", explanation: "确认候选、为开关命名，再确认装配计划。", result: "保留结果记录，显示实际检查结果和需要注意的问题。" },
       sdk: { title: "去 Unity 看看成品", explanation: "检查外观和开关，运行官方 SDK 检查，是否上传自行决定。", result: "获得实际外观和 SDK 检查结果" },
@@ -44,6 +46,7 @@ export const scenarioCopy = {
     },
   },
   "zh-TW": {
+    licenseStepLink: "前往下方的 Unity 登入與授權步驟。",
     title: "準備情景", intro: "步驟、軟體檢查和安裝計畫可分別檢視",
     sop: "操作步驟", check: "只檢查軟體", plan: "準備安裝計畫", checking: "正在檢查軟體…", done: "軟體檢查完成，未安裝任何內容。",
     ready: "所需軟體已找到，按步驟完成登入和連線。", missing: "部分軟體缺失或未確定，見安裝計畫。",
@@ -58,7 +61,7 @@ export const scenarioCopy = {
       headset: { title: "連線頭戴裝置", explanation: "選擇 USB 或 Wi-Fi。USB 需資料線並在頭戴裝置中允許連線；Wi-Fi 需同一區域網路，電腦儘量用網線。", result: "PICO Connect 顯示已連線的頭戴裝置" },
       stream: { title: "開始串流", explanation: "在 PICO Connect 中確認連線，再啟動 SteamVR。", result: "頭戴裝置裡能看到電腦的 VR 環境。" },
       openxr: { title: "需要時設定 OpenXR 執行時", explanation: "需要 OpenXR 的遊戲可按百科說明將 SteamVR 設為預設執行時。", result: "SteamVR 中顯示它是所選 OpenXR 執行時。" },
-      "unity-license": { title: "開始製作前啟用 Unity", explanation: "改模會執行 Unity 編輯器，需要授權。在設定 → 帳號管理 → Unity 中按說明註冊、登入 Hub 並啟用。", result: "Unity 能使用符合條件的 Personal 或已分配的付費授權啟動。" },
+      "unity-license": { title: "開始製作前啟用 Unity", explanation: "在下方的 Unity 登入與授權步驟中完成登入、啟用和檢查。", result: "Unity 能使用符合條件的 Personal 或已分配的付費授權啟動。" },
       materials: { title: "選擇素材", explanation: "在 {amf} 中選擇本地素體和衣服包，將生成獨立的工作專案。", result: "Unity 報告素材中實際存在的 prefab 候選。" },
       assembly: { title: "確認怎麼穿、怎麼切換", explanation: "確認候選、為開關命名，再確認裝配計畫。", result: "保留結果記錄，顯示實際檢查結果和需要注意的問題。" },
       sdk: { title: "去 Unity 看看成品", explanation: "檢查外觀和開關，執行官方 SDK 檢查，是否上傳自行決定。", result: "獲得實際外觀和 SDK 檢查結果" },
@@ -66,6 +69,7 @@ export const scenarioCopy = {
     },
   },
   ja: {
+    licenseStepLink: "下の Unity ログインとライセンスの手順へ。",
     title: "シナリオを準備", intro: "手順、ソフト確認、インストール計画を個別に見られます",
     sop: "手順", check: "ソフトだけ確認", plan: "インストール計画", checking: "ソフトを確認中…", done: "ソフトの確認が完了しました。何もインストールしていません。",
     ready: "必要なソフトが見つかりました。手順に沿ってログインと接続を行います。", missing: "一部のソフトが不足または未確認です。インストール計画を参照してください。",
@@ -80,7 +84,7 @@ export const scenarioCopy = {
       headset: { title: "ヘッドセットを接続", explanation: "USB か Wi-Fi を選びます。USB はデータケーブルとヘッドセットでの許可が必要です。Wi-Fi は同じ LAN が必要で、PC はできれば有線にします。", result: "PICO Connect に接続中のヘッドセットが表示される" },
       stream: { title: "ストリーミングを開始", explanation: "PICO Connect で接続を確認して SteamVR を起動します。", result: "ヘッドセットに PC の VR 環境が表示されます。" },
       openxr: { title: "必要なら OpenXR を設定", explanation: "OpenXR が必要なゲームは、ヘルプの説明どおり SteamVR を既定のランタイムにします。", result: "SteamVR が選択した OpenXR ランタイムになっています。" },
-      "unity-license": { title: "制作前に Unity を有効化", explanation: "改変では Unity エディターを実行するためライセンスが必要です。設定 → アカウント管理 → Unity の説明に沿って登録し、Hub にログインして有効化します。", result: "条件を満たす Personal または割り当て済み有料ライセンスで Editor を起動できます。" },
+      "unity-license": { title: "制作前に Unity を有効化", explanation: "下の Unity ログインとライセンスの手順でログイン、有効化、確認を行います。", result: "条件を満たす Personal または割り当て済み有料ライセンスで Editor を起動できます。" },
       materials: { title: "素材を選ぶ", explanation: "{amf} でローカルの素体と衣装パッケージを選ぶと、独立した作業プロジェクトが作られます。", result: "Unity が実在する prefab 候補を報告します。" },
       assembly: { title: "取り付けとスイッチを確認", explanation: "候補を確定し、トグルに名前を付けてから組み立て計画を確認します。", result: "結果と実際の確認事項・警告が保存されます。" },
       sdk: { title: "Unity で結果を確認", explanation: "見た目とトグルを確認し、公式 SDK のチェックを実行して、アップロードするか決めます。", result: "実際の見た目と SDK のチェック結果" },
@@ -88,6 +92,7 @@ export const scenarioCopy = {
     },
   },
   ko: {
+    licenseStepLink: "아래 Unity 로그인과 라이선스 단계로 이동하세요.",
     title: "시나리오 준비", intro: "단계, 소프트웨어 확인, 설치 계획을 따로 볼 수 있어요",
     sop: "단계", check: "소프트웨어만 확인", plan: "설치 계획", checking: "소프트웨어 확인 중…", done: "소프트웨어 확인 완료. 아무것도 설치하지 않았어요.",
     ready: "필요한 소프트웨어를 찾았어요. 단계에 따라 로그인하고 연결하세요.", missing: "일부 소프트웨어가 없거나 확인되지 않았어요. 설치 계획을 보세요.",
@@ -102,7 +107,7 @@ export const scenarioCopy = {
       headset: { title: "헤드셋 연결", explanation: "USB나 Wi-Fi를 고르세요. USB는 데이터 케이블과 헤드셋에서의 허용이 필요해요. Wi-Fi는 같은 LAN이 필요하고, PC는 가능하면 유선으로 연결하세요.", result: "PICO Connect에 연결된 헤드셋이 표시됨" },
       stream: { title: "스트리밍 시작", explanation: "PICO Connect에서 연결을 확인한 뒤 SteamVR을 실행하세요.", result: "헤드셋에 PC VR 환경이 표시돼요." },
       openxr: { title: "필요할 때 OpenXR 설정", explanation: "OpenXR이 필요한 게임은 도움말대로 SteamVR을 기본 런타임으로 설정하세요.", result: "SteamVR이 선택한 OpenXR 런타임이 돼요." },
-      "unity-license": { title: "제작 전에 Unity 활성화", explanation: "편집에는 Unity 에디터가 실행되어 라이선스가 필요해요. 설정 → 계정 관리 → Unity에서 가입하고 Hub에 로그인해 활성화하세요.", result: "자격에 맞는 Personal 또는 할당된 유료 라이선스로 실행할 수 있어요." },
+      "unity-license": { title: "제작 전에 Unity 활성화", explanation: "아래 Unity 로그인과 라이선스 단계에서 로그인, 활성화, 확인을 진행하세요.", result: "자격에 맞는 Personal 또는 할당된 유료 라이선스로 실행할 수 있어요." },
       materials: { title: "에셋 선택", explanation: "{amf}에서 로컬 베이스와 의상 패키지를 고르면 별도 작업 프로젝트가 만들어져요.", result: "Unity가 실제 prefab 후보를 보고해요." },
       assembly: { title: "부착과 스위치 확인", explanation: "후보를 확정하고 토글 이름을 정한 뒤 조립 계획을 확인하세요.", result: "실제 검사와 경고를 포함한 결과를 보관해요." },
       sdk: { title: "Unity에서 결과 확인", explanation: "외형과 토글을 확인하고 공식 SDK 검사를 실행한 뒤 업로드 여부를 정하세요.", result: "실제 외형과 SDK 검사 결과" },

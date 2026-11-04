@@ -4,6 +4,7 @@ import { Button } from "./Button.tsx";
 import { useModalOwner } from "./modal-layer.tsx";
 import { usePresenceMotion } from "./motion.ts";
 import "./popconfirm.css";
+import { useShapeScope } from "./ShapeScope.tsx";
 
 /**
  * Tier 4, popconfirm: a small bubble beside the button that asks once before an everyday action
@@ -27,6 +28,7 @@ export function Popconfirm({ title, description, confirmLabel, cancelLabel, dang
 }) {
   const id = useId();
   const owner = useModalOwner();
+  const shapeScope = useShapeScope();
   const anchor = useRef<HTMLSpanElement>(null);
   const bubble = useRef<HTMLDivElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -44,14 +46,19 @@ export function Popconfirm({ title, description, confirmLabel, cancelLabel, dang
   };
 
   useLayoutEffect(() => {
-    if (!open || !anchor.current || !bubble.current) return;
+    if (!open || !shown || !anchor.current || !bubble.current) return;
     const a = anchor.current.getBoundingClientRect();
-    const b = bubble.current.getBoundingClientRect();
-    const side = a.bottom + GAP + b.height <= window.innerHeight - EDGE ? "bottom" : "top";
-    const left = Math.min(Math.max(a.left + a.width / 2 - b.width / 2, EDGE), window.innerWidth - b.width - EDGE);
-    setPosition({ left, top: side === "bottom" ? a.bottom + GAP : a.top - GAP - b.height, side });
-    cancel.current?.focus();
-  }, [open]);
+    // Entrance transforms must not shrink the dimensions used for placement.
+    const width = bubble.current.offsetWidth;
+    const height = bubble.current.offsetHeight;
+    const side = a.bottom + GAP + height <= window.innerHeight - EDGE ? "bottom" : "top";
+    const clamp = (value: number, available: number) => Math.max(EDGE, Math.min(value, available - EDGE));
+    const left = clamp(a.left + a.width / 2 - width / 2, window.innerWidth - width);
+    const top = clamp(side === "bottom" ? a.bottom + GAP : a.top - GAP - height, window.innerHeight - height);
+    setPosition({ left, top, side });
+    // The first render is parked offscreen; focusing it must not scroll the page.
+    cancel.current?.focus({ preventScroll: true });
+  }, [open, shown]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,7 +82,7 @@ export function Popconfirm({ title, description, confirmLabel, cancelLabel, dang
     <span ref={anchor} className="vua-popconfirm-anchor">{trigger}</span>
     {shown ? createPortal(<div ref={bubble} role="alertdialog" aria-modal="false" aria-labelledby={`${id}-title`}
       aria-describedby={description ? `${id}-body` : undefined} className="vua-popconfirm" data-side={position?.side ?? "bottom"}
-      data-vua-modal-owner={owner} data-module={module} data-vua-esc-local="" data-closing={open ? undefined : true}
+      data-vua-modal-owner={owner} data-module={module} data-vua-shape-scope={shapeScope} data-vua-esc-local="" data-closing={open ? undefined : true}
       style={position ? { left: position.left, top: position.top } : { left: -9999, top: -9999 }}
       onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); close(true); } }}>
       <strong id={`${id}-title`} className="vua-popconfirm__title" data-danger={danger || undefined}>{title}</strong>

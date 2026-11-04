@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -18,6 +20,8 @@ import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
+import { contextGuideCopy } from "./context-guide-copy.ts";
+import { helpFaqCopy } from "./help-faq-copy.ts";
 /**
  * VUA UI string table (en) — SOURCE language.
  * - This table is the structural source of truth: the widened Strings type
@@ -34,11 +38,15 @@ import { journeyCopy } from "./journey-copy.ts";
  *   (DEV-only, reachable only from gateway fixtures, tree-shaken in release).
  */
 export const strings = {
+  textureMemory: textureMemoryCopy["en"],
+  outfitRemoval: outfitRemovalCopy["en"],
   faceTracking: faceTrackingCopy["en"],
   toolConnection: toolConnectionCopy["en"],
   browser: browserCopy["en"],
   fileDrop: fileDropCopy["en"],
   helpUi: helpCopy["en"],
+  helpFaq: helpFaqCopy["en"],
+  contextGuide: contextGuideCopy["en"],
   distribution: distributionCopy["en"],
   amfModule: moduleCopy["en"],
   amfProduction: amfProductionCopy.en,
@@ -61,10 +69,14 @@ export const strings = {
     invalid: "Enter a name and a unique HTTPS address without credentials or a fragment.",
     empty: "Add a website with the + button.", unavailable: "Site tests unavailable; installing software still works.",
     storageFailed: "Changes apply for this session but could not be saved.",
-    europe: "Europe", america: "USA", japan: "Japan", west: "West", east: "East", regionUnavailable: "Regional test unavailable",
+    regionUnavailable: "Regional test unavailable",
     regionTitle: "Regional reference latency", testRegions: "Test regions", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "San José · US West", use: "Ashburn · near Washington, D.C.", jp: "Tokyo · Japan", eu: "Amsterdam · Europe" },
-    regionScope: "References are Oracle Cloud nodes near each game region, median of three HTTPS responses; for comparing regions, in-game ping may differ.",
+    regionShort: { usw: "US West", use: "US East", jp: "Japan", eu: "Europe" },
+    regionClosest: "Closest", regionAboutSame: "About the same", regionTierN: "Tier {n}",
+    regionUnsteady: "Unsteady", regionUnsteadyHint: "Repeated measurements differ widely; treat this value as rough.",
+    regionViaProxy: "Measured through a proxy on this computer; the game's route may differ.",
+    regionScope: "Latency to reference points near each game region, not VRChat room ping.",
     statuses: { timeout: "Timed out", connection_failed: "Failed", probe_error: "Unavailable", http_error: "HTTP error", redirected: "Redirect", reachable: "Connected" },
   },
   terms: {
@@ -189,7 +201,6 @@ export const strings = {
     backToOrigin: "Back to origin page",
     cancel: "Cancel",
     clear: "Clear",
-    showCompleted: "Show completed",
     cancelRejected: "This task cannot be cancelled right now",
     retry: "Retry",
     retryRejected: "This task cannot be retried right now",
@@ -208,8 +219,11 @@ demoTaskTitle: "Demo task",
   },
   /** Resource headroom uses available CPU/GPU/RAM/VRAM readings (2026-10-10 ruling). */
   resourceMonitor: {
-    indicatorAria: "Resource headroom {percent}%, average of {count} available readings — open details",
-    headroom: "Free {percent}%",
+    tightest: "{resource} {percent}%",
+    statePlenty: "plenty",
+    stateGettingTight: "getting tight",
+    stateTight: "tight",
+    tightestAria: "Tightest resource {resource} at {percent}%, {state} — open details",
     title: "System resources",
     cpu: "CPU",
     gpu: "GPU",
@@ -220,7 +234,6 @@ demoTaskTitle: "Demo task",
     unavailable: "Not available",
     gpuKinds: {"discrete":"Discrete GPU","integrated":"Integrated GPU","unknown":"Type unavailable"},
     sharedMemory: "The GPU shares system memory; no separate VRAM figure",
-    constrained: "{resource} {percent}%",
     closeAria: "Close resource details",
   },
   nav: {
@@ -294,6 +307,51 @@ demoTaskTitle: "Demo task",
     localTitle: 'Import a local item',
     importModes: "More import options",
     migrationTitle: "Import multiple items (library migration)",
+    migration: {
+      description: "Decide what belongs together, then import. Imports copy the chosen files; your originals stay where they are.",
+      oneMaterial: "One material",
+      collection: "Collection",
+      excluded: "Exclude",
+      decide: "Grouping for this folder",
+      open: "Open to review",
+      nameLabel: "Material name",
+      bulkHint: "Selected sibling folders: {count}",
+      bulkApply: "These sibling folders are separate materials",
+      selectFolder: "Select folder {name}",
+      selectFile: "Select file {name}",
+      inGroup: "In “{name}”",
+      groupName: "Name for the grouped files",
+      groupNamePlaceholder: "For example: coat companion files",
+      groupApply: "Group selected files as one material",
+      empty: "Empty folder",
+      truncated: "Only the first 1000 entries were read; the rest still need grouping.",
+      depthLimit: "Folder too deep; review it on its own.",
+      failed: "Cannot read the folder. Check its location and permissions, then retry.",
+      undo: "Undo",
+      copyManifest: "Copy the migration manifest",
+      manifestCopied: "The reviewed grouping was copied as a migration manifest.",
+      manifestFailed: "The clipboard is unavailable; the grouping stays in this window.",
+      coverageComplete: "{count} confirmed materials",
+      coverageUnassigned: "{count} unassigned",
+      coverageExcluded: "{count} excluded",
+      coverageUnreadable: "{count} unreadable",
+      confirmed: "Confirmed materials",
+      files: "{count} files",
+      none: "None yet",
+      unassignedTitle: "Unassigned",
+      excludedTitle: "Excluded",
+      unreadableTitle: "Unreadable or skipped",
+      more: "and {count} more",
+      reasons: { link: "Link; not followed", other: "Unsupported entry; not scanned", unavailable: "Could not be read", truncated: "Read limit reached" },
+      problems: { not_reviewed: "Open this folder to include all of its files", truncated: "Some files were not read; review again", unreadable: "Some files could not be read", empty: "No files to import", no_root: "Outside the reviewed folder" },
+      importCta: "Import {count} materials",
+      importing: "Starting the import…",
+      importAccepted: "The import started. Progress and results appear in the task list.",
+      importFailed: "The import did not start; the grouping stays here.",
+      partialBlocked: "Every observed file needs one disposition before the import can run.",
+      close: "Close",
+      unknownSize: "Size unknown",
+    },
     migrationPreview: {
       description: "Expand folders to see the library structure",
       planning: "Preview before grouping; nothing is imported.",
@@ -493,6 +551,8 @@ demoTaskTitle: "Demo task",
     },
   },
   onboarding: {
+    firstRunTitle: "Choose your language",
+    firstRunBody: "You can change this later in Settings. Learn the other features when you need them.",
     steps: {
       goals: "Choose goals",
       environments: "Refine environments",
@@ -1208,7 +1268,8 @@ demoTaskTitle: "Demo task",
             id: "trust",
             title: "Trust ranks and the safety shield",
             paragraphs: [
-              "Nameplates show trust ranks, from Visitor up to Trusted User, while the Quick Menu is open. The Safety page's shield levels decide whose avatars and effects you see per rank — the default Normal level is a good starting point.",
+              "Trust Rank describes account trust. Shield Level controls which avatars, sounds and effects you see from each rank. Neither is an Avatar performance rating.",
+              "Open the Quick Menu to see nameplates and Shield settings. You can start with Normal and adjust it for the room and your preferences.",
             ],
           },
           {
@@ -1346,51 +1407,89 @@ demoTaskTitle: "Demo task",
           },
         ],
       },
+      creator: {
+        title: "Avatar upload and trust",
+        intro: "Upload requirements, trust ranks and local testing.",
+        sections: [
+          {
+            id: "upload-eligibility",
+            title: "What do I need before uploading?",
+            paragraphs: [
+              "Uploading a custom Avatar with Unity and the VRChat SDK requires a VRChat.com account and a trust rank of New User or higher. Steam and Meta accounts need to be linked to a VRChat account first.",
+              "If you cannot upload yet, you can still build and test locally. Only you can see that test Avatar; VUA cannot grant a rank or bypass the official check.",
+            ],
+          },
+          {
+            id: "trust-rank",
+            title: "What is a trust rank?",
+            paragraphs: [
+              "Trust Rank is VRChat's account-level indicator. It is separate from Shield Level, which controls which Avatar features you see, and from Performance Rank, which estimates an Avatar's rendering cost.",
+              "Open the Quick Menu to see nameplates and ranks. VUA does not infer your rank from playtime, friends or an account name.",
+            ],
+          },
+          {
+            id: "improve-trust",
+            title: "How do I reach New User?",
+            paragraphs: [
+              "Use VRChat normally: explore worlds, spend time with friends and create content when you are eligible. VRChat notifies you when you move from Visitor to New User.",
+              "AFKing, mass-friending and uploading lots of low-effort content do not raise your rank. There is no supported shortcut or guaranteed promotion time; ask VRChat Support if you think your account's rank is wrong.",
+            ],
+          },
+        ],
+      },
       /** VUA walkthrough topic (2026-09-26 guide-host ruling): read-only, written
        *  for what the app actually does today — no promises about unshipped
        *  capabilities. */
       vua: {
-        title: "Using VUA",
-        intro: "A quick tour of the VUA window and its main flows, written for what the app actually does today.",
+        title: "VUA guide",
+        intro: "The current routes for materials, production, settings and upload.",
         sections: [
           {
             id: "window-tour",
-            title: "Meet the VUA window",
+            title: "Find the controls",
             paragraphs: [
-              "The top bar holds, left to right, the module tabs (Environment / Avatar creation), Settings, feature search (Ctrl+P), the guide and notifications; the sidebar lists the active module's feature groups.",
-              "The task center sits at the bottom of the screen — background tasks and downloads collect there; the bell in the top-right opens the notification list.",
+              "The VUA logo returns Home. The sidebar shows the current destinations; Help, Settings and notifications are in the top bar. Ctrl+P opens feature search.",
+              "Open the bell for downloads and background tasks. There is no taskbar along the bottom.",
             ],
           },
           {
             id: "environment-page",
-            title: "The environment pages",
+            title: "Play and Avatar preparation",
             paragraphs: [
-              "The play/production pages run an environment check first; when the result falls short, a fix plan walks you through the steps.",
-              "The tool collection lives in the Tools group of the environment sidebar. It is not connected yet, and the page shows its honest empty state.",
+              "Play checks Steam, VRChat and streaming software. Avatar editing checks Unity, package managers and {amf}. Each failure stays next to its observed item and available recovery.",
+              "Tools are grouped by purpose. Unfinished entries say In development instead of looking installed.",
             ],
           },
           {
             id: "import-paths",
-            title: "Two ways to import assets",
+            title: "Local files and BOOTH purchases",
             paragraphs: [
-              "Local assets: select folders to import into the library. Ordinary files stay intact; ZIPs are retained and extracted automatically. Production uses UnityPackage only.",
-              "BOOTH items: open the product page in the embedded browser window, buy and download with your own account, then adopt the download into the warehouse in one click.",
+              "Use the library's local import for files you already have. ZIPs are kept and extracted; production intake accepts supported UnityPackage files.",
+              "BOOTH purchases can be synced after signing in on Accounts, or opened from the library. Download only the files you need. A product association records a source, not identical content or compatibility.",
             ],
           },
           {
             id: "production-line",
-            title: "The production line",
+            title: "Materials, the line and upload",
             paragraphs: [
-              "The line runs Warehouse → Recipe → Workshop → Release: assets enter the warehouse, get combined in a recipe, then move to the workshop for a confirmed run.",
-              "Inspection is folded into the build record: its results appear with the record instead of as a separate step.",
+              "Recipes save reusable combinations; they are not a mandatory first step for every outfit. Workshop shows the actual line and automation state. Full auto is the default for a new preference and assembles the confirmed materials once. Existing ask/smart choices are preserved.",
+              "A local UnityPackage marked as an Avatar can start production without a product link. Select the target Avatar and confirm automation permissions before starting. A product association does not guarantee compatibility; upload still requires your confirmation through the official SDK.",
             ],
           },
           {
             id: "settings-basics",
-            title: "Handy settings",
+            title: "Themes, language and resource saving",
             paragraphs: [
-              "Appearance offers dark, light, or follow system; follow system tracks Windows' light/dark mode live.",
-              "Resource saver mode turns off decorative motion to reduce usage — handy for VR or low-end machines.",
+              "Grid and Frutiger Aero support dark and light. Tenshi Kaiwai is light only; Jirai Kei is dark only. Language, accounts and environment paths have their own Settings sections.",
+              "Resource saving removes decorative motion, textures and optional visual effects while retaining text and controls.",
+            ],
+          },
+          {
+            id: "upload-prerequisites",
+            title: "Account requirements before upload",
+            paragraphs: [
+              "A full VRChat account and New User or higher is required to upload a custom Avatar. This is separate from installing Unity; local testing remains available below that rank.",
+              "Avatar preparation and the upload confirmation link to “What is a trust rank?” and “How do I raise it?”. The official SDK performs the upload after your confirmation.",
             ],
           },
         ],
@@ -3072,7 +3171,7 @@ demoTaskTitle: "Demo task",
       pending: "translating",
     },
     version: {
-      heading: "VUA Desktop",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · Early preview",
       debugHeading: "Debug mode",
       debugToggle: "Show product debug info",
@@ -3375,6 +3474,11 @@ demoTaskTitle: "Demo task",
     playSession: { unavailable: environmentCopy["en"].unknown },
     recipe: { draftFailed: "The Recipe draft operation could not finish." },
     library: { downloadFailed: "Download not finished; existing files stay.", removalFailed: "Local files not deleted; refresh file status and check the task.", reconciliationFailed: "Material verification not finished; check the task and sync again." },
+    migration: {
+      invalidParams: "The grouping request did not pass validation.",
+      stale: "A source file changed since the review (moved, resized or edited). Review the folder again, then import.",
+      overlap: "The same file appears in two materials. Change one boundary, then import.",
+    },
     catalog: {
       syncFailed: "Library sync not finished; saved entries stay. See the task record.",
       productNotFound:

@@ -255,6 +255,7 @@ export function TurntablePlayer({
           <canvas
             ref={canvasRef}
             className="vua-turntable__canvas"
+            data-audit-skip="turntable-frames"
             width={phase.manifest.width}
             height={phase.manifest.height}
           />

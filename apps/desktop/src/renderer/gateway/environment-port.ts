@@ -3,7 +3,6 @@ import type { NetworkIntent, NetworkReport } from "@vua/contracts";
 import type { WebsiteObservation } from "@vua/contracts";
 import type { PlayRoute, PlaySession } from "@vua/contracts";
 import type { ExternalToolAction, ExternalToolId, ExternalToolSnapshot } from "@vua/contracts";
-import type { CreatorManagers } from "./creator-inventory-port.ts";
 import type { CheckZone, DeployerView, VersionTrack } from "../features/deployer/deployer-model.ts";
 import type { FixPlanV1 } from "../features/deployer/fix-plan-model.ts";
 import type { CapabilityReport, Unsubscribe } from "./types.ts";
@@ -42,7 +41,7 @@ export interface EnvironmentPort {
   readonly unityLicense?: import("./unity-license-port.ts").UnityLicensePort;
   readonly tools?: { observe(toolId: ExternalToolId): Promise<ExternalToolSnapshot>; act(toolId: ExternalToolId, action: ExternalToolAction, commandId: string): Promise<ExternalToolSnapshot> };
   readonly play?: PlayPort;
-  readonly managers?: { inspect(): Promise<CreatorManagers> };
+  readonly managers?: import("./creator-inventory-port.ts").CreatorInventoryPort;
   readonly network?: NetworkPort;
   readonly deployment?: DeploymentPort;
   /** 只读快照:渲染前拉取;订阅推送到达前不得把本地缓存当事实来源 */

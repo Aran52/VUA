@@ -21,7 +21,7 @@
   max-width: min(480px, calc(100vw - 32px));
   padding: var(--vua-space-2) var(--vua-space-4);
   border: 1px solid var(--vua-border-strong);
-  border-radius: var(--vua-radius-pill);
+  border-radius: var(--vua-radius-overlay);
   background: var(--vua-bg-elevated);
   box-shadow: var(--vua-shadow-elevated);
   color: var(--vua-text-strong);
@@ -34,13 +34,13 @@
 }
 
 .vua-toast[data-tone="success"] > svg {
-  color: var(--vua-success);
+  color: var(--vua-success-text);
 }
 
 .vua-toast[data-tone="warning"] > svg {
-  color: var(--vua-warning);
+  color: var(--vua-warning-text);
 }
 
 .vua-toast[data-tone="error"] > svg {
-  color: var(--vua-error);
+  color: var(--vua-error-text);
 }

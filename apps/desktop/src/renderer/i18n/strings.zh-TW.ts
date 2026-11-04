@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -18,6 +20,8 @@ import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
+import { contextGuideCopy } from "./context-guide-copy.ts";
+import { helpFaqCopy } from "./help-faq-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -32,11 +36,15 @@ import type { Strings } from "./strings.en.ts";
  *   僅 gateway fixture 可達,生產構建被 Tree-shaking 剔除)。
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["zh-TW"],
+  outfitRemoval: outfitRemovalCopy["zh-TW"],
   faceTracking: faceTrackingCopy["zh-TW"],
   toolConnection: toolConnectionCopy["zh-TW"],
   browser: browserCopy["zh-TW"],
   fileDrop: fileDropCopy["zh-TW"],
   helpUi: helpCopy["zh-TW"],
+  helpFaq: helpFaqCopy["zh-TW"],
+  contextGuide: contextGuideCopy["zh-TW"],
   distribution: distributionCopy["zh-TW"],
   amfModule: moduleCopy["zh-TW"],
   amfProduction: amfProductionCopy["zh-TW"],
@@ -59,10 +67,14 @@ export const strings: Strings = {
     invalid: "需填寫名稱和不重複的 HTTPS 地址，地址不能含登入資訊或片段標記。",
     empty: "點選右上角 + 新增網站。", unavailable: "網站測試暫不可用，不影響安裝軟體。",
     storageFailed: "修改本次有效，但未能儲存。",
-    europe: "歐洲", america: "美國", japan: "日本", west: "西部", east: "東部", regionUnavailable: "區域測試暫不可用",
+    regionUnavailable: "區域測試暫不可用",
     regionTitle: "區域參考延遲", testRegions: "測試各區", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "聖何塞 · 美西", use: "Ashburn · 華盛頓附近", jp: "東京 · 日本", eu: "阿姆斯特丹 · 歐洲" },
-    regionScope: "參考點為各遊戲區域附近的 Oracle Cloud 節點，取三次 HTTPS 響應中位數，用於比較各區；遊戲內 Ping 可能不同。",
+    regionShort: { usw: "美西", use: "美東", jp: "日本", eu: "歐洲" },
+    regionClosest: "最近", regionAboutSame: "差不多", regionTierN: "第 {n} 檔",
+    regionUnsteady: "不穩定", regionUnsteadyHint: "多次測量差距較大，數值僅供參考。",
+    regionViaProxy: "本次透過這台電腦的代理測量，和遊戲實際走的路線可能不同。",
+    regionScope: "到各區參考點的延遲，不是 VRChat 房間的 Ping。",
     statuses: { timeout: "超時", connection_failed: "失敗", probe_error: "不可用", http_error: "HTTP 錯誤", redirected: "重定向", reachable: "已連線" },
   },
   /** 術語本地註釋(鍵必須與 terms.ts 的 TERMS 一一對應;空串 = 無註釋,僅顯示術語) */
@@ -193,7 +205,6 @@ export const strings: Strings = {
     backToOrigin: "回到來源頁",
     cancel: "取消",
     clear: "清除",
-    showCompleted: "顯示已完成",
     cancelRejected: "該任務目前不可取消",
     retry: "重試",
     retryRejected: "此任務目前無法重試",
@@ -212,8 +223,11 @@ demoTaskTitle: "演示任務",
   },
   /** 資源餘量按可用的 CPU/GPU/RAM/VRAM 讀數計算(2026-10-10 使用者裁決)。 */
   resourceMonitor: {
-    indicatorAria: "資源餘量 {percent}%，按 {count} 項已測讀數平均，點選檢視詳情",
-    headroom: "餘量 {percent}%",
+    tightest: "{resource} {percent}%",
+    statePlenty: "寬裕",
+    stateGettingTight: "趨緊",
+    stateTight: "緊張",
+    tightestAria: "最吃緊的資源是{resource} {percent}%，{state}，點選檢視詳情",
     title: "系統資源",
     cpu: "CPU",
     gpu: "GPU",
@@ -224,7 +238,6 @@ demoTaskTitle: "演示任務",
     unavailable: "暫時讀不到",
     gpuKinds: {"discrete":"獨立顯示卡","integrated":"整合顯示卡","unknown":"型別未確認"},
     sharedMemory: "顯示卡與系統共享記憶體，無獨立視訊記憶體佔用",
-    constrained: "{resource} {percent}%",
     closeAria: "關閉資源詳情",
   },
   nav: {
@@ -294,6 +307,51 @@ demoTaskTitle: "演示任務",
     localTitle: '本地單品匯入',
     importModes: "更多匯入方式",
     migrationTitle: "多物品匯入（資料庫遷移）",
+    migration: {
+      description: "先確認哪些檔案屬於同一個素材，再匯入。匯入會複製選中的檔案，原檔案留在原處。",
+      oneMaterial: "一個素材",
+      collection: "分類，繼續看",
+      excluded: "本次排除",
+      decide: "這個資料夾的歸屬",
+      open: "開啟檢視",
+      nameLabel: "素材名稱",
+      bulkHint: "已選並列資料夾：{count}",
+      bulkApply: "這些並列資料夾各是一個素材",
+      selectFolder: "選擇資料夾 {name}",
+      selectFile: "選擇檔案 {name}",
+      inGroup: "歸入「{name}」",
+      groupName: "這組檔案的名稱",
+      groupNamePlaceholder: "例如：外套附帶的說明與貼圖",
+      groupApply: "把選中的檔案合成一個素材",
+      empty: "空資料夾",
+      truncated: "只讀到前 1000 項，其餘仍需分類。",
+      depthLimit: "資料夾層級過深，請單獨檢視。",
+      failed: "無法讀取該資料夾，請檢查位置與權限後重試。",
+      undo: "復原",
+      copyManifest: "複製遷移清單",
+      manifestCopied: "已把確認的分組複製為遷移清單。",
+      manifestFailed: "剪貼簿不可用，分組仍保留在這個視窗。",
+      coverageComplete: "已確認素材 {count} 個",
+      coverageUnassigned: "未確認 {count} 項",
+      coverageExcluded: "已排除 {count} 項",
+      coverageUnreadable: "無法讀取 {count} 項",
+      confirmed: "已確認素材",
+      files: "{count} 個檔案",
+      none: "暫無",
+      unassignedTitle: "未確認",
+      excludedTitle: "已排除",
+      unreadableTitle: "無法讀取或略過",
+      more: "另有 {count} 項",
+      reasons: { link: "連結，未跟隨", other: "不支援的項目，未掃描", unavailable: "讀取失敗", truncated: "已達讀取上限" },
+      problems: { not_reviewed: "開啟這個資料夾才能計入它的全部檔案", truncated: "有檔案未讀到，請重新檢查", unreadable: "有檔案無法讀取", empty: "沒有可匯入的檔案", no_root: "不在所選的資料夾內" },
+      importCta: "匯入 {count} 個素材",
+      importing: "正在開始匯入……",
+      importAccepted: "匯入已開始，進度與結果見任務清單。",
+      importFailed: "匯入沒有開始，分組仍保留在這裡。",
+      partialBlocked: "每個讀到的檔案都要有歸屬，匯入才能開始。",
+      close: "關閉",
+      unknownSize: "大小未知",
+    },
     migrationPreview: {
       description: "展開目錄檢視資料庫結構",
       planning: "遷移分組前的預覽，不執行匯入。",
@@ -489,6 +547,8 @@ demoTaskTitle: "演示任務",
   },
   /** 首次目標引導(美術方案 v0.3.3 §2.2 / §4.3) */
   onboarding: {
+    firstRunTitle: "選擇介面語言",
+    firstRunBody: "之後可在設定中更改。其他功能等到需要使用時再了解即可。",
     /** 步驟指示(v0.3.3 §2.5:文字+圖示+位置同顯,不只靠顏色) */
     steps: {
       goals: "選擇目標",
@@ -1049,172 +1109,173 @@ rolled_back: "已回滾",
       hardware: hardwareCopy["zh-TW"],
       room: {
         title: "房間與遊玩空間",
-        intro: "先整理物理空間再裝軟體——一個安全舒適的空間,讓之後的每一步都更省心。",
+        intro: "安裝軟體前，先檢查遊玩區域、光線和網路。",
         sections: [
           {
             id: "space",
             title: "清出遊玩空間",
             paragraphs: [
-              "站立遊玩建議留出約 2×2 米的空地;坐著或原地遊玩可以更小。把散落的線纜、帶硬角的椅子和易碎物品移出可及範圍。",
-              "頭戴裝置或 SteamVR 提示時認真設定遊玩邊界——共用房間裡更要當心,孩子和寵物是最常見的意外訪客。",
+              "按頭戴裝置說明設定遊玩邊界。清走邊界內的桌椅、線纜和易碎物品，坐著玩也要留出手臂活動空間。",
+              "共用房間要留意兒童和寵物。頭戴裝置或 SteamVR 提示時，按實際環境重新設定邊界，不要沿用舊位置。",
             ],
           },
           {
             id: "lighting",
             title: "房間光線",
             paragraphs: [
-              "頭戴裝置靠攝像頭識別房間:普通、均勻的室內光最合適。避免陽光直射遊玩區域,也避免正後方強逆光。",
-              "頭戴裝置的攝像頭區域保持清潔、不要遮擋——鏡頭髒汙或被覆蓋會明顯降低追蹤品質。",
+              "保持室內光線均勻，避免陽光直射遊玩區域。不同頭戴裝置的追蹤方式不同，按裝置說明調整環境。",
+              "保持定位攝像頭和感測器清潔，不要遮擋。追蹤突然變差時，先檢查汙漬、遮擋和光線變化。",
             ],
           },
           {
             id: "network",
             title: "串流網路",
             paragraphs: [
-              "PICO Wi-Fi 串流希望頭戴裝置與電腦連在同一路由器上,優先 5 GHz 頻段,路由器最好就在遊玩房間或近旁。路由器與頭戴裝置之間的牆體和家電都會明顯拉低畫質。",
-              "如果畫面持續不穩定,USB 線連線是穩妥的替代——裝置章節有具體的連線步驟。",
+              "Wi-Fi 串流時，頭戴裝置和電腦應連到同一區域網路，優先使用 5 GHz。電腦盡量用網線接路由器，減少牆體和距離造成的丟包。",
+              "Wi-Fi 串流頻繁卡頓時，可改用支援資料傳輸的 USB 線；仍卡頓，再檢查路由器和電腦的連接。",
             ],
           },
           {
             id: "comfort",
             title: "舒適與休息",
             paragraphs: [
-              "調整頭帶讓重量落在頭頂而不是臉上;佩戴過鬆會讓畫面發虛,也更累脖子。",
-              "手邊放杯水,按習慣定時休息——VR 的疲勞是悄悄累積的,前幾次遊玩寧短勿長。",
+              "按頭戴裝置說明調整頭帶，讓畫面清晰且鼻梁、臉部不受壓。佩戴過鬆或位置不正都可能讓畫面發虛。",
+              "第一次使用 VR 時先短時間體驗，感到頭暈、眼酸或噁心就摘下頭戴裝置休息，不要硬撐到症狀加重。",
             ],
           },
         ],
       },
       start: {
         title: "開始遊玩",
-        intro: "從 Steam 帳號到第一個世界——首次遊玩的完整路徑。",
+        intro: "從 Steam 安裝、首次登入到進入世界。",
         sections: [
           {
             id: "prepare",
             title: "開始前準備",
             paragraphs: [
-              "位置:VUA 的環境部署頁。先執行環境檢測與網路檢測;缺 Steam 或 VRChat 時,頁面會給出官方安裝路線。",
-              "桌面遊玩只需要 Steam 與 VRChat,VRChat 免費。PICO 串流在此之上再加 SteamVR 與 PICO Connect。",
-              "若檢測失敗:網路檢測會按服務分別報告,按建議處理後再重查。",
+              "在 VUA 的「遊玩」頁檢查軟體和網路。缺少 Steam 或 VRChat 時，按頁面給出的官方入口準備。",
+              "桌面遊玩需要 Steam 和 VRChat；PICO 串流還需要 SteamVR 和 PICO Connect。VRChat 免費下載。",
+              "檢測失敗時，先按頁面顯示的具體項目處理，再重新檢查。",
             ],
           },
           {
             id: "steam-account",
             title: "Steam 帳號(註冊或登入)",
             paragraphs: [
-              "位置:Steam 官網的「加入 Steam」註冊頁,或 Steam 客戶端登入窗。新玩家用郵箱註冊,並親自完成郵箱驗證與人機驗證;已有帳號直接登入。",
-              "應看到:登入後客戶端內顯示你的 Steam 暱稱。",
-              "若失敗:驗證郵件可能在垃圾箱;註冊頁打不開通常是線路問題——先查垃圾箱,再回 VUA 網路檢測按建議處理。",
+              "已有 Steam 帳號就直接登入。新帳號在 Steam 官網註冊，由你完成郵箱驗證和人機驗證。",
+              "登入成功後，客戶端會顯示你的 Steam 暱稱。",
+              "收不到驗證郵件時先查垃圾郵件。註冊頁打不開時，再檢查網路；僅憑頁面打不開不能判斷是哪裡的故障。",
             ],
           },
           {
             id: "install-vrchat",
             title: "透過 Steam 安裝 VRChat",
             paragraphs: [
-              "位置:Steam 商店的 VRChat 頁面。點「開始遊戲」——VRChat 免費——Steam 會把它加入庫並開始下載。",
-              "應看到:下載完成後,庫中的 VRChat 出現綠色「開始遊戲」按鈕。",
-              "若失敗:下載慢或卡住,可在 Steam 設定裡更換下載地區或清理磁碟空間;報庫資料夾錯誤就換一個安裝位置。",
+              "在 Steam 商店打開 VRChat，點擊「開始遊戲」。Steam 會把它加入庫並下載。",
+              "下載完成後，在庫中選擇 VRChat 就能啟動。",
+              "下載卡住時，先檢查磁碟空間和 Steam 的下載狀態。庫資料夾報錯時，在 Steam 設定裡檢查安裝位置。",
             ],
           },
           {
             id: "first-launch",
             title: "首次啟動與登入",
             paragraphs: [
-              "桌面遊玩時,在 Steam 選擇非 VR 啟動方式。若仍自動進入 VR,在 Steam 的 VRChat 屬性中,向已有啟動選項追加 --no-vr 後重新啟動。切換到 PICO 時只移除 --no-vr,保留你的其他選項。",
-              "位置:在 Steam 庫中點 VRChat 的「開始遊戲」。出現登入介面時,選擇用 Steam 帳號登入——開始遊玩不需要另外註冊。",
-              "應看到:載入完成後進入一個世界,此時可以移動(W/A/S/D)、可以按 Esc 開啟快捷選單。Home 可能是沒有其他人的私人實例,這屬正常——想見其他玩家,從選單加入公開世界。",
-              "若失敗:載入或登入轉圈,通常是到 VRChat 伺服器的線路不健康——重跑 VUA 網路檢測;啟動即閃退,先更新顯示卡驅動再重試。",
-              "可選:需要完整 VRChat 帳號時,先用 Steam 登入遊戲,開啟主選單 → 設定 →「Link Account」(關聯帳號)。選擇「Upgrade to a VRChat Account」可升級目前平臺帳號,保留好友、收藏和其他資料;選擇「Link to an Existing Account」可合併進已有 VRChat 帳號。有 Creator Economy 或 Shop 購買記錄的平臺帳號應選擇升級,此時不能合併進已有帳號。選好後按畫面提示繼續。",
+              "桌面遊玩時，在 Steam 選擇非 VR 啟動方式。如果仍進入 VR，在 Steam 的 VRChat 屬性裡向已有啟動選項追加 --no-vr。改用 VR 前移除這一項，保留其他啟動選項。",
+              "在 Steam 庫中啟動 VRChat，登入時選擇 Steam 帳號。開始遊玩不要求另外註冊完整 VRChat 帳號；上傳自訂 Avatar 另有帳號和等級要求。",
+              "進入世界後，用 W/A/S/D 移動，按 Esc 打開快捷選單。首次進入的 Home 可能是私人實例，想加入其他玩家可從選單選擇世界。",
+              "登入一直轉圈時，先檢查 VRChat 服務和本機網路。僅憑轉圈無法確定是網路、帳號還是客戶端問題；啟動即閃退則先查看顯示卡驅動和客戶端報錯。",
+              "需要完整 VRChat 帳號時，先用 Steam 登入遊戲，再打開主選單 → 設定 → Link Account。按官方頁面選擇升級目前帳號或連結已有帳號；有 Creator Economy 或 Shop 購買記錄時，按頁面提示選擇升級，不要自行合併帳號。",
             ],
           },
           {
             id: "first-steps",
-            title: "進世界後的第一件事",
+            title: "先熟悉移動和選單",
             paragraphs: [
-              "先學會三件事:在鏡子前挑一個公共模型換上;按 Esc 開啟快捷選單,找到回 Home 世界的路;然後跟好友過傳送門,或從選單裡挑另一個世界。",
+              "先在鏡子前更換公共 Avatar，再按 Esc 找到回 Home 的入口。之後可以透過世界選單或傳送門去其他世界。",
             ],
           },
         ],
       },
       basics: {
         title: "基礎操作",
-        intro: "桌面模式的移動、選單、聲音與麥克風,附串流用的 VR 控制器速查。",
+        intro: "桌面鍵鼠、麥克風和 VR 控制器的基本操作。",
         sections: [
           {
             id: "movement",
             title: "移動與視角(桌面)",
             paragraphs: [
-              "W/A/S/D 移動,滑鼠轉視角,Shift 衝刺,空格在世界允許時跳躍,C 蹲下,Z 趴下。左鍵互動或拾取;按住右鍵顯示互動游標。",
+              "W/A/S/D 移動，滑鼠轉視角，Shift 衝刺，空格在世界允許時跳躍，C 蹲下，Z 趴下。左鍵互動或拾取；按住右鍵顯示互動游標。",
             ],
           },
           {
             id: "menu",
             title: "選單在哪裡",
             paragraphs: [
-              "Esc 開啟快捷選單——回出生點、設定與玩家列表都在這裡,並可展開成主選單(世界、模型與社交)。R 開啟動作選單,表情與眼追要用的 OSC 開關在那裡。",
+              "Esc 打開快捷選單，可回出生點、調整設定或查看玩家列表，也可展開主選單。R 打開動作選單，表情和 OSC 開關在這裡。",
             ],
           },
           {
             id: "keys-pc",
             title: "PC 按鍵速查",
             media: "pc-keys",
-            caption: "示意圖,非遊戲實拍:日常最常用的 PC 鍵——說話、聊天、選單與跳躍。",
+            caption: "示意圖，不是遊戲截圖：說話、聊天、選單和跳躍的常用按鍵。",
             paragraphs: [
-              "先記住:按住 V 說話(預設按鍵發言),Y 開啟聊天框,Esc 快捷選單,空格跳躍。完整列表見 VRChat 官方按鍵文件。",
+              "先記住：V 說話（預設按鍵發言）、Y 打開聊天框、Esc 快捷選單、空格跳躍。完整按鍵以 VRChat 官方控制說明為準。",
             ],
           },
           {
             id: "sound-mic",
             title: "聲音與麥克風",
             paragraphs: [
-              "麥克風預設按鍵發言:按住 V 說話。注意 HUD 上的麥克風圖示——帶斜線就是靜音中。",
-              "位置:設定的音訊部分選擇麥克風裝置、調節音量。",
-              "若別人聽不到你:按順序查 Windows 預設錄音裝置、VRChat 內所選裝置、以及是否靜音。",
+              "預設按住 V 說話。HUD 麥克風圖示帶斜線表示靜音。",
+              "在設定的音訊部分選擇麥克風、調整音量。",
+              "別人聽不到你時，依次檢查 Windows 錄音裝置、VRChat 選擇的裝置和靜音狀態。",
             ],
           },
           {
             id: "keys-vr",
             title: "VR 控制器速查",
             media: "vr-controller",
-            caption: "示意圖,非遊戲實拍:VR 控制器的扳機與握持區。",
+            caption: "示意圖，不是裝置實拍：扳機和握持區。",
             paragraphs: [
-              "VR 中扳機互動、側握鍵抓取;搖桿移動與轉向,選單鍵開啟遊戲內選單。VRChat 官方沒有 PICO 鍵位表——PICO 鍵位以 SteamVR 的控制器繫結設定為準。",
+              "VR 中通常用扳機互動、側握鍵抓取，搖桿移動和轉向，選單鍵打開選單。具體鍵位以 SteamVR 的控制器繫結為準。",
             ],
           },
         ],
       },
       safety: {
         title: "安全設定",
-        intro: "進入人多的世界之前,先花兩分鐘完成這些設定。",
+        intro: "這些設定控制你看到的 Avatar、聲音和外部內容。",
         sections: [
           {
             id: "open-urls",
-            title: "允許不受信任的網址",
+            title: "未知連結與媒體播放",
             paragraphs: [
-              "位置:設定裡的「舒適與安全」。「允許不受信任的網址」預設關閉;不開它,很多世界的影片、圖片和音樂無法載入。",
-              "想播放世界媒體時再開啟,並且只進可信世界與可信之人給的連結。",
+              "在設定的「舒適與安全」裡可以找到 Allow Untrusted URLs，預設關閉。關閉時，世界裡的部分外部圖片、影片和音樂不會載入。",
+              "開啟前確認你理解它允許載入的來源。陌生人或熟人發來的未知連結，都不要僅憑關係判斷安全。",
             ],
           },
           {
             id: "personal-space",
-            title: "個人空間與傳送門確認",
+            title: "個人空間",
             paragraphs: [
-              "個人空間在同一設定頁,預設開啟:靠得太近的模型會被自動隱藏;進入他人丟出的傳送門前,總會有確認提示。",
+              "個人空間在同一設定頁，預設開啟。其他玩家靠得太近時，其 Avatar 會被隱藏或淡出，只影響你的畫面。",
             ],
           },
           {
             id: "trust",
-            title: "信任等級與護盾",
+            title: "Trust Rank 與 Shield Level",
             paragraphs: [
-              "快捷選單開啟時,名牌會顯示信任等級(從 Visitor 到 Trusted User)。安全頁的護盾級別決定各等級可見的模型與特效——預設的 Normal 就是不錯的起點。",
+              "Trust Rank 是帳號的信任等級；Shield Level 決定不同信任等級的玩家向你顯示哪些 Avatar、聲音和特效。兩者和 Avatar 的效能等級無關。",
+              "在快捷選單中查看名牌和 Shield 設定。預設 Normal 可以先保留，需要時再按房間和個人接受程度調整。",
             ],
           },
           {
             id: "mute-block",
-            title: "遇到不適:靜音、隱藏與遮蔽",
+            title: "靜音、隱藏與遮蔽",
             paragraphs: [
-              "位置:開啟快捷選單,點選對方。可以靜音其語音、只隱藏其模型,或徹底遮蔽該使用者。",
-              "感覺不對勁時離開永遠可以——從快捷選單回出生點或 Home 世界。",
+              "打開快捷選單並選擇一名玩家，可以只靜音、只隱藏其 Avatar，或遮蔽該玩家。遮蔽與信任等級不是一回事。",
+              "不想繼續待在目前環境時，可以從快捷選單回出生點或 Home，不必先處理完對方的行為。",
             ],
           },
         ],
@@ -1332,50 +1393,88 @@ rolled_back: "已回滾",
           },
         ],
       },
+      creator: {
+        title: "上傳與使用者等級",
+        intro: "上傳條件、信任等級和本機測試。",
+        sections: [
+          {
+            id: "upload-eligibility",
+            title: "上傳前需要什麼條件？",
+            paragraphs: [
+              "用 Unity 和 VRChat 官方 SDK 上傳自訂 Avatar，需要 VRChat.com 帳號，並達到 New User 或更高信任等級。使用 Steam 或 Meta 帳號時，要先連結到 VRChat 帳號。",
+              "暫時不能上傳也可以先構建並在本機測試，測試 Avatar 只有自己能看到。VUA 不能替你提升等級，也不能跳過官方檢查。",
+            ],
+          },
+          {
+            id: "trust-rank",
+            title: "使用者等級是什麼？",
+            paragraphs: [
+              "Trust Rank（信任等級）是 VRChat 對帳號信任程度的劃分。它不同於控制 Avatar 功能顯示的 Shield Level，也不同於估算 Avatar 渲染成本的 Performance Rank。",
+              "打開快捷選單可以查看名牌和等級。VUA 不會根據遊玩時長、好友數量或帳號名稱猜測你的等級。",
+            ],
+          },
+          {
+            id: "improve-trust",
+            title: "如何達到 New User？",
+            paragraphs: [
+              "正常使用 VRChat：探索世界、與朋友遊玩，在獲得資格後創作內容。從 Visitor 升到 New User 時，VRChat 會發出通知。",
+              "掛機、批量加好友、批量上傳低品質內容都不能提升等級。沒有官方認可的捷徑，也沒有保證升級的時間；如果認為帳號等級有誤，請聯絡 VRChat 官方支援。",
+            ],
+          },
+        ],
+      },
       /** VUA 使用教程(2026-09-26 引導宿主裁決新增主題):閱讀型,按目前真實
        *  能力編寫——不承諾未接入功能 */
       vua: {
-        title: "VUA 使用教程",
-        intro: "VUA 視窗與主要流程的快速導覽,按目前真實能力編寫。",
+        title: "VUA 使用指南",
+        intro: "首頁、素材、製作和設定的實際入口。",
         sections: [
           {
             id: "window-tour",
-            title: "認識 VUA 視窗",
+            title: "先找到入口",
             paragraphs: [
-              "頂欄從左到右是模組切換(環境部署/模型生產)、設定、功能搜尋(Ctrl+P)、引導與通知;左側欄是目前模組的功能分組。",
-              "螢幕底部是任務中心,背景任務與下載進度都收在那裡;右上角鈴鐺開啟通知列表。",
+              "點左上角 VUA 標誌回 Home。左側是目前功能的入口，頂部可以開啟幫助、設定和通知；Ctrl+P 搜尋功能。",
+              "下載和背景任務從頂部鈴鐺查看；頁面底部不再顯示任務欄。",
             ],
           },
           {
             id: "environment-page",
-            title: "環境部署頁",
+            title: "遊玩與改模準備",
             paragraphs: [
-              "遊玩/生產環境頁會先執行環境檢測,結論不理想時會給出修復計畫,按步驟完成即可。",
-              "工具合集在環境部署模組側欄的「工具」分組裡,目前尚未接入,頁面會如實顯示空狀態。",
+              "「遊玩」頁檢查 Steam、VRChat 和串流環境；「改模」頁檢查 Unity、套件管理器和 {amf}。檢測失敗時，頁面會給出目前可執行的處理方式。",
+              "工具按用途分組。未接入的條目會標明開發中，不會顯示成已經安裝。",
             ],
           },
           {
             id: "import-paths",
-            title: "素材匯入兩條路",
+            title: "本地檔案與 BOOTH 素材",
             paragraphs: [
-              "本地素材:在素材庫選擇資料夾匯入。普通檔案原樣保留，ZIP 保留原包並自動解壓；生產只使用 UnityPackage。",
-              "BOOTH 商品:在內嵌瀏覽視窗開啟商品頁,用自己的帳號購買並下載,完成後將下載一鍵採納進倉儲。",
+              "已有檔案在素材庫選擇「本地單品匯入」。ZIP 會保留原包並自動解壓；生產入口只接受支援的 UnityPackage。",
+              "BOOTH 已購素材可以在帳號頁登入後同步，也可以從素材庫打開商品頁。下載時只選需要的檔案。關聯商品只記錄來源，不代表檔案相同或相容。",
             ],
           },
           {
             id: "production-line",
-            title: "模型生產流水線",
+            title: "素材、產線與上傳",
             paragraphs: [
-              "流水線依次是倉儲 → 配方 → 車間 → 出廠:素材入庫後在配方頁搭配,到車間生成執行計畫並確認執行。",
-              "檢測已併入製作記錄:結果隨生產記錄一起呈現,不再單獨佔一個流程環節。",
+              "素材是製作的起點，配方用於保存和複用組合，不是每次換裝的強制步驟。車間顯示實際產線和自動化狀態；預設全自動會為確認的素材組裝一次，已有手動或有限自動偏好不變。",
+              "標記為 Avatar 的本地 UnityPackage 無需關聯商品即可開始製作。開始前選擇目標 Avatar 並確認自動化權限；關聯商品不代表相容保證，上傳仍需官方 SDK 和本人確認。",
             ],
           },
           {
             id: "settings-basics",
-            title: "設定裡的常用項",
+            title: "主題、語言與資源節約",
             paragraphs: [
-              "外觀可選深色、淺色或跟隨系統;跟隨系統會隨 Windows 明暗模式實時切換。",
-              "資源節約模式會關閉裝飾動效以降低佔用,適合 VR 或低配置環境。",
+              "Grid 和 Frutiger Aero 支援深淺色；Tenshi Kaiwai 固定淺色，Jirai Kei 固定深色。語言、帳號和環境路徑在設定左側的對應頁面。",
+              "資源節約模式會關閉裝飾動效、紋理和部分視覺特效，保留文字和操作。",
+            ],
+          },
+          {
+            id: "upload-prerequisites",
+            title: "上傳前的帳號條件",
+            paragraphs: [
+              "上傳自訂 Avatar 需要完整 VRChat 帳號和 New User 或更高信任等級。這個要求與是否安裝 Unity 是兩件事，等級不足仍可先本機測試。",
+              "改模準備頁和上傳確認處都有條件說明，可繼續查看「使用者等級是什麼」和「如何提升」。上傳由官方 SDK 完成並由你確認。",
             ],
           },
         ],
@@ -3024,7 +3123,7 @@ rolled_back: "已回滾",
       pending: "翻譯中",
     },
     version: {
-      heading: "VUA 桌面端",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · 早期預覽",
       debugHeading: "除錯模式",
       debugToggle: "顯示商品除錯資訊",
@@ -3324,6 +3423,11 @@ rolled_back: "已回滾",
     playSession: { unavailable: environmentCopy["zh-TW"].unknown },
     recipe: { draftFailed: "配方草稿操作未能完成。" },
     library: { downloadFailed: "素材下載未完成，原有檔案保留。", removalFailed: "本地檔案未能刪除，重新整理檔案狀態並檢查任務。", reconciliationFailed: "素材內容核驗未完成，檢查任務後重新同步。" },
+    migration: {
+      invalidParams: "分組請求未通過校驗。",
+      stale: "有來源檔案在確認後發生了變化（被移動、大小或時間改變）。請重新檢視該資料夾再匯入。",
+      overlap: "同一個檔案出現在兩個素材裡。改掉其中一個邊界後再匯入。",
+    },
     catalog: {
       syncFailed: "庫同步未完成，已儲存條目保留，詳情見任務記錄。",
       productNotFound: "未找到該目錄條目,它可能已被移除或下架。",

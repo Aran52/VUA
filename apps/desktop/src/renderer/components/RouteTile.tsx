@@ -1,15 +1,17 @@
 import { Icon, type IconName } from "@vua/design-system";
+import type { ReactNode } from "react";
 import { strings } from "../i18n/index.ts";
 import { vrBrandGlyphs, type VrBrand } from "./vr-brand-glyphs.ts";
 /** Native button semantics are shared by mouse and head-mounted desktop pointing. */
-export function RouteTile({ title, icon = "arrow-right", kind, brand, description, disabled, developing, selected, expanded, controls, onClick, id }: {
+export function RouteTile({ title, icon = "arrow-right", kind, brand, description, status, disabled, developing, selected, expanded, controls, onClick, id }: {
   title: string; icon?: IconName; kind?: "screen" | "headset" | "unity" | undefined; brand?: VrBrand | undefined;
-  description?: string | undefined; disabled?: boolean; developing?: boolean; selected?: boolean; expanded?: boolean; controls?: string; onClick?: () => void; id?: string;
+  description?: string | undefined; status?: ReactNode; disabled?: boolean; developing?: boolean; selected?: boolean; expanded?: boolean; controls?: string; onClick?: () => void; id?: string;
 }) {
   return <button type="button" className="vua-route-tile" disabled={disabled} aria-pressed={expanded === undefined ? selected : undefined} aria-expanded={expanded} aria-controls={controls} data-selected={selected} onClick={onClick} data-nav-id={id}>
     {disabled || developing ? <span className="vua-route-tile__tag">{strings.journey.developing}</span> : null}
     <RouteGlyph kind={kind} brand={brand} icon={icon} />
     <strong>{title}</strong>
+    {status}
     {description ? <span className="vua-route-tile__description">{description}</span> : null}
   </button>;
 }

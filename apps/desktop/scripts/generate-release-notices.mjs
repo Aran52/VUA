@@ -9,7 +9,11 @@ import { createHash } from "node:crypto";
 
 const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = path.resolve(desktop, "../..");
-const output = path.join(desktop, "out/release-notices");
+const outputArgument = process.argv.find(value => value.startsWith("--output="))?.slice(9);
+const output = outputArgument ? path.resolve(outputArgument) : path.join(desktop, "out/release-notices");
+if (outputArgument && fs.existsSync(output)) throw Error("Component notices require a new output directory");
+const component = process.argv.find(value => value.startsWith("--component="))?.slice(12);
+if (component && !["host", "amf"].includes(component)) throw Error("Unknown notices component");
 const pkg = JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8"));
 const rootPkg = JSON.parse(fs.readFileSync(path.join(workspace, "package.json"), "utf8"));
 const meta = fs.readFileSync(path.join(desktop, "src/renderer/app/app-meta.ts"), "utf8");
@@ -25,7 +29,8 @@ function visit(id) {
   for (const dependency of nodes.get(id).deps) if (dependency.dep_kinds.some(kind => kind.kind !== "dev")) visit(dependency.pkg);
 }
 const zip = process.argv.includes("--zip");
-const nativeNames = ["vua-provider-host", "vua-amf-provider", ...(zip ? [] : ["vua-distribution"])];
+const nativeNames = component === "amf" ? ["vua-amf-provider"] : component === "host" ? ["vua-provider-host", "vua-distribution"]
+  : ["vua-provider-host", "vua-amf-provider", ...(zip ? [] : ["vua-distribution"])];
 const providers = metadata.packages.filter(item => nativeNames.includes(item.name));
 if (providers.length !== nativeNames.length) throw new Error("Provider/distribution metadata missing");
 providers.forEach(item => visit(item.id));
@@ -103,27 +108,32 @@ function npmDependency(name, resolver = require) {
   for (const child of Object.keys(item.dependencies ?? {})) npmDependency(child, childResolver);
 }
 for (const name of ["react", "react-dom", "three"]) npmDependency(name);
-const electronRoot = path.dirname(require.resolve("electron/package.json"));
-const runtime = path.join(electronRoot, "dist");
-const electronVersion = fs.readFileSync(path.join(runtime, "version"), "utf8").trim();
-if (electronVersion !== pkg.devDependencies.electron) throw new Error("Electron runtime differs from pinned build");
-for (const file of ["LICENSE", "LICENSES.chromium.html"]) copy(path.join(runtime, file), `electron/${file}`);
+let electron;
+if (component !== "amf") {
+  const electronRoot = path.dirname(require.resolve("electron/package.json"));
+  const runtime = path.join(electronRoot, "dist");
+  const electronVersion = fs.readFileSync(path.join(runtime, "version"), "utf8").trim();
+  if (electronVersion !== pkg.devDependencies.electron) throw new Error("Electron runtime differs from pinned build");
+  for (const file of ["LICENSE", "LICENSES.chromium.html"]) copy(path.join(runtime, file), `electron/${file}`);
+  electron = { version: electronVersion, executableSha256: hash(path.join(runtime, "electron.exe")), notices: ["electron/LICENSE", "electron/LICENSES.chromium.html"] };
+}
 const sysroot = execFileSync("rustc", ["--print", "sysroot"], { encoding: "utf8", windowsHide: true }).trim();
 const rustNotices = path.join(sysroot, "share/doc/rust");
 copy(path.join(rustNotices, "COPYRIGHT-library.html"), "rust-toolchain/COPYRIGHT-library.html");
 for (const file of filesIn(path.join(rustNotices, "licenses"))) copy(file, `rust-toolchain/licenses/${path.relative(path.join(rustNotices, "licenses"), file)}`);
-const nativeRoot = path.join(workspace, "target/x86_64-pc-windows-msvc/release");
-const executables = ["vua-orchestrator-provider.exe", "vua-amf-provider.exe", ...(zip ? [] : ["vua-distribution.exe"])].map(name => ({ name, sha256: hash(path.join(nativeRoot, name)) }));
+const nativeRoot = path.resolve(workspace, process.env.CARGO_TARGET_DIR ?? "target", "x86_64-pc-windows-msvc/release");
+const executables = nativeNames.map(name => name === "vua-provider-host" ? "vua-orchestrator-provider.exe" : `${name}.exe`).map(name => ({ name, sha256: hash(path.join(nativeRoot, name)) }));
 const inventory = {
   productVersion: pkg.version, sourceCommit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain", "--untracked-files=no"]) !== "",
   platform: "win32", architecture: "x64", rustTarget: "x86_64-pc-windows-msvc",
   compiler: execFileSync("rustc", ["--version"], { encoding: "utf8", windowsHide: true }).trim(),
   locks: ["Cargo.lock", "pnpm-lock.yaml"].map(name => ({ name, sha256: hash(path.join(workspace, name)) })),
-  electron: { version: electronVersion, executableSha256: hash(path.join(runtime, "electron.exe")), notices: ["electron/LICENSE", "electron/LICENSES.chromium.html"] },
+  ...(electron ? { electron } : { hostProvided: ["Electron runtime and Chromium/Node notices"] }),
+  ...(component ? { component, componentVersion: component === "host" ? pkg.version : JSON.parse(fs.readFileSync(path.join(desktop, "distribution/amf-version.json"))).version } : {}),
   providers: providers.map(item => ({ name: item.name, crateVersion: item.version })), executables,
-  scope: "Pinned Electron runtime and its bundled Chromium/Node inventory; bundled JavaScript runtime dependencies; resolved Windows provider normal/build Cargo dependencies, excluding dev-only dependencies. Cargo feature resolution may retain more source packages than linked code. External Steam/PICO/Unity/VRCFT software is not redistributed.",
+  scope: `${component === "amf" ? "AMF uses the host-provided Electron runtime; no runtime is included in this payload." : "Pinned Electron runtime and its bundled Chromium/Node inventory."} Bundled JavaScript runtime dependencies; resolved Windows provider normal/build Cargo dependencies, excluding dev-only dependencies. Cargo feature resolution may retain more source packages than linked code. External Steam/PICO/Unity/VRCFT software is not redistributed.`,
   components,
 };
 fs.writeFileSync(path.join(output, "dependency-inventory.json"), JSON.stringify(inventory, null, 2) + "\n");
-fs.writeFileSync(path.join(output, "README.txt"), `VUA ${pkg.version} exact-build notices\n\nRead dependency-inventory.json for versions, source URLs and SHA-256 values.\nElectron's complete Chromium/Node notices are in electron/LICENSES.chromium.html.\nRust and JavaScript notices retain their original texts. Unmodified MPL source\npackages are supplied under sources/ and retain the Mozilla Public License 2.0.\nPackages with supplemental manifest-only notices also retain their unmodified\nsource and original author/license declarations under sources/.\nRuntime toolchain/System libraries retain their upstream distribution terms.\nExternal applications are obtained separately and are not contained in this ZIP.\n`);
-console.log(JSON.stringify({ version: pkg.version, cargo: components.filter(item => item.ecosystem === "cargo").length, npm: npmSeen.size, electron: electronVersion, output: "out/release-notices" }));
+fs.writeFileSync(path.join(output, "README.txt"), `VUA ${pkg.version} exact-build notices\n\nRead dependency-inventory.json for versions, source URLs and SHA-256 values.\n${component === "amf" ? "AMF uses the host's verified Electron runtime; its Chromium/Node notices are supplied by the host." : "Electron's complete Chromium/Node notices are in electron/LICENSES.chromium.html."}\nRust and JavaScript notices retain their original texts. Unmodified MPL source\npackages are supplied under sources/ and retain the Mozilla Public License 2.0.\nPackages with supplemental manifest-only notices also retain their unmodified\nsource and original author/license declarations under sources/.\nRuntime toolchain/System libraries retain their upstream distribution terms.\nExternal applications are obtained separately and are not contained in this payload.\n`);
+console.log(JSON.stringify({ version: pkg.version, component, cargo: components.filter(item => item.ecosystem === "cargo").length, npm: npmSeen.size, electron: electron?.version, output: path.relative(workspace, output).replaceAll("\\", "/") }));

@@ -8,12 +8,14 @@ import {
 } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
-import { strings, format } from "../../i18n/index.ts";
+import { strings, presentationCopy, format } from "../../i18n/index.ts";
 import { PackagesPage } from "../packages/PackagesPage.tsx";
 import { InstallConfirmDialog } from "../packages/InstallConfirmDialog.tsx";
 import { RemoveConfirmDialog } from "../packages/RemoveConfirmDialog.tsx";
 import "../packages/packages.css";
-import { phaseStatus } from "./factory-model.ts";
+import { phaseStatus, storedAutomationLevel, type AutomationLevel } from "./factory-model.ts";
+import { guideNeeds, packagePageDetail, packagePinLines, recipePinsByPackage, type GuideNeed, type PackagePin } from "./package-mode-model.ts";
+import { PackageGuideAlert, ProjectPackageConclusion, WorkProjectPackageNote } from "./PackageModeView.tsx";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import {
   controlProjects, defaultSelectedRepos, filterProjects, installRequest, packageRows, repoRows, updateAllRequest, versionChoices,
@@ -33,6 +35,7 @@ export type Screen = { readonly kind: "projects" } | { readonly kind: "project";
 type LiveView = Extract<PackagesView, { kind: "ready-p1" | "ready-p2" }>;
 type Blocks = LiveView["blocks"] & { readonly catalog?: boolean; readonly repoCatalog?: boolean };
 interface Notice { readonly tone: "ok" | "error"; readonly text: string }
+type RepoAdding = "closed" | "form" | "review";
 const BUSY_PHASES = new Set(["preparing", "assembling", "restoring"]);
 const MAX_WORK_PROJECTS = 40;
 
@@ -42,6 +45,7 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
   const live: LiveView | null = view.kind === "ready-p1" || view.kind === "ready-p2" ? view : null;
   const blocks = (live?.blocks ?? null) as Blocks | null;
   const [screen, setScreen] = useState<Screen>(initialScreen);
+  const [adding, setAdding] = useState<RepoAdding>("closed");
   const [work, setWork] = useState<readonly WorkProjectFacts[] | null>(null);
   const [registered, setRegistered] = useState<readonly RegisteredProjectRow[] | null>(null);
   const [registeredFailed, setRegisteredFailed] = useState(false);
@@ -77,25 +81,27 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
     let alive = true;
     void gateway.packages.repoCatalog(null, null).then(outcome => { if (alive) setCatalog(outcome.kind === "ok" ? outcome.result.repos : null); });
     return () => { alive = false; };
-  }, [gateway, blocks?.repoCatalog, catalogReload, view]);
+  }, [gateway, blocks?.repoCatalog, catalogReload]);
 
   const projects = useMemo(() => controlProjects(work ?? [], registered), [work, registered]);
   const repos = useMemo(() => repoRows(view.kind === "ready-p2" ? view.repos : [], catalog), [view, catalog]);
 
   // The development data source keeps the full package tools with their sample data.
   if (view.kind === "ready") return <PackagesPage/>;
+  const level = storedAutomationLevel();
   const current = screen.kind === "project" ? projects.find(project => project.key === screen.key) ?? null : null;
   return <div className="vua-page vua-control vua-control--packages" data-focus-scope>
     <header className="vua-control__head">
       <h1 className="vua-title">{copy.title}</h1>
       <span className="vua-control__switch" role="group" aria-label={copy.viewLabel}>
         {(["projects", "repos"] as const).map(option => <button type="button" key={option} aria-pressed={option === "repos" ? screen.kind === "repos" : screen.kind !== "repos"}
-          onClick={() => setScreen({ kind: option })}><Icon name={option === "projects" ? "folder" : "cloud"} size={16}/>{copy.views[option]}</button>)}
+          onClick={() => { setAdding("closed"); setScreen({ kind: option }); }}><Icon name={option === "projects" ? "folder" : "cloud"} size={16}/>{copy.views[option]}</button>)}
       </span>
+      {screen.kind === "repos" && blocks?.repoWrites && adding === "closed" && <Button variant="primary" onClick={() => setAdding("form")}><Icon name="add" size={16}/>{copy.repos.add}</Button>}
     </header>
     {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2></div>
-      : screen.kind === "repos" ? <ReposScreen view={live} blocks={blocks!} repos={repos} catalog={catalog} onChanged={() => setCatalogReload(value => value + 1)}/>
-      : current !== null ? <ProjectScreen key={current.key} project={current} blocks={blocks!} repos={repos} catalog={catalog} onBack={() => setScreen({ kind: "projects" })} onNavigate={onNavigate}/>
+      : screen.kind === "repos" ? <ReposScreen view={live} blocks={blocks!} repos={repos} catalog={catalog} adding={adding} setAdding={setAdding} onChanged={() => setCatalogReload(value => value + 1)}/>
+      : current !== null ? <ProjectScreen key={current.key} project={current} level={level} blocks={blocks!} repos={repos} catalog={catalog} onBack={() => setScreen({ kind: "projects" })} onNavigate={onNavigate}/>
       : <ProjectsScreen projects={projects} loading={work === null || registered === null} registeredFailed={registeredFailed}
           onOpen={project => setScreen({ kind: "project", key: project.key })} onNavigate={onNavigate} onReload={() => setProjectsReload(value => value + 1)}/>}
   </div>;
@@ -122,7 +128,8 @@ function ProjectsScreen({ projects, loading, registeredFailed, onOpen, onNavigat
         <ul className="vua-control__projects">{group.rows.map(project => <li key={project.key}>
           <button type="button" className="vua-control__project" data-kind={project.kind} disabled={!project.present} onClick={() => onOpen(project)} aria-label={format(copy.manageAria, { name: project.name })}>
             <span className="vua-control__project-icon"><Icon name={project.kind === "work" ? "avatar" : "folder"} size={20}/></span>
-            <span className="vua-control__project-main"><strong>{project.name}</strong><small className="vua-control__mono" title={project.path}>{project.path}</small></span>
+            <span className="vua-control__project-main"><strong>{project.name}</strong><small className="vua-control__mono" title={project.path}>{project.path}</small>
+              {project.kind === "work" && project.listed ? <WorkProjectPackageNote project={project}/> : null}</span>
             <span className="vua-caption vua-text-secondary">{project.unityVersion ? format(copy.unity, { version: project.unityVersion }) : copy.unityUnknown}</span>
             <span>{project.phase !== null ? <span className="vua-line__status" data-status={phaseStatus(project.phase)}>{factory.status[phaseStatus(project.phase)]}</span>
               : !project.present ? <span className="vua-caption vua-control__warn">{copy.missing}</span> : null}</span>
@@ -137,8 +144,8 @@ type InstalledAnswer = { readonly kind: "loading" } | { readonly kind: "ok"; rea
 interface InstallFlow { phase: "confirm" | "applying" | "receipt" | "rejected"; plan: PackagesInstallPlanV02; requested: readonly PackagesPackageRequestV02[]; receipt: PackagesInstallReceiptV02 | null; rejection: PackagesOpsRejectedV02 | null }
 interface RemoveFlow { phase: "confirm" | "applying" | "receipt" | "rejected"; plan: PackagesRemovePlanV01; requested: readonly string[]; receipt: PackagesRemoveReceiptV01 | null; rejection: PackagesRemoveRejectedV01 | null }
 
-function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: {
-  project: ControlProject; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null;
+function ProjectScreen({ project, level, blocks, repos, catalog, onBack, onNavigate }: {
+  project: ControlProject; level: AutomationLevel; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null;
   onBack: () => void; onNavigate: (page: PageId) => void;
 }) {
   const gateway = useGateway();
@@ -153,6 +160,8 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
   const [notice, setNotice] = useState<Notice | null>(null);
   const [installFlow, setInstallFlow] = useState<InstallFlow | null>(null);
   const [removeFlow, setRemoveFlow] = useState<RemoveFlow | null>(null);
+  const [pins, setPins] = useState<ReadonlyMap<string, readonly PackagePin[]>>(() => new Map());
+  const [guide, setGuide] = useState<readonly GuideNeed[]>([]);
 
   useEffect(() => {
     if (!project.listed) return;
@@ -166,6 +175,7 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     return () => { alive = false; };
   }, [gateway, project.path, project.listed, reload]);
   const installedRows = installed.kind === "ok" ? installed.rows : null;
+  const installedCached = installed.kind === "ok" && installed.cached;
   useEffect(() => {
     if (!blocks.catalog || installedRows === null) return;
     let alive = true;
@@ -176,6 +186,24 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     }
     return () => { alive = false; };
   }, [gateway, project.path, blocks.catalog, installedRows]);
+  useEffect(() => {
+    const port = gateway.amfProduction;
+    if (!port) return;
+    let alive = true;
+    void port.listRecipes().then(async summaries => {
+      const read = await Promise.allSettled(summaries.map(summary => port.getRecipe(summary.recipeId)));
+      if (alive) setPins(recipePinsByPackage(read.flatMap(item => item.status === "fulfilled" ? [item.value.recipe] : [])));
+    }).catch(() => { /* Pins stay empty without the Recipe store. */ });
+    return () => { alive = false; };
+  }, [gateway]);
+  useEffect(() => {
+    const port = gateway.amfProduction;
+    if (!port || project.runId === null) { setGuide([]); return; }
+    let alive = true;
+    void port.get(project.runId).then(run => { if (alive) setGuide(guideNeeds(run.result?.diagnostics)); })
+      .catch(() => { /* No diagnostics, no guide rows. */ });
+    return () => { alive = false; };
+  }, [gateway, project.runId]);
 
   const rows = useMemo(() => packageRows({ installed: installedRows ?? [], catalog, selectedRepos, query }), [installedRows, catalog, selectedRepos, query]);
   const updates = updateAllRequest(rows.installed);
@@ -216,6 +244,19 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     else if (outcome.kind === "rejected") setRemoveFlow({ ...flow, phase: "rejected", rejection: outcome.rejection });
     else { setRemoveFlow(null); fail(outcome.kind === "failed" ? outcome.code : "unavailable"); }
   };
+  /** Limited auto's "handle dependencies for me": preview, then apply straight
+   * away — the player already delegated; the digest guard still binds the two. */
+  const handleDependencies = async () => {
+    const requests = updateAllRequest(rows.installed);
+    if (busy || requests.length === 0) return;
+    setBusy(true); setNotice(null);
+    const preview = await gateway.packages.previewInstall(project.path, requests);
+    if (preview.kind !== "ok") { setBusy(false); fail(preview.kind === "failed" ? preview.code : "unavailable"); return; }
+    const outcome = await gateway.packages.applyInstall(preview.plan.projectPath, requests, preview.plan.digest);
+    setBusy(false);
+    if (outcome.kind === "ok") { toast(copy.updatesInstalled, "success"); setReload(value => value + 1); }
+    else fail(outcome.kind === "rejected" ? outcome.rejection.code : outcome.kind === "failed" ? outcome.code : "unavailable");
+  };
   const openInUnity = async () => {
     const port = gateway.amfProduction;
     if (!port || project.runId === null || busy) return;
@@ -225,28 +266,13 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
     finally { setBusy(false); }
   };
   const lineBusy = project.phase !== null && BUSY_PHASES.has(project.phase);
+  const detail = packagePageDetail(level);
 
-  return <section className="vua-control__screen" aria-label={project.name}>
-    <div className="vua-control__project-head">
-      <button type="button" className="vua-control__back" onClick={onBack}><Icon name="arrow-left" size={16}/>{copy.back}</button>
-      <div className="vua-control__project-title">
-        <span className="vua-control__kind" data-kind={project.kind === "work" ? "avatar" : "material"}><Icon name={project.kind === "work" ? "avatar" : "folder"} size={16}/>{copy.kinds[project.kind]}</span>
-        <h2>{project.name}</h2>
-        <p className="vua-caption vua-text-secondary"><span className="vua-control__mono">{project.path}</span> · {project.unityVersion ? format(copy.unity, { version: project.unityVersion }) : copy.unityUnknown}
-          {project.phase !== null && <> · <span className="vua-line__status" data-status={phaseStatus(project.phase)}>{factory.status[phaseStatus(project.phase)]}</span></>}</p>
-      </div>
-      {project.runId !== null && <div className="vua-n3__actions">
-        <Button onClick={() => { requestProductionRun(project.runId!); onNavigate("workshop"); }}>{copy.openLine}</Button>
-        <Button variant="primary" disabled={busy || lineBusy} onClick={() => { void openInUnity(); }}>{copy.openUnity}</Button>
-      </div>}
-    </div>
-    {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}
-
-    {!project.listed ? <div className="vua-control__panel vua-control__unlisted"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
-        <h3>{copy.unlistedTitle}</h3><p className="vua-text-secondary">{copy.unlistedHint}</p>
-        <p className="vua-control__mono vua-control__path">{project.path}</p>
-      </div>
-    : <>
+  const packageStates = installed.kind === "loading" ? <p role="status" className="vua-caption vua-text-secondary">{copy.loadingPackages}</p>
+    : installed.kind === "failed" ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{format(copy.failed, { code: installed.code })}</p><Button onClick={() => setReload(value => value + 1)}>{strings.amfProduction.retry}</Button></div>
+    : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedTitle}</p></div>
+    : null;
+  const packageTools = <>
       <div className="vua-control__stage-bar vua-control__toolbar">
         {repos.length > 0 && <details className="vua-control__menu">
           <summary>{format(copy.selectedRepos, { count: repos.filter(repo => selectedRepos.has(repo.key)).length })}<Icon name="chevron-down" size={16}/></summary>
@@ -266,17 +292,15 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setAskPrerelease(false)}>{pkg.toolbar.prereleaseCancel}</Button>
           <Button onClick={() => { setPrerelease(true); setAskPrerelease(false); }}>{pkg.toolbar.prereleaseConfirm}</Button></div>
       </div>}
-      {installed.kind === "loading" ? <p role="status" className="vua-caption vua-text-secondary">{copy.loadingPackages}</p>
-        : installed.kind === "failed" ? <div className="vua-control__panel" role="alert"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{format(copy.failed, { code: installed.code })}</p><Button onClick={() => setReload(value => value + 1)}>{strings.amfProduction.retry}</Button></div>
-        : installed.kind === "unavailable" ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p>{copy.notConnectedTitle}</p></div>
-        : <div className="vua-control__table" role="table" aria-label={format(copy.installedHeading, { count: rows.installed.length })}>
+      {packageStates ?? <div className="vua-control__table" role="table" aria-label={format(copy.installedHeading, { count: rows.installed.length })}>
           <div className="vua-control__tr vua-control__th" role="row">
             <span role="columnheader">{pkg.columns.name}</span><span role="columnheader">{pkg.columns.installed}</span><span role="columnheader">{pkg.columns.latest}</span><span role="columnheader"><span className="vua-control__sr">{copy.actions}</span></span>
           </div>
-          <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.installedHeading, { count: rows.installed.length })}{installed.cached && <small> · {copy.cached}</small>}</span></div>
+          <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.installedHeading, { count: rows.installed.length })}{installedCached && <small> · {copy.cached}</small>}</span></div>
           {rows.installed.length === 0 && <div className="vua-control__tr" role="row"><span role="cell" className="vua-caption vua-text-secondary">{copy.installedEmpty}</span></div>}
           {rows.installed.map(row => <PackageLine key={row.packageId} row={row} versions={versions[row.packageId]} prerelease={prerelease} busy={busy}
-            canInstall={canInstall} canRemove={canRemove} onVersion={version => { void previewInstall(installRequest(row.packageId, version)); }}
+            canInstall={canInstall} canRemove={canRemove} pin={pins.get(row.packageId)}
+            onVersion={version => { void previewInstall(installRequest(row.packageId, version)); }}
             onUpdate={() => { void previewInstall(installRequest(row.packageId, null)); }} onRemove={() => { void previewRemove(row.packageId); }}/>)}
           {catalog !== null && <>
             <div className="vua-control__tsection" role="row"><span role="cell">{format(copy.availableHeading, { count: rows.available.length })}</span></div>
@@ -285,6 +309,36 @@ function ProjectScreen({ project, blocks, repos, catalog, onBack, onNavigate }: 
               canInstall={canInstall} canRemove={false} onVersion={() => {}} onUpdate={() => {}} onAdd={() => { void previewInstall(installRequest(row.packageId, null)); }} onRemove={() => {}}/>)}
           </>}
         </div>}
+    </>;
+
+  return <section className="vua-control__screen" aria-label={project.name}>
+    <div className="vua-control__project-head">
+      <button type="button" className="vua-control__back" onClick={onBack}><Icon name="arrow-left" size={16}/>{copy.back}</button>
+      <div className="vua-control__project-title">
+        <span className="vua-control__kind" data-kind={project.kind === "work" ? "avatar" : "material"}><Icon name={project.kind === "work" ? "avatar" : "folder"} size={16}/>{copy.kinds[project.kind]}</span>
+        <h2>{project.name}</h2>
+        <p className="vua-caption vua-text-secondary"><span className="vua-control__mono">{project.path}</span> · {project.unityVersion ? format(copy.unity, { version: project.unityVersion }) : copy.unityUnknown}
+          {project.phase !== null && <> · <span className="vua-line__status" data-status={phaseStatus(project.phase)}>{factory.status[phaseStatus(project.phase)]}</span></>}</p>
+      </div>
+      {project.runId !== null && <div className="vua-n3__actions">
+        <Button onClick={() => { requestProductionRun(project.runId!); onNavigate("workshop"); }}>{copy.openLine}</Button>
+        <Button variant={level === "smart" && canInstall && updates.length > 0 ? "default" : "primary"} disabled={busy || lineBusy} onClick={() => { void openInUnity(); }}>{copy.openUnity}</Button>
+      </div>}
+    </div>
+    {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}
+
+    {!project.listed ? <div className="vua-control__panel vua-control__unlisted"><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
+        <h3>{copy.unlistedTitle}</h3><p className="vua-text-secondary">{copy.unlistedHint}</p>
+        <p className="vua-control__mono vua-control__path">{project.path}</p>
+      </div>
+    : <>
+      <PackageGuideAlert needs={guide}/>
+      {detail !== "table" && installed.kind === "ok" ? <ProjectPackageConclusion level={level} rows={rows.installed} cached={installedCached} pins={pins} guideCount={guide.length} busy={busy}
+        onHandleDependencies={detail === "next_step" && canInstall && !lineBusy ? () => { void handleDependencies(); } : undefined}/> : null}
+      {detail === "conclusion" ? (installed.kind === "ok" ? null : packageStates)
+        : detail === "next_step" && installed.kind === "ok"
+          ? <details className="vua-control__moded"><summary>{factory.details}</summary>{packageTools}</details>
+          : packageTools}
     </>}
     {installFlow !== null && <InstallConfirmDialog plan={installFlow.plan} requestedPackages={installFlow.requested} phase={installFlow.phase} receipt={installFlow.receipt}
       rejection={installFlow.rejection} onCancel={() => setInstallFlow(null)} onConfirm={() => { void applyInstall(); }}/>}
@@ -297,18 +351,20 @@ function versionText(version: string, prerelease: boolean, yanked: boolean): str
   return yanked ? format(pkg.states.versionSuffix, { version, suffix: pkg.states.yanked }) : prerelease ? format(pkg.states.versionSuffix, { version, suffix: pkg.states.prerelease }) : version;
 }
 
-function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, onVersion, onUpdate, onAdd, onRemove }: {
+function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, pin, onVersion, onUpdate, onAdd, onRemove }: {
   row: ControlPackageRow; versions: readonly CatalogVersionRowV01[] | "failed" | undefined; prerelease: boolean; busy: boolean;
-  canInstall: boolean; canRemove: boolean; onVersion: (version: string) => void; onUpdate: () => void; onAdd?: () => void; onRemove: () => void;
+  canInstall: boolean; canRemove: boolean; pin?: readonly PackagePin[] | undefined; onVersion: (version: string) => void; onUpdate: () => void; onAdd?: () => void; onRemove: () => void;
 }) {
   const choices = Array.isArray(versions) ? versionChoices(versions, row.installedVersion, prerelease) : null;
+  const pinSegments = packagePinLines(pin ? new Map([[row.packageId, pin]]) : new Map(), new Set([row.packageId]))
+    .map(line => format(copy.pinnedBy, { names: line.recipes.join(", "), version: line.version }));
+  const caption = [row.description, row.requiredBy.length > 0 ? format(copy.requiredBy, { names: row.requiredBy.join(", ") }) : null,
+    row.installedVersion === null && row.repoName ? format(copy.fromRepo, { repo: row.repoName }) : null, ...pinSegments].filter(Boolean).join(" · ");
   return <div className="vua-control__tr" role="row" data-installed={row.installedVersion !== null || undefined}>
     <span role="cell" className="vua-control__pkg">
       <strong>{row.displayName}</strong>
       <small className="vua-control__mono">{row.packageId}</small>
-      {(row.description || row.requiredBy.length > 0 || (row.installedVersion === null && row.repoName)) && <small>
-        {[row.description, row.requiredBy.length > 0 ? format(copy.requiredBy, { names: row.requiredBy.join(", ") }) : null,
-          row.installedVersion === null && row.repoName ? format(copy.fromRepo, { repo: row.repoName }) : null].filter(Boolean).join(" · ")}</small>}
+      {caption !== "" && <small>{caption}</small>}
     </span>
     <span role="cell">{row.installedVersion === null ? <span className="vua-text-secondary">—</span>
       : choices !== null && canInstall ? <select className="vua-control__version" value={row.installedVersion} disabled={busy}
@@ -332,11 +388,11 @@ function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, o
   </div>;
 }
 
-function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
+function ReposScreen({ view, blocks, repos, catalog, adding, setAdding, onChanged }: {
   view: LiveView; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null; onChanged: () => void;
+  adding: RepoAdding; setAdding: (value: RepoAdding) => void;
 }) {
   const gateway = useGateway();
-  const [adding, setAdding] = useState<"closed" | "form" | "review">("closed");
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
   const [localPath, setLocalPath] = useState("");
@@ -357,10 +413,6 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
     if (ok) { setAdding("closed"); setUrl(""); setName(""); }
   };
   return <section className="vua-control__screen" aria-label={copy.repos.title}>
-    <div className="vua-control__stage-bar">
-      <h2>{copy.repos.title}</h2>
-      {blocks.repoWrites && adding === "closed" && <Button onClick={() => setAdding("form")}><Icon name="add" size={16}/>{copy.repos.add}</Button>}
-    </div>
     {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}
     {adding !== "closed" && <form className="vua-control__panel vua-control__add" onSubmit={event => { event.preventDefault(); if (adding === "form") setAdding("review"); else void addRepo(); }}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
       <label>{copy.repos.url}<input type="url" required value={url} placeholder={copy.repos.urlPlaceholder} disabled={adding === "review"} onChange={event => setUrl(event.target.value)}/></label>
@@ -373,29 +425,31 @@ function ReposScreen({ view, blocks, repos, catalog, onChanged }: {
     </form>}
     {reposError !== undefined && <p className="vua-caption vua-control__warn" role="alert"><Icon name="warning" size={16}/>{format(copy.repos.failed, { code: reposError.code })}</p>}
     {!blocks.repos ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p className="vua-text-secondary">{copy.repos.unavailable}</p></div>
-      : <ul className="vua-control__repos">{repos.map(repo => {
+      : <div className="vua-control__repo-list"><div className="vua-control__repo-columns" aria-hidden="true"><span>{presentationCopy.repositories.use}</span><span>{copy.repos.name}</span><span>{presentationCopy.repositories.source}</span><span className="vua-control__repo-count">{presentationCopy.repositories.count}</span><span>{presentationCopy.repositories.actions}</span></div><ul className="vua-control__repos">{repos.map(repo => {
         const listing = catalog?.find(item => (item.repoId ?? item.name) === (repo.repoId ?? repo.name));
         return <li key={repo.key} data-kind={repo.kind} data-enabled={repo.enabled !== false || undefined}>
           <div className="vua-control__repo">
-            <Tooltip content={copy.repos.useTip}><input type="checkbox" checked={repo.enabled !== false} aria-label={format(copy.repos.useAria, { name: repo.name })} disabled={!repo.toggleable || !blocks.repoLifecycle || busy !== null}
-              onChange={event => { void run(repo.key, () => (event.target.checked ? gateway.packages.enableRepo(repo.repoId!) : gateway.packages.disableRepo(repo.repoId!)), format(event.target.checked ? copy.repos.enabled : copy.repos.disabled, { name: repo.name })); }}/></Tooltip>
+            <Tooltip content={copy.repos.useTip}><label className="vua-control__repo-toggle"><input type="checkbox" checked={repo.enabled !== false} aria-label={format(copy.repos.useAria, { name: repo.name })} disabled={!repo.toggleable || !blocks.repoLifecycle || busy !== null}
+              onChange={event => { void run(repo.key, () => (event.target.checked ? gateway.packages.enableRepo(repo.repoId!) : gateway.packages.disableRepo(repo.repoId!)), format(event.target.checked ? copy.repos.enabled : copy.repos.disabled, { name: repo.name })); }}/></label></Tooltip>
             <span className="vua-control__repo-main"><strong>{repo.name}</strong><small className="vua-control__mono">{repo.url ?? repo.localPath ?? repo.repoId}</small></span>
             <span className="vua-control__badge" data-kind={repo.kind}>{pkg.sources[repo.kind]}</span>
-            <span className="vua-caption vua-text-secondary">{repo.packageCount !== null ? format(copy.repos.packages, { count: repo.packageCount }) : repo.cached ? "" : copy.repos.notCached}</span>
+            <span className="vua-control__repo-count vua-caption vua-text-secondary">{repo.packageCount !== null ? format(copy.repos.packages, { count: repo.packageCount }) : repo.cached ? "" : <Tooltip content={copy.repos.notCached}><span tabIndex={0}>{presentationCopy.repositories.uncached}</span></Tooltip>}</span>
             <span className="vua-control__repo-actions">
-              {blocks.repoLifecycle && repo.repoId !== null && <Button variant="subtle" disabled={busy !== null} onClick={() => { void run(repo.key, () => gateway.packages.refreshRepo(repo.repoId!), copy.repos.refreshed); }}>
-                <Icon name="refresh" size={16}/>{busy === repo.key ? copy.repos.working : copy.repos.refresh}</Button>}
-              {blocks.repoWrites && repo.removable && <Popconfirm danger title={copy.repos.removeTitle} confirmLabel={copy.repos.removeConfirm} cancelLabel={strings.common.cancel}
+              <Button variant="subtle" className="vua-control__repo-refresh" aria-busy={busy === repo.key} disabled={!blocks.repoLifecycle || repo.repoId === null || busy !== null} onClick={() => {
+                if (repo.repoId !== null && blocks.repoLifecycle) void run(repo.key, () => gateway.packages.refreshRepo(repo.repoId!), copy.repos.refreshed);
+              }}>
+                <Icon name="refresh" size={16}/>{copy.repos.refresh}</Button>
+              {blocks.repoWrites && repo.removable ? <Popconfirm danger title={copy.repos.removeTitle} confirmLabel={copy.repos.removeConfirm} cancelLabel={strings.common.cancel}
                 onConfirm={() => { void run(repo.key, () => gateway.packages.removeRepo(repo.repoId!), copy.repos.removed); }}>
-                <Button variant="subtle" disabled={busy !== null}>{copy.repos.remove}</Button>
-              </Popconfirm>}
+                <Button variant="subtle" className="vua-control__repo-remove" disabled={busy !== null}>{copy.repos.remove}</Button>
+              </Popconfirm> : <span className="vua-control__repo-action-placeholder" aria-hidden="true" />}
             </span>
           </div>
           {listing && listing.packages.length > 0 && <details className="vua-control__repo-packages"><summary>{copy.repos.showPackages}</summary>
             <ul>{listing.packages.map(item => <li key={item.packageId}><span>{item.displayName ?? item.packageId}</span><small className="vua-control__mono">{item.packageId} · {item.latestVersion ?? "—"}</small></li>)}</ul>
           </details>}
         </li>;
-      })}</ul>}
+      })}</ul></div>}
     {blocks.registers && <form className="vua-control__panel vua-control__local" onSubmit={event => {
       event.preventDefault();
       void run("local", () => gateway.packages.registerLocalPackage(localPath.trim()), copy.repos.localAdded).then(ok => { if (ok) setLocalPath(""); });

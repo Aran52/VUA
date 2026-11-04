@@ -1,0 +1,102 @@
+/* Non-inherited metadata keeps a control's text/icon children out of shape checks. */
+@property --vua-shape-role {
+  syntax: "*";
+  inherits: false;
+  initial-value: none;
+}
+@property --vua-shape-treatment {
+  syntax: "*";
+  inherits: false;
+  initial-value: none;
+}
+
+.vua-shape-scope { display: contents; }
+
+@scope ([data-vua-shape-scope="amf"]) {
+
+/* AMF's bespoke controls resolve to the theme's role radii, the same geometry the host uses.
+ * Local metadata lets the audit check one radius per role and no cut corners. */
+:where(:scope, :scope *):where(button:not(.vua-library-corner):not(.vua-status-light):not(.vua-shell__logo),
+  a[role="button"], [role="tab"], [role="menuitem"], .vua-grid-cut) {
+  --vua-shape-role: action;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: var(--vua-corners-action-quiet, 0px) !important;
+  clip-path: none !important;
+}
+:where(:scope, :scope *):where(.vua-button--primary, .vua-grid-cut) {
+  --vua-shape-treatment: accent;
+  --vua-shape-corners: var(--vua-corners-action);
+  corner-shape: var(--vua-corner-style) !important;
+  border-radius: var(--vua-shape-corners) !important;
+}
+
+/* List rows are their own role: Grid divides them with square edges, themes round each row. */
+:where(:scope, :scope *):where(.vua-workshop__line) {
+  --vua-shape-role: row;
+  --vua-shape-treatment: quiet;
+  border-radius: var(--vua-corners-row, 0px) !important;
+}
+
+:where(:scope, :scope *):where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
+  --vua-shape-role: field;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: var(--vua-corners-field, 0px) !important;
+  clip-path: none !important;
+}
+
+:where(:scope, :scope *):where(.vua-badge, .vua-n3__tag, .vua-line__status, .vua-factory__alert, .vua-start__fits,
+  .vua-control__shared-dot, .vua-control__chips span, .vua-control__badge,
+  .vua-album__views span, .vua-album__stage-progress small, .vua-sdk-review__fix,
+  .vua-compatible-items__kind, .preview-lab__kind, .vua-skeleton) {
+  --vua-shape-role: indicator;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: var(--vua-corners-indicator, 0px) !important;
+  clip-path: none !important;
+}
+
+:where(:scope, :scope *):where(.vua-card, .vua-alert, .vua-control__panel,
+  .vua-factory__room, .vua-factory__panel, .vua-line__station,
+  .vua-start__avatar, .vua-start__browse, .vua-recipe-graph__node) {
+  --vua-shape-role: container;
+  --vua-shape-treatment: accent;
+  --vua-shape-corners: var(--vua-corners-container);
+  corner-shape: var(--vua-corner-style) !important;
+  border-radius: var(--vua-shape-corners) !important;
+  clip-path: none !important;
+}
+
+:where(:scope, :scope *):where([role="dialog"], [role="alertdialog"], .vua-drawer, .vua-toast, .vua-folder-picker) {
+  --vua-shape-role: overlay;
+  --vua-shape-treatment: accent;
+  --vua-shape-corners: var(--vua-corners-overlay);
+  corner-shape: var(--vua-corner-style) !important;
+  border-radius: var(--vua-shape-corners) !important;
+  clip-path: none !important;
+}
+
+:where(:scope, :scope *):where([role="menu"], .vua-context-menu, .vua-tooltip, .vua-popconfirm, .vua-mode-picker__card) {
+  --vua-shape-role: menu;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: var(--vua-corners-menu, 0px) !important;
+  clip-path: none !important;
+}
+
+:where(:scope, :scope *):where(.vua-turntable__progress-track, .vua-line__bar, .vua-album__stage-progress > span,
+  .vua-release-upload__stages li, .vua-release-upload__bar,
+  .vua-workshop__replay-progress, .vua-workshop__replay-progress-fill) {
+  --vua-shape-role: progress;
+  --vua-shape-treatment: quiet;
+  corner-shape: round !important;
+  border-radius: var(--vua-corners-progress, 0px) !important;
+  clip-path: none !important;
+}
+
+.vua-toggle::after {
+  corner-shape: round;
+  border-radius: var(--vua-corners-toggle, 2px);
+}
+}

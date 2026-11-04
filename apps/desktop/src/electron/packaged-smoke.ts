@@ -4,6 +4,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { OrchestratorProviderV01 } from "@vua/orchestrator-provider";
 import { installedContext } from "./installed-context.js";
+import { InstalledUpdateQa } from "./installed-update-qa.js";
 
 /** Explicit packaging diagnostic, used by scripts/smoke-packaged.ps1.
  * It uses a caller-selected isolated profile, the real preload and real Provider;
@@ -21,13 +22,20 @@ export function preparePackagedSmoke(): PackagedSmoke | undefined {
 }
 
 class PackagedSmoke {
+  private readonly updateQa: InstalledUpdateQa | undefined;
   private readonly timeout: NodeJS.Timeout;
   private phase = "main-entered";
 
   constructor(private readonly directory: string) {
+    this.updateQa = InstalledUpdateQa.from(directory);
     // This watchdog also covers startup failures before a renderer exists.
     this.timeout = setTimeout(() => this.fail(new Error("Packaged startup exceeded 45 seconds")), 45_000);
     this.checkpoint("main-entered");
+  }
+  allowsLaunchHealth(): boolean { return this.updateQa?.allowsLaunchHealth() ?? true; }
+  blocksAmfUi(url: string): boolean { return this.updateQa?.blocksAmfUi(url) ?? false; }
+  observeAmfReadiness(state: string, acceptingCalls: boolean, shellMounted: boolean): void {
+    this.updateQa?.observeAmfReadiness(state, acceptingCalls, shellMounted);
   }
 
   fail(error: unknown): void {
@@ -52,6 +60,7 @@ class PackagedSmoke {
       await delay(100);
     }
     this.checkpoint("renderer-mounted");
+    if (this.updateQa) { clearTimeout(this.timeout); await this.updateQa.start(window); return; }
     const result = await window.webContents.executeJavaScript(`(async () => {
       const snapshot = await window.vua.gateway.invoke({schemaVersion: 1, requestId: 'packaged-smoke-snapshot', method: 'app.snapshot', params: {}});
       const tasks = await window.vua.gateway.invoke({schemaVersion: 1, requestId: 'packaged-smoke-tasks', method: 'task.list', params: {}});

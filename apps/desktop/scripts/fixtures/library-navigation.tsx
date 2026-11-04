@@ -53,10 +53,10 @@ Object.defineProperty(window, "vua", { configurable: true, value: { gateway: { i
     createDirectory: async () => ({ ok: false, error: "failed" }),
   },
   library: { previewDirectory: async (path: string) => { scans.push(path); return { path, state: "ready", truncated: false, items: [
-    { name: "Garment with versions", path: `${path}\\Garment`, kind: "directory", sizeBytes: null },
-    { name: "shared.README", path: `${path}\\shared.README`, kind: "file", sizeBytes: 32 },
-    { name: "bundle.zip", path: `${path}\\bundle.zip`, kind: "file", sizeBytes: 64 },
-    { name: "ancestor link", path: `${path}\\link`, kind: "link", sizeBytes: null },
+    { name: "Garment with versions", path: `${path}\\Garment`, kind: "directory", sizeBytes: null, modifiedMs: null },
+    { name: "shared.README", path: `${path}\\shared.README`, kind: "file", sizeBytes: 32, modifiedMs: 1760000000000 },
+    { name: "bundle.zip", path: `${path}\\bundle.zip`, kind: "file", sizeBytes: 64, modifiedMs: 1760000000000 },
+    { name: "ancestor link", path: `${path}\\link`, kind: "link", sizeBytes: null, modifiedMs: null },
   ] }; } },
   dialog: { pickWarehouseFolders: async () => null },
 } });
@@ -139,9 +139,11 @@ async function run() {
   check(document.elementFromPoint(popupBounds.left + 10, popupBounds.top + 10)?.closest(".vua-import-menu__choices") === popup, "migration route is visible and hit-testable");
   arrow.click(); await pause(); await click(strings.importPage.migrationTitle); await until(() => !!document.querySelector(".vua-folder-picker"), "migration source picker");
   await click(strings.folderPicker.desktop); await click(strings.folderPicker.openCta);
-  await until(() => !!document.querySelector(".vua-migration-preview__tree"), "migration structure preview");
-  check(document.body.textContent?.includes(strings.importPage.migrationPreview.planning) && document.body.textContent?.includes("shared.README") && document.body.textContent?.includes("bundle.zip"), "migration preview retains loose companion files and archives without assigning package boundaries");
-  check(scans.length > 0 && calls.every(call => call.method !== "library.importPaths" && call.method !== "library.importFolders"), "migration structural preview performs no import");
+  await until(() => !!document.querySelector(".vua-migration__root"), "migration grouping planner");
+  const planner = document.querySelector<HTMLElement>(".vua-migration")!;
+  check(planner.textContent?.includes("shared.README") && planner.textContent?.includes("bundle.zip"), "migration planner retains loose companion files and archives for grouping");
+  check(!!planner.querySelector('[data-nav-id="migration-material-Garment"]') && planner.querySelector<HTMLButtonElement>('[data-nav-id="migration-import"]')?.disabled, "migration planner exposes directory choices and blocks import while files are unassigned");
+  check(scans.length > 0 && calls.every(call => !["library.importGroups", "library.importPaths", "library.importFolders"].includes(call.method)), "opening the migration planner performs no import");
   document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await pause();
   await listAndAdaptationChecks();
   return checks;
@@ -190,6 +192,15 @@ async function listAndAdaptationChecks() {
   await click(copy.adaptation.cancel); await until(() => cards().length === 28, "previous library page restored"); await pause();
   check(cards().map(node => node.dataset.selectionId).join(",") === previousIds.join(",") && source.value === "bought" && text.value === "Synthetic column" && cards().some(node => node.dataset.selectionId === "booth:5055" && node.dataset.selected === "true"), "cancel restores source, search, exact page and selected card");
   check(Math.abs(document.querySelector<HTMLElement>(".vua-warehouse__wall-scroll")!.scrollTop - previousScroll) < 1 && previousWidths.every((width, index) => Math.abs(document.querySelectorAll<HTMLElement>(".vua-library-list__heading")[index]!.getBoundingClientRect().width - width) < 1), "cancel restores scroll and retains resized list columns");
+  const multiple = cards().find(node => node.dataset.selectionId === "booth:5055")!;
+  multiple.focus(); multiple.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true })); await pause();
+  const selectedBefore = cards().filter(node => node.dataset.selected === "true").map(node => node.dataset.selectionId);
+  check(selectedBefore.length === cards().length && selectedBefore.length > 1, "multiple cards are selected before the product-specific link filter");
+  await openAdaptation(cards().find(node => node.dataset.selectionId === "booth:5055")!);
+  await until(() => cards().length === 2 && !!document.querySelector('[data-selection-id="booth:5002"]'), "multi-selection opens the clicked product's link filter");
+  check(calls.at(-1)?.params.descriptionLinksTo === "booth:5055", "multi-selection never turns a clicked product's link read into batch inference");
+  await click(copy.adaptation.cancel); await until(() => cards().length === 28, "multi-selection filter returns to the prior page");
+  check(cards().filter(node => node.dataset.selected === "true").map(node => node.dataset.selectionId).join(",") === selectedBefore.join(","), "cancelling the product filter restores the complete multi-selection");
   await openAdaptation(cards().find(node => node.dataset.selectionId === "booth:5055")!); await until(() => cards().length === 2, "nested adaptation starting point");
   await openAdaptation(cards()[0]!); await until(() => cards().length === 0 && document.body.textContent?.includes(copy.adaptation.emptyTitle) === true, "empty link filter");
   check(!!button(copy.adaptation.cancel), "empty link results remain cancellable and do not request account login");
@@ -202,4 +213,11 @@ async function showPicker() {
   if (document.querySelector('[role="dialog"]')) { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await pause(); }
   await click(strings.importPage.localTitle); await until(() => !!document.querySelector(".vua-folder-picker__row"), "picker visual preview");
 }
-(window as any).libraryNavigationReview = { run, showPicker };
+async function showAdaptations() {
+  const target = cards().find(node => node.dataset.selectionId === "booth:5055");
+  if (!target) throw Error("The adaptation preview has no known product.");
+  target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 260, clientY: 220 })); await pause();
+  await click(copy.cardMenu.showCompatible);
+  await until(() => cards().length === 2 && !!document.querySelector('[data-selection-id="booth:5002"]'), "adaptation preview shows the recorded description-link results");
+}
+(window as any).libraryNavigationReview = { run, showPicker, showAdaptations };

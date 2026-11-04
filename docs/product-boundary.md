@@ -1,7 +1,7 @@
 # VUA product boundary
 
 
-> Updated: 2026-10-19
+> Updated: 2026-10-30
 
 ## Product definition
 
@@ -18,8 +18,9 @@ saved enable/disable choice (user correction, 2026-10-14). External Avatar-editi
 scheduled after Ibis. BDL is private to AMF.
 
 AMF owns Recipe-first production and reproducible production records. The VUA host works with or
-without AMF and BDL. The Wizard chooses a path by goal, device and current facts, and installed
-modules decide what appears in the main directory.
+without AMF and BDL. First run uses the detected system language and opens a first-use notice with
+an entry to the skippable feature tour or the beginner concept wizard. Contextual task guidance
+chooses a path by goal, device and current facts, and installed modules decide what appears in the main directory.
 [Host/module architecture](architecture/modules.md) owns activation, migration and lifecycle.
 
 **Material-first production (user ruling, 2026-10-13).** The player starts by selecting
@@ -422,6 +423,13 @@ remain required. The [Windows distribution plan](development/windows-distributio
 proposes the sequential slices; [N7](development-outline.md#n7-beta-installer-regression-and-illustrated-user-guide)
 owns acceptance. This is a delivery decision, not installer/update evidence or N-stage completion.
 
+The author's 2026-10-26 follow-up approves separate PH-R.COM version discovery for VUA and AMF,
+in-app incremental host acquisition with explicit restart activation, and idle AMF UI/backend
+replacement while the compatible host keeps running. The existing signed-content, active-work,
+data-compatibility and recovery boundaries still apply. The
+[independent update sequence](development/windows-distribution-plan.md#9-independent-component-update-sequence)
+owns delivery; planning or a contract pass does not establish completed hot-update acceptance.
+
 On 2026-10-13 the author required multiple built-in usable runtime mirrors, selected by actual
 reachability, primarily for mainland China. The author then authorized PH-R.COM deployment on
 2026-10-13: serve the published installers from the official website and support official-site
@@ -646,8 +654,10 @@ them as real runs expose needs. Do not require exhaustive module completeness or
 acceptance. Existing access, privacy, ownership, and explicit recovery requirements remain
 implementation constraints; results must still be factual.
 
-The project remains **Beta until the author explicitly requests otherwise**, with no planned
-v1.0.0 milestone and no production-safety guarantee. Historical release labels/tags are unchanged.
+The author selected **v1.0.0 Brave New World** on 2026-10-29 under the
+[freeze plan](development/freeze-plan.md#7-freeze-release): the host becomes stable and AMF
+remains Beta. This supersedes the host's continuing-Beta policy. Historical release labels/tags
+are unchanged; stable does not declare every Windows or real-material case accepted.
 N stages define delivery outcomes independently of product release numbers; the
 [versioning policy](release/versioning.md) selects versions from actual release changes and owns
 the numerical Beta mapping. N-gate completion applies only to its recorded scenarios and disclosed
@@ -684,8 +694,9 @@ afterward, only the versions and operations actually exercised may be reported a
 
 ## Current stage
 
-Current development is continuing Beta under the N sequence. The historical v0.6.0 artifact remains
-unchanged; this ruling is not a new product release. Runtime-tool deployment is active. Community
+Current development prepares the freeze release under the N sequence; the host and AMF have
+separate lifecycle stages under the [version policy](release/versioning.md). Historical artifacts
+remain unchanged; source preparation is not publication. Runtime-tool deployment is active. Community
 plugin execution and a marketplace still require their separately accepted security decisions.
 
 **External Agent access (user ruling, 2026-10-13).** VUA runs a local MCP server for the

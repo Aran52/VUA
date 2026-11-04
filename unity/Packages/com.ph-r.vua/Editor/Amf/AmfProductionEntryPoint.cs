@@ -31,16 +31,22 @@ namespace Vua.Editor.Bridge
         private const int CandidateSize = 256;
         private const int MaxCandidatePreviews = 128;
         [Serializable] internal sealed class Source { public string sourceId; public string role; public string[] assetPaths; }
-        [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; public FitObjects fit; }
+        // A missing `saved` or `group` keeps its initializer: VUA leaves both out at their defaults.
+        [Serializable] internal sealed class Outfit { public string sourceId; public string prefabPath; public string mode; public string bone; public string toggleName; public bool active; public bool saved = true; public string group = ""; public FitObjects fit; }
+        // An exclusive group's switches share this parameter, one value per outfit; the group name follows the prefix.
+        private const string SwitchGroupPrefix = "VUA/Group/";
+        private static bool ValidSwitchGroup(string group) => group != null && group.Length <= 32 && group.All(c => c < 128 && (char.IsLetterOrDigit(c) || c == '_' || c == '-'));
         [Serializable] internal sealed class Selection { public string avatarPrefab; public Outfit[] outfits; }
         [Serializable] internal sealed class ApplyTarget { public string avatarGlobalObjectId; public string newAvatarKey; public string[] writeSourceIds; }
-        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; }
+        [Serializable] internal sealed class Request { public string schemaVersion; public string runId; public Source[] sources; public Selection selection; public ApplyTarget applyTarget; public string[] sdkFixes; public FtPatch faceTrackingPatch; public TextureImportChange[] textureChanges; public OutfitRemoval outfitRemoval; }
         [Serializable] internal sealed class Candidate
         {
-            public string sourceId; public string path; public string name; public bool isAvatar;
-            public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts;
+            public string sourceId; public string path; public string name; public string prefabGuid; public List<string> objectPaths = new List<string>(); public bool isAvatar;
+            public bool hasSkinnedMesh; public bool hasMergeArmature; public bool hasMissingScripts; public bool hasVrcFury;
             public List<string> humanoidBones = new List<string>();
             public string preview = "";
+            public ParameterBudget parameterBudget = new ParameterBudget();
+            public Footprint footprint = new Footprint();
         }
         [Serializable] internal sealed class PreviewImage { public string view; public string path; }
         [Serializable] internal sealed class MaterialUse { public string owner; public string renderer; public string material; }
@@ -54,6 +60,7 @@ namespace Vua.Editor.Bridge
         {
             public string editorVersion; public string projectFingerprint; public string avatarName;
             public string avatarGlobalObjectId; public List<Candidate> prefabs = new List<Candidate>();
+            public List<string> materialPaths = new List<string>();
             public List<BoundObject> instances = new List<BoundObject>();
             public bool sdkDescriptorRecognized; public string officialSdkChecks = "not_run";
             public string visualReview = "pending"; public int missingReferences;
@@ -70,6 +77,9 @@ namespace Vua.Editor.Bridge
             public List<FitChangeEntry> fitChanges = new List<FitChangeEntry>();
             public List<FitSkipEntry> fitSkipped = new List<FitSkipEntry>();
             public FtFacts faceTracking;
+            public List<TextureMemoryReport> textureMemory = new List<TextureMemoryReport>();
+            public List<OutfitRemoval> outfitRemoval = new List<OutfitRemoval>();
+            public List<RemovalApplied> outfitRemovalApplied = new List<RemovalApplied>();
         }
         [Serializable] internal sealed class AvatarObservation
         {
@@ -122,7 +132,7 @@ namespace Vua.Editor.Bridge
                 throw new InvalidOperationException("AMF requires Bridge v5 and bound command/project identities.");
             if (Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
                 throw new InvalidOperationException("Unsupported actual Editor version: " + Application.unityVersion);
-            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch")
+            if (command.operation != "amf_prepare" && command.operation != "amf_inspect" && command.operation != "amf_assemble" && command.operation != "amf_turntable" && command.operation != "amf_sdk_fix" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import" && command.operation != "amf_outfit_remove")
                 throw new InvalidOperationException("Unknown AMF operation.");
             if (command.operation == "amf_ft_patch" && Application.isBatchMode)
                 throw new InvalidOperationException("Creator patch menus require a dedicated interactive Editor session.");
@@ -164,7 +174,7 @@ namespace Vua.Editor.Bridge
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             var fingerprint = ProjectFingerprint.Compute();
-            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
+            if ((command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_ft_patch" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove") && (string.IsNullOrEmpty(command.expectedProjectFingerprint) || command.expectedProjectFingerprint != fingerprint))
                 throw new InvalidOperationException("The scene changed. Reinspect and review the plan.");
             if (PlayerSettings.companyName != WorkCompany || PlayerSettings.productName != WorkProduct)
             {
@@ -174,20 +184,27 @@ namespace Vua.Editor.Bridge
             result.data.sdkSignedIn = SdkSignedIn();
             result.data.editorVersion = Application.unityVersion;
             result.data.prefabs = Inspect(request);
+            result.data.materialPaths = request.sources.SelectMany(source => source.assetPaths).Distinct()
+                .Where(path => path.EndsWith(".mat", StringComparison.Ordinal) && AssetDatabase.LoadAssetAtPath<Material>(path) != null)
+                .OrderBy(path => path, StringComparer.Ordinal).Take(4096).ToList();
             if (command.operation == "amf_assemble") Assemble(request, result);
             if (command.operation == "amf_sdk_fix") ApplySdkFixes(request, result);
+            if (command.operation == "amf_outfit_remove") RemoveOutfit(request, result);
             ObserveScene(request, result);
+            if (command.operation == "amf_texture_import") { ApplyTextureImports(request, result); ObserveScene(request, result); }
+            result.data.textureMemory = MeasureTextureMemory(result.data.avatarGlobalObjectId);
+            result.data.outfitRemoval = ObserveOutfitRemoval(request, result.data);
             result.data.faceTracking = ObserveFaceTracking(request, result.data.avatarGlobalObjectId);
             result.data.missingShaderMaterials = MissingShaderMaterials(request, result.data.avatarGlobalObjectId);
             if (result.data.missingShaderMaterials.Count > 0)
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.shaders.missing", result.data.missingShaderMaterials.Count + " materials use a shader that is not in the project."));
-            if (command.operation == "amf_assemble" && result.data.observedSelection == null)
+            if ((command.operation == "amf_assemble" || command.operation == "amf_outfit_remove") && result.data.observedSelection == null)
                 throw new InvalidOperationException("The saved scene does not retain the verified Avatar relationships.");
-            if (command.operation == "amf_inspect" || command.operation == "amf_assemble" || command.operation == "amf_sdk_fix")
+            if (command.operation == "amf_inspect" || command.operation == "amf_assemble" || command.operation == "amf_sdk_fix" || command.operation == "amf_texture_import" || command.operation == "amf_outfit_remove")
                 result.data.sdkReview = ReviewWithSdk(string.IsNullOrEmpty(result.data.avatarGlobalObjectId) ? null : FindOwned(result.data.avatarGlobalObjectId));
             result.data.projectFingerprint = ProjectFingerprint.Compute();
             if (command.operation == "amf_turntable") BakeTurntable(command, result, root);
-            else if (command.operation != "amf_prepare" && command.operation != "amf_ft_patch") RenderPreviews(command, result, root);
+            else if (command.operation != "amf_prepare" && command.operation != "amf_ft_patch" && command.operation != "amf_texture_import") RenderPreviews(command, result, root);
             return request;
         }
 
@@ -301,6 +318,14 @@ namespace Vua.Editor.Bridge
                 result.diagnostics.Add(BridgeDiagnostic.Warning("amf.material_use.truncated", "Material use was truncated at " + MaxMaterialUse + " entries."));
         }
         private static bool MissingScripts(GameObject prefab) => prefab.GetComponentsInChildren<Component>(true).Any(c => c == null);
+        // VRCFury integration components are recognized by name (the VF namespace or
+        // VRCFury-prefixed types), so the observation works whether or not VRCFury is
+        // installed in the project; presence is an integration hint for the guide, never
+        // proof of a working setup (known packages: com.vrcfury.vrcfury, guide delivery).
+        private static bool HasVrcFury(GameObject prefab) => prefab.GetComponentsInChildren<Component>(true).Any(c =>
+            c != null && (string.Equals(c.GetType().Namespace, "VF", StringComparison.Ordinal)
+                || (c.GetType().Namespace != null && c.GetType().Namespace.StartsWith("VF.", StringComparison.Ordinal))
+                || c.GetType().Name.StartsWith("VRCFury", StringComparison.Ordinal)));
         private static Animator HumanAnimator(GameObject avatar) => avatar.GetComponentsInChildren<Animator>(true).FirstOrDefault(a => a.isHuman);
         private static List<string> Bones(GameObject avatar)
         {
@@ -319,9 +344,15 @@ namespace Vua.Editor.Bridge
                 if (!path.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase)) continue;
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path); if (prefab == null) continue;
                 candidates.Add(new Candidate { sourceId = source.sourceId, path = path, name = prefab.name,
+                    prefabGuid = AssetDatabase.AssetPathToGUID(path),
+                    objectPaths = CollectObjects(prefab.transform).Select(item => item.path)
+                        .Where(item => item.Length <= 512 && !item.Any(char.IsControl) && FindByPath(prefab.transform, item) != null)
+                        .Distinct(StringComparer.Ordinal).Take(2048).ToList(),
                     isAvatar = IsAvatar(prefab), hasSkinnedMesh = prefab.GetComponentInChildren<SkinnedMeshRenderer>(true) != null,
                     hasMergeArmature = prefab.GetComponentInChildren<ModularAvatarMergeArmature>(true) != null,
-                    hasMissingScripts = MissingScripts(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>() });
+                    hasMissingScripts = MissingScripts(prefab), hasVrcFury = HasVrcFury(prefab), humanoidBones = IsAvatar(prefab) ? Bones(prefab) : new List<string>(),
+                    parameterBudget = ObserveParameterBudget(prefab, IsAvatar(prefab)),
+                    footprint = ObserveFootprint(prefab, "pc") });
             }
             return candidates;
         }
@@ -394,16 +425,22 @@ namespace Vua.Editor.Bridge
                 var menuOwner = owners.objects.SingleOrDefault(o => o.key == ScopedKey(owners, "menu-" + ShortHash(source.sourceId)));
                 fact.menuModified = menuOwner != null;
                 fact.menuVerified = menuOwner == null;
+                var switchSaved = true; var switchGroup = "";
                 if (menuOwner != null)
                 {
                     var menu = FindOwned(menuOwner.globalObjectId);
                     var item = menu == null ? null : menu.GetComponent<ModularAvatarMenuItem>();
                     var toggle = menu == null ? null : menu.GetComponent<ModularAvatarObjectToggle>();
                     fact.toggleName = item == null ? "" : item.label ?? "";
+                    var parameter = item == null ? "" : item.PortableControl.Parameter ?? "";
+                    var grouped = parameter.StartsWith(SwitchGroupPrefix, StringComparison.Ordinal);
+                    switchSaved = item == null || item.isSaved;
+                    switchGroup = grouped ? parameter.Substring(SwitchGroupPrefix.Length) : "";
                     fact.menuVerified = menu != null && menu.transform.IsChildOf(avatar.transform)
                         && menu.GetComponents<ModularAvatarMenuInstaller>().Length == 1
                         && menu.GetComponents<ModularAvatarMenuItem>().Length == 1 && menu.GetComponents<ModularAvatarObjectToggle>().Length == 1
-                        && item.PortableControl.Type == PortableControlType.Toggle && item.PortableControl.Value == 1
+                        && item.PortableControl.Type == PortableControlType.Toggle
+                        && (parameter.Length == 0 ? item.PortableControl.Value == 1 : grouped && switchGroup.Length > 0 && ValidSwitchGroup(switchGroup) && item.PortableControl.Value >= 1)
                         && item.isDefault == instance.activeSelf && !string.IsNullOrWhiteSpace(fact.toggleName)
                         && fact.toggleName.Length <= 80 && !fact.toggleName.Any(char.IsControl)
                         && toggle.Objects != null && toggle.Objects.Count == 1
@@ -411,7 +448,7 @@ namespace Vua.Editor.Bridge
                 }
                 complete &= fact.prefabMatches && fact.bindingVerified && fact.menuVerified;
                 observedOutfits.Add(new Outfit { sourceId = fact.sourceId, prefabPath = fact.prefabPath,
-                    mode = fact.binding, bone = fact.bone, toggleName = fact.toggleName, active = fact.active });
+                    mode = fact.binding, bone = fact.bone, toggleName = fact.toggleName, active = fact.active, saved = switchSaved, group = switchGroup });
             }
             if (complete && observedOutfits.Count > 0) { selection.outfits = observedOutfits.ToArray(); data.observedSelection = selection; }
             var dependencies = new HashSet<string>(EditorUtility.CollectDependencies(new UnityEngine.Object[] { avatar })
@@ -463,7 +500,10 @@ namespace Vua.Editor.Bridge
                 if (outfit.mode == "attach_to_bone" && (candidate.hasSkinnedMesh || !avatarCandidate.humanoidBones.Contains(outfit.bone)))
                     throw new InvalidOperationException("A static accessory needs an observed humanoid bone.");
                 if ((outfit.toggleName ?? "").Length > 80 || (outfit.toggleName ?? "").Any(char.IsControl)) throw new InvalidOperationException("Invalid switch label.");
+                if (!ValidSwitchGroup(outfit.group) || (outfit.group.Length > 0 && string.IsNullOrWhiteSpace(outfit.toggleName))) throw new InvalidOperationException("Invalid switch group.");
             }
+            if (selection.outfits.Where(o => !string.IsNullOrEmpty(o.group) && o.active).GroupBy(o => o.group).Any(g => g.Count() > 1))
+                throw new InvalidOperationException("At most one switch of a group can be on by default.");
             if (request.applyTarget == null && !required.IsSubsetOf(chosen)) throw new InvalidOperationException("Some inputs lack an explicit target prefab.");
             var writes = chosen;
             if (request.applyTarget != null)
@@ -526,7 +566,10 @@ namespace Vua.Editor.Bridge
                         skip.paths.AddRange(skipped);
                     }
                 }
-                var menuOk = ConfigureSwitch(owners, avatar, instance, outfit);
+                // Group members take values 1..n in selection order, so a partial write keeps the others' values.
+                var groupValue = string.IsNullOrEmpty(outfit.group) ? 0
+                    : selection.outfits.Where(o => o.group == outfit.group && !string.IsNullOrWhiteSpace(o.toggleName)).ToList().IndexOf(outfit) + 1;
+                var menuOk = ConfigureSwitch(owners, avatar, instance, outfit, groupValue);
                 var bindingOk = outfit.mode == "attach_to_bone"
                     ? instance.transform.parent == HumanAnimator(avatar).GetBoneTransform((HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), outfit.bone))
                     : instance.GetComponentsInChildren<ModularAvatarMergeArmature>(true).All(m => m.mergeTarget != null && m.mergeTarget.Get(m) != null && m.mergeTarget.Get(m).transform.IsChildOf(avatar.transform) && !m.mergeTarget.Get(m).transform.IsChildOf(instance.transform));
@@ -618,7 +661,7 @@ namespace Vua.Editor.Bridge
                 }
             }
         }
-        private static bool ConfigureSwitch(Owners owners, GameObject avatar, GameObject target, Outfit outfit)
+        private static bool ConfigureSwitch(Owners owners, GameObject avatar, GameObject target, Outfit outfit, int groupValue)
         {
             if (string.IsNullOrWhiteSpace(outfit.toggleName)) return true;
             var key = ScopedKey(owners, "menu-" + ShortHash(outfit.sourceId)); var owner = owners.objects.SingleOrDefault(o => o.key == key);
@@ -633,7 +676,9 @@ namespace Vua.Editor.Bridge
             var item = menu.GetComponent<ModularAvatarMenuItem>() ?? menu.AddComponent<ModularAvatarMenuItem>();
             var toggle = menu.GetComponent<ModularAvatarObjectToggle>() ?? menu.AddComponent<ModularAvatarObjectToggle>();
             item.label = outfit.toggleName; item.PortableControl.Type = PortableControlType.Toggle;
-            item.PortableControl.Value = 1; item.isDefault = outfit.active;
+            // An independent switch lets MA create its own parameter; a group shares one, one value per outfit.
+            item.PortableControl.Parameter = groupValue > 0 ? SwitchGroupPrefix + outfit.group : "";
+            item.PortableControl.Value = groupValue > 0 ? groupValue : 1; item.isDefault = outfit.active; item.isSaved = outfit.saved;
             toggle.Objects = new List<ToggledObject> { new ToggledObject { Object = new AvatarObjectReference(target), Active = true } };
             EditorUtility.SetDirty(installer); EditorUtility.SetDirty(item); EditorUtility.SetDirty(toggle);
             return toggle.Objects.Count == 1 && toggle.Objects[0].Object.Get(toggle) == target && item.PortableControl.Type == PortableControlType.Toggle;
@@ -660,6 +705,7 @@ namespace Vua.Editor.Bridge
                 if (EditorApplication.timeSinceStartup < next || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
                 next = EditorApplication.timeSinceStartup + 0.5;
                 var file = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".vua", "bridge", "amf-open.json"));
+                if (HandleCloseRequest(Path.GetDirectoryName(file))) return;
                 if (!File.Exists(file)) return;
                 try
                 {

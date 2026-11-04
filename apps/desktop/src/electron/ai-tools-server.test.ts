@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import type { DesktopGatewayRequestV1, DesktopGatewayResponseV1 } from "@vua/contracts";
+import { EXTERNAL_TOOL_ACTIONS, EXTERNAL_TOOL_IDS, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ExternalToolSnapshot } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
-import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange } from "./ai-tool-results.js";
+import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange, taskSummary } from "./ai-tool-results.js";
 import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
 import { reportLibrary, reportRun, reportRunWithRevisions, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
@@ -42,6 +42,57 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>): Record<string, u
   return JSON.parse(text?.type === "text" ? text.text : "{}") as Record<string, unknown>;
 }
 describe("built-in MCP, using the official HTTP client", () => {
+  it("clears exact displayed requests, rejects waiting ones and keeps their AI receipts", async () => {
+    const { service, client, calls } = await setup();
+    await client.callTool({ name: "vua_request_play", arguments: { route: "desktop_play", action: "start" } });
+    const first = service.snapshot().requests[0]!;
+    const writes = () => calls.filter(call => call.method === "environment.startPlay");
+    const displayedIds = [first.id];
+    await client.callTool({ name: "vua_request_play", arguments: { route: "pico_pcvr", action: "start" } });
+    const second = service.snapshot().requests[1]!;
+    expect(service.clear(displayedIds).requests.map(request => request.id)).toEqual([second.id]);
+    expect(writes()).toHaveLength(0);
+    expect(data(await client.callTool({ name: "vua_action_status", arguments: { approvalId: first.id } })).data).toMatchObject({ id: first.id, state: "rejected" });
+    await expect(service.resolve(first.id, "approve")).rejects.toThrow("approval_resolved_or_withdrawn");
+    await service.resolve(second.id, "approve");
+    expect(service.clear([second.id, "already-gone"]).requests).toEqual([]);
+    expect(data(await client.callTool({ name: "vua_action_status", arguments: { approvalId: second.id } })).data).toMatchObject({ id: second.id, state: "accepted" });
+    expect(writes()).toHaveLength(1);
+    expect(service.clear(displayedIds).requests).toEqual([]);
+  });
+  it("keeps a cleared running dispatch alive and restores its hidden receipt after restart", async () => {
+    let finish!: () => void, saved: unknown = [{ view: { id: "running-clear", tool: "vua_request_play", state: "pending" },
+      request: { schemaVersion: 1, requestId: "test", method: "environment.startPlay", params: { route: "desktop_play", commandId: "clear-test" } } }];
+    const dispatch = new Promise<void>(resolve => { finish = resolve; });
+    const options = { version: "test", build, port: 0, load: () => ({ enabled: false, token }), save: () => {},
+      loadRequests: () => saved, saveRequests: (approvals: readonly unknown[]) => { saved = structuredClone(approvals); },
+      invoke: async (request: DesktopGatewayRequestV1) => { await dispatch; return envelope(request, { observed: "finished" }); } };
+    const service = new AiToolsServer(options); cleanups.push(() => service.dispose());
+    await service.setEnabled(true);
+    const resolving = service.resolve("running-clear", "approve");
+    expect(service.snapshot().requests[0]!.state).toBe("running");
+    expect(service.clear(["running-clear"]).requests).toEqual([]);
+    finish(); await resolving;
+    expect(service.snapshot().requests).toEqual([]);
+    expect(saved).toMatchObject([{ cleared: true, view: { state: "accepted", result: { observed: "finished" } } }]);
+    const restarted = new AiToolsServer(options); cleanups.push(() => restarted.dispose());
+    expect(restarted.snapshot().requests).toEqual([]);
+  });
+  it("requires local player approval before saving and closing Unity", async () => {
+    const {client,calls,service}=await setup();
+    await client.callTool({name:"vua_request_amf_close_editor",arguments:{runId:"n3-test"}});
+    expect(calls.map(call=>call.method)).toEqual(["amf.production.get"]);
+    const request=service.snapshot().requests[0]!;
+    expect(request.state).toBe("pending");
+    expect(request.details.parameters).toEqual({schemaVersion:"0.1",runId:"n3-test",confirmed:true});
+    await service.resolve(request.id,"approve");
+    expect(calls.at(-1)).toMatchObject({method:"amf.production.closeEditor",params:{schemaVersion:"0.1",runId:"n3-test",confirmed:true}});
+    expect(errorFields(new Error("vua.amf_production.project_open"))).toMatchObject({suggestedAction:"amf.production.closeEditor",retryable:false});
+    const editorClose={schemaVersion:"0.1",runId:"n3-test",closeId:"close-1",outcome:"saved",scenesSaved:true,assetsSaved:true,editorClosed:true,reason:"",detail:""};
+    expect(runSummary({runId:"n3-test",editorClose})).toMatchObject({editorClose});
+    expect(taskSummary({result:editorClose})).toMatchObject({result:{outcome:"saved",scenesSaved:true,assetsSaved:true,editorClosed:true}});
+    expect(taskSummary({result:{schemaVersion:"0.1",runId:"n3-test",outcome:"already_closed",editorClosed:true}})).toMatchObject({result:{outcome:"already_closed",editorClosed:true}});
+  });
   it("initializes, lists a closed tool catalog and calls independent reads", async () => {
     const { client, calls, service } = await setup();
     const tools = await client.listTools();
@@ -66,6 +117,52 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(service.snapshot().requests).toEqual([]);
     expect((await client.callTool({name:"vua_unity_license",arguments:{editorPath:"C:/synthetic/Unity.exe"}})).isError).toBe(true);
     expect(calls).toHaveLength(1);
+  });
+  it.each(EXTERNAL_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
+    const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.2", toolId,
+      capturedAt: "2026-10-29T00:00:00.000Z", presence: "installed", steamReady: true, buildId: "12345",
+      running: false, canStop: false, activity: "idle", issue: null };
+    const { client, calls, service } = await setup(async request => envelope(request, { toolConnection }));
+    const status = await client.callTool({ name: "vua_tool_status", arguments: { toolId } });
+    expect(status.isError).toBeFalsy();
+    expect(data(status).data).toEqual({ toolConnection });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ method: "tools.observeConnection", params: { toolId } });
+    expect(service.snapshot().requests).toEqual([]);
+    for (const action of EXTERNAL_TOOL_ACTIONS) {
+      const before = calls.length;
+      const args = { toolId, action };
+      const queued = await client.callTool({ name: "vua_request_tool", arguments: args });
+      expect(queued.isError).toBeFalsy();
+      const approval = service.snapshot().requests.find(request => request.state === "pending")!;
+      expect(approval).toMatchObject({ tool: "vua_request_tool", state: "pending", details: { parameters: args } });
+      expect(calls.slice(before)).toEqual([expect.objectContaining({ method: "tools.observeConnection", params: { toolId } })]);
+      const duplicate = await client.callTool({ name: "vua_request_tool", arguments: args });
+      expect(data(duplicate).data).toEqual(data(queued).data);
+      expect(calls).toHaveLength(before + 1);
+      const forged = await client.callTool({ name: "vua_request_tool", arguments: { ...args, decision: "approve" } });
+      expect(forged.isError).toBe(true);
+      expect(calls).toHaveLength(before + 1);
+      await service.resolve(approval.id, "approve");
+      expect(calls.slice(before + 1)).toEqual([expect.objectContaining({ method: "tools.actConnection",
+        params: { ...args, commandId: expect.stringMatching(/^ai-/) } })]);
+      expect(service.snapshot().requests.find(request => request.id === approval.id)).toMatchObject({ state: "accepted", result: { toolConnection } });
+    }
+  });
+  it("rejects unknown Steam tool IDs in the MCP schema before observation or approval", async () => {
+    const { client, calls, service } = await setup();
+    const catalog = await client.listTools();
+    for (const name of ["vua_tool_status", "vua_request_tool"]) {
+      const tool = catalog.tools.find(tool => tool.name === name)!;
+      expect(tool.inputSchema.properties?.toolId).toEqual({ enum: [...EXTERNAL_TOOL_IDS] });
+      for (const toolId of ["unknown", "liv", "vrcs"]) {
+        const result = await client.callTool({ name, arguments: { toolId, ...(name === "vua_request_tool" ? { action: "start" } : {}) } });
+        expect(result.isError).toBe(true);
+        expect(data(result)).toHaveProperty("error", "unsupported_tool_or_parameters");
+      }
+    }
+    expect(calls).toEqual([]);
+    expect(service.snapshot().requests).toEqual([]);
   });
   it("reads recorded VN3 terms and checks one use across products without fetching or queueing", async () => {
     const { client, calls, service } = await setup();
@@ -228,7 +325,7 @@ describe("built-in MCP, using the official HTTP client", () => {
       { name: "vua_request_play", arguments: { route: "desktop", action: "start" } },
     ]) expect((await client.callTool(request)).isError).toBe(true);
     expect(calls).toEqual([]);
-    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
+    for (const spec of AI_TOOLS.filter(spec => spec.method && !spec.command && !["vua_task", "vua_material_files", "vua_terms", "vua_terms_check", "vua_amf_run", "vua_recipe_materials", "vua_recipe_apply_plan", "vua_sop", "vua_check_environment", "vua_plan_installation", "vua_play_status", "vua_tool_status", "vua_amf_plan", "vua_amf_release"].includes(spec.name))) {
       expect(() => aiGatewayRequest(spec, {}, "test")).not.toThrow();
     }
   });
@@ -248,6 +345,22 @@ describe("the experimental VRChat sign-in stays outside the AI tool catalog", ()
 });
 
 describe("vua_amf_plan without a selection", () => {
+  it("returns the same Recipe checklist and differences and retains its mapped selection", async () => {
+    const selection={avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"coat",prefabPath:"Assets/Moved.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}]};
+    const materials=[{materialId:"material-2",status:"material_not_downloaded",boothProductId:"1001"}];
+    const recipeDifferences=[{kind:"prefab_mapped",rule:"guid",before:"Assets/Old.prefab",after:"Assets/Moved.prefab"}];
+    const {client,calls}=await setup(async request=>envelope(request,request.method==="amf.production.get"
+      ? {recipeId:"recipe-test",selection,recipeMaterials:materials,recipeDifferences}
+      : {materials,recipeDifferences,planDigest:digest}));
+    const checklist=await client.callTool({name:"vua_recipe_materials",arguments:{recipeId:"recipe-test",materialChoices:{"material-2":"source-2"}}});
+    expect(JSON.stringify(data(checklist))).toContain("material_not_downloaded");
+    expect(calls.at(-1)).toMatchObject({method:"amf.production.recipeMaterialPlan",params:{materialChoices:{"material-2":"source-2"}}});
+    const result=await client.callTool({name:"vua_amf_plan",arguments:{runId:"n3-test"}});
+    expect(result.isError).toBeFalsy();
+    expect(calls.at(-1)).toMatchObject({method:"amf.production.plan",params:{selection}});
+    expect(JSON.stringify(data(result))).toContain("recipeDifferences");
+    expect(calls.every(call=>!["amf.production.assemble","amf.production.prepareRecipe"].includes(call.method))).toBe(true);
+  });
   const prefab = (sourceId: string, name: string, isAvatar: boolean) => ({ sourceId, path: `Assets/${sourceId}/${name}.prefab`, name, isAvatar,
     hasSkinnedMesh: !isAvatar, hasMergeArmature: !isAvatar, hasMissingScripts: false, humanoidBones: [] });
   const run = (avatars: readonly string[]) => ({ runId: "n3-test", prefabs: [...avatars.map(name => prefab("avatar", name, true)), prefab("outfit", "TshirtShorts_Meiyun", false)],

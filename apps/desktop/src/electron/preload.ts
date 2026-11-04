@@ -12,7 +12,12 @@ import type {
   NavigationConfirmRequestV1,
   OverlayViewV1,
   RemoteContentEventV1,
-  VuaDesktopApiV4,
+  VuaDesktopApiV7,
+  AmfUiRuntimeSnapshotV01,
+  AmfUiTransitionV01,
+  UpdateComponentV02,
+  ComponentUpdateSnapshotV02,
+  UpdatePlanSnapshotV01,
   AiConnectionLocale,
   AiToolsSnapshotV01,
 } from "@vua/contracts";
@@ -71,7 +76,42 @@ try {
   if (Array.isArray(decoded) && decoded.length <= 32 && decoded.every(language => typeof language === "string" && language.length <= 64)) systemLanguages = decoded;
 } catch { /* Missing OS languages use the source-language fallback. */ }
 
-const api: VuaDesktopApiV4 = Object.freeze({
+const api: VuaDesktopApiV7 = Object.freeze({
+  amfUiRuntime: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:amf-ui-runtime:snapshot"),
+    respond: (id: string, phase: AmfUiTransitionV01, accepted: boolean, reason?: "busy" | "restart_required" | "failed") => ipcRenderer.invoke("vua:amf-ui-runtime:respond", id, phase, accepted, reason),
+    subscribe: (listener: (value: AmfUiRuntimeSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: AmfUiRuntimeSnapshotV01) => listener(value);
+      ipcRenderer.on("vua:amf-ui-runtime:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:amf-ui-runtime:changed", wrapped);
+    },
+  }),
+  updatePlans: Object.freeze({
+    snapshot: () => ipcRenderer.invoke("vua:update-plans:snapshot"),
+    propose: () => ipcRenderer.invoke("vua:update-plans:propose"),
+    stage: (id: string) => ipcRenderer.invoke("vua:update-plans:stage", id),
+    cancel: () => ipcRenderer.invoke("vua:update-plans:cancel"),
+    apply: (id: string) => ipcRenderer.invoke("vua:update-plans:apply", id),
+    restore: () => ipcRenderer.invoke("vua:update-plans:restore"),
+    subscribe: (listener: (value: UpdatePlanSnapshotV01) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: UpdatePlanSnapshotV01) => listener(value);
+      ipcRenderer.on("vua:update-plans:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:update-plans:changed", wrapped);
+    },
+  }),
+  componentUpdates: Object.freeze({
+    snapshot: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:snapshot", component),
+    check: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:check", component),
+    stage: (component: UpdateComponentV02, id: string) => ipcRenderer.invoke("vua:component-updates:stage", component, id),
+    cancel: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:cancel", component),
+    apply: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:apply", component),
+    restore: (component: UpdateComponentV02) => ipcRenderer.invoke("vua:component-updates:restore", component),
+    subscribe: (listener: (value: ComponentUpdateSnapshotV02) => void) => {
+      const wrapped = (_event: IpcRendererEvent, value: ComponentUpdateSnapshotV02) => listener(value);
+      ipcRenderer.on("vua:component-updates:changed", wrapped);
+      return () => ipcRenderer.removeListener("vua:component-updates:changed", wrapped);
+    },
+  }),
   aiTools: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:ai-tools:snapshot"),
     setEnabled: (enabled: boolean) => ipcRenderer.invoke("vua:ai-tools:set-enabled", enabled),
@@ -84,6 +124,7 @@ const api: VuaDesktopApiV4 = Object.freeze({
       return () => ipcRenderer.removeListener("vua:ai-tools:changed", wrapped);
     },
     attention: () => ipcRenderer.invoke("vua:ai-tools:attention"),
+    clear: (ids: readonly string[]) => ipcRenderer.invoke("vua:ai-tools:clear", ids),
   }),
   distribution: Object.freeze({
     snapshot: () => ipcRenderer.invoke("vua:distribution:snapshot"),
@@ -123,11 +164,29 @@ const api: VuaDesktopApiV4 = Object.freeze({
     },
     previewDirectory: (path: string) => ipcRenderer.invoke("vua:library:preview-directory", path),
   }),
+  toolLogos: Object.freeze({
+    logo: (toolId: string) => ipcRenderer.invoke("vua:tools:logo", toolId),
+  }),
   gateway: Object.freeze({
     version: DESKTOP_GATEWAY_VERSION,
     invoke: (request: DesktopGatewayRequestV1) => ipcRenderer.invoke("vua:gateway:invoke", request),
   }),
   dialog: Object.freeze({
+    recipeSharing: Object.freeze({
+      exportImage:(options:import("@vua/contracts").ShareImageOptions)=>ipcRenderer.invoke("vua:share:export",options),
+      readInput:(text:string)=>ipcRenderer.invoke("vua:share:read",text),
+      readImage:(files:readonly File[])=>{
+        if(!Array.isArray(files)||files.length!==1)return Promise.reject(new Error("share_image_invalid"));
+        const paths=files.map(file=>webUtils.getPathForFile(file));
+        if(paths.some(value=>!value))return Promise.reject(new Error("share_image_invalid"));
+        return ipcRenderer.invoke("vua:share:read-image",paths);
+      },
+      list:(recipeId?:string)=>ipcRenderer.invoke("vua:share:list",recipeId),
+      withdraw:(code:string)=>ipcRenderer.invoke("vua:share:withdraw",code),
+      hasPending:()=>ipcRenderer.invoke("vua:share:has-pending"),
+      takePending:()=>ipcRenderer.invoke("vua:share:take-pending"),
+      subscribe:(listener:()=>void)=>{const wrapped=()=>listener();ipcRenderer.on("vua:share:pending",wrapped);return()=>ipcRenderer.removeListener("vua:share:pending",wrapped);},
+    }),
     copyRecipeShare: (document: import("@vua/contracts").AmfSharedRecipe) => ipcRenderer.invoke("vua:recipe:copy-share", document),
     saveRecipeShare: (document: import("@vua/contracts").AmfSharedRecipe) => ipcRenderer.invoke("vua:recipe:save-share", document),
     pickMaterialSource: (intake: "direct_unity_package" | "local_reusable_vpm") =>
@@ -391,3 +450,19 @@ const api: VuaDesktopApiV4 = Object.freeze({
 });
 
 contextBridge.exposeInMainWorld("vua", api);
+
+// File paths are obtained only in preload. The renderer sees the verified declaration.
+if (typeof window !== "undefined") {
+window.addEventListener("dragover", event => {
+  if (event.dataTransfer?.types.includes("Files") && !(event.target instanceof Element && event.target.closest("[data-share-drop],input,textarea"))) event.preventDefault();
+});
+window.addEventListener("drop", event => {
+  if (event.target instanceof Element && event.target.closest("[data-share-drop],input,textarea")) return;
+  const files = [...event.dataTransfer?.files ?? []];
+  if (files.length !== 1 || !/\.(png|jpe?g|gif|webp)$/iu.test(files[0]!.name)) return;
+  event.preventDefault(); event.stopPropagation();
+  const file = webUtils.getPathForFile(files[0]!);
+  if (file) void ipcRenderer.invoke("vua:share:queue-image", [file]);
+});
+
+}

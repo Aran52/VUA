@@ -16,7 +16,7 @@ const platformLabel = (platform: string) => release.platform[platform as keyof t
 
 function AvatarCard({ avatar, image, byVua, onOpen }: { avatar: VrchatAvatarEntry; image: string | null | undefined; byVua: boolean; onOpen: () => void }) {
   return <button type="button" className="vua-vrchat-shelf__card" title={format(copy.open, { name: avatar.name })} onClick={onOpen}>
-    <span className="vua-vrchat-shelf__picture">{image ? <img src={image} alt="" /> : <Icon name="avatar" size={24} />}</span>
+    <span className="vua-vrchat-shelf__picture">{image ? <img src={image} alt="" data-audit-skip="avatar-cover" /> : <Icon name="avatar" size={24} />}</span>
     <strong>{avatar.name}</strong>
     <span className="vua-vrchat-shelf__facts">{[statusLabel(avatar.releaseStatus), ...avatar.platforms.map(platformLabel)].join(" · ")}</span>
     <small className="vua-text-secondary">{format(copy.updated, { time: formatDateMinute(avatar.updatedAt) })}</small>

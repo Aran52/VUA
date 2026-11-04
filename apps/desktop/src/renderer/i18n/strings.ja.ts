@@ -1,3 +1,5 @@
+import { textureMemoryCopy } from "./texture-memory-copy.ts";
+import { outfitRemovalCopy } from "./outfit-removal-copy.ts";
 import { faceTrackingCopy } from "./face-tracking-copy.ts";
 import { toolConnectionCopy } from "./tool-connection-copy.ts";
 import { browserCopy } from "./browser-copy.ts";
@@ -18,6 +20,8 @@ import { useTermsCopy } from "./use-terms-copy.ts";
 import { hardwareCopy } from "./hardware-copy.ts";
 import { environmentCopy } from "./environment-copy.ts";
 import { journeyCopy } from "./journey-copy.ts";
+import { contextGuideCopy } from "./context-guide-copy.ts";
+import { helpFaqCopy } from "./help-faq-copy.ts";
 import type { Strings } from "./strings.en.ts";
 
 /**
@@ -28,11 +32,15 @@ import type { Strings } from "./strings.en.ts";
  * - {placeholder} の名前はソース表と完全一致させること。
  */
 export const strings: Strings = {
+  textureMemory: textureMemoryCopy["ja"],
+  outfitRemoval: outfitRemovalCopy["ja"],
   faceTracking: faceTrackingCopy["ja"],
   toolConnection: toolConnectionCopy["ja"],
   browser: browserCopy["ja"],
   fileDrop: fileDropCopy["ja"],
   helpUi: helpCopy["ja"],
+  helpFaq: helpFaqCopy["ja"],
+  contextGuide: contextGuideCopy["ja"],
   distribution: distributionCopy["ja"],
   amfModule: moduleCopy["ja"],
   amfProduction: amfProductionCopy.ja,
@@ -55,10 +63,14 @@ export const strings: Strings = {
     invalid: "名前と重複しない HTTPS アドレスを入力してください。ログイン情報やフラグメントは含められません。",
     empty: "右上の + からサイトを追加してください。", unavailable: "サイトテストは利用できません。ソフトのインストールには影響しません。",
     storageFailed: "変更は今回のみ有効です。保存できませんでした。",
-    europe: "ヨーロッパ", america: "米国", japan: "日本", west: "西部", east: "東部", regionUnavailable: "地域テストを利用できません",
+    regionUnavailable: "地域テストを利用できません",
     regionTitle: "地域別の参考遅延", testRegions: "各地域をテスト", approximateMilliseconds: "≈ {ms} ms",
     regionCities: { usw: "サンノゼ · 米国西部", use: "アッシュバーン · ワシントン近郊", jp: "東京 · 日本", eu: "アムステルダム · 欧州" },
-    regionScope: "参照先は各ゲームリージョン近くの Oracle Cloud ノードで、HTTPS 応答 3 回の中央値です。リージョンの比較用で、ゲーム内の Ping とは異なる場合があります。",
+    regionShort: { usw: "米国西部", use: "米国東部", jp: "日本", eu: "欧州" },
+    regionClosest: "最短", regionAboutSame: "ほぼ同じ", regionTierN: "{n} 番目",
+    regionUnsteady: "不安定", regionUnsteadyHint: "測定ごとのばらつきが大きいため、値は目安です。",
+    regionViaProxy: "このパソコンのプロキシ経由で測定しました。ゲームの実際の経路とは異なる場合があります。",
+    regionScope: "各リージョンの参照点までの遅延で、VRChat ルームの Ping ではありません。",
     statuses: { timeout: "タイムアウト", connection_failed: "失敗", probe_error: "利用不可", http_error: "HTTP エラー", redirected: "リダイレクト", reachable: "接続済み" },
   },
   terms: {
@@ -182,7 +194,6 @@ export const strings: Strings = {
     backToOrigin: "元のページへ戻る",
     cancel: "キャンセル",
     clear: "クリア",
-    showCompleted: "完了を表示",
     cancelRejected: "このタスクは現在キャンセルできません",
     retry: "再試行",
     retryRejected: "このタスクは現在再試行できません",
@@ -201,8 +212,11 @@ demoTaskTitle: "デモタスク",
   },
   /** リソース余裕は取得可能な CPU/GPU/RAM/VRAM から算出する(2026-10-10 裁定)。 */
   resourceMonitor: {
-    indicatorAria: "リソース余裕 {percent}%、取得できた {count} 項目の平均 — 詳細を開く",
-    headroom: "余裕 {percent}%",
+    tightest: "{resource} {percent}%",
+    statePlenty: "余裕あり",
+    stateGettingTight: "やや逼迫",
+    stateTight: "逼迫",
+    tightestAria: "最も逼迫しているリソースは {resource} {percent}%、{state} — 詳細を開く",
     title: "システムリソース",
     cpu: "CPU",
     gpu: "GPU",
@@ -213,7 +227,6 @@ demoTaskTitle: "デモタスク",
     unavailable: "取得できません",
     gpuKinds: {"discrete":"専用 GPU","integrated":"内蔵 GPU","unknown":"種類を確認できません"},
     sharedMemory: "GPU はシステムとメモリを共有しており、専用 VRAM の使用量はありません",
-    constrained: "{resource} {percent}%",
     closeAria: "リソース詳細を閉じる",
   },
   nav: {
@@ -284,6 +297,51 @@ demoTaskTitle: "デモタスク",
     localTitle: 'ローカル単品を取り込む',
     importModes: "その他の取り込み方法",
     migrationTitle: "複数素材を取り込む（ライブラリ移行）",
+    migration: {
+      description: "どれが同じ素材かを決めてから取り込みます。取り込みは選んだファイルを複製し、元のファイルはそのまま残ります。",
+      oneMaterial: "1 つの素材",
+      collection: "分類（続けて見る）",
+      excluded: "今回は除外",
+      decide: "このフォルダの扱い",
+      open: "開いて確認",
+      nameLabel: "素材の名前",
+      bulkHint: "選択した並列フォルダ：{count}",
+      bulkApply: "これらの並列フォルダはそれぞれ別の素材",
+      selectFolder: "フォルダ {name} を選択",
+      selectFile: "ファイル {name} を選択",
+      inGroup: "「{name}」に含める",
+      groupName: "まとめるファイルの名前",
+      groupNamePlaceholder: "例：衣装に付属する説明とテクスチャ",
+      groupApply: "選択したファイルを 1 つの素材にまとめる",
+      empty: "空のフォルダ",
+      truncated: "最初の 1000 件だけを読みました。残りも分類が必要です。",
+      depthLimit: "フォルダが深すぎます。単独で確認してください。",
+      failed: "フォルダを読み取れません。場所と権限を確認して再試行してください。",
+      undo: "元に戻す",
+      copyManifest: "移行マニフェストをコピー",
+      manifestCopied: "確認したグループを移行マニフェストとしてコピーしました。",
+      manifestFailed: "クリップボードを使えません。グループはこの画面に残ります。",
+      coverageComplete: "確定した素材 {count} 件",
+      coverageUnassigned: "未確定 {count} 件",
+      coverageExcluded: "除外 {count} 件",
+      coverageUnreadable: "読み取れない {count} 件",
+      confirmed: "確定した素材",
+      files: "{count} ファイル",
+      none: "まだありません",
+      unassignedTitle: "未確定",
+      excludedTitle: "除外",
+      unreadableTitle: "読み取れない・スキップ",
+      more: "ほか {count} 件",
+      reasons: { link: "リンクのため未追跡", other: "未対応の項目のため未走査", unavailable: "読み取れませんでした", truncated: "読み取り上限に達しました" },
+      problems: { not_reviewed: "このフォルダを開くと全ファイルを数えられます", truncated: "読めていないファイルがあります。再確認してください", unreadable: "読み取れないファイルがあります", empty: "取り込むファイルがありません", no_root: "確認したフォルダの外にあります" },
+      importCta: "{count} 個の素材を取り込む",
+      importing: "取り込みを開始しています…",
+      importAccepted: "取り込みを開始しました。進行状況と結果はタスク一覧に表示されます。",
+      importFailed: "取り込みは開始されませんでした。グループはここに残ります。",
+      partialBlocked: "読み取ったすべてのファイルに扱いを決めると取り込めます。",
+      close: "閉じる",
+      unknownSize: "サイズ不明",
+    },
     migrationPreview: {
       description: "フォルダーを展開してライブラリの構成を表示",
       planning: "グループ分け前のプレビューです。インポートは行いません。",
@@ -481,6 +539,8 @@ demoTaskTitle: "デモタスク",
     },
   },
   onboarding: {
+    firstRunTitle: "表示言語を選択",
+    firstRunBody: "あとから設定で変更できます。ほかの機能は使うときに案内します。",
     steps: {
       goals: "目標を選択",
       environments: "環境の詳細",
@@ -1176,7 +1236,8 @@ rolled_back: "ロールバック済み",
             id: "trust",
             title: "トラストランクとセーフティシールド",
             paragraphs: [
-              "クイックメニューを開いている間、ネームプレートにトラストランク(Visitor から Trusted User まで)が表示されます。セーフティページのシールドレベルはランクごとに見えるアバターやエフェクトを決めます。デフォルトの Normal が良い出発点です。",
+              "トラストランクはアカウントの信頼度です。シールドレベルは各ランクの相手から表示するアバター、音声、エフェクトを決めます。どちらも Avatar のパフォーマンス評価とは別です。",
+              "クイックメニューでネームプレートとシールド設定を確認できます。まず Normal を使い、部屋や自分の好みに合わせて調整できます。",
             ],
           },
           {
@@ -1312,50 +1373,88 @@ rolled_back: "ロールバック済み",
           },
         ],
       },
+      creator: {
+        title: "アップロードとトラストランク",
+        intro: "アップロード条件、トラストランク、ローカルテストについて。",
+        sections: [
+          {
+            id: "upload-eligibility",
+            title: "アップロードに必要な条件",
+            paragraphs: [
+              "Unity と VRChat SDK でカスタム Avatar をアップロードするには、VRChat.com アカウントと New User 以上のトラストランクが必要です。Steam や Meta のアカウントは、先に VRChat アカウントと連携してください。",
+              "アップロードできない間も、ビルドしてローカルでテストできます。テスト Avatar は自分だけに表示されます。VUA がランクを付与したり、公式チェックを回避したりすることはありません。",
+            ],
+          },
+          {
+            id: "trust-rank",
+            title: "トラストランクとは？",
+            paragraphs: [
+              "Trust Rank は VRChat がアカウントの信頼度を示す仕組みです。Avatar の機能を表示するか決める Shield Level や、Avatar の描画コストを表す Performance Rank とは別ものです。",
+              "Quick Menu でネームプレートとランクを確認できます。VUA はプレイ時間、フレンド数、アカウント名からランクを推測しません。",
+            ],
+          },
+          {
+            id: "improve-trust",
+            title: "New User になるには？",
+            paragraphs: [
+              "VRChat を普通に使い、ワールドを探索し、フレンドと遊び、資格を得てからコンテンツを作成してください。Visitor から New User になると、VRChat から通知が届きます。",
+              "放置、大量のフレンド申請、低品質なコンテンツの大量アップロードではランクは上がりません。公式な近道や昇格時期の保証はありません。ランクに誤りがある場合は VRChat サポートに相談してください。",
+            ],
+          },
+        ],
+      },
       /** VUA 使用教程トピック(2026-09-26 ガイド宿主裁決):閲覧型。現在の
        *  実装でできることだけを記述し、未接続機能を約束しない。 */
       vua: {
-        title: "VUA の使い方",
-        intro: "VUA のウィンドウと主要フローの簡単な案内です。現在の実装でできることだけを書いています。",
+        title: "VUA ガイド",
+        intro: "素材、制作、設定、アップロードの現在の案内です。",
         sections: [
           {
             id: "window-tour",
-            title: "VUA のウィンドウを知る",
+            title: "操作場所を見つける",
             paragraphs: [
-              "トップバーには左から、モジュール切替(環境セットアップ/アバター制作)、設定、機能検索(Ctrl+P)、ガイド、通知が並び、左側のサイドバーには現在のモジュールの機能グループが表示されます。",
-              "画面下部のタスクセンターにバックグラウンドタスクとダウンロードが集まり、右上のベルで通知一覧を開けます。",
+              "左上の VUA ロゴから Home に戻れます。左側に機能入口、上部にヘルプ、設定、通知があります。Ctrl+P で検索できます。",
+              "ダウンロードやバックグラウンドタスクは上部のベルで確認します。画面下部のタスクバーはありません。",
             ],
           },
           {
             id: "environment-page",
-            title: "環境ページ",
+            title: "プレイとアバター制作の準備",
             paragraphs: [
-              "プレイ/制作環境のページでは最初に環境検査が行われ、結果が足りない場合は修正プランが手順を案内します。",
-              "ツール集は環境モジュールのサイドバー「ツール」グループにあります。まだ未接続で、正直な空状態が表示されます。",
+              "プレイでは Steam、VRChat、ストリーミング環境を確認します。アバター編集では Unity、パッケージマネージャー、{amf} を確認します。失敗した項目には、その状態と利用できる回復方法が表示されます。",
+              "ツールは用途別です。未実装の項目は開発中と表示され、インストール済みには見えません。",
             ],
           },
           {
             id: "import-paths",
-            title: "素材の 2 つの取り込み方",
+            title: "ローカルファイルと BOOTH の購入素材",
             paragraphs: [
-              "ローカル素材: ライブラリでフォルダを選んで取り込みます。通常のファイルはそのまま保持し、ZIP は原本を保持して自動展開します。制作では UnityPackage のみを使用します。",
-              "BOOTH 商品: 内蔵ブラウザウィンドウで商品ページを開き、自分のアカウントで購入・ダウンロード後、ダウンロードをワンクリックで倉庫に取り込めます。",
+              "手元のファイルはライブラリのローカルインポートから取り込みます。ZIP は原本を保持して展開し、制作では対応する UnityPackage を使います。",
+              "BOOTH の購入済み素材はアカウントページでログインして同期するか、ライブラリから商品ページを開けます。必要なファイルだけをダウンロードします。商品との関連付けは出所の記録であり、同一ファイルや互換性の証明ではありません。",
             ],
           },
           {
             id: "production-line",
-            title: "制作ライン",
+            title: "素材、制作ライン、アップロード",
             paragraphs: [
-              "ラインは倉庫 → レシピ → 作業場 → 出荷の順に進みます。素材は倉庫に入り、レシピで組み合わせ、作業場で実行計画を確認して進めます。",
-              "検査は制作記録に統合されています。結果は記録と一緒に表示され、独立した工程ではありません。",
+              "Recipe は組み合わせを保存して再利用するためのもので、着替えるたびに必須の工程ではありません。工房には実際のラインと自動化の状態が表示されます。新しい設定ではフルオートが初期値で、確認した素材を一度組み立てます。既存の手動レビュー／限定オートの選択は保持されます。",
+              "Avatar として指定したローカル UnityPackage は商品に関連付けずに制作を開始できます。開始前に対象 Avatar と自動化の権限を確認します。商品との関連付けは互換性の保証ではなく、アップロードには公式 SDK と本人の確認が必要です。",
             ],
           },
           {
             id: "settings-basics",
-            title: "設定の便利項目",
+            title: "テーマ、言語、リソース節約",
             paragraphs: [
-              "外観はダーク/ライト/システムに従うが選べ、「システムに従う」は Windows の明暗モードに追従します。",
-              "リソース節約モードは装飾アニメーションを止めて負荷を下げるため、VR や低スペック環境に向いています。",
+              "Grid と Frutiger Aero はダーク／ライトに対応し、Tenshi Kaiwai はライト、Jirai Kei はダーク固定です。言語、アカウント、環境パスは設定の各ページにあります。",
+              "リソース節約モードでは装飾的な動き、テクスチャ、一部の視覚効果を止め、文字と操作はそのまま使えます。",
+            ],
+          },
+          {
+            id: "upload-prerequisites",
+            title: "アップロード前のアカウント条件",
+            paragraphs: [
+              "カスタム Avatar のアップロードには、VRChat アカウントと New User 以上のトラストランクが必要です。Unity の準備とは別の条件で、ランクが足りなくてもローカルテストは可能です。",
+              "アバター編集の準備ページとアップロード確認には、「トラストランクとは？」「ランクを上げるには？」への入口があります。公式 SDK で確認してからアップロードします。",
             ],
           },
         ],
@@ -3014,7 +3113,7 @@ rolled_back: "ロールバック済み",
       pending: "翻訳中",
     },
     version: {
-      heading: "VUA デスクトップ",
+      heading: "Virtual Unified Assistant",
       versionLine: "v{version} · 早期プレビュー",
       debugHeading: "デバッグモード",
       debugToggle: "商品デバッグ情報を表示",
@@ -3316,6 +3415,11 @@ rolled_back: "ロールバック済み",
     playSession: { unavailable: environmentCopy["ja"].unknown },
     recipe: { draftFailed: "レシピの下書きの操作を完了できませんでした。" },
     library: { downloadFailed: "ダウンロードが完了しませんでした。既存のファイルは残ります。", removalFailed: "ローカルファイルを削除できませんでした。ファイルの状態を更新してタスクを確認してください。", reconciliationFailed: "素材の内容確認が完了しませんでした。タスクを確認して同期し直してください。" },
+    migration: {
+      invalidParams: "グループ化のリクエストが検証を通りませんでした。",
+      stale: "確認後に元ファイルが変わりました（移動・サイズ・更新時刻）。フォルダを確認し直してから取り込んでください。",
+      overlap: "同じファイルが 2 つの素材に入っています。どちらかの境界を変えてから取り込んでください。",
+    },
     catalog: {
       syncFailed: "ライブラリの同期が完了しませんでした。保存済みの項目は残ります。タスク記録を参照してください。",
       productNotFound:

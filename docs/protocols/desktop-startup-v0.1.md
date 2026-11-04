@@ -12,7 +12,7 @@ For Agents: `DesktopStartupApiV01` is an independent optional `startup` member o
 desktop aggregate. Retained `VuaDesktopApiV1` and desktop-window operations are unchanged.
 Main produces OS preferences; preload exposes the bounded immutable list; the renderer chooses
 its i18n table and reports readiness. The [desktop architecture](../architecture/desktop.md)
-owns native windows and [guidance](../architecture/guidance.md#2-vua-app-tour) owns the tour.
+owns native windows and [guidance](../architecture/guidance.md#2-first-run-and-contextual-introductions) owns first-use language selection and optional guidance.
 
 ## Members
 
@@ -40,9 +40,9 @@ the presentation; remaining provider absence is shown through the existing appli
 
 The [controlled consumer smoke](../../apps/desktop/scripts/smoke-startup.mjs) exercises real
 Main/preload/production renderer with separate profiles, system-language ordering and English
-fallback, rejection from the splash frame, native sizing/teardown and first-use tour continuity.
-Locale and tour-model tests cover saved choices and legacy reading bookmarks. These are UI
-checks, not physical play, installer or four-language human acceptance.
+fallback, rejection from the splash frame, native sizing/teardown and first-use language continuity.
+Locale and guidance-model tests cover saved choices and legacy reading bookmarks. These are UI
+checks, not physical play, installer or human acceptance of every supported language.
 
 This face remains Candidate: no new schema/vector family or freeze exemption is accepted.
 

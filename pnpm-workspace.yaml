@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - services/*
 allowBuilds:
   # The desktop and Chromium interaction checks need Electron's installed runtime.
   electron: true

@@ -1,0 +1,41 @@
+{
+  "toolVersion": 2,
+  "generatedAt": "2026-10-25T03:26:35.925Z",
+  "commit": "6c50e9c",
+  "views": 99,
+  "entryCount": 8,
+  "entries": {
+    "border-density|control-recipes-list|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|library-picker|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|library-wall|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|workshop-rebuild|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|workshop-switch-adjust|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|workshop-texture|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|workshop-versions-confirm|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    },
+    "border-density|workshop-versions-plan|unattributed": {
+      "instances": 1,
+      "severity": "hint"
+    }
+  }
+}

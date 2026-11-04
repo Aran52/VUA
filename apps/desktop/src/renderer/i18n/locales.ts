@@ -17,8 +17,8 @@ export interface LocaleMeta {
 }
 
 export const localeRegistry: readonly LocaleMeta[] = [
-  { id: "zh-CN", endonym: "中文（简体）", available: true },
-  { id: "zh-TW", endonym: "中文（繁體）", available: true },
+  { id: "zh-CN", endonym: "简体中文", available: true },
+  { id: "zh-TW", endonym: "繁體中文", available: true },
   { id: "en", endonym: "English", available: true },
   { id: "ja", endonym: "日本語", available: true },
   { id: "ko", endonym: "한국어", available: true },

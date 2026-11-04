@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 36" width="40" height="36">
+  <title>Jirai home: pink house with a heart window</title>
+  <defs><linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd9ea"/><stop offset="0.5" stop-color="#f2a6c9"/><stop offset="1" stop-color="#d9779f"/></linearGradient></defs>
+  <path d="M8 16V33H32V16L20 6Z" fill="url(#h)" stroke="#120810" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M3 18L20 3.5L37 18" fill="none" stroke="#120810" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M3 18L20 3.5L37 18" fill="none" stroke="#f2a6c9" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path transform="translate(14.6 12.4) scale(0.45)" d="M12 21C5 15 2 11 2 7.5 2 4.5 4.5 2 7.5 2c2 0 3.5 1 4.5 2.5C13 3 14.5 2 16.5 2 19.5 2 22 4.5 22 7.5 22 11 19 15 12 21z" fill="#120810"/>
+  <path d="M17 33V27a3 3 0 0 1 6 0V33Z" fill="#120810"/>
+</svg>

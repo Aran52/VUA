@@ -7,7 +7,6 @@ import {
   scrollClosesPanel,
   taskRowOpenTarget,
   visibleNotifications,
-  advanceTerminalSessionSet,
 } from "./notification-model.ts";
 import type { TaskItem } from "../../gateway/index.ts";
 
@@ -29,37 +28,27 @@ const tasks = [
 ];
 
 test("通知投影:默认只显示活动任务,终态不作为通知(核心条件二前半)", () => {
-  const visible = visibleNotifications(tasks, new Set(), false);
+  const visible = visibleNotifications(tasks, new Set());
   assert.deepEqual(
     visible.map((task) => task.id),
     ["t-running"],
   );
 });
 
-test("通知投影:显示已完成开启时,本会话终态任务作为通知出现(2026-10-06 语义)", () => {
-  // 会话集 = 这些任务在本会话内到达终态;不在集的终态(启动残留)不显示
-  const terminal = new Set(["t-done", "t-failed", "t-cancelled"]);
-  const visible = visibleNotifications(tasks, new Set(), true, terminal);
+test("通知投影:终态任务一律不显示(F2 移除「显示已完成」)", () => {
+  // 旧语义(2026-10-06:开启显示已完成时本会话终态可见)随 F2 一并移除:
+  // 终态任务只经任务列表查询,通知面板只承载活动任务与 notifyOnComplete 保留项
+  const visible = visibleNotifications(tasks, new Set());
   assert.deepEqual(
     visible.map((task) => task.id),
-    ["t-running", "t-done", "t-failed", "t-cancelled"],
+    ["t-running"],
   );
-  // 不传会话集(启动残留形态):终态一律不显示
-  const staleOnly = visibleNotifications(tasks, new Set(), true);
-  assert.deepEqual(staleOnly.map((task) => task.id), ["t-running"]);
 });
 
 test("通知投影:已清除集合只隐藏通知呈现(核心条件一)", () => {
   const dismissed = new Set(["t-failed"]);
-  const terminal = new Set(["t-done", "t-failed", "t-cancelled"]);
-  const visible = visibleNotifications(tasks, dismissed, true, terminal);
   assert.deepEqual(
-    visible.map((task) => task.id),
-    ["t-running", "t-done", "t-cancelled"],
-  );
-  // 默认视图下同样被隐藏,且活动任务不受清除影响
-  assert.deepEqual(
-    visibleNotifications(tasks, dismissed, false).map((task) => task.id),
+    visibleNotifications(tasks, dismissed).map((task) => task.id),
     ["t-running"],
   );
 });
@@ -117,13 +106,13 @@ test("滚动关闭判定(W25 真机第四批回归钉):面板内滚动保持打�
 
 test("notifyOnComplete: 终态通知保留到手动清除(用户裁决 2026-10-02)", () => {
   const done = { id: "catalog-sync-1", status: "completed" as const, title: "库同步", originPage: "warehouse" as const, cancellable: false, notifyOnComplete: true };
-  // 默认(不显示已完成)下依然可见
-  assert.equal(visibleNotifications([done], new Set(), false).length, 1);
+  // notifyOnComplete 保留项在终态后依然可见
+  assert.equal(visibleNotifications([done], new Set()).length, 1);
   // 手动清除后消失
-  assert.equal(visibleNotifications([done], new Set(["catalog-sync-1"]), false).length, 0);
+  assert.equal(visibleNotifications([done], new Set(["catalog-sync-1"])).length, 0);
   // 未声明标志的终态任务维持默认纪律
   const plain = { id: "other-1", status: "completed" as const, title: "x", originPage: "warehouse" as const, cancellable: false };
-  assert.equal(visibleNotifications([plain], new Set(), false).length, 0);
+  assert.equal(visibleNotifications([plain], new Set()).length, 0);
 });
 
 
@@ -139,50 +128,43 @@ test("notifyOnComplete 同族只显示最新一条(反复同步不堆通知山)"
   const a = mk("catalog-sync-1", "completed");
   const b = mk("catalog-sync-2", "completed");
   const c = mk("catalog-sync-3", "completed");
-  const visible = visibleNotifications([a, b, c], new Set(), false);
+  const visible = visibleNotifications([a, b, c], new Set());
   assert.equal(visible.length, 1);
   assert.equal(visible[0]?.id, "catalog-sync-3");
   // 最新一条被手动清除后,次新的一条顶上(不是整族消失)
-  const afterDismiss = visibleNotifications([a, b, c], new Set(["catalog-sync-3"]), false);
+  const afterDismiss = visibleNotifications([a, b, c], new Set(["catalog-sync-3"]));
   assert.equal(afterDismiss.length, 1);
   assert.equal(afterDismiss[0]?.id, "catalog-sync-2");
   // 运行中的任务不受此规则影响(恒显)
   const running = mk("catalog-sync-4", "running");
-  const withRunning = visibleNotifications([a, b, running], new Set(), false);
+  const withRunning = visibleNotifications([a, b, running], new Set());
   assert.equal(withRunning.filter((t) => t.id === "catalog-sync-4").length, 1);
 });
 
 test("all active bulk downloads remain visible, regardless of completion retention", () => {
   const make = (id: string): TaskItem => ({ id, title: "Synthetic download", status: "running", originPage: "warehouse", cancellable: true, notifyOnComplete: true });
-  assert.deepEqual(visibleNotifications([make("batch-a"), make("batch-z"), make("batch-b")], new Set(), false).map(task => task.id), ["batch-a", "batch-z", "batch-b"]);
+  assert.deepEqual(visibleNotifications([make("batch-a"), make("batch-z"), make("batch-b")], new Set()).map(task => task.id), ["batch-a", "batch-z", "batch-b"]);
 });
 
-test("startup-terminal tasks never show even with show-completed on (2026-10-06)", () => {
+test("terminal tasks never show after the Show-completed setting was removed (F2)", () => {
   const stale: TaskItem = {
     id: "t-old", title: "old", status: "completed",
     originPage: "warehouse", cancellable: false,
   };
-  const terminal = advanceTerminalSessionSet(new Map(), [stale]);
-  assert.equal(terminal.has("t-old"), false);
-  const visible = visibleNotifications([stale], new Set(), true, terminal);
+  const visible = visibleNotifications([stale], new Set());
   assert.equal(visible.length, 0);
 });
 
-test("tasks reaching terminal during the session stay visible until dismissed", () => {
+test("tasks reaching terminal during the session no longer show (F2)", () => {
   const active: TaskItem = {
     id: "t-run", title: "run", status: "running",
     originPage: "warehouse", cancellable: true,
   };
-  const first = advanceTerminalSessionSet(new Map(), [active]);
-  assert.equal(first.size, 0);
+  assert.equal(visibleNotifications([active], new Set()).length, 1);
   const finished: TaskItem = { ...active, status: "failed" };
-  const terminal = advanceTerminalSessionSet(
-    new Map([["t-run", "running" as const]]),
-    [finished],
-  );
-  assert.equal(terminal.has("t-run"), true);
-  const visible = visibleNotifications([finished], new Set(), true, terminal);
-  assert.equal(visible.length, 1);
-  const dismissed = visibleNotifications([finished], new Set(["t-run"]), true, terminal);
-  assert.equal(dismissed.length, 0);
+  assert.equal(visibleNotifications([finished], new Set()).length, 0);
+  // notifyOnComplete 保留规则不受影响:同族终态最新一条仍可见且可清除
+  const persistent: TaskItem = { ...finished, notifyOnComplete: true };
+  assert.equal(visibleNotifications([persistent], new Set()).length, 1);
+  assert.equal(visibleNotifications([persistent], new Set(["t-run"])).length, 0);
 });

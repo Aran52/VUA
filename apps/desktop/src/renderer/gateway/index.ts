@@ -14,7 +14,7 @@ export type {
   Unsubscribe,
 } from "./types.ts";
 export { capabilityDetailKeys, capabilityStates } from "./types.ts";
-export { createLibraryBrowser, createLiveLibraryBrowserPort, type LibraryBrowserPort, type LibraryPageView, type LibraryCardFacts, type LibraryFileInventory } from "./library-browser-port.ts";
+export { createLibraryBrowser, createLiveLibraryBrowserPort, confirmedLibraryProductId, type LibraryBrowserPort, type LibraryPageView, type LibraryCardFacts, type LibraryFileInventory } from "./library-browser-port.ts";
 export { createLibraryMetadataPort, LibraryMetadataError, type LibraryMetadataPort } from "./library-metadata-port.ts";
 export { createRecipeDraftPort, RecipeDraftError, type RecipeDraftPort, type RecipeDraftSummary, type RecipeDraftRead } from "./recipe-draft-port.ts";
 export {
@@ -276,5 +276,6 @@ export { AMF_UPLOAD_STAGES } from "./amf-release-port.ts";
 export type { VrchatPort, VrchatStatus, VrchatSignInOutcome, VrchatAvatarCheck, VrchatAvatarEntry, VrchatAvatarList, VrchatTwoFactorMethod, VrchatAccountView } from "./vrchat-port.ts";
 export { VRCHAT_TWO_FACTOR_METHODS } from "./vrchat-port.ts";
 export type { TermsPort } from "./terms-port.ts";
-export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionRevisionKind, AmfProductionRevisionSummary, AmfProductionRevisionSummaryItem, AmfProductionRevisionPlan, AmfFitObject, AmfProductionFitChanges, AmfProductionAvailableFit, AmfFitSummary, AmfFitSaved, AmfProductionSource, AmfProductionList, AmfQueuedWork, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted, AmfPreviewImage, AmfStep, AmfUsualDurations, AmfRunProgress, AmfProductionProgress, AmfSdkReview, AmfSdkIssue, AmfSdkStat, AmfSdkRating, AmfLightingPlan } from "./amf-production-port.ts";
+export { AmfProductionError } from "./amf-production-port.ts";
+export type { AmfProductionPort, AmfProductionRun, AmfProductionPlan, AmfProductionRestorePlan, AmfProductionRevisionKind, AmfProductionRevisionSummary, AmfProductionRevisionSummaryItem, AmfProductionRevisionPlan, AmfFitObject, AmfProductionFitChanges, AmfProductionAvailableFit, AmfFitSummary, AmfFitSaved, AmfProductionSource, AmfProductionList, AmfQueuedWork, AmfRunPhase, AmfPrefab, AmfSavedRecipe, AmfRecipeSummary, AmfRecipeSharePlan, AmfRecipeShareExport, AmfRecipeApplyPlan, AmfProductionAccepted, AmfPreviewImage, AmfStep, AmfUsualDurations, AmfRunProgress, AmfProductionProgress, AmfSdkReview, AmfSdkIssue, AmfSdkStat, AmfSdkRating, AmfLightingPlan, AmfPlanPrediction, AmfPlanPredictionRow, AmfPlanPredictionTotal } from "./amf-production-port.ts";
 export { AMF_SDK_RATINGS } from "./amf-production-port.ts";

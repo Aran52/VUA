@@ -47,6 +47,9 @@ fn unsupported(capability: &str) -> AppErrorV1 {
 pub struct VrcGetLibBackend {
     runtime: tokio::runtime::Runtime,
     http: reqwest::Client,
+    /// Interactive metadata reads must not hold the provider frame loop behind
+    /// a slow repository. Package downloads keep the normal client and budget.
+    catalog_http: reqwest::Client,
     environment_root: PathBuf,
     /// When true, repository listings are read from the local cache only
     /// (no network refresh) -- offline degradation path (ORC-ADP-006).
@@ -67,9 +70,17 @@ impl VrcGetLibBackend {
             )
             .with_param("reason", ParamValue::Text(error.to_string()))
         })?;
+        let catalog_http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+            .map_err(|error| AppErrorV1::new(
+                error_codes::BACKEND_UNAVAILABLE, ErrorCategory::Unavailable,
+                "errors.vpm.backendUnavailable", "corr-vpm-lib-init",
+            ).with_param("reason", ParamValue::Text(error.to_string())))?;
         Ok(Self {
             runtime,
             http: reqwest::Client::new(),
+            catalog_http,
             environment_root: default_environment_root(),
             offline,
             cached_metadata: false,
@@ -1552,7 +1563,7 @@ impl VpmBackend for VrcGetLibBackend {
         let offline = self.offline;
         let repo_scope = repo_id.map(str::to_owned);
         let package_filter: Vec<String> = package_ids.to_vec();
-        let http = self.http.clone();
+        let http = self.catalog_http.clone();
         self.runtime.block_on(async move {
             let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
                 environment_root.clone().into_boxed_path(),
@@ -2364,7 +2375,7 @@ impl VrcGetLibBackend {
         let offline = self.offline;
         let project_root = project.root.clone();
         let package_id = package_id.to_owned();
-        let http = self.http.clone();
+        let http = self.catalog_http.clone();
         self.runtime.block_on(async move {
             let io = vrc_get_vpm::io::DefaultEnvironmentIo::new(
                 environment_root.clone().into_boxed_path(),

@@ -28,3 +28,16 @@ describe("library source reconciliation projection", () => {
     await expect(createLiveLibraryBrowserPort(client(value)).list({ schemaVersion: "0.1" })).rejects.toThrow("library_read_failed");
   });
 });
+
+it("retains purpose annotations and refuses missing, foreign or unknown usable claims",async()=>{
+  const value=vector();value.schemaVersion="0.2";const rows=value.items as Record<string,unknown>[];
+  rows[0]!.use={presetId:"vtuber_individual",status:"conditional"};rows[1]!.use={presetId:"vtuber_individual",status:"no_terms"};
+  const port=createLiveLibraryBrowserPort(client(value));
+  expect((await port.list({schemaVersion:"0.2",use:"vtuber_individual",useMode:"all"})).facts.get("wh-imported")?.use?.status).toBe("no_terms");
+  await expect(port.list({schemaVersion:"0.2",use:"vtuber_individual"})).rejects.toThrow("library_use_invalid");
+  rows[1]!.use={presetId:"vrchat_personal",status:"allowed"};
+  await expect(port.list({schemaVersion:"0.2",use:"vtuber_individual",useMode:"all"})).rejects.toThrow("library_use_invalid");
+  delete rows[1]!.use;
+  await expect(port.list({schemaVersion:"0.2",use:"vtuber_individual",useMode:"all"})).rejects.toThrow("library_use_invalid");
+  expect((await port.list({schemaVersion:"0.2"})).total).toBe(2);
+});

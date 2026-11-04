@@ -73,3 +73,14 @@ export function regionalTiers(
   }
   return [...result, ...unmeasured.map(row => ({ id: row.id, value: null, tier: null, unsteady: false }))];
 }
+
+/** Display phrase for one row of `regionalTiers` output: the first row (the
+ * closest region) reads "closest", a row sharing the previous row's tier reads
+ * "about the same", and a row opening a later tier reads as that tier's number
+ * (the second tier is 2). Rows without a measurement have no phrase. */
+export function regionalTierPhrase(tiers: readonly RegionalTier[], index: number): "closest" | "about_same" | number | null {
+  const row = tiers[index];
+  if (!row || row.tier === null) return null;
+  if (index === 0) return "closest";
+  return row.tier === tiers[index - 1]!.tier ? "about_same" : row.tier + 1;
+}

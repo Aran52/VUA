@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 120" width="220" height="120">
+  <title>Tenshi cloud with sparkles</title>
+  <g fill="#ffffff" fill-opacity="0.9"><ellipse cx="60" cy="80" rx="50" ry="22"/><ellipse cx="95" cy="62" rx="34" ry="28"/><ellipse cx="130" cy="78" rx="44" ry="22"/></g>
+  <path d="M180 24v12M174 30h12" stroke="#8ec5f5" stroke-width="2"/><path d="M30 26v8M26 30h8" stroke="#8ec5f5" stroke-width="1.6"/>
+</svg>

@@ -11,6 +11,9 @@
  * 不经过本入口。
  */
 export { currentLocale, currentStrings as strings } from "./current-table.ts";
+export { componentUpdateCopy, updateRecoveryCopy } from "./component-update-copy.ts";
+export { updatePlanCopy } from "./update-plan-copy.ts";
+export { amfUpdateCopy, amfDataMigrationCopy } from "./amf-update-copy.ts";
 export type { Strings } from "./strings.en.ts";
 export {
   defaultLocale,
@@ -24,3 +27,8 @@ export { format } from "./format.ts";
 export { TERMS, termLabel, termNote, termSequence, type TermId } from "./terms.ts";
 
 export { formatDateMinute, formatDateTime, formatShortDateTime } from "./date-time.ts";
+export { presentationCopy } from "./presentation-copy.ts";
+
+export { recipeShareCopy, recipeShareError } from "./recipe-share.ts";
+
+export { termsEverywhereCopy } from "./terms-everywhere.ts";

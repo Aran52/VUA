@@ -25,7 +25,7 @@
   width: 100%;
   padding: var(--vua-space-1) var(--vua-space-3);
   border: none;
-  border-radius: calc(var(--vua-radius-control) - 4px);
+  border-radius: var(--vua-radius-sm);
   background: transparent;
   color: var(--vua-text-strong);
   font: var(--vua-font-body);

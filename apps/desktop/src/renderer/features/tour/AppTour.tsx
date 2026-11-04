@@ -13,8 +13,8 @@
  *   任务;等待下载不会把玩家困在导览里;
  * - 键盘纪律:步进后焦点落在指引卡,Esc = 跳出,←/→ 翻步,Tab 在卡内
  *   循环;导览结束恢复先前焦点;
- * - 进度状态独立(storageKeys.tourProgress):新档案从未运行 = 自动开始,
- *   active 按步号恢复(中途关应用),completed/skipped 不再自动出现;
+ * - 进度状态独立(storageKeys.tourProgress):只有明确重播才进入 active,
+ *   新档案、升级档案和旧 active 状态都不会自动打开导览;
  *   重播经帮助或命令面板,不重置阅读器或安装状态。
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
@@ -25,7 +25,6 @@ import type { PageId } from "../../app/nav-model.ts";
 import {
   TOUR_STEPS,
   normalizeStep,
-  parseTourProgress,
   serializeTourProgress,
   type TourProgressV2,
 } from "./tour-model.ts";
@@ -64,14 +63,6 @@ function rectOf(element: Element): AnchorRect {
   };
 }
 
-function readStoredProgress(): TourProgressV2 | null {
-  try {
-    return parseTourProgress(localStorage.getItem(storageKeys.tourProgress));
-  } catch {
-    return null;
-  }
-}
-
 function persistProgress(progress: TourProgressV2): void {
   try {
     localStorage.setItem(storageKeys.tourProgress, serializeTourProgress(progress));
@@ -108,22 +99,24 @@ export function AppTour({
   page,
   navigate,
   startRequest,
-  autoStart = true,
   onFinish,
+  onActiveChange,
 }: {
   page: PageId;
   navigate: (target: PageId) => void;
   /** 壳侧重播信号:值递增 = 从第一步重开(命令面板入口) */
   startRequest: number;
-  autoStart?: boolean;
   onFinish?: (status: "completed" | "skipped") => void;
+  onActiveChange?: (active: boolean) => void;
 }) {
   const copy = strings.tour;
-  const [progress, setProgress] = useState<TourProgressV2 | null>(() => readStoredProgress());
+  const [progress, setProgress] = useState<TourProgressV2 | null>(null);
   const [target, setTarget] = useState<AnchorTarget>(undefined);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const lastStartRequest = useRef(startRequest);
+  // A replay may be requested while startup still holds this surface unmounted.
+  // Zero means no explicit request; consume a pending request on the first mount.
+  const lastStartRequest = useRef(0);
 
   const active = progress?.status === "active";
   const stepIndex = active ? normalizeStep(progress.step, TOUR_STEPS.length) : 0;
@@ -131,17 +124,7 @@ export function AppTour({
   const stepDef = TOUR_STEPS[stepIndex] ?? TOUR_STEPS[0]!;
   const lastStep = stepIndex === TOUR_STEPS.length - 1;
 
-  // 从未运行 = 自动开始(每次档案一次;跳过/完成后不再自动出现)
-  useEffect(() => {
-    if (!autoStart) return;
-    setProgress((current) => {
-      if (current !== null) return current;
-      const started: TourProgressV2 = { v: 2, status: "active", step: 0 };
-      persistProgress(started);
-      return started;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载一次
-  }, []);
+  useEffect(() => { onActiveChange?.(active); }, [active, onActiveChange]);
 
   // 壳侧重播信号:跳过初始值,递增 = 从第一步重开
   useEffect(() => {

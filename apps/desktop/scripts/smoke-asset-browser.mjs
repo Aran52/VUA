@@ -1,6 +1,7 @@
 // Real Main, preload, renderer and providers; fixed HTTPS fixtures in disposable sessions.
 // Public-site checks are opt-in and never perform login, purchase or downloads.
 import { app, BrowserWindow, session } from "electron";
+import { enterHomeFromFirstUse } from "./smoke-first-use.mjs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -85,10 +86,7 @@ async function main() {
       return layout.shellActive && layout.frameFitsMain && Math.abs(layout.windowWidth * zoom - content.width) <= 1.5 && Math.abs(layout.windowHeight * zoom - content.height) <= 1.5 && !layout.overflow && rect.x >= layout.mx * zoom - 1 && rect.y >= layout.my * zoom - 1
         && ["x", "y", "width", "height"].every(key => Math.abs(rect[key] - layout[key] * zoom) <= 1.5);
     };
-    await waitFor(() => js('document.querySelector(".vua-tour")?.dataset.tourStep==="welcome"'), "welcome");
-    await clickShell(".vua-tour__actions button");
-    await waitFor(() => js('!!document.querySelector(".vua-onboarding") && !document.querySelector(".vua-boot-splash")'), "first use");
-    await clickShell(".vua-journey-top button");
+    await enterHomeFromFirstUse(js, waitFor);
     await click("shell-help"); await click("help-encyclopedia"); await click("knowledge-wiki");
     await waitFor(() => activeView()?.webContents.getURL() === "https://wiki.vrchat.com/", "Wiki native page");
     await waitFor(frameFits, "Wiki fits content");

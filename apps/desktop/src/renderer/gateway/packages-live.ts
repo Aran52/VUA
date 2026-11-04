@@ -1077,8 +1077,9 @@ export function createLivePackages(client: GatewayClient): PackagesPort {
       params: {},
     });
     const availability = (operationId: string): boolean => {
-      if (!result.ok || !isRecord(result.value)) return false;
-      const capabilities = result.value.capabilities;
+      const value: unknown = result.ok ? result.value : null;
+      if (!isRecord(value)) return false;
+      const capabilities = value.capabilities;
       if (!isRecord(capabilities) || !Array.isArray(capabilities.operations)) return false;
       return capabilities.operations.some(
         (operation) =>
@@ -1227,7 +1228,7 @@ export function createLivePackages(client: GatewayClient): PackagesPort {
    * 空 id 闭列,UI 不构造空数组);typed 码照原词(repo_not_found = 逐字
    * 透传不折叠,P2 读面零折叠);族常量在窄化校验时消费,剥信封键后
    * 返回事实文档,盖戳辨词面永不猜测 */
-  const repoCatalogRaw = async (
+  const readRepoCatalog = async (
     repoId: string | null,
     packageIds: readonly string[] | null,
   ): Promise<TypedOutcome<RepoCatalogFactsV01>> => {
@@ -1244,6 +1245,16 @@ export function createLivePackages(client: GatewayClient): PackagesPort {
     if (outcome.kind !== "ok") return outcome;
     const { schemaVersion: _familyConst, ...facts } = outcome.result;
     return { kind: "ok", result: facts as unknown as RepoCatalogFactsV01 };
+  };
+  const pendingCatalogs = new Map<string, Promise<TypedOutcome<RepoCatalogFactsV01>>>();
+  const repoCatalogRaw = (repoId: string | null, packageIds: readonly string[] | null): Promise<TypedOutcome<RepoCatalogFactsV01>> => {
+    const key = JSON.stringify([repoId, packageIds]);
+    let pending = pendingCatalogs.get(key);
+    if (!pending) {
+      pending = readRepoCatalog(repoId, packageIds).finally(() => { pendingCatalogs.delete(key); });
+      pendingCatalogs.set(key, pending);
+    }
+    return pending;
   };
 
   /** F5 模板条目枚举事实(027 冻结词面):params 空闭集(环境级配置面,

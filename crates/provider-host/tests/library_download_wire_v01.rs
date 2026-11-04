@@ -987,3 +987,160 @@ fn cancellation_before_inspection_keeps_the_prior_file() {
     assert_eq!(host.wait("cancel", &world.tasks)["state"], "cancelled");
     assert_eq!(std::fs::read(old.stored_path).unwrap(), b"old content");
 }
+
+fn terms_fixture_product(store: &BdlStore, id: &str, description: Option<&str>) {
+    store
+        .record_product_observation(&vua_bdl_store::ProductObservation {
+            product_id: id.into(),
+            native_product_id: id[6..].into(),
+            library_type: Some("bought".into()),
+            variant_name: None,
+            source_url: format!("https://booth.pm/items/{}", &id[6..]),
+            final_url: None,
+            status: vua_bdl_store::ProductObservationStatus::Complete,
+            source_locale: None,
+            source_category: None,
+            title: Some(format!("Terms fixture {id}")),
+            description: description.map(str::to_owned),
+            age_restriction: None,
+            adult: false,
+            availability: None,
+            price_amount: None,
+            price_currency: None,
+            shop_name: None,
+            shop_url: None,
+            image_urls: Vec::new(),
+            video_urls: Vec::new(),
+            subproducts: Vec::new(),
+            source_published_at: None,
+            content_hash: format!("sha256:{}", "a".repeat(64)),
+            observed_at: "2026-10-29T00:00:00Z".into(),
+            run_id: None,
+            processor_version: "synthetic/1".into(),
+            missing_fields: Vec::new(),
+        })
+        .unwrap();
+}
+fn terms_fixture_attach(store: &BdlStore, id: &str, name: &str, document: &vua_bdl_store::terms::TermsDocument) {
+    let link = vua_acquisition::terms_links::recognize_link(&format!("https://drive.google.com/file/d/{name}/view"))
+        .unwrap();
+    let mut links: Vec<_> = store
+        .product_terms(id)
+        .unwrap()
+        .sources
+        .into_iter()
+        .map(|s| s.link)
+        .collect();
+    links.push(link.clone());
+    store.record_terms_links(id, &links, "2026-10-29T00:00:00Z").unwrap();
+    store
+        .record_terms_result(&link.source_id, &document.status, "2026-10-29T00:00:00Z", None, Some(document))
+        .unwrap();
+}
+
+#[test]
+fn library_use_filters_before_pagination_and_never_grants_unknown_permission() {
+    let world=World::new();
+    for id in 1..=6 {terms_fixture_product(&world.bdl,&format!("booth:{id}"),None);}
+    let text=include_str!("../../acquisition/tests/fixtures/vn3-en.synthetic.txt");
+    let mut allowed=vua_acquisition::vn3::parse_text(text,&vua_acquisition::terms_links::sha256(text.as_bytes()));
+    for item in &mut allowed.items {if ["C","J"].contains(&item.item.as_str()){item.value="permitted".into();item.condition=None;}}
+    terms_fixture_attach(&world.bdl,"booth:1","use-allowed",&allowed);
+    let mut conditional=allowed.clone();conditional.sha256=vua_acquisition::terms_links::sha256(b"synthetic conditional document");conditional.items.iter_mut().find(|i|i.item=="J").unwrap().condition=Some("modified_distinguishable".into());
+    terms_fixture_attach(&world.bdl,"booth:2","use-conditional",&conditional);
+    let mut contact=allowed.clone();contact.sha256=vua_acquisition::terms_links::sha256(b"synthetic contact document");contact.items.iter_mut().find(|i|i.item=="C").unwrap().value="contact_licensor".into();
+    terms_fixture_attach(&world.bdl,"booth:3","use-contact",&contact);
+    let mut forbidden=allowed.clone();forbidden.sha256=vua_acquisition::terms_links::sha256(b"synthetic forbidden document");forbidden.items.iter_mut().find(|i|i.item=="J").unwrap().value="prohibited".into();
+    terms_fixture_attach(&world.bdl,"booth:4","use-forbidden",&forbidden);
+    world.bdl.record_terms_links("booth:6",&[],"2026-10-29T00:00:00Z").unwrap();
+    world.bdl.create_warehouse_item("Unlinked local", "imported_material", "t").unwrap();
+    let mut host=Host::new(&world.base,world.bdl.clone());
+    let page=|host:&mut Host,offset|host.call("library.list",json!({"schemaVersion":"0.2","text":"Terms fixture","use":"vrchat_personal","limit":1,"offset":offset}));
+    for offset in 0..2 {let result=page(&mut host,offset);assert_eq!(result["ok"],true,"{result}");assert_eq!(result["value"]["total"],2);assert_eq!(result["value"]["items"].as_array().unwrap().len(),1);assert!(matches!(result["value"]["items"][0]["use"]["status"].as_str(),Some("allowed"|"conditional")));}
+    let result=host.call("library.list",json!({"schemaVersion":"0.2","text":"Terms fixture","use":"vrchat_personal","useMode":"all"}));
+    assert_eq!(result["value"]["total"],6);
+    let rows=result["value"]["items"].as_array().unwrap();
+    for (id,expected) in [(1,"allowed"),(2,"conditional"),(3,"contact"),(4,"forbidden"),(5,"unknown"),(6,"no_terms")] {
+        let row=rows.iter().find(|row|row["product"]["productId"]==format!("booth:{id}")).unwrap();assert_eq!(row["use"]["status"],expected,"{row}");
+    }
+    let local=host.call("library.list",json!({"schemaVersion":"0.2","source":"imported","use":"vrchat_personal","useMode":"all"}));
+    assert_eq!(local["value"]["items"][0]["use"]["status"],"no_terms");
+    let old=host.call("library.list",json!({"schemaVersion":"0.1","text":"Terms fixture"}));assert_eq!(old["value"]["total"],6);assert!(old["value"]["items"].as_array().unwrap().iter().all(|row|row.get("use").is_none()));
+    assert_eq!(host.call("library.list",json!({"schemaVersion":"0.1","use":"vrchat_personal"}))["ok"],false);
+    let strict=vua_acquisition::terms::check_use(&world.bdl,"vrchat_personal",&["booth:1".into(),"booth:3".into(),"booth:4".into()]).unwrap();assert_eq!(strict.combination.decision,"nonconforming");
+    let unknown=vua_acquisition::terms::check_use(&world.bdl,"vrchat_personal",&["booth:3".into(),"booth:5".into()]).unwrap();assert_eq!(unknown.combination.decision,"unknown");
+    let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/library-view/v0.2");
+    let read=|file:&str|serde_json::from_slice::<Value>(&std::fs::read(root.join(file)).unwrap()).unwrap();
+    let request_schema=jsonschema::validator_for(&read("request.schema.json")).unwrap();let response_schema=jsonschema::validator_for(&read("response.schema.json")).unwrap();
+    assert!(response_schema.is_valid(&result["value"]),"{result}");
+    for entry in std::fs::read_dir(root.join("examples")).unwrap() {let path=entry.unwrap().path();let name=path.file_name().unwrap().to_string_lossy();let value:Value=serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();let valid=name.contains(".valid.");if name.ends_with("request.json"){assert_eq!(request_schema.is_valid(&value),valid,"{name}");assert_eq!(host.call("library.list",value["params"].clone())["ok"],valid,"{name}");}else{assert_eq!(response_schema.is_valid(&value),valid,"{name}");}}
+}
+
+#[test]
+fn grouped_migration_intake_copies_reviewed_materials_and_refuses_stale_or_overlapping_groups() {
+    let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
+    let collection = world.base.join("collection");
+    std::fs::create_dir_all(collection.join("Coat").join("Textures")).unwrap();
+    std::fs::create_dir_all(collection.join("Hat")).unwrap();
+    let coat_package = collection.join("Coat").join("Coat.unitypackage");
+    let coat_texture = collection.join("Coat").join("Textures").join("body.png");
+    let hat_package = collection.join("Hat").join("Hat.unitypackage");
+    std::fs::write(&coat_package, b"PK coat").unwrap();
+    std::fs::write(&coat_texture, b"png body").unwrap();
+    std::fs::write(&hat_package, b"PK hat").unwrap();
+    let describe = |path: &std::path::Path| {
+        let metadata = std::fs::metadata(path).unwrap();
+        let modified = metadata.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        json!({"path": "", "bytes": metadata.len(), "modifiedMs": modified})
+    };
+    let file = |path: &std::path::Path, relative: &str| { let mut value = describe(path); value["path"] = json!(relative); value };
+    let groups = json!([
+        { "name": "Meiyun coat", "root": collection, "files": [
+            file(&coat_package, "Coat/Coat.unitypackage"), file(&coat_texture, "Coat/Textures/body.png") ] },
+        { "name": "Meiyun hat", "root": collection, "files": [ file(&hat_package, "Hat/Hat.unitypackage") ] },
+    ]);
+    let params = json!({"schemaVersion":"0.1","groups":groups});
+    let accepted = host.call_command("library.importGroups", params.clone(), Some("migration-once"));
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    assert_eq!(accepted["value"]["operation"], "library.importGroups");
+    let task_id = accepted["value"]["taskId"].as_str().unwrap();
+    let start = Instant::now();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() { assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded); break; }
+        assert!(start.elapsed() < WIRE_WAIT); std::thread::sleep(Duration::from_millis(5));
+    }
+    let cards = world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap();
+    assert_eq!(cards.len(), 2, "{cards:?}");
+    let names = cards.iter().map(|card| card.display_name.clone()).collect::<Vec<_>>();
+    assert!(names.contains(&"Meiyun coat".to_string()) && names.contains(&"Meiyun hat".to_string()), "{names:?}");
+    let copies = world.bdl.library_copy_evidence().unwrap();
+    assert_eq!(copies.len(), 3);
+    assert!(copies.iter().any(|copy| copy.copy.relative_path.replace('\\', "/").ends_with("Coat/Textures/body.png")));
+    // Originals are untouched, and a replay with the same command id keeps one task.
+    assert_eq!(std::fs::read(&coat_package).unwrap(), b"PK coat");
+    let replay = host.call_command("library.importGroups", params, Some("migration-once"));
+    assert_eq!(replay["value"]["taskId"], accepted["value"]["taskId"]);
+
+    // A source edited after the review is refused before anything is copied: the declaration
+    // still carries the reviewed size and modification time.
+    let hat_as_reviewed = file(&hat_package, "Hat/Hat.unitypackage");
+    std::fs::write(&hat_package, b"PK hat edited after the review").unwrap();
+    let stale = json!({"schemaVersion":"0.1","groups":[
+        { "name": "Meiyun hat", "root": collection, "files": [ hat_as_reviewed ] } ]});
+    let refused = host.call_command("library.importGroups", stale, Some("migration-stale"));
+    assert_eq!(refused["ok"], false, "{refused}");
+    assert_eq!(refused["error"]["code"], "vua.migration.stale");
+    // The same file in two materials is an overlap, not a silent drop.
+    let overlap = json!({"schemaVersion":"0.1","groups":[
+        { "name": "First", "root": collection, "files": [ file(&coat_package, "Coat/Coat.unitypackage") ] },
+        { "name": "Second", "root": collection, "files": [ file(&coat_package, "Coat/Coat.unitypackage") ] } ]});
+    let refused = host.call_command("library.importGroups", overlap, Some("migration-overlap"));
+    assert_eq!(refused["error"]["code"], "vua.migration.overlap", "{refused}");
+    // A root that contains the library storage is refused instead of copied into itself.
+    let recursive = json!({"schemaVersion":"0.1","groups":[
+        { "name": "Everything", "root": world.base, "files": [ file(&coat_package, "collection/Coat/Coat.unitypackage") ] } ]});
+    assert_eq!(host.call_command("library.importGroups", recursive, Some("migration-recursive"))["error"]["code"], "vua.migration.invalidParams");
+    // No entry was created by any refused command.
+    assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 2);
+}

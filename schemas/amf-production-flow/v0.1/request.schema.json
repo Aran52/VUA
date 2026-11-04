@@ -194,6 +194,13 @@
                       },
                       "active": {
                         "type": "boolean"
+                      },
+                      "saved": {
+                        "type": "boolean"
+                      },
+                      "group": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{0,32}$"
                       }
                     }
                   }
@@ -362,6 +369,13 @@
                       },
                       "active": {
                         "type": "boolean"
+                      },
+                      "saved": {
+                        "type": "boolean"
+                      },
+                      "group": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{0,32}$"
                       }
                     }
                   }
@@ -371,6 +385,9 @@
             "planDigest": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
+            },
+            "recipeDifferencesConfirmed": {
+              "const": true
             }
           }
         }
@@ -512,6 +529,12 @@
             "planDigest": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
+            },
+            "target": {
+              "enum": [
+                "restorePoint",
+                "prePatch"
+              ]
             }
           }
         }
@@ -740,6 +763,19 @@
               "minLength": 1,
               "maxLength": 4096,
               "pattern": "^[^\\u0000]+$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
             }
           }
         }
@@ -931,7 +967,7 @@
               "type": "object",
               "maxProperties": 64,
               "propertyNames": {
-                "pattern": "^m-[a-f0-9]{64}$"
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
               },
               "additionalProperties": {
                 "type": "string",
@@ -982,6 +1018,19 @@
               "minLength": 1,
               "maxLength": 256,
               "pattern": "^[^\\u0000]+$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
             }
           }
         }
@@ -1040,6 +1089,22 @@
               "minLength": 1,
               "maxLength": 256,
               "pattern": "^[^\\u0000]+$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
+            },
+            "recipeDifferencesConfirmed": {
+              "const": true
             }
           }
         }
@@ -1674,6 +1739,392 @@
             },
             "confirmTrustedCode": {
               "const": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.closeEditor"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "confirmed"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,100}$"
+            },
+            "confirmed": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.planTextureMemory"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "platform",
+            "targetRank"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "platform": {
+              "enum": [
+                "pc",
+                "android"
+              ]
+            },
+            "targetRank": {
+              "enum": [
+                "excellent",
+                "good",
+                "medium",
+                "poor"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.applyTextureMemory"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "platform",
+            "targetRank",
+            "planDigest",
+            "textures"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "platform": {
+              "enum": [
+                "pc",
+                "android"
+              ]
+            },
+            "targetRank": {
+              "enum": [
+                "excellent",
+                "good",
+                "medium",
+                "poor"
+              ]
+            },
+            "planDigest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "textures": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2048,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "maxLength": 4096,
+                "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))Assets/[^\\\\:\\u0000]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.planOutfitRemoval"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "sourceId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "sourceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\u0000]*$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.removeOutfit"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "sourceId",
+            "planDigest",
+            "confirmed"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "sourceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "pattern": "^[^\\u0000]*$"
+            },
+            "planDigest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "confirmed": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.recipeMaterialPlan"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "recipeId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "recipeId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "materialChoices": {
+              "type": "object",
+              "maxProperties": 64,
+              "propertyNames": {
+                "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.exportShareImage"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "runId",
+            "format",
+            "index",
+            "code"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "runId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,100}$"
+            },
+            "format": {
+              "enum": [
+                "png",
+                "gif"
+              ]
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 59
+            },
+            "code": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{12}$"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.readShareImage"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "inputId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "inputId": {
+              "type": "string",
+              "pattern": "^input-[0-9a-f-]{36}\\.bin$"
             }
           }
         }

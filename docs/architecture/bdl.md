@@ -1,7 +1,7 @@
 # BDL architecture boundary
 
 > Scope: AMF-owned BDL module
-> Updated: 2026-10-19
+> Updated: 2026-10-21
 
 BDL base storage is always available **inside an enabled AMF**, independently of its experimental
 forensics switch. AMF itself is optional; the VUA host never opens BDL, and stores module selection
@@ -71,7 +71,7 @@ read queries use local observations; explicit refresh commands own public docume
 ```text
 AMF acquisition / content-management service
   ├─ native browser and authorized downloads
-  ├─ BLM / VAE adapters
+  ├─ local import
   └─ source validation and mapping decisions
           ↓ validated observations and result metadata
 BDL application service
@@ -141,15 +141,9 @@ pipeline; N5 must trace and exercise that caller path. The existing write-face s
 
 ## External tool data
 
-The native AMF browser and content manager are the complete path. Tools such as BLM and VAE
-coexist as optional AMF adapters:
-
-- Prefer public, stable, clearly authorized APIs or import/export formats;
-- third-party login sessions and private credentials stay inside their original owner's boundary;
-- third-party private database schemas stay inside the adapter;
-- the native path completes the core flows on its own;
-- each adapter publishes an honest capability snapshot;
-- adapter data enters BDL only after AMF validation.
+The native AMF browser and content manager are the complete path (author ruling, 2026-10-21).
+Files that other library managers or download tools have stored enter through local import like
+any other local file, and their source comes from VUA's own account sync and source association.
 
 ## Implementation status (source check 2026-09-28)
 

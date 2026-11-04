@@ -798,6 +798,12 @@ fn a_lane_runs_its_jobs_one_at_a_time_in_order() {
     release_c.send(()).unwrap();
     assert_eq!(wait_for_terminal(&runtime, &c).state, TaskState::Succeeded);
     assert_eq!(*order.lock().unwrap(), vec!["a", "b", "c"]);
+    // The lane's bookkeeping clears after the terminal state is published; poll
+    // instead of asserting immediately (flaked on a loaded CI runner, 2026-10-30).
+    for _ in 0..150 {
+        if lane.is_idle() { break; }
+        std::thread::sleep(Duration::from_millis(20));
+    }
     assert!(lane.is_idle());
 }
 

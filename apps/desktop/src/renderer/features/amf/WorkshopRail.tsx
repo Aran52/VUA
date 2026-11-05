@@ -5,22 +5,11 @@ import { useGateway } from "../../gateway/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
 import { format, strings } from "../../i18n/index.ts";
-import type { LineStatus } from "./factory-model.ts";
+import { rememberHiddenLines as rememberHidden, storedHiddenLines as storedHidden, type LineStatus } from "./factory-model.ts";
 
 const factory = strings.factory;
 const menu = factory.lineMenu;
-const hiddenKey = "vua-amf-hidden-lines-v01";
 const ENDED = ["completed", "completedWithWarnings", "failed", "cancelled"];
-
-function storedHidden(): ReadonlySet<string> {
-  try {
-    const ids: unknown = JSON.parse(localStorage.getItem(hiddenKey) ?? "[]");
-    return new Set(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string").slice(0, 500) : []);
-  } catch { return new Set(); }
-}
-function rememberHidden(ids: ReadonlySet<string>): void {
-  try { localStorage.setItem(hiddenKey, JSON.stringify([...ids])); } catch { /* Hidden lines apply to this session. */ }
-}
 
 export function StatusChip({ status }: { status: LineStatus }) {
   return <span className="vua-line__status" data-status={status}>{factory.status[status]}</span>;

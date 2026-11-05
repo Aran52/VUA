@@ -23,7 +23,7 @@ const copy = strings.controlCenter.recipes;
 const production = strings.amfProduction;
 type View = "graph" | "list";
 const viewKey = "vua-amf-control-recipes-view-v01";
-function storedView(): View { try { return localStorage.getItem(viewKey) === "list" ? "list" : "graph"; } catch { return "graph"; } }
+function storedView(): View { try { return localStorage.getItem(viewKey) === "graph" ? "graph" : "list"; } catch { return "list"; } }
 function rememberView(view: View) { try { localStorage.setItem(viewKey, view); } catch { /* The view applies to this visit. */ } }
 
 export function describeNode(node: GraphNode): string {

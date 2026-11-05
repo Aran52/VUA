@@ -110,8 +110,11 @@ import { UpdatePlanPanel } from "./features/modules/UpdatePlanPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
 import { AmfSurface as AmfPages, AmfUiRuntimeBridge } from "./features/modules/AmfSurface.tsx";
-import { HomePage, directory } from "./features/home/HomePage.tsx";
+import { HomePage } from "./features/home/HomePage.tsx";
 import { ThemeAddress, ThemeCommandBar, ThemeDetails } from "./features/shell/ThemeChrome.tsx";
+import { directory, directoryGroupLabel, directoryItemSelected, presentedModule } from "./features/shell/directory.ts";
+import { DirectoryBadge } from "./features/shell/DirectoryBadge.tsx";
+import { useLineSummary, type LineSummary } from "./features/shell/use-line-summary.ts";
 import { RouteEnvironmentPage } from "./features/home/RouteEnvironmentPage.tsx";
 import "./app-shell.css";
 import "./features/home/home.css";
@@ -560,15 +563,13 @@ function renderPage(
   prefs: PagePrefs,
   amf: import("@vua/contracts").AmfModuleSnapshotV01,
   encyclopedia: { request: GuideRequest | null; acknowledge: (nonce: number) => void },
+  lines: LineSummary,
 ) {
+  // The retired hub pages stay valid targets: an independently updated AMF UI may still link to them.
+  if (page === "home" || page === "avatar-hub" || page === "environment-hub") return <HomePage navigate={actions.navigate} amfInstalled={amf.installed} lines={lines} />;
   if (isAmfPage(page) && amf.state !== "ready") return <ModulesPage onOpen={() => actions.navigate("warehouse")} />;
   switch (page) {
-    case "avatar-hub":
-      if (amf.installed && amf.state === "ready") return <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<p role="status">{format(strings.amfModule.loading, { amf: TERMS.amf })}</p>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>;
-      return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
-    case "home": case "environment-hub":
-      return <HomePage page={page} navigate={actions.navigate} amfInstalled={amf.installed} />;
-    case "help": case "help-wizard": case "help-tour": case "help-game-assistant": case "help-encyclopedia": case "help-ai":
+    case "help": case "help-wizard": case "help-encyclopedia": case "help-ai":
       return <HelpPage page={page} navigate={actions.navigate} startTour={actions.startTour} guideRequest={encyclopedia.request} acknowledgeGuide={encyclopedia.acknowledge} />;
     case "env-play": case "env-create":
       return <RouteEnvironmentPage zone={page === "env-play" ? "play" : "create"} onAccounts={actions.openAccounts} onOpenAmf={() => actions.navigate("warehouse")} onWorkshop={() => actions.navigate("workshop")} />;
@@ -664,7 +665,8 @@ function AppShell({
     fixedThemeForFamily(resolvedThemeFamily) ?? themeOverride ?? resolveTheme(themePref, systemDark);
   const environmentView = useEnvironmentView();
   const creatorReady = creatorEnvReady(environmentView.deployer);
-  const activeModule = page === "home" || page.startsWith("help") ? "global" : moduleOf(page);
+  const activeModule = page === "home" || page.startsWith("help") ? "global" : presentedModule(page, moduleOf(page));
+  const lines = useLineSummary(amf.state === "ready", page);
   // Retired layout preferences never change the ordinary desktop shell.
   useEffect(() => { try { localStorage.removeItem(storageKeys.retiredDisplayMode); } catch { /* Ignored even when storage is unavailable. */ } }, []);
   const settingsOpen = page.startsWith("settings-");
@@ -764,17 +766,12 @@ function AppShell({
   }, []);
 
   const commands = useMemo<CommandItem[]>(() => {
-    const pages: CommandItem[] = modules.filter(module => module.id !== "production" || amf.installed).flatMap((module) =>
-      module.groups.flatMap((group) =>
-        group.pages.map((p) => ({
-          id: p.id,
-          group: "pages" as const,
-          label: pageLabel(p),
-          keywords: p.id,
-          run: () => navigate(p.id),
-        })),
-      ),
-    );
+    // Search lists what the sidebars list, under the same names.
+    const directoryPages = [...directory.env, ...directory.production.filter(item => amf.installed || !isAmfPage(item.id))];
+    const pages: CommandItem[] = [
+      ...directoryPages.map(item => ({ id: item.id, group: "pages" as const, label: item.title, keywords: item.id, run: () => navigate(item.id) })),
+      ...moduleDef("settings").groups.flatMap(group => group.pages.map(p => ({ id: p.id, group: "pages" as const, label: pageLabel(p), keywords: p.id, run: () => navigate(p.id) }))),
+    ];
     const actions: CommandItem[] = [
       { id: "help", group: "pages", label: strings.journey.help, keywords: "help guidance encyclopedia", run: () => navigate("help") },
       {
@@ -1051,17 +1048,16 @@ function AppShell({
           <SkinMotif slot="page-corner" className="vua-shell__skin-motif" />
           {settingsOpen ? <div className="vua-shell__sidebar-group vua-shell__sidebar-group--settings" data-module="settings">
             {moduleDef("settings").groups.flatMap(g => g.pages).map(p => <button type="button" key={p.id} className="vua-shell__sidebar-item" aria-current={page === p.id ? "page" : undefined} onClick={() => navigate(p.id)} data-nav-id={`nav-${p.id}`}>{pageLabel(p)}</button>)}
-          </div> : (["env", "production"] as const).filter(group => group !== "production" || amf.installed).map(group => <div className="vua-shell__sidebar-group" key={group} data-module={group}>
-            <span className="vua-shell__sidebar-label">{group === "env" ? strings.journey.environment : TERMS.amf}</span>
-            {directory[group].map(item => <button type="button" key={item.id} className="vua-shell__sidebar-item" aria-current={page === item.id || ("pages" in item && (item.pages as readonly string[]).includes(page)) ? "page" : undefined} onClick={() => navigate(item.id)} data-nav-id={`nav-${item.id}`}>{item.title}</button>)}
-          </div>)}
-          {!settingsOpen && !amf.installed ? <div className="vua-shell__sidebar-group" data-module="amf-enablement">
-            <span className="vua-shell__sidebar-label">{TERMS.amf}</span>
-            <button type="button" className="vua-shell__sidebar-item vua-shell__amf-entry" data-nav-id="nav-enable-amf" onClick={() => {
+          </div> : (["env", "production"] as const).map(group => <div className="vua-shell__sidebar-group" key={group} data-module={group}>
+            <span className="vua-shell__sidebar-label">{directoryGroupLabel(group)}</span>
+            {directory[group].filter(item => amf.installed || !isAmfPage(item.id)).map(item => <button type="button" key={item.id} className="vua-shell__sidebar-item" aria-current={directoryItemSelected(item, page) ? "page" : undefined} onClick={() => navigate(item.id)} data-nav-id={`nav-${item.id}`}>
+              {item.title}{item.id === "workshop" ? <DirectoryBadge lines={lines} /> : null}
+            </button>)}
+            {group === "production" && !amf.installed ? <button type="button" className="vua-shell__sidebar-item vua-shell__amf-entry" data-nav-id="nav-enable-amf" onClick={() => {
               navigate("env-create");
               window.requestAnimationFrame(() => document.querySelector(".vua-creator-page [data-amf-setup]")?.scrollIntoView({ block: "start" }));
-            }}><Icon name="arrow-right" size={16} />{format(strings.amfModule.enable, { amf: TERMS.amf })}</button>
-          </div> : null}
+            }}><Icon name="arrow-right" size={16} />{format(strings.amfModule.enable, { amf: TERMS.amf })}</button> : null}
+          </div>)}
           {settingsOpen ? <div className="vua-shell__sidebar-footer">
             <LanguageSelector />
             <button
@@ -1079,13 +1075,13 @@ function AppShell({
         <main className="vua-shell__main">
           {contentPage !== null ? <div hidden={showOnboarding || settingsOpen} key={contentPage} className="vua-page-enter">
             {aiPort ? <AiRequestsHere page={contentPage} /> : null}
-            {renderPage(contentPage, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}
+            {renderPage(contentPage, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide }, lines)}
           </div> : null}
           {showOnboarding ? <div key="first-run" hidden={settingsOpen}><OnboardingPage onComplete={result => {
             onOnboardingComplete(result);
             if (result.tour) setTourStartRequest(value => value + 1);
           }} /></div> : null}
-          {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide })}</div> : null}
+          {settingsOpen ? <div key={page} className="vua-page-enter">{renderPage(page, creatorReady, pageActions, pagePrefs, amf, { request: guideRequest, acknowledge: acknowledgeGuide }, lines)}</div> : null}
         </main>
       </div>
       <ThemeDetails page={contentPage ?? page} />

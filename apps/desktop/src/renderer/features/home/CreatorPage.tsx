@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGateway, type CreatorEditor, type CreatorManagers } from "../../gateway/index.ts";
-import { strings } from "../../i18n/index.ts";
+import { currentLocale, strings } from "../../i18n/index.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import { RouteTile } from "../../components/RouteTile.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
@@ -8,10 +9,10 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { DeploymentPanel } from "../deployer/DeploymentPanel.tsx";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { ModulesPage } from "../modules/ModulesPage.tsx";
-import { UploadEligibilityNote } from "../help/UploadEligibilityNote.tsx";
 import { consumeLicenseStep } from "../deployer/license-step-navigation.ts";
 import { requestProductionRun } from "../amf/production-recipe-navigation.ts";
 const copy = strings.environmentCards;
+const unitySetup = structureCopy[currentLocale].unitySetup;
 export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; onWorkshop?: (() => void) | undefined }) {
   const [licenseRequest] = useState(consumeLicenseStep);
   const port = useGateway().environment.managers;
@@ -41,8 +42,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
   const official = (app: "unity_hub" | "vcc" | "alcom") => app === "unity_hub" ? "https://unity.com/download" : app === "vcc" ? "https://vrchat.com/home/download" : "https://vrc-get.anatawa12.com/alcom/";
   const detailHeader = (title: string) => <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" data-back onClick={() => setDetail(null)}>{copy.closeDetails}</Button></header>;
   return <div className="vua-page vua-route-page vua-creator-page" data-route-stage={detail === "unity2022" ? "prepare" : "pick"}>
-    <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{strings.journey.create}</h1><Button variant="subtle" data-nav-id="creator-refresh-environment" disabled={busy} onClick={() => void inspect()}>{busy ? copy.checking : copy.inspect}</Button></header>
-    <UploadEligibilityNote />
+    <header className="vua-page__hero vua-environment-heading"><h1 className="vua-title">{unitySetup}</h1><Button variant="subtle" data-nav-id="creator-refresh-environment" disabled={busy} onClick={() => void inspect()}>{busy ? copy.checking : copy.inspect}</Button></header>
     <section className="vua-environment-section"><h2>{copy.editors}</h2><div className="vua-route-grid vua-route-grid--devices">
       <div className="vua-card-entry" data-card-entry="route-unity2022">
         <div className="vua-manager-card"><RouteTile title={strings.journey.unity2022} kind="unity" id="route-unity2022" selected={detail === "unity2022"} expanded={detail === "unity2022"} controls="route-unity2022-details" onClick={() => toggle("unity2022")} status={<span className="vua-manager-card__status" data-editor-status role="status">{unity2022Status}</span>} /></div>

@@ -251,20 +251,6 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, terms,
       {run.completedAt && <p className="vua-caption vua-text-secondary">{format(copy.finishedAt, { time: time(run.completedAt) })}</p>}
     </header>
     {notice}
-    <section className="vua-album__block">
-      <h3>{copy.outfits}</h3>
-      {outfits.length === 0 ? <p className="vua-text-secondary">{copy.noOutfits}</p> : <ul className="vua-album__outfits">
-        {outfits.map((outfit, index) => <li key={index}><Icon name="outfit" size={16} /><span>{outfit.name}</span>
-          <small>{outfit.toggle ? `${format(copy.outfitSwitch, { name: outfit.toggle })} · ${outfit.active ? copy.onAtStart : copy.offAtStart}` : copy.alwaysWorn}</small></li>)}
-      </ul>}
-    </section>
-    {checks.length > 0 && <section className="vua-album__block">
-      <h3>{copy.checks.title}</h3>
-      <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
-        <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
-    </section>}
-    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
-    {terms}
     {/* A queued upload is the notice alone; other queued work keeps the button, disabled. */}
     <section className="vua-release-upload" aria-label={copy.upload.button}>
       {live && actions?.queued && <QueuedNotice queued={actions.queued} />}
@@ -285,6 +271,20 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, terms,
         <ul>{earlier.map(upload => <li key={upload.uploadId}>{format(copy.upload.historyLine, { time: time(upload.endedAt ?? upload.startedAt), result: copy.upload.results[upload.state] })}
           {upload.blueprintId && <code>{upload.blueprintId}</code>}</li>)}</ul></details>}
     </section>
+    <section className="vua-album__block">
+      <h3>{copy.outfits}</h3>
+      {outfits.length === 0 ? <p className="vua-text-secondary">{copy.noOutfits}</p> : <ul className="vua-album__outfits">
+        {outfits.map((outfit, index) => <li key={index}><Icon name="outfit" size={16} /><span>{outfit.name}</span>
+          <small>{outfit.toggle ? `${format(copy.outfitSwitch, { name: outfit.toggle })} · ${outfit.active ? copy.onAtStart : copy.offAtStart}` : copy.alwaysWorn}</small></li>)}
+      </ul>}
+    </section>
+    {checks.length > 0 && <section className="vua-album__block">
+      <h3>{copy.checks.title}</h3>
+      <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
+        <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
+    </section>}
+    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
+    {terms}
     <UploadGuide />
   </div>;
 }

@@ -1,74 +1,19 @@
-/* AMF stations: a plain list of the four stations (F1 replaced the code-drawn base map).
- * Stations keep their own color; status uses icons and text. */
-.vua-factory { display: flex; flex-direction: column; gap: var(--vua-space-4); width: 100%; max-width: 1180px; margin-inline: auto; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
-.vua-factory__command { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.vua-factory__command h1 { margin: 0 0 4px; }
-.vua-factory__command p { margin: 0; }
-.vua-factory__alerts { display: flex; gap: var(--vua-space-2); flex-wrap: wrap; }
-.vua-factory__alert { display: inline-flex; align-items: center; gap: 8px; padding: 8px var(--vua-space-4); border: 1px solid var(--vua-border); border-radius: 0; background: var(--vua-bg-panel); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); }
-button.vua-factory__alert { cursor: pointer; }
-.vua-factory__alert[data-tone="waiting"] { border-color: var(--vua-warning); color: var(--vua-warning-text); }
-.vua-factory__alert[data-tone="attention"] { border-color: var(--vua-error); color: var(--vua-error-text); }
-.vua-factory__alert[data-tone="clear"] { color: var(--vua-text-secondary); }
-
-/* Station list: one row per station, its live facts and its Enter button. */
-.vua-stations__list { display: grid; gap: var(--vua-space-3); margin: 0; padding: 0; list-style: none; }
-.vua-stations__item { --room: var(--vua-accent); position: relative; display: grid; grid-template-columns: minmax(120px, auto) minmax(0, 1.1fr) minmax(0, 1fr) auto; align-items: center; gap: 8px var(--vua-space-4); padding: var(--vua-space-4) var(--vua-space-4) var(--vua-space-4) var(--vua-space-5); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-panel); color: var(--vua-text-strong); transition: border-color var(--vua-motion-fast), background-color var(--vua-motion-fast); }
-.vua-stations__item::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--room); }
-.vua-stations__item:hover { border-color: var(--room); background: color-mix(in srgb, var(--room) 7%, var(--vua-bg-panel)); }
-.vua-stations__item[data-room="materials"] { --room: var(--vua-room-materials); }
-.vua-stations__item[data-room="workshop"] { --room: var(--vua-room-workshop); }
-.vua-stations__item[data-room="control"] { --room: var(--vua-room-control); }
-.vua-stations__item[data-room="release"] { --room: var(--vua-room-release); }
-.vua-stations__heading { display: grid; gap: var(--vua-space-1); min-width: 0; }
-.vua-stations__name { margin: 0; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); font-weight: var(--vua-weight-strong); }
-.vua-stations__item .vua-factory__body { align-self: center; max-width: none; }
-.vua-stations__item .vua-factory__enter { justify-self: end; }
-@media (max-width: 760px) {
-  .vua-stations__item { grid-template-columns: minmax(0, 1fr) auto; }
-  .vua-stations__heading { grid-column: 1 / -1; }
-  .vua-stations__item .vua-factory__body { grid-column: 1 / -1; }
-  .vua-stations__item .vua-factory__enter { justify-self: start; }
-}
-
-.vua-factory__plate { display: flex; align-items: center; justify-content: space-between; color: var(--room); }
-.vua-room__name::before { content: var(--vua-motif-glyphs, none); flex: none; align-self: center; width: 20px; height: 20px; background-color: var(--room); mask: var(--vua-glyph-mark) center / contain no-repeat; }
-.vua-factory__tag { display: var(--vua-tag-display, inline); font-size: var(--vua-text-caption-size); line-height: var(--vua-text-caption-leading); font-weight: var(--vua-weight-strong); letter-spacing: 0.16em; }
-.vua-factory__enter:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 3px; }
-.vua-factory__hint, .vua-factory__muted { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
-.vua-factory__body { display: flex; flex-direction: column; gap: 8px; align-self: end; min-width: 0; }
-.vua-factory__enter { display: inline-flex; align-items: center; gap: var(--vua-space-2); justify-self: start; padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid var(--room); background: color-mix(in srgb, var(--room) 12%, transparent); color: var(--vua-text-strong); font: inherit; font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); cursor: pointer; border-radius: var(--vua-radius-control); }
-.vua-factory__enter:hover { background: var(--room); color: var(--vua-accent-contrast); }
-
-.vua-factory__counts { display: flex; gap: var(--vua-space-4); flex-wrap: wrap; font: var(--vua-font-caption); }
-.vua-factory__counts [data-tone="running"] { color: var(--vua-accent-text); }
-.vua-factory__counts [data-tone="waiting"] { color: var(--vua-warning-text); }
-.vua-factory__counts [data-tone="attention"] { color: var(--vua-error-text); }
-.vua-factory__line { display: grid; gap: 8px; min-width: 0; }
-.vua-factory__line-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--vua-font-caption); }
-
+/* Factory rooms: the room's accent and tabs, and the workshop's lines and stations. */
 /* Workshop strip: one segment per station (the base-map variant left with the map). */
 .vua-line__stations { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--vua-space-2); }
-.vua-factory__station-now { font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); }
 
-/* Resource-saving mode keeps the station list still. */
-[data-effects="off"] .vua-stations__item { transition: none; }
 
 /* Room frame: the room's plate and its tabs above the pages it holds. */
-.vua-room { --room: var(--vua-accent); display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin-inline: auto; }
+.vua-room { --room: var(--vua-accent); position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin-inline: auto; }
 .vua-room[data-room="materials"] { --room: var(--vua-room-materials); }
 .vua-room[data-room="control"] { --room: var(--vua-room-control); }
 .vua-room[data-room="release"] { --room: var(--vua-room-release); }
-.vua-room__bar { display: flex; align-items: center; gap: var(--vua-space-4); padding: 0 0 12px; margin-bottom: var(--vua-space-4); border-bottom: 1px solid var(--vua-border); flex-wrap: wrap; }
-.vua-room__map { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-secondary); cursor: pointer; border-radius: var(--vua-radius-control); }
-.vua-room__map:hover { color: var(--room); border-color: var(--room); }
-.vua-room__name { display: inline-flex; align-items: baseline; gap: var(--vua-space-2); font-weight: var(--vua-weight-strong); padding-inline-start: var(--vua-space-2); border-inline-start: var(--vua-room-name-bar-width) solid var(--room); }
-.vua-room__name .vua-factory__tag { color: var(--room); }
+.vua-room__bar { position: absolute; top: 0; inset-inline-end: 8px; z-index: 1; }
 .vua-room__tabs { display: inline-flex; gap: 4px; margin-inline-start: auto; }
 .vua-room__tabs button { padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid transparent; background: transparent; color: var(--vua-text-secondary); font: inherit; cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-room__tabs button:hover { color: var(--vua-text-strong); }
 .vua-room__tabs button[aria-selected="true"] { color: var(--room); border-color: var(--room); }
-.vua-room__map:focus-visible, .vua-room__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-room__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
 .vua-room__content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* Workshop: the line list beside the selected line. */
@@ -231,3 +176,15 @@ button.vua-factory__alert { cursor: pointer; }
 .vua-workshop__capacity-choices button[aria-pressed="true"] { border-color: var(--vua-accent); color: var(--vua-accent-text); background: var(--vua-accent-tint); font-weight: 600; }
 .vua-workshop__capacity-choices button:disabled { cursor: default; opacity: 0.6; }
 .vua-workshop__capacity small { overflow-wrap: anywhere; }
+
+/* A new line starts from materials or a Recipe; the start button stays in view while the list scrolls. */
+.vua-line__start-from { display: inline-flex; align-self: flex-start; gap: 4px; margin-bottom: var(--vua-space-4); }
+.vua-line__start-from button { padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid transparent; border-radius: var(--vua-corners-action, 4px); background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-body); cursor: pointer; }
+.vua-line__start-from button:hover { color: var(--vua-text-strong); }
+.vua-line__start-from button[aria-selected="true"] { border-color: var(--vua-accent); color: var(--vua-accent-text); font-weight: var(--vua-weight-strong); }
+.vua-line__start-from button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-line__materials-card > p { margin: 0 0 var(--vua-space-3); }
+.vua-line__start-bar { position: sticky; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: flex-end; gap: var(--vua-space-4); margin-top: var(--vua-space-3); padding: var(--vua-space-3) 0; background: linear-gradient(to top, var(--vua-bg-canvas) 70%, transparent); }
+.vua-line__source-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--vua-space-1) var(--vua-space-3); margin: var(--vua-space-2) 0; }
+.vua-line__source-details dd { margin: 0; overflow-wrap: anywhere; }
+.vua-line__context .vua-button { margin-inline-start: auto; }

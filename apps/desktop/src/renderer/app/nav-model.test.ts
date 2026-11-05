@@ -86,7 +86,7 @@ test("every page belongs to exactly its own module", () => {
   assert.equal(moduleOf("tools-calibration"), "env");
   assert.equal(moduleOf("tools-installed"), "env");
   assert.equal(moduleOf("settings-about"), "settings");
-  for (const page of ["help-wizard", "help-tour", "help-game-assistant", "help-encyclopedia"] as const) assert.equal(moduleOf(page), "env");
+  for (const page of ["help-wizard", "help-encyclopedia"] as const) assert.equal(moduleOf(page), "env");
   for (const retired of ["settings-version", "settings-language", "settings-donate"]) assert.equal(isPageId(retired), false);
   assert.equal(moduleOf("settings-experimental"), "settings");
   assert.equal(isPageId("settings-goals"), false);

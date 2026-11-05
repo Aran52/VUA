@@ -1,4 +1,4 @@
-/* The play route flow: software, options, checklist and the one button that names the next step. */
+/* The play route details: software, options and checklist. The route card holds the next step. */
 .vua-play-flow { display: flex; flex-direction: column; gap: var(--vua-space-4); padding: var(--vua-space-5); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); background: var(--vua-bg-panel); }
 .vua-play-flow__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -30,35 +30,6 @@
 .vua-play-flow__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-3); }
 .vua-play-flow__accounts { margin-left: auto; }
 
-/* One button whose label, icon and fill follow the next step. Progress fills it from the left. */
-.vua-flow-button {
-  --vua-flow-progress: 0%;
-  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--vua-space-2);
-  min-width: 220px; min-height: 44px; padding: 0 var(--vua-space-5); overflow: hidden;
-  border: 1px solid transparent; border-radius: var(--vua-radius-control);
-  background-color: var(--vua-accent); background-image: var(--vua-shine, none), var(--vua-accent-gradient, none);
-  color: var(--vua-accent-contrast); font: var(--vua-font-body); font-weight: var(--vua-weight-strong); cursor: pointer;
-  box-shadow: var(--vua-action-shadow, none);
-  transition: background-color var(--vua-motion-normal, 240ms) var(--vua-motion-ease, ease), color var(--vua-motion-normal, 240ms) var(--vua-motion-ease, ease), border-color var(--vua-motion-normal, 240ms) var(--vua-motion-ease, ease), transform var(--vua-motion-fast, 150ms) var(--vua-motion-ease, ease);
-}
-.vua-flow-button:hover:not(:disabled) { background-color: var(--vua-accent-hover, var(--vua-accent)); }
-.vua-flow-button:active:not(:disabled) { transform: var(--vua-press-transform, translateY(1px)); }
-.vua-flow-button:focus-visible { outline: 3px solid var(--vua-accent); outline-offset: 3px; }
-.vua-flow-button:disabled { cursor: default; }
-.vua-flow-button:disabled:not([aria-busy="true"]) { opacity: 0.55; }
-.vua-flow-button[data-phase='checking'], .vua-flow-button[data-phase='running'], .vua-flow-button[data-phase='starting'],
-.vua-flow-button[data-phase='unavailable'], .vua-flow-button[data-phase='stop'] {
-  border-color: var(--vua-border); background-color: transparent; color: var(--vua-text-strong); box-shadow: none;
-  background-image: linear-gradient(90deg, var(--vua-accent-tint) var(--vua-flow-progress), transparent var(--vua-flow-progress));
-}
-.vua-flow-button[data-phase='stop']:hover:not(:disabled) { background-color: var(--vua-bg-panel); }
-.vua-flow-button[data-phase='retry'] { border-color: var(--vua-warning); }
-.vua-flow-button__icon { display: inline-grid; place-items: center; width: 20px; height: 20px; }
-.vua-flow-button__icon svg { width: 20px; height: 20px; }
-.vua-flow-button__label { animation: vua-flow-label-in var(--vua-motion-normal, 240ms) var(--vua-motion-ease-enter, ease-out); }
-@keyframes vua-flow-label-in { from { opacity: 0; transform: translateY(6px); } }
-html[data-effects='off'] .vua-flow-button, html[data-effects='off'] .vua-flow-button__label { transition: none; animation: none; }
-@media (prefers-reduced-motion: reduce) { .vua-flow-button, .vua-flow-button__label { transition: none; animation: none; } }
 
 .vua-play-drawer .vua-play-flow[hidden] { display: none; }
 .vua-play-devices { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); margin: 0; padding: 0; list-style: none; font: var(--vua-font-caption); color: var(--vua-text-secondary); }

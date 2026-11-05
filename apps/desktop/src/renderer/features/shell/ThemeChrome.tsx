@@ -1,7 +1,7 @@
 import { Icon, useSkinFamily } from "@vua/design-system";
 import type { PageId } from "../../app/nav-model.ts";
-import { format, strings, TERMS } from "../../i18n/index.ts";
-import { directory } from "../home/HomePage.tsx";
+import { format, strings } from "../../i18n/index.ts";
+import { directory, directoryGroupLabel, directoryItemSelected } from "./directory.ts";
 
 /** Theme-only shell parts (author ruling 2026-10-28): Frutiger Aero draws Vista's address bar,
  * command bar and details pane. They mirror existing navigation and actions; no other theme
@@ -10,9 +10,7 @@ import { directory } from "../home/HomePage.tsx";
 function locate(page: PageId): { group: string | null; title: string } {
   for (const group of ["env", "production"] as const) {
     for (const item of directory[group]) {
-      if (item.id === page || ("pages" in item && (item.pages as readonly string[]).includes(page))) {
-        return { group: group === "env" ? strings.journey.environment : TERMS.amf, title: item.title };
-      }
+      if (directoryItemSelected(item, page)) return { group: directoryGroupLabel(group), title: item.title };
     }
   }
   return { group: null, title: page.startsWith("settings") ? strings.nav.tabs.settings : page === "help-ai" ? strings.aiTools.title : page.startsWith("help") ? strings.journey.help : strings.journey.home };

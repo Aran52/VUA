@@ -5,7 +5,6 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx";
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
-import { StationList } from "../../src/renderer/features/amf/StationList.tsx";
 import { AmfRoom } from "../../src/renderer/features/amf/AmfRoom.tsx";
 import { AmfProductionPage } from "../../src/renderer/features/amf/AmfProductionPage.tsx";
 import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsStartDialog.tsx";
@@ -32,7 +31,7 @@ import "../../src/renderer/app-shell.css";
 import "../../src/renderer/features/settings/settings.css";
 import { ShapeScope } from "../../src/renderer/components/primitives/ShapeScope.tsx";
 
-const view = location.hash.slice(1) || "stations";
+const view = location.hash.slice(1) || "workshop-running";
 const layoutReview = new URLSearchParams(location.search).has("layout-review");
 const sources = [
   { sourceId: "avatar", itemId: "a", itemName: "Meiyun_v2.1.0.zip", name: "Meiyun_v2.1.0/Meiyun.unitypackage", productIds: ["booth:1"] },
@@ -362,9 +361,9 @@ const content = view.startsWith("terms-everywhere-") ? <GatewayProvider gateway=
 </GatewayProvider> : view.startsWith("materials-start") ? <GatewayProvider gateway={{ ...gateway, amfProduction: materialsApi, libraryBrowser: libraryApi, amfModule: readyModule }}>
   <AmfRoom page="warehouse" navigate={() => {}}><MaterialsStartPreview /></AmfRoom>
 </GatewayProvider> : <GatewayProvider gateway={control?.gateway ?? { ...gateway, amfProduction: api, libraryBrowser: libraryApi }}>
-  {control ? control.page : view === "stations" ? <StationList navigate={() => {}} /> : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
+  {control ? control.page : <AmfRoom page="workshop" navigate={() => {}}><AmfProductionPage onNavigate={() => {}} onPrepareEnv={() => {}} />{(view === "workshop-full-access" || view === "workshop-mode-menu") && <ChooseMode full={view === "workshop-full-access"} />}{clickThrough[selected] && <ClickThrough clicks={clickThrough[selected]!.clicks} />}{selected === "rebuild" && <PickAvatar path="Assets/Meiyun/Meiyun.prefab" />}</AmfRoom>}
 </GatewayProvider>;
-createRoot(document.getElementById("root")!).render(<ShapeScope value={/^(stations|workshop-|control-|release-|materials-|terms-)/.test(view) ? "amf" : undefined}>{content}</ShapeScope>);
+createRoot(document.getElementById("root")!).render(<ShapeScope value={/^(workshop-|control-|release-|materials-|terms-)/.test(view) ? "amf" : undefined}>{content}</ShapeScope>);
 
 // The items view opens the list of every VN3 item the way the player does.
 if (view === "terms-items") setTimeout(() => document.querySelector<HTMLElement>(".vua-terms__items summary")?.click(), 1200);

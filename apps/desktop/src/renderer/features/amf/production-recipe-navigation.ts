@@ -5,6 +5,16 @@ export function takeRequestedProductionRecipe(): string | null {
   const recipeId = requestedRecipe; requestedRecipe = null; return recipeId;
 }
 
+// Home's "new line": the workshop opens on the start page instead of the last line it showed.
+// Host and independently bundled AMF can have separate copies of this module, so the hint is stored.
+const newLineKey = "vua-amf-production-new-line";
+export function requestNewProductionLine(): void {
+  try { sessionStorage.setItem(newLineKey, "1"); } catch { /* The workshop opens on its last line instead. */ }
+}
+export function takeRequestedNewProductionLine(): boolean {
+  try { const asked = sessionStorage.getItem(newLineKey) !== null; sessionStorage.removeItem(newLineKey); return asked; } catch { return false; }
+}
+
 // The run an AI request acts on: taken when the production page mounts, or delivered to it while open.
 let requestedRun: string | null = null;
 let runPersisted = false;

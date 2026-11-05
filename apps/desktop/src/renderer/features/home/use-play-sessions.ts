@@ -23,7 +23,7 @@ export function usePlaySessions() {
     mounted.current = true;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
-      if (!document.hidden && document.querySelector(".vua-play-page")?.getClientRects().length) await refresh();
+      if (!document.hidden && document.querySelector(".vua-play-page, .vua-home")?.getClientRects().length) await refresh();
       if (!cancelled) timer = setTimeout(() => { void poll(); }, document.documentElement.dataset.effects === "off" ? 5000 : 1500);
     };
     void refresh().then(() => { if (!cancelled) timer = setTimeout(() => { void poll(); }, 1500); });

@@ -16,7 +16,7 @@ export const BEGINNER_CONCEPTS: readonly BeginnerConcept[] = [
   { id: "hardware", target: { topic: "guide-hardware", section: "identify-device" }, setup: "env-play" },
   { id: "avatars", target: { topic: "guide-avatars", section: "outfit-assembly" }, setup: "env-create" },
   { id: "materials", target: { topic: "guide-vua", section: "import-paths" }, setup: "warehouse" },
-  { id: "production", target: { topic: "guide-vua", section: "production-line" }, setup: "avatar-hub" },
+  { id: "production", target: { topic: "guide-vua", section: "production-line" }, setup: "workshop" },
   { id: "upload", target: { topic: "guide-creator", section: "upload-eligibility" }, setup: "release" },
 ];
 

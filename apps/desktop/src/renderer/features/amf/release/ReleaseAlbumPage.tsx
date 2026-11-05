@@ -304,7 +304,7 @@ export function ReleaseAlbumPage({ onNavigate }: { onNavigate: (page: PageId) =>
   const uploaded = useVuaUploads(production, release, shelf !== null && view === "vrchat");
   return <div className="vua-page vua-release-room" data-focus-scope>
     <header className="vua-release-room__header">
-      <h1>{copy.title}</h1>
+      <h1>{strings.nav.pages.release}</h1>
       {shelf && <div className="vua-release-room__tabs" role="tablist" aria-label={copy.title}>
         {(["album", "vrchat"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={view === key}
           data-nav-id={`release-tab-${key}`} onClick={() => setView(key)}>{key === "album" ? shelfCopy.albumTab : shelfCopy.vrchatTab}</button>)}

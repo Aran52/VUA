@@ -106,6 +106,18 @@ export function rememberAutomationLevel(level: AutomationLevel): void {
   try { localStorage.setItem(levelKey, level); } catch { /* The level applies to this session. */ }
 }
 
+/** Lines the player hid from the workshop list stay out of what the directory and Home ask about. */
+const hiddenLinesKey = "vua-amf-hidden-lines-v01";
+export function storedHiddenLines(): ReadonlySet<string> {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(hiddenLinesKey) ?? "[]");
+    return new Set(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string").slice(0, 500) : []);
+  } catch { return new Set(); }
+}
+export function rememberHiddenLines(ids: ReadonlySet<string>): void {
+  try { localStorage.setItem(hiddenLinesKey, JSON.stringify([...ids])); } catch { /* Hidden lines apply to this session. */ }
+}
+
 // Full auto is the default for new players (author ruling 2026-10-28); its warning shows once,
 // at the first start in full auto or the first switch to it.
 const fullAutoNoticeKey = "vua-amf-full-auto-notice-v01";

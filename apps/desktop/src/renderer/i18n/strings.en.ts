@@ -514,15 +514,15 @@ demoTaskTitle: "Demo task",
       },
       creator: {
         title: "Avatar editing",
-        body: "Unity, the package manager and {amf}",
+        body: "In order: materials, workshop, finished Avatars. Recipes, packages and Unity setup are in this group too.",
       },
       settings: {
         title: "Settings",
         body: "Appearance, language and accounts. Back at the top left returns to the previous page; search at the bottom of the settings sidebar replays this tour.",
       },
       route: {
-        title: "Choose a goal",
-        body: "The VUA logo at the top left returns home. Play, Tools and Avatar editing stay in the left sidebar.",
+        title: "Home and the directory",
+        body: "The VUA logo at the top left returns home, which lists what is waiting for you. Everything else is in the left sidebar.",
       },
       network: {
         title: "Network check",
@@ -531,12 +531,12 @@ demoTaskTitle: "Demo task",
       },
       checks: {
         title: "Software status",
-        body: "Each card is one play setup: its software on the left, real status and available actions on the right.",
+        body: "Each card is one play setup. Its left half shows the software and checklist.",
         absent: "Setup cards are in Play",
       },
       plan: {
-        title: "Setup plan",
-        body: "Plus opens the setup plan; once software is complete, Play starts the setup; the cross closes only what this card started.",
+        title: "The next step",
+        body: "The right half names the next step: check, confirm the checklist, install, launch. Close only closes what this card started.",
         absent: "Choose an environment on Play to review its preparation plan.",
       },
       tasks: {

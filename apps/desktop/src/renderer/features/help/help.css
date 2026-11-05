@@ -7,7 +7,7 @@
 .vua-help-child > * { flex-shrink: 0; }
 .vua-help-section { display: grid; gap: var(--vua-space-3); margin-bottom: var(--vua-space-5); }
 .vua-help-section > h2 { margin: 0; }
-.vua-help-faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--vua-space-3); }
+.vua-help-faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: var(--vua-space-3); }
 .vua-help-faq__item { display: grid; align-content: start; gap: var(--vua-space-2); padding: var(--vua-space-4); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); }
 .vua-help-faq__item h3, .vua-help-faq__item p { margin: 0; }
 .vua-help-faq__actions { display: flex; flex-wrap: wrap; align-self: end; gap: var(--vua-space-2); }
@@ -15,3 +15,12 @@
 .vua-upload-eligibility h2 { margin: 0; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-upload-eligibility p { margin: 0; color: var(--vua-text-secondary); font: var(--vua-font-body); }
 .vua-upload-eligibility__actions { display: flex; flex-wrap: wrap; gap: var(--vua-space-2); }
+.vua-help-rows { display: grid; gap: 0; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-xl); overflow: hidden; background: var(--vua-bg-panel); }
+.vua-help-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 16px; align-items: center; gap: var(--vua-space-3); width: 100%; padding: var(--vua-space-3) var(--vua-space-4); border: 0; border-bottom: 1px solid var(--vua-border); background: transparent; color: var(--vua-text-strong); text-align: start; cursor: pointer; transition: background-color var(--vua-motion-fast) ease; }
+.vua-help-row:last-child { border-bottom: 0; }
+.vua-help-row:hover { background: var(--vua-accent-tint); }
+.vua-help-row:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -3px; }
+.vua-help-row > svg { color: var(--vua-accent-text); }
+.vua-help-row__text { display: grid; gap: 2px; min-width: 0; }
+.vua-help-row__text strong { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-help-row__text small { font: var(--vua-font-caption); color: var(--vua-text-secondary); }

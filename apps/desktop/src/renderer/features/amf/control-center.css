@@ -22,7 +22,7 @@
 .vua-control [data-kind="package"] { --kind: var(--vua-graph-package); }
 
 .vua-control__head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.vua-control__head h1 { margin: 0 auto 0 0; font: var(--vua-font-display); }
+.vua-control__head h1 { margin: 0 auto 0 0; font: var(--vua-font-title); }
 .vua-control__head p { margin: 0; max-width: 70ch; }
 .vua-control__actions { display: flex; align-items: center; gap: var(--vua-space-2); flex-wrap: wrap; }
 .vua-control__switch { display: inline-flex; padding: 3px; gap: var(--vua-space-1); border: 1px solid var(--vua-border); background: var(--vua-bg-panel); border-radius: var(--vua-radius-control); }

@@ -41,11 +41,11 @@ export interface TourStepDef {
 export const TOUR_STEPS: readonly TourStepDef[] = [
   { id: "welcome", page: "home", anchor: null },
   { id: "route", page: "home", anchor: '[data-nav-id="logo-home"]' },
-  { id: "network", page: "env-play", anchor: ".vua-network-tile" },
   { id: "checks", page: "env-play", anchor: '[data-tour-anchor="play-environments"]' },
   { id: "plan", page: "env-play", anchor: '[data-nav-id="route-desktop-action"]' },
+  { id: "network", page: "env-play", anchor: ".vua-network-tile" },
   { id: "tools", page: "tools-discover", anchor: '[data-nav-id="nav-tools-discover"]' },
-  { id: "creator", page: "env-create", anchor: '[data-nav-id="nav-env-create"]' },
+  { id: "creator", page: "home", anchor: '.vua-shell__sidebar-group[data-module="production"]' },
   { id: "tasks", page: "home", anchor: '[data-nav-id="shell-notifications"]' },
   { id: "guide", page: "help", anchor: '[data-nav-id="help-encyclopedia"]' },
   { id: "settings", page: "settings-theme", anchor: '[data-nav-id="settings-language-select"]' },

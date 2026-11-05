@@ -147,8 +147,8 @@
 .vua-compact-environments .vua-environment-card__action > svg { width: 24px; height: 24px; }
 .vua-play-page .vua-network-tile > .vua-environment-card__details { gap: var(--vua-space-2) 12px; }
 .vua-play-page .vua-network-tile > .vua-environment-card__action { flex-direction: row; }
-.vua-play-page .vua-environment-card > .vua-environment-card__details { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-content: center; justify-content: stretch; justify-items: start; column-gap: 12px; text-align: start; }
-.vua-play-page .vua-environment-card__details > strong { justify-self: stretch; }
+:is(.vua-play-page, .vua-home) .vua-environment-card > .vua-environment-card__details { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-content: center; justify-content: stretch; justify-items: start; column-gap: 12px; text-align: start; }
+:is(.vua-play-page, .vua-home) .vua-environment-card__details > strong { justify-self: stretch; }
 .vua-play-page .vua-network-tile__results { grid-column: 1 / -1; }
 .vua-route-tile__icon > svg { min-width: 0; min-height: 0; }
 .vua-play-page .vua-network-tile__results { gap: 4px 16px; }
@@ -160,3 +160,23 @@ html[data-effects='off'] .vua-environment-card__spin { animation: none; }
 .vua-compact-environments > * { flex-shrink: 0; }
 .vua-route-tile[data-selected='true'] { border-color: var(--vua-accent); background: var(--vua-accent-tint); }
 .vua-shell__amf-entry { display: flex; align-items: center; gap: 8px; }
+
+/* Home: what is waiting, then each goal's next step. */
+.vua-home__activity > button em { font-style: normal; font-weight: var(--vua-weight-strong); color: var(--vua-accent-text); margin-inline-start: var(--vua-space-2); }
+.vua-home__activity > button[data-line-status="attention"] > svg { color: var(--vua-error-text); }
+.vua-home__activity > button[data-line-status="waiting"] > svg { color: var(--vua-warning-text); }
+.vua-home__spinner { width: 16px; height: 16px; margin: 2px; border: 2px solid var(--vua-border-strong); border-top-color: var(--vua-accent); border-radius: 50%; animation: vua-environment-spin 1s linear infinite; }
+.vua-home__stations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: var(--vua-space-3); }
+.vua-home__station { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: var(--vua-space-1) var(--vua-space-3); padding: var(--vua-space-4); border: 1px solid var(--vua-border); border-radius: var(--vua-corners-container, var(--vua-radius-lg)); background: var(--vua-bg-panel); color: var(--vua-text-strong); text-align: start; cursor: pointer; transition: border-color var(--vua-motion-fast) ease, background-color var(--vua-motion-fast) ease; }
+.vua-home__station > svg { color: var(--vua-accent-text); }
+.vua-home__station > strong { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-home__station > span { grid-column: 2; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-home__station:hover { border-color: var(--vua-accent); background-color: var(--vua-accent-tint); }
+.vua-home__station:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+.vua-home__amf-off { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-3); padding: var(--vua-space-4); border: 1px solid var(--vua-border); border-radius: var(--vua-corners-container, var(--vua-radius-lg)); background: var(--vua-bg-panel); }
+.vua-home__amf-off p { margin: 0; color: var(--vua-text-secondary); }
+
+/* A card's next step reads as the main action; its progress fills from the start edge. */
+.vua-environment-card .vua-environment-card__action[data-primary]:not(:disabled) { background-color: var(--vua-accent-tint); color: var(--vua-accent-text); }
+.vua-environment-card .vua-environment-card__action[data-primary] > span[role='status'] { color: inherit; font-weight: var(--vua-weight-strong); }
+.vua-environment-card .vua-environment-card__action[style*="--vua-card-progress"] { background-image: linear-gradient(90deg, var(--vua-accent-tint) var(--vua-card-progress), transparent var(--vua-card-progress)); }

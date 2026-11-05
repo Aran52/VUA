@@ -17,8 +17,6 @@ export type PageId =
   | "avatar-hub"
   | "help"
   | "help-wizard"
-  | "help-tour"
-  | "help-game-assistant"
   | "help-encyclopedia"
   | "help-ai"
   | "env-play"
@@ -134,11 +132,12 @@ export const settingsModule: ModuleDef = {
   defaultPage: "settings-theme",
   groups: [
     {
+      // Settings opens on Theme, so Theme comes first; what fewer players change follows.
       pages: [
-        { id: "settings-modules", labelKey: "settingsModules" },
-        { id: "settings-environment", labelKey: "settingsEnvironment" },
-        { id: "settings-accounts", labelKey: "settingsAccounts" },
         { id: "settings-theme", labelKey: "settingsTheme" },
+        { id: "settings-accounts", labelKey: "settingsAccounts" },
+        { id: "settings-environment", labelKey: "settingsEnvironment" },
+        { id: "settings-modules", labelKey: "settingsModules" },
         { id: "settings-experimental", labelKey: "settingsExperimental" },
         { id: "settings-debug", labelKey: "settingsDebug" },
         { id: "settings-about", labelKey: "settingsAbout" },
@@ -153,7 +152,7 @@ const pageModule = new Map<PageId, AppSectionId>(
   modules.flatMap((m) => m.groups.flatMap((g) => g.pages.map((p) => [p.id, m.id] as const))),
 );
 
-for (const [page, section] of [["home", "settings"], ["help", "env"], ["help-wizard", "env"], ["help-tour", "env"], ["help-game-assistant", "env"], ["help-encyclopedia", "env"], ["help-ai", "env"], ["environment-hub", "env"], ["avatar-hub", "production"]] as const) pageModule.set(page, section);
+for (const [page, section] of [["home", "settings"], ["help", "env"], ["help-wizard", "env"], ["help-encyclopedia", "env"], ["help-ai", "env"], ["environment-hub", "env"], ["avatar-hub", "env"]] as const) pageModule.set(page, section);
 
 const pageIds = new Set<string>(pageModule.keys());
 

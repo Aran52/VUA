@@ -103,6 +103,9 @@ export function migratePageId(id: string): string {
   if (id === "software") return "env-play";
   if (id === "deployer-play") return "env-play";
   if (id === "deployer-create") return "env-create";
+  // Home took over the hub pages; Help's rows start the tour and the game guide directly.
+  if (id === "avatar-hub" || id === "environment-hub") return "home";
+  if (id === "help-tour" || id === "help-game-assistant") return "help";
   return id;
 }
 

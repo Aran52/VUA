@@ -42,7 +42,8 @@ import {
   type CatalogProductSummary,
   createLibraryMetadataPort,
 } from "../../gateway/index.ts";
-import { format, strings, termLabel } from "../../i18n/index.ts";
+import { currentLocale, format, strings } from "../../i18n/index.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { MaterialsStartDialog } from "../amf/MaterialsStartDialog.tsx";
 import type { MaterialsStartAvatar } from "../amf/materials-start-model.ts";
@@ -93,6 +94,7 @@ import "./warehouse.css";
 import { clipSelectionRect, scrollSelectionRect } from "./marquee-model.ts";
 
 const copy = strings.warehouse;
+const structure = structureCopy[currentLocale].library;
 
 /** W17 透传呈现:CatalogErrorKey 白名单 → strings.errors.catalog 文案(类型安全) */
 function catalogErrorText(messageKey: CatalogErrorKey): string {
@@ -1443,6 +1445,20 @@ export function WarehousePage({
     setCardMenu({ x: event.detail === 0 ? anchor.left : event.clientX, y: event.detail === 0 ? anchor.bottom : event.clientY, items: menuItems });
   };
 
+  // The one selected card's next steps, whichever kind of card it is.
+  const soleId = selectedIds.size === 1 ? [...selectedIds][0]! : null;
+  const soleProduct = soleId === null ? undefined : resultsView?.items.find(item => item.productId === soleId);
+  const soleLocal = soleId === null ? undefined : visibleLocalCards.find(card => card.key === soleId);
+  const soleFacts = soleLocal === undefined ? undefined : libraryPage?.facts.get(soleLocal.entry.warehouseItemId);
+  const soleTitle = soleProduct !== undefined ? soleProduct.title ?? soleProduct.productId
+    : soleLocal !== undefined ? soleFacts?.metadata?.displayName ?? soleLocal.entry.displayName : null;
+  const soleAvatar: MaterialsStartAvatar | null = soleProduct !== undefined ? { productId: soleProduct.productId, title: soleProduct.title, imageUrl: soleProduct.imageUrl }
+    : soleLocal !== undefined ? { entryId: soleLocal.entry.warehouseItemId, title: soleTitle, imageUrl: soleFacts?.metadata?.thumbnailRef ?? soleFacts?.sourceMatch?.product.imageUrl ?? null }
+    : null;
+  const soleOpen = soleProduct !== undefined ? () => { setSelectedLocalId(null); setSelectedId(soleProduct.productId); }
+    : soleLocal !== undefined ? () => { setSelectedId(null); setSelectedLocalId(soleLocal.entry.warehouseItemId); }
+    : null;
+
   const pagination = libraryPage !== null || adaptation !== null ? <div className="vua-library-pagination">
     <Button variant="subtle" disabled={libraryPage === null || pageOffset === 0} onClick={() => changePage(Math.max(0, pageOffset - 50))}>{copy.libraryState.previousPage}</Button>
     <span className="vua-caption">{format(copy.libraryState.page, { page: Math.floor(pageOffset / 50) + 1, total: Math.max(1, Math.ceil((libraryPage?.total ?? 0) / 50)) })}</span>
@@ -1453,14 +1469,10 @@ export function WarehousePage({
   return (
     <div ref={pageRef} className="vua-page vua-warehouse">
       <section className="vua-page__hero">
-        <h1 className="vua-title">{termLabel("warehouse")}</h1>
-        {/* 选区动作位(Explorer 语义,2026-10-05):选区存在才出现;选区本身
-            由单击/框选建立,无独立"选择模式"开关 */}
+        <div className="vua-warehouse__heading">
+        <h1 className="vua-title">{strings.factory.rooms.materials.name}</h1>
         {/* 本地导入直接打开文件夹选择器；账号库同步保留独立入口。 */}
         <div className="vua-page__actions">
-          {selectedIds.size > 0 ? <Button disabled={selectedRecipeRefs.length === 0 || selectedRecipeRefs.length > 512} onClick={() => {
-            setContextSelection(selectedRecipeRefs); setRecipeDialogOpen(true);
-          }}>{format(copy.selectBar.addToRecipe, { count: selectedRecipeRefs.length })}</Button> : null}
           <LocalImportButton
             onSingle={() => {
               setImportInitialUrl(null);
@@ -1479,6 +1491,7 @@ export function WarehousePage({
               {format(copy.catalogSync.progressHint, { pages: syncProgress.pages, count: syncProgress.upsertedCount, rejected: syncProgress.rejectedCount })}
             </span>
           ) : null}
+        </div>
         </div>
         {syncNotice !== null && !TOAST_SYNC_NOTICES.has(syncNotice) ? (
           <Alert tone={syncNotice === "failed" ? "error" : "warning"} onDismiss={() => setSyncNotice(null)} dismissLabel={strings.common.dialogClose}>
@@ -1793,6 +1806,24 @@ export function WarehousePage({
                 </div>
               ) : null}
             </div>
+            {/* The way to start a line: select a card, and its next step appears here. Single click selects
+                (Explorer semantics, 2026-10-05), so a card's own click cannot be the action. */}
+            {selectedId === null && selectedLocalEntry === null && (selectedIds.size > 0 || (amfStartReady && (resultsView?.items.length ?? 0) + localCards.length > 0)) ? <div className="vua-warehouse__selection" role="region" aria-label={format(structure.selected, { count: selectedIds.size })} data-nav-id="warehouse-selection">
+              {selectedIds.size === 0 ? <span className="vua-caption vua-text-secondary">{structure.howToStart}</span> : <>
+                <span className="vua-warehouse__selection-name">
+                  <strong>{format(structure.selected, { count: selectedIds.size })}</strong>
+                  {soleTitle !== null ? <span title={soleTitle}>{soleTitle}</span> : null}
+                </span>
+                <span className="vua-warehouse__selection-actions">
+                  {amfStartReady && soleAvatar !== null ? <Button variant="primary" data-nav-id="warehouse-start-line" onClick={() => setStartAvatar(soleAvatar)}>{strings.factory.materialsStart.startCta}</Button> : null}
+                  {soleOpen !== null ? <Button data-nav-id="warehouse-open-details" onClick={soleOpen}>{structure.openDetails}</Button> : null}
+                  <Button variant="subtle" disabled={selectedRecipeRefs.length === 0 || selectedRecipeRefs.length > 512} onClick={() => {
+                    setContextSelection(selectedRecipeRefs); setRecipeDialogOpen(true);
+                  }}>{format(copy.selectBar.addToRecipe, { count: selectedRecipeRefs.length })}</Button>
+                  <Button variant="subtle" onClick={() => setSelectedIds(new Set())}>{copy.selectBar.clearSelection}</Button>
+                </span>
+              </>}
+            </div> : null}
           </div>
 
           {selectedId !== null ? (

@@ -9,12 +9,12 @@ import { useGridColumns } from "../../components/use-grid-columns.ts";
 import { RouteGlyph } from "../../components/RouteTile.tsx";
 import { useEnvironmentView, useGateway, type EnvironmentView } from "../../gateway/index.ts";
 import { CHECK_GROUPS } from "../deployer/deployer-model.ts";
-import type { DeploymentCardState } from "../deployer/DeploymentPanel.tsx";
 import { NetworkPanel } from "../deployer/NetworkPanel.tsx";
-import { EnvironmentCard } from "./EnvironmentCard.tsx";
-import { playCardDecision } from "./play-card-model.ts";
+import { EnvironmentCard, type EnvironmentAction } from "./EnvironmentCard.tsx";
+import { takeRequestedPlayRoute } from "./play-route-request.ts";
 import { usePlaySessions } from "./use-play-sessions.ts";
-import { PlayRouteFlow } from "./PlayRouteFlow.tsx";
+import { PlayRouteFlow, type PlayFlowStep } from "./PlayRouteFlow.tsx";
+import type { PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
 
 const copy = strings.environmentCards;
@@ -25,6 +25,11 @@ const developingRoutes = [
 ] as const;
 const cardId = (route: PlayRoute) => route === "desktop_play" ? "route-desktop" : "route-pico";
 const runtimeBrand = (id: string) => id === "pico_runtime" ? "pico" : id === "oculus_runtime" ? "meta" : id === "vive_runtime" ? "htcvive" : id === "steamvr" ? "valve" : undefined;
+/** The card's glyph for a step; the other steps name themselves with an icon. */
+const stepAction = (phase: PlayFlowPhase | undefined): EnvironmentAction =>
+  phase === "launch" ? "start" : phase === "stop" ? "stop" : phase === "unavailable" ? "unknown" : phase === "check" || phase === "confirm" || phase === "execute" || phase === "handoff" || phase === "retry" ? "prepare" : "busy";
+/** Steps the player takes next stand out; a running session's Close and work in progress stay quiet. */
+const stepIsPrimary = (step: PlayFlowStep | undefined) => step !== undefined && !step.spinning && step.phase !== "stop" && step.phase !== "unavailable";
 
 /** The device scan runs once per app session when Play first opens; the refresh button runs it again. */
 let devicesScanned = false;
@@ -47,42 +52,47 @@ function useDeviceScan() {
 
 export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   const flowCopy = playFlowCopy[currentLocale];
-  const [selected, setSelected] = useState<PlayRoute | null>(null);
+  const [requestedRoute] = useState(takeRequestedPlayRoute);
+  const [selected, setSelected] = useState<PlayRoute | null>(requestedRoute);
   // The drawer keeps its place and content while it closes.
-  const [shown, setShown] = useState<PlayRoute>("desktop_play");
-  const [deployment, setDeployment] = useState<Partial<Record<PlayRoute, DeploymentCardState>>>({});
+  const [shown, setShown] = useState<PlayRoute>(requestedRoute ?? "desktop_play");
+  const [steps, setSteps] = useState<Partial<Record<PlayRoute, PlayFlowStep>>>({});
   const [refreshToken, setRefreshToken] = useState(0);
   const live = usePlaySessions();
   const scan = useDeviceScan();
   const grid = useRef<HTMLDivElement>(null);
   const columns = useGridColumns(grid);
-  const desktopState = useCallback((s: DeploymentCardState) => setDeployment(p => ({ ...p, desktop_play: s })), []);
-  const picoState = useCallback((s: DeploymentCardState) => setDeployment(p => ({ ...p, pico_pcvr: s })), []);
+  const desktopStep = useCallback((step: PlayFlowStep) => setSteps(p => ({ ...p, desktop_play: step })), []);
+  const picoStep = useCallback((step: PlayFlowStep) => setSteps(p => ({ ...p, pico_pcvr: step })), []);
   const title = (route: PlayRoute) => route === "desktop_play" ? strings.journey.desktop : "PICO";
   const open = (route: PlayRoute) => { setShown(route); setSelected(route); };
   const toggle = (route: PlayRoute) => { setShown(route); setSelected(current => current === route ? null : route); };
-  const decide = (route: PlayRoute) => playCardDecision(live.sessions[route] ?? null, !!live.unavailable[route], !!deployment[route]?.busy, !!deployment[route]?.error);
-  const right = (route: PlayRoute) => {
-    const decision = decide(route);
-    if (decision.action === "start" || decision.action === "stop") void live.act(route, decision.action === "stop");
-    else open(route);
+  const next = (route: PlayRoute) => {
+    const step = steps[route];
+    if (!step || (step.needsDetails && selected !== route)) { open(route); return; }
+    step.act();
   };
+  // A failure or an official page to open is explained in the details, so they open with it.
+  const desktopPhase = steps.desktop_play?.phase, picoPhase = steps.pico_pcvr?.phase;
+  useEffect(() => { if (desktopPhase === "retry" || desktopPhase === "handoff") open("desktop_play"); }, [desktopPhase]);
+  useEffect(() => { if (picoPhase === "retry" || picoPhase === "handoff") open("pico_pcvr"); }, [picoPhase]);
   const refresh = () => { void scan.run(); void live.refresh(); setRefreshToken(value => value + 1); };
 
   const drawer = <SlideDrawer key="play-drawer" open={selected !== null} className="vua-play-drawer" label={title(shown)}>
     {PLAY_ROUTES.map(route => <div key={route} id={`${cardId(route)}-details`} hidden={shown !== route}>
       <PlayRouteFlow route={route} session={live.sessions[route] ?? null} unavailable={!!live.unavailable[route]} launchPending={!!live.pending[route]}
         refreshToken={refreshToken} onLaunch={stop => { void live.act(route, stop); }} onAccounts={onAccounts}
-        onStateChange={route === "desktop_play" ? desktopState : picoState} />
+        onStep={route === "desktop_play" ? desktopStep : picoStep} />
     </div>)}
   </SlideDrawer>;
   const cards: ReactNode[] = [
     ...PLAY_ROUTES.map(route => {
-      const decision = decide(route);
+      const step = steps[route];
       return <div className="vua-card-entry" data-card-entry={cardId(route)} key={route}>
         <EnvironmentCard title={title(route)} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico" : undefined} id={cardId(route)}
-          {...decision} status={copy[decision.status]} spinning={decision.spinning || !!live.pending[route]} disabled={decision.disabled || !!live.pending[route]}
-          selected={selected === route} onDetails={() => toggle(route)} onAction={() => right(route)} />
+          action={stepAction(step?.phase)} actionIcon={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.icon} phase={step?.phase}
+          status={step?.label ?? copy.checking} actionHint={step?.label ?? copy.checking} spinning={step === undefined || step.spinning} disabled={step === undefined || step.disabled}
+          primary={stepIsPrimary(step)} progress={step?.percent} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />
       </div>;
     }),
     ...developingRoutes.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>
@@ -101,7 +111,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
       {scan.devices.length > 0 ? scan.devices.map(item => <li key={item.id}><RouteGlyph brand={runtimeBrand(item.id)} kind="headset" />{item.title}</li>)
         : <li data-empty="true">{flowCopy.devicesNone}</li>}
     </ul> : null}
-    <NetworkPanel compact />
     <div className="vua-environment-grid" ref={grid} data-tour-anchor="play-environments">{items}</div>
+    <NetworkPanel compact />
   </div>;
 }

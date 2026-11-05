@@ -1,6 +1,6 @@
 # Documentation guide
 
-> Updated: 2026-10-16
+> Updated: 2026-11-06
 
 ## Choose your reading context
 

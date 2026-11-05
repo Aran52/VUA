@@ -1,6 +1,6 @@
 # Interaction structure
 
-> Updated: 2026-11-05
+> Updated: 2026-11-06
 > Status: proposed; the author reviews it locally on `slice/ui-structure`
 
 This document owns how the desktop app is organized for the player: the directory, the name of each

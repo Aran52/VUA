@@ -1,6 +1,6 @@
 # Current development plan
 
-> Updated: 2026-10-29
+> Updated: 2026-11-06
 
 This plan orders the next slices toward the [north star](../north-star.md). Each slice names the
 [Eval cases](../eval/cases.md) it moves and what counts as done. The

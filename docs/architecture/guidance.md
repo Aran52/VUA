@@ -1,6 +1,6 @@
 # Guidance architecture: first use, concept wizard, encyclopedia and game guide
 
-> Updated: 2026-10-31
+> Updated: 2026-11-06
 > Scope: First-use notice, concept wizard, contextual guidance, Help and the VRChat game guide
 > Status: Implements freeze-plan section 6; human acceptance remains separate
 

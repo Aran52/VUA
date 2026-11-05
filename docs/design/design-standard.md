@@ -1,7 +1,7 @@
 # VUA design standard
 
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation
-> Updated: 2026-10-28
+> Updated: 2026-11-06
 
 ## 0. Position of this version
 

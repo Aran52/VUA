@@ -1,7 +1,7 @@
 # Electron desktop and presentation architecture
 
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-10-14
+> Updated: 2026-11-06
 
 ## Technology decision
 

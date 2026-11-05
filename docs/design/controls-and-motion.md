@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-11-01
+> Updated: 2026-11-06
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 

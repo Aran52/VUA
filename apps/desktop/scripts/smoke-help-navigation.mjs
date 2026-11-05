@@ -277,7 +277,7 @@ async function run() {
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "FAQ returns to Help");
     const side = command => window.emit('app-command', {}, command);
-    for (const child of ['help-wizard','help-tour','help-game-assistant','help-encyclopedia']) {
+    for (const child of ['help-wizard','help-encyclopedia']) {
       await js(`document.querySelector('[data-nav-id="${child}"]').click()`);
       await waitFor(() => js(`location.hash.startsWith('#${child}') && !!document.querySelector('[data-nav-id=help-child-back]')`), child);
       assert(BrowserWindow.getAllWindows().length === 1, `${child} opens a main-window child page`);

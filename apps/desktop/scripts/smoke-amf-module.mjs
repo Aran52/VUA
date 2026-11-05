@@ -55,7 +55,6 @@ async function run() {
     await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="ready")'), "fresh default AMF startup");
     assert(JSON.parse(fs.readFileSync(path.join(profile, "modules/amf.json"), "utf8")).enabled === true, "fresh AMF default is retained before host data is created");
     assert(fs.existsSync(path.join(profile, "modules/amf/data/bdl/bdl.db")), "AMF creates its own isolated data");
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=home-modules]")'), "home module entry");
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && !!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh editing navigation");
     assert(await js('!!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh users can reach editing directly");
     // The real optional worker and renderer must finish the first read on every
@@ -63,7 +62,7 @@ async function run() {
     for (const [page, ready] of [
       ["warehouse", '.vua-warehouse:not(:has(.vua-skeleton))'],
       ["recipe", '.vua-control__empty, .vua-control__body'],
-      ["workshop", '.vua-workshop .vua-n3__toolbar'],
+      ["workshop", '.vua-workshop .vua-line__start-from'],
       ["release", '.vua-album__cover, .vua-album'],
       ["packages", '.vua-control__screen'],
     ]) {

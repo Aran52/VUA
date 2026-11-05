@@ -2,7 +2,7 @@
 const en = {
   home: "Home", finish: "Finish guide", environment: "Environment", avatar: "Avatar", help: "Help", tasks: "Tasks",
   play: "Play", create: "Avatar editing", library: "Asset library", recipes: "Recipes", production: "Create an Avatar",
-  developing: "In development", desktop: "Computer screen", vr: "VR headset", unity2022: "Unity 2022", unity6: "Unity 6",
+  developing: "In development", desktop: "Desktop", vr: "VR headset", unity2022: "Unity 2022", unity6: "Unity 6",
   back: "Back", exit: "Go to the main page",
   tools: "Tools", identifyHardware: "How do I identify my device?", backToHelp: "Back to Help",
   toolTracking: "Tracking", toolTranslation: "Translation", toolUtilities: "VR utilities", toolCapture: "Capture & streaming",

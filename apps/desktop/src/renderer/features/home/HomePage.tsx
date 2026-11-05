@@ -3,7 +3,6 @@
 import type { PlayRoute } from "@vua/contracts";
 import { Icon, type IconName } from "@vua/design-system";
 import type { PageId } from "../../app/nav-model.ts";
-import { storageKeys } from "../../app/storage-keys.ts";
 import { currentLocale, format, presentationCopy, strings, TERMS } from "../../i18n/index.ts";
 import { playFlowCopy } from "../../i18n/play-flow-copy.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
@@ -20,27 +19,20 @@ import { usePlaySessions } from "./use-play-sessions.ts";
 
 const journey = strings.journey;
 const factory = strings.factory;
-const copy = structureCopy[currentLocale].home;
+const structure = structureCopy[currentLocale];
+const copy = structure.home;
 const flow = playFlowCopy[currentLocale];
 const ROUTES: readonly { readonly route: PlayRoute; readonly id: string }[] = [{ route: "desktop_play", id: "home-route-desktop" }, { route: "pico_pcvr", id: "home-route-pico" }];
 /** Rows the activity list shows before pointing at the workshop for the rest. */
 const MAX_LINE_ROWS = 3;
 
-/** The checklist is confirmed once per route; before that the route's own page explains it first. */
-function checklistConfirmed(route: PlayRoute): boolean {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(storageKeys.playChecklist) ?? "{}");
-    return typeof value === "object" && value !== null && route in value;
-  } catch { return false; }
-}
-
 function PlayRoutes({ navigate }: { navigate: (page: PageId) => void }) {
-  const live = usePlaySessions();
+  const live = usePlaySessions(5000);
   const openRoute = (route: PlayRoute) => { requestPlayRoute(route); navigate("env-play"); };
   return <div className="vua-environment-grid">
     {ROUTES.map(({ route, id }) => {
       const decision = playCardDecision(live.sessions[route] ?? null, !!live.unavailable[route], false, false);
-      const canAct = decision.action === "stop" || (decision.action === "start" && checklistConfirmed(route));
+      const canAct = decision.action === "stop" || decision.action === "start";
       const label = decision.action === "stop" ? flow.phases.stop
         : canAct ? flow.phases.launch
         : decision.spinning ? strings.environmentCards[decision.status]
@@ -107,6 +99,7 @@ export function HomePage({ navigate, amfInstalled = false, lines }: {
         <StationTile id="home-warehouse" icon="folder" title={factory.rooms.materials.name} fact={lines.loaded ? format(factory.materialsCount, { count: lines.materials }) : copy.startHint} onClick={() => navigate("warehouse")} />
         <StationTile id="home-workshop" icon="avatar" title={factory.rooms.workshop.name} fact={lines.loaded ? workshopFact : "—"} onClick={() => navigate("workshop")} />
         <StationTile id="home-release" icon="anim" title={strings.nav.pages.release} fact={lines.loaded ? format(factory.finishedCount, { count: lines.finished }) : "—"} onClick={() => navigate("release")} />
+        {lines.loaded && !lines.hasEditor ? <StationTile id="home-unity" icon="flask" title={structure.unitySetup} fact={structure.workshop.needUnity} onClick={() => navigate("env-create")} /> : null}
       </div> : <div className="vua-home__amf-off">
         <p>{copy.amfOff}</p>
         <Button variant="primary" data-nav-id="home-enable-amf" onClick={() => {

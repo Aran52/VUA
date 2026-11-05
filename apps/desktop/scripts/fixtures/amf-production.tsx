@@ -90,7 +90,7 @@ Object.assign(window,{n3Review:{async run(){const checks:string[]=[];
   await until(()=>document.querySelectorAll(".vua-n3__material").length===2);
   check(document.querySelectorAll("input[type=search]").length===1,"material-first entry with no project name form",checks);
   [...document.querySelectorAll<HTMLInputElement>(".vua-n3__material input")].forEach(input=>input.click());await wait();
-  button(copy.prepare)?.click();await wait();
+  button(strings.factory.materialsStart.startFull)?.click();await wait();
   // New players start in full auto, so the first start asks once before any Unity work.
   if(button(strings.factory.fullAccess.startConfirm)){check(!prepared,"the full-auto warning comes before preparation",checks);button(strings.factory.fullAccess.startConfirm)!.click();}
   await until(()=>!!button(copy.reviewCta)&&!button(copy.reviewCta)?.disabled);

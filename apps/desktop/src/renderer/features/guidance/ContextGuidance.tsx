@@ -9,6 +9,7 @@ import {
   readContextGuideSnoozed,
   readContextGuideState,
   snoozeContextGuide,
+  tourAnswered,
   type ContextGuideDefinition,
 } from "./context-guidance.ts";
 import "./context-guidance.css";
@@ -28,6 +29,8 @@ export function ContextGuidance({ page, startTour, suppressed = false, replayTok
   }, [replayToken]);
 
   if (suppressed || definition === null || (dismissed[definition.id] ?? 0) >= definition.revision || snoozed.includes(definition.id)) return null;
+  // Offering the tour right after the player took or skipped it would only ask again.
+  if (definition.action === "tour" && tourAnswered(localStorage)) return null;
   const copy = strings.contextGuide;
   const content = copy[definition.id];
   const actionLabel = content.action || strings.helpFaq.uploadAction;

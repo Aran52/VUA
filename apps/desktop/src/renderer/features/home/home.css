@@ -180,3 +180,4 @@ html[data-effects='off'] .vua-environment-card__spin { animation: none; }
 .vua-environment-card .vua-environment-card__action[data-primary]:not(:disabled) { background-color: var(--vua-accent-tint); color: var(--vua-accent-text); }
 .vua-environment-card .vua-environment-card__action[data-primary] > span[role='status'] { color: inherit; font-weight: var(--vua-weight-strong); }
 .vua-environment-card .vua-environment-card__action[style*="--vua-card-progress"] { background-image: linear-gradient(90deg, var(--vua-accent-tint) var(--vua-card-progress), transparent var(--vua-card-progress)); }
+.vua-home .vua-environment-grid { grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); }

@@ -74,8 +74,9 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   };
   // A failure or an official page to open is explained in the details, so they open with it.
   const desktopPhase = steps.desktop_play?.phase, picoPhase = steps.pico_pcvr?.phase;
-  useEffect(() => { if (desktopPhase === "retry" || desktopPhase === "handoff") open("desktop_play"); }, [desktopPhase]);
-  useEffect(() => { if (picoPhase === "retry" || picoPhase === "handoff") open("pico_pcvr"); }, [picoPhase]);
+  const desktopIssue = live.sessions.desktop_play?.issue, picoIssue = live.sessions.pico_pcvr?.issue;
+  useEffect(() => { if (desktopPhase === "retry" || desktopPhase === "handoff" || desktopIssue) open("desktop_play"); }, [desktopPhase, desktopIssue]);
+  useEffect(() => { if (picoPhase === "retry" || picoPhase === "handoff" || picoIssue) open("pico_pcvr"); }, [picoPhase, picoIssue]);
   const refresh = () => { void scan.run(); void live.refresh(); setRefreshToken(value => value + 1); };
 
   const drawer = <SlideDrawer key="play-drawer" open={selected !== null} className="vua-play-drawer" label={title(shown)}>
@@ -91,8 +92,8 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
       return <div className="vua-card-entry" data-card-entry={cardId(route)} key={route}>
         <EnvironmentCard title={title(route)} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico" : undefined} id={cardId(route)}
           action={stepAction(step?.phase)} actionIcon={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.icon} phase={step?.phase}
-          status={step?.label ?? copy.checking} actionHint={step?.label ?? copy.checking} spinning={step === undefined || step.spinning} disabled={step === undefined || step.disabled}
-          primary={stepIsPrimary(step)} progress={step?.percent} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />
+          status={step?.label ?? copy.checking} actionHint={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.label ?? copy.checking} spinning={step === undefined || step.spinning} disabled={step === undefined || step.disabled}
+          primary={stepIsPrimary(step)} progress={step?.percent} warning={!!live.sessions[route]?.issue} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />
       </div>;
     }),
     ...developingRoutes.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>

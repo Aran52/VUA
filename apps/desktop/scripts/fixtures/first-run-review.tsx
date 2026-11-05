@@ -6,11 +6,13 @@ import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
 import { TOUR_STEPS } from "../../src/renderer/features/tour/tour-model.ts";
 import { BEGINNER_CONCEPTS } from "../../src/renderer/features/help/beginner-wizard-model.ts";
 import { playFlowCopy } from "../../src/renderer/i18n/play-flow-copy.ts";
+import { structureCopy } from "../../src/renderer/i18n/structure-copy.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 
 const copy = strings.journey;
 const flowCopy = playFlowCopy[currentLocale];
+const unitySetup = structureCopy[currentLocale].unitySetup;
 // Capture the shell's requested theme before App mounting can resolve or persist a default.
 const previewTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
 let root: Root | undefined;
@@ -41,7 +43,7 @@ const wait = async (predicate: () => unknown, label = "") => {
   while (!predicate()) { if (Date.now() - start > 10000) throw new Error(`UI condition timed out: ${label || predicate.toString().slice(0, 160)}; wizard=${document.querySelector("[data-first-use-notice]")?.getAttribute("data-first-use-notice")}`); await new Promise(r => setTimeout(r, 25)); }
 };
 const visible = (el: Element) => el.getClientRects().length > 0 && !el.closest("[hidden],[inert]");
-const flowButton = (route = "desktop_play") => document.querySelector<HTMLButtonElement>(`[data-nav-id="play-flow-${route}"]`);
+const flowButton = (route = "desktop_play") => document.querySelector<HTMLButtonElement>(`[data-nav-id="${route === "desktop_play" ? "route-desktop" : "route-pico"}-action"]`);
 const flowPhase = (route = "desktop_play") => flowButton(route)?.dataset.phase;
 const advance = async (phase: string, route = "desktop_play") => {
   await wait(() => flowPhase(route) === phase && !flowButton(route)!.disabled, `play flow ${phase}`);
@@ -267,7 +269,8 @@ const review = {
     await mount("installed", "desktop");
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => !document.querySelector("[data-first-use-notice]"));
-    check("AMF remains inactive until explicit enablement", !document.querySelector('.vua-shell__sidebar [data-module="production"]') && !!document.querySelector('[data-nav-id="nav-enable-amf"]'));
+    check("AMF remains inactive until explicit enablement", !document.querySelector('[data-nav-id="nav-warehouse"]') && !!document.querySelector('[data-nav-id="nav-enable-amf"]'));
+    check("Unity setup stays reachable without AMF, under Avatar editing", !!document.querySelector('.vua-shell__sidebar [data-module="production"] [data-nav-id="nav-env-create"]'));
     check("bottom-left duplicate settings and help entries are gone", !document.querySelector(".vua-shell__sidebar-global") && !document.querySelector('.vua-shell__sidebar [data-nav-id="nav-settings-theme"]'));
     check("desktop sidebar is narrower and retains frosted glass", document.querySelector(".vua-shell__sidebar")!.getBoundingClientRect().width === 176 && getComputedStyle(document.querySelector(".vua-shell__sidebar")!).backdropFilter.includes("blur"));
     check("feature search has no sidebar button outside Settings", !document.querySelector('[data-nav-id="settings-search"]'));
@@ -325,11 +328,9 @@ const review = {
     await wait(() => document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start");
     check("restored work remains usable after an explicit environment review", document.querySelector('[data-card="route-desktop"]')?.dataset.action === "start" && playCalls.length === 0);
     await mount("installed", "bigscreen");
-    await wait(() => document.querySelector('[data-nav-id="home-help"]'));
+    await wait(() => document.querySelector(".vua-home"));
     check("a saved big-screen preference is cleared and retains the ordinary Home directory", localStorage.getItem(storageKeys.retiredDisplayMode) === null && !document.querySelector('.vua-shell[data-display-mode]'));
     await click(copy.help); document.querySelector<HTMLButtonElement>('[data-nav-id="help-tour"]')!.click();
-    await wait(() => document.querySelector('[data-nav-id="help-start-tour"]'));
-    document.querySelector<HTMLButtonElement>('[data-nav-id="help-start-tour"]')!.click();
     for (let index = 0; index < TOUR_STEPS.findIndex(step => step.id === "tasks"); index += 1) {
       await wait(() => document.querySelector('.vua-tour .vua-button--primary'));
       document.querySelector<HTMLButtonElement>('.vua-tour .vua-button--primary')!.click();
@@ -351,7 +352,7 @@ const review = {
     const halves = card().querySelectorAll<HTMLButtonElement>(":scope > button"); const network = document.querySelector<HTMLElement>(".vua-network-tile")!;
     const separatorWidth = parseFloat(getComputedStyle(halves[1]!).borderLeftWidth);
     check("play card has two independent halves and a thin separator", halves.length === 2 && !halves[0]!.disabled && separatorWidth > 0 && separatorWidth <= 1);
-    check("network is above the environments and has the same height", network.getBoundingClientRect().bottom <= card().getBoundingClientRect().top && Math.abs(network.getBoundingClientRect().height - card().getBoundingClientRect().height) < 1);
+    check("routes come first and the network tile below keeps their height", network.getBoundingClientRect().top >= card().getBoundingClientRect().bottom && Math.abs(network.getBoundingClientRect().height - card().getBoundingClientRect().height) < 1);
     check("entering Play makes no website test requests", websiteCalls === 0);
     await wait(() => !document.querySelector<HTMLButtonElement>('[data-nav-id="play-network-test"]')!.disabled);
     check("regional reference testing is explicit and keeps both US coasts", network.textContent?.includes(strings.websiteTests.regionTitle) && network.textContent?.includes(strings.websiteTests.regionShort.eu) && network.textContent?.includes(strings.websiteTests.regionShort.usw) && network.textContent?.includes(strings.websiteTests.regionShort.use));
@@ -379,8 +380,8 @@ const review = {
     check("exit of all owned software restores Play without an extra close request", playCalls.filter(call => call.startsWith("environment.stopPlay:")).length === 1);
     check("Quest, Vive and Index remain development peers", ["quest", "vive", "index"].every(id => document.querySelector(`[data-card="route-${id}"] .vua-route-tile__tag`)?.textContent === copy.developing));
     playUnavailable = true; await click(flowCopy.refreshDevices); await wait(() => card().dataset.action === "unknown", "provider failure shown as unknown");
-    check("provider failure is unknown instead of missing or ready", card().textContent?.includes(strings.environmentCards.unknown));
-    await click(copy.create); await wait(() => document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
+    check("provider failure is unknown instead of missing or ready", card().textContent?.includes(flowCopy.phases.unavailable));
+    await click(unitySetup); await wait(() => document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));
     check("creator lists complete discovered versions beside the fixed Unity entries", document.querySelector('[data-nav-id="route-unity2022"]') && document.querySelector('[data-nav-id="editor-2021.3.45f1"]') && document.querySelector('[data-nav-id="route-unity6"] .vua-route-tile__tag')?.textContent === copy.developing);
     check("Hub, VCC and ALCOM have separate detected statuses", ["unity_hub", "vcc", "alcom"].every(id => document.querySelector(`[data-manager="${id}"] [role="status"]`)) && document.querySelector('[data-manager="alcom"]')!.textContent?.includes(strings.environmentCards.notFound));
     document.querySelector<HTMLButtonElement>('[data-nav-id="manager-vcc"]')!.click(); await wait(() => document.querySelector<HTMLElement>("#manager-vcc-details")!.dataset.open === "true");
@@ -402,7 +403,7 @@ const review = {
     await advance("confirm"); await wait(() => flowPhase() === "execute", "the run follows the confirmed checklist");
     check("the installation waits for an explicit run without launching software", playCalls.length === 0 && intents.length === 0);
     installationRunning = true; await advance("execute"); await wait(() => card().dataset.action === "busy");
-    check("accepted installation shows a spinner and cannot launch", card().querySelector(".vua-environment-card__spin") && card().textContent?.includes(strings.environmentCards.installing) && flowButton()!.disabled && flowPhase() === "running");
+    check("accepted installation shows a spinner and cannot launch", card().querySelector(".vua-environment-card__spin") && card().textContent?.includes(flowCopy.phases.running) && flowButton()!.disabled && flowPhase() === "running");
     check("details remain available while installation is running", !card().querySelector<HTMLButtonElement>(".vua-environment-card__details")!.disabled);
     const panel = document.querySelector('#route-desktop-details .vua-play-flow');
     const receipt = localStorage.getItem(`${storageKeys.deploymentReceiptPlay}.desktop_play`);
@@ -417,12 +418,12 @@ const review = {
   },
   async creatorSession() {
     const start = checks.length;
-    await mountPreview(); await click(copy.create);
+    await mountPreview(); await click(unitySetup);
     const refresh = () => document.querySelector<HTMLButtonElement>('[data-nav-id="creator-refresh-environment"]')!;
     await wait(() => !!refresh() && !refresh().disabled);
     const scanned = creatorInventoryReads;
     await click(copy.play); await wait(() => document.querySelector(".vua-play-page"));
-    await click(copy.create); await wait(() => document.querySelector(".vua-creator-page"));
+    await click(unitySetup); await wait(() => document.querySelector(".vua-creator-page"));
     check("returning to Creator immediately restores the checked inventory", !refresh().disabled && !refresh().textContent?.includes(strings.environmentCards.checking));
     await new Promise(resolve => setTimeout(resolve, 100));
     check("returning to Creator starts no new scan", creatorInventoryReads === scanned);
@@ -432,7 +433,7 @@ const review = {
   },
   async previewEnvironment(page: "play" | "create", inventory: typeof creatorInventory = "all") {
     await mountPreview(inventory);  document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click(); await wait(() => !document.querySelector("[data-first-use-notice]"));
-    await click(copy[page]);
+    await click(page === "play" ? copy.play : unitySetup);
     await wait(() => page === "play" ? document.querySelector<HTMLElement>('[data-card="route-desktop"]')?.dataset.action === "start" : document.querySelector('[data-editor-status]')?.textContent?.includes("2022.3.22f1"));
     await settlePage();
   },

@@ -195,7 +195,7 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
 }
 
 const amfListeners = new Set<(snapshot: unknown) => void>();
-const amfSnapshot = () => ({ schemaVersion: "0.1", moduleId: "amf", installed: amfOn, state: amfOn ? "ready" : "disabled" });
+const amfSnapshot = () => ({ schemaVersion: "0.1", moduleId: "amf", installed: amfOn, state: amfOn ? "ready" : "absent" });
 
 const host = {
   gateway: { invoke: async (request: { method: string; params?: Record<string, unknown> }) => {

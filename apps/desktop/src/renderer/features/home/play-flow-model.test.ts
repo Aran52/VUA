@@ -17,6 +17,14 @@ describe("the play button names one next step", () => {
     expect(playFlowPhase(facts({ check: check(false), confirmed: true, preparing: true }))).toBe("running");
     expect(playFlowPhase(facts({ check: check(false), confirmed: true, task: task("running"), taskActive: true }))).toBe("running");
     expect(playFlowPhase(facts({ check: check(true), confirmed: true }))).toBe("launch");
+    expect(playFlowPhase(facts({ check: check(true) }))).toBe("launch");
+  });
+
+  it("follows the running observation when it is newer than the finished check", () => {
+    expect(playFlowPhase(facts({ check: check(false), observedReady: true }))).toBe("launch");
+    expect(playFlowPhase(facts({ check: null, observedReady: true }))).toBe("launch");
+    expect(playFlowPhase(facts({ check: check(true), observedReady: false }))).toBe("confirm");
+    expect(playFlowPhase(facts({ check: check(false), observedReady: null }))).toBe("confirm");
     expect(playFlowPhase(facts({ check: check(true), confirmed: true, launchPending: true }))).toBe("starting");
     expect(playFlowPhase(facts({ check: check(true), confirmed: true, session: session("running", true) }))).toBe("stop");
   });

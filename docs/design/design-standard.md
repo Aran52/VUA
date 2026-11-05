@@ -72,6 +72,9 @@ mounts or introducing replacement character art.
 
 ## 3. Platform and information architecture
 
+The [interaction structure](interaction-structure.md) owns the directory, page names, Home and where
+a task's main action sits. Where a paragraph below describes them differently, that document applies.
+
 | Scope | Baseline |
 | --- | --- |
 | Windows windows, focus, common controls | Microsoft Fluent 2 |

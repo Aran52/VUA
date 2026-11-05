@@ -15,7 +15,7 @@ export function EnvironmentCard({ title, titleContent, kind, brand, icon, logo, 
   title: string; titleContent?: ReactNode; kind?: "screen" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName;
   /** The item's own logo, shown in place of the glyph. */
   logo?: ReactNode; id: string; action: EnvironmentAction; status: string;
-  actionHint?: string; iconOnlyAction?: boolean;
+  actionHint?: string | undefined; iconOnlyAction?: boolean;
   selected?: boolean; onDetails?: () => void; onAction?: () => void; disabled?: boolean; spinning?: boolean; warning?: boolean; developing?: boolean;
   /** This half is the card's next step; it reads as the page's main action. */
   primary?: boolean | undefined;

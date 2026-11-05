@@ -82,8 +82,6 @@ async function startTour() {
   await js('document.querySelector("[data-nav-id=shell-help]").click()');
   await waitFor(() => js('!!document.querySelector("[data-nav-id=help-tour]")'), "Help tour entry");
   await js('document.querySelector("[data-nav-id=help-tour]").click()');
-  await waitFor(() => js('!!document.querySelector("[data-nav-id=help-start-tour]")'), "Help tour child");
-  await js('document.querySelector("[data-nav-id=help-start-tour]").click()');
   await waitFor(welcome, "explicit tour welcome");
 }
 async function capture(window, name) {

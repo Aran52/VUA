@@ -77,21 +77,22 @@ correlation, post-download inspection, and Warehouse/BDL decisions.
 
 ## Fixed directory and first-run journey
 
-The main shell has one fixed Home, opened by its left logo, and a fixed
-Environment/Avatar directory in the sidebar. The 2026-10-10 user ruling retires big-screen mode:
+The main shell has one Home, opened by its left logo, and one directory in the sidebar; the
+[interaction structure](../design/interaction-structure.md) owns both, and
+`features/shell/directory.ts` holds the directory. The 2026-10-10 user ruling retires big-screen mode:
 Theme and tray entries, alternate layouts and directional shell navigation are removed.
 Startup removes the old local layout preference without interpreting it. `nav-model.ts` retains internal page ownership for tasks and deep links without
 restoring the old two-tab presentation. The first-use notice, concept wizard and contextual
 introductions keep the fixed directory and do not hide features. The [design standard](../design/design-standard.md#3-platform-and-information-architecture)
 owns the accepted layout, logo colors, unavailable peers and preserved visual preferences.
 
-Environment contains Play, Tools and Avatar editing. Tools groups the planned tracking,
+Tools groups the planned tracking,
 translation, VR utilities and capture integrations, independently of AMF. The six fixed Steam
 entries share the Candidate connection card (discovery/install handoff/launch/status); the
 remaining unwired entries offer collapsible descriptions with disabled development actions,
 not installed/launchable plugin claims. Help is a global topbar
 parallelogram beside Settings, with no sidebar duplicate; its active state covers all Help children.
-Home exposes it among global actions, and Search retains its entry. Help starts with common VRChat
+Search retains its entry. Help starts with common VRChat
 questions, including trust rank, Shield Level, Personal Space and untrusted URLs. It then offers
 VUA instructions, the app tour, the encyclopedia, the game assistant and optional AI tools. The
 encyclopedia remains a main-window page with hardware introductions and shared preparation chapters.
@@ -143,9 +144,6 @@ the upper-left Back action and the active Settings button return to the same
 source page. Category changes do not replace the return destination. Inspection belongs to the
 Avatar directory; Help and Settings have no duplicate bottom-left entry, and the topbar does
 not repeat the page name beside the Home logo.
-AMF Home cards are Warehouse, Recipe, Workshop, Finished Avatars (成品) and Package Manager.
-Remove the Inspection Home card; its existing sidebar/report capability remains available.
-The same card set serves Home and the AMF directory.
 
 The compact shell follows the [design standard](../design/design-standard.md#3-platform-and-information-architecture):
 the bottom taskbar is no longer mounted, and feature search is a Settings-sidebar footer action

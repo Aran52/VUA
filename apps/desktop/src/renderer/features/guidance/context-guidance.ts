@@ -1,6 +1,7 @@
 import type { PageId } from "../../app/nav-model.ts";
 import { storageKeys } from "../../app/storage-keys.ts";
 import { GUIDE_TARGETS, type GuideTarget } from "../guide/guide-target.ts";
+import { parseTourProgress } from "../tour/tour-model.ts";
 
 export type ContextGuideId = "home" | "play" | "tools" | "creator" | "warehouse" | "recipe" | "workshop" | "release" | "packages";
 export interface ContextGuideDefinition {
@@ -48,6 +49,11 @@ export interface ContextGuideState {
 }
 
 const emptyState = (): ContextGuideState => ({ v: 1, dismissed: {} });
+
+/** The tour ran or was skipped once; an unusable record reads as never asked. */
+export function tourAnswered(store: Pick<ContextGuideStore, "getItem">): boolean {
+  try { return parseTourProgress(store.getItem(storageKeys.tourProgress)) !== null; } catch { return false; }
+}
 
 export function readContextGuideState(store: ContextGuideStore): ContextGuideState {
   try {

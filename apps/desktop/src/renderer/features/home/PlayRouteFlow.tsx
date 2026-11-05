@@ -143,7 +143,9 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
     return () => window.removeEventListener("focus", focus);
   }, [runCheck]);
 
-  const phase = playFlowPhase({ unavailable: unavailable || !scenarios, session, launchPending, checking: checking || !sopSettled, check, checkFailed, confirmed,
+  // Software installed outside VUA shows up here without another check.
+  const observedReady = !session || session.software.length === 0 ? null : session.software.every(item => item.presence === "verified");
+  const phase = playFlowPhase({ unavailable: unavailable || !scenarios, session, launchPending, checking: checking || !sopSettled, check, observedReady, checkFailed, confirmed,
     preparing, prepareFailed: prepareError !== null, task, taskActive });
 
   const needsRegion = pico && check !== null && !check.softwareReady;

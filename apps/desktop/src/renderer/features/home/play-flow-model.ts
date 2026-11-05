@@ -10,6 +10,8 @@ export interface PlayFlowFacts {
   readonly launchPending: boolean;
   readonly checking: boolean;
   readonly check: ScenarioEnvironmentCheck | null;
+  /** What the running observation says about the route's software; newer than a finished check. */
+  readonly observedReady?: boolean | null;
   readonly checkFailed: boolean;
   readonly confirmed: boolean;
   /** A plan or execute request is in flight. */
@@ -27,9 +29,10 @@ export function playFlowPhase(f: PlayFlowFacts): PlayFlowPhase {
   if (f.checking) return "checking";
   if (f.task?.result?.outcome === "manual_required") return "handoff";
   if (f.checkFailed || f.prepareFailed || f.task?.state === "failed" || f.task?.recoveryDisposition === "inspect_required") return "retry";
+  // Ready software launches at once; the checklist guards installing what is missing.
+  if (f.observedReady ?? f.check?.softwareReady) return "launch";
   if (f.check === null) return "check";
-  if (!f.confirmed) return "confirm";
-  return f.check.softwareReady ? "launch" : "execute";
+  return f.confirmed ? "execute" : "confirm";
 }
 
 export interface PlayChecklistItem { readonly id: string; readonly automatic: boolean; readonly done: boolean }

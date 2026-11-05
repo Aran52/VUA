@@ -24,7 +24,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
     warehouse: { title: "先选素材", body: "选好 Avatar、衣服或配饰，再确认要做什么。商品关联记录的是来源，兼容性在开工前检查。", action: "查看素材导入" },
     recipe: { title: "配方用于复用组合", body: "想重复同一套搭配时，把它存成配方；直接从素材库选内容也能开工。", action: "查看制作方式" },
     workshop: { title: "选择自动化程度", body: "完全自动会把确认过的素材一次组装好；想逐步检查时，在这里换成手动审阅。上传前始终会问你。", action: "" },
-    release: { title: "上传前再检查一次", body: "这里有出厂检查的记录和官方 SDK 的上传步骤。", action: "" },
+    release: { title: "上传前再检查一次", body: "这里有成品的检查记录和官方 SDK 的上传步骤。", action: "" },
     packages: { title: "先看结论，再看细节", body: "自动模式只显示结论。需要核对或手动操作时，展开「详情」。", action: "" },
   },
   "zh-TW": {
@@ -36,7 +36,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
     warehouse: { title: "先選素材", body: "選好 Avatar、衣服或配飾，再確認要做什麼。商品關聯記錄的是來源，相容性在開工前檢查。", action: "查看素材匯入" },
     recipe: { title: "配方用於複用組合", body: "想重複同一套搭配時，把它存成配方；直接從素材庫選內容也能開工。", action: "查看製作方式" },
     workshop: { title: "選擇自動化程度", body: "完全自動會把確認過的素材一次組裝好；想逐步檢查時，在這裡換成手動審閱。上傳前一定會問你。", action: "" },
-    release: { title: "上傳前再檢查一次", body: "這裡有出廠檢查的紀錄和官方 SDK 的上傳步驟。", action: "" },
+    release: { title: "上傳前再檢查一次", body: "這裡有成品的檢查紀錄和官方 SDK 的上傳步驟。", action: "" },
     packages: { title: "先看結論，再看細節", body: "自動模式只顯示結論。需要核對或手動操作時，展開「詳情」。", action: "" },
   },
   ja: {

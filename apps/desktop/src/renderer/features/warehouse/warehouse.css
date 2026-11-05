@@ -1333,8 +1333,8 @@
 .vua-warehouse__heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); padding-inline-end: 160px; }
 .vua-warehouse__heading h1 { margin: 0; }
 
-/* The next steps of the selection stay under the wall in one reserved row. */
-.vua-warehouse__selection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); flex-shrink: 0; min-height: 48px; padding: var(--vua-space-2) var(--vua-space-3); border-top: 1px solid var(--vua-border); }
+/* The next steps of the selection stay under the wall in one reserved row, in view at any window height. */
+.vua-warehouse__selection { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); flex-shrink: 0; min-height: 48px; padding: var(--vua-space-2) var(--vua-space-3); border-top: 1px solid var(--vua-border); background: var(--vua-bg-panel); }
 .vua-warehouse__selection-name { display: flex; align-items: baseline; gap: var(--vua-space-2); min-width: 0; flex: 1 1 200px; }
 .vua-warehouse__selection-name strong { flex: none; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-warehouse__selection-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vua-text-secondary); font: var(--vua-font-caption); }

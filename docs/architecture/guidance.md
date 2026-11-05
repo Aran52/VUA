@@ -48,11 +48,12 @@ own reading position.
 Help or command search can replay the feature tour. The tour navigates and explains only; it does
 not execute business work.
 
-Main modules can offer one small introduction on their first visit: Home, Play, Tools, Avatar
-editing, Warehouse, Recipe, Workshop, Release and Packages. These introductions are non-modal, have
+Main modules can offer one small introduction on their first visit: Home, Play, Tools, Unity setup,
+Materials, Recipes, Workshop, Finished Avatars and Packages. These introductions are non-modal, have
 no backdrop and do not take focus. The underlying page remains usable. They offer Later, a permanent
 dismissal and, where useful, a link to an actual article or the explicit feature tour. An active
-feature tour suppresses them. They do not appear over the first-use notice or Settings.
+feature tour suppresses them. They do not appear over the first-use notice or Settings. Home's
+introduction offers the tour, so it stays closed once the tour ran or was skipped.
 
 - Permanent dismissal is versioned by stable module ID and revision in local storage.
 - Later is session-local and independent of permanent dismissal, task facts and readiness.
@@ -128,7 +129,7 @@ acceptance. Existing SVG figures remain labeled illustrations.
 
 ### Upload eligibility in the task path
 
-Avatar environment preparation, the upload guide and the final confirmation include the same
+Unity setup, the upload guide and the final confirmation include the same
 read-only eligibility note. Uploading a custom Avatar with Unity and the official SDK requires a
 full VRChat account and New User or higher. Steam/Meta accounts must first be linked to a VRChat
 account. Local build and test remain available below that rank.

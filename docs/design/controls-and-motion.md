@@ -193,8 +193,9 @@ keeps glass only on the shell and on level 2–4 overlays.
 
 The author's adopted third-party review (2026-10-25) supersedes the earlier selected-station
 shadow exception. Viewing (`aria-pressed`) and execution (`aria-current="step"`) are independent.
-Only a step awaiting user input uses amber; future steps stay neutral. The detail area names
-both the viewed step and the running step, or explicitly says no step is running.
+Only a step awaiting user input uses amber; future steps stay neutral. The station row marks both
+the viewed step and the running step; the detail area names the running step when it is elsewhere and
+offers to follow it.
 
 ### Iconography
 

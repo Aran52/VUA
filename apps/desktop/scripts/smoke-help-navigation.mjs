@@ -218,7 +218,7 @@ async function run() {
     }
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-creator-page [data-nav-id=toggle-amf]")'), "AMF setup in Avatar editing");
-    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-module=production]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
+    assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
     await capture("amf-off");
     await capture("avatar-preparation", ".vua-upload-eligibility");
     if (process.env.VUA_TEST_EXPECT_EDITOR_VERSION) {
@@ -232,7 +232,7 @@ async function run() {
     for (const button of ['route-unity2022', ...(unity6Installed ? ['route-unity6'] : []), 'manager-unity_hub','manager-vcc','manager-alcom']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`document.querySelector('[data-nav-id="${button}"]').getAttribute('aria-expanded')==='true'`), `${button} expands inline`);
-      assert(await inlineDetailFits(button), `${button} details stay below their own editor or manager card`);
+      await waitFor(() => inlineDetailFits(button), `${button} details stay below their own editor or manager card`);
       if (button === 'route-unity2022') {
         const softwareChecked = 'document.querySelector("#route-unity2022-details [data-scenario-software-check] li") && !document.querySelector("#route-unity2022-details [data-deployment-plan]")';
         try { await waitFor(() => js(`!!(${softwareChecked})`), "Automatic Unity software check"); }
@@ -401,24 +401,22 @@ async function run() {
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=toggle-amf]")'), "AMF switch");
     await js('document.querySelector("[data-nav-id=toggle-amf]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=open-amf]") && !!document.querySelector(".vua-shell__sidebar [data-module=production]")'), "Explicit AMF enablement");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=open-amf]") && !!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "Explicit AMF enablement");
     // Provider readiness precedes the IPC reply while Main initializes the AMF shell.
     // A real user can toggle again only after this control becomes enabled.
     await waitFor(() => js('document.querySelector("[data-nav-id=toggle-amf]")?.disabled===false'), "AMF enablement control released");
     assert(await js('document.querySelector("[data-nav-id=toggle-amf]").checked && !document.querySelector("[data-nav-id=nav-enable-amf]")'), "AMF activation exposes its own sidebar without navigating away");
     await js('document.querySelector("[data-nav-id=logo-home]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=home-release]")'), "AMF Home directory");
-    // The factory rooms (2026-10-17 author ruling): Materials, Workshop (with checks), Office (Recipes and packages), Release.
-    assert(await js('["warehouse","workshop","recipe","release"].every(id => !!document.querySelector(`[data-nav-id=home-${id}]`)) && !document.querySelector("[data-nav-id=home-inspection]") && !document.querySelector("[data-nav-id=home-packages]")'), "AMF Home lists the four factory rooms; checks and packages live inside them");
+    // Home follows the Avatar path; Recipes and Packages stay in the directory.
+    assert(await js('["warehouse","workshop","release"].every(id => !!document.querySelector(`[data-nav-id=home-${id}]`)) && !document.querySelector("[data-nav-id=home-recipe]") && !document.querySelector("[data-nav-id=home-packages]")'), "AMF Home follows materials, Workshop and Finished Avatars");
     await js('document.querySelector("[data-nav-id=home-release]").click()');
     await waitFor(() => js('location.hash==="#release" && !!document.querySelector("main h1")'), "Finished Avatars destination");
-    await js('document.querySelector("[data-nav-id=logo-home]").click()');
-    await waitFor(() => js('!!document.querySelector("[data-nav-id=home-recipe]")'), "AMF Home return");
-    await js('document.querySelector("[data-nav-id=home-recipe]").click()');
-    await waitFor(() => js('location.hash==="#recipe" && !!document.querySelector("[data-nav-id=tab-packages]")'), "Office room with its package tab");
-    await js('document.querySelector("[data-nav-id=tab-packages]").click()');
+    await js('document.querySelector("[data-nav-id=nav-recipe]").click()');
+    await waitFor(() => js('location.hash==="#recipe" && !!document.querySelector("main h1")'), "Recipes destination");
+    await js('document.querySelector("[data-nav-id=nav-packages]").click()');
     await waitFor(() => js('location.hash==="#packages" && !!document.querySelector("main h1")'), "Package Manager destination");
-    assert(true, "Release and the Office package tab open their functional pages");
+    assert(true, "Finished Avatars, Recipes and Packages open their functional pages");
     // Synthetic authentication replies exercise the real renderer/Main IPC
     // handoff without contacting BOOTH, loading login pages or syncing accounts.
     let resolveAccountProbe;
@@ -444,7 +442,7 @@ async function run() {
     await waitFor(async () => await js('!!document.querySelector("[data-nav-id=warehouse-sync]")') && resolveAccountProbe !== undefined, "Warehouse entry account probe");
     assert(await js('document.querySelector("[data-nav-id=warehouse-sync]").disabled && document.querySelector("[data-nav-id=warehouse-sync]").textContent.includes("正在检测")'), "Warehouse does not offer sync while authentication is being checked");
     resolveAccountProbe({ authOk: false, accountName: null });
-    await waitFor(() => js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("打开登录页")'), "Login required before sync");
+    await waitFor(() => js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("登录 BOOTH")'), "Login required before sync");
     await js('document.querySelector("[data-nav-id=warehouse-sync]").click()');
     await waitFor(async () => loginRequests.length === 1 && await js('!!document.querySelector(".vua-import__browse-button--close")'), "Direct login handoff");
     assert(syncRequests === 0 && loginRequests[0] === 'https://accounts.booth.pm/users/sign_in', "Unauthenticated sync entry opens BOOTH login directly without a sync request");
@@ -459,7 +457,7 @@ async function run() {
     await waitFor(() => js('document.querySelector("[data-nav-id=toggle-amf]")?.disabled===false'), "AMF setup return");
     await js('document.querySelector("[data-nav-id=toggle-amf]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-enable-amf]") && !document.querySelector("[data-nav-id=toggle-amf]").checked'), "Explicit AMF disablement");
-    assert(await js('!document.querySelector(".vua-shell__sidebar [data-module=production]")'), "Disabling AMF removes the Avatar sidebar and restores its enablement entry");
+    assert(await js('!document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "Disabling AMF removes its pages and restores its enablement entry");
     await js('document.querySelector("[data-nav-id=shell-settings]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=settings-language-select]")'), "Sidebar language control");
     await js('const choice=document.querySelector("[data-nav-id=settings-language-select]"); choice.value="en"; choice.dispatchEvent(new Event("change",{bubbles:true}))');

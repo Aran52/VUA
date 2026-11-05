@@ -383,7 +383,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         if (!port) return; setRequesting(true); setError(null);
         void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
       }}/>}
-      {!recipePreview && startFrom === "materials" && (list === null ? <Card><EmptyState title={requesting ? copy.loading : unavailable} description={copy.loading} /></Card>
+      {!recipePreview && startFrom === "materials" && (list === null ? <Card><EmptyState title={requesting || error === null ? copy.loading : unavailable} /></Card>
         : list.sources.length === 0 ? <Card><EmptyState title={start.noMaterials} action={<Button variant="primary" data-nav-id="workshop-import-materials" onClick={() => onNavigate("warehouse")}>{start.importMaterials}</Button>} /></Card>
         : <>
           {list.editors.length === 0 && <Alert tone="warning" title={start.needUnity} action={<Button data-nav-id="workshop-open-unity" onClick={onPrepareEnv}>{start.openUnitySetup}</Button>}>{copy.editorMissing}</Alert>}
@@ -428,7 +428,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       {!lineBusy(run) && (status === "attention" || status === "stopped") && <Card className="vua-line__attention" data-status={status}>
         <h2>{status === "stopped" ? factory.status.stopped : factory.attentionTitle}</h2>
         {run.error && isUnityLicenseFailure(run.error) ? <><p role="alert">{strings.unityLicense.retryHint}</p>
-          <Button onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button></>
+          <Button variant="primary" data-nav-id="workshop-fix-license" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.open}</Button></>
           : run.error && <p role="alert">{run.error.replace(/^vua.[a-z_.]+ — detail: /u, "")}</p>}
         {run.recovery && <p className="vua-n3__notice">{run.recovery === "restored" ? copy.recovered : copy.recoveryFailed}</p>}
         {interruptedChange(run) && <p>{factory.interrupted.hint}</p>}
@@ -437,7 +437,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             if (!port) return; setRequesting(true); setError(null);
             void port.rollbackPlan(runId).then(setRestorePlan).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
           }} data-nav-id="workshop-restore-interrupted">{factory.interrupted.restore}</Button>}
-          {run.sources.length > 0 && <Button variant="primary" disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
+          {run.sources.length > 0 && <Button variant={run.error && isUnityLicenseFailure(run.error) ? "default" : "primary"} disabled={busy} onClick={() => { void command("reinspect"); }}>{factory.continue}</Button>}</div>
         <details className="vua-n3__advanced"><summary>{factory.details}</summary><ul className="vua-n3__progress">{run.steps.map((item,index) => <li key={`${item.key}-${index}`} data-state={item.state}>
           <span aria-hidden="true">{item.state === "succeeded" ? <Icon name="check" size={16}/> : item.state === "failed" ? <Icon name="warning" size={16}/> : <Icon name="dash" size={16}/>}</span>
           <span>{copy.step[item.key as keyof typeof copy.step] ?? item.name}{item.detail && <small>{item.detail}</small>}</span></li>)}</ul>

@@ -1,6 +1,7 @@
 /** What the production lines need from the player, for the directory's badge and for Home.
- * Lines change state only through tasks, so a task change (or a page change) reads the list again
- * and nothing polls while the app sits idle. */
+ * Lines change state through tasks and on the Workshop page. Reading the list also checks the installed
+ * Editors, so it runs on a task change and when Home or the Workshop opens or closes; moving between
+ * other pages reads nothing, and nothing polls while the app sits idle. */
 import { useEffect, useMemo, useState } from "react";
 import { useGateway, useTaskCenter, type AmfProductionList } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
@@ -37,12 +38,13 @@ export function useLineSummary(enabled: boolean, page: PageId): LineSummary {
   const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
   const [list, setList] = useState<AmfProductionList | null>(null);
   const [recipes, setRecipes] = useState<number | null>(null);
+  const readKey = page === "home" || page === "workshop" ? page : "elsewhere";
   useEffect(() => {
     if (!enabled || !port) { setList(null); setRecipes(null); return; }
     let alive = true;
     void port.list().then(value => { if (alive) setList(value); }, () => { /* The last facts stay shown. */ });
     void port.listRecipes().then(value => { if (alive) setRecipes(value.length); }, () => { /* Unknown stays unknown. */ });
     return () => { alive = false; };
-  }, [enabled, port, taskKey, page]);
+  }, [enabled, port, taskKey, readKey]);
   return useMemo(() => list === null ? emptyLineSummary : summarizeLines(list, recipes, storedHiddenLines()), [list, recipes, page]);
 }

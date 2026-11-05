@@ -153,7 +153,7 @@ async function run() {
     if (localeCase === "native") {
       main.setSize(960, 600);
       for (const locale of ["zh-CN", "zh-TW", "en", "ja", "ko"]) {
-        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-context-guide-v1");sessionStorage.removeItem("vua-context-guide-snoozed-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
+        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-tour-progress");localStorage.removeItem("vua-context-guide-v1");sessionStorage.removeItem("vua-context-guide-snoozed-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
         await reload(reset);
         await waitFor(firstUseNotice, locale + " notice");
         assert(await js('document.documentElement.lang===' + JSON.stringify(locale) + ' && !document.querySelector(".vua-onboarding select")'), locale + " respects the saved language without asking again");
@@ -170,12 +170,10 @@ async function run() {
         await waitFor(welcome, "Back to welcome");
         await skip();
         await waitFor(home, locale + " skips the light tour");
-        await waitFor(() => js('!!document.querySelector("[data-context-guide=home]")'), locale + " optional Home introduction");
-        assert(await fits(".vua-context-guide"), locale + " contextual guide fits");
-        await js('document.querySelector(".vua-context-guide__actions button:last-child").click()');
+        assert(await js('!document.querySelector(".vua-context-guide")'), locale + " Home offers no tour right after a skip");
         await reload("");
         await waitFor(home, locale + " returns Home");
-        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " dismissal survives reload");
+        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " the skipped tour stays closed after reload");
         await startTour();
         assert(await fits(".vua-tour__card"), locale + " explicit replay fits");
         await skip();
@@ -200,6 +198,12 @@ async function run() {
         await waitFor(() => js('!!document.querySelector("[data-guide-section=what-is-vrchat]") && localStorage.getItem("vua-guide-reading")?.includes("what-is-vrchat")'), locale + " shares the encyclopedia explanation");
         await js('document.querySelector("[data-nav-id=logo-home]").click()');
         await waitFor(home, locale + " leaves the wizard freely");
+        await waitFor(() => js('!!document.querySelector("[data-context-guide=home]")'), locale + " optional Home introduction");
+        assert(await fits(".vua-context-guide"), locale + " contextual guide fits");
+        await js('document.querySelector(".vua-context-guide__actions button:last-child").click()');
+        await reload("");
+        await waitFor(home, locale + " returns Home after the wizard");
+        assert(await js('!document.querySelector(".vua-context-guide") && !document.querySelector(".vua-tour")'), locale + " dismissal survives reload");
       }
       for (const legacy of [{v:2,status:"active",step:2}, {v:1,status:"active",step:4}]) {
         await reload(`localStorage.setItem("vua-tour-progress",${JSON.stringify(JSON.stringify(legacy))});localStorage.setItem("vua-last-page","home")`);
@@ -210,7 +214,7 @@ async function run() {
       await waitFor(home, "complete explicit tour baseline");
       const savedGoals = await js('localStorage.getItem("vua-goals")');
       await startTour();
-      for (const step of ["welcome", "route", "network", "checks", "plan", "tools", "creator", "tasks", "guide", "settings"]) {
+      for (const step of ["welcome", "route", "checks", "plan", "network", "tools", "creator", "tasks", "guide", "settings"]) {
         await waitFor(() => js(`document.querySelector(".vua-tour")?.dataset.tourStep===${JSON.stringify(step)} && ${step === "welcome" ? "true" : '!!document.querySelector(".vua-tour__highlight")'}`), `${step} highlight`);
         assert(await js('!document.querySelector(".vua-tour").hasAttribute("data-absent")') && await fits(".vua-tour__card"), `${step} points to an available feature and fits the window`);
         if (step === "creator") await capture(main, "tour-creator-zh");

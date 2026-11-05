@@ -42,7 +42,7 @@ becomes a Finished Avatar. Recipes, Packages and Unity setup support that path.
 
 The directory shows a count on Workshop while lines wait for review or need attention, and a small
 mark while lines only run. Lines the player hid stay out of the count. The summary reads again when
-a task changes or the page changes, so an idle app makes no requests for it.
+a task changes and when Home or the Workshop opens or closes, so an idle app makes no requests for it.
 
 ## Home
 
@@ -90,6 +90,9 @@ Recipes open as a list, which says at a glance what each Recipe is; the graph is
 the choice is remembered.
 
 ## Help and Settings
+
+A page's first-visit introduction sits at the lower left of the content, because the page's main
+action ends at the lower right.
 
 Help keeps common VRChat questions first. Below them one list holds the encyclopedia, the beginner
 wizard, the feature tour and the game guide. A row does what it says: the tour and the game guide start

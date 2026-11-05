@@ -1,11 +1,12 @@
+/* A page's main action ends at the lower right, so the introduction starts at the lower left of the content. */
 .vua-context-guide {
   position: fixed;
-  inset-inline-end: 24px;
+  inset-inline-start: 200px;
   bottom: 24px;
   z-index: 60;
   display: grid;
   gap: var(--vua-space-2);
-  width: min(360px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 232px));
   padding: var(--vua-space-4);
   border: 1px solid var(--vua-border-strong);
   border-radius: var(--vua-radius-card);

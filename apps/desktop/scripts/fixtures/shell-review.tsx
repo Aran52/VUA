@@ -8,6 +8,7 @@
 //   amf=off          AMF is switched off (default: ready)
 //   lines=none       no production lines (default: one in each state)
 //   library=empty    no materials (default: a small library)
+//   mode=ask         permission mode (default: full auto, the setting for new players)
 //   lang=<locale>    UI language (default: zh-CN)
 import type { VuaDesktopApiV2 } from "@vua/contracts";
 import { createRoot } from "react-dom/client";
@@ -35,6 +36,7 @@ if (sessionStorage.getItem("shell-review-profile") !== location.search) {
   }
 }
 localStorage.setItem(storageKeys.locale, lang);
+if (params.get("mode")) localStorage.setItem("vua-amf-permission-mode-v01", params.get("mode")!);
 
 const now = () => new Date().toISOString();
 const label = (text: string, hue: number) => `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(
@@ -181,6 +183,11 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
     case "amf.production.listFits": return { schemaVersion: "0.1", fits: [] };
     case "amf.production.previewImage": return null;
     case "amf.production.releaseState": return { schemaVersion: "0.1", runId: input.runId, editorOpen: false, turntable: null, uploads: [] };
+    case "amf.production.plan": {
+      const line = lineRecords[input.runId]!;
+      return { schemaVersion: "0.1", runId: input.runId, planDigest: "b".repeat(64), selection: input.selection, preserveOriginals: true, officialSdkChecks: "not_run", editor: line.editor, projectRoot: line.projectRoot,
+        inputs: line.sources.map((source, index) => ({ sourceId: source.sourceId, name: source.itemName, role: index === 0 ? "avatar" : "outfit" })) };
+    }
     case "amf.production.prepare": return { schemaVersion: "0.1", runId: "n3-running", taskId: "task-n3-running" };
     case "vrchat.status": return { schemaVersion: "0.1", enabled: false, signedIn: false, account: null };
     case "packages.listRepos": return { operation: method, result: { repos: [] } };
@@ -201,7 +208,7 @@ const host = {
   gateway: { invoke: async (request: { method: string; params?: Record<string, unknown> }) => {
     const value = await reply(request.method, request.params ?? {});
     return value === null
-      ? { ok: false, error: { kind: "application", error: { contractVersion: "0.1", code: "vua.synthetic.unavailable", category: "unavailable", messageKey: "errors.synthetic", recoverable: false } } }
+      ? { ok: false, error: { code: "application", application: { contractVersion: "0.1", code: "vua.synthetic.unavailable", category: "unavailable", messageKey: "errors.synthetic", recoverable: false } } }
       : { ok: true, value };
   } },
   events: { subscribe: () => () => {} },

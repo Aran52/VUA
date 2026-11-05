@@ -274,7 +274,7 @@ fn expand_inner(
         {
             return Err("zip_unsafe_path");
         }
-        let name = member_path(file.name())?;
+        let name = member_path(&file.name().map_err(|_| "zip_invalid")?)?;
         let key = name.to_lowercase();
         if names.insert(key, file.is_dir()).is_some() {
             return Err("zip_path_collision");
@@ -323,7 +323,15 @@ fn expand_inner(
         }
         fs::create_dir_all(destination.parent().ok_or("zip_unsafe_path")?)
             .map_err(|_| "expansion_io_failed")?;
-        let mut file = zip.by_index(index).map_err(|_| "zip_unsupported")?;
+        let mut file = zip
+            .by_index_with_options(
+                index,
+                zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+            )
+            .map_err(|error| match error {
+                zip::result::ZipError::InvalidArchive(_) => "zip_invalid",
+                _ => "zip_unsupported",
+            })?;
         let mut output = fs::OpenOptions::new()
             .write(true)
             .create_new(true)

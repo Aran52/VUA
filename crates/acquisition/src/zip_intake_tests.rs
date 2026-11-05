@@ -122,6 +122,22 @@ fn expansion_retains_archive_and_all_member_formats_with_directory_structure() {
 }
 
 #[test]
+fn conflicting_local_and_central_zip_names_publish_no_files() {
+    let mut bytes = zip_bytes(&[("safe.txt", b"synthetic content")]);
+    assert_eq!(&bytes[..4], b"PK\x03\x04");
+    bytes[30..38].copy_from_slice(b"../x.txt");
+    let f = Fixture::from_bytes(&bytes);
+    assert_eq!(
+        f.expand().error_code.as_deref(),
+        Some("vua.library.zip_invalid")
+    );
+    assert!(!f.target().exists());
+    assert!(f.store.archive_members(&f.parent.copy_id).unwrap().is_empty());
+    assert_eq!(fs::read(&f.parent.stored_path).unwrap(), bytes);
+    assert!(!f.root.join("x.txt").exists());
+}
+
+#[test]
 fn unsafe_paths_and_case_aliases_never_publish_a_partial_tree() {
     for name in [
         "../escape.txt",

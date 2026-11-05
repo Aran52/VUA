@@ -22,7 +22,7 @@ datamatrix = "=0.3.3"
 gif = "=0.14.2"
 color_quant = "=1.1.0"
 rxing = { version = "=0.9.3", default-features = false, features = ["datamatrix", "decoders", "encoding_rs"] }
-zip = { version = "4.6", default-features = false, features = ["deflate"] }
+zip = { version = "=9.0.5", default-features = false, features = ["deflate"] }
 vua-acquisition = { path = "../acquisition" }
 vua-bdl-store = { path = "../bdl-store" }
 vua-orchestrator = { path = "../orchestrator" }
@@ -43,7 +43,7 @@ windows-sys = { version = "=0.61.2", features = [
 ] }
 
 [dev-dependencies]
-zip = { version = "4.6", default-features = false, features = ["deflate"] }
+zip = { version = "=9.0.5", default-features = false, features = ["deflate"] }
 flate2 = "1"
 tar = "0.4"
 jsonschema = "0.52.1"

@@ -51,6 +51,7 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
   readonly #listeners = new Set<ProviderEventListenerV01>();
   readonly #statusListeners = new Set<(status: ProviderStatusV01) => void>();
   readonly #pending = new Map<string, PendingFrame>();
+  #environmentSnapshot: Promise<ApplicationResponseV01> | undefined;
   #state: ProviderStatusV01["state"] = "stopped";
   #acceptingCalls = false;
   #child: ChildProcessWithoutNullStreams | undefined;
@@ -147,6 +148,24 @@ export class SupervisedProcessProviderV01 implements OrchestratorProviderV01 {
         },
       };
     }
+    if (request.contractVersion === this.contractVersion && request.kind === "query"
+      && request.method === "environment.getSnapshot" && isRecord(request.params)
+      && Object.keys(request.params).length === 0) {
+      // One native inspection serves overlapping readers, including a renderer reload.
+      // Retain only pending work; a later manual check still makes a fresh observation.
+      const pending = this.#environmentSnapshot ??= this.#invokeRequest(request);
+      try {
+        const response = await pending;
+        return response.ok ? { ...response, requestId: request.requestId }
+          : { ...response, requestId: request.requestId, error: { ...response.error, correlationId: request.correlationId } };
+      } finally {
+        if (this.#environmentSnapshot === pending) this.#environmentSnapshot = undefined;
+      }
+    }
+    return this.#invokeRequest(request);
+  }
+
+  async #invokeRequest(request: ApplicationRequestV01): Promise<ApplicationResponseV01> {
     const response = await this.#send("request", request);
     if (!isApplicationResponse(response, request.requestId)) {
       throw new Error("Provider returned an invalid application response");

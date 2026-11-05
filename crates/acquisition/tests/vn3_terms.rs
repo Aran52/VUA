@@ -413,6 +413,27 @@ fn locally_generated_pdf_has_extractable_text_and_blank_or_invalid_pdf_is_unsupp
     assert!(vn3::extract_pdf(&bytes).is_err());
 }
 
+#[test]
+fn deeply_nested_pdf_is_rejected_without_aborting_the_terms_reader() {
+    let mut bytes = b"%PDF-1.4\n".to_vec();
+    let catalog_offset = bytes.len();
+    bytes.extend_from_slice(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R /X ");
+    bytes.extend_from_slice(&[b'['; 10_000]);
+    bytes.extend_from_slice(b"0");
+    bytes.extend_from_slice(&[b']'; 10_000]);
+    bytes.extend_from_slice(b" >>\nendobj\n");
+    let pages_offset = bytes.len();
+    bytes.extend_from_slice(b"2 0 obj\n<< /Type /Pages /Count 0 /Kids [] >>\nendobj\n");
+    let xref_offset = bytes.len();
+    bytes.extend_from_slice(
+        format!(
+            "xref\n0 3\n0000000000 65535 f \n{catalog_offset:010} 00000 n \n{pages_offset:010} 00000 n \ntrailer\n<< /Size 3 /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n"
+        )
+        .as_bytes(),
+    );
+    assert!(vn3::extract_pdf(&bytes).is_err());
+}
+
 struct Transport {
     bytes: Vec<u8>,
     calls: AtomicUsize,

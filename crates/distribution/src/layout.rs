@@ -354,9 +354,15 @@ impl Installation {
         for index in 0..count {
             transfer.checkpoint()?;
             let mut file = zip
-                .by_index(index)
+                .by_index_with_options(
+                    index,
+                    zip::read::ZipReadOptions::new().enforce_header_consistency(true),
+                )
                 .map_err(|_| Error("invalid_runtime_archive".into()))?;
-            let name = file.name().to_string();
+            let name = file
+                .name()
+                .map_err(|_| Error("invalid_runtime_archive".into()))?
+                .into_owned();
             if file
                 .unix_mode()
                 .is_some_and(|mode| mode & 0o170000 == 0o120000)

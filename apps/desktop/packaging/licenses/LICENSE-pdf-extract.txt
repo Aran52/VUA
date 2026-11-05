@@ -1,4 +1,4 @@
-pdf-extract 0.10.0
+pdf-extract 0.12.1
 
 Upstream manifest declares MIT and this author:
 Jeff Muizelaar <jmuizelaar@mozilla.com>

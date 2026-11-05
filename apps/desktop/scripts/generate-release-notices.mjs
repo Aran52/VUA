@@ -53,7 +53,7 @@ const supplemental = {
   "adobe-cmap-parser@0.4.1": "LICENSE-adobe-cmap-parser.txt",
   "enum-map@2.7.3": "LICENSE-enum-map.txt",
   "enum-map-derive@0.17.0": "LICENSE-enum-map-derive.txt",
-  "pdf-extract@0.10.0": "LICENSE-pdf-extract.txt",
+  "pdf-extract@0.12.1": "LICENSE-pdf-extract.txt",
   "type1-encoding-parser@0.1.1": "LICENSE-type1-encoding-parser.txt",
   "vrc-get-vpm@0.0.16": "LICENSE-vrc-get-vpm.txt",
   "vrc-get-litedb@0.3.0-beta.8": "LICENSE-vrc-get-litedb.txt",
@@ -61,7 +61,7 @@ const supplemental = {
 };
 const supplementalSources = new Set([
   "adobe-cmap-parser@0.4.1", "enum-map@2.7.3", "enum-map-derive@0.17.0",
-  "pdf-extract@0.10.0", "type1-encoding-parser@0.1.1", "vrc-get-litedb@0.3.0-beta.8",
+  "pdf-extract@0.12.1", "type1-encoding-parser@0.1.1", "vrc-get-litedb@0.3.0-beta.8",
 ]);
 const components = [];
 for (const item of metadata.packages.filter(item => seen.has(item.id) && item.source).sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version))) {
@@ -107,7 +107,10 @@ function npmDependency(name, resolver = require) {
   const childResolver = createRequire(manifest);
   for (const child of Object.keys(item.dependencies ?? {})) npmDependency(child, childResolver);
 }
-for (const name of ["react", "react-dom", "three"]) npmDependency(name);
+// Main bundles the MCP runtime too; first-party workspace packages use VUA's notices.
+const npmRoots = component === "amf" ? ["react", "react-dom", "three"]
+  : Object.entries(pkg.dependencies).filter(([, specifier]) => !specifier.startsWith("workspace:")).map(([name]) => name);
+for (const name of npmRoots) npmDependency(name);
 let electron;
 if (component !== "amf") {
   const electronRoot = path.dirname(require.resolve("electron/package.json"));

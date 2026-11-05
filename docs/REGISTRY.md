@@ -13,8 +13,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
-| docs/protocols/ai-tools-v0.1.md | 0.10.1 | Candidate | Integration | 2026-10-31 |
-| docs/protocols/amf-production-v0.1.md | 0.38.0 | Candidate | AMF | 2026-10-30 |
+| docs/protocols/ai-tools-v0.1.md | 0.11.0 | Candidate | Integration | 2026-11-01 |
+| docs/protocols/amf-production-v0.1.md | 0.39.0 | Candidate | AMF | 2026-11-01 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -24,7 +24,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/bdl-queries-v0.4.md | 0.4 | Frozen | Data | 2026-09-15 |
 | docs/protocols/bdl-queries-v0.5.md | 0.5 | Frozen | Data | 2026-09-22 |
 | docs/protocols/bdl-queries-v0.6.md | 0.6 | Frozen | Data | 2026-10-02 |
-| docs/protocols/terms-v0.1.md | 0.2.0 | Candidate | AMF | 2026-10-29 |
+| docs/protocols/terms-v0.1.md | 0.3.0 | Candidate | AMF | 2026-11-01 |
 | docs/protocols/booth-search-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/catalog-sync-v0.1.md | 0.1 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.2.md | 0.2 | Frozen | Data | 2026-10-02 |

@@ -26,6 +26,8 @@ BrowserWindow.prototype.show = function () {};
 BrowserWindow.prototype.focus = function () {};
 const checks = [], publicSites = [], errors = [];
 let window, exitCode = 1;
+const startedAt = Date.now();
+let rendererReadyMs = null;
 app.on("browser-window-created", (_event, created) => {
   created.webContents.setBackgroundThrottling(false);
   created.webContents.on("console-message", event => { if (event.level === "error") errors.push(event.message); });
@@ -49,10 +51,12 @@ async function main() {
       const label = url.hostname.replace(/[^\w.-]/g, "");
       return new Response(`<!doctype html><html><head><title>${label} ${url.pathname}</title><style>body{font:20px system-ui;padding:24px;min-height:2400px;background:#fafafa;color:#17142e}a{display:block;margin:20px 0}</style></head><body><h1>${label}</h1><a id="next" href="/second">Next page</a><a id="new-tab" href="/child" target="_blank">New tab</a><a id="outside" href="https://example.test/">Outside shortcut list</a><textarea id="note"></textarea><p>Isolated browser smoke fixture; no real account or material data.</p></body></html>`, { headers: { "content-type": "text/html; charset=utf-8" } });
     });
+    // Cold native startup has its own budget; ordinary UI operations retain 12 seconds.
     await waitFor(() => {
       window = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith("file:") && !candidate.webContents.getURL().includes("surface="));
       return window && !window.webContents.isLoading();
-    }, "production renderer");
+    }, "production renderer", 30_000);
+    rendererReadyMs = Date.now() - startedAt;
     // A failing script names itself, so a CI failure points at its step.
     const js = source => window.webContents.executeJavaScript(source, true)
       .catch(error => { throw new Error(`VUA page script failed: ${source.slice(0, 100)}`, { cause: error }); });
@@ -252,13 +256,18 @@ async function main() {
     }
     fs.writeFileSync(path.join(output, "evidence.json"), JSON.stringify({ scope: "Real Main/preload/renderer/providers, synthetic public pages, no account/material/device acceptance", checks, publicSites, errors }, null, 2));
     exitCode = 0;
-    console.log(JSON.stringify({ passed: checks.length, publicSites, output }));
+    console.log(JSON.stringify({ passed: checks.length, rendererReadyMs, publicSites, output }));
     clearTimeout(deadline); app.quit();
   } catch (error) {
     console.error(error.stack ?? String(error));
     const views = window && !window.isDestroyed() ? window.contentView.children.filter(view => view.webContents && view.webContents !== window.webContents).map(view => ({ url: view.webContents.getURL(), visible: view.getVisible(), history: view.webContents.navigationHistory.getAllEntries() })) : [];
-    fs.writeFileSync(path.join(output, "failure.json"), JSON.stringify({ error: error.stack, checks, errors, views }, null, 2));
-    console.error(output); clearTimeout(deadline); app.quit();
+    const startup = { elapsedMs: Date.now() - startedAt, rendererReadyMs, windows: BrowserWindow.getAllWindows().filter(candidate => !candidate.isDestroyed()).map(candidate => {
+      const contents = candidate.webContents, url = contents.getURL();
+      return { kind: url.includes("surface=") ? "auxiliary" : url.startsWith("file:") ? "renderer" : "other", loading: contents.isLoading(), mainFrameLoading: contents.isLoadingMainFrame() };
+    }) };
+    fs.writeFileSync(path.join(output, "failure.json"), JSON.stringify({ error: error.stack, checks, errors, views, startup }, null, 2));
+    console.error(JSON.stringify({ startup }));
+    console.error(output); clearTimeout(deadline); app.exit(1);
   }
 }
 void main();

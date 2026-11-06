@@ -3,10 +3,10 @@
  * Opening Home or leaving the Workshop reads only when the facts are old. The page just opened goes first, since a
  * list read holds up the module's other answers, and nothing polls while the app sits idle. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useGateway, useTaskCenter, type AmfProductionList } from "../../gateway/index.ts";
+import { useGateway, type AmfProductionList } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { phaseStatus, storedHiddenLines, type LineStatus } from "../amf/factory-model.ts";
-import { PRODUCTION_LIST_FRESH_MS, readProductionList } from "../amf/production-list-read.ts";
+import { PRODUCTION_LIST_FRESH_MS, readProductionList, useTaskKey } from "../amf/production-list-read.ts";
 import { lineName } from "../amf/line-presentation.ts";
 
 export interface SummaryLine { readonly runId: string; readonly status: LineStatus; readonly name: string }
@@ -38,23 +38,22 @@ export function summarizeLines(list: Pick<AmfProductionList, "runs" | "sources" 
 
 export function useLineSummary(enabled: boolean, page: PageId): LineSummary {
   const port = useGateway().amfProduction;
-  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
+  const taskKey = useTaskKey();
   const [list, setList] = useState<AmfProductionList | null>(null);
   const [recipes, setRecipes] = useState<number | null>(null);
   const seen = useRef<{ readonly page: PageId; readonly taskKey: string } | null>(null);
-  const wanted = useRef<number | null>(null);
+  const wanted = useRef(false);
   const newest = useRef(0);
   useEffect(() => {
-    if (!enabled || !port) { setList(null); setRecipes(null); seen.current = null; wanted.current = null; newest.current += 1; return; }
+    if (!enabled || !port) { setList(null); setRecipes(null); seen.current = null; wanted.current = false; newest.current += 1; return; }
     const before = seen.current;
     seen.current = { page, taskKey };
-    if (before === null || before.taskKey !== taskKey) wanted.current = 0;
-    else if (before.page !== page && (page === "home" || before.page === "workshop")) wanted.current ??= PRODUCTION_LIST_FRESH_MS;
-    if (wanted.current === null) return;
+    if (before === null || before.taskKey !== taskKey || (before.page !== page && (page === "home" || before.page === "workshop"))) wanted.current = true;
+    if (!wanted.current) return;
     const read = () => {
-      const maxAge = wanted.current ?? 0, mine = ++newest.current;
-      wanted.current = null;
-      void readProductionList(port, maxAge).then(value => { if (newest.current === mine) setList(value); }, () => { /* The last facts stay shown. */ });
+      const mine = ++newest.current;
+      wanted.current = false;
+      void readProductionList(port, PRODUCTION_LIST_FRESH_MS, taskKey).then(value => { if (newest.current === mine) setList(value); }, () => { /* The last facts stay shown. */ });
       void port.listRecipes().then(value => { if (newest.current === mine) setRecipes(value.length); }, () => { /* Unknown stays unknown. */ });
     };
     if (before === null) { read(); return; }

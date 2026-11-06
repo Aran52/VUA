@@ -3,7 +3,7 @@ import { AmfRecipeApplyDialog } from "./AmfRecipeApplyDialog.tsx";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AmfAssemblySelection, AmfOutfitSelection, AmfParameterBudgetPlanV01 } from "@vua/contracts";
 import { Icon, SkinMotif } from "@vua/design-system";
-import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { AmfProductionError, useGateway, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { useSwapFade } from "../../components/primitives/motion.ts";
@@ -20,7 +20,7 @@ import { openExternalUrl } from "../../app/open-external.ts";
 import { lineName, rememberLineName, storedLineNames } from "./line-presentation.ts";
 import { AmfRecipeImportDialog } from "./AmfRecipeImportDialog.tsx";
 import { MaterialThumb, useMaterialImages } from "./PlanImages.tsx";
-import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList } from "./production-list-read.ts";
+import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList, useTaskKey } from "./production-list-read.ts";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
@@ -87,7 +87,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const gateway = useGateway(); const port = gateway.amfProduction;
   // Work started elsewhere (an AI request, the release room, another line) changes the task list;
   // the line list and the open line read again whenever a task starts or changes state.
-  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
+  const taskKey = useTaskKey();
   const [runReload, setRunReload] = useState(0);
   const [list, setList] = useState<AmfProductionList | null>(() => latestProductionList(port));
   const [sourceIds, setSourceIds] = useState<readonly string[]>(storedMaterials);
@@ -138,17 +138,16 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const chooseLevel = (next: AutomationLevel) => { if (next === "full" && level !== "full") setConfirmFull("switch"); else applyLevel(next); };
   const unattended = useRef(new Set<string>());
   const initialized = useRef("");
-  const refreshList = useCallback(async (maxAgeMs = 0) => {
+  const refreshList = useCallback(async (maxAgeMs = 0, tasks = "") => {
     if (!port) { setError(unavailable); return; }
     try {
-      const observed = await readProductionList(port, maxAgeMs); setList(observed); setRecipeRefresh(value => value + 1);
+      const observed = await readProductionList(port, maxAgeMs, tasks); setList(observed); setRecipeRefresh(value => value + 1);
       const present = new Set(observed.sources.map(source => source.sourceId));
       setSourceIds(ids => ids.filter(id => present.has(id)));
     } catch (e) { setError(productionErrorMessage(e, unavailable)); }
   }, [port]);
   // Opening the page reuses a recent list; a task change or an action here reads again.
-  const listOpened = useRef(false);
-  useEffect(() => { void refreshList(listOpened.current ? 0 : PRODUCTION_LIST_FRESH_MS); listOpened.current = true; setRunReload(value => value + 1); }, [refreshList, taskKey]);
+  useEffect(() => { void refreshList(PRODUCTION_LIST_FRESH_MS, taskKey); setRunReload(value => value + 1); }, [refreshList, taskKey]);
   useEffect(() => {
     if (!port || !requestedRecipe) return;
     let alive = true; setRequesting(true); remember(runKey, "");

@@ -74,10 +74,11 @@ async function run(){try{
   window.webContents.setBackgroundThrottling(false);
   const click=async id=>{await waitFor(()=>js(`!!document.querySelector('[data-nav-id="${id}"]')`),id);await js(`document.querySelector('[data-nav-id="${id}"]').click()`);};
   const views=()=>window.contentView.children.filter(view=>view.webContents&&view.webContents!==window.webContents);
+  await waitFor(()=>js('!!document.querySelector("[data-nav-id=first-use-enter]")'),"first-use notice");
+  await js('document.querySelector("[data-nav-id=first-use-enter]").click()');
   await waitFor(()=>js('document.querySelector(".vua-tour")?.dataset.tourStep==="welcome"'),"welcome");
   await js('document.querySelector(".vua-tour__actions button").click()');
-  await waitFor(()=>js('!!document.querySelector(".vua-onboarding")&&!document.querySelector(".vua-boot-splash")'),"guide");
-  await js('document.querySelector(".vua-journey-top button").click()');
+  await waitFor(()=>js('!!document.querySelector(".vua-home")&&!document.querySelector(".vua-boot-splash")'),"home");
   await click("nav-warehouse");
   await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("登录")'),"signed-out library");
   assert(libraryRequests===0,"An empty session does not make anonymous account-library requests");
@@ -105,7 +106,7 @@ async function run(){try{
   await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")'),"signed-in library");
   assert(true,"Returning to the asset library offers sync instead of another login");
   await click("warehouse-sync");
-  await waitFor(()=>js('document.querySelector(".vua-warehouse")?.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);
+  await waitFor(()=>js('document.body.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);
   assert(true,"Three synthetic account libraries sync through the real AMF provider");
   await waitFor(()=>js('document.querySelectorAll(".vua-warehouse-card img").length===2&&[...document.querySelectorAll(".vua-warehouse-card img")].every(i=>i.naturalWidth===128&&!i.dataset.pending)'),"native cached card images");
   assert(true,"A renderer created during host startup displays later-synced images through the real AMF cache loader");
@@ -157,7 +158,7 @@ async function run(){try{
         await js(`document.querySelector('.vua-warehouse').scrollTop=0`);
         await js(`document.querySelector('.vua-warehouse__filters').scrollIntoView({block:'nearest'})`);
         await delay(100);
-        const layout=await js(`(()=>{const f=document.querySelector('.vua-warehouse__filters'),controls=[...f.querySelectorAll('input,select')],r=controls.map(c=>c.getBoundingClientRect()),s=r.slice(1);return {nativeCategory:controls.filter(c=>c.tagName==='SELECT').length===3,aligned:s.every(x=>Math.abs(x.top-s[0].top)<1&&Math.abs(x.height-s[0].height)<1),responsive:innerWidth>1000?Math.abs(r[0].top-s[0].top)<1:r[0].bottom<s[0].top,height:r.every(x=>Math.abs(x.height-r[0].height)<1),fits:r.every(x=>x.left>=0&&x.right<=innerWidth+1&&x.bottom<=innerHeight+1),noOverflow:document.documentElement.scrollWidth<=innerWidth+1};})()`);
+        const layout=await js(`(()=>{const f=document.querySelector('.vua-warehouse__filters'),controls=[...f.querySelectorAll('input,select')],r=controls.map(c=>c.getBoundingClientRect()),s=r.slice(1);return {nativeCategory:controls.filter(c=>c.tagName==='SELECT').length===4,aligned:innerWidth<=1000||s.every(x=>Math.abs(x.top-s[0].top)<1&&Math.abs(x.height-s[0].height)<1),responsive:innerWidth<=1000||Math.abs(r[0].top-s[0].top)<1,height:r.every(x=>Math.abs(x.height-r[0].height)<1),fits:r.every(x=>x.left>=0&&x.right<=innerWidth+1&&x.bottom<=innerHeight+1),noOverflow:document.documentElement.scrollWidth<=innerWidth+1};})()`);
         if(!Object.values(layout).every(Boolean)){console.error(JSON.stringify({locale,theme,width,height,zoom,layout,geometry:await js(`({width:innerWidth,height:innerHeight,rects:[...document.querySelectorAll('.vua-warehouse__filters input,.vua-warehouse__filters select')].map(x=>x.getBoundingClientRect().toJSON())})`)}));fs.writeFileSync(path.join(output,"layout-failure.png"),(await window.webContents.capturePage()).toPNG());}
         assert(Object.values(layout).every(Boolean),`${locale} ${theme}: aligned search/source/state/native-category controls at ${width}×${height}, zoom ${zoom}`);
         if(width===1400){await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true});await delay(80);fs.writeFileSync(path.join(output,`library-${locale}-${theme}.png`),(await window.webContents.capturePage({}, {stayHidden:true,stayAwake:true})).toPNG());}

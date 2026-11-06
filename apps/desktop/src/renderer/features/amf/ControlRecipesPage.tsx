@@ -11,9 +11,9 @@ import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { useMaterialImages } from "./PlanImages.tsx";
-import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList } from "./production-list-read.ts";
+import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList, useTaskKey } from "./production-list-read.ts";
 import { newestFirst, recipeMaterialRows, recipeProductIds, recipeReadiness, type RecipeMaterialRow, type RecipeMaterialSource } from "./recipe-cards-model.ts";
-import { useGateway, useTaskCenter, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { useGateway, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { SegmentBar } from "../../components/SegmentBar.tsx";
@@ -94,6 +94,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [plans, setPlans] = useState<ReadonlyMap<string, AmfRecipeMaterialPlan>>(() => new Map());
   const [sources, setSources] = useState<readonly RecipeMaterialSource[]>(() => latestProductionList(port)?.sources ?? []);
+  const taskKey = useTaskKey();
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<AmfSavedRecipe | null>(null);
   const [deleting, setDeleting] = useState<AmfSavedRecipe | null>(null);
@@ -126,12 +127,11 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   useEffect(() => {
     if (!port) return;
     let alive = true;
-    void readProductionList(port, PRODUCTION_LIST_FRESH_MS).then(list => { if (alive) setSources(list.sources); }, () => { /* The cards keep their shapes. */ });
+    void readProductionList(port, PRODUCTION_LIST_FRESH_MS, taskKey).then(list => { if (alive) setSources(list.sources); }, () => { /* The cards keep their shapes. */ });
     return () => { alive = false; };
-  }, [port, reload]);
+  }, [port, reload, taskKey]);
   // Whether this PC has each Recipe's materials; a Recipe the engine cannot plan just shows no sentence.
   const selectedRecipe = useRef(selected); selectedRecipe.current = selected;
-  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
   useEffect(() => {
     if (!port || saved === null) return;
     let alive = true;

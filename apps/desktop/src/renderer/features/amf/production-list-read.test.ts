@@ -19,6 +19,14 @@ describe("the shared production list read", () => {
     await readProductionList(shared);
     expect(shared.list).toHaveBeenCalledTimes(2);
   });
+  it("reads again once the tasks have changed", async () => {
+    const shared = port(async () => list);
+    await readProductionList(shared, 60_000, "a:running");
+    await readProductionList(shared, 60_000, "a:running");
+    expect(shared.list).toHaveBeenCalledTimes(1);
+    await readProductionList(shared, 60_000, "a:completed");
+    expect(shared.list).toHaveBeenCalledTimes(2);
+  });
   it("keeps the newest list for drawing at once", async () => {
     const shared = port(async () => list);
     expect(latestProductionList(shared)).toBeNull();

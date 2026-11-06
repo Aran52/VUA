@@ -174,7 +174,7 @@ const FACTORY_VIEWS = [
   "control-recipes", "control-recipes-still", "control-recipes-selected", "control-recipes-part",
   "control-recipes-list", "control-recipes-many", "control-recipes-empty", "control-fits",
   "control-packages", "control-packages-project", "control-packages-project-smart",
-  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos", "control-packages-repos-disabled",
+  "control-packages-project-full", "control-packages-unlisted", "control-packages-repos", "control-packages-repos-add", "control-packages-repos-disabled",
   "release-album", "release-stills", "release-turn", "release-confirm", "release-signin",
   "release-uploading", "release-uploaded", "release-check", "release-failed", "release-empty",
   "release-sdk", "release-vrchat", "release-vrchat-signin", "release-queued", "release-terms",

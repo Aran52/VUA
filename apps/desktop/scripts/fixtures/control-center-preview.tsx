@@ -146,7 +146,7 @@ export function controlPreview(view: string, base: VuaGateway, production: AmfPr
   const screen: Screen = view.startsWith("control-packages-project") ? { kind: "project", key: "work:finished" } : view === "control-packages-unlisted" ? { kind: "project", key: "work:waiting" }
     : view.startsWith("control-packages-repos") ? { kind: "repos" } : { kind: "projects" };
   const page = view.startsWith("control-packages")
-    ? <AmfRoom page="packages" navigate={() => {}}><ControlPackagesPage onNavigate={() => {}} initialScreen={screen}/></AmfRoom>
+    ? <AmfRoom page="packages" navigate={() => {}}><ControlPackagesPage onNavigate={() => {}} initialScreen={screen} initialAdding={view === "control-packages-repos-add" ? "form" : "closed"}/></AmfRoom>
     : <AmfRoom page="recipe" navigate={() => {}}><ControlRecipesPage onNavigate={() => {}} initialSelected={selected}/></AmfRoom>;
   return { gateway, page };
 }

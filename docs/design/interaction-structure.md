@@ -73,6 +73,11 @@ environment, please review, install, retry, open the official page, launch or cl
   another check.
 - Other social platforms (ChilloutVR and Reborn) follow the routes, as cards that install, open and
   close through Steam. They share the Tools cards' connection.
+- Headset routes still in development (Meta Quest, Steam Frame, HTC VIVE, Valve Index, PS VR2) open a
+  connection guide: choose a connection, see what the PC and the headset need and whether the PC
+  software is already there, and open the official page. PICO lists the other streaming software under
+  its details. The [planned connections](../tool-catalog/external/planned-connections.md) list what each
+  needs to become a working route.
 
 ## Cards
 
@@ -80,7 +85,11 @@ Every compact card reads the same way: logo, name and one line on what the item 
 the next step in words on the right. An item still in development says so in the right part, in place of
 an action. A card's details hold whatever a player needs when something is wrong, including reinstalling.
 Installing uses one icon on every card. Library cards keep the same rows on every card, so shop and
-variant line up across the wall.
+variant line up across the wall. A left part that opens details in place carries a small caret that turns
+when they open. Details scroll into view when they open and close with Esc.
+
+Tools still in development have the same card, with their source, license and official page in the
+details. Tools that replace VRChat's own files stay out; see the planned connections.
 
 ## Latency
 
@@ -140,6 +149,16 @@ encyclopedia's topics, not a separate manual.
 A page introduction has one button that closes it for good, beside any link it offers.
 
 Settings opens on its first item, Theme.
+
+## Direct actions
+
+- A production line renames from its menu, with a double click or with F2, as a file does in a file
+  manager.
+- Adding a package repository opens below the page's title row, so the view switch never moves. A click on
+  a common repository (Avatar Optimizer, VRCFury, Poiyomi) fills the form; the review step still applies.
+- The VRChat wizard pages with the left and right arrow keys as well as its three buttons.
+- The album's page controls sit under its tabs, in view without scrolling.
+- A disabled start button says what it waits for.
 
 ## Rulings this changes
 

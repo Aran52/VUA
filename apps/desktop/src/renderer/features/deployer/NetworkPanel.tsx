@@ -9,6 +9,7 @@ import { format, strings } from "../../i18n/index.ts";
 import { storageKeys } from "../../app/storage-keys.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
+import { POPOVER_ENTER, POPOVER_EXIT, usePresenceMotion } from "../../components/primitives/motion.ts";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { DEFAULT_TEST_WEBSITES, normalizeWebsiteUrl, parseTestWebsites, type TestWebsite } from "./website-model.ts";
 import { brandGlyphPath } from "./website-glyphs.ts";
@@ -166,6 +167,7 @@ export function NetworkMonitor() {
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const shown = usePresenceMotion(open, panelRef, POPOVER_ENTER, POPOVER_EXIT);
   const tested = useRef(false);
   useEffect(() => {
     if (!open || !ready || tested.current) return;
@@ -196,7 +198,7 @@ export function NetworkMonitor() {
       <Icon name="signal" size={16} />
       <span className="vua-shell__network-value">{value}</span>
     </button>
-    {open ? createPortal(<div ref={panelRef} className="vua-usage-panel vua-network-panel" data-vua-native-occluder role="region" aria-label={copy.regionTitle} tabIndex={-1}>
+    {shown ? createPortal(<div ref={panelRef} className="vua-usage-panel vua-network-panel" data-vua-native-occluder role="region" aria-label={copy.regionTitle} tabIndex={-1}>
       <div className="vua-usage-panel__header">
         <span className="vua-usage-panel__title">{copy.regionTitle}</span>
         <button type="button" className="vua-usage-panel__close" aria-label={strings.resourceMonitor.closeAria} onClick={() => setOpen(false)}><Icon name="close" size={16} /></button>

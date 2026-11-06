@@ -24,6 +24,7 @@ import "./release-album.css";
 import { TurntableExportDialog } from "./TurntableExportDialog.tsx";
 import { recipeShareCopy } from "../../../i18n/index.ts";
 import { lineName } from "../line-presentation.ts";
+import { SegmentBar } from "../../../components/SegmentBar.tsx";
 import { takeRequestedTurntable } from "../production-recipe-navigation.ts";
 
 const copy = strings.releaseRoom;
@@ -315,9 +316,10 @@ export function ReleaseAlbumPage({ onNavigate }: { onNavigate: (page: PageId) =>
   const shelf = vrchatEnabled && vrchat !== undefined ? vrchat : null;
   const uploaded = useVuaUploads(production, release, shelf !== null && view === "vrchat");
   return <div className="vua-page vua-release-room" data-focus-scope>
-    <header className="vua-release-room__header">
-      <h1>{strings.nav.pages.release}</h1>
-      {shelf && <div className="vua-release-room__tabs" role="tablist" aria-label={copy.title}>
+    <header className="vua-page__hero">
+      <h1 className="vua-title">{strings.nav.pages.release}</h1>
+      {shelf && <div className="vua-release-room__tabs vua-segments" role="tablist" aria-label={copy.title}>
+        <SegmentBar selected={view} />
         {(["album", "vrchat"] as const).map(key => <button key={key} type="button" role="tab" aria-selected={view === key}
           data-nav-id={`release-tab-${key}`} onClick={() => setView(key)}>{key === "album" ? shelfCopy.albumTab : shelfCopy.vrchatTab}</button>)}
       </div>}

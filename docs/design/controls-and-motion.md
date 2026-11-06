@@ -49,6 +49,20 @@ The Workshop automation selector shows its label above the current mode in a
 New line button share that height and baseline; new lines expose the selector
 before work starts (author follow-up, 2026-10-31).
 
+### Page frame
+
+Every page uses one frame, so a page change never moves the title or the edges. The content is at
+most 1180 px wide and centred; a page narrower than the window keeps this width and never centres
+itself on a different one. A title row at least 40 px high comes first, with the title on the left and
+the page's view switch or actions on the right. A text button ending the row lines its text up with
+the frame's right edge. The next block starts 24 px below the row.
+
+Titles are `title` type; Home alone uses `display`. Section headings are `body` at weight 600 on every
+page, one step below the title.
+
+Views of one page use one 32 px segmented group (`.vua-segments`), whose fill and light bar travel
+between options. Card grids keep the same space between rows wherever a closed drawer sits.
+
 ### Size steps
 
 Controls come in three steps; a page uses one step for its main controls and may use a smaller
@@ -235,8 +249,11 @@ of the design standard's earlier §7:
 | dialog | fade with an 8 px rise, slow; backdrop fade, normal |
 | drawer | slide from its edge, slow |
 | toast | slide 8 px from the stack edge with fade, normal; leaves by fading |
-| tab or segment change | the selected bar moves over normal; content cross-fades over normal |
+| tab or segment change | the selected fill and bar move over normal; content cross-fades over normal |
 | page change | content fades over normal; no sliding pages |
+| content changing in place (a wizard page, a guide topic, another production line, a station's panel) | content fades over normal, without remounting |
+| details and disclosures | height opens over normal with entrance easing and closes in two thirds of it; the triangle turns over fast |
+| a block opening in the flow (a card's drawer, the line menu) | neighbours move with it over normal; a drawer then scrolls into view if needed |
 | row added or removed | fade over normal; neighbours move over normal |
 | progress | determinate bars move over normal; indeterminate shimmer only while active |
 | stepper | one shared viewing indicator slides to the selected station over 240 ms with `--vua-motion-ease-station` (`cubic-bezier(0.55, 0, 1, 0.45)`), an ease-in/accelerating curve; execution state does not move |

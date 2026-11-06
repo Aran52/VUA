@@ -3,10 +3,8 @@
  * and decorative extras sit in [data-skin-slot] elements, so a skin can restyle the album. */
 .vua-page.vua-release-room {
   --room: var(--vua-room-release);
-  display: flex; flex-direction: column; gap: var(--vua-space-3); width: 100%; max-width: 1180px; margin-inline: auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--vua-space-5); max-width: var(--vua-page-max, 1206px); min-height: 0;
 }
-.vua-release-room__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); }
-.vua-release-room__header h1 { margin: 0; font: var(--vua-font-title); }
 .vua-release-room__loading { padding: var(--vua-space-6) 0; text-align: center; }
 .vua-release-room__error { margin-top: var(--vua-space-2); }
 
@@ -18,7 +16,9 @@
 
 /* The binder: the open album and its index tabs. */
 .vua-album { display: flex; flex-direction: column; gap: var(--vua-space-3); outline: none; }
-.vua-album__binder { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+/* The book's binding ring is 7 px wide; the inset puts its outer edge on the page's left edge. */
+.vua-album__binder { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; padding: 7px 0 7px 7px; }
+.vua-album__side { display: flex; flex-direction: column; gap: var(--vua-space-3); min-width: 0; }
 .vua-album__book {
   --turn: 0;
   position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 600px;
@@ -64,12 +64,12 @@
 .vua-album__tabs button span + span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
 .vua-album__tabs button[aria-current] { position: relative; z-index: 1; color: var(--vua-text-strong); background: var(--vua-album-paper); box-shadow: inset 2px 0 0 var(--room); font-weight: var(--vua-weight-strong); }
 .vua-album__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
-.vua-album__nav { display: flex; align-items: center; gap: var(--vua-space-3); padding-inline: var(--vua-space-1); }
-.vua-album__nav button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--vua-border); border-radius: 0; background: var(--vua-bg-panel); color: var(--vua-text-strong); cursor: pointer; }
+.vua-album__nav { display: flex; align-items: center; justify-content: space-between; gap: var(--vua-space-2); margin-inline-start: var(--vua-space-4); }
+.vua-album__nav button { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--vua-border); border-radius: 0; background: var(--vua-bg-panel); color: var(--vua-text-strong); cursor: pointer; }
 .vua-album__nav button:hover:not(:disabled) { border-color: var(--room); color: var(--room); }
 .vua-album__nav button:disabled { opacity: 0.4; cursor: default; }
 .vua-album__nav button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
-.vua-album__nav > span { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+.vua-album__nav > span { min-width: 40px; text-align: center; font: var(--vua-font-caption); font-variant-numeric: tabular-nums; }
 .vua-album__nav > small { font: var(--vua-font-caption); }
 
 /* Left page: the photo on its stage, and the turntable below it. */
@@ -269,10 +269,6 @@
 .vua-sdk-review li small.vua-sdk-review__fix { display: inline-block; margin-inline-start: var(--vua-space-2); padding: 0 var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: 0; vertical-align: 1px; }
 
 /* The room's two views: the album and the account's Avatars on VRChat. */
-.vua-release-room__tabs { display: inline-flex; gap: var(--vua-space-1); padding: 3px; border: 1px solid var(--vua-border); border-radius: 0; background: var(--vua-bg-panel); }
-.vua-release-room__tabs button { padding: var(--vua-space-2) 16px; border: 0; border-radius: 0; background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-body); cursor: pointer; }
-.vua-release-room__tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--room) 16%, var(--vua-bg-panel)); color: var(--vua-text-strong); }
-.vua-release-room__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
 
 /* The account's own Avatars on VRChat. */
 .vua-vrchat-shelf { display: grid; gap: var(--vua-space-3); }

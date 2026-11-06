@@ -4,20 +4,16 @@
 
 
 /* Room frame: the room's plate and its tabs above the pages it holds. */
-.vua-room { --room: var(--vua-accent); position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1180px; margin-inline: auto; }
+.vua-room { --room: var(--vua-accent); position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: var(--vua-page-max, 1206px); margin-inline: auto; }
 .vua-room[data-room="materials"] { --room: var(--vua-room-materials); }
 .vua-room[data-room="control"] { --room: var(--vua-room-control); }
 .vua-room[data-room="release"] { --room: var(--vua-room-release); }
-.vua-room__bar { position: absolute; top: 0; inset-inline-end: 8px; z-index: 1; }
-.vua-room__tabs { display: inline-flex; gap: 4px; margin-inline-start: auto; }
-.vua-room__tabs button { padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid transparent; background: transparent; color: var(--vua-text-secondary); font: inherit; cursor: pointer; border-radius: var(--vua-radius-control); }
-.vua-room__tabs button:hover { color: var(--vua-text-strong); }
-.vua-room__tabs button[aria-selected="true"] { color: var(--room); border-color: var(--room); }
-.vua-room__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
+/* The tabs sit on the page's title row, at its right edge. */
+.vua-room__bar { position: absolute; top: var(--vua-space-3); inset-inline-end: calc(var(--vua-space-2) + 10px); z-index: 1; }
 .vua-room__content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* Workshop: the line list beside the selected line. */
-.vua-page.vua-workshop { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: var(--vua-space-5); max-width: 1180px; }
+.vua-page.vua-workshop { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: var(--vua-space-5); max-width: var(--vua-page-max, 1206px); }
 .vua-workshop__rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: var(--vua-space-4); min-width: 0; }
 .vua-workshop__rail > .vua-button:first-child { min-height: 64px; }
 .vua-workshop__lines { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -33,7 +29,7 @@
 .vua-workshop__line-menu svg { fill: currentColor; transition: transform var(--vua-motion-fast) ease-out; }
 .vua-workshop__line-menu[aria-expanded="true"] svg { transform: rotate(180deg); }
 .vua-workshop__line-rename { width: 100%; padding: 10px 12px; border: 1px solid var(--vua-accent); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-caption); }
-.vua-workshop__line-choices { display: grid; gap: 4px; animation: vua-line-choices var(--vua-motion-fast) ease-out; }
+.vua-workshop__line-choices { display: grid; gap: 4px; overflow: clip; overflow-clip-margin: 3px; }
 .vua-workshop__line-choices > button { height: 26px; border: 0; font: var(--vua-font-caption); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-workshop__line-hide { background: color-mix(in srgb, var(--vua-text-secondary) 16%, var(--vua-bg-panel)); color: var(--vua-text-strong); }
 .vua-workshop__line-hide:hover { background: color-mix(in srgb, var(--vua-text-secondary) 26%, var(--vua-bg-panel)); }
@@ -41,8 +37,9 @@
 .vua-workshop__line-delete:hover { background: color-mix(in srgb, var(--vua-error) 85%, var(--vua-text-strong)); }
 .vua-workshop__line-choices > button:disabled { opacity: 0.45; cursor: not-allowed; }
 .vua-workshop__line-choices > button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
-@keyframes vua-line-choices { from { opacity: 0; transform: translateY(-4px); } }
-[data-effects="off"] .vua-workshop__line-choices, [data-effects="off"] .vua-line__station { animation: none; transition: none; }
+[data-effects="off"] .vua-line__station { animation: none; transition: none; }
+/* A station's panel appears when the station is chosen. */
+.vua-line__panel, .vua-line__summary { animation: vua-page-enter var(--vua-motion-normal) var(--vua-motion-ease-enter); }
 .vua-workshop__hidden-toggle { align-self: flex-start; padding: var(--vua-space-1) 0; border: 0; background: none; color: var(--vua-text-secondary); font: var(--vua-font-caption); text-decoration: underline; cursor: pointer; }
 .vua-workshop__line:disabled { cursor: progress; }
 .vua-workshop__line { display: flex; flex-direction: column; align-items: var(--vua-rail-content-align, flex-start); gap: var(--vua-space-1); padding: 12px; border: solid var(--vua-row-border-color, var(--vua-border)); border-width: var(--vua-row-border-width); background-color: var(--vua-row-fill, transparent); background-image: var(--vua-surface-highlight, none); color: var(--vua-text-strong); font: inherit; text-align: var(--vua-rail-text-align, start); cursor: pointer; }
@@ -189,12 +186,8 @@
 .vua-workshop__capacity small { overflow-wrap: anywhere; }
 
 /* A new line starts from materials or a Recipe; the start button stays in view while the list scrolls. */
-.vua-line__start-from { display: inline-flex; gap: 4px; }
-.vua-line__start-from button { padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid transparent; border-radius: var(--vua-corners-action, 4px); background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-body); cursor: pointer; }
-.vua-line__start-from button:hover { color: var(--vua-text-strong); }
-.vua-line__start-from button[aria-selected="true"] { border-color: var(--vua-accent); color: var(--vua-accent-text); font-weight: var(--vua-weight-strong); }
-.vua-line__start-from button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 2px; }
 .vua-line__materials-card > p { margin: 0 0 var(--vua-space-3); }
+.vua-line__start-bar small { font: var(--vua-font-caption); }
 .vua-line__start-bar { position: sticky; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: flex-end; gap: var(--vua-space-4); margin-top: var(--vua-space-3); padding: var(--vua-space-3) 0; background: linear-gradient(to top, var(--vua-bg-canvas) 70%, transparent); }
 .vua-line__source-details dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--vua-space-1) var(--vua-space-3); margin: var(--vua-space-2) 0; }
 .vua-line__source-details dd { margin: 0; overflow-wrap: anywhere; }

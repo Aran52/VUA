@@ -1,9 +1,10 @@
 /** The workshop's production lines: open one, start a new one, or rename, hide or delete a line from its menu. */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@vua/design-system";
 import { useGateway } from "../../gateway/index.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ConfirmDialog } from "../../components/primitives/ConfirmDialog.tsx";
+import { useCollapseMotion } from "../../components/primitives/motion.ts";
 import { format, strings } from "../../i18n/index.ts";
 import { rememberHiddenLines as rememberHidden, storedHiddenLines as storedHidden, type LineStatus } from "./factory-model.ts";
 
@@ -24,6 +25,12 @@ export interface RailLine {
 
 /** How many Unity jobs may run at once, and whether it can change now (only while nothing runs or waits). */
 export interface RailCapacity { readonly value: 1 | 2 | 3; readonly changeable: boolean }
+
+function LineChoices({ open, children }: { open: boolean; children: ReactNode }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const shown = useCollapseMotion(open, panel);
+  return shown ? <div ref={panel} className="vua-workshop__line-choices">{children}</div> : null;
+}
 
 export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onRename, onDeleting, onDeleted, onError, refresh }: {
   lines: readonly RailLine[]; current: string; capacity?: RailCapacity | undefined;
@@ -114,7 +121,8 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onRena
               if (event.key === "Enter") event.currentTarget.blur();
               if (event.key === "Escape") { event.stopPropagation(); event.currentTarget.value = line.name; event.currentTarget.blur(); }
             }} />
-          : <button type="button" className="vua-workshop__line" aria-current={line.runId === current || undefined} disabled={removing} onClick={() => onSelect(line.runId)}>
+          : <button type="button" className="vua-workshop__line" aria-current={line.runId === current || undefined} disabled={removing} onClick={() => onSelect(line.runId)}
+            onDoubleClick={() => { setOpen(null); setRenaming(line.runId); }} onKeyDown={event => { if (event.key === "F2") { event.preventDefault(); setOpen(null); setRenaming(line.runId); } }}>
             <span>{line.name}</span>
             {line.extra && <small className="vua-workshop__line-extra">{line.extra}</small>}
             {removing ? <span className="vua-line__status" data-status="running">{menu.deleting}</span> : <StatusChip status={line.status}/>}
@@ -123,11 +131,11 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onRena
             aria-label={format(menu.open, { name: line.name })} title={format(menu.open, { name: line.name })}
             onClick={() => setOpen(current => current === line.runId ? null : line.runId)} data-nav-id="workshop-line-menu"><Icon name="caret-down" size={16}/></button>}
           </div>
-          {!removing && open === line.runId && <div className="vua-workshop__line-choices">
+          <LineChoices open={!removing && open === line.runId}>
             <button type="button" className="vua-workshop__line-hide" onClick={() => { setOpen(null); setRenaming(line.runId); }} data-nav-id="workshop-line-rename">{menu.rename}</button>
             <button type="button" className="vua-workshop__line-hide" onClick={() => toggleHidden(line.runId)} data-nav-id="workshop-line-hide">{isHidden ? menu.unhide : menu.hide}</button>
             <button type="button" className="vua-workshop__line-delete" disabled={line.status === "running"} onClick={() => { setConfirmLine(line); setConfirming(true); }} data-nav-id="workshop-line-delete">{menu.delete}</button>
-          </div>}
+          </LineChoices>
         </li>;
       })}
     </ul>

@@ -8,6 +8,8 @@ import {
 } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { SegmentBar } from "../../components/SegmentBar.tsx";
+import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { strings, presentationCopy, format } from "../../i18n/index.ts";
 import { PackagesPage } from "../packages/PackagesPage.tsx";
 import { InstallConfirmDialog } from "../packages/InstallConfirmDialog.tsx";
@@ -39,13 +41,13 @@ type RepoAdding = "closed" | "form" | "review";
 const BUSY_PHASES = new Set(["preparing", "assembling", "restoring"]);
 const MAX_WORK_PROJECTS = 40;
 
-export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "projects" } }: { onNavigate: (page: PageId) => void; initialScreen?: Screen }) {
+export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "projects" }, initialAdding = "closed" }: { onNavigate: (page: PageId) => void; initialScreen?: Screen; initialAdding?: RepoAdding }) {
   const gateway = useGateway();
   const view = usePackagesView();
   const live: LiveView | null = view.kind === "ready-p1" || view.kind === "ready-p2" ? view : null;
   const blocks = (live?.blocks ?? null) as Blocks | null;
   const [screen, setScreen] = useState<Screen>(initialScreen);
-  const [adding, setAdding] = useState<RepoAdding>("closed");
+  const [adding, setAdding] = useState<RepoAdding>(initialAdding);
   const [work, setWork] = useState<readonly WorkProjectFacts[] | null>(null);
   const [registered, setRegistered] = useState<readonly RegisteredProjectRow[] | null>(null);
   const [registeredFailed, setRegisteredFailed] = useState(false);
@@ -91,13 +93,13 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
   const level = storedAutomationLevel();
   const current = screen.kind === "project" ? projects.find(project => project.key === screen.key) ?? null : null;
   return <div className="vua-page vua-control vua-control--packages" data-focus-scope>
-    <header className="vua-control__head">
+    <header className="vua-page__hero">
       <h1 className="vua-title">{copy.title}</h1>
-      <span className="vua-control__switch" role="group" aria-label={copy.viewLabel}>
+      <span className="vua-control__switch vua-segments" role="group" aria-label={copy.viewLabel}>
+        <SegmentBar selected={screen.kind === "repos" ? "repos" : "projects"} />
         {(["projects", "repos"] as const).map(option => <button type="button" key={option} aria-pressed={option === "repos" ? screen.kind === "repos" : screen.kind !== "repos"}
           onClick={() => { setAdding("closed"); setScreen({ kind: option }); }}><Icon name={option === "projects" ? "folder" : "cloud"} size={16}/>{copy.views[option]}</button>)}
       </span>
-      {screen.kind === "repos" && blocks?.repoWrites && adding === "closed" && <Button variant="primary" onClick={() => setAdding("form")}><Icon name="add" size={16}/>{copy.repos.add}</Button>}
     </header>
     {live === null ? <div className="vua-control__panel vua-control__empty" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><Icon name="cloud" size={24}/><h2>{copy.notConnectedTitle}</h2></div>
       : screen.kind === "repos" ? <ReposScreen view={live} blocks={blocks!} repos={repos} catalog={catalog} adding={adding} setAdding={setAdding} onChanged={() => setCatalogReload(value => value + 1)}/>
@@ -388,6 +390,13 @@ function PackageLine({ row, versions, prerelease, busy, canInstall, canRemove, p
   </div>;
 }
 
+/** Repositories players commonly add. A click only fills the form; the review step still applies. */
+const KNOWN_REPOS = [
+  { name: "Avatar Optimizer", url: "https://vpm.anatawa12.com/vpm.json" },
+  { name: "VRCFury", url: "https://vcc.vrcfury.com" },
+  { name: "Poiyomi", url: "https://poiyomi.github.io/vpm/index.json" },
+] as const;
+
 function ReposScreen({ view, blocks, repos, catalog, adding, setAdding, onChanged }: {
   view: LiveView; blocks: Blocks; repos: readonly ControlRepo[]; catalog: readonly RepoCatalogRepoRowV01[] | null; onChanged: () => void;
   adding: RepoAdding; setAdding: (value: RepoAdding) => void;
@@ -399,6 +408,7 @@ function ReposScreen({ view, blocks, repos, catalog, adding, setAdding, onChange
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const reposError = view.kind === "ready-p2" ? view.reposError : undefined;
+  const known = KNOWN_REPOS.filter(item => !repos.some(repo => repo.url === item.url));
   const run = async (key: string, action: () => Promise<{ kind: string; code?: string; rejection?: { code: string } }>, done: string) => {
     if (busy !== null) return;
     setBusy(key); setNotice(null);
@@ -414,15 +424,20 @@ function ReposScreen({ view, blocks, repos, catalog, adding, setAdding, onChange
   };
   return <section className="vua-control__screen" aria-label={copy.repos.title}>
     {notice !== null && <Alert tone={notice.tone === "error" ? "error" : "success"} onDismiss={() => setNotice(null)} dismissLabel={strings.common.dialogClose}>{notice.text}</Alert>}
-    {adding !== "closed" && <form className="vua-control__panel vua-control__add" onSubmit={event => { event.preventDefault(); if (adding === "form") setAdding("review"); else void addRepo(); }}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
+    {blocks.repoWrites && <div className="vua-control__repo-toolbar"><Button variant="primary" data-nav-id="packages-add-repo" aria-expanded={adding !== "closed"} onClick={() => setAdding(adding === "closed" ? "form" : "closed")}><Icon name="add" size={16}/>{copy.repos.add}</Button></div>}
+    <SlideDrawer open={adding !== "closed"} label={copy.repos.add}><form className="vua-control__panel vua-control__add" onSubmit={event => { event.preventDefault(); if (adding === "form") setAdding("review"); else void addRepo(); }}><SkinSlot name="control-panel-corner" className="vua-control__corner"/>
       <label>{copy.repos.url}<input type="url" required value={url} placeholder={copy.repos.urlPlaceholder} disabled={adding === "review"} onChange={event => setUrl(event.target.value)}/></label>
       <label>{copy.repos.name}<input type="text" required value={name} placeholder={copy.repos.namePlaceholder} disabled={adding === "review"} onChange={event => setName(event.target.value)}/></label>
+      {adding === "form" && known.length > 0 && <div className="vua-control__known" role="group" aria-label={copy.repos.common}>
+        <span>{copy.repos.common}</span>
+        {known.map(repo => <button type="button" key={repo.url} aria-pressed={url === repo.url} data-nav-id={`packages-known-${repo.name}`} onClick={() => { setUrl(repo.url); setName(repo.name); }}>{repo.name}</button>)}
+      </div>}
       {adding === "review" && <p className="vua-control__review"><Icon name="warning" size={16}/>{copy.repos.addReview}</p>}
       <div className="vua-n3__actions">
         <Button variant="subtle" onClick={() => setAdding(adding === "review" ? "form" : "closed")}>{adding === "review" ? copy.repos.back : copy.repos.cancel}</Button>
         <Button type="submit" variant="primary" disabled={busy !== null || url.trim() === "" || name.trim() === ""}>{adding === "review" ? copy.repos.addConfirm : copy.repos.next}</Button>
       </div>
-    </form>}
+    </form></SlideDrawer>
     {reposError !== undefined && <p className="vua-caption vua-control__warn" role="alert"><Icon name="warning" size={16}/>{format(copy.repos.failed, { code: reposError.code })}</p>}
     {!blocks.repos ? <div className="vua-control__panel" role="status"><SkinSlot name="control-panel-corner" className="vua-control__corner"/><p className="vua-text-secondary">{copy.repos.unavailable}</p></div>
       : <div className="vua-control__repo-list"><div className="vua-control__repo-columns" aria-hidden="true"><span>{presentationCopy.repositories.use}</span><span>{copy.repos.name}</span><span>{presentationCopy.repositories.source}</span><span className="vua-control__repo-count">{presentationCopy.repositories.count}</span><span>{presentationCopy.repositories.actions}</span></div><ul className="vua-control__repos">{repos.map(repo => {

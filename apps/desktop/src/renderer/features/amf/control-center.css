@@ -13,7 +13,7 @@
   --vua-control-work: var(--vua-room-workshop);
   --vua-control-unity: var(--vua-info);
   --vua-control-mono: var(--vua-font-mono, ui-monospace, "Cascadia Mono", Consolas, monospace);
-  max-width: none; width: 100%; gap: 16px;
+  gap: var(--vua-space-5);
 }
 .vua-control [data-kind="recipe"] { --kind: var(--vua-graph-recipe); }
 .vua-control [data-kind="avatar"] { --kind: var(--vua-graph-avatar); }
@@ -21,15 +21,7 @@
 .vua-control [data-kind="material"] { --kind: var(--vua-graph-material); }
 .vua-control [data-kind="package"] { --kind: var(--vua-graph-package); }
 
-.vua-control__head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.vua-control__head h1 { margin: 0 auto 0 0; font: var(--vua-font-title); }
-.vua-control__head p { margin: 0; max-width: 70ch; }
 .vua-control__actions { display: flex; align-items: center; gap: var(--vua-space-2); flex-wrap: wrap; }
-.vua-control__switch { display: inline-flex; padding: 3px; gap: var(--vua-space-1); border: 1px solid var(--vua-border); background: var(--vua-bg-panel); border-radius: var(--vua-radius-control); }
-.vua-control__switch button { display: inline-flex; align-items: center; gap: var(--vua-space-2); padding: var(--vua-space-2) var(--vua-space-4) 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-caption); cursor: pointer; }
-.vua-control__switch button:hover { color: var(--vua-text-strong); }
-.vua-control__switch button[aria-pressed="true"] { background: color-mix(in srgb, var(--room) 18%, transparent); color: var(--vua-text-strong); border-bottom-color: var(--room); }
-.vua-control__switch button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: -2px; }
 
 .vua-control__panel {
   position: relative; display: flex; flex-direction: column; gap: var(--vua-space-2); padding: 16px var(--vua-space-4); min-width: 0;
@@ -50,7 +42,7 @@
 .vua-control__link { padding: 0; border: 0; background: none; color: var(--room); font: inherit; text-decoration: underline; cursor: pointer; }
 .vua-control .vua-control__mono { font: var(--vua-font-caption); font-family: var(--vua-control-mono); overflow-wrap: anywhere; }
 .vua-control__plain { margin: 0; padding-inline-start: var(--vua-space-4); font: var(--vua-font-caption); }
-.vua-control input:not([type="checkbox"]), .vua-control select { box-sizing: border-box; min-height: 34px; padding: var(--vua-space-2) var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: inherit; }
+.vua-control input:not([type="checkbox"]), .vua-control select { box-sizing: border-box; min-height: var(--vua-control-height); padding: var(--vua-space-1) var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: inherit; }
 .vua-control input::placeholder { color: var(--vua-text-secondary); }
 .vua-control input:not([type="checkbox"]):hover, .vua-control select:hover:not(:disabled) { border-color: var(--vua-border-strong); }
 .vua-control input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex-shrink: 0; accent-color: var(--room); }
@@ -62,6 +54,7 @@
 .vua-control__stage > :not([data-skin-slot]) { position: relative; }
 .vua-control__stage-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: var(--vua-space-2) var(--vua-space-4); }
 .vua-control__stage > .vua-control__stage-bar { border-bottom: 1px solid var(--vua-border); background: var(--vua-bg-panel); }
+.vua-control__screen > .vua-control__stage-bar { padding-inline: 0; }
 .vua-control__stage-bar > :last-child:is(button) { margin-inline-start: auto; }
 .vua-control__stage-bar h2 { margin: 0; font: var(--vua-font-title); }
 .vua-control__stage-bar p { margin: var(--vua-space-1) 0 0; }
@@ -213,7 +206,6 @@
 .vua-control__add .vua-n3__actions, .vua-control__review { grid-column: 1 / -1; margin: 0; }
 .vua-control__review { display: flex; align-items: flex-start; gap: 8px; padding: var(--vua-space-2) 12px; border: 1px solid var(--vua-warning); color: var(--vua-text-strong); font: var(--vua-font-caption); }
 .vua-control__review svg { flex: none; color: var(--vua-warning-text); }
-.vua-control--packages, .vua-room__content > .vua-page.vua-control--packages { max-width: 1000px; }
 .vua-control__repo-list { width: 100%; }
 .vua-control__repos { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .vua-control__repos > li { --repo: var(--vua-text-secondary); border-bottom: 1px solid var(--vua-border); background: var(--vua-bg-panel); }
@@ -222,25 +214,33 @@
 .vua-control__repos > li:not([data-enabled]) { opacity: 0.7; }
 .vua-control__repo, .vua-control__repo-columns { display: grid; grid-template-columns: 28px minmax(180px, 1fr) 88px 100px 208px; align-items: center; gap: 12px; padding: 8px 12px; }
 .vua-control__repo-columns { color: var(--vua-text-secondary); font: var(--vua-font-caption); border-bottom: 1px solid var(--vua-border); }
-.vua-control__repo-columns > :last-child { text-align: center; }
+.vua-control__repo-columns > :last-child, .vua-control__repo-columns > :first-child { text-align: center; }
 .vua-control__repo-main { display: flex; flex-direction: column; gap: var(--vua-space-1); min-width: 0; }
 .vua-control__repo-toggle { display: grid; place-items: center; width: 28px; height: 28px; cursor: pointer; }
 .vua-control__repo-main small { color: var(--vua-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vua-control__repo-count { text-align: end; }
 .vua-control__repo-count [tabindex] { display: inline-flex; align-items: center; min-height: 24px; }
-.vua-control__badge { padding: 0 4px; color: var(--vua-text-secondary); border-radius: 0; font: var(--vua-font-caption); white-space: nowrap; }
+.vua-control__badge { color: var(--vua-text-secondary); border-radius: 0; font: var(--vua-font-caption); white-space: nowrap; }
 .vua-control__repo-actions { display: grid; grid-template-columns: repeat(2, 100px); gap: var(--vua-space-2); justify-content: end; }
 .vua-control__repo-actions .vua-button { color: var(--vua-text-secondary); }
 .vua-control__repo-actions .vua-button:hover:not(:disabled) { color: var(--vua-text-strong); background: var(--vua-bg-elevated); }
 .vua-control__repo-actions .vua-control__repo-remove:hover:not(:disabled) { color: var(--vua-error-text); background: color-mix(in srgb, var(--vua-error) 8%, var(--vua-bg-panel)); }
 .vua-control__repo-actions > * { min-width: 0; width: 100%; }
 .vua-control__repo-action-placeholder { pointer-events: none; }
-.vua-control__repo-packages { padding: 0 var(--vua-space-4) var(--vua-space-2) 56px; font: var(--vua-font-caption); }
+.vua-control__repo-packages { padding: 0 var(--vua-space-4) var(--vua-space-2) 52px; font: var(--vua-font-caption); }
 .vua-control__repo-packages summary { color: var(--vua-text-secondary); cursor: pointer; }
 .vua-control__repo-packages ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--vua-space-2) 16px; margin: 8px 0 0; padding: 0; list-style: none; }
 .vua-control__repo-packages li { display: flex; flex-direction: column; }
 .vua-control__repo-packages small { color: var(--vua-text-secondary); }
-.vua-control__local { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.vua-control__local { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.vua-control__local h3 { grid-column: 1 / -1; margin: 0; }
+.vua-control__repo-toolbar { display: flex; justify-content: flex-end; }
+.vua-control__known { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-control__known button { min-height: var(--vua-control-height-sm); padding-inline: var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-corners-action, 4px); background: transparent; color: var(--vua-text-strong); font: inherit; cursor: pointer; }
+.vua-control__known button:hover:not(:disabled) { border-color: var(--vua-border-strong); background: var(--vua-bg-elevated); }
+.vua-control__known button[aria-pressed="true"] { border-color: var(--room); color: var(--room); }
+.vua-control__known button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
+.vua-control__screen > .vua-slide-drawer:not([data-open="true"]) { margin-top: calc(-1 * var(--vua-space-4)); }
 
 @media (max-width: 1080px) {
   .vua-control__body { grid-template-columns: minmax(0, 1fr); }

@@ -42,7 +42,7 @@ function PlayRoutes({ navigate }: { navigate: (page: PageId) => void }) {
         : copy.prepareRoute;
       const title = route === "desktop_play" ? journey.desktop : "PICO";
       return <div className="vua-card-entry" data-card-entry={id} key={route}>
-        <EnvironmentCard title={title} hint={hint} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={id}
+        <EnvironmentCard title={title} hint={hint} detailsOpen={false} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={id}
           action={canAct ? decision.action : decision.spinning ? "busy" : "prepare"} status={label} spinning={decision.spinning || !!live.pending[route]}
           disabled={decision.disabled || !!live.pending[route]} primary={!decision.spinning && !decision.disabled}
           onDetails={() => openRoute(route)} onAction={() => { if (canAct) void live.act(route, decision.action === "stop"); else openRoute(route); }} />

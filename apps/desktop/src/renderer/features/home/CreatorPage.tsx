@@ -3,6 +3,7 @@ import { useGateway, type CreatorEditor, type CreatorManagers } from "../../gate
 import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { RouteTile } from "../../components/RouteTile.tsx";
+import { useEscapeClose } from "../../components/use-escape-close.ts";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -23,6 +24,8 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
   const [detail, setDetail] = useState<CreatorEditor | "unity2022" | "unity6" | "unity_hub" | "vcc" | "alcom" | null>(licenseRequest ? "unity2022" : null);
   const [unityVisited, setUnityVisited] = useState(false);
   useEffect(() => { if (detail === "unity2022") setUnityVisited(true); }, [detail]);
+  const closeDetail = useCallback(() => setDetail(null), []);
+  useEscapeClose(detail !== null, closeDetail);
   const toggle = (next: NonNullable<typeof detail>) => setDetail(current => typeof current === "object" && current && typeof next === "object" ? current.path === next.path ? null : next : current === next ? null : next);
   const generation = useRef(0); const alive = useRef(false);
   const inspect = useCallback(async (refresh = true) => {

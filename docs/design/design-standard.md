@@ -88,8 +88,8 @@ left VUA logo is the Home action; do not add a separate Home button. The logo us
 purple in Environment, Avatar orange in Avatar work, and the three-color mark elsewhere, using
 theme tokens in light/dark mode. Home and the feature directory do not change with wizard
 choices. Main navigation tiles contain an icon and a title, without explanatory subtitles.
-Unavailable peers such as Quest and Unity 6 remain at the same level with a top-right
-**In development** badge; unavailable actions are disabled and make no capability claim.
+Unavailable peers such as Quest and Unity 6 remain at the same level and say **In development**
+where their action would be; unavailable actions are disabled and make no capability claim.
 Scenario cards can still expand an explanatory description on their left side.
 VR device choices use their recognizable brand glyphs: Simple Icons for Meta, HTC Vive and
 Valve, and the author-supplied PICO wordmark. Keep unavailable peers visually equal.

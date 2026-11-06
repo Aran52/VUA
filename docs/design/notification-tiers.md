@@ -73,7 +73,7 @@ condition and what resolves it.
 | Message | Tier | State |
 | --- | --- | --- |
 | Icon buttons in the title bar (home, notifications, window controls), the room's map button | Tooltip | done |
-| In-development headsets and Unity 6 | Tooltip | done |
+| Unity 6 in development | Tooltip | done |
 | Factory room names (click to look inside, double-click to enter) | Tooltip | done |
 | Workshop Stop (Unity ends, the project stays); play card Stop (only this card's software closes) | Tooltip | done |
 | Package repository checkbox | Tooltip | done |

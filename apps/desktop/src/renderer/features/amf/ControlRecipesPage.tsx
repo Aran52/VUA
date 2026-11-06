@@ -7,6 +7,7 @@ import type { AmfRecipeDocument } from "@vua/contracts";
 import { useGateway, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { strings, format, formatDateTime } from "../../i18n/index.ts";
 import { RecipeWorkspace } from "../recipe/RecipePage.tsx";
 import { AmfRecipeShareDialog } from "./AmfRecipeShareDialog.tsx";
@@ -88,10 +89,11 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
 
   if (!port) return null;
   return <div className="vua-page vua-control" data-focus-scope>
-    <header className="vua-control__head">
+    <header className="vua-page__hero">
       <h1 className="vua-title">{copy.title}</h1>
       <div className="vua-control__actions">
-        {graph.nodes.length > 0 && <span className="vua-control__switch" role="group" aria-label={copy.viewLabel}>
+        {graph.nodes.length > 0 && <span className="vua-control__switch vua-segments" role="group" aria-label={copy.viewLabel}>
+          <SegmentBar selected={view} />
           {(["graph", "list"] as const).map(option => <button type="button" key={option} aria-pressed={view === option} onClick={() => chooseView(option)}>
             <Icon name={option === "graph" ? "shader" : "file"} size={16}/>{copy.views[option]}</button>)}
         </span>}

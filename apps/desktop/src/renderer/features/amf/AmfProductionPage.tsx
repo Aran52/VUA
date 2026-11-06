@@ -6,6 +6,8 @@ import { Icon, SkinMotif } from "@vua/design-system";
 import { AmfProductionError, useGateway, useTaskCenter, type AmfPrefab, type AmfPlanPrediction, type AmfProductionList, type AmfProductionRun, type AmfProductionPlan, type AmfProductionRestorePlan, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
+import { useSwapFade } from "../../components/primitives/motion.ts";
+import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { Card } from "../../components/primitives/Card.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
@@ -315,6 +317,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
     : !lineBusy(run) && run.phase === "succeeded" ? "check" : !lineBusy(run) && run.phase === "ready" ? "plan" : currentStation(states));
   const stationsRef = useRef<HTMLOListElement | null>(null);
+  const mainPane = useRef<HTMLDivElement>(null);
+  useSwapFade(runId, mainPane);
   const [stationIndicator, setStationIndicator] = useState<{ x: number; y: number; width: number } | null>(null);
   useLayoutEffect(() => {
     const list = stationsRef.current;
@@ -366,7 +370,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     <WorkshopRail lines={lines} current={runId} onSelect={selectLine} onNew={newPreparation} onRename={(id, name) => setLineNames(rememberLineName(id, name))}
       capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
-    <div className="vua-workshop__main">
+    <div ref={mainPane} className="vua-workshop__main">
     {importingRecipe && <AmfRecipeImportDialog onClose={() => setImportingRecipe(false)} onImported={() => setRecipeRefresh(value => value + 1)}
       onOpen={recipeId => { setImportingRecipe(false); newPreparation(); openRecipe(recipeId); }} />}
     <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
@@ -386,7 +390,8 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRecipePreview(null)}>{copy.back}</Button><Button variant="primary" disabled={busy} onClick={() => { void prepareRecipe(); }}>{copy.recipeReproduce}</Button></div>
       </Card>}
-      {!recipePreview && <div className="vua-line__start-row"><div className="vua-line__start-from" role="tablist" aria-label={factory.newLine}>
+      {!recipePreview && <div className="vua-line__start-row"><div className="vua-line__start-from vua-segments" role="tablist" aria-label={factory.newLine}>
+        <SegmentBar selected={startFrom} />
         {(["materials", "recipe"] as const).map(option => <button type="button" role="tab" key={option} aria-selected={startFrom === option}
           data-nav-id={`workshop-start-${option}`} onClick={() => setStartFrom(option)}>{option === "materials" ? start.fromMaterials : start.fromRecipe}</button>)}
       </div><Button disabled={busy} data-nav-id="workshop-import-recipe" onClick={() => setImportingRecipe(true)}>{copy.importRecipe}</Button></div>}
@@ -404,6 +409,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             <Button variant="subtle" onClick={() => { requestLicenseStep(runId ? { runId } : {}); onNavigate("env-create"); }}>{strings.unityLicense.title}</Button>
           </details>
           <div className="vua-line__start-bar">
+            {sourceIds.length === 0 && <small className="vua-text-secondary" data-start-hint>{start.pickFirst}</small>}
             <Button variant="primary" data-nav-id="workshop-start-line" disabled={busy || sourceIds.length === 0 || list.editors.length === 0} onClick={() => { if (needsFullAutoNotice(level)) setConfirmFull("start"); else void command("prepare"); }}>{level === "full" ? factory.materialsStart.startFull : factory.materialsStart.start}</Button>
           </div>
         </>)}

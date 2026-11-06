@@ -3,10 +3,11 @@
 .vua-warehouse {
   width: 100%;
   min-width: 0;
-  max-width: none;
   /* 仓库页不做页面级滚动:滚动限定在图片墙区域(用户反馈 #2),
    * hero/工具栏/详情抽屉常驻 */
   overflow: visible;
+  /* Without a page scrollbar this keeps the frame's right edge; the wall's scrollbar sits in the gap. */
+  padding-inline-end: calc(var(--vua-space-2) + 10px);
 }
 
 /* ---- 双轨视图头(S-IX-3):云端目录 / 本地文件 大号轨道卡 ---- */
@@ -102,8 +103,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* 卡片 hover 上浮(-2px)在滚动区内不裁切 */
+  scrollbar-gutter: stable;
+  margin-inline: calc(-1 * var(--vua-space-2)) -10px;
+  /* 卡片 hover 上浮(-2px)与焦点环在滚动区内不裁切 */
   padding-top: var(--vua-space-1);
+  padding-inline-start: var(--vua-space-2);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -292,7 +296,7 @@
   box-shadow: var(--vua-glow-accent-soft);
 }
 
-/* 入场:逐张浮现(最多前 12 张 stagger,更长列表不再延迟);
+/* 入场:前三张依次浮现,其余随第三张;
  * 用独立 translate 属性而非 transform,避免 fill 留存覆盖 hover 倾斜;
  * reduced-motion 由 base.css 全局规则压掉 */
 @keyframes vua-card-in {
@@ -310,17 +314,8 @@
   animation: vua-card-in 360ms ease-out both;
 }
 
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(2) { animation-delay: 30ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(3) { animation-delay: 60ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(4) { animation-delay: 90ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(5) { animation-delay: 120ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(6) { animation-delay: 150ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(7) { animation-delay: 180ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(8) { animation-delay: 210ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(9) { animation-delay: 240ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(10) { animation-delay: 270ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(11) { animation-delay: 300ms; }
-.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(n+12) { animation-delay: 330ms; }
+.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(2) { animation-delay: 40ms; }
+.vua-warehouse__wall[role="list"] > .vua-warehouse-card:nth-child(n+3) { animation-delay: 80ms; }
 
 /* 选中:辖区色描边 + 描边环 + 柔光 */
 .vua-warehouse-card[data-selected] {
@@ -1337,7 +1332,7 @@
 .vua-library-terms-read > p { margin: 0; }
 
 /* The title row: name and import actions on the left, the room tabs overlay the right end. */
-.vua-warehouse__heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); padding-inline-end: 160px; }
+.vua-warehouse__heading { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); padding-inline-end: 160px; }
 .vua-warehouse__heading h1 { margin: 0; }
 
 /* The next steps of the selection stay under the wall in one reserved row, in view at any window height. */

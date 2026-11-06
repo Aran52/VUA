@@ -6,7 +6,6 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   flex: 1;
   gap: var(--vua-space-4);
-  width: min(100%, 880px);
   min-height: 0;
 }
 
@@ -30,6 +29,9 @@
 .vua-beginner-wizard__article h2 {
   margin: 0;
 }
+.vua-beginner-wizard__article p { max-width: 880px; }
+/* A text button under text lines its words up with the text. */
+.vua-beginner-wizard__article > .vua-button--subtle { margin-inline-start: calc(-1 * var(--vua-space-2) - 1px); }
 
 .vua-beginner-wizard__actions {
   display: grid;

@@ -42,6 +42,7 @@
  *   guideSectionArrival 纯判定 + 回归用例)。
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useSwapFade } from "../../components/primitives/motion.ts";
 import type { GuideTargetV1 } from "@vua/contracts";
 import { MediaSlot } from "../../components/primitives/MediaSlot.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -138,6 +139,7 @@ export function GuideOverlayView({
   const tabRefs = useRef<Partial<Record<GuideTopicId, HTMLButtonElement | null>>>({});
   const stripRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  useSwapFade(topic, panelRef);
   const pendingScroll = useRef<string | null>(initialTarget.section ?? null);
   const appliedNonce = useRef(0);
   const topicCopy = guidePage(topic, copy);

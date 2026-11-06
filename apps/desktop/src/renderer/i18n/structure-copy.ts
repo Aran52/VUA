@@ -2,9 +2,10 @@
 const en = {
   unitySetup: "Unity setup",
   reinstallFromPage: "Reinstall {tool} from its official page",
+  planned: { steamPaid: "Steam · Paid", steamFree: "Steam · Free", github: "GitHub", githubLicense: "GitHub · {license}", note: "Installing and starting it from VUA is in development. Get it from its official page for now." },
   routes: { desktop: "No VR headset needed", pico: "Stream from your PC to a PICO headset" },
   platforms: { title: "Other social platforms", chilloutvr: "A VRChat-like social platform", reborn: "Multiplayer worlds and custom Avatars" },
-  toolHints: { vrcft: "Drives face and eyes from your headset or camera", space: "Aligns your headset and outside trackers", vrcs: "Speech to text and translation", translator: "Shows translations inside VR", advanced: "Adjusts SteamVR settings", toolkit: "Brings desktop windows into VR", oyasumi: "Automation for resting and sleeping in VR", liv: "Record and stream VR" },
+  toolHints: { vrcft: "Drives face and eyes from your headset or camera", space: "Aligns your headset and outside trackers", vrcs: "Speech to text and translation", translator: "Shows translations inside VR", advanced: "Adjusts SteamVR settings", toolkit: "Brings desktop windows into VR", oyasumi: "Automation for resting and sleeping in VR", liv: "Record and stream VR", slimevr: "Full-body tracking with SlimeVR trackers", vrct: "Chatbox translation and speech to text", xsoverlay: "Desktop windows and notifications in VR", desktopplus: "Free desktop windows in VR", fpsvr: "Frame rate and performance in VR", vrcx: "Manages friends, worlds and Avatars" },
   home: {
     prepareRoute: "Prepare",
     confirmLine: "Review",
@@ -23,6 +24,7 @@ const en = {
     start: "Start the line",
     startHint: "VUA works out which package is the Avatar and which are outfits, and asks when it cannot tell.",
     noMaterials: "Import an Avatar and an outfit first.",
+    pickFirst: "Choose at least one material package to start.",
     importMaterials: "Import materials",
     needUnity: "Unity not ready",
     openUnitySetup: "Open Unity setup",
@@ -45,9 +47,10 @@ type Copy = typeof en;
 const zhCN: Copy = {
   unitySetup: "Unity 环境",
   reinstallFromPage: "从官网重新安装 {tool}",
+  planned: { steamPaid: "Steam · 付费", steamFree: "Steam · 免费", github: "GitHub", githubLicense: "GitHub · {license}", note: "VUA 接手安装和启动的功能正在开发，现在可以从官方页面获取。" },
   routes: { desktop: "不需要 VR 头显", pico: "用 PICO 头显串流电脑画面" },
   platforms: { title: "其他社交平台", chilloutvr: "类似 VRChat 的社交平台", reborn: "多人世界和自定义 Avatar" },
-  toolHints: { vrcft: "用头显或摄像头驱动表情和眼睛", space: "对齐头显和外置追踪器", vrcs: "语音转文字与翻译", translator: "在 VR 里看翻译", advanced: "调整 SteamVR 设置", toolkit: "把电脑窗口带进 VR", oyasumi: "VR 里休息和睡眠的自动化", liv: "录制和直播 VR 画面" },
+  toolHints: { vrcft: "用头显或摄像头驱动表情和眼睛", space: "对齐头显和外置追踪器", vrcs: "语音转文字与翻译", translator: "在 VR 里看翻译", advanced: "调整 SteamVR 设置", toolkit: "把电脑窗口带进 VR", oyasumi: "VR 里休息和睡眠的自动化", liv: "录制和直播 VR 画面", slimevr: "用 SlimeVR 追踪器做全身追踪", vrct: "聊天框翻译与语音转文字", xsoverlay: "在 VR 里看桌面窗口和通知", desktopplus: "免费把桌面窗口带进 VR", fpsvr: "在 VR 里看帧率和性能", vrcx: "管理好友、世界和 Avatar" },
   home: {
     prepareRoute: "去准备",
     confirmLine: "去确认",
@@ -66,6 +69,7 @@ const zhCN: Copy = {
     start: "开工",
     startHint: "VUA 自动判断哪个包是 Avatar、哪些是衣服，无法判断时询问。",
     noMaterials: "先导入一个 Avatar 和一套衣服。",
+    pickFirst: "选择至少一个素材包后可以开工。",
     importMaterials: "导入素材",
     needUnity: "Unity 未就绪",
     openUnitySetup: "打开 Unity 环境",
@@ -87,9 +91,10 @@ const zhCN: Copy = {
 const zhTW: Copy = {
   unitySetup: "Unity 環境",
   reinstallFromPage: "從官網重新安裝 {tool}",
+  planned: { steamPaid: "Steam · 付費", steamFree: "Steam · 免費", github: "GitHub", githubLicense: "GitHub · {license}", note: "VUA 接手安裝和啟動的功能正在開發，現在可以從官方頁面取得。" },
   routes: { desktop: "不需要 VR 頭戴裝置", pico: "用 PICO 頭戴裝置串流電腦畫面" },
   platforms: { title: "其他社交平台", chilloutvr: "類似 VRChat 的社交平台", reborn: "多人世界和自訂 Avatar" },
-  toolHints: { vrcft: "用頭戴裝置或攝像頭驅動表情和眼睛", space: "對齊頭戴裝置和外接追蹤器", vrcs: "語音轉文字與翻譯", translator: "在 VR 裡看翻譯", advanced: "調整 SteamVR 設定", toolkit: "把電腦視窗帶進 VR", oyasumi: "VR 裡休息和睡眠的自動化", liv: "錄製和直播 VR 畫面" },
+  toolHints: { vrcft: "用頭戴裝置或攝像頭驅動表情和眼睛", space: "對齊頭戴裝置和外接追蹤器", vrcs: "語音轉文字與翻譯", translator: "在 VR 裡看翻譯", advanced: "調整 SteamVR 設定", toolkit: "把電腦視窗帶進 VR", oyasumi: "VR 裡休息和睡眠的自動化", liv: "錄製和直播 VR 畫面", slimevr: "用 SlimeVR 追蹤器做全身追蹤", vrct: "聊天框翻譯與語音轉文字", xsoverlay: "在 VR 裡看桌面視窗和通知", desktopplus: "免費把桌面視窗帶進 VR", fpsvr: "在 VR 裡看影格率和效能", vrcx: "管理好友、世界和 Avatar" },
   home: {
     prepareRoute: "去準備",
     confirmLine: "去確認",
@@ -108,6 +113,7 @@ const zhTW: Copy = {
     start: "開工",
     startHint: "VUA 自動判斷哪個包是 Avatar、哪些是衣服，無法判斷時詢問。",
     noMaterials: "先匯入一個 Avatar 和一套衣服。",
+    pickFirst: "選擇至少一個素材包後可以開工。",
     importMaterials: "匯入素材",
     needUnity: "Unity 未就緒",
     openUnitySetup: "開啟 Unity 環境",
@@ -129,9 +135,10 @@ const zhTW: Copy = {
 const ja: Copy = {
   unitySetup: "Unity 環境",
   reinstallFromPage: "公式ページから {tool} を再インストール",
+  planned: { steamPaid: "Steam・有料", steamFree: "Steam・無料", github: "GitHub", githubLicense: "GitHub・{license}", note: "VUA からインストール・起動する機能は開発中です。今は公式ページから入手できます。" },
   routes: { desktop: "VR ヘッドセットは不要です", pico: "PC の画面を PICO にストリーミング" },
   platforms: { title: "ほかのソーシャルプラットフォーム", chilloutvr: "VRChat に似たソーシャルプラットフォーム", reborn: "マルチプレイの世界とカスタムアバター" },
-  toolHints: { vrcft: "ヘッドセットやカメラで表情と目を動かす", space: "ヘッドセットと外部トラッカーを合わせる", vrcs: "音声の文字起こしと翻訳", translator: "VR 内で翻訳を表示", advanced: "SteamVR の設定を調整", toolkit: "PC のウィンドウを VR に持ち込む", oyasumi: "VR での休憩と睡眠の自動化", liv: "VR の録画と配信" },
+  toolHints: { vrcft: "ヘッドセットやカメラで表情と目を動かす", space: "ヘッドセットと外部トラッカーを合わせる", vrcs: "音声の文字起こしと翻訳", translator: "VR 内で翻訳を表示", advanced: "SteamVR の設定を調整", toolkit: "PC のウィンドウを VR に持ち込む", oyasumi: "VR での休憩と睡眠の自動化", liv: "VR の録画と配信", slimevr: "SlimeVR トラッカーでフルトラッキング", vrct: "チャットボックス翻訳と音声文字起こし", xsoverlay: "VR 内でデスクトップと通知を表示", desktopplus: "無料でデスクトップを VR に表示", fpsvr: "VR 内でフレームレートと負荷を表示", vrcx: "フレンド、ワールド、Avatar を管理" },
   home: {
     prepareRoute: "準備する",
     confirmLine: "確認する",
@@ -150,6 +157,7 @@ const ja: Copy = {
     start: "着手する",
     startHint: "どれがアバターでどれが衣装かは VUA が判断し、判断できないときだけ確認します。",
     noMaterials: "先にアバターと衣装を取り込んでください。",
+    pickFirst: "素材パッケージを 1 つ以上選ぶと開始できます。",
     importMaterials: "素材を取り込む",
     needUnity: "Unity の準備が未完了",
     openUnitySetup: "Unity 環境を開く",
@@ -171,9 +179,10 @@ const ja: Copy = {
 const ko: Copy = {
   unitySetup: "Unity 환경",
   reinstallFromPage: "공식 페이지에서 {tool} 다시 설치",
+  planned: { steamPaid: "Steam · 유료", steamFree: "Steam · 무료", github: "GitHub", githubLicense: "GitHub · {license}", note: "VUA에서 설치하고 실행하는 기능은 개발 중이에요. 지금은 공식 페이지에서 받을 수 있어요." },
   routes: { desktop: "VR 헤드셋이 없어도 돼요", pico: "PC 화면을 PICO로 스트리밍해요" },
   platforms: { title: "다른 소셜 플랫폼", chilloutvr: "VRChat과 비슷한 소셜 플랫폼", reborn: "멀티플레이 월드와 커스텀 아바타" },
-  toolHints: { vrcft: "헤드셋이나 카메라로 표정과 눈을 움직여요", space: "헤드셋과 외부 트래커를 맞춰요", vrcs: "음성 텍스트 변환과 번역", translator: "VR 안에서 번역을 보여줘요", advanced: "SteamVR 설정 조정", toolkit: "PC 창을 VR로 가져와요", oyasumi: "VR 휴식과 수면 자동화", liv: "VR 녹화와 방송" },
+  toolHints: { vrcft: "헤드셋이나 카메라로 표정과 눈을 움직여요", space: "헤드셋과 외부 트래커를 맞춰요", vrcs: "음성 텍스트 변환과 번역", translator: "VR 안에서 번역을 보여줘요", advanced: "SteamVR 설정 조정", toolkit: "PC 창을 VR로 가져와요", oyasumi: "VR 휴식과 수면 자동화", liv: "VR 녹화와 방송", slimevr: "SlimeVR 트래커로 전신 트래킹", vrct: "채팅박스 번역과 음성 텍스트 변환", xsoverlay: "VR에서 데스크톱 창과 알림 보기", desktopplus: "무료로 데스크톱 창을 VR로", fpsvr: "VR에서 프레임과 성능 보기", vrcx: "친구, 월드, Avatar 관리" },
   home: {
     prepareRoute: "준비하기",
     confirmLine: "확인하기",
@@ -192,6 +201,7 @@ const ko: Copy = {
     start: "작업 시작",
     startHint: "어떤 패키지가 아바타이고 어떤 것이 의상인지는 VUA가 판단하고, 판단할 수 없을 때만 물어봐요.",
     noMaterials: "먼저 아바타와 의상을 가져오세요.",
+    pickFirst: "소재 패키지를 하나 이상 고르면 시작할 수 있어요.",
     importMaterials: "소재 가져오기",
     needUnity: "Unity 준비 안 됨",
     openUnitySetup: "Unity 환경 열기",

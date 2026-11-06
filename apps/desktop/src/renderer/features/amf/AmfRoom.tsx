@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { PageId } from "../../app/nav-model.ts";
 import { strings } from "../../i18n/index.ts";
+import { SegmentBar } from "../../components/SegmentBar.tsx";
 import "./factory.css";
 
 const copy = strings.factory;
@@ -23,7 +24,7 @@ export function AmfRoom({ page, navigate, children }: { page: PageId; navigate: 
   if (room === null) return <>{children}</>;
   return <div className="vua-room" data-room={room}>
     {room === "materials" ? <nav className="vua-room__bar" aria-label={copy.rooms.materials.name}>
-      <span className="vua-room__tabs" role="tablist">{MATERIAL_TABS.map(tab => <button type="button" role="tab" key={tab.page} aria-selected={tab.page === page}
+      <span className="vua-room__tabs vua-segments" role="tablist"><SegmentBar selected={page} />{MATERIAL_TABS.map(tab => <button type="button" role="tab" key={tab.page} aria-selected={tab.page === page}
         data-nav-id={`tab-${tab.page}`} onClick={() => navigate(tab.page)}>{copy.tabs[tab.label]}</button>)}</span>
     </nav> : null}
     <div className="vua-room__content">{children}</div>

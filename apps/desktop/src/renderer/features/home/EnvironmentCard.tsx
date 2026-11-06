@@ -10,15 +10,18 @@ export function ActionGlyph({ action, spinning = false }: { action: EnvironmentA
   </svg>;
 }
 /** Two sibling buttons; neither half is nested inside the other control. */
-export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, logo, id, action, status, actionHint, selected, onDetails, onAction, disabled, spinning, warning, developing, primary, actionIcon, progress, phase, children }: {
+export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, logo, id, action, status, actionHint, selected, onDetails, detailsOpen = true, onAction, disabled, spinning, warning, developing, primary, actionIcon, progress, phase, children }: {
   title: string; titleContent?: ReactNode;
   /** One line on what this is, for a player who has not met it yet. */
   hint?: string | undefined;
-  kind?: "screen" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName;
+  kind?: "screen" | "headset" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName;
   /** The item's own logo, shown in place of the glyph. */
   logo?: ReactNode; id: string; action: EnvironmentAction; status: string;
   actionHint?: string | undefined;
-  selected?: boolean; onDetails?: () => void; onAction?: () => void; disabled?: boolean; spinning?: boolean; warning?: boolean; developing?: boolean;
+  selected?: boolean; onDetails?: () => void;
+  /** The left half opens details here, so it shows a caret; false when it leads to another page. */
+  detailsOpen?: boolean;
+  onAction?: () => void; disabled?: boolean; spinning?: boolean; warning?: boolean; developing?: boolean;
   /** This half is the card's next step; it reads as the page's main action. */
   primary?: boolean | undefined;
   /** An icon that names the next step better than the action glyph. */
@@ -38,7 +41,7 @@ export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, 
   </button>;
   return <article className="vua-environment-card" data-card={id} data-action={action} data-selected={selected}>
     <button type="button" className="vua-environment-card__details" data-nav-id={id} disabled={!onDetails} aria-label={format(copy.details, { name: title })} aria-expanded={onDetails ? !!selected : undefined} aria-controls={onDetails ? `${id}-details` : undefined} onClick={onDetails}>
-      {logo ?? <RouteGlyph kind={kind} brand={brand} icon={icon} />}<span className="vua-environment-card__name"><strong>{titleContent ?? title}</strong>{hint ? <small title={hint}>{hint}</small> : null}</span>{children}
+      {logo ?? <RouteGlyph kind={kind} brand={brand} icon={icon} />}<span className="vua-environment-card__name"><strong>{titleContent ?? title}</strong>{hint ? <small title={hint}>{hint}</small> : null}</span>{onDetails && detailsOpen ? <span className="vua-environment-card__caret" aria-hidden="true"><Icon name="caret-down" size={16} /></span> : null}{children}
     </button>
     {actionButton}
   </article>;

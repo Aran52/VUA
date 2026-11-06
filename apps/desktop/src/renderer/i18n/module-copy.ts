@@ -29,7 +29,7 @@ export const moduleCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = 
     disableConfirm: "停用 {amf}？",
   },
   ja: {
-    title: "機能モジュール", choose: "どの方法でアバター を編集しますか？", amf: "{amf}",
+    title: "機能モジュール", choose: "どの方法でアバターを編集しますか？", amf: "{amf}",
     enable: "{amf} を有効にする", disable: "{amf} を無効にする", retry: "起動を再試行", open: "素材ライブラリを開く",
     retained: "素材、レシピ、プロジェクトは残ります。実行中のタスクは先に完了かキャンセルが必要です。",
     absent: "未有効", starting: "起動中…", ready: "有効", failed: "{amf} を起動できませんでした。プレイは利用できます。", stopping: "停止中…",

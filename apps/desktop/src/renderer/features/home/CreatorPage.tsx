@@ -12,6 +12,7 @@ import { openExternalUrl } from "../../app/open-external.ts";
 import { ModulesPage } from "../modules/ModulesPage.tsx";
 import { consumeLicenseStep } from "../deployer/license-step-navigation.ts";
 import { requestProductionRun } from "../amf/production-recipe-navigation.ts";
+import { UploadEligibilityNote } from "../help/UploadEligibilityNote.tsx";
 const copy = strings.environmentCards;
 const unitySetup = structureCopy[currentLocale].unitySetup;
 const reinstallFromPage = structureCopy[currentLocale].reinstallFromPage;
@@ -88,6 +89,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
         </div>;
       })}
     </div></section>
+    <UploadEligibilityNote />
     <section className="vua-environment-section" data-amf-setup><ModulesPage embedded activationSwitch onOpen={onOpenAmf} /></section>
   </div>;
 }

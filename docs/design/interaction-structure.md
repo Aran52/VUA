@@ -117,8 +117,8 @@ offers Unity Hub, VCC and ALCOM from their official pages, because those install
 | Finished Avatars | **Upload to VRChat**, right under the line's name; the 360° preview on the left | Upload dialog |
 
 Selecting stays a single click and opening details a double click (Explorer semantics): Ctrl adds or
-removes a card and Shift extends from the last click. The row under the wall appears with a selection and
-holds its actions.
+removes a card, Shift extends from the last click, arrow keys move and select, and Enter opens. The row
+under the wall appears with a selection and holds its actions.
 
 An empty step points back to the step before it: an empty new-line page offers Import materials, and
 a missing Editor offers Unity setup.

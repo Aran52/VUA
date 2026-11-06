@@ -121,3 +121,9 @@
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__title { color: var(--vua-purple); font-family: var(--vua-font-title-family); font-size: 24px; font-weight: 400; text-shadow: 0 0 12px rgb(242 166 201 / 0.5); }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__title:not([data-danger])::before { content: none; }
 [data-theme-family="jirai"]:not([data-hc="on"]) .vua-confirm-dialog__actions { justify-content: center; gap: 14px; }
+
+/* Unity setup's rows: a list inside one card, so they drop the card tile's frame, pins and large heart. */
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile { border: 0; border-radius: 0; outline: 0; background-color: transparent; box-shadow: none; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile::before, [data-theme-family="jirai"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile::after { display: none; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile__icon { width: 32px; height: 30px; padding-bottom: 3px; }
+[data-theme-family="jirai"]:not([data-hc="on"]) .vua-creator-page .vua-route-tile strong { font-size: 16px; }

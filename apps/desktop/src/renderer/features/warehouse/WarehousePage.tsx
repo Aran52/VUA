@@ -14,6 +14,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -776,6 +777,22 @@ export function WarehousePage({
     }
   };
 
+  // Arrow keys move through the wall and select, as in Explorer; Enter opens the card.
+  const onWallKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) || !(event.target instanceof HTMLElement) || !event.target.matches("[data-selection-id]")) return;
+    const cards = [...event.currentTarget.querySelectorAll<HTMLElement>("[data-selection-id]")];
+    const index = cards.indexOf(event.target);
+    const columns = Math.max(1, cards.filter(card => card.offsetTop === cards[0]!.offsetTop).length);
+    const next = cards[index + (event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" ? -columns : columns)];
+    if (next === undefined) return;
+    event.preventDefault();
+    next.focus({ preventScroll: true });
+    next.scrollIntoView({ block: "nearest" });
+    const id = next.dataset.selectionId!;
+    selectionAnchor.current = id;
+    setSelectedIds(new Set([id]));
+  };
+
   const onWallContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (suppressNextContextMenuRef.current) {
       suppressNextContextMenuRef.current = false;
@@ -1434,6 +1451,7 @@ export function WarehousePage({
               onPointerDown={onWallPointerDown}
               onClick={onWallClick}
               onContextMenu={onWallContextMenu}
+              onKeyDown={onWallKeyDown}
             >
               {/* 框选矩形经 portal 挂 document.body(人审 B5/B6 修复
                   2026-10-06):fixed 定位会被带 transform/backdrop-filter 的

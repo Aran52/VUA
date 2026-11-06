@@ -86,7 +86,7 @@ export const faceTrackingCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Co
     steps: {
       hardware: { title: "デバイスを接続", body: "ハードウェアの説明どおりにトラッキングを有効化し、対応アプリかストリーミングソフトを用意して、デバイスを接続してから VRCFT を開きます。", done: "接続して追跡を有効にしました" },
       module: { title: "VRCFT で module をインストール", body: "", done: "VRCFT に module をインストール済み" },
-      osc: { title: "VRChat に表情を送る", body: "VRChat のアクションメニューから OSC を開いて有効にします。Unified Expressions など、顔・目の追跡に対応したアバター に切り替えてください。", done: "OSC を有効にし、対応アバター を選びました" },
+      osc: { title: "VRChat に表情を送る", body: "VRChat のアクションメニューから OSC を開いて有効にします。Unified Expressions など、顔・目の追跡に対応したアバターに切り替えてください。", done: "OSC を有効にし、対応アバターを選びました" },
       test: { title: "ゲームで試す", body: "VRCFT がトラッキングデータを受信していることを確認し、VRChat の鏡の前で目と顔を動かしてアバターが追従するか確認します。", done: "ゲームで追跡を確認しました" },
     },
     moduleStep: "VRCFT の Module Registry で {module} を検索して Install をクリックし、完了後は案内に従って再起動します。",

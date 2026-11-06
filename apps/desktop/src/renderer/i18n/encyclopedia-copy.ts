@@ -155,7 +155,7 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     tasks: {
       "new-player": { title: "VRChat を始めたばかり", body: "アカウント、初回起動、基本的な安全設定。" },
       "wear-outfit": { title: "入手した衣装を着たい", body: "アバター本体、ファイル、依存関係を先に確認。" },
-      "avatar-visibility": { title: "ほかの人にアバター が見えない", body: "ローカルテスト、プラットフォーム、Shield、性能フィルター。" },
+      "avatar-visibility": { title: "ほかの人にアバターが見えない", body: "ローカルテスト、プラットフォーム、Shield、性能フィルター。" },
       "outfit-problem": { title: "衣装が追従しない・ピンクになる", body: "症状から一つずつ原因を確認。" },
       "build-test": { title: "ビルドして試したい", body: "ローカルテストと公開の違い。" },
       terminology: { title: "用語を調べたい", body: "名称、略語、よくある呼び方で検索。" },

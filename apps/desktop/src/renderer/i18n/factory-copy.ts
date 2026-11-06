@@ -514,7 +514,7 @@ export const factoryCopy = {
       inspect: { title: "Unity が見つけたもの", avatars: "アバター：{names}", outfits: "{source}：着せられる Prefab {count} 個", checkedAt: "{time} にチェック", recheck: "再チェック", waiting: "素材がそろったら検査",
         vrcFury: "{sources} に VRCFury コンポーネントが見つかりました。VUA は VRCFury をインストールしません。公式ページから VRCFury 本体を入手してください。", vrcFuryGuide: "VRCFury 公式ページ" },
       plan: { waiting: "検査後に計画", current: "アバターの現在の計画",
-        fits: "保存済みフィットを適用：{names}——フィットは同じアバター と同じ衣装にだけ適用されます。" },
+        fits: "保存済みフィットを適用：{names}——フィットは同じアバターと同じ衣装にだけ適用されます。" },
       assemble: { last: "前回の組み立て：{time}", waiting: "計画が決まったら組み立て", },
       check: { waiting: "組み立て後に品質検査" },
       lighting: { title: "体と同じ明るさ（lilToon）", intro: "体の明るさの上限・下限は {min} – {max}。以下の衣装マテリアルは別の値を使い、暗い・明るいワールドで体と明るさがずれます。そろえると体に追従します。",

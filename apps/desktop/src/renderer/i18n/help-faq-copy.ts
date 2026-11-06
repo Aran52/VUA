@@ -85,20 +85,20 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "説明を見る",
     uploadAction: "アップロード条件を確認",
     eligibilityTitle: "アップロード前にアカウントを確認",
-    eligibility: "Unity と公式 SDK でカスタムアバター をアップロードするには、VRChat アカウントと New User 以上のトラストランクが必要です。ランクが足りなくてもローカルでテストできます。",
+    eligibility: "Unity と公式 SDK でカスタムアバターをアップロードするには、VRChat アカウントと New User 以上のトラストランクが必要です。ランクが足りなくてもローカルでテストできます。",
     trust: {
       title: "トラストランク",
-      body: "VRChat アカウントで New User 以上になると、カスタムアバター をアップロードできます。それ未満でもローカルテストは可能です。",
+      body: "VRChat アカウントで New User 以上になると、カスタムアバターをアップロードできます。それ未満でもローカルテストは可能です。",
       what: "トラストランクとは？",
       improve: "ランクを上げるには？",
     },
     shield: {
       title: "Shield Level（安全表示）",
-      body: "ほかのプレイヤーの音声、アバター、パーティクル、Shader などを表示するかを決めます。アップロード資格やアバター の Performance Rank とは別の設定です。",
+      body: "ほかのプレイヤーの音声、アバター、パーティクル、Shader などを表示するかを決めます。アップロード資格やアバターの Performance Rank とは別の設定です。",
     },
     personalSpace: {
       title: "Personal Space",
-      body: "近づきすぎたアバター を非表示またはフェードアウトします。自分の表示だけに影響し、相手をブロックしたり、相手の表示を変えたりはしません。",
+      body: "近づきすぎたアバターを非表示またはフェードアウトします。自分の表示だけに影響し、相手をブロックしたり、相手の表示を変えたりはしません。",
     },
     untrustedUrls: {
       title: "不明なリンクとメディア",

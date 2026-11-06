@@ -123,15 +123,15 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
     intro: "アバターの変更、ほかの人からの見え方、衣装の公開前チェック。",
     sections: [
       { id: "change-avatar", title: "アバターを変更し、公開範囲を選ぶ", paragraphs: [
-        "VRChat の Avatars メニューでアップロード済みのアバター を選びます。Public はゲームのルールで Clone できますが、Private は自分用です。Clone とソースプロジェクトの取得は別物です。",
+        "VRChat の Avatars メニューでアップロード済みのアバターを選びます。Public はゲームのルールで Clone できますが、Private は自分用です。Clone とソースプロジェクトの取得は別物です。",
         "表示には、見る人のプラットフォームに対応したビルドも必要です。衣装パッケージがこの条件を変えることはありません。",
       ] },
-      { id: "visibility", title: "ほかの人にアバター が見えない理由", paragraphs: [
-        "ローカルテストのアバター は自分にだけ見えます。ほかの人に見せるには、アップロードと、その人のプラットフォーム向けビルドが必要です。",
+      { id: "visibility", title: "ほかの人にアバターが見えない理由", paragraphs: [
+        "ローカルテストのアバターは自分にだけ見えます。ほかの人に見せるには、アップロードと、その人のプラットフォーム向けビルドが必要です。",
         "以前は見えたなら、相手のプラットフォームと、Shield やパフォーマンスフィルターの変更を確認します。Fallback、一部コンポーネントの無効化、アバターの非表示だけでアップロード失敗とは判断できません。",
       ] },
       { id: "performance", title: "Performance Rank と Trust Rank、FPS の違い", paragraphs: [
-        "Performance Rank はアバター の構造から描画コストを推定します。Trust Rank はアカウントのもので、アップロード資格に関係します。別の仕組みです。",
+        "Performance Rank はアバターの構造から描画コストを推定します。Trust Rank はアカウントのもので、アップロード資格に関係します。別の仕組みです。",
         "PC とモバイルでは既定のフィルターが異なります。ランクは高負荷な部分を探す手掛かりですが、FPS や表示の可否を保証しません。",
       ] },
       { id: "outfit-assembly", title: "アバター、衣装、UnityPackage、FBX、Prefab、VPM", paragraphs: [
@@ -151,7 +151,7 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
         "名前、公開範囲、コンテンツタグ、SDK の検証結果を確認します。VUA は制作記録を残せますが、公開は公式 SDK で本人が行います。",
       ] },
       { id: "platforms", title: "PC とモバイルに対応したビルド", paragraphs: [
-        "PC と Android/Quest ではアセット制限と既定の表示フィルターが異なります。対象プラットフォーム向けにビルドしないと、PC 版だけではモバイルで同じアバター を見られません。",
+        "PC と Android/Quest ではアセット制限と既定の表示フィルターが異なります。対象プラットフォーム向けにビルドしないと、PC 版だけではモバイルで同じアバターを見られません。",
         "テクスチャ、メッシュ、マテリアル、ボーンはいずれもコストに関係しますが、ランクは FPS の保証ではありません。対象環境で試してから、最適化や Fallback の要否を決めます。",
       ] },
     ],

@@ -1,6 +1,6 @@
 /** The VN3 filter: which terms state to show, and which uses the terms must allow. Counts follow the other
  * filters, so a player sees what a choice would leave before making it. */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Icon } from "@vua/design-system";
 import { LIBRARY_VN3_STATES, type LibraryVn3CountsV03, type LibraryVn3Item, type LibraryVn3State } from "@vua/contracts";
 import { Button } from "../../components/primitives/Button.tsx";
@@ -26,6 +26,17 @@ export function LibraryVn3Filter({ value, counts, disabled, open, onOpenChange, 
   const panel = useRef<HTMLDivElement>(null);
   const shown = usePresenceMotion(open, panel, POPOVER_ENTER, POPOVER_EXIT);
   const close = useRef(onOpenChange); close.current = onOpenChange;
+  // The panel ends above whatever a theme draws under the page.
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const fit = () => {
+      const element = panel.current, bottom = element?.closest(".vua-shell__main")?.getBoundingClientRect().bottom ?? window.innerHeight;
+      element?.style.setProperty("--vua-vn3-panel-height", `${Math.max(240, Math.min(600, bottom - element.getBoundingClientRect().top - 12))}px`);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [shown]);
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => { if (event.target instanceof Node && !container.current?.contains(event.target)) close.current(false); };

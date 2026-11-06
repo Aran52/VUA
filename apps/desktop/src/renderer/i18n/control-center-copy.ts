@@ -468,7 +468,7 @@ export const controlCenterCopy = {
     },
     fits: {
       title: "保存済みフィット",
-      condition: "フィットは同じアバター と同じ衣装にだけ適用されます。",
+      condition: "フィットは同じアバターと同じ衣装にだけ適用されます。",
       updated: "更新：{time}",
       rename: "名前を変更", renameSave: "保存", cancel: "キャンセル",
       deleteAction: "削除",

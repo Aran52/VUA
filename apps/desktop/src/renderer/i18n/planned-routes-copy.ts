@@ -12,7 +12,7 @@ const en = {
   otherHeadsets: "Other headsets",
   otherModel: "Another model",
   hints: {
-    wmr: "HP Reverb and other Windows MR headsets",
+    wmr: "HP Reverb and others",
     "other-headset": "Any headset SteamVR supports",
   },
   connections: {
@@ -50,7 +50,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     otherHeadsets: "其他头显",
     otherModel: "其他型号",
     hints: {
-      wmr: "HP Reverb 等 Windows MR 头显",
+      wmr: "HP Reverb 等",
       "other-headset": "SteamVR 支持的头显都可以",
     },
     connections: {
@@ -84,7 +84,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     otherHeadsets: "其他頭戴裝置",
     otherModel: "其他型號",
     hints: {
-      wmr: "HP Reverb 等 Windows MR 頭戴裝置",
+      wmr: "HP Reverb 等",
       "other-headset": "SteamVR 支援的頭戴裝置都可以",
     },
     connections: {
@@ -118,7 +118,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     otherHeadsets: "その他のヘッドセット",
     otherModel: "その他の機種",
     hints: {
-      wmr: "HP Reverb などの Windows MR ヘッドセット",
+      wmr: "HP Reverb など",
       "other-headset": "SteamVR 対応のヘッドセット",
     },
     connections: {
@@ -152,7 +152,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     otherHeadsets: "다른 헤드셋",
     otherModel: "다른 기종",
     hints: {
-      wmr: "HP Reverb 등 Windows MR 헤드셋",
+      wmr: "HP Reverb 등",
       "other-headset": "SteamVR이 지원하는 헤드셋",
     },
     connections: {

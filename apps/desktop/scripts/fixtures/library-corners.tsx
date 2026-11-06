@@ -152,6 +152,11 @@ async function run() {
     const media = node.querySelector<HTMLElement>(".vua-warehouse-card__media")!.getBoundingClientRect(), place = menu.getBoundingClientRect();
     check(place.top >= media.top && place.right <= media.right + 1 && place.top - media.top < 12, `more actions sit on the picture's top right (${place.top - media.top}px)`);
   }
+  const walked = [...document.querySelectorAll<HTMLElement>("[data-selection-id]")];
+  walked[0]!.focus(); walked[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })); await wait();
+  check(document.activeElement === walked[1] && walked[1]!.dataset.selected === "true", "arrow keys move through the wall and select");
+  walked[1]!.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true })); await wait();
+  check(walked[1]!.dataset.selected !== "true", "Ctrl toggles a card out of the selection");
   corner("booth:90").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await until(() => !!document.querySelector('[role="tooltip"]'), "corner explanation");
   check(document.querySelector('[role="tooltip"]')!.textContent === copy.corner.cloud, "corner has localized tooltip");
   corner("booth:90").click(); await until(() => corner("booth:90")?.dataset.cornerState === "downloading", "download begins");

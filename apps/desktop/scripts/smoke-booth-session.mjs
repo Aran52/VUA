@@ -103,7 +103,7 @@ async function run(){try{
   await waitFor(()=>js('!document.querySelector("[data-nav-id=accounts-booth-login]")&&document.querySelector(".vua-settings-account__head")?.textContent.includes("Synthetic account")'),"account refresh after close");
   assert(true,"Successful login automatically returns and refreshes Settings → Accounts to signed in");
   await click("logo-home");await click("nav-warehouse");
-  await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")'),"signed-in library");
+  await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")&&!document.querySelector("[data-nav-id=warehouse-sync]").disabled'),"signed-in library");
   assert(true,"Returning to the asset library offers sync instead of another login");
   await click("warehouse-sync");
   await waitFor(()=>js('document.body.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);

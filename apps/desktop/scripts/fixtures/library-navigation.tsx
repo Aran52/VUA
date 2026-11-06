@@ -161,7 +161,7 @@ async function listAndAdaptationChecks() {
   root.render(<StrictMode><GatewayProvider gateway={gateway}><div style={{ marginLeft: 112, overflow: "hidden", width: "calc(100% - 112px)" }}><WarehousePage /></div></GatewayProvider></StrictMode>);
   await until(() => cards().length === 50, "paged column collection loaded");
   check(![...document.querySelectorAll("button")].some(node => node.textContent === copy.dependencyLookup.open), "standalone dependency lookup route is retired");
-  await click(copy.viewList); await until(() => !!document.querySelector(".vua-library-list__header"), "list headers");
+  document.querySelector<HTMLButtonElement>('[data-nav-id="warehouse-view-list"]')!.click(); await until(() => !!document.querySelector(".vua-library-list__header"), "list headers");
   const cellSource = (id: string) => document.querySelector<HTMLElement>(`[data-selection-id="${id}"] [data-source]`)!;
   check(cellSource("booth:5000").textContent === copy.listColumns.states.downloaded && cellSource("booth:5001").textContent === copy.listColumns.states.cloud && cellSource("booth:5002").textContent === copy.listColumns.states.error, "source column displays plain downloaded, cloud and error values");
   const first = cards()[0]!;

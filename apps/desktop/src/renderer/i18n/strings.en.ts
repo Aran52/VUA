@@ -1802,7 +1802,7 @@ demoTaskTitle: "Demo task",
       "removeNote": "Only the listed VUA-managed files will be removed. Product records and recipe references will be kept."
     },
     filters: {
-      category: "BOOTH category", categoryAll: "All BOOTH categories", categoryUnknown: "Category not recorded",
+      category: "BOOTH category", categoryAll: "All categories", categoryUnknown: "Category not recorded",
       source: "Library source",
       sourceAll: "All sources",
       sourceBought: "Bought items",

@@ -6,10 +6,27 @@ use std::collections::HashMap;
 use std::path::Path;
 use vua_bdl_store::{ArtifactMode, BdlStore, CopyRole, LibraryCopyEvidence};
 
+const SORTS: [&str; 9] = ["added_desc", "added_asc", "title_asc", "title_desc", "shop_asc", "price_asc", "price_desc", "published_desc", "size_desc"];
+const VN3_STATES: [&str; 4] = ["readable", "no_vn3", "unread", "unreadable"];
+/// X is the creator's free text, so it has no value to filter on.
+const VN3_ITEMS: &str = "ABCDEFGHIJKLMNOPQRSTUVW";
+
+#[derive(Deserialize, Default)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct Vn3Filter {
+    state: Option<String>,
+    #[serde(default)]
+    items: Vec<String>,
+    #[serde(default)]
+    include_contact: bool,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct Query {
     schema_version: String,
+    sort: Option<String>,
+    vn3: Option<Vn3Filter>,
     #[serde(rename = "use")]
     use_preset: Option<String>,
     use_mode: Option<String>,
@@ -107,14 +124,17 @@ pub fn list(
     downloads: &LibraryDownloadService,
     params: Value,
 ) -> Result<Value, LibraryDownloadError> {
-    if ["use","useMode"].iter().any(|key| params.get(*key).is_some_and(Value::is_null)) || params.get("availabilityStatus").is_some_and(Value::is_null) || params.get("descriptionLinksTo").is_some_and(Value::is_null) {
+    if ["use","useMode","sort","vn3"].iter().any(|key| params.get(*key).is_some_and(Value::is_null)) || params.get("availabilityStatus").is_some_and(Value::is_null) || params.get("descriptionLinksTo").is_some_and(Value::is_null) {
         return Err(LibraryDownloadError("invalid_params"));
     }
     // Omitted = all categories; null = no recorded native category.
     let category_filter = params.get("sourceCategory").cloned();
     let query: Query = serde_json::from_value(params)?;
-    if !["0.1","0.2"].contains(&query.schema_version.as_str())
-        || (query.schema_version == "0.1" && (query.use_preset.is_some() || query.use_mode.is_some()))
+    if !["0.1","0.2","0.3"].contains(&query.schema_version.as_str())
+        || (query.schema_version != "0.2" && (query.use_preset.is_some() || query.use_mode.is_some()))
+        || (query.schema_version != "0.3" && (query.sort.is_some() || query.vn3.is_some()))
+        || query.sort.as_ref().is_some_and(|sort| !SORTS.contains(&sort.as_str()))
+        || query.vn3.as_ref().is_some_and(vn3_filter_invalid)
         || query.use_preset.as_ref().is_some_and(|preset| !crate::terms::preset_ids().contains(&preset.as_str()))
         || query.use_mode.as_ref().is_some_and(|mode| query.use_preset.is_none() || !["available","all"].contains(&mode.as_str()))
         || !["all", "local", "imported", "bought", "gifts", "free_downloads"].contains(&query.source.as_str())
@@ -143,6 +163,8 @@ pub fn list(
     let mut products = bdl.library_product_summaries()?;
     let categories = bdl.library_product_categories()?;
     let variant_counts = bdl.library_variant_counts()?;
+    let current = query.schema_version == "0.3";
+    let dates = if current { bdl.library_product_dates()? } else { HashMap::new() };
     let linked_products = query.description_links_to.as_ref().map(|id| crate::description_dependencies::products_linking_to(bdl, id)).transpose()?;
     let removed = bdl.removed_local_entries()?;
     let entries: Vec<_> = bdl.warehouse_entry_cards(global_default)?.into_iter().filter(|entry| !removed.contains(&entry.warehouse_item_id)).collect();
@@ -215,6 +237,15 @@ pub fn list(
         let local_entries: Vec<_> = entries.iter().filter(|entry| entry.kind == "imported_material" && attached.iter().any(|copy| copy.copy.warehouse_item_id == entry.warehouse_item_id))
             .map(|entry| json!({"entryId":entry.warehouse_item_id,"displayName":entry.display_name})).collect();
         if !local_entries.is_empty() { rows.last_mut().expect("product row")["localEntries"] = json!(local_entries); }
+        if current {
+            let (first_seen, published) = dates.get(&product.product_id).cloned().unwrap_or((None, None));
+            let earliest_copy = attached.iter().map(|copy| copy.copy.created_at.clone()).min();
+            let added = [first_seen, earliest_copy].into_iter().flatten().min();
+            let row = rows.last_mut().expect("product row");
+            row["addedAt"] = json!(added);
+            row["publishedAt"] = json!(published);
+            row["sizeBytes"] = json!(present_size(&attached, &presences));
+        }
     }
     for mut entry in entries {
         let unassociated: Vec<_> = copies
@@ -253,6 +284,11 @@ pub fn list(
                     row["variantCount"] = json!(variant_counts.get(&id).copied().unwrap_or(0));
                 }
             }
+        }
+        if current {
+            row["addedAt"] = json!(entry.created_at);
+            row["publishedAt"] = Value::Null;
+            row["sizeBytes"] = json!(present_size(&unassociated, &presences));
         }
         rows.push(row);
     }
@@ -343,16 +379,169 @@ pub fn list(
             rows.retain(|row| matches!(row["use"]["status"].as_str(), Some("allowed" | "conditional")));
         }
     }
+    let vn3_counts = match &query.vn3 {
+        Some(filter) => {
+            let counts = annotate_vn3(bdl, &mut rows, filter, category_filter.as_ref())?;
+            rows.retain(|row| vn3_row_matches(row, filter));
+            Some(counts)
+        }
+        None => None,
+    };
     // Facets cover the full filtered library, before category and pagination.
     let source_categories: std::collections::BTreeSet<_> = rows.iter()
         .filter_map(|row| row["sourceCategory"].as_str().map(str::to_owned)).collect();
     if let Some(category) = category_filter {
         rows.retain(|row| row["sourceCategory"] == category);
     }
+    if let Some(sort) = &query.sort { sort_rows(&mut rows, sort); }
     let total = rows.len();
-    Ok(
-        json!({"schemaVersion":query.schema_version,"total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()}),
-    )
+    let mut result = json!({"schemaVersion":query.schema_version,"total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()});
+    if let Some(counts) = vn3_counts { result["vn3Counts"] = counts; }
+    Ok(result)
+}
+
+fn present_size(copies: &[&LibraryCopyEvidence], presences: &HashMap<String, &'static str>) -> u64 {
+    copies.iter().filter(|copy| presences[&copy.copy.copy_id] == "present").map(|copy| copy.size_bytes).sum()
+}
+
+fn vn3_filter_invalid(filter: &Vn3Filter) -> bool {
+    let mut seen = std::collections::HashSet::new();
+    filter.state.as_ref().is_some_and(|state| !VN3_STATES.contains(&state.as_str()))
+        || filter.items.iter().any(|item| item.len() != 1 || !VN3_ITEMS.contains(item.as_str()) || !seen.insert(item.as_str()))
+}
+
+/// The name a card shows, so the order matches what the player reads.
+fn row_title(row: &Value) -> String {
+    let title = if row["kind"] == "product" { row["product"]["title"].as_str() } else {
+        row["metadata"]["displayName"].as_str().or(row["sourceMatch"]["product"]["title"].as_str()).or(row["entry"]["displayName"].as_str())
+    };
+    title.unwrap_or("").to_lowercase()
+}
+fn row_shop(row: &Value) -> Option<String> {
+    row["product"]["shopName"].as_str().or(row["sourceMatch"]["product"]["shopName"].as_str()).map(str::to_lowercase)
+}
+fn row_price(row: &Value) -> Option<f64> {
+    row["product"]["price"]["amount"].as_str().or(row["sourceMatch"]["product"]["price"]["amount"].as_str()).and_then(|amount| amount.parse().ok())
+}
+/// BOOTH numbers grow over time, so newer items come first among equal dates.
+fn row_number(row: &Value) -> u64 {
+    row["product"]["productId"].as_str().and_then(|id| id.strip_prefix("booth:")).and_then(|id| id.parse().ok()).unwrap_or(0)
+}
+fn row_text<'a>(row: &'a Value, key: &str) -> Option<&'a str> { row[key].as_str() }
+
+/// Digit runs compare by value, so "Costume 4" comes before "Costume 10".
+fn natural(a: &str, b: &str) -> std::cmp::Ordering {
+    let (mut left, mut right) = (a.chars().peekable(), b.chars().peekable());
+    loop {
+        match (left.peek().copied(), right.peek().copied()) {
+            (None, None) => return std::cmp::Ordering::Equal,
+            (None, Some(_)) => return std::cmp::Ordering::Less,
+            (Some(_), None) => return std::cmp::Ordering::Greater,
+            (Some(x), Some(y)) if x.is_ascii_digit() && y.is_ascii_digit() => {
+                let take = |chars: &mut std::iter::Peekable<std::str::Chars<'_>>| {
+                    let mut digits = String::new();
+                    while let Some(digit) = chars.peek().copied().filter(char::is_ascii_digit) { digits.push(digit); chars.next(); }
+                    digits
+                };
+                let (one, two) = (take(&mut left), take(&mut right));
+                let (one, two) = (one.trim_start_matches('0'), two.trim_start_matches('0'));
+                let order = one.len().cmp(&two.len()).then_with(|| one.cmp(two));
+                if order != std::cmp::Ordering::Equal { return order; }
+            }
+            (Some(x), Some(y)) => {
+                if x != y { return x.cmp(&y); }
+                left.next();
+                right.next();
+            }
+        }
+    }
+}
+
+/// Rows without the sorted fact go last in either direction.
+fn missing_last<T>(a: Option<T>, b: Option<T>, order: impl FnOnce(T, T) -> std::cmp::Ordering) -> std::cmp::Ordering {
+    match (a, b) {
+        (Some(a), Some(b)) => order(a, b),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
+}
+
+fn sort_rows(rows: &mut [Value], sort: &str) {
+    let by_title = |a: &Value, b: &Value| natural(&row_title(a), &row_title(b));
+    let price = |a: f64, b: f64| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal);
+    rows.sort_by(|a, b| {
+        let order = match sort {
+            "added_asc" => missing_last(row_text(a, "addedAt"), row_text(b, "addedAt"), |a, b| a.cmp(b)),
+            "title_asc" => by_title(a, b),
+            "title_desc" => by_title(b, a),
+            "shop_asc" => missing_last(row_shop(a), row_shop(b), |a, b| natural(&a, &b)),
+            "price_asc" => missing_last(row_price(a), row_price(b), price),
+            "price_desc" => missing_last(row_price(a), row_price(b), |a, b| price(b, a)),
+            "published_desc" => missing_last(row_text(a, "publishedAt"), row_text(b, "publishedAt"), |a, b| b.cmp(a)),
+            "size_desc" => b["sizeBytes"].as_u64().cmp(&a["sizeBytes"].as_u64()),
+            _ => missing_last(row_text(a, "addedAt"), row_text(b, "addedAt"), |a, b| b.cmp(a)),
+        };
+        order.then_with(|| row_number(b).cmp(&row_number(a))).then_with(|| by_title(a, b))
+    });
+}
+
+/// The terms a filter reads: a closed group for the whole product, and each item's value.
+fn vn3_group(state: &str) -> &'static str {
+    match state {
+        "parsed" | "partial" => "readable",
+        "no_vn3" => "no_vn3",
+        "not_observed" | "pending" => "unread",
+        _ => "unreadable",
+    }
+}
+
+/// A match needs complete evidence, as a use check does: partial documents and an unreadable special note never pass.
+fn vn3_match(detail: &crate::terms::TermsDetail, items: &[String], include_contact: bool) -> Option<&'static str> {
+    let special_unclear = detail.warnings.iter().any(|w| w.item.as_deref() == Some("X")
+        && ["missing_item", "unknown_heading", "duplicate_item", "summary_conflict"].contains(&w.code.as_str()));
+    if detail.product.state != "parsed" || special_unclear { return None; }
+    let mut result = "allowed";
+    for letter in items {
+        let item = detail.effective_items.iter().find(|item| item.item == *letter)?;
+        match item.value.as_str() {
+            "permitted" => if item.condition.is_some() && result == "allowed" { result = "conditional"; },
+            "contact_licensor" if include_contact => result = "contact",
+            _ => return None,
+        }
+    }
+    Some(result)
+}
+
+fn annotate_vn3(bdl: &BdlStore, rows: &mut [Value], filter: &Vn3Filter, category: Option<&Value>) -> Result<Value, LibraryDownloadError> {
+    let (mut readable, mut no_vn3, mut unread, mut unreadable) = (0u64, 0u64, 0u64, 0u64);
+    let mut items: std::collections::BTreeMap<String, u64> = VN3_ITEMS.chars().map(|letter| (letter.to_string(), 0)).collect();
+    let mut details: HashMap<String, crate::terms::TermsDetail> = HashMap::new();
+    for row in rows.iter_mut() {
+        let counted = category.is_none_or(|category| row["sourceCategory"] == *category);
+        let Some(id) = terms_product_id(row).map(str::to_owned) else {
+            row["vn3"] = json!({"state":"no_vn3","match":null,"hasSpecialNote":false});
+            if counted { no_vn3 += 1; }
+            continue;
+        };
+        if !details.contains_key(&id) { let detail = crate::terms::product_detail(bdl, &id)?; details.insert(id.clone(), detail); }
+        let detail = &details[&id];
+        let group = vn3_group(&detail.product.state);
+        let matched = (!filter.items.is_empty()).then(|| vn3_match(detail, &filter.items, filter.include_contact)).flatten();
+        row["vn3"] = json!({"state":group,"match":matched,"hasSpecialNote":detail.has_special_note});
+        if !counted { continue; }
+        match group { "readable" => readable += 1, "no_vn3" => no_vn3 += 1, "unread" => unread += 1, _ => unreadable += 1 }
+        for (letter, count) in items.iter_mut() {
+            let one = [letter.clone()];
+            if vn3_match(detail, &one, filter.include_contact).is_some() { *count += 1; }
+        }
+    }
+    Ok(json!({"readable":readable,"noVn3":no_vn3,"unread":unread,"unreadable":unreadable,"items":items}))
+}
+
+fn vn3_row_matches(row: &Value, filter: &Vn3Filter) -> bool {
+    filter.state.as_ref().is_none_or(|state| row["vn3"]["state"] == *state.as_str())
+        && (filter.items.is_empty() || !row["vn3"]["match"].is_null())
 }
 
 /// Match the renderer's confirmed identity rule: name/filename suggestions cannot

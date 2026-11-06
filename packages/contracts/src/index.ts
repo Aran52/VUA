@@ -47,3 +47,4 @@ export * from "./amf-recipe-materials.js";
 export * from "./share-links-v01.js";
 
 export * from "./library-view-v02.js";
+export * from "./library-view-v03.js";

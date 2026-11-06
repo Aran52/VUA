@@ -45,7 +45,9 @@ export type IconName =
   | "info"
   | "list"
   | "signal"
-  | "caret-down";
+  | "caret-down"
+  | "search"
+  | "more";
 
 const paths: Record<IconName, string> = {
   tools: "M14 4a5 5 0 0 0-6 6L3 15a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-3-3 3-3ZM5 17l1-1",
@@ -97,6 +99,8 @@ const paths: Record<IconName, string> = {
   list: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
   signal: "M5 20v-3M10 20v-7M15 20V9M20 20V4",
   "caret-down": "M6 9h12l-6 7Z",
+  search: "M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM20 20l-4.8-4.8",
+  more: "M5.5 12h.01M12 12h.01M18.5 12h.01",
 };
 
 export interface IconProps {
@@ -114,7 +118,7 @@ export function Icon({ name, size = 20, style }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={name === "warning" ? 1.6 : 1.8}
+      strokeWidth={name === "warning" ? 1.6 : name === "more" ? 2.6 : 1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

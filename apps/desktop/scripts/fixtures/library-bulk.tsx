@@ -98,8 +98,8 @@ async function showLibrary() {
 async function run() {
   checks.length = 0; await showLibrary();
   const search = document.querySelector<HTMLInputElement>('input[type="search"]')!;
-  const toggle = document.querySelector<HTMLButtonElement>(`button[aria-label="${copy.viewToggleAria}"]`)!;
-  check(toggle.getBoundingClientRect().right <= search.getBoundingClientRect().left && !document.querySelector('[data-nav-id="warehouse-open-folder"]'), "view toggle sits left of search and the whole-library folder button is retired");
+  const toggle = document.querySelector<HTMLElement>(".vua-warehouse__views")!;
+  check(toggle.getBoundingClientRect().left >= search.getBoundingClientRect().right && !document.querySelector('[data-nav-id="warehouse-open-folder"]'), "the view switch ends the filter row and the whole-library folder button is retired");
   const localCard = cards().find(card => card.dataset.selectionId?.includes(local.entry.warehouseItemId))!;
   localCard.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
   await click(copy.cardMenu.openFolder);

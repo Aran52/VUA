@@ -1790,7 +1790,7 @@ rolled_back: "已回滚",
       "removeNote": "只删除清单中的 VUA 托管文件，保留商品记录和配方引用。"
     },
     filters: {
-      category: "BOOTH 分类", categoryAll: "全部 BOOTH 分类", categoryUnknown: "未记录分类",
+      category: "BOOTH 分类", categoryAll: "全部分类", categoryUnknown: "未记录分类",
       source: "素材来源",
       sourceAll: "全部来源",
       sourceBought: "已购素材",

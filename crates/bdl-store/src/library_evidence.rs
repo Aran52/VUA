@@ -41,6 +41,16 @@ impl BdlStore {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// When each product first entered an account library, and BOOTH's own publish date when recorded.
+    pub fn library_product_dates(&self) -> Result<std::collections::HashMap<String, (Option<String>, Option<String>)>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare(
+            "SELECT p.product_id,(SELECT MIN(m.first_seen_at) FROM product_library_memberships m WHERE m.product_id=p.product_id),p.source_published_at FROM products p",
+        )?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, (row.get::<_, Option<String>>(1)?, row.get::<_, Option<String>>(2)?))))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     /// Original BOOTH category observations, without widening the frozen catalog face.
     pub fn library_product_categories(&self) -> Result<std::collections::HashMap<String, Option<String>>, BdlStoreError> {
         let conn = self.connection.lock().expect("SQLite connection poisoned");

@@ -1077,6 +1077,92 @@ fn library_use_filters_before_pagination_and_never_grants_unknown_permission() {
 }
 
 #[test]
+fn library_sorts_and_filters_vn3_items_before_pagination() {
+    let world = World::new();
+    for id in 1..=5 { terms_fixture_product(&world.bdl, &format!("booth:{id}"), None); }
+    let text = include_str!("../../acquisition/tests/fixtures/vn3-en.synthetic.txt");
+    let mut allowed = vua_acquisition::vn3::parse_text(text, &vua_acquisition::terms_links::sha256(text.as_bytes()));
+    for item in &mut allowed.items { if ["C", "J"].contains(&item.item.as_str()) { item.value = "permitted".into(); item.condition = None; } }
+    terms_fixture_attach(&world.bdl, "booth:1", "vn3-allowed", &allowed);
+    let mut conditional = allowed.clone();
+    conditional.sha256 = vua_acquisition::terms_links::sha256(b"synthetic conditional v3");
+    conditional.items.iter_mut().find(|i| i.item == "J").unwrap().condition = Some("modified_distinguishable".into());
+    terms_fixture_attach(&world.bdl, "booth:2", "vn3-conditional", &conditional);
+    let mut contact = allowed.clone();
+    contact.sha256 = vua_acquisition::terms_links::sha256(b"synthetic contact v3");
+    contact.items.iter_mut().find(|i| i.item == "C").unwrap().value = "contact_licensor".into();
+    terms_fixture_attach(&world.bdl, "booth:3", "vn3-contact", &contact);
+    let mut forbidden = allowed.clone();
+    forbidden.sha256 = vua_acquisition::terms_links::sha256(b"synthetic forbidden v3");
+    forbidden.items.iter_mut().find(|i| i.item == "J").unwrap().value = "prohibited".into();
+    terms_fixture_attach(&world.bdl, "booth:4", "vn3-forbidden", &forbidden);
+    world.bdl.record_terms_links("booth:5", &[], "2026-10-29T00:00:00Z").unwrap();
+    world.bdl.create_warehouse_item("Unlinked local", "imported_material", "2026-11-05T00:00:00Z").unwrap();
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    let ids = |value: &Value| value["items"].as_array().unwrap().iter().map(|row| row["product"]["productId"].as_str().unwrap_or("local").to_owned()).collect::<Vec<_>>();
+
+    // Only rows whose evidence is complete and permits every asked item pass, before pagination.
+    let items = json!({"items":["C","J"]});
+    let first = host.call("library.list", json!({"schemaVersion":"0.3","text":"Terms fixture","vn3":items,"limit":1}));
+    assert_eq!(first["ok"], true, "{first}");
+    assert_eq!(first["value"]["total"], 2);
+    assert_eq!(first["value"]["items"].as_array().unwrap().len(), 1);
+    let filtered = host.call("library.list", json!({"schemaVersion":"0.3","text":"Terms fixture","vn3":{"items":["C","J"]},"sort":"title_asc"}));
+    let rows = filtered["value"]["items"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().any(|row| row["product"]["productId"] == "booth:1" && row["vn3"]["match"] == "allowed"), "{filtered}");
+    assert!(rows.iter().any(|row| row["product"]["productId"] == "booth:2" && row["vn3"]["match"] == "conditional"), "{filtered}");
+    let contacts = host.call("library.list", json!({"schemaVersion":"0.3","text":"Terms fixture","vn3":{"items":["C","J"],"includeContact":true}}));
+    assert_eq!(contacts["value"]["total"], 3);
+    assert!(contacts["value"]["items"].as_array().unwrap().iter().any(|row| row["product"]["productId"] == "booth:3" && row["vn3"]["match"] == "contact"), "{contacts}");
+
+    // An open panel reads counts without filtering, and a state narrows to its group.
+    let counted = host.call("library.list", json!({"schemaVersion":"0.3","vn3":{}}));
+    let counts = &counted["value"]["vn3Counts"];
+    let groups = ["readable", "noVn3", "unread", "unreadable"].iter().map(|key| counts[*key].as_u64().unwrap()).sum::<u64>();
+    assert_eq!(counted["value"]["total"].as_u64().unwrap(), groups, "every row counts in one state: {counted}");
+    assert_eq!(counts["readable"], 4);
+    assert_eq!(counts["items"]["J"], 3);
+    let unlinked = counted["value"]["items"].as_array().unwrap().iter().find(|row| row["kind"] == "local").unwrap().clone();
+    assert_eq!(unlinked["vn3"]["state"], "no_vn3", "a name never grants terms");
+    let none = host.call("library.list", json!({"schemaVersion":"0.3","vn3":{"state":"no_vn3"}}));
+    assert_eq!(none["value"]["total"], counts["noVn3"]);
+
+    // Order: named words only, and each row states the fact it sorted by.
+    let added = host.call("library.list", json!({"schemaVersion":"0.3","sort":"added_desc"}));
+    assert_eq!(added["ok"], true, "{added}");
+    assert!(added["value"]["items"].as_array().unwrap().iter().all(|row| row.get("addedAt").is_some() && row.get("publishedAt").is_some() && row["sizeBytes"].is_u64()));
+    let ascending = ids(&host.call("library.list", json!({"schemaVersion":"0.3","text":"Terms fixture","sort":"title_asc"}))["value"]);
+    let descending = ids(&host.call("library.list", json!({"schemaVersion":"0.3","text":"Terms fixture","sort":"title_desc"}))["value"]);
+    assert_eq!(ascending.len(), 5);
+    assert_eq!(ascending.iter().rev().cloned().collect::<Vec<_>>(), descending);
+
+    // Earlier faces keep their shape, and the new words stay on the new face.
+    let old = host.call("library.list", json!({"schemaVersion":"0.1","text":"Terms fixture"}));
+    assert!(old["value"]["items"].as_array().unwrap().iter().all(|row| row.get("addedAt").is_none() && row.get("vn3").is_none()));
+    for invalid in [
+        json!({"schemaVersion":"0.1","sort":"title_asc"}), json!({"schemaVersion":"0.2","vn3":{}}), json!({"schemaVersion":"0.3","use":"vrchat_personal"}),
+        json!({"schemaVersion":"0.3","sort":"newest"}), json!({"schemaVersion":"0.3","vn3":{"items":["X"]}}), json!({"schemaVersion":"0.3","vn3":{"items":["C","C"]}}),
+        json!({"schemaVersion":"0.3","vn3":null}), json!({"schemaVersion":"0.3","sort":null}), json!({"schemaVersion":"0.3","vn3":{"future":true}}),
+    ] { assert_eq!(host.call("library.list", invalid.clone())["ok"], false, "{invalid}"); }
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/library-view/v0.3");
+    let read = |file: &str| serde_json::from_slice::<Value>(&std::fs::read(root.join(file)).unwrap()).unwrap();
+    let response_schema = jsonschema::validator_for(&read("response.schema.json")).unwrap();
+    let request_schema = jsonschema::validator_for(&read("request.schema.json")).unwrap();
+    for value in [&counted["value"], &filtered["value"], &added["value"]] {
+        assert!(response_schema.is_valid(value), "{:?}", response_schema.iter_errors(value).map(|e| e.to_string()).collect::<Vec<_>>());
+    }
+    for entry in std::fs::read_dir(root.join("examples")).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        let value: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        let schema = if name.ends_with("request.json") { &request_schema } else { &response_schema };
+        assert_eq!(schema.is_valid(&value), name.contains(".valid."), "{name}");
+    }
+}
+
+#[test]
 fn grouped_migration_intake_copies_reviewed_materials_and_refuses_stale_or_overlapping_groups() {
     let world = World::new(); let mut host = Host::new(&world.base, world.bdl.clone());
     let collection = world.base.join("collection");

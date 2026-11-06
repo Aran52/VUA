@@ -83,11 +83,6 @@
   min-height: 60vh;
 }
 
-.vua-warehouse__content[data-drawer-open] {
-  /* 走查#6:详情为右侧专门区(弹性宽),主列保持多列卡片墙不再塌成单列 */
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-}
-
 .vua-warehouse__main {
   display: flex;
   flex-direction: column;
@@ -127,21 +122,6 @@
 
 /* ---- 工具栏:搜索 + 筛选 + 计数 ---- */
 
-.vua-warehouse__filters {
-  display: grid;
-  grid-template-columns: minmax(200px, 2fr) repeat(4, minmax(0, 1fr));
-  align-items: end;
-  gap: var(--vua-space-3);
-}
-.vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) {
-  grid-template-columns: minmax(200px, 2fr) repeat(5, minmax(0, 1fr));
-}
-.vua-warehouse__search-controls {
-  display: flex; align-items: flex-end; gap: var(--vua-space-2); min-width: 0;
-}
-.vua-warehouse__search-controls > .vua-warehouse__field { flex: 1; }
-.vua-warehouse__search-controls > button { flex-shrink: 0; }
-
 .vua-bulk-files__product {
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
@@ -149,18 +129,6 @@
 }
 .vua-bulk-files__product h3 { margin: 0 0 var(--vua-space-2); overflow-wrap: anywhere; }
 .vua-bulk-files__product ul { margin: var(--vua-space-2) 0; padding-left: var(--vua-space-5); }
-
-.vua-warehouse__field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vua-space-2);
-  min-width: 0;
-}
-
-.vua-warehouse__field > span {
-  color: var(--vua-text-secondary);
-  font: var(--vua-font-caption);
-}
 
 .vua-warehouse__select { position: relative; }
 .vua-warehouse__select > svg {
@@ -170,18 +138,6 @@
   transform: translateY(-50%);
   pointer-events: none;
   color: var(--vua-text-secondary);
-}
-
-@media (max-width: 1000px) {
-  /* At narrow widths/large zoom the header and controls need ordinary page scroll. */
-  .vua-warehouse { overflow-y: auto; }
-  .vua-warehouse__filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .vua-warehouse__search-controls { grid-column: 1 / -1; }
-}
-@media (max-width: 760px) {
-  .vua-warehouse__filters, .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .vua-warehouse__filters:where(:has(.vua-library-use-filter > label + label)) > .vua-warehouse__field:last-of-type { grid-column: 1 / -1; }
 }
 
 .vua-warehouse__toolbar {
@@ -371,6 +327,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.vua-warehouse-card__variant { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 
 .vua-warehouse-card__meta {
   display: flex;
@@ -379,15 +336,51 @@
   gap: var(--vua-space-2);
 }
 
+/* Status sits on the picture, so a card without any keeps no empty row. */
 .vua-warehouse-card__badges {
+  position: absolute;
+  left: var(--vua-space-2);
+  bottom: var(--vua-space-2);
+  z-index: 3;
   display: flex;
   flex-wrap: wrap;
   gap: var(--vua-space-1);
-  min-height: 20px;
+  max-width: calc(100% - 2 * var(--vua-space-2));
+  pointer-events: none;
+}
+.vua-warehouse-card__fact {
+  position: absolute;
+  right: var(--vua-space-2);
+  bottom: var(--vua-space-2);
+  z-index: 3;
+  padding: 0 var(--vua-space-2);
+  border-radius: var(--vua-corners-indicator, 2px);
+  background: color-mix(in srgb, var(--vua-bg-canvas) 80%, transparent);
+  color: var(--vua-text-strong);
+  font: var(--vua-font-caption);
+  pointer-events: none;
 }
 
 /* 骨架占位:与卡片媒体同形(1:1),避免布局跳动 */
-.vua-warehouse-card__menu { margin-top: auto; align-self: stretch; }
+/* More actions: on the picture, in view while the card is the one in question. */
+.vua-warehouse-card .vua-warehouse-card__menu {
+  position: absolute;
+  top: var(--vua-space-1);
+  right: var(--vua-space-1);
+  z-index: 4;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: var(--vua-radius-control);
+  background: color-mix(in srgb, var(--vua-bg-panel) 86%, transparent);
+  opacity: 0;
+  transition: opacity var(--vua-motion-fast) ease-out;
+}
+.vua-warehouse-card:hover .vua-warehouse-card__menu,
+.vua-warehouse-card:focus-within .vua-warehouse-card__menu,
+.vua-warehouse-card[data-selected] .vua-warehouse-card__menu { opacity: 1; }
 .vua-library-marker {
   --corner-color: var(--vua-success);
   position: absolute;
@@ -467,45 +460,6 @@
 /* ---- 右侧专门详情面板(W13,U7 裁决 M4 形态) ----
  * 面板是常驻右列的专门区域(非挤压主列的临时抽屉):主列卡片墙保持
  * 自适应多列;面板自身滚动,标题栏 sticky 保证长清单下条目身份可见 */
-
-.vua-warehouse__drawer {
-  height: 100%;
-  overflow-y: auto;
-  border: 1px solid var(--vua-border-strong);
-  border-radius: var(--vua-radius-card);
-  background: color-mix(in srgb, var(--vua-bg-elevated) 92%, transparent);
-  box-shadow: var(--vua-shadow-elevated);
-  padding: var(--vua-space-3);
-}
-
-.vua-warehouse__drawer-header {
-  position: sticky;
-  top: calc(-1 * var(--vua-space-3));
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--vua-space-2);
-  margin: calc(-1 * var(--vua-space-3)) calc(-1 * var(--vua-space-3)) var(--vua-space-3);
-  padding: var(--vua-space-3);
-  background: color-mix(in srgb, var(--vua-bg-elevated) 96%, transparent);
-  border-bottom: 1px solid var(--vua-border);
-}
-
-.vua-warehouse__drawer-header > .vua-button {
-  grid-row: 1;
-  justify-self: end;
-}
-
-.vua-warehouse__drawer-header > :not(.vua-button) {
-  grid-row: 2;
-}
-
-/* 窄窗降级:详情面板退为全宽堆叠(主列在上,面板在下) */
-@media (max-width: 960px) {
-  .vua-warehouse__content[data-drawer-open] {
-    grid-template-columns: 1fr;
-  }
-}
 
 .vua-warehouse-detail__title {
   font: var(--vua-font-title);
@@ -1322,10 +1276,6 @@
 .vua-terms__items div[data-value="contact_licensor"] dd { color: var(--vua-warning-text); }
 .vua-terms__link { border: 0; padding: 0; background: none; color: var(--vua-accent-text, var(--vua-accent)); font: inherit; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
 
-.vua-library-use-filter { display:flex; gap:var(--vua-space-3); min-width:0; }
-.vua-library-use-filter:has(> label + label) { grid-column:span 2; }
-.vua-library-use-filter > label { flex:1; min-width:0; }
-.vua-library-use-filter select { width:100%; min-width:0; }
 
 .vua-library-list__source { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
 .vua-library-terms-read { display: grid; justify-items: start; gap: 8px; }
@@ -1341,3 +1291,109 @@
 .vua-warehouse__selection-name strong { flex: none; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-warehouse__selection-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-warehouse__selection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); }
+
+/* One row of controls: their values name them, so they carry no labels above. */
+.vua-warehouse__notices { display: contents; }
+.vua-warehouse .vua-page__hero[hidden], .vua-warehouse__browse[hidden] { display: none; }
+.vua-warehouse__browse { display: flex; flex-direction: column; flex: 1; gap: var(--vua-space-3); min-width: 0; min-height: 0; }
+.vua-warehouse__filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); }
+.vua-warehouse__searchbox { position: relative; flex: 1 1 200px; min-width: 160px; }
+.vua-warehouse__searchbox > svg { position: absolute; left: var(--vua-space-3); top: 50%; transform: translateY(-50%); color: var(--vua-text-secondary); pointer-events: none; }
+.vua-warehouse__searchbox .vua-warehouse__search { padding-inline-start: calc(var(--vua-space-3) + 24px); }
+.vua-warehouse__filters > .vua-warehouse__select { flex: 0 1 148px; min-width: 104px; }
+.vua-warehouse__views { flex: none; }
+.vua-warehouse__views > button { padding-inline: var(--vua-space-2); }
+.vua-warehouse__toolbar { min-height: 32px; }
+.vua-warehouse__toolbar-gap { flex: 1; }
+
+.vua-vn3-filter { position: relative; flex: 0 1 132px; min-width: 104px; }
+.vua-vn3-filter__button { display: flex; align-items: center; justify-content: space-between; gap: var(--vua-space-1); padding-inline-end: var(--vua-space-2); text-align: start; }
+.vua-vn3-filter__button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vua-vn3-filter__button > svg { flex: none; color: var(--vua-text-secondary); }
+.vua-vn3-filter[data-active] .vua-vn3-filter__button { border-color: var(--room, var(--vua-accent)); }
+.vua-vn3-filter__panel { position: absolute; z-index: 30; top: calc(100% + var(--vua-space-1)); right: 0; display: flex; flex-direction: column; gap: var(--vua-space-3); width: min(620px, calc(100vw - 280px)); max-height: min(600px, calc(100vh - 212px)); padding: var(--vua-space-3) var(--vua-space-4); border: 1px solid var(--vua-border-strong); border-radius: var(--vua-radius-card); background: var(--vua-bg-elevated); box-shadow: var(--vua-shadow-elevated); }
+.vua-vn3-filter__states { display: flex; flex-wrap: wrap; gap: var(--vua-space-1); }
+.vua-vn3-filter__states label { position: relative; display: inline-flex; align-items: center; gap: var(--vua-space-2); min-height: 28px; padding-inline: var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); color: var(--vua-text-secondary); font: var(--vua-font-caption); cursor: pointer; }
+.vua-vn3-filter__states label:hover { color: var(--vua-text-strong); }
+.vua-vn3-filter__states label[data-checked] { border-color: var(--room, var(--vua-accent)); background: color-mix(in srgb, var(--room, var(--vua-accent)) 16%, transparent); color: var(--vua-text-strong); }
+.vua-vn3-filter__states input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.vua-vn3-filter__states label:has(input:focus-visible) { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
+.vua-vn3-filter small { color: var(--vua-text-secondary); font: var(--vua-font-caption); font-variant-numeric: tabular-nums; }
+.vua-vn3-filter__items { flex: 1; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow-y: auto; border: 0; }
+.vua-vn3-filter__items:disabled { opacity: 0.5; }
+.vua-vn3-filter__items legend { margin-bottom: var(--vua-space-2); padding: 0; color: var(--vua-text-strong); font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-vn3-filter__groups { column-count: 2; column-gap: var(--vua-space-5); }
+.vua-vn3-filter__groups section { break-inside: avoid; margin-bottom: var(--vua-space-3); }
+.vua-vn3-filter__groups h3 { margin: 0 0 var(--vua-space-1); color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-vn3-filter__groups label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--vua-space-2); min-height: 24px; font: var(--vua-font-caption); cursor: pointer; }
+.vua-vn3-filter small[data-zero] { opacity: 0.55; }
+.vua-vn3-filter__groups label:hover > span { color: var(--vua-text-strong); }
+.vua-vn3-filter input[type="checkbox"] { margin: 0; accent-color: var(--room, var(--vua-accent)); }
+.vua-vn3-filter__foot { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-3); padding-top: var(--vua-space-3); border-top: 1px solid var(--vua-border); }
+.vua-vn3-filter__contact { display: inline-flex; align-items: center; gap: var(--vua-space-2); font: var(--vua-font-caption); cursor: pointer; }
+.vua-vn3-filter__foot > :last-child { margin-inline-start: auto; }
+.vua-vn3-filter__foot .vua-library-terms-read { display: flex; align-items: center; }
+
+/* List headers sort by their own column. */
+.vua-library-list__sort { display: inline-flex; align-items: baseline; gap: var(--vua-space-1); padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.vua-library-list__sort:hover, .vua-library-list__sort[data-sorted] { color: var(--vua-text-strong); }
+.vua-library-list__sort > span { font-size: 10px; }
+
+/* A material's own page: the pictures stay in view while the column beside them scrolls. */
+.vua-warehouse-detail__bar { flex-shrink: 0; }
+.vua-warehouse-detail__back { display: inline-flex; align-items: center; gap: var(--vua-space-2); margin-inline-start: -2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.vua-warehouse-detail__back:hover > svg { translate: -2px 0; }
+/* The title's text can be a gradient over transparent ink, so the arrow names its own color. */
+.vua-warehouse-detail__back > svg { flex: none; color: var(--vua-accent-text); transition: translate var(--vua-motion-fast) ease-out; }
+.vua-warehouse-detail__pager { display: flex; align-items: center; gap: var(--vua-space-1); }
+.vua-warehouse-detail__pager .vua-caption { margin-inline-end: var(--vua-space-2); }
+.vua-warehouse-detail__pager .vua-button { width: 32px; min-width: 32px; padding: 0; }
+.vua-warehouse-detail { flex: 1; display: grid; grid-template-columns: minmax(260px, 2fr) minmax(0, 3fr); align-items: start; gap: var(--vua-space-5); min-height: 0; overflow: hidden auto; scrollbar-gutter: stable; margin-inline: calc(-1 * var(--vua-space-2)) -10px; padding-inline-start: var(--vua-space-2); padding-block: var(--vua-space-1) var(--vua-space-4); animation: vua-detail-in var(--vua-motion-normal) var(--vua-motion-ease-enter); }
+@keyframes vua-detail-in { from { opacity: 0; } to { opacity: 1; } }
+.vua-warehouse-detail__media { position: sticky; top: 0; display: grid; gap: var(--vua-space-3); min-width: 0; }
+.vua-warehouse-detail__media .vua-warehouse-detail-album { border-radius: var(--vua-radius-card); }
+.vua-warehouse-detail__main { display: flex; flex-direction: column; gap: var(--vua-space-4); min-width: 0; }
+.vua-warehouse-detail__head { display: grid; gap: var(--vua-space-2); }
+.vua-warehouse-detail__head .vua-warehouse-detail__badges:empty { display: none; }
+.vua-warehouse-detail__title { overflow-wrap: anywhere; }
+.vua-warehouse-detail__meta { margin: 0; color: var(--vua-text-secondary); overflow-wrap: anywhere; }
+.vua-warehouse-detail__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2); }
+.vua-warehouse-detail__actions .vua-warehouse-detail__menu { width: 32px; min-width: 32px; padding: 0; }
+.vua-warehouse-detail__facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--vua-space-3) var(--vua-space-4); margin: 0; }
+.vua-warehouse-detail__facts dt { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-warehouse-detail__facts dd { margin: 0; overflow-wrap: anywhere; }
+.vua-warehouse-detail__section { display: flex; flex-direction: column; gap: var(--vua-space-2); padding-top: var(--vua-space-4); border-top: 1px solid var(--vua-border); }
+.vua-warehouse-detail__section h3 { margin: 0; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-warehouse-detail__section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-1) var(--vua-space-3); min-height: 32px; }
+.vua-warehouse-detail__section-actions { display: flex; flex-wrap: wrap; gap: var(--vua-space-1); }
+.vua-warehouse-detail__section-head .vua-button:last-child { margin-inline-end: calc(-1 * var(--vua-space-2)); }
+.vua-warehouse-detail__files { display: grid; gap: var(--vua-space-1); margin: 0; padding: 0; list-style: none; }
+.vua-warehouse-detail__files li { display: flex; align-items: center; gap: var(--vua-space-2); min-height: 32px; padding-inline: var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); font: var(--vua-font-caption); }
+.vua-warehouse-detail__files li > svg { flex: none; color: var(--vua-text-secondary); }
+.vua-warehouse-detail__files li > span:not(.vua-badge) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vua-warehouse-detail__files small { flex: none; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-warehouse-detail__files li[data-state="missing"] small, .vua-warehouse-detail__files li[data-state="changed"] small, .vua-warehouse-detail__files li[data-state="unreadable"] small { color: var(--vua-warning-text); }
+.vua-warehouse-detail__files li[data-state="present"] small { color: var(--vua-success-text); }
+.vua-warehouse-detail__description { margin: 0; color: var(--vua-text-secondary); font: var(--vua-font-caption); white-space: pre-wrap; overflow-wrap: anywhere; }
+.vua-warehouse-detail__description[data-clamped] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; overflow: hidden; }
+.vua-warehouse-detail__more { margin-inline-start: calc(-1 * var(--vua-space-2) - 1px); }
+.vua-warehouse-detail__notice { display: grid; justify-items: start; gap: var(--vua-space-2); }
+.vua-warehouse-detail__notice p { margin: 0; }
+.vua-warehouse-detail-album__stage { position: relative; perspective: 900px; overflow: hidden; border-radius: var(--vua-radius-card); }
+.vua-warehouse-detail-album__empty { border: 1px solid var(--vua-border); border-radius: var(--vua-radius-card); background: var(--vua-bg-panel); }
+.vua-warehouse-detail-album__thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: var(--vua-space-1); margin-top: var(--vua-space-2); max-height: 172px; overflow-y: auto; }
+.vua-warehouse-detail-album__thumbs button { display: block; padding: 0; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-canvas); cursor: pointer; opacity: 0.72; transition: opacity var(--vua-motion-fast) ease-out, border-color var(--vua-motion-fast) ease-out; }
+.vua-warehouse-detail-album__thumbs button:hover { opacity: 1; }
+.vua-warehouse-detail-album__thumbs button[aria-current] { border: 2px solid var(--room, var(--vua-accent)); opacity: 1; }
+.vua-warehouse-detail-album__thumbs img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.vua-warehouse-lightbox__count { position: absolute; left: 50%; bottom: var(--vua-space-4); translate: -50% 0; padding: 0 var(--vua-space-3); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-caption); }
+.vua-terms__uses { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0 var(--vua-space-4); }
+.vua-terms__items dl { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 var(--vua-space-4); }
+.vua-terms__items dl > div { border-bottom: 1px solid var(--vua-border); }
+@media (max-width: 960px) {
+  .vua-warehouse-detail { grid-template-columns: minmax(0, 1fr); }
+  .vua-warehouse-detail__media { position: static; max-width: 420px; }
+  .vua-warehouse { overflow-y: auto; }
+  .vua-vn3-filter__groups { column-count: 1; }
+  .vua-vn3-filter__panel { width: min(420px, calc(100vw - 48px)); }
+}

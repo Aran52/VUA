@@ -18,6 +18,9 @@ export const storageKeys = {
   /** N1 download-source preference; absence enables region-aware mirror fallback. */
   unityMirrors: "vua-unity-mirrors",
   lastPage: "vua-last-page",
+  /** How Materials orders and shows its cards. */
+  librarySort: "vua-library-sort",
+  libraryView: "vua-library-view",
   scenario: "vua-scenario",
   goals: "vua-goals",
   /** 素材生命周期(G8):版本化 StoredLifecycleV1,见 features/warehouse/asset-lifecycle.ts */

@@ -1760,7 +1760,7 @@ rolled_back: "롤백됨",
       "removeNote": "목록에 있는 VUA 관리 파일만 삭제합니다. 상품 기록과 레시피 참조는 유지됩니다."
     },
     filters: {
-      category: "BOOTH 분류", categoryAll: "모든 BOOTH 분류", categoryUnknown: "분류 미기록",
+      category: "BOOTH 분류", categoryAll: "모든 카테고리", categoryUnknown: "분류 미기록",
       source: "라이브러리 출처",
       sourceAll: "모든 출처",
       sourceBought: "구매한 자료",

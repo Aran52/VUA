@@ -1,0 +1,8 @@
+{
+  "method": "library.list",
+  "params": {
+    "schemaVersion": "0.3",
+    "sort": "title_asc",
+    "limit": 50
+  }
+}

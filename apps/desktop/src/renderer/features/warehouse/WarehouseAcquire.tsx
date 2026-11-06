@@ -40,28 +40,34 @@ import {
 } from "./acquire-model.ts";
 import { useCardSpotlight } from "./use-card-spotlight.ts";
 import { DetailAlbum } from "./WarehouseAlbum.tsx";
+import { LibraryDetailLayout, LibraryDetailLoading, sharedFacts } from "./LibraryDetail.tsx";
+import { ProductTerms } from "./ProductTerms.tsx";
+import { confirmedLibraryProductId } from "../../gateway/index.ts";
+import { libraryViewCopy } from "../../i18n/library-view-copy.ts";
+import { Icon } from "@vua/design-system";
 
 const copy = strings.warehouse.acquire;
 const cloudCopy = strings.warehouse;
 
 /** Files remain in EntryDetail, including empty or missing imports. */
-export function MaterialEntryCard({ card, selected, onSelect, onOpen, onMenu, source, metadata, corner, badges }: {
-  card: AcquireEntryCard; selected: boolean; onSelect: () => void; onOpen: () => void; onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
-  source?: CatalogProductSummary | undefined; metadata?: LibraryEntryMetadataV01 | undefined; corner?: ReactNode; badges?: ReactNode;
+export function MaterialEntryCard({ card, selected, onSelect, onOpen, onMenu, source, metadata, corner, badges, fact }: {
+  card: AcquireEntryCard; selected: boolean; onSelect: (event: ReactMouseEvent<HTMLElement>) => void; onOpen: () => void; onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
+  source?: CatalogProductSummary | undefined; metadata?: LibraryEntryMetadataV01 | undefined; corner?: ReactNode; badges?: ReactNode; fact?: string | null | undefined;
 }) {
   const entry = card.entry; const title = metadata?.displayName ?? source?.title ?? entry.displayName;
   const image = metadata?.thumbnailRef ?? source?.imageUrl;
   const size = sizeText(entry.artifacts.reduce((sum, file) => sum + file.sizeBytes, 0));
   return <article className="vua-warehouse-card" role="listitem" tabIndex={0} data-selection-id={card.key} data-selected={selected || undefined}
     onClick={onSelect} onDoubleClick={onOpen} onContextMenu={onMenu} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onOpen(); } }}>
-    <div className="vua-warehouse-card__media">{corner}{image ? <img src={image} alt={title} loading="lazy" /> : <div className="vua-warehouse-card__no-image"><span className="vua-caption vua-text-secondary">{copy.previewEmpty}</span></div>}</div>
+    <div className="vua-warehouse-card__media">{corner}{image ? <img src={image} alt={title} loading="lazy" /> : <div className="vua-warehouse-card__no-image"><span className="vua-caption vua-text-secondary">{copy.previewEmpty}</span></div>}
+      <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={event => { event.stopPropagation(); onMenu(event); }}><Icon name="more" size={16} /></Button>
+      <div className="vua-warehouse-card__badges">{badges}</div>
+      {fact ? <span className="vua-warehouse-card__fact">{fact}</span> : null}
+    </div>
     <div className="vua-warehouse-card__body">
       <p className="vua-warehouse-card__title" title={title}>{title}</p>
-      {source?.shopName ? <p className="vua-caption vua-text-secondary">{source.shopName}</p> : null}
-      {source?.variantName ? <p className="vua-caption vua-text-secondary">{source.variantName}</p> : null}
-      <div className="vua-warehouse-card__meta"><span>{format(copy.fileCount, { count: entry.artifacts.length })}</span><span>{format(copy[size.unitKey], { amount: size.amount })}</span></div>
-      <div className="vua-warehouse-card__badges">{badges}</div>
-      <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={event => { event.stopPropagation(); onMenu(event); }}>…</Button>
+      <p className="vua-caption vua-text-secondary vua-warehouse-card__shop" title={source?.shopName ?? undefined}>{source?.shopName ?? copy.kind[entry.kind]}</p>
+      <p className="vua-warehouse-card__variant">{source?.variantName ?? `${format(copy.fileCount, { count: entry.artifacts.length })} · ${format(copy[size.unitKey], { amount: size.amount })}`}</p>
     </div>
   </article>;
 }
@@ -98,77 +104,6 @@ function stateTone(state: WarehouseArtifactState) {
   }
 }
 
-/* ---- 工件卡片(与云端目录卡同形同交互;卡片 = 条目 × 工件) ---- */
-
-export function ArtifactCard({
-  card,
-  selected,
-  onSelect,
-  onOpen,
-  onMenu,
-  source,
-  metadata,
-  corner,
-  badges,
-}: {
-  card: AcquireArtifactCard;
-  selected: boolean;
-  onSelect?: (() => void) | undefined;
-  onOpen: () => void;
-  onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
-  source?: CatalogProductSummary | undefined;
-  metadata?: LibraryEntryMetadataV01 | undefined;
-  corner?: ReactNode;
-  badges?: ReactNode;
-}) {
-  const { entry, artifact } = card;
-  const title = metadata?.displayName ?? source?.title ?? entry.displayName;
-  const image = metadata?.thumbnailRef ?? source?.imageUrl;
-  return (
-    <article
-      className="vua-warehouse-card"
-      data-selected={selected || undefined}
-      data-selection-id={card.key}
-      data-verdict={artifact.state}
-      onClick={onSelect ?? onOpen}
-      onDoubleClick={onSelect === undefined ? undefined : onOpen}
-      onContextMenu={onMenu}
-      role="listitem"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      <div className="vua-warehouse-card__media">
-        {corner}
-        {image ? <img src={image} alt={title} loading="lazy" /> : <div className="vua-warehouse-card__no-image">
-          <span className="vua-caption vua-text-secondary">{copy.previewEmpty}</span>
-        </div>}
-      </div>
-      <div className="vua-warehouse-card__body">
-        <p className="vua-warehouse-card__title" title={title}>
-          {title}
-        </p>
-        <p className="vua-caption vua-text-secondary" title={artifact.relativePath}>{artifact.relativePath}</p>
-        <div className="vua-warehouse-card__meta">
-          <span>{artifactSize(artifact)}</span>
-          <span className="vua-caption vua-text-secondary">{copy.kind[entry.kind]}</span>
-        </div>
-        <div className="vua-warehouse-card__badges">
-          {badges}
-          <Badge tone={stateTone(artifact.state)}>{copy.verdict[artifact.state]}</Badge>
-          <Badge tone="neutral">{copy.role[artifact.role]}</Badge>
-        </div>
-        <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={cloudCopy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}>⋯</Button>
-      </div>
-    </article>
-  );
-}
-
 /* ---- 条目详情抽屉(entryDetail 读取面) ---- */
 
 type DetailState =
@@ -203,10 +138,18 @@ export function EntryDetail({
   entryId,
   globalDefault,
   facts,
+  title,
+  badges,
+  actions,
+  onTermsUpdated,
 }: {
   entryId: string;
   globalDefault: GlobalDefaultInference;
   facts?: LibraryCardFacts | undefined;
+  title: string;
+  badges?: ReactNode;
+  actions?: ReactNode;
+  onTermsUpdated?: () => void;
 }) {
   const gateway = useGateway();
   const [state, setState] = useState<DetailState>({ kind: "loading" });
@@ -271,32 +214,24 @@ export function EntryDetail({
     }
   }
 
-  if (state.kind === "loading") {
-    return (
-      <div className="vua-warehouse-detail__content">
-        <Skeleton width="100%" height="auto" className="vua-warehouse-card__skeleton-media" />
-        <Skeleton width="50%" height={14} />
-        <Skeleton width="100%" height={60} />
-      </div>
-    );
-  }
+  if (state.kind === "loading") return <LibraryDetailLoading title={title} />;
   if (state.kind === "failed" || state.view.kind === "not-connected") {
     return (
-      <div className="vua-warehouse-detail__content">
+      <LibraryDetailLayout itemKey="failed" title={title} media={<DetailAlbum imageUrls={[]} title={title} />}>
         <p className="vua-text-secondary">{copy.detailLoadFailed}</p>
         <div>
           <Button variant="default" onClick={() => setReloadKey((key) => key + 1)}>
             {cloudCopy.detail.retry}
           </Button>
         </div>
-      </div>
+      </LibraryDetailLayout>
     );
   }
   if (state.view.kind === "not-found") {
     return (
-      <div className="vua-warehouse-detail__content">
+      <LibraryDetailLayout itemKey="missing" title={title} media={<DetailAlbum imageUrls={[]} title={title} />}>
         <p className="vua-text-secondary">{copy.detailNotFound}</p>
-      </div>
+      </LibraryDetailLayout>
     );
   }
 
@@ -306,51 +241,39 @@ export function EntryDetail({
     ? preview.view.albums
     : null;
   const multipleSources = previewAlbums !== null && previewAlbums.length > 1;
+  const surfaces = entrySurfacesVisible(globalDefault);
+  const source = facts?.sourceMatch?.product;
+  const productId = confirmedLibraryProductId(facts);
+  const media = preview.kind === "loading" ? <Skeleton width="100%" height="auto" className="vua-warehouse-card__skeleton-media" />
+    : previewAlbums === null ? <DetailAlbum imageUrls={[]} title={title} emptyText={preview.view.kind === "no-association" ? copy.previewNoAssociation : copy.previewNoImages} />
+    : previewAlbums.map(album => <div key={album.productId}>
+      {multipleSources ? <p className="vua-caption vua-text-secondary">{album.title}</p> : null}
+      <DetailAlbum imageUrls={album.imageUrls} title={album.title} />
+    </div>);
   return (
-    <div className="vua-warehouse-detail__content">
-      {/* D-6 条目详情预览(核心裁决方案 c 组合读):目录来源相册经
-          catalogImageUrl/DetailAlbum 同线渲染;取数中呈现骨架;无关联/
-          关联无图(媒体空/目录 miss)按 AC-12 同规诚实空态,不猜测 */}
-      {preview.kind === "loading" ? (
-        <div className="vua-warehouse-detail__preview3d">
-          <Skeleton width="100%" height={96} />
-        </div>
-      ) : previewAlbums === null ? (
-        <div className="vua-warehouse-detail__preview3d">
-          <span className="vua-caption vua-text-secondary">
-            {preview.view.kind === "no-association"
-              ? copy.previewNoAssociation
-              : copy.previewNoImages}
-          </span>
-        </div>
-      ) : (
-        previewAlbums.map((album) => (
-          <div key={album.productId}>
-            {/* 多来源时标注各相册归属(Gateway 返回的标题/身份事实) */}
-            {multipleSources ? (
-              <p className="vua-caption vua-text-secondary">{album.title}</p>
-            ) : null}
-            <DetailAlbum imageUrls={album.imageUrls} title={album.title} />
-          </div>
-        ))
-      )}
-      <div className="vua-warehouse-detail__badges">
-        <Badge tone="neutral">{copy.kind[entry.kind]}</Badge>
-        {/* 模式行(F4-9):生效模式 + 覆盖 or 跟随全局;编辑区见下方产物模式组 */}
-        <Badge tone="neutral">{copy.mode[mode.effective]}</Badge>
-        <Badge tone="neutral">
-          {mode.overridden ? copy.modeOverride : copy.modeFollowGlobal}
-        </Badge>
-      </div>
-      <p className="vua-caption vua-text-secondary" title={entry.folderName}>
-        {entry.folderName}
-      </p>
+    <LibraryDetailLayout itemKey={entry.warehouseItemId} title={title} media={media} actions={actions}
+      meta={[source?.shopName, source?.variantName].filter(Boolean).join(" · ") || null}
+      facts={[[libraryViewCopy.detail.source, entry.kind === "imported_material" ? libraryViewCopy.detail.sources.imported : copy.kind[entry.kind]], ...sharedFacts(facts).filter(([name]) => name !== libraryViewCopy.detail.source)]}
+      badges={<>
+        {badges}
+        {surfaces ? <><Badge tone="neutral">{copy.mode[mode.effective]}</Badge><Badge tone="neutral">{mode.overridden ? copy.modeOverride : copy.modeFollowGlobal}</Badge></> : null}
+      </>}>
+      {productId !== null ? <ProductTerms productId={productId} title={title} {...(onTermsUpdated ? { onUpdated: onTermsUpdated } : {})} /> : null}
+      <section className="vua-warehouse-detail__section">
+        <h3>{libraryViewCopy.detail.files}</h3>
+        <ul className="vua-warehouse-detail__files">{entry.artifacts.map(artifact => <li key={artifact.artifactSha256 + artifact.relativePath} data-state={artifact.state}>
+          <Icon name="file" size={16} /><span title={artifact.relativePath}>{artifact.relativePath}</span>
+          <small>{artifactSize(artifact)}</small>
+          {artifact.state !== "clean" ? <Badge tone={stateTone(artifact.state)}>{copy.verdict[artifact.state]}</Badge> : null}
+          {artifact.role !== "original" ? <Badge tone="neutral">{copy.role[artifact.role]}</Badge> : null}
+        </li>)}</ul>
+      </section>
 
       {/* F4-9 产物模式编辑(U8⑤ 总闸门控:总闸关=整组不呈现,分支 a 呈现层;
           跟随全局 = 清除覆盖(写 null),生效模式以服务端读回为准) */}
       {entrySurfacesVisible(globalDefault) ? (
-        <section>
-          <h3 className="vua-warehouse-detail__section-title">
+        <section className="vua-warehouse-detail__section">
+          <h3>
             {copy.modeEditTitle} <Badge tone="neutral">{strings.settings.experimental.badge}</Badge>
           </h3>
           <div role="radiogroup" aria-label={copy.modeEditTitle}>
@@ -409,8 +332,8 @@ export function EntryDetail({
           手动入口已按用户裁定移除——删除只由导入链按「生成后删除原始素材
           文件」偏好触发(app 层 delete-originals-auto),协议动作保留 */}
       {entryActions(entry, globalDefault).length > 0 ? (
-        <section>
-          <h3 className="vua-warehouse-detail__section-title">
+        <section className="vua-warehouse-detail__section">
+          <h3>
             {copy.actionsTitle} <Badge tone="neutral">{strings.settings.experimental.badge}</Badge>
           </h3>
           {entryActions(entry, globalDefault).includes("generateVpm") ? (
@@ -460,127 +383,6 @@ export function EntryDetail({
           {format(copy.pendingNote, { recipe: termLabel("recipe") })}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-/* ---- 页面 ---- */
-
-export function WarehouseAcquire() {
-  const view = useAcquireView();
-  const [text, setText] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  /** 工件卡右键菜单(S-XII):仅真实动作——查看详情(条目) */
-  const [cardMenu, setCardMenu] = useState<ContextMenuState | null>(null);
-
-  // IMP-4 收口(2026-09-10):W18 导入流整体迁入素材导入页(本地段,verbatim);
-  // 本页收敛为纯条目管理(design-standard 0.7.0 §8.3),导入入口不再重复。
-
-  // 指针聚光 + 微倾斜,与云端墙一致(非 animated 模式零开销)
-  const [wallEl, setWallEl] = useState<HTMLDivElement | null>(null);
-  useCardSpotlight(wallEl);
-
-  if (view.kind === "not-connected") {
-    return (
-      <EmptyState title={copy.states.notConnectedTitle} />
-    );
-  }
-
-  const cards = artifactCards(view.entries);
-  // U8⑤ 总闸门控的读面推断:无覆盖条目的生效模式即 composed 全局默认
-  // (与设置页全局开关同一推断源;unknown=不屏蔽,不猜测总闸状态)
-  const globalDefault = inferGlobalDefaultMode(view.entries);
-  const selectedEntry =
-    selectedId === null
-      ? null
-      : (view.entries.find((entry) => entry.warehouseItemId === selectedId) ?? null);
-
-  const shown = cards.filter((card) => artifactCardMatches(card, text));
-
-  const openCardMenu = (event: ReactMouseEvent<HTMLElement>, card: AcquireArtifactCard) => {
-    event.preventDefault();
-    setCardMenu({
-      x: event.clientX,
-      y: event.clientY,
-      items: [
-        {
-          id: "open",
-          label: cloudCopy.card.detailsCta,
-          onSelect: () => setSelectedId(card.entry.warehouseItemId),
-        },
-      ],
-    });
-  };
-
-  return (
-    <div className="vua-warehouse__content" data-drawer-open={selectedEntry !== null || undefined}>
-      <div className="vua-warehouse__main">
-        <div className="vua-warehouse__toolbar" role="search">
-          <input
-            type="search"
-            className="vua-warehouse__search"
-            placeholder={cloudCopy.searchPlaceholder}
-            aria-label={cloudCopy.searchAria}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-          />
-          <span className="vua-caption vua-text-secondary">
-            {format(copy.entryCount, { count: view.entries.length })}
-          </span>
-        </div>
-
-        <div className="vua-warehouse__wall-scroll" ref={setWallEl}>
-          {view.entries.length === 0 ? (
-            <EmptyState title={copy.entriesTitle} description={copy.entriesEmpty} />
-          ) : shown.length === 0 ? (
-            <EmptyState title={cloudCopy.states.emptyResultTitle} />
-          ) : (
-            <div className="vua-warehouse__wall" role="list">
-              {shown.map((card) => (
-                <ArtifactCard
-                  key={card.key}
-                  card={card}
-                  selected={card.entry.warehouseItemId === selectedId}
-                  onOpen={() => setSelectedId(card.entry.warehouseItemId)}
-                  onMenu={(event) => openCardMenu(event, card)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {selectedEntry !== null ? (
-        <aside
-          className="vua-warehouse__drawer"
-          aria-label={cloudCopy.detail.panelAria}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setSelectedId(null);
-          }}
-        >
-          <div className="vua-warehouse__drawer-header">
-            <h2 className="vua-warehouse-detail__title" title={selectedEntry.displayName}>
-              {selectedEntry.displayName}
-            </h2>
-            <Button
-              variant="subtle"
-              aria-label={cloudCopy.detail.closeAria}
-              onClick={() => setSelectedId(null)}
-            >
-              {cloudCopy.detail.close}
-            </Button>
-          </div>
-          {/* key=warehouseItemId:切换条目时重置详情取数与组件内状态 */}
-          <EntryDetail
-            key={selectedEntry.warehouseItemId}
-            entryId={selectedEntry.warehouseItemId}
-            globalDefault={globalDefault}
-          />
-        </aside>
-      ) : null}
-      {cardMenu !== null ? (
-        <ContextMenu menu={cardMenu} onClose={() => setCardMenu(null)} />
-      ) : null}
-    </div>
+    </LibraryDetailLayout>
   );
 }

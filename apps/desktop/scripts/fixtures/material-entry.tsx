@@ -84,7 +84,7 @@ async function until(predicate: () => boolean, label: string) {
   while (!predicate()) { if (performance.now() > deadline) throw Error(`${label}: ${text()}`); await pause(); }
 }
 const startButton = () => document.querySelector<HTMLButtonElement>(".vua-warehouse-detail__start");
-const drawerText = () => document.querySelector(".vua-warehouse__drawer")?.textContent ?? "";
+const drawerText = () => document.querySelector(".vua-warehouse-detail")?.textContent ?? "";
 const inViewport = (element: Element | null) => {
   const bounds = element?.getBoundingClientRect();
   return bounds !== undefined && bounds.width > 0 && bounds.height > 0 && bounds.top >= 0 && bounds.bottom <= innerHeight;
@@ -97,7 +97,7 @@ async function open(id: string) {
   await until(() => document.querySelector(`[data-review-generation="${version}"]`) !== null, "new fixture mounts");
   await until(() => document.querySelector(`[data-selection-id="${id}"]`) !== null, "library mounts");
   document.querySelector(`[data-selection-id="${id}"]`)!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-  await until(() => document.querySelector(".vua-warehouse__drawer") !== null && !document.querySelector(".vua-warehouse__drawer .vua-skeleton"), "detail mounts");
+  await until(() => document.querySelector(".vua-warehouse-detail") !== null && !document.querySelector(".vua-warehouse-detail .vua-skeleton"), "detail mounts");
   await pause();
 }
 async function probe() {

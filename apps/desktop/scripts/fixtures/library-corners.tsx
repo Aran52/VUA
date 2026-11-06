@@ -119,18 +119,22 @@ async function run() {
   await showLibrary();
   const filtersAligned = () => {
     const filters = document.querySelector<HTMLElement>('.vua-warehouse__filters')!;
-    const controls = [...filters.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select')].map(node=>node.getBoundingClientRect());
+    const controls = [...filters.querySelectorAll<HTMLElement>('input,select,.vua-vn3-filter__button,.vua-warehouse__views')].map(node=>node.getBoundingClientRect());
     const row = filters.getBoundingClientRect();
-    return controls.every(rect=>Math.abs(rect.bottom-controls[0]!.bottom)<1)
+    return controls.every(rect=>Math.abs(rect.top+rect.height/2-(controls[0]!.top+controls[0]!.height/2))<1)
       && Math.abs(controls.at(-1)!.right-row.right)<1 && filters.scrollWidth<=filters.clientWidth;
   };
   check(filtersAligned(), 'material filters share one baseline and fill the content width');
-  const use = document.querySelector<HTMLSelectElement>('.vua-library-use-filter select')!;
-  const setUse = (value:string) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value')!.set!.call(use,value); use.dispatchEvent(new Event('change',{bubbles:true})); };
-  setUse(use.options[1]!.value);
-  await until(()=>document.querySelectorAll('.vua-library-use-filter select').length===2&&document.querySelectorAll('[data-selection-id]').length===5,'expanded use filters');
-  check(filtersAligned(), 'the use-mode filter joins the same aligned row');
-  setUse(''); await until(()=>document.querySelectorAll('.vua-library-use-filter select').length===1&&document.querySelectorAll('[data-selection-id]').length===5,'ordinary use filter restored');
+  document.querySelector<HTMLButtonElement>('[data-nav-id="warehouse-vn3"]')!.click();
+  await until(()=>!!document.querySelector('.vua-vn3-filter__panel'),'VN3 panel');
+  check(calls.at(-1).params.vn3 !== undefined || calls.some(call => call.method === "library.list" && call.params.vn3 !== undefined), 'an open panel asks for counts without narrowing the list');
+  document.querySelector<HTMLInputElement>('[data-nav-id="warehouse-vn3-item-C"]')!.click();
+  await until(()=>calls.some(call => call.method === "library.list" && call.params.vn3?.items?.[0] === "C"),'VN3 item query');
+  check(calls.filter(call => call.method === "library.list").at(-1).params.schemaVersion === "0.3", 'the list reads the current library face');
+  document.querySelector<HTMLButtonElement>('[data-nav-id="warehouse-vn3-reset"]')!.click();
+  window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  await until(()=>!document.querySelector('.vua-vn3-filter__panel'),'Esc closes the VN3 panel');
+  check(filtersAligned(), 'the filter row stays aligned after the panel closes');
   await until(()=>!document.querySelector('.vua-skeleton'),'filter results settled'); await painted();
   const bodyRows = card("booth:90").querySelector(".vua-warehouse-card__body")!;
   check([...bodyRows.children].slice(0, 3).map(node => node.className).join("|").includes("__title|vua-caption vua-text-secondary vua-warehouse-card__shop|vua-warehouse-card__variant"), "card text order is title, shop, then variant");
@@ -145,8 +149,8 @@ async function run() {
   }
   for (const node of document.querySelectorAll<HTMLElement>("[data-selection-id]")) {
     const menu = node.querySelector<HTMLElement>(".vua-warehouse-card__menu")!;
-    const menuGap = node.getBoundingClientRect().bottom - menu.getBoundingClientRect().bottom;
-    check(Math.abs(menuGap - 13) < 6, `card menu stays at the card bottom regardless of title/badges (${menuGap}px; card ${node.clientHeight}/${node.scrollHeight}; ${node.getBoundingClientRect().height}px)`);
+    const media = node.querySelector<HTMLElement>(".vua-warehouse-card__media")!.getBoundingClientRect(), place = menu.getBoundingClientRect();
+    check(place.top >= media.top && place.right <= media.right + 1 && place.top - media.top < 12, `more actions sit on the picture's top right (${place.top - media.top}px)`);
   }
   corner("booth:90").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await until(() => !!document.querySelector('[role="tooltip"]'), "corner explanation");
   check(document.querySelector('[role="tooltip"]')!.textContent === copy.corner.cloud, "corner has localized tooltip");
@@ -170,16 +174,18 @@ async function run() {
   const reads = libraryReads;
   card("booth:90").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
   await until(() => fetched.includes("booth:90") && libraryReads > reads, "missing category enriches and refreshes joined list despite existing description");
-  const drawer = document.querySelector<HTMLElement>(".vua-warehouse__drawer")!;
+  const drawer = document.querySelector<HTMLElement>(".vua-warehouse-detail")!;
   button(copy.sourceSearch.openBooth, drawer).click(); await until(() => opened.length === 2, "detail opens source");
   check(!drawer.textContent!.includes(copy.libraryState.productionUnchecked), "detail drops the retired qualification sentence");
+  check(!!document.querySelector(".vua-warehouse__browse[hidden]"), "the details page takes the wall's place and keeps it mounted");
   await until(() => [...document.querySelectorAll<HTMLOptionElement>("select option")].some(node => node.value === "category:3D衣装"), "the recorded category reaches filter options in every locale");
-  button(copy.detail.close, drawer).click(); await wait();
+  document.querySelector<HTMLButtonElement>('[data-nav-id="warehouse-detail-back"]')!.click(); await wait();
   card("booth:92").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
   await until(() => fetched.includes("booth:92"), "uncategorized official page observed");
   await new Promise(resolve => setTimeout(resolve, 400));
   check(fetched.filter(id => id === "booth:92").length === 1, "genuinely uncategorized product is fetched once per open instead of a reload loop");
-  button(copy.detail.close, document.querySelector(".vua-warehouse__drawer")!).click(); await wait();
+  window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await wait();
+  check(!document.querySelector(".vua-warehouse-detail") && !document.querySelector(".vua-warehouse__browse[hidden]"), "Esc returns from the details page to the wall");
   holdSearch = true; corner("wh-imported").click(); await until(() => releaseSearch !== undefined, "public search started");
   check(corner("wh-imported").dataset.cornerState === "searching", "local lookup shows a spinning search state");
   holdSearch = false; releaseSearch!(); await until(() => corner("wh-imported").dataset.cornerState === "linked", "exact public match saved");

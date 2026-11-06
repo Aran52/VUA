@@ -341,7 +341,7 @@ function NetworkPreview({ details }: { details: boolean }) {
   return <NetworkMonitor />;
 }
 const content = view.startsWith("terms-everywhere-") ? <GatewayProvider gateway={{...gateway,amfProduction:api,terms:recipeTermsPreviewPort}}><TermsEverywherePreview view={view}/></GatewayProvider> : view.startsWith("share-") ? <GatewayProvider gateway={{...gateway,amfProduction:{...api,listRecipes:async()=>[],listFits:async()=>[]},amfRelease:releasePorts("release-turn").release}}><SharePreview view={view}/></GatewayProvider> : view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
-  <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">
+  <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse-detail__notice"><div className="vua-warehouse-detail__content">
     <ProductTerms productId="booth:1" title="Sample Avatar" />
   </div></aside></div>
 </GatewayProvider> : licensePort ? <GatewayProvider gateway={{ ...gateway, environment: { ...gateway.environment, unityLicense: licensePort }, amfProduction: api }}>

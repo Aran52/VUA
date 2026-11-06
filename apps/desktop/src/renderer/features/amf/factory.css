@@ -9,6 +9,7 @@
 .vua-room[data-room="control"] { --room: var(--vua-room-control); }
 .vua-room[data-room="release"] { --room: var(--vua-room-release); }
 /* The tabs sit on the page's title row, at its right edge. */
+.vua-room:has(.vua-warehouse[data-detail]) .vua-room__bar { display: none; }
 .vua-room__bar { position: absolute; top: var(--vua-space-3); inset-inline-end: calc(var(--vua-space-2) + 10px); z-index: 1; }
 .vua-room__content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 

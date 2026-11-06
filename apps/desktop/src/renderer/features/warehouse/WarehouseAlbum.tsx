@@ -13,6 +13,7 @@
  * 当前图用 MediaSlot auto 模式(转圈自动重试,无手动按钮,见反馈 #2)。
  */
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { catalogImageUrl } from "../../app/catalog-image.ts";
 import { MediaSlot } from "../../components/primitives/MediaSlot.tsx";
 import { strings } from "../../i18n/index.ts";
@@ -130,120 +131,55 @@ export function CardAlbumMedia({
   );
 }
 
-/* ---- 详情相册:点击区翻页 + 中间放大 ---- */
+/* ---- The details page's album: a large picture, thumbnails under it and a lightbox ---- */
 
-export function DetailAlbum({
-  imageUrls,
-  title,
-}: {
-  imageUrls: readonly string[];
-  title: string;
-}) {
+export function DetailAlbum({ imageUrls, title, emptyText }: { imageUrls: readonly string[]; title: string; emptyText?: string }) {
   const [index, setIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
-  // 翻页方向(S-IX-3 翻页卡片):驱动 3D 翻转过渡的旋转方向
   const [flipDir, setFlipDir] = useState<1 | -1>(1);
-
-  // Esc 关闭灯箱;stopPropagation 防止冒泡触发抽屉自身的 Esc 关闭
+  const total = imageUrls.length;
+  const safeIndex = Math.min(index, Math.max(0, total - 1));
+  const flip = (delta: number) => {
+    setFlipDir(delta > 0 ? 1 : -1);
+    setIndex((value) => (value + delta + total) % total);
+  };
+  const flipRef = useRef(flip); flipRef.current = flip;
   useEffect(() => {
     if (!zoomed) return;
+    // The lightbox takes these keys first, so Esc closes only it and arrows turn its picture.
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        setZoomed(false);
-      }
+      if (event.key === "Escape") { event.stopPropagation(); setZoomed(false); }
+      else if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.stopPropagation(); if (total > 1) flipRef.current(event.key === "ArrowRight" ? 1 : -1); }
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [zoomed]);
-
-  if (imageUrls.length <= 1) {
-    const only = imageUrls[0];
-    return only !== undefined ? (
-      <MediaSlot src={catalogImageUrl(only)} alt={title} aspectRatio="1 / 1" retry="auto" />
-    ) : null;
-  }
-
-  const total = imageUrls.length;
-  const safeIndex = Math.min(index, total - 1);
-  const current = imageUrls[safeIndex] as string;
-  const flip = (delta: number) => {
-    setFlipDir(delta > 0 ? 1 : -1);
-    setIndex((i) => (i + delta + total) % total);
-  };
-
+  }, [zoomed, total]);
+  const current = imageUrls[safeIndex];
+  if (current === undefined) return <div className="vua-warehouse-card__no-image vua-warehouse-detail-album__empty"><span className="vua-caption vua-text-secondary">{emptyText ?? copy.card.noImage}</span></div>;
   return (
     <div className="vua-warehouse-detail-album">
-      {/* key 切换即重建 MediaSlot:换图走完整的 转圈→就绪 语义,缓存命中时近乎瞬时;
-       *  翻转容器同 key 重建,触发 3D 翻页过渡(reduced-motion/effects-off 瞬切) */}
-      <div
-        key={current}
-        className="vua-warehouse-detail-album__flip"
-        data-dir={flipDir}
-      >
-        <MediaSlot
-          src={catalogImageUrl(current)}
-          alt={title}
-          aspectRatio="1 / 1"
-          retry="auto"
-        />
-      </div>
-      {/* 点击区:左 25% 上一张 / 中 50% 放大 / 右 25% 下一张;皆为真实按钮(键盘可达) */}
-      <div className="vua-warehouse-detail-album__zones">
-        <button
-          type="button"
-          className="vua-warehouse-detail-album__zone vua-warehouse-detail-album__zone--prev"
-          aria-label={copy.album.prevImage}
-          onClick={() => flip(-1)}
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          className="vua-warehouse-detail-album__zone vua-warehouse-detail-album__zone--zoom"
-          aria-label={copy.album.zoomImage}
-          onClick={() => setZoomed(true)}
-        />
-        <button
-          type="button"
-          className="vua-warehouse-detail-album__zone vua-warehouse-detail-album__zone--next"
-          aria-label={copy.album.nextImage}
-          onClick={() => flip(1)}
-        >
-          ›
-        </button>
-      </div>
-      <div className="vua-warehouse-detail-album__meta">
-        <span className="vua-warehouse-album__dots" aria-hidden="true">
-          {imageUrls.map((url, i) => (
-            <span key={url} data-current={i === safeIndex || undefined} />
-          ))}
-        </span>
-        <span className="vua-caption vua-text-secondary">
-          {safeIndex + 1} / {total}
-        </span>
-      </div>
-      {zoomed ? (
-        // 灯箱:点击任意处关闭;无翻页(保持单一职责,翻页在抽屉内完成)
-        <div
-          className="vua-warehouse-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          onClick={() => setZoomed(false)}
-        >
-          <img src={catalogImageUrl(current)} alt={title} />
-          <button
-            type="button"
-            className="vua-warehouse-lightbox__close"
-            aria-label={copy.album.closeZoom}
-            autoFocus
-            onClick={() => setZoomed(false)}
-          >
-            ×
-          </button>
+      <div className="vua-warehouse-detail-album__stage">
+        {/* key restarts MediaSlot and the page-turn animation; effects-off makes it instant. */}
+        <div key={current} className="vua-warehouse-detail-album__flip" data-dir={flipDir}>
+          <MediaSlot src={catalogImageUrl(current)} alt={title} aspectRatio="1 / 1" retry="auto" />
         </div>
-      ) : null}
+        <div className="vua-warehouse-detail-album__zones">
+          {total > 1 ? <button type="button" className="vua-warehouse-detail-album__zone vua-warehouse-detail-album__zone--prev" aria-label={copy.album.prevImage} onClick={() => flip(-1)}>‹</button> : null}
+          <button type="button" className="vua-warehouse-detail-album__zone vua-warehouse-detail-album__zone--zoom" aria-label={copy.album.zoomImage} onClick={() => setZoomed(true)} />
+          {total > 1 ? <button type="button" className="vua-warehouse-detail-album__zone vua-warehouse-detail-album__zone--next" aria-label={copy.album.nextImage} onClick={() => flip(1)}>›</button> : null}
+        </div>
+      </div>
+      {total > 1 ? <div className="vua-warehouse-detail-album__thumbs">
+        {imageUrls.map((url, i) => <button type="button" key={url} aria-label={`${i + 1} / ${total}`} aria-current={i === safeIndex || undefined} onClick={() => { setFlipDir(i >= safeIndex ? 1 : -1); setIndex(i); }}>
+          <img src={catalogImageUrl(url)} alt="" loading="lazy" draggable={false} />
+        </button>)}
+      </div> : null}
+      {zoomed ? createPortal(
+        <div className="vua-warehouse-lightbox" role="dialog" aria-modal="true" aria-label={title} onClick={() => setZoomed(false)}>
+          <img src={catalogImageUrl(current)} alt={title} />
+          <button type="button" className="vua-warehouse-lightbox__close" aria-label={copy.album.closeZoom} autoFocus onClick={() => setZoomed(false)}>×</button>
+          {total > 1 ? <span className="vua-warehouse-lightbox__count">{safeIndex + 1} / {total}</span> : null}
+        </div>, document.body) : null}
     </div>
   );
 }

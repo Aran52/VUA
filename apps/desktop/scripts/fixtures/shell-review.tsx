@@ -14,6 +14,7 @@ import type { VuaDesktopApiV2 } from "@vua/contracts";
 import { createRoot } from "react-dom/client";
 import { scenarioRequiredComponents, type DeploymentPurpose } from "@vua/contracts";
 import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
+import { termsPreviewPort } from "./terms-preview.tsx";
 
 const params = new URLSearchParams(location.search);
 const lang = params.get("lang") ?? "zh-CN";
@@ -69,6 +70,58 @@ const localEntry = {
     artifacts: [{ relativePath: "My own hair.unitypackage", artifactSha256: `sha256:${"a".repeat(64)}`, state: "clean", sizeBytes: 123456, role: "original" }] },
 };
 const libraryRows = emptyLibrary ? [] : [...catalog, localEntry];
+/* Synthetic terms: three products read and allowing most uses, one that forbids modifying, one without VN3, the rest unread. */
+const allowed = "ABCDFGIJKLOSTUV".split("");
+const vn3Facts: Record<string, { state: "readable" | "no_vn3" | "unread" | "unreadable"; items: readonly string[]; conditional?: readonly string[]; special?: boolean }> = {
+  "booth:101": { state: "readable", items: allowed, special: true },
+  "booth:102": { state: "readable", items: allowed.filter(item => item !== "J" && item !== "K") },
+  "booth:103": { state: "readable", items: allowed, conditional: ["J"] },
+  "booth:104": { state: "readable", items: allowed, conditional: ["O"] },
+  "booth:105": { state: "no_vn3", items: [] },
+  "booth:108": { state: "unreadable", items: [] },
+};
+const rowFacts = (row: (typeof libraryRows)[number]) => {
+  const id = row.kind === "product" ? (row as ReturnType<typeof productCard>).product.productId : null;
+  const number = id === null ? 0 : Number(id.slice(6));
+  return { id, number, addedAt: id === null ? "2026-10-08T00:00:00Z" : `2026-10-${String(number - 90).padStart(2, "0")}T03:00:00Z`, publishedAt: id === null ? null : `2025-0${number % 9 + 1}-12T00:00:00Z`, sizeBytes: row.storage.presentCopies > 0 ? number * 7_340_032 : 0 };
+};
+function libraryList(input: Record<string, any>) {
+  const offset = input.offset ?? 0, limit = input.limit ?? 50;
+  const titleOf = (row: (typeof libraryRows)[number]) => row.kind === "product" ? (row as ReturnType<typeof productCard>).product.title : (row as typeof localEntry).entry.displayName;
+  let rows: Record<string, any>[] = libraryRows.filter(row => input.source !== "imported" || row.kind === "local")
+    .filter(row => !input.text || titleOf(row).toLowerCase().includes(String(input.text).toLowerCase()))
+    .filter(row => input.state !== "downloaded" || row.storage.presentCopies > 0)
+    .filter(row => input.state !== "cloud_only" || row.storage.storedCopies === 0)
+    .map(row => { const facts = rowFacts(row); return { ...row, addedAt: facts.addedAt, publishedAt: facts.publishedAt, sizeBytes: facts.sizeBytes }; });
+  const annotated = rows.map(row => {
+    const id = row.product?.productId as string | undefined;
+    const facts = id === undefined ? { state: "no_vn3" as const, items: [] as readonly string[] } : vn3Facts[id] ?? { state: "unread" as const, items: [] as readonly string[] };
+    const wanted: readonly string[] = input.vn3?.items ?? [];
+    const conditional = wanted.some(item => (facts as { conditional?: readonly string[] }).conditional?.includes(item));
+    const matched = wanted.length > 0 && wanted.every(item => facts.items.includes(item)) ? conditional ? "conditional" : "allowed" : null;
+    return { row, facts, vn3: { state: facts.state, match: matched, hasSpecialNote: (facts as { special?: boolean }).special === true } };
+  });
+  const counts = input.vn3 === undefined ? undefined : {
+    readable: annotated.filter(entry => entry.facts.state === "readable").length, noVn3: annotated.filter(entry => entry.facts.state === "no_vn3").length,
+    unread: annotated.filter(entry => entry.facts.state === "unread").length, unreadable: annotated.filter(entry => entry.facts.state === "unreadable").length,
+    items: Object.fromEntries("ABCDEFGHIJKLMNOPQRSTUVW".split("").map(letter => [letter, annotated.filter(entry => entry.facts.items.includes(letter)).length])),
+  };
+  if (input.vn3 !== undefined) {
+    rows = annotated.filter(entry => (input.vn3.state === undefined || entry.facts.state === input.vn3.state) && ((input.vn3.items ?? []).length === 0 || entry.vn3.match !== null)).map(entry => ({ ...entry.row, vn3: entry.vn3 }));
+  }
+  const number = (row: Record<string, any>) => Number(String(row.product?.productId ?? "booth:0").slice(6));
+  const price = (row: Record<string, any>) => row.product?.price ? Number(row.product.price.amount) : null;
+  const compare: Record<string, (a: Record<string, any>, b: Record<string, any>) => number> = {
+    added_desc: (a, b) => b.addedAt.localeCompare(a.addedAt), added_asc: (a, b) => a.addedAt.localeCompare(b.addedAt),
+    title_asc: (a, b) => titleOf(a as never).localeCompare(titleOf(b as never)), title_desc: (a, b) => titleOf(b as never).localeCompare(titleOf(a as never)),
+    shop_asc: (a, b) => String(a.product?.shopName ?? "~").localeCompare(String(b.product?.shopName ?? "~")),
+    price_asc: (a, b) => (price(a) ?? 1e12) - (price(b) ?? 1e12), price_desc: (a, b) => (price(b) ?? -1) - (price(a) ?? -1),
+    published_desc: (a, b) => String(b.publishedAt ?? "").localeCompare(String(a.publishedAt ?? "")), size_desc: (a, b) => b.sizeBytes - a.sizeBytes,
+  };
+  rows.sort((a, b) => compare[input.sort ?? "added_desc"]!(a, b) || number(b) - number(a));
+  return { schemaVersion: "0.3", items: rows.slice(offset, offset + limit), total: rows.length, offset, limit, sourceCategories: ["3D Avatar", "3D Clothing"], ...(counts ? { vn3Counts: counts } : {}) };
+}
+const swapProduct = <T,>(value: T, id: string): T => JSON.parse(JSON.stringify(value).replaceAll("booth:1\"", `${id}"`)) as T;
 const productionSources = catalog.filter(card => card.storage.state === "present").map(card => ({
   sourceId: `src-${card.product.productId}`, itemId: `wh-${card.product.productId.slice(6)}`, itemName: `${card.product.title}.zip`, name: `${card.product.title}.unitypackage`, productIds: [card.product.productId],
 }));
@@ -102,10 +155,10 @@ const lineRecords: Record<string, ReturnType<typeof runBase> & Record<string, un
     snapshotId: "snap-1", completedAt: "2026-11-02T03:20:00Z", result: { facts: finishedFacts("Meiyun formula") } },
 };
 const hex = (seed: number) => seed.toString(16).padStart(4, "0").repeat(16);
-const material = (seed: number, packageName: string) => ({ id: `m-${hex(seed)}`, packageName, sha256: hex(seed) });
+const material = (seed: number, packageName: string, boothProductId?: string) => ({ id: `m-${seed}`, packageName, sha256: hex(seed), ...(boothProductId ? { boothProductId } : {}) });
 const recipeDocument = (recipeId: string, title: string) => {
-  const avatar = material(1, "Meiyun formula.unitypackage"), outfit = material(2, "T-shirt & shorts for Meiyun.unitypackage"), shader = material(3, "lilToon_1.8.5.unitypackage");
-  return { revision: 1, updatedAt: "2026-10-30T03:00:00Z", recipe: { formatVersion: "0.4", recipeId, title, editorVersion: "2022.3.22f1",
+  const avatar = recipeId === "r-2" ? material(4, "Karin v1.4.unitypackage", "104") : material(1, "Meiyun formula.unitypackage", "101"), outfit = recipeId === "r-2" ? material(5, "Sailor dress for Karin.unitypackage", "105") : material(2, "T-shirt & shorts for Meiyun.unitypackage", "102"), shader = material(3, "lilToon_1.8.5.unitypackage");
+  return { revision: recipeId === "r-2" ? 3 : 1, updatedAt: recipeId === "r-2" ? "2026-11-02T03:00:00Z" : "2026-10-30T03:00:00Z", recipe: { formatVersion: "0.5", recipeId, title, editorVersion: "2022.3.22f1",
     materials: [avatar, outfit, shader], avatar: { materialId: avatar.id, prefabPath: "Assets/Meiyun/Meiyun.prefab" },
     outfits: [{ materialId: outfit.id, prefabPath: "Assets/Outfit/Outfit.prefab", mode: "merge_armature", bone: "", toggleName: "T-shirt", active: true }],
     packages: { "com.vrchat.avatars": "3.7.4", "nadena.dev.modular-avatar": "1.10.3" } } };
@@ -157,29 +210,45 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
       steps: scenarioRequiredComponents(input.intent.purposes as DeploymentPurpose[]).map(component => ({ component, action: envMissing ? "manual_install" : "retain", reason: envMissing ? "missing" : "verified", location: null, version: null, officialUrl: "https://store.steampowered.com/" })) } };
     case "environment.executeDeployment": return { schemaVersion: "vua.environment-deployment/v0.1", operation: method, taskId: "synthetic-deployment", correlationId: "synthetic" };
     case "environment.unityLicense": case "environment.checkUnityLicense": return { schemaVersion: "0.1", state: "active", checkedAt: now(), hubRunning: true, detail: null };
-    case "library.list": {
-      const offset = input.offset ?? 0, limit = input.limit ?? 50;
-      const rows = libraryRows.filter(row => input.source !== "imported" || row.kind === "local")
-        .filter(row => !input.text || (row.kind === "product" ? (row as ReturnType<typeof productCard>).product.title : (row as typeof localEntry).entry.displayName).toLowerCase().includes(String(input.text).toLowerCase()));
-      return { schemaVersion: "0.1", items: rows.slice(offset, offset + limit), total: rows.length, offset, limit, sourceCategories: [] };
+    case "library.list": return libraryList(input);
+    case "library.productFiles": {
+      const card = catalog.find(item => item.product.productId === input.productId);
+      const stored = card?.storage.state === "present";
+      return { schemaVersion: "0.1", productId: input.productId, items: [
+        { downloadableId: 1, fileName: `${card?.product.title ?? "Item"}_v1.4.zip`, managedCopyId: stored ? "cpy-1" : null, copies: stored ? [{ copyId: "cpy-1", entryId: "wh-1", fileName: "Item.zip", artifactSha256: `sha256:${"a".repeat(64)}`, presence: "present" }] : [] },
+        { downloadableId: 2, fileName: "Manual_and_terms.pdf", managedCopyId: null, copies: [] },
+      ] };
     }
     case "catalog.status": return { schemaVersion: "0.6", operation: method, result: { total: catalog.length, health: "ok" } };
     case "catalog.detail": {
       const card = catalog.find(item => item.product.productId === input.productId);
       if (!card) return null;
-      return { schemaVersion: "0.6", operation: method, result: { product: { ...card.product, description: "Synthetic description of this product.", sourceCategory: "3D Avatar", videoUrls: [], subproducts: [] } } };
+      const hue = Number(card.product.productId.slice(6)) * 47 % 360;
+      const pictures = [card.product.imageUrl, label("Front", (hue + 30) % 360), label("Side", (hue + 60) % 360), label("Back", (hue + 90) % 360), label("Colors", (hue + 120) % 360)];
+      return { schemaVersion: "0.6", operation: method, result: { product: { ...card.product, imageUrls: pictures, description: Array.from({ length: 14 }, (_, line) => `Synthetic description, line ${line + 1}: what this product includes and how it was made.`).join("\n"), sourceCategory: "3D Avatar", videoUrls: [], subproducts: [] } } };
     }
     case "catalog.productDownloadables": return { schemaVersion: "0.6", operation: method, result: { downloadables: [] } };
     case "warehouse.listEntries": return { schemaVersion: "0.6", operation: method, result: { entries: libraryRows.filter(row => row.kind === "local").map(row => (row as typeof localEntry).entry) } };
     case "warehouse.entryDetail": return { schemaVersion: "0.6", operation: method, result: { entry: { ...localEntry.entry, artifacts: localEntry.entry.artifacts.map(artifact => ({ ...artifact, suggestedFileName: null, inspectedAt: null, rejectionReason: null, sourceCorrelated: false, mappedProductIds: [] })) } } };
     case "library.entryMetadata": return { schemaVersion: "0.1", metadata: null };
-    case "terms.getProduct": return null;
+    case "terms.getProduct": {
+      const facts = vn3Facts[input.productId];
+      if (facts?.state === "readable") return swapProduct(await termsPreviewPort("terms-parsed").product(input.productId), input.productId);
+      return swapProduct(await termsPreviewPort(facts?.state === "unreadable" ? "terms-link" : "terms-unread").product(input.productId), input.productId);
+    }
+    case "terms.checkUse": return swapProduct(await termsPreviewPort("terms-parsed").checkUse(input.presetId, ["booth:1"]), input.productIds[0]);
     case "amf.production.list": return { schemaVersion: "0.1", sources: sourcesForList, editors: [editor], busy: lineRecords["n3-running"] !== undefined, capacity: 1, queue: [],
       running: lineRecords["n3-running"] ? [{ taskId: "task-n3-running", runId: "n3-running", operation: "amf.production.prepare" }] : [],
       runs: Object.values(lineRecords).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(source => source.itemName) })) };
     case "amf.production.get": return lineRecords[input.runId] ?? null;
-    case "amf.production.listRecipes": return { schemaVersion: "0.1", recipes: noLines ? [] : [{ recipeId: "r-1", title: "Meiyun T恤短裤", revision: 1, updatedAt: "2026-10-30T03:00:00Z" }] };
-    case "amf.production.getRecipe": return { schemaVersion: "0.1", document: recipeDocument(input.recipeId, "Meiyun T恤短裤") };
+    case "amf.production.listRecipes": return { schemaVersion: "0.1", recipes: noLines ? [] : [{ recipeId: "r-1", title: "Meiyun T恤短裤", revision: 1, updatedAt: "2026-10-30T03:00:00Z" }, { recipeId: "r-2", title: "Karin 水手服", revision: 3, updatedAt: "2026-11-02T03:00:00Z" }] };
+    case "amf.production.getRecipe": return { schemaVersion: "0.1", document: recipeDocument(input.recipeId, input.recipeId === "r-2" ? "Karin 水手服" : "Meiyun T恤短裤") };
+    case "amf.production.recipeMaterialPlan": {
+      const document = recipeDocument(input.recipeId, "plan");
+      const status = (material: { boothProductId?: string }) => input.recipeId === "r-2" && material.boothProductId === "105" ? "material_not_downloaded" : "ready";
+      const materials = document.recipe.materials.map(item => ({ materialId: item.id, packageName: item.packageName, boothProductId: (item as { boothProductId?: string }).boothProductId ?? null, status: status(item), resolved: status(item) === "ready" ? { sourceId: `src-${item.id}`, packageName: item.packageName, sha256: item.sha256 } : null, candidates: [], downloadNames: [] }));
+      return { schemaVersion: "0.1", plan: { recipeId: input.recipeId, materials, materialChoices: {}, ready: materials.every(item => item.status === "ready"), planDigest: "c".repeat(64) } };
+    }
     case "amf.production.listFits": return { schemaVersion: "0.1", fits: [] };
     case "amf.production.previewImage": return null;
     case "amf.production.releaseState": return { schemaVersion: "0.1", runId: input.runId, editorOpen: false, turntable: null, uploads: [] };

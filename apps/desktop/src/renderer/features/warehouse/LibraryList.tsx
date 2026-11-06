@@ -3,13 +3,14 @@ import { termsEverywhereCopy } from "../../i18n/index.ts";
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Button } from "../../components/primitives/Button.tsx";
 import { format, strings } from "../../i18n/index.ts";
+import type { LibrarySort } from "@vua/contracts";
 import type { LibraryCardFacts } from "../../gateway/index.ts";
 
 const copy = strings.warehouse.listColumns;
 const minimums = [180, 100, 100, 100] as const;
 
 /** Shared tracks for the header, account products and local imports. */
-export function useLibraryColumns() {
+export function useLibraryColumns(sort?: LibrarySort, onHeaderSort?: (column: "title" | "shop") => void) {
   const [weights, setWeights] = useState<readonly number[]>([3.2, 1.6, 1.5, 1]);
   const cleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => cleanup.current?.(), []);
@@ -20,8 +21,11 @@ export function useLibraryColumns() {
     setWeights(next);
   };
   const header = <div className="vua-library-list__header" style={style} role="row">
-    {[copy.title, copy.shop, copy.variant, copy.source].map((name, index) => <div className="vua-library-list__heading" key={name} role="columnheader">
-      {name}
+    {[copy.title, copy.shop, copy.variant, copy.source].map((name, index) => <div className="vua-library-list__heading" key={name} role="columnheader"
+      aria-sort={index === 0 ? sort === "title_asc" ? "ascending" : sort === "title_desc" ? "descending" : "none" : index === 1 ? sort === "shop_asc" ? "ascending" : "none" : undefined}>
+      {index < 2 && onHeaderSort ? <button type="button" className="vua-library-list__sort" data-sorted={index === 0 ? sort === "title_asc" || sort === "title_desc" || undefined : sort === "shop_asc" || undefined} onClick={() => onHeaderSort(index === 0 ? "title" : "shop")}>
+        {name}<span aria-hidden="true">{index === 0 ? sort === "title_asc" ? "▲" : sort === "title_desc" ? "▼" : "" : sort === "shop_asc" ? "▲" : ""}</span>
+      </button> : name}
       {index < 3 ? <span role="separator" tabIndex={0} aria-orientation="vertical" aria-label={format(copy.resize, { name })}
         className="vua-library-list__resize"
         onPointerDown={event => {
@@ -54,7 +58,7 @@ export function libraryListSource(facts: LibraryCardFacts | undefined, origin: "
 /** One plain source value; detail facts stay in the detail panel. */
 export function LibraryListRow({ id, productId, title, shop, variant, variantCount, source, use, selected, style, onSelect, onOpen, onMenu }: {
   id: string; productId?: string | undefined; title: string; shop?: string | null | undefined; variant?: string | null | undefined; variantCount?: number | undefined;
-  use?: LibraryCardFacts["use"]; source: ReturnType<typeof libraryListSource>; selected: boolean; style: CSSProperties; onSelect: () => void; onOpen: () => void; onMenu: (event: MouseEvent<HTMLElement>) => void;
+  use?: LibraryCardFacts["use"]; source: ReturnType<typeof libraryListSource>; selected: boolean; style: CSSProperties; onSelect: (event: MouseEvent<HTMLElement>) => void; onOpen: () => void; onMenu: (event: MouseEvent<HTMLElement>) => void;
 }) {
   const variation: ReactNode = (variantCount ?? 0) > 1 ? format(copy.variants, { count: variantCount! }) : variant || "—";
   return <div className="vua-warehouse-list-row" style={style} data-selected={selected || undefined} data-product-id={productId} data-selection-id={id}

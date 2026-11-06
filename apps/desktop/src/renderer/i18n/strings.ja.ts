@@ -1767,7 +1767,7 @@ rolled_back: "ロールバック済み",
       "removeNote": "一覧の VUA 管理ファイルのみ削除します。商品記録とレシピ参照は保持します。"
     },
     filters: {
-      category: "BOOTH カテゴリ", categoryAll: "すべての BOOTH カテゴリ", categoryUnknown: "カテゴリ未記録",
+      category: "BOOTH カテゴリ", categoryAll: "すべてのカテゴリ", categoryUnknown: "カテゴリ未記録",
       source: "ライブラリソース",
       sourceAll: "すべてのソース",
       sourceBought: "購入アイテム",

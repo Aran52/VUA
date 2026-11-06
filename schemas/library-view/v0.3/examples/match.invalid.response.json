@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "0.3",
+  "total": 1,
+  "offset": 0,
+  "limit": 50,
+  "items": [
+    {
+      "kind": "product",
+      "product": {
+        "productId": "booth:1",
+        "title": "Synthetic",
+        "libraryType": "bought",
+        "importedArtifacts": 0,
+        "shopName": "Shop",
+        "variantName": null,
+        "price": {
+          "amount": "1000",
+          "currency": "JPY"
+        },
+        "imageUrl": null,
+        "imageUrls": [],
+        "availabilityRaw": null,
+        "availabilityStatus": "available",
+        "entityCount": 0,
+        "entityTypes": []
+      },
+      "sources": [
+        "bought"
+      ],
+      "sourceCategory": "3D Models",
+      "variantCount": 0,
+      "storage": {
+        "state": "cloud_only",
+        "storedCopies": 0,
+        "presentCopies": 0,
+        "missingCopies": 0,
+        "changedCopies": 0,
+        "unreadableCopies": 0,
+        "supersededGeneratedCopies": 0,
+        "currentGeneratedCopies": 0,
+        "productionQualification": "not_evaluated"
+      },
+      "copyIds": [],
+      "operation": null,
+      "addedAt": "2026-11-01T00:00:00Z",
+      "publishedAt": null,
+      "sizeBytes": 0,
+      "vn3": {
+        "state": "readable",
+        "match": "maybe",
+        "hasSpecialNote": false
+      }
+    }
+  ]
+}

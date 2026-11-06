@@ -1,5 +1,6 @@
 import { formatDateTime } from "./i18n/index.ts";
 import { Suspense, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useSidebarGlide } from "./components/use-sidebar-glide.ts";
 import type { DesktopShellCommandV1, GuideTargetV1 } from "@vua/contracts";
 import { saveDebugMode, useDebugMode } from "./app/debug-mode.ts";
 import {
@@ -671,6 +672,8 @@ function AppShell({
   // Retired layout preferences never change the ordinary desktop shell.
   useEffect(() => { try { localStorage.removeItem(storageKeys.retiredDisplayMode); } catch { /* Ignored even when storage is unavailable. */ } }, []);
   const settingsOpen = page.startsWith("settings-");
+  const sidebarRef = useRef<HTMLElement>(null);
+  useSidebarGlide(sidebarRef, page, settingsOpen ? "settings" : "directory");
   // Settings temporarily covers the source page; its local workflow stays mounted.
   const [settingsReturn, setSettingsReturn] = useState<PageId | null>(() => {
     const saved = window.history.state?.vuaSettingsReturn;
@@ -1046,7 +1049,7 @@ function AppShell({
       </header>
       <ThemeCommandBar page={page} navigate={navigate} openSettings={() => settingsOpen ? returnFromSettings() : navigate("settings-theme")} />
       <div className="vua-shell__body">
-        <aside className={`vua-shell__sidebar${settingsOpen ? " vua-shell__sidebar--settings" : ""}`} aria-label={settingsOpen ? strings.nav.tabs.settings : strings.app.sidebarAria}>
+        <aside ref={sidebarRef} className={`vua-shell__sidebar${settingsOpen ? " vua-shell__sidebar--settings" : ""}`} aria-label={settingsOpen ? strings.nav.tabs.settings : strings.app.sidebarAria}>
           <SkinMotif slot="page-corner" className="vua-shell__skin-motif" />
           {settingsOpen ? <div className="vua-shell__sidebar-group vua-shell__sidebar-group--settings" data-module="settings">
             {moduleDef("settings").groups.flatMap(g => g.pages).map(p => <button type="button" key={p.id} className="vua-shell__sidebar-item" aria-current={page === p.id ? "page" : undefined} onClick={() => navigate(p.id)} data-nav-id={`nav-${p.id}`}>{pageLabel(p)}</button>)}

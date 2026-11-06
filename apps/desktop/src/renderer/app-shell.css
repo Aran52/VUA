@@ -349,6 +349,11 @@
   font-weight: 600;
 }
 
+/* The highlight travels to a newly chosen item; the item shows its own once it has arrived. */
+.vua-shell__sidebar-glide { position: absolute; z-index: 0; pointer-events: none; }
+.vua-shell__sidebar-item[data-arriving] { background: transparent !important; box-shadow: none !important; }
+
+
 /* A theme's selection glyph sits at the end of the current item. */
 .vua-shell__sidebar-item[aria-current="page"]::after {
   content: var(--vua-motif-glyphs, none);

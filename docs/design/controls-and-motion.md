@@ -250,6 +250,7 @@ of the design standard's earlier §7:
 | drawer | slide from its edge, slow |
 | toast | slide 8 px from the stack edge with fade, normal; leaves by fading |
 | tab or segment change | the selected fill and bar move over normal; content cross-fades over normal |
+| sidebar selection | the highlight travels to the chosen item over normal, and the item takes over with no fade |
 | page change | content fades over normal; no sliding pages |
 | content changing in place (a wizard page, a guide topic, another production line, a station's panel) | content fades over normal, without remounting |
 | details and disclosures | height opens over normal with entrance easing and closes in two thirds of it; the triangle turns over fast |

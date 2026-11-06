@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useGateway, useTaskCenter, type AmfProductionList } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { phaseStatus, storedHiddenLines, type LineStatus } from "../amf/factory-model.ts";
+import { lineName } from "../amf/line-presentation.ts";
 
 export interface SummaryLine { readonly runId: string; readonly status: LineStatus; readonly name: string }
 export interface LineSummary {
@@ -22,12 +23,11 @@ export interface LineSummary {
 
 export const emptyLineSummary: LineSummary = { loaded: false, materials: 0, hasEditor: true, recipes: null, lines: [], running: 0, waiting: 0, attention: 0, finished: 0 };
 
-const lineName = (names: readonly string[]) => (names[0] ?? "").replace(/\.zip$/iu, "");
 
 export function summarizeLines(list: Pick<AmfProductionList, "runs" | "sources" | "editors">, recipes: number | null, hidden: ReadonlySet<string>): LineSummary {
   const lines: SummaryLine[] = [...new Map(list.runs.map(run => [run.runId, run] as const)).values()]
     .filter(run => !hidden.has(run.runId))
-    .map(run => ({ runId: run.runId, status: phaseStatus(run.phase), name: lineName(run.sourceNames) }));
+    .map(run => ({ runId: run.runId, status: phaseStatus(run.phase), name: lineName(run.runId, run.sourceNames[0] ?? "") }));
   const count = (status: LineStatus) => lines.filter(line => line.status === status).length;
   return { loaded: true, materials: list.sources.length, hasEditor: list.editors.length > 0, recipes, lines,
     running: count("running"), waiting: count("waiting"), attention: count("attention"), finished: count("finished") };

@@ -153,7 +153,7 @@ async function run() {
     if (localeCase === "native") {
       main.setSize(960, 600);
       for (const locale of ["zh-CN", "zh-TW", "en", "ja", "ko"]) {
-        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-tour-progress");localStorage.removeItem("vua-context-guide-v1");sessionStorage.removeItem("vua-context-guide-snoozed-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
+        const reset = 'localStorage.setItem("vua-locale",' + JSON.stringify(locale) + ');localStorage.removeItem("vua-goals");localStorage.removeItem("vua-tour-progress");localStorage.removeItem("vua-context-guide-v1");localStorage.removeItem("vua-beginner-wizard-v1");localStorage.setItem("vua-theme","dark");history.replaceState(null,"",location.pathname+location.search)';
         await reload(reset);
         await waitFor(firstUseNotice, locale + " notice");
         assert(await js('document.documentElement.lang===' + JSON.stringify(locale) + ' && !document.querySelector(".vua-onboarding select")'), locale + " respects the saved language without asking again");
@@ -214,7 +214,7 @@ async function run() {
       await waitFor(home, "complete explicit tour baseline");
       const savedGoals = await js('localStorage.getItem("vua-goals")');
       await startTour();
-      for (const step of ["welcome", "route", "checks", "plan", "network", "tools", "creator", "tasks", "guide", "settings"]) {
+      for (const step of ["welcome", "route", "checks", "plan", "tools", "creator", "network", "tasks", "settings", "guide"]) {
         await waitFor(() => js(`document.querySelector(".vua-tour")?.dataset.tourStep===${JSON.stringify(step)} && ${step === "welcome" ? "true" : '!!document.querySelector(".vua-tour__highlight")'}`), `${step} highlight`);
         assert(await js('!document.querySelector(".vua-tour").hasAttribute("data-absent")') && await fits(".vua-tour__card"), `${step} points to an available feature and fits the window`);
         if (step === "creator") await capture(main, "tour-creator-zh");

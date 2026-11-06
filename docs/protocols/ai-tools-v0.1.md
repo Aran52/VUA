@@ -64,7 +64,7 @@ The two Steam tools accept the `toolId` values from `EXTERNAL_TOOL_IDS` in
 For example, `vua_tool_status {"toolId":"space"}` reads Space Calibrator's installation and
 process facts. `vua_request_tool {"toolId":"space","action":"start"}` queues a request for the
 player to approve on the Tools page before dispatch. Actions and observed fields follow
-[external tool connection v0.2](external-tool-v0.2.md). Installation or a running process does
+[external tool connection v0.3](external-tool-v0.3.md). Installation or a running process does
 not establish module, hardware, tracking or OSC configuration.
 
 `vua_amf_plan` without a selection plans VUA's [recommendation](amf-production-v0.1.md) and returns

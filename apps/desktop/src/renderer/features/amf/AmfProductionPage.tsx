@@ -15,7 +15,9 @@ import { toast } from "../../components/primitives/toast-store.ts";
 import { currentLocale, strings, presentationCopy, format, formatDateMinute, formatShortDateTime, termLabel } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
-import { compactSourceLabel } from "./line-presentation.ts";
+import { lineName, rememberLineName, storedLineNames } from "./line-presentation.ts";
+import { AmfRecipeImportDialog } from "./AmfRecipeImportDialog.tsx";
+import { MaterialThumb, useMaterialImages } from "./PlanImages.tsx";
 import { initialProductionSelection, sameSelection, updateOutfitSelection } from "./production-selection-model.ts";
 import { MaterialPicker } from "./MaterialPicker.tsx";
 import { StatusChip, WorkshopRail, type RailLine } from "./WorkshopRail.tsx";
@@ -30,7 +32,7 @@ import { recommendAssembly, type AmfRecommendation } from "@vua/contracts";
 import "./amf-production.css";
 import { AmfRecipeLibrary } from "./AmfRecipeLibrary.tsx";
 import { AmfCandidateGallery, AmfResultViews } from "./AmfPreviews.tsx";
-import { onProductionRunRequested, takeRequestedNewProductionLine, takeRequestedProductionRecipe, takeRequestedProductionRun } from "./production-recipe-navigation.ts";
+import { onProductionRunRequested, takeRequestedNewProductionLine, takeRequestedProductionRecipe, takeRequestedProductionRun, requestTurntable } from "./production-recipe-navigation.ts";
 import { requestLicenseStep } from "../deployer/license-step-navigation.ts";
 import { isUnityLicenseFailure, productionErrorMessage } from "./unity-license-failure.ts";
 import { assemblesWithoutAsking, interruptedChange, AUTOMATION_LEVELS, currentStation, lineBusy, lineStations, lineStatus, phaseStatus, rememberAutomationLevel, STATIONS, storedAutomationLevel, type AutomationLevel, type LineStatus, type StationKey, needsFullAutoNotice } from "./factory-model.ts";
@@ -105,6 +107,9 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [opened, setOpened] = useState<string | null>(null);
   const [recipeRefresh, setRecipeRefresh] = useState(0);
   const [recipePreview, setRecipePreview] = useState<AmfSavedRecipe | null>(null);
+  const [importingRecipe, setImportingRecipe] = useState(false);
+  const [lineNames, setLineNames] = useState(storedLineNames);
+  const materialImage = useMaterialImages();
   const [sharingRecipe, setSharingRecipe] = useState<string | null>(null);
   const [applyingRecipe, setApplyingRecipe] = useState(false);
   const [savedRecipe, setSavedRecipe] = useState<AmfSavedRecipe | null>(null);
@@ -232,6 +237,10 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     } catch (e) { fail(e); }
     finally { setRequesting(false); }
   };
+  const openRecipe = (recipeId: string) => {
+    if (!port) return; setRequesting(true); setError(null);
+    void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
+  };
   const newPreparation = () => { initialized.current = ""; setChosenStation(null); setChanging(null); setRunId(""); setRun(null); setPlan(null); setRestorePlan(null); setRestored(false); setSelection(blank); setError(null); remember(runKey, ""); void refreshList(); };
   const prepareRecipe = async () => {
     if (!port || busy || !recipePreview) return;
@@ -300,7 +309,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
 
   const panels = factory.panels;
   // One card per run, even if a list read ever repeats an entry.
-  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: recent.runId === run?.runId ? objectName : compactSourceLabel(recent.sourceNames[0] ?? "") || ui.unknownAvatar,
+  const lines: RailLine[] = [...new Map((list?.runs ?? []).map(recent => [recent.runId, recent] as const)).values()].map(recent => ({ runId: recent.runId, name: lineName(recent.runId, recent.sourceNames[0] ?? "", lineNames) || ui.unknownAvatar,
     extra: runStartedAt(recent.runId) ? labels.get(recent.runId)?.extra ?? null : null, status: recent.runId === run?.runId && run ? lineStatus(run) : phaseStatus(recent.phase) }));
   // Without a chosen station the page shows where the line is: planning, the finished check, or the running station.
   const shown: StationKey = chosenStation ?? (run === null || states === null ? "prepare" : plan !== null ? "plan"
@@ -354,10 +363,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
     : run.choices.map(choice => { const source = list?.sources.find(item => item.sourceId === choice.sourceId); return { id: choice.sourceId, item: source?.itemName ?? choice.sourceId, name: source?.name ?? "" }; });
 
   return <div className="vua-page vua-n3 vua-workshop">
-    <WorkshopRail lines={lines} current={runId} onSelect={selectLine} onNew={newPreparation}
+    <WorkshopRail lines={lines} current={runId} onSelect={selectLine} onNew={newPreparation} onRename={(id, name) => setLineNames(rememberLineName(id, name))}
       capacity={list ? { value: list.capacity, changeable: list.running.length === 0 && list.queue.length === 0 } : undefined}
       onDeleting={id => { if (id === runId) newPreparation(); }} onDeleted={() => { void refreshList(); }} onError={setError} refresh={() => { void refreshList(); }} />
     <div className="vua-workshop__main">
+    {importingRecipe && <AmfRecipeImportDialog onClose={() => setImportingRecipe(false)} onImported={() => setRecipeRefresh(value => value + 1)}
+      onOpen={recipeId => { setImportingRecipe(false); newPreparation(); openRecipe(recipeId); }} />}
     <FullAutoConfirm reason={confirmFull} onCancel={() => setConfirmFull(null)}
       onConfirm={reason => { setConfirmFull(null); if (reason === "switch") applyLevel("full"); else void command("prepare"); }} />
     {taskQueued && taskId !== null && <Alert tone="info" action={<Button variant="subtle" onClick={() => { void gateway.task.cancel(taskId).catch(() => {}); }} data-nav-id="workshop-queue-remove">{factory.queued.remove}</Button>}>{format(factory.queued.hint, { count: queuedAhead })}</Alert>}
@@ -375,14 +386,11 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>
         <div className="vua-n3__actions"><Button variant="subtle" onClick={() => setRecipePreview(null)}>{copy.back}</Button><Button variant="primary" disabled={busy} onClick={() => { void prepareRecipe(); }}>{copy.recipeReproduce}</Button></div>
       </Card>}
-      {!recipePreview && <div className="vua-line__start-from" role="tablist" aria-label={factory.newLine}>
+      {!recipePreview && <div className="vua-line__start-row"><div className="vua-line__start-from" role="tablist" aria-label={factory.newLine}>
         {(["materials", "recipe"] as const).map(option => <button type="button" role="tab" key={option} aria-selected={startFrom === option}
           data-nav-id={`workshop-start-${option}`} onClick={() => setStartFrom(option)}>{option === "materials" ? start.fromMaterials : start.fromRecipe}</button>)}
-      </div>}
-      {!recipePreview && startFrom === "recipe" && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={recipeId => {
-        if (!port) return; setRequesting(true); setError(null);
-        void port.getRecipe(recipeId).then(setRecipePreview).catch(e => setError(productionErrorMessage(e, copy.taskFailed))).finally(() => setRequesting(false));
-      }}/>}
+      </div><Button disabled={busy} data-nav-id="workshop-import-recipe" onClick={() => setImportingRecipe(true)}>{copy.importRecipe}</Button></div>}
+      {!recipePreview && startFrom === "recipe" && <AmfRecipeLibrary refreshKey={recipeRefresh} disabled={busy} onOpen={openRecipe}/>}
       {!recipePreview && startFrom === "materials" && (list === null ? <Card><EmptyState title={requesting || error === null ? copy.loading : unavailable} /></Card>
         : list.sources.length === 0 ? <Card><EmptyState title={start.noMaterials} action={<Button variant="primary" data-nav-id="workshop-import-materials" onClick={() => onNavigate("warehouse")}>{start.importMaterials}</Button>} /></Card>
         : <>
@@ -401,7 +409,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         </>)}
     </> : <>
       <header className="vua-line__header">
-        <div className="vua-line__object"><h1 className="vua-title">{objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
+        <div className="vua-line__object"><h1 className="vua-title">{(run && lineName(run.runId, run.sources[0]?.itemName ?? list?.runs.find(item => item.runId === run.runId)?.sourceNames[0] ?? "", lineNames)) || objectName}</h1><span className="vua-caption vua-text-secondary">{format(ui.materials, { count: materials.length })}</span></div>
         {status && <StatusChip status={status}/>}
         <SkinMotif slot="control-panel-corner" className="vua-line__skin-motif" />
         <PermissionModePicker value={effective} onChoose={chooseLevel} />
@@ -453,9 +461,12 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
       </Card>}
       {shown === "prepare" && <Card className="vua-line__panel">
         <h2>{panels.materials.title}</h2>
-        {changing === null && <ul className="vua-line__materials">{materials.map(item => <li key={item.id}><strong>{item.item}</strong>{item.name && <small>{item.name}</small>}</li>)}</ul>}
+        {changing === null && <ul className="vua-line__materials">{materials.map(item => <li key={item.id}>
+          <MaterialThumb src={materialImage(list?.sources.find(source => source.sourceId === item.id))} />
+          <span><strong>{item.item}</strong>{item.name && <small>{item.name}</small>}</span></li>)}</ul>}
         {ftLocked && <FtLockNote onRestore={ftRestore} onNewLine={newPreparation} disabled={busy} />}
-        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange || ftLocked} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button></div> : <>
+        {changing === null ? <div className="vua-n3__actions"><Button disabled={!canChange || ftLocked} onClick={() => setChanging(currentIds)} data-nav-id="workshop-change-materials">{panels.materials.change}</Button>
+          <Button disabled={busy} data-nav-id="workshop-line-import-recipe" onClick={() => setImportingRecipe(true)}>{copy.importRecipe}</Button></div> : <>
           <h3>{panels.materials.changeTitle}</h3>
           <MaterialPicker sources={list?.sources ?? []} chosen={changing} onChange={setChanging} disabled={busy} />
           {sameMaterials && <p className="vua-caption vua-text-secondary">{panels.materials.unchanged}</p>}
@@ -570,7 +581,7 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
         {run.result?.facts?.sdkSignedIn === "no" && <p className="vua-text-secondary">{copy.sdkSignIn}</p>}
         {!!run.result?.facts?.missingReferences && <p className="vua-n3__notice">{copy.warning}</p>}
         {run.result?.diagnostics?.filter(d => d.severity !== "info" && d.code !== "amf.shaders.missing").map(d => <p className="vua-caption vua-text-secondary" key={d.code}>{d.message}</p>)}
-        <div className="vua-n3__actions"><Button disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button><Button variant="primary" onClick={() => onNavigate("release")} data-nav-id="workshop-to-release">{start.toFinished}</Button></div>
+        <div className="vua-n3__actions"><Button disabled={busy} onClick={() => { void command("open"); }} data-nav-id="workshop-open">{taskAction === "open" ? copy.opening : copy.open}</Button><Button variant="primary" onClick={() => { if (effective === "full") requestTurntable(run.runId); onNavigate("release"); }} data-nav-id="workshop-to-release">{start.toFinished}</Button></div>
         {opened === runId && taskAction !== "open" && <p role="status"><Icon name="check" size={16}/> {copy.opened}</p>}
         {taskAction === "closeEditor" && <p role="status" className="vua-caption vua-text-secondary">{editorClose.closing}</p>}
         {(taskAction === "open" || opened === runId) && <p className="vua-caption vua-text-secondary">{copy.openedPanel}</p>}

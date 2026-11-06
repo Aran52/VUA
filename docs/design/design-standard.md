@@ -181,12 +181,12 @@ capability. Finished Avatars uses the same title in its card, sidebar and page h
 
 The environment directory contains **Play** and **Avatar editing** (游玩 / 改模), plus Tools
 and Help. Remove
-Software & connections as a separate feature. Play owns network diagnostics and runtime facts.
-Its network tile sits above the environment grid and has the same height as an environment card.
+Software & connections as a separate feature. Play owns runtime facts; latency sits in the top bar.
 Play cards are half their former height: 88 px.
 Arrange the icon/title and state/action compactly without clipping content or merging the halves.
-Each environment card has two equal halves separated by one thin line: the left toggles
-details, and the right combines current status with the current action. Show + for missing
+Each environment card has two parts separated by one thin line: the left, two thirds wide, toggles
+details and names the item with one line on what it is; the right combines current status with the
+current action in words. Show + for missing
 software, a spinner for preparation/start/close, a warning triangle for problems, Play after
 fresh file verification, and × for an active card session. Keep details accessible during work.
 A normal manual game exit is not a warning. Label × **Close** even when only this card's

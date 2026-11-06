@@ -6,7 +6,7 @@ import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type Am
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
 import { sdkMessageKey } from "./sdk-messages.ts";
 import { UploadGuide, scrollToUploadGuide } from "./UploadGuide.tsx";
-import { avatarTitle, materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
+import { materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
 const vrchatCopy = strings.vrchat.release;
@@ -228,8 +228,8 @@ function UploadResult({ upload, onCheckAgain, check, onRefreshCheck, onOpenOnVrc
 }
 
 /** The right page. A turning page shows the same content without its controls. */
-export function ReleaseSheet({ run, state, number, live, actions, notice, terms, avatarCheck, onRefreshAvatarCheck, onOpenOnVrchat }: {
-  run: AmfProductionRun; state: AmfReleaseState | null; number: number; live: boolean; actions?: SheetActions; notice?: ReactNode;
+export function ReleaseSheet({ run, title, state, number, live, actions, notice, terms, avatarCheck, onRefreshAvatarCheck, onOpenOnVrchat }: {
+  run: AmfProductionRun; title: string; state: AmfReleaseState | null; number: number; live: boolean; actions?: SheetActions; notice?: ReactNode;
   /** The terms check of the line's materials, shown before the upload. */
   terms?: ReactNode;
   avatarCheck?: VrchatAvatarCheck | null; onRefreshAvatarCheck?: () => void;
@@ -246,7 +246,7 @@ export function ReleaseSheet({ run, state, number, live, actions, notice, terms,
   return <div className="vua-album__sheet">
     <header className="vua-album__heading">
       <span className="vua-album__number">{format(copy.number, { number: String(number).padStart(2, "0") })}</span>
-      <h2>{avatarTitle(run)}</h2>
+      <h2>{title}</h2>
       <p className="vua-text-secondary">{materialsLine(run)}</p>
       {run.completedAt && <p className="vua-caption vua-text-secondary">{format(copy.finishedAt, { time: time(run.completedAt) })}</p>}
     </header>

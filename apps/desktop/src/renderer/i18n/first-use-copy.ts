@@ -6,7 +6,7 @@ const en = {
     "purposeTitle": "What VUA helps with",
     "purpose": "Prepare VRChat software, understand the next step, and assemble Avatars from materials you own. Sign-ins and the final SDK upload stay with you.",
     "changesTitle": "In this version",
-    "changes": "A station list, library migration grouping, estimates before assembly, and clearer setup guidance.",
+    "changes": "One directory, a Home that lists what is waiting, buttons that name the next step, and reinstalling from inside VUA.",
     "changelog": "Read the changelog",
     "sourceTitle": "Open source and free",
     "source": "VUA is open source under Apache 2.0 and free to download on GitHub.",
@@ -14,8 +14,8 @@ const en = {
     "licensesTitle": "Third-party licenses",
     "licenses": "Bundled software and connected tools have their own licenses.",
     "licensesLink": "Read third-party licenses",
-    "enter": "Got it",
-    "beginner": "I have no idea what to do"
+    "enter": "Start the VUA feature tour",
+    "beginner": "New to VRChat: getting started"
   },
   "vrchat": {
     "id": "what-is-vrchat",
@@ -26,14 +26,14 @@ const en = {
     ]
   },
   "wizard": {
-    "title": "Getting started",
-    "progress": "Concept {current} of {total}",
-    "want": "I want this",
-    "know": "Got it",
-    "previous": "Previous concept",
+    "title": "VRChat getting started",
+    "progress": "Page {current} of {total}",
+    "want": "Go to {page}",
+    "next": "Next page",
+    "finish": "Finish",
+    "previous": "Previous page",
     "article": "Read the full explanation",
-    "manual": "VUA manual",
-    "unavailable": "This explanation is unavailable. Open Help to choose another topic."
+        "unavailable": "This explanation is unavailable. Open Help to choose another topic."
   }
 };
 
@@ -46,7 +46,7 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "purposeTitle": "VUA 能做什么",
     "purpose": "准备 VRChat 所需软件，解释下一步，并用已有素材组装模型。账号登录和 SDK 最终上传由玩家完成。",
     "changesTitle": "此版本更新",
-    "changes": "工位列表、资料库迁移分组、组装前预估，以及更清晰的准备引导。",
+    "changes": "目录合而为一，首页列出待处理的事项，按钮写明下一步，还能在 VUA 里重新安装软件。",
     "changelog": "查看更新日志",
     "sourceTitle": "开源与免费下载",
     "source": "VUA 以 Apache 2.0 开源，可在 GitHub 免费下载。",
@@ -54,8 +54,8 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "licensesTitle": "第三方许可证",
     "licenses": "随附软件和连接的工具各自遵循其许可证。",
     "licensesLink": "查看第三方许可证",
-    "enter": "知道了",
-    "beginner": "我完全不知道要做什么"
+    "enter": "开始 VUA 功能导览",
+    "beginner": "还不了解 VRChat：入门向导"
   },
   "vrchat": {
     "id": "what-is-vrchat",
@@ -66,14 +66,14 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     ]
   },
   "wizard": {
-    "title": "入门向导",
-    "progress": "第 {current} / {total} 个概念",
-    "want": "我要这个",
-    "know": "我知道了",
-    "previous": "上一个概念",
+    "title": "VRChat 入门向导",
+    "progress": "第 {current} / {total} 页",
+    "want": "跳转至 {page}",
+    "next": "下一页",
+    "finish": "完成",
+    "previous": "上一页",
     "article": "查看完整说明",
-    "manual": "VUA 使用手册",
-    "unavailable": "这条说明暂不可用。可在帮助中选择其他主题。"
+        "unavailable": "这条说明暂不可用。可在帮助中选择其他主题。"
   }
 },
   "zh-TW": {
@@ -82,7 +82,7 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "purposeTitle": "VUA 能做什麼",
     "purpose": "準備 VRChat 所需軟體，說明下一步，並以已有素材組裝模型。帳號登入與 SDK 最終上傳由玩家完成。",
     "changesTitle": "此版本更新",
-    "changes": "工作站清單、素材庫移轉分組、組裝前預估，以及更清楚的準備引導。",
+    "changes": "目錄合而為一，首頁列出待處理的事項，按鈕寫明下一步，還能在 VUA 裡重新安裝軟體。",
     "changelog": "查看更新紀錄",
     "sourceTitle": "開放原始碼與免費下載",
     "source": "VUA 以 Apache 2.0 開放原始碼，可在 GitHub 免費下載。",
@@ -90,8 +90,8 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "licensesTitle": "第三方授權條款",
     "licenses": "隨附軟體與連接的工具各自遵循其授權條款。",
     "licensesLink": "查看第三方授權條款",
-    "enter": "知道了",
-    "beginner": "我完全不知道要做什麼"
+    "enter": "開始 VUA 功能導覽",
+    "beginner": "還不了解 VRChat：入門精靈"
   },
   "vrchat": {
     "id": "what-is-vrchat",
@@ -102,14 +102,14 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     ]
   },
   "wizard": {
-    "title": "入門精靈",
-    "progress": "第 {current} / {total} 個概念",
-    "want": "我要這個",
-    "know": "我知道了",
-    "previous": "上一個概念",
+    "title": "VRChat 入門精靈",
+    "progress": "第 {current} / {total} 頁",
+    "want": "跳轉至 {page}",
+    "next": "下一頁",
+    "finish": "完成",
+    "previous": "上一頁",
     "article": "查看完整說明",
-    "manual": "VUA 使用手冊",
-    "unavailable": "這則說明暫時無法使用。可在說明中選擇其他主題。"
+        "unavailable": "這則說明暫時無法使用。可在說明中選擇其他主題。"
   }
 },
   "ja": {
@@ -118,7 +118,7 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "purposeTitle": "VUA でできること",
     "purpose": "VRChat に必要なソフトを準備し、次の手順を案内し、手持ちの素材からアバターを組み立てます。ログインと SDK での最終アップロードはプレイヤーが行います。",
     "changesTitle": "このバージョンの変更",
-    "changes": "工程一覧、ライブラリ移行時のグループ分け、組み立て前の見積もり、準備手順の案内を追加しました。",
+    "changes": "目次を一つにまとめ、ホームに対応待ちの項目を表示し、ボタンに次の操作を記載しました。VUA から再インストールもできます。",
     "changelog": "変更履歴を読む",
     "sourceTitle": "オープンソース・無料配布",
     "source": "VUA は Apache 2.0 のオープンソースソフトウェアです。GitHub から無料でダウンロードできます。",
@@ -126,8 +126,8 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "licensesTitle": "サードパーティーのライセンス",
     "licenses": "同梱ソフトウェアと連携ツールには、それぞれのライセンスが適用されます。",
     "licensesLink": "サードパーティーのライセンスを読む",
-    "enter": "わかりました",
-    "beginner": "何から始めればよいかわかりません"
+    "enter": "VUA 機能ツアーを開始",
+    "beginner": "VRChat が初めて：入門ガイド"
   },
   "vrchat": {
     "id": "what-is-vrchat",
@@ -138,14 +138,14 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     ]
   },
   "wizard": {
-    "title": "はじめてのガイド",
-    "progress": "{total} 項目中 {current} 項目",
-    "want": "これを使いたい",
-    "know": "わかりました",
-    "previous": "前の項目",
+    "title": "VRChat 入門ガイド",
+    "progress": "{total} ページ中 {current} ページ",
+    "want": "{page} へ移動",
+    "next": "次のページ",
+    "finish": "完了",
+    "previous": "前のページ",
     "article": "詳しい説明を読む",
-    "manual": "VUA マニュアル",
-    "unavailable": "この説明は現在利用できません。ヘルプから別の項目を選んでください。"
+        "unavailable": "この説明は現在利用できません。ヘルプから別の項目を選んでください。"
   }
 },
   "ko": {
@@ -154,7 +154,7 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "purposeTitle": "VUA가 돕는 일",
     "purpose": "VRChat에 필요한 소프트웨어를 준비하고 다음 단계를 안내하며, 보유한 소재로 아바타를 조립해요. 로그인과 SDK의 최종 업로드는 사용자가 직접 진행해요.",
     "changesTitle": "이번 버전의 변경 사항",
-    "changes": "제작 단계 목록, 라이브러리 이전 시 그룹 나누기, 조립 전 예상 수치와 준비 안내가 추가됐어요.",
+    "changes": "목차를 하나로 합치고, 홈에 처리할 일을 보여 주며, 버튼에 다음 단계를 적었어요. VUA에서 다시 설치도 할 수 있어요.",
     "changelog": "변경 기록 보기",
     "sourceTitle": "오픈 소스와 무료 다운로드",
     "source": "VUA는 Apache 2.0으로 공개된 오픈 소스이며 GitHub에서 무료로 다운로드할 수 있어요.",
@@ -162,8 +162,8 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     "licensesTitle": "타사 라이선스",
     "licenses": "포함된 소프트웨어와 연결 도구에는 각각의 라이선스가 적용돼요.",
     "licensesLink": "타사 라이선스 보기",
-    "enter": "알겠어요",
-    "beginner": "무엇부터 해야 할지 모르겠어요"
+    "enter": "VUA 기능 둘러보기 시작",
+    "beginner": "VRChat이 처음이에요: 시작 가이드"
   },
   "vrchat": {
     "id": "what-is-vrchat",
@@ -174,13 +174,13 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
     ]
   },
   "wizard": {
-    "title": "처음 시작하기",
-    "progress": "{total}개 개념 중 {current}번째",
-    "want": "이걸 사용할래요",
-    "know": "알겠어요",
-    "previous": "이전 개념",
+    "title": "VRChat 시작 가이드",
+    "progress": "{total}쪽 중 {current}쪽",
+    "want": "{page}(으)로 이동",
+    "next": "다음 쪽",
+    "finish": "완료",
+    "previous": "이전 쪽",
     "article": "전체 설명 보기",
-    "manual": "VUA 사용 설명서",
     "unavailable": "이 설명을 불러올 수 없어요. 도움말에서 다른 주제를 선택하세요."
   }
 }

@@ -1,6 +1,6 @@
-/** Regional reference latency as tiers: the tile orders regions by closeness and
- * speaks in tiers (closest, about the same, then tier numbers); milliseconds stay
- * in the expanded rows. Pure presentation — measurements arrive from NetworkPanel. */
+/** Regional reference latency as tiers: rows go by closeness and speak in tiers (closest, about the
+ * same, then tier numbers) beside their milliseconds. Pure presentation — measurements arrive from
+ * NetworkPanel. */
 import type { WebsiteObservation } from "@vua/contracts";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { format, strings } from "../../i18n/index.ts";
@@ -42,20 +42,12 @@ function stateLabel(state: RegionalCardState | undefined): string {
     : copy.statuses[state.result?.status ?? "probe_error"];
 }
 
-/** The tile rows: every region in closeness order with its tier phrase. The tile
- * sits inside one toggle button, so the unsteady marker uses a hover title. */
-export function RegionalTierSummary({ states }: { states: RegionalStates }) {
-  const tiers = tiersOf(states);
-  return <span className="vua-network-tile__results" aria-live="polite">
-    {tiers.map((row, index) => {
-      const phrase = regionalTierPhrase(tiers, index);
-      return <span key={row.id} title={copy.regionCities[row.id]}>
-        <span>{copy.regionShort[row.id]}</span>
-        <span>{phrase === null ? stateLabel(states[referenceOf(row.id).url]) : phraseText(phrase)}</span>
-        {row.unsteady ? <span className="vua-network-tile__unsteady" title={copy.regionUnsteadyHint}>{copy.regionUnsteady}</span> : null}
-      </span>;
-    })}
-  </span>;
+/** The nearest region with a measured time, for the top bar's reading. */
+export function closestRegion(states: RegionalStates): { readonly id: RegionalReference["id"]; readonly ms: number } | null {
+  const row = tiersOf(states).find(item => referenceElapsed(referenceOf(item.id), resultOf(states[referenceOf(item.id).url])) !== null);
+  if (!row) return null;
+  const ms = referenceElapsed(referenceOf(row.id), resultOf(states[referenceOf(row.id).url]));
+  return ms === null ? null : { id: row.id, ms };
 }
 
 /** The expanded rows: the tile's order, with the measured milliseconds and a

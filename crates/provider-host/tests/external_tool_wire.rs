@@ -97,7 +97,7 @@ fn all_six_fixed_tools_pass_the_gate_and_unknown_or_missing_ids_do_not() {
 }
 #[test]
 fn both_schema_faces_pin_the_shared_vectors_and_the_actual_request_gate() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/external-tool/v0.2");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/external-tool/v0.3");
     let vectors: Value =
         serde_json::from_slice(&fs::read(root.join("vectors.json")).unwrap()).unwrap();
     for (face, file) in [

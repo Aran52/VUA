@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGateway, type CreatorEditor, type CreatorManagers } from "../../gateway/index.ts";
-import { currentLocale, strings } from "../../i18n/index.ts";
+import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { RouteTile } from "../../components/RouteTile.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
@@ -14,6 +14,7 @@ import { consumeLicenseStep } from "../deployer/license-step-navigation.ts";
 import { requestProductionRun } from "../amf/production-recipe-navigation.ts";
 const copy = strings.environmentCards;
 const unitySetup = structureCopy[currentLocale].unitySetup;
+const reinstallFromPage = structureCopy[currentLocale].reinstallFromPage;
 export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; onWorkshop?: (() => void) | undefined }) {
   const [licenseRequest] = useState(consumeLicenseStep);
   const port = useGateway().environment.managers;
@@ -81,7 +82,7 @@ export function CreatorPage({ onOpenAmf, onWorkshop }: { onOpenAmf: () => void; 
         return <div className="vua-card-entry" data-card-entry={`manager-${app}`} key={app}>
           <div className="vua-manager-card" data-manager={app}><RouteTile title={name(app)} kind={app === "unity_hub" ? "unity" : undefined} icon="folder" id={`manager-${app}`} selected={detail === app} expanded={detail === app} controls={`manager-${app}-details`} onClick={() => toggle(app)} status={<span className="vua-manager-card__status" role="status">{status}</span>} /></div>
           <SlideDrawer id={`manager-${app}-details`} open={detail === app} label={name(app)} className="vua-creator-drawer"><section className="vua-environment-detail">
-            {detailHeader(name(app))}{app !== "unity_hub" ? <p>{config(inventory?.[app] ?? null)}</p> : null}{found?.path ? <><h3>{copy.paths}</h3><code>{found.path}</code></> : null}<Button onClick={() => void openExternalUrl(official(app))}>{copy.official}</Button>
+            {detailHeader(name(app))}{app !== "unity_hub" ? <p>{config(inventory?.[app] ?? null)}</p> : null}{found?.path ? <><h3>{copy.paths}</h3><code>{found.path}</code></> : null}<Button onClick={() => void openExternalUrl(official(app))}>{found?.presence === "found" ? format(reinstallFromPage, { tool: name(app) }) : copy.official}</Button>
           </section></SlideDrawer>
         </div>;
       })}

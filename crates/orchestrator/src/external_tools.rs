@@ -76,6 +76,34 @@ pub const STEAM_TOOLS: &[SteamToolSpec] = &[
         exe_name: "OVR-Overlay-Translator.exe",
         process_name: "ovr-overlay-translator.exe",
     },
+    SteamToolSpec {
+        tool_id: "chilloutvr",
+        app_id: "661130",
+        install_dir: "ChilloutVR",
+        exe_name: "ChilloutVR.exe",
+        process_name: "chilloutvr.exe",
+    },
+    SteamToolSpec {
+        tool_id: "reborn",
+        app_id: "2089520",
+        install_dir: "Reborn",
+        exe_name: "Reborn.exe",
+        process_name: "reborn.exe",
+    },
+    SteamToolSpec {
+        tool_id: "vrchat",
+        app_id: "438100",
+        install_dir: "VRChat",
+        exe_name: "VRChat.exe",
+        process_name: "vrchat.exe",
+    },
+    SteamToolSpec {
+        tool_id: "steamvr",
+        app_id: "250820",
+        install_dir: "SteamVR",
+        exe_name: "bin/win64/vrstartup.exe",
+        process_name: "vrstartup.exe",
+    },
 ];
 pub fn steam_tool_spec(tool_id: &str) -> Option<&'static SteamToolSpec> {
     STEAM_TOOLS.iter().find(|spec| spec.tool_id == tool_id)
@@ -179,6 +207,47 @@ mod tests {
         service.act(ToolAction::Install, "retry").unwrap();
         fake.0.lock().unwrap().missing = false;
         assert_eq!(service.observe().unwrap().activity, "idle");
+    }
+    #[test]
+    fn reinstall_uninstalls_through_steam_and_then_installs() {
+        let (fake, service) = fixture();
+        let waiting = service.act(ToolAction::Reinstall, "again").unwrap();
+        assert_eq!(waiting.activity, "reinstall_requested");
+        assert_eq!(fake.0.lock().unwrap().handoffs, vec![ToolAction::Reinstall]);
+        // Steam still has it: the player has not confirmed yet.
+        assert_eq!(service.observe().unwrap().activity, "reinstall_requested");
+        fake.0.lock().unwrap().missing = true;
+        assert_eq!(service.observe().unwrap().activity, "install_requested");
+        assert_eq!(
+            fake.0.lock().unwrap().handoffs,
+            vec![ToolAction::Reinstall, ToolAction::Install]
+        );
+        fake.0.lock().unwrap().missing = false;
+        assert_eq!(service.observe().unwrap().activity, "idle");
+    }
+    #[test]
+    fn reinstall_asks_to_close_a_running_tool_and_can_be_cancelled() {
+        let (fake, service) = fixture();
+        fake.0.lock().unwrap().processes = vec![process(9)];
+        let refused = service.act(ToolAction::Reinstall, "running").unwrap();
+        assert_eq!(refused.issue, Some("close_first"));
+        assert!(fake.0.lock().unwrap().handoffs.is_empty());
+        fake.0.lock().unwrap().processes.clear();
+        service.act(ToolAction::Reinstall, "again").unwrap();
+        assert_eq!(service.act(ToolAction::Cancel, "cancel").unwrap().activity, "idle");
+    }
+    #[test]
+    fn reinstall_of_a_missing_tool_is_an_install_and_gives_up_waiting_for_steam() {
+        let (fake, service) = fixture();
+        fake.0.lock().unwrap().missing = true;
+        assert_eq!(service.act(ToolAction::Reinstall, "1").unwrap().activity, "install_requested");
+        assert_eq!(fake.0.lock().unwrap().handoffs, vec![ToolAction::Install]);
+        service.act(ToolAction::Cancel, "2").unwrap();
+        fake.0.lock().unwrap().missing = false;
+        service.act(ToolAction::Reinstall, "3").unwrap();
+        service.state.lock().unwrap().pending.as_mut().unwrap().since = Instant::now() - Duration::from_secs(301);
+        let timed_out = service.observe().unwrap();
+        assert_eq!((timed_out.activity, timed_out.issue), ("idle", Some("reinstall_timeout")));
     }
     #[test]
     fn prerequisites_and_failed_handoffs_do_not_fake_a_running_tool() {
@@ -303,7 +372,7 @@ mod tests {
         assert_eq!(service.observe().unwrap().issue, None);
     }
     #[test]
-    fn steam_tool_specs_pin_the_six_fixed_connections() {
+    fn steam_tool_specs_pin_the_fixed_connections() {
         let expected = [
             SteamToolSpec {
                 tool_id: "vrcft",
@@ -347,6 +416,34 @@ mod tests {
                 exe_name: "OVR-Overlay-Translator.exe",
                 process_name: "ovr-overlay-translator.exe",
             },
+            SteamToolSpec {
+                tool_id: "chilloutvr",
+                app_id: "661130",
+                install_dir: "ChilloutVR",
+                exe_name: "ChilloutVR.exe",
+                process_name: "chilloutvr.exe",
+            },
+            SteamToolSpec {
+                tool_id: "reborn",
+                app_id: "2089520",
+                install_dir: "Reborn",
+                exe_name: "Reborn.exe",
+                process_name: "reborn.exe",
+            },
+            SteamToolSpec {
+                tool_id: "vrchat",
+                app_id: "438100",
+                install_dir: "VRChat",
+                exe_name: "VRChat.exe",
+                process_name: "vrchat.exe",
+            },
+            SteamToolSpec {
+                tool_id: "steamvr",
+                app_id: "250820",
+                install_dir: "SteamVR",
+                exe_name: "bin/win64/vrstartup.exe",
+                process_name: "vrstartup.exe",
+            },
         ];
         assert_eq!(STEAM_TOOLS, expected.as_slice());
         for spec in expected {
@@ -356,10 +453,10 @@ mod tests {
         assert!(steam_tool_spec("liv").is_none());
     }
     #[test]
-    fn snapshot_carries_v02_schema_version_and_the_service_tool_id() {
+    fn snapshot_carries_v03_schema_version_and_the_service_tool_id() {
         let (fake, service) = fixture();
         let snapshot = service.observe().unwrap();
-        assert_eq!(snapshot.schema_version, "vua.external-tool/v0.2");
+        assert_eq!(snapshot.schema_version, "vua.external-tool/v0.3");
         assert_eq!(snapshot.tool_id, "vrcft");
         let other = ToolService::new(fake, Arc::new(crate::SystemClock), "space");
         assert_eq!(other.observe().unwrap().tool_id, "space");
@@ -386,6 +483,8 @@ pub enum ToolAction {
     Start,
     Stop,
     Cancel,
+    /// Steam uninstalls after its own confirmation; the install follows once the app is gone.
+    Reinstall,
 }
 impl ToolAction {
     pub fn parse(action: &str) -> Option<Self> {
@@ -394,6 +493,7 @@ impl ToolAction {
             "start" => Some(Self::Start),
             "stop" => Some(Self::Stop),
             "cancel" => Some(Self::Cancel),
+            "reinstall" => Some(Self::Reinstall),
             _ => None,
         }
     }
@@ -439,6 +539,7 @@ pub struct ToolService {
     state: Mutex<State>,
     start_wait: Duration,
     close_wait: Duration,
+    reinstall_wait: Duration,
 }
 fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
     a.to_string_lossy()
@@ -453,6 +554,7 @@ impl ToolService {
             state: Mutex::new(State::default()),
             start_wait: Duration::from_secs(60),
             close_wait: Duration::from_secs(8),
+            reinstall_wait: Duration::from_secs(300),
         }
     }
     fn snapshot(
@@ -464,6 +566,33 @@ impl ToolService {
         if state.owned.as_ref().is_some_and(|p| !processes.contains(p)) {
             state.owned = None;
             state.issue = None;
+        }
+        // The player confirms the uninstall in Steam; once the app is gone the install follows.
+        if let Some(since) = state
+            .pending
+            .as_ref()
+            .filter(|p| p.action == ToolAction::Reinstall)
+            .map(|p| p.since)
+        {
+            if matches!(install.presence, "missing" | "incomplete") {
+                match self.platform.handoff(ToolAction::Install) {
+                    Ok(()) => {
+                        state.pending = Some(Pending {
+                            action: ToolAction::Install,
+                            since: Instant::now(),
+                            baseline: processes.to_vec(),
+                            target: None,
+                        })
+                    }
+                    Err(_) => {
+                        state.pending = None;
+                        state.issue = Some("handoff_failed");
+                    }
+                }
+            } else if since.elapsed() >= self.reinstall_wait {
+                state.pending = None;
+                state.issue = Some("reinstall_timeout");
+            }
         }
         if let Some(pending) = &state.pending {
             let running_target = processes.iter().find(|p| {
@@ -477,6 +606,7 @@ impl ToolService {
                 ToolAction::Start => running_target.is_some(),
                 ToolAction::Stop => state.owned.is_none(),
                 ToolAction::Cancel => true,
+                ToolAction::Reinstall => false,
             };
             if completed {
                 if pending.action == ToolAction::Start {
@@ -506,7 +636,7 @@ impl ToolService {
                 .is_some_and(|exe| same_path(exe, &p.path))
         }) || state.owned.is_some();
         ToolSnapshot {
-            schema_version: "vua.external-tool/v0.2",
+            schema_version: "vua.external-tool/v0.3",
             tool_id: self.tool_id,
             captured_at: self.clock.now_rfc3339(),
             presence: install.presence,
@@ -517,6 +647,7 @@ impl ToolService {
             issue: state.issue,
             activity: state.pending.as_ref().map_or("idle", |p| match p.action {
                 ToolAction::Install => "install_requested",
+                ToolAction::Reinstall => "reinstall_requested",
                 ToolAction::Start => "starting",
                 ToolAction::Stop => "stopping",
                 ToolAction::Cancel => "idle",
@@ -563,11 +694,36 @@ impl ToolService {
                 if state
                     .pending
                     .as_ref()
-                    .is_some_and(|p| matches!(p.action, ToolAction::Install | ToolAction::Start))
+                    .is_some_and(|p| matches!(p.action, ToolAction::Install | ToolAction::Reinstall | ToolAction::Start))
                 {
                     state.pending = None;
                 }
                 // Stop observing the handoff; Steam's download/launch continues. Never adopt a late process.
+            }
+            ToolAction::Reinstall => {
+                if !install.steam_ready {
+                    state.issue = Some("steam_missing");
+                } else if snapshot.running {
+                    state.issue = Some("close_first");
+                } else {
+                    // Without a complete installation there is nothing to remove first.
+                    let first = if install.presence == "installed" {
+                        ToolAction::Reinstall
+                    } else {
+                        ToolAction::Install
+                    };
+                    match self.platform.handoff(first) {
+                        Err(_) => state.issue = Some("handoff_failed"),
+                        Ok(()) => {
+                            state.pending = Some(Pending {
+                                action: first,
+                                since: Instant::now(),
+                                baseline: processes.clone(),
+                                target: None,
+                            })
+                        }
+                    }
+                }
             }
             ToolAction::Install | ToolAction::Start => {
                 if !install.steam_ready {

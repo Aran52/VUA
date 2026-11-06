@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { EXTERNAL_TOOL_IDS, EXTERNAL_TOOL_NAMES, isExternalToolResult } from "./external-tool.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 import { isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
-const vectors = JSON.parse(readFileSync(new URL("../../../schemas/external-tool/v0.2/vectors.json", import.meta.url), "utf8")) as Record<"requests" | "results", { name: string; valid: boolean; value: Record<string, unknown> }[]>;
+const vectors = JSON.parse(readFileSync(new URL("../../../schemas/external-tool/v0.3/vectors.json", import.meta.url), "utf8")) as Record<"requests" | "results", { name: string; valid: boolean; value: Record<string, unknown> }[]>;
 describe("external-tool Candidate wire", () => {
   it("pins closed application requests and observed facts to shared vectors", () => {
     for (const v of vectors.requests) expect(isApplicationRequestV01(v.value), v.name).toBe(v.valid);
     for (const v of vectors.results) expect(isExternalToolResult(v.value), v.name).toBe(v.valid);
   });
-  it("allows the six fixed tools/actions at IPC, rejecting arbitrary executable or app IDs", () => {
+  it("allows the fixed tools/actions at IPC, rejecting arbitrary executable or app IDs", () => {
     for (const toolId of EXTERNAL_TOOL_IDS) {
       const fixed = { schemaVersion: 1, requestId: "tool", method: "tools.actConnection", params: { toolId, action: "start", commandId: "one-click" } };
       expect(isDesktopGatewayRequestV1(fixed)).toBe(true);
@@ -22,10 +22,10 @@ describe("external-tool Candidate wire", () => {
     expect(Object.keys(EXTERNAL_TOOL_NAMES).sort()).toEqual([...EXTERNAL_TOOL_IDS].sort());
     for (const toolId of EXTERNAL_TOOL_IDS) expect(EXTERNAL_TOOL_NAMES[toolId].length).toBeGreaterThan(0);
   });
-  it("rejects v0.1 snapshots and out-of-scope tool IDs in observed facts", () => {
-    const snapshot = { schemaVersion: "vua.external-tool/v0.2", toolId: "space", capturedAt: "synthetic", presence: "installed", steamReady: true, buildId: "123", running: false, canStop: false, activity: "idle", issue: null };
+  it("rejects older snapshots and out-of-scope tool IDs in observed facts", () => {
+    const snapshot = { schemaVersion: "vua.external-tool/v0.3", toolId: "space", capturedAt: "synthetic", presence: "installed", steamReady: true, buildId: "123", running: false, canStop: false, activity: "idle", issue: null };
     expect(isExternalToolResult({ toolConnection: snapshot })).toBe(true);
-    expect(isExternalToolResult({ toolConnection: { ...snapshot, schemaVersion: "vua.external-tool/v0.1" } })).toBe(false);
+    expect(isExternalToolResult({ toolConnection: { ...snapshot, schemaVersion: "vua.external-tool/v0.2" } })).toBe(false);
     expect(isExternalToolResult({ toolConnection: { ...snapshot, toolId: "liv" } })).toBe(false);
   });
 });

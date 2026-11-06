@@ -99,8 +99,7 @@ encyclopedia remains a main-window page with hardware introductions and shared p
 Its official Wiki entry opens `wiki.vrchat.com` in an isolated host browser, including when AMF is
 disabled. Play links directly to hardware reading.
 
-The internal `help-wizard` route now owns the separate VUA guide and its replay of contextual module
-introductions. It does not reopen the retired global wizard. `onboarding-model.ts` retains legacy
+The internal `help-wizard` route owns the VRChat getting-started wizard; using VUA is a topic in the encyclopedia.
 `vua-goals` parsing and migration. Desktop/PICO and creator routes use the existing typed
 network/deployment ports. A fresh plan or a task completed during the current visit can establish
 software readiness; a restored terminal receipt alone cannot. Reopening a completed preparation

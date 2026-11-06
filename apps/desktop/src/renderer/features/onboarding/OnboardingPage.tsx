@@ -39,7 +39,7 @@ export function OnboardingPage({ onComplete }: {
         <a href={appMeta.repoUrl + "/blob/main/THIRD_PARTY_NOTICES.md"} target="_blank" rel="noopener noreferrer">{copy.licensesLink}</a>
       </section>
       <footer className="vua-onboarding__footer">
-        <Button variant="subtle" data-nav-id="first-use-beginner" onClick={() => onComplete({
+        <Button data-nav-id="first-use-beginner" onClick={() => onComplete({
           status: "completed", goals: [], environments: [], page: "help-wizard",
         })}>{copy.beginner}</Button>
         <Button variant="primary" data-nav-id="first-use-enter" onClick={() => onComplete({

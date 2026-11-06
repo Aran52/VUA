@@ -11,6 +11,8 @@ export const STEAM_TOOL_ICONS = {
   oyasumi: { appId: 2538150, clientIcon: "ffc47e0451d5eed3b73c361fec2eabddbc020654" },
   translator: { appId: 4304620, clientIcon: "84deb04dfef67e831bdfcc381a9ea16bbd61d324" },
   liv: { appId: 755540, clientIcon: "1f014d873d7c47ee077c9be46ebbe3d7c30cfe7e" },
+  chilloutvr: { appId: 661130, clientIcon: "604de53b70e3619641e6680fff8ada992062c389" },
+  reborn: { appId: 2089520, clientIcon: "6a0993664f64e55cb47ad435103057d7e67c6a59" },
 } as const;
 // The author's 2026-10-31 follow-up selects VRCS's own GitHub-hosted application icon.
 const VRCS_COMMIT = "a7fa889dfa94c11398850eeb42765ca82b8cea82";

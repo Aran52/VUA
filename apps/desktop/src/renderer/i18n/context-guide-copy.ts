@@ -1,7 +1,5 @@
 const en = {
-  later: "Later",
-  dismiss: "Don't show again",
-  replay: "Replay page tips",
+  dismiss: "Got it",
   home: { title: "Take a look around VUA?", body: "The tour points out the main controls one at a time. Leave it whenever you like.", action: "Start the tour" },
   play: { title: "Prepare only what you need", body: "Review what VUA detected, then pick what to install or launch.", action: "Read play preparation" },
   tools: { title: "Tools by purpose", body: "Ready tools open from here; entries marked In development are on the way.", action: "" },
@@ -16,7 +14,7 @@ const en = {
 export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof en> = {
   en,
   "zh-CN": {
-    later: "稍后", dismiss: "不再显示", replay: "重播板块提示",
+    dismiss: "知道了",
     home: { title: "要先看看 VUA 吗？", body: "功能导览会依次指出常用入口，随时可以退出。", action: "开始导览" },
     play: { title: "只准备需要的内容", body: "先看检测结果，再选择要安装或启动的内容。", action: "查看游玩准备" },
     tools: { title: "工具按用途分组", body: "已接入的工具可以直接打开，标着「开发中」的正在接入。", action: "" },
@@ -28,7 +26,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
     packages: { title: "先看结论，再看细节", body: "自动模式只显示结论。需要核对或手动操作时，展开「详情」。", action: "" },
   },
   "zh-TW": {
-    later: "稍後", dismiss: "不再顯示", replay: "重播板塊提示",
+    dismiss: "知道了",
     home: { title: "要先看看 VUA 嗎？", body: "功能導覽會依序指出常用入口，隨時可以離開。", action: "開始導覽" },
     play: { title: "只準備需要的內容", body: "先看檢測結果，再選擇要安裝或啟動的內容。", action: "查看遊玩準備" },
     tools: { title: "工具按用途分組", body: "已接入的工具可以直接開啟，標著「開發中」的正在接入。", action: "" },
@@ -40,7 +38,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
     packages: { title: "先看結論，再看細節", body: "自動模式只顯示結論。需要核對或手動操作時，展開「詳情」。", action: "" },
   },
   ja: {
-    later: "あとで", dismiss: "今後表示しない", replay: "ページ別の案内を再表示",
+    dismiss: "わかりました",
     home: { title: "VUA を見てみますか？", body: "ツアーで主な操作場所を順に案内します。いつでも抜けられます。", action: "ツアーを開始" },
     play: { title: "必要なものだけを準備", body: "検出結果を見てから、インストールや起動するものを選びます。", action: "プレイの準備を見る" },
     tools: { title: "用途別のツール", body: "使えるツールはここから開けます。「開発中」の項目は対応を進めています。", action: "" },
@@ -52,7 +50,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
     packages: { title: "結論から、必要なら詳細も", body: "自動モードでは結論だけを表示します。確認や手動操作は「詳細」を開きます。", action: "" },
   },
   ko: {
-    later: "나중에", dismiss: "다시 보지 않기", replay: "페이지 안내 다시 보기",
+    dismiss: "알겠어요",
     home: { title: "VUA를 둘러볼까요?", body: "투어가 주요 조작 위치를 하나씩 보여줘요. 언제든 나갈 수 있어요.", action: "투어 시작" },
     play: { title: "필요한 것만 준비하기", body: "검출 결과를 본 뒤 설치하거나 실행할 것을 고르세요.", action: "플레이 준비 보기" },
     tools: { title: "용도별 도구", body: "준비된 도구는 여기에서 열 수 있어요. ‘개발 중’ 항목은 연결하는 중이에요.", action: "" },

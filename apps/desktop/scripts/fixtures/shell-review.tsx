@@ -126,12 +126,12 @@ const sopFor = (selection: { scenario: string; connection?: string }) => ({
   steps: ["install_software", "steam_login", "launch_vrchat"].map((id, index) => ({ id, title: id, explanation: id, expectedResult: id, automatic: index === 0 })),
   performed: "sop_only", nextAction: "check_environment", licenseRequiredFor: "none",
 });
-const toolConnection = (toolId: string) => ({ toolConnection: { schemaVersion: "vua.external-tool/v0.2", toolId, capturedAt: now(), presence: envMissing ? "missing" : toolId === "vrcft" ? "installed" : "missing", steamReady: !envMissing, buildId: null, running: false, canStop: false, activity: "idle", issue: null } });
+const toolConnection = (toolId: string) => ({ toolConnection: { schemaVersion: "vua.external-tool/v0.3", toolId, capturedAt: now(), presence: envMissing ? "missing" : ["vrcft", "space", "chilloutvr", "vrchat", "steamvr"].includes(toolId) ? "installed" : "missing", steamReady: !envMissing, buildId: null, running: false, canStop: false, activity: "idle", issue: null } });
 
 const unknownMethods = new Set<string>();
 async function reply(method: string, input: Record<string, any>): Promise<unknown> {
   switch (method) {
-    case "app.snapshot": return { capabilities: { tasks: true, operations: [] } };
+    case "app.snapshot": return { capabilities: { tasks: true, operations: [{ operationId: "environment.testWebsites", availability: "available" }] } };
     case "task.list": return { revision: 1, tasks: [] };
     case "task.get": return null;
     case "environment.getSnapshot": return { contractVersion: "0.1", revision: 0, capturedAt: now(), items: [
@@ -141,7 +141,7 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
       { checkId: "pico_runtime", zone: "play", presence: "detected", facts: {} },
     ] };
     case "environment.getScenarioSop": return sopFor(input.scenario);
-    case "environment.testWebsites": return { websiteTests: input.urls.map((url: string) => ({ url, status: "reachable", elapsedMs: 80, httpStatus: 200 })) };
+    case "environment.testWebsites": return { websiteTests: input.urls.map((url: string, index: number) => ({ url, status: "reachable", elapsedMs: 80 + index * 70, httpStatus: 200 })) };
     case "environment.observePlay": return playSession(input.route);
     case "environment.startPlay": playStates[input.route] = "running"; return playSession(input.route);
     case "environment.stopPlay": playStates[input.route] = "idle"; return playSession(input.route);

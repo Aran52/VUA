@@ -25,10 +25,13 @@
 .vua-workshop__line-item > .vua-workshop__line { width: 100%; padding-inline-end: 36px; }
 .vua-workshop__line-item[data-hidden] > .vua-workshop__line { opacity: 0.6; }
 /* A card closes from its corner: the x gives way to two bars, hide and delete. */
-.vua-workshop__line-close { position: absolute; inset-inline-end: 6px; bottom: 6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-secondary); cursor: pointer; opacity: 0; }
-.vua-workshop__line-item:hover .vua-workshop__line-close, .vua-workshop__line-item:focus-within .vua-workshop__line-close, .vua-workshop__line-item[data-selected] .vua-workshop__line-close { opacity: 1; }
-.vua-workshop__line-close:hover, .vua-workshop__line-close:focus-visible { opacity: 1; background: color-mix(in srgb, var(--vua-text-strong) 8%, transparent); }
-.vua-workshop__line-close:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
+.vua-workshop__line-menu { position: absolute; inset-inline-end: 6px; top: 6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-secondary); cursor: pointer; opacity: 0; }
+.vua-workshop__line-item:hover .vua-workshop__line-menu, .vua-workshop__line-item:focus-within .vua-workshop__line-menu, .vua-workshop__line-item[data-selected] .vua-workshop__line-menu, .vua-workshop__line-menu[aria-expanded="true"] { opacity: 1; }
+.vua-workshop__line-menu:hover, .vua-workshop__line-menu:focus-visible { opacity: 1; background: color-mix(in srgb, var(--vua-text-strong) 8%, transparent); }
+.vua-workshop__line-menu:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
+.vua-workshop__line-menu svg { fill: currentColor; transition: transform var(--vua-motion-fast) ease-out; }
+.vua-workshop__line-menu[aria-expanded="true"] svg { transform: rotate(180deg); }
+.vua-workshop__line-rename { width: 100%; padding: 10px 12px; border: 1px solid var(--vua-accent); border-radius: var(--vua-radius-control); background: var(--vua-bg-panel); color: var(--vua-text-strong); font: var(--vua-font-caption); }
 .vua-workshop__line-choices { display: grid; gap: 4px; animation: vua-line-choices var(--vua-motion-fast) ease-out; }
 .vua-workshop__line-choices > button { height: 26px; border: 0; font: var(--vua-font-caption); cursor: pointer; border-radius: var(--vua-radius-control); }
 .vua-workshop__line-hide { background: color-mix(in srgb, var(--vua-text-secondary) 16%, var(--vua-bg-panel)); color: var(--vua-text-strong); }
@@ -116,7 +119,11 @@
 .vua-line__sentence { font: var(--vua-font-title); }
 .vua-line__panel h2 { margin-top: 0; }
 .vua-line__materials, .vua-line__found { display: grid; gap: var(--vua-space-2); margin: 0 0 12px; padding: 0; list-style: none; }
-.vua-line__materials li { display: grid; gap: var(--vua-space-1); padding: 8px 0; border-bottom: 1px solid var(--vua-border); }
+.vua-line__materials li { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; gap: var(--vua-space-3); padding: 8px 0; border-bottom: 1px solid var(--vua-border); }
+.vua-line__materials li > span { display: grid; gap: var(--vua-space-1); min-width: 0; }
+.vua-material-thumb { display: block; flex: none; width: 56px; height: 56px; object-fit: cover; border-radius: var(--vua-radius-md); background: var(--vua-bg-canvas); }
+.vua-material-thumb--blank { display: grid; place-items: center; color: var(--vua-text-secondary); border: 1px solid var(--vua-border); }
+.vua-line__start-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); margin-bottom: var(--vua-space-4); }
 .vua-line__materials small { font: var(--vua-font-caption); color: var(--vua-text-secondary); overflow-wrap: anywhere; }
 .vua-line__found li { font: var(--vua-font-body); }
 
@@ -169,7 +176,10 @@
 .vua-lighting__entries label { display: inline-flex; align-items: center; gap: 8px; }
 
 /* How many Unity jobs run at once, at the foot of the line list. */
-.vua-workshop__capacity { display: grid; gap: var(--vua-space-2); margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vua-border); }
+.vua-workshop__capacity { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--vua-border); }
+.vua-workshop__capacity > summary { color: var(--vua-text-secondary); font: var(--vua-font-caption); cursor: pointer; }
+.vua-workshop__capacity[open] > summary { margin-bottom: var(--vua-space-2); }
+.vua-workshop__capacity > small { display: block; margin-top: var(--vua-space-2); }
 .vua-workshop__capacity-choices { display: inline-flex; gap: 4px; }
 .vua-workshop__capacity-choices button { min-width: 36px; padding: 4px var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control, 8px);
   background: transparent; color: inherit; font: inherit; cursor: pointer; }
@@ -178,7 +188,7 @@
 .vua-workshop__capacity small { overflow-wrap: anywhere; }
 
 /* A new line starts from materials or a Recipe; the start button stays in view while the list scrolls. */
-.vua-line__start-from { display: inline-flex; align-self: flex-start; gap: 4px; margin-bottom: var(--vua-space-4); }
+.vua-line__start-from { display: inline-flex; gap: 4px; }
 .vua-line__start-from button { padding: var(--vua-space-2) var(--vua-space-4); border: 1px solid transparent; border-radius: var(--vua-corners-action, 4px); background: transparent; color: var(--vua-text-secondary); font: var(--vua-font-body); cursor: pointer; }
 .vua-line__start-from button:hover { color: var(--vua-text-strong); }
 .vua-line__start-from button[aria-selected="true"] { border-color: var(--vua-accent); color: var(--vua-accent-text); font-weight: var(--vua-weight-strong); }

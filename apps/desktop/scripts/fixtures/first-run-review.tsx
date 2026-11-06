@@ -220,28 +220,33 @@ const review = {
     await wait(() => document.querySelector('[data-context-guide="home"]'));
     check("returning from the concept wizard leaves no forced tour or notice", !document.querySelector(".vua-tour") && !document.querySelector("[data-first-use-notice]"));
     check("reading guidance and page introductions request no deployment plan", intents.length === 0);
-    await click(strings.contextGuide.later);
-    check("later snoozes only for this session", localStorage.getItem(storageKeys.contextGuide) === null && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
+    check("a page introduction offers one button to close it", [...document.querySelectorAll<HTMLButtonElement>('[data-context-guide="home"] button')].filter(button => button.textContent?.trim() === strings.contextGuide.dismiss).length === 1);
+    await click(strings.contextGuide.dismiss);
+    check("closing is remembered without a wizard or forced tour", JSON.parse(localStorage.getItem(storageKeys.contextGuide)!).dismissed.home === 1 && !document.querySelector(".vua-tour"));
     await click(copy.help); await click(copy.wizard);
     await wait(() => document.querySelector(".vua-vua-guide"));
-    check("the concept wizard offers neither the VUA manual nor a page-tip replay", !document.querySelector('[data-nav-id="wizard-manual"]') && ![...document.querySelectorAll("button")].some(button => button.textContent?.trim() === strings.contextGuide.replay));
+    check("the concept wizard shows its three buttons in one row", (() => {
+      const row = ["wizard-previous", "wizard-want", "wizard-next"].map(id => document.querySelector<HTMLElement>(`[data-nav-id="${id}"]`)!.getBoundingClientRect());
+      return row.every(rect => Math.abs(rect.top - row[0]!.top) < 1 && Math.abs(rect.width - row[0]!.width) < 1);
+    })());
+    const nextAt = () => document.querySelector<HTMLElement>('[data-nav-id="wizard-next"]')!.getBoundingClientRect().top;
+    const before = nextAt();
+    document.querySelector<HTMLButtonElement>('[data-nav-id="wizard-next"]')!.click();
+    await wait(() => document.querySelector('[data-wizard-step="steam"]'));
+    check("the wizard's buttons stay in place from page to page", Math.abs(nextAt() - before) < 1);
+    document.querySelector<HTMLButtonElement>('[data-nav-id="wizard-previous"]')!.click();
+    await wait(() => document.querySelector('[data-wizard-step="vrchat"]'));
     document.querySelector<HTMLButtonElement>('[data-nav-id="logo-home"]')!.click();
     await wait(() => document.querySelector(".vua-home"));
-    check("returning from the wizard keeps the page tip snoozed for this session",
-      !document.querySelector('[data-context-guide="home"]') && sessionStorage.getItem(storageKeys.contextGuideSnoozed)?.includes("home"));
-    // A new session remounts the app as well as clearing session storage; the
-    // mounted guidance keeps its own snooze state while navigating between pages.
     const savedGoals = localStorage.getItem(storageKeys.goals);
     const savedTheme = localStorage.getItem(storageKeys.theme);
     root!.unmount(); sessionStorage.clear(); location.hash = "";
     root = createRoot(document.getElementById("root")!); root.render(<App />);
-    await wait(() => document.querySelector('[data-context-guide="home"]'));
-    check("a new session restores the tip without losing preferences or first-use completion",
-      sessionStorage.getItem(storageKeys.contextGuideSnoozed) === null
+    await wait(() => document.querySelector(".vua-home"));
+    check("a new session keeps the introduction closed, the preferences and first-use completion",
+      !document.querySelector('[data-context-guide="home"]')
       && localStorage.getItem(storageKeys.goals) === savedGoals && localStorage.getItem(storageKeys.theme) === savedTheme
       && !document.querySelector("[data-first-use-notice]") && !document.querySelector(".vua-tour"));
-    await click(strings.contextGuide.dismiss);
-    check("dismissal is remembered without a wizard or forced tour", JSON.parse(localStorage.getItem(storageKeys.contextGuide)!).dismissed.home === 1 && !document.querySelector(".vua-tour"));
     await prepare();
     check("Play checks each route independently and plans nothing yet",
       ["desktop_play", "pico_pcvr"].every(route => checkIntents.some(intent => intent.join() === route))
@@ -349,17 +354,20 @@ const review = {
     check("Software & connections is absent from the fixed directory", !document.querySelector('[data-nav-id="nav-software"]') && !document.querySelector('[data-nav-id="home-software"]'));
     await click(copy.play); const card = () => document.querySelector<HTMLElement>('[data-card="route-desktop"]')!;
     await wait(() => card()?.dataset.action === "start", "desktop card ready to start");
-    const halves = card().querySelectorAll<HTMLButtonElement>(":scope > button"); const network = document.querySelector<HTMLElement>(".vua-network-tile")!;
+    const halves = card().querySelectorAll<HTMLButtonElement>(":scope > button");
     const separatorWidth = parseFloat(getComputedStyle(halves[1]!).borderLeftWidth);
     check("play card has two independent halves and a thin separator", halves.length === 2 && !halves[0]!.disabled && separatorWidth > 0 && separatorWidth <= 1);
-    check("routes come first and the network tile below keeps their height", network.getBoundingClientRect().top >= card().getBoundingClientRect().bottom && Math.abs(network.getBoundingClientRect().height - card().getBoundingClientRect().height) < 1);
+    check("latency lives in the top bar instead of the Play page", !document.querySelector(".vua-play-page .vua-network") && !!document.querySelector('[data-nav-id="shell-network"]'));
     check("entering Play makes no website test requests", websiteCalls === 0);
-    await wait(() => !document.querySelector<HTMLButtonElement>('[data-nav-id="play-network-test"]')!.disabled);
-    check("regional reference testing is explicit and keeps both US coasts", network.textContent?.includes(strings.websiteTests.regionTitle) && network.textContent?.includes(strings.websiteTests.regionShort.eu) && network.textContent?.includes(strings.websiteTests.regionShort.usw) && network.textContent?.includes(strings.websiteTests.regionShort.use));
-    document.querySelector<HTMLButtonElement>('[data-nav-id="play-network-details"]')!.click();
-    await wait(() => visible(document.querySelector(".vua-network")!));
-    document.querySelector<HTMLButtonElement>(`.vua-network [aria-label="${strings.websiteTests.testAll}"]`)!.click(); await wait(() => websiteCalls === 1 && document.querySelector(".vua-network")!.textContent?.includes("ms"));
-    check("website tests live only in expanded details and cannot become regional ping", websiteCalls === 1 && !network.textContent?.includes("ms"));
+    document.querySelector<HTMLButtonElement>('[data-nav-id="shell-network"]')!.click();
+    await wait(() => document.querySelector(".vua-network-panel") && !document.querySelector<HTMLButtonElement>('[data-nav-id="network-test"]')!.disabled);
+    const network = document.querySelector<HTMLElement>(".vua-network-panel")!;
+    check("opening latency tests the regions, keeping both US coasts", network.textContent?.includes(strings.websiteTests.regionTitle) && [strings.websiteTests.regionCities.eu, strings.websiteTests.regionCities.usw, strings.websiteTests.regionCities.use].every(city => network.textContent?.includes(city)));
+    document.querySelector<HTMLElement>(".vua-network-panel__sites")!.setAttribute("open", "");
+    const beforeSites = websiteCalls;
+    document.querySelector<HTMLButtonElement>(`.vua-network [aria-label="${strings.websiteTests.testAll}"]`)!.click(); await wait(() => websiteCalls > beforeSites && document.querySelector(".vua-network")!.textContent?.includes("ms"));
+    check("website tests sit one level down, separate from the regional reading", websiteCalls > beforeSites);
+    document.querySelector<HTMLButtonElement>('[data-nav-id="shell-network"]')!.click();
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop"]')!.click(); await wait(() => document.querySelector('[data-route-stage="prepare"]'));
     check("left half opens details without launching software", playCalls.length === 0 && softwareChips().length === 2 && document.querySelector<HTMLElement>(".vua-play-drawer")?.dataset.open === "true");
     document.querySelector<HTMLButtonElement>('[data-nav-id="route-desktop-action"]')!.click(); await wait(() => card().dataset.action === "stop");

@@ -3,7 +3,7 @@
  * what supports it. A page has one name everywhere. */
 import type { IconName } from "@vua/design-system";
 import type { AppSectionId, PageId } from "../../app/nav-model.ts";
-import { currentLocale, strings, TERMS } from "../../i18n/index.ts";
+import { currentLocale, strings } from "../../i18n/index.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 
 export interface DirectoryItem {
@@ -34,7 +34,14 @@ export const directory: Readonly<Record<"env" | "production", readonly Directory
 };
 
 export const directoryGroupLabel = (group: keyof typeof directory): string =>
-  group === "env" ? "VRChat" : `${journey.create} · ${TERMS.amf}`;
+  group === "env" ? "VRChat" : journey.create;
+
+/** The name a page goes by in links from outside the directory. */
+export function directoryPageTitle(page: PageId): string {
+  const item = [...directory.env, ...directory.production].find(entry => entry.id === page);
+  if (item) return item.title;
+  return page === "settings-accounts" ? strings.nav.pages.settingsAccounts : page === "home" ? journey.home : page;
+}
 
 /** Unity setup works without AMF, so its owner stays the environment even though it reads as Avatar work. */
 export function presentedModule(page: PageId, owner: AppSectionId): AppSectionId {

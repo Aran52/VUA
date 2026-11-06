@@ -5,14 +5,16 @@
 
 ## Product definition
 
-VUA is a Windows-first, local-first VRChat **scenario** host (the author's term: “情景”). A
+VUA is the product's name and does not expand to anything longer (user ruling, 2026-11-06). It is a
+Windows-first, local-first VRChat **scenario** host (the author's term: “情景”). A
 scenario is a player goal with its SOP for preparation, use and recovery. VUA observes the local
 environment; installs, manages and launches what each scenario needs; and gives players, and the
 AI agents they direct, the same facts, SOPs and permissioned operations. The
 [north star](north-star.md) states the goal and how progress is measured. The core audience
 includes players new to Unity and to the software VRChat relies on.
 
-Desktop play and PICO streaming are play scenarios. The first-party AMF module supplies the
+Desktop play and PICO streaming are play scenarios. VUA also installs, opens, closes and reinstalls
+ChilloutVR and Reborn through Steam (user ruling, 2026-11-06); it does not prepare scenarios for them. The first-party AMF module supplies the
 Avatar-production scenario. VUA installs AMF and enables it by default, and keeps a player's
 saved enable/disable choice (user correction, 2026-10-14). External Avatar-editing modules are
 scheduled after Ibis. BDL is private to AMF.

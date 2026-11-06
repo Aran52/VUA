@@ -187,6 +187,10 @@ impl ToolPlatform for SteamToolPlatform {
                 let url = format!("steam://run/{}", self.spec.app_id);
                 command.args(["-url", url.as_str()]);
             }
+            ToolAction::Reinstall => {
+                let url = format!("steam://uninstall/{}", self.spec.app_id);
+                command.args(["-url", url.as_str()]);
+            }
             _ => return Err("unavailable"),
         }
         command

@@ -18,11 +18,13 @@ import { ReleaseStage, StagePhoto } from "./ReleaseStage.tsx";
 import { ReleaseSheet } from "./ReleaseSheet.tsx";
 import { LineTerms } from "./LineTerms.tsx";
 import { ReleaseUploadDialog } from "./ReleaseUploadDialog.tsx";
-import { avatarTitle, baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
+import { baseName, finishedRunIds, lastStep, proposedUploadName, runBusy, runningUpload, sdkReviewView, uploadedAvatarId, uploadedAvatarIds } from "./release-model.ts";
 import { VrchatAvatarShelf } from "./VrchatAvatarShelf.tsx";
 import "./release-album.css";
 import { TurntableExportDialog } from "./TurntableExportDialog.tsx";
 import { recipeShareCopy } from "../../../i18n/index.ts";
+import { lineName } from "../line-presentation.ts";
+import { takeRequestedTurntable } from "../production-recipe-navigation.ts";
 
 const copy = strings.releaseRoom;
 const shelfCopy = strings.vrchat.shelf;
@@ -105,7 +107,9 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const gateway = useGateway();
   const vrchat = gateway.vrchat;
   const ai = useAiRequests();
-  const [focus, setFocus] = useState<string | null>(null);
+  // Following a finished line here in full auto continues into its 360° preview.
+  const [turntableRequest, setTurntableRequest] = useState(takeRequestedTurntable);
+  const [focus, setFocus] = useState<string | null>(turntableRequest);
   const [nonce, setNonce] = useState(0);
   const refresh = () => setNonce(value => value + 1);
   const { list, failed, runs, states } = useAlbumData(production, release, focus, nonce);
@@ -183,6 +187,14 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     void work().then(accepted => { follow(runId, kind, accepted); refresh(); }, error => setActionError({ runId, kind, error }));
   };
   const checkAgain = (runId: string) => act(runId, "upload", () => production.reinspect(runId));
+  useEffect(() => {
+    if (turntableRequest === null) return;
+    const state = states[turntableRequest];
+    if (runs[turntableRequest] === undefined || state === undefined) return;
+    setTurntableRequest(null);
+    if (state.turntable?.current || state.editorOpen || ownWork(turntableRequest)) return;
+    act(turntableRequest, "bake", () => release.bakeTurntable(turntableRequest));
+  }, [turntableRequest, runs, states]); // eslint-disable-line react-hooks/exhaustive-deps
   const confirm = async (confirmation: AiUploadConfirmationV01) => {
     if (dialog === null) return;
     setStarting(true); setDialogError(null);
@@ -203,7 +215,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     }
   };
 
-  const titleOf = (runId: string) => { const run = runs[runId]; return run ? avatarTitle(run) : baseName(list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runId); };
+  const titleOf = (runId: string) => lineName(runId, list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runs[runId]?.sources[0]?.itemName ?? "") || baseName(runId);
   const spreads: AlbumSpread[] = ids.map((runId, at) => {
     const run = runs[runId];
     const state = states[runId] ?? null;
@@ -229,7 +241,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
           onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} onExport={() => setExportRun(runId)} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
-        <ReleaseSheet run={run} state={state} number={at + 1} live={live} notice={live ? notice : null}
+        <ReleaseSheet run={run} title={title} state={state} number={at + 1} live={live} notice={live ? notice : null}
           terms={live && list ? <LineTerms run={run} sources={list.sources} onOpenMaterials={() => onNavigate("warehouse")} /> : null} actions={{
           busy: ownWork(runId),
           uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
@@ -263,7 +275,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     <ReleaseAlbum spreads={spreads} index={index} onIndex={at => setFocus(ids[at] ?? null)} />
     {exportRun && <TurntableExportDialog runId={exportRun} onClose={() => setExportRun(null)} />}
     {dialog && dialogRun && <ReleaseUploadDialog proposedName={proposedUploadName(dialogRun)} avatarId={uploadedAvatarId(states[dialog.runId] ?? null)}
-      picture={<StagePhoto port={production} run={dialogRun} label={avatarTitle(dialogRun)} />} requestedByAi={dialog.requestId !== null}
+      picture={<StagePhoto port={production} run={dialogRun} label={titleOf(dialogRun.runId)} />} requestedByAi={dialog.requestId !== null}
       error={<ActionError error={dialogError} onCheckAgain={() => { setDialog(null); checkAgain(dialog.runId); }} />} starting={starting}
       sdkMustFix={sdkReviewView(dialogRun)?.mustFix.length ?? 0}
       onConfirm={confirmation => { void confirm(confirmation); }} onClose={() => setDialog(null)} />}

@@ -13,7 +13,7 @@ export type ToolConnectionStatusKey = "closeApp" | "openApp" | "running" | "inst
 export function deriveToolCardState(live: { snapshot: ExternalToolSnapshot | null; pending: boolean; failed: boolean }): { action: EnvironmentAction; status: ToolConnectionStatusKey } {
   const s = live.snapshot;
   const waiting = !!s && s.activity !== "idle";
-  if (live.pending || waiting) return { action: "busy", status: s?.activity === "install_requested" ? "waitInstall" : s?.activity === "stopping" ? "waitClose" : "waitOpen" };
+  if (live.pending || waiting) return { action: "busy", status: s?.activity === "install_requested" || s?.activity === "reinstall_requested" ? "waitInstall" : s?.activity === "stopping" ? "waitClose" : "waitOpen" };
   if (live.failed) return { action: "unknown", status: "unknown" };
   if (!s) return { action: "busy", status: "checking" };
   if (s.canStop) return { action: "stop", status: "closeApp" };

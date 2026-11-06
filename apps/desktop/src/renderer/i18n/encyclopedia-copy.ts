@@ -39,7 +39,7 @@ const en = {
   },
   firstRun: { id: "first-run-language", title: "First launch and getting started", paragraphs: [
     "VUA uses the first supported system language. The first-use notice covers the app, its changes, free Apache 2.0 source and third-party licenses. Language can be changed in Settings.",
-    "Got it starts the skippable feature tour. I have no idea what to do opens a concept wizard: I want this opens the matching setup, and Got it advances to the next concept.",
+      "The first-use notice's main button starts the skippable VUA feature tour. If VRChat itself is new to you, open VRChat getting started: one concept per page, with a button to the matching page and one to the next page.",
   ] },
 };
 
@@ -84,7 +84,7 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     },
     firstRun: { id: "first-run-language", title: "首次启动与入门向导", paragraphs: [
       "VUA 使用系统首选项中受支持的语言。首次使用说明包含用途、更新、Apache 2.0 开源与免费下载说明，以及第三方许可证。之后可在设置中更换语言。",
-      "“知道了”进入可跳过的功能导览；“我完全不知道要做什么”打开逐页介绍概念的向导。“我要这个”进入相应准备页面，“我知道了”进入下一个概念。",
+      "首次使用说明的主按钮进入可跳过的 VUA 功能导览；不了解 VRChat 时打开 VRChat 入门向导，它一页讲一个概念，可以跳转到相应页面，也可以翻到下一页。",
     ] },
   },
   "zh-TW": {
@@ -126,7 +126,7 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     },
     firstRun: { id: "first-run-language", title: "首次啟動與入門精靈", paragraphs: [
       "VUA 使用系統偏好設定中支援的語言。首次使用說明包含用途、更新、Apache 2.0 開放原始碼與免費下載說明，以及第三方授權條款。之後可在設定中更換語言。",
-      "「知道了」進入可略過的功能導覽；「我完全不知道要做什麼」開啟逐頁介紹概念的精靈。「我要這個」進入對應準備頁面，「我知道了」進入下一個概念。",
+      "首次使用說明的主按鈕進入可略過的 VUA 功能導覽；不了解 VRChat 時開啟 VRChat 入門精靈，它一頁講一個概念，可以跳轉到對應頁面，也可以翻到下一頁。",
     ] },
   },
   ja: {
@@ -168,7 +168,7 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     },
     firstRun: { id: "first-run-language", title: "初回起動とはじめてのガイド", paragraphs: [
       "VUA はシステムの優先言語から対応言語を選びます。初回の説明には用途、変更点、Apache 2.0 での公開と無料配布、サードパーティーのライセンスを掲載しています。言語は設定で変更できます。",
-      "「わかりました」でスキップ可能な機能ツアーを開始します。「何から始めればよいかわかりません」では、概念を一つずつ学べます。「これを使いたい」で準備画面へ、「わかりました」で次の項目へ進みます。",
+      "初回の説明のメインボタンで、スキップできる VUA 機能ツアーを開始します。VRChat が初めてなら VRChat 入門ガイドを開いてください。1 ページに 1 つずつ説明し、対応するページや次のページへ移動できます。",
     ] },
   },
   ko: {
@@ -210,7 +210,7 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     },
     firstRun: { id: "first-run-language", title: "첫 실행과 처음 시작하기", paragraphs: [
       "VUA는 시스템의 기본 언어 목록에서 지원하는 언어를 선택해요. 첫 사용 안내에는 용도, 변경 사항, Apache 2.0 오픈 소스와 무료 다운로드, 타사 라이선스가 있어요. 언어는 설정에서 바꿀 수 있어요.",
-      "‘알겠어요’는 건너뛸 수 있는 기능 투어를 시작해요. ‘무엇부터 해야 할지 모르겠어요’는 개념을 하나씩 소개해요. ‘이걸 사용할래요’는 해당 준비 화면을 열고 ‘알겠어요’는 다음 개념으로 넘어가요.",
+      "첫 사용 안내의 기본 버튼은 건너뛸 수 있는 VUA 기능 둘러보기를 시작해요. VRChat이 처음이라면 VRChat 시작 가이드를 여세요. 한 쪽에 한 가지씩 설명하고, 해당 화면이나 다음 쪽으로 이동할 수 있어요.",
     ] },
   },
 };

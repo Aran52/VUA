@@ -11,7 +11,7 @@ import { MaterialsStartDialog } from "../../src/renderer/features/amf/MaterialsS
 import { controlPreview } from "./control-center-preview.tsx";
 import { AmfProductionError, type AmfProductionPort, type AmfProductionRun, type LibraryBrowserPort } from "../../src/renderer/gateway/index.ts";
 import { ReleasePreview, releasePorts, vrchatPreviewPort } from "./release-preview.tsx";
-import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
+import { NetworkMonitor } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
 import "../../src/renderer/features/deployer/website-tests.css";
 import "../../src/renderer/features/home/home.css";
 import { VrchatSignInSection } from "../../src/renderer/features/settings/vrchat-sign-in.tsx";
@@ -213,8 +213,8 @@ try { localStorage.setItem("vua-amf-production-run-v01", selected); localStorage
 const clickThrough: Record<string, { run: string; clicks: string[] }> = {
   materials: { run: "finished", clicks: ["workshop-station-prepare", "workshop-change-materials"] },
   inspect: { run: "waiting", clicks: ["workshop-station-inspect"] },
-  "line-menu": { run: "finished", clicks: ["workshop-line-close"] },
-  delete: { run: "finished", clicks: ["workshop-line-close", "workshop-line-delete"] },
+  "line-menu": { run: "finished", clicks: ["workshop-line-menu"] },
+  delete: { run: "finished", clicks: ["workshop-line-menu", "workshop-line-delete"] },
   capacity: { run: "finished", clicks: [] },
   rebuild: { run: "rebuild", clicks: ["workshop-station-plan", "workshop-plan-adjust"] },
   opening: { run: "finished", clicks: ["workshop-open"] },
@@ -330,15 +330,15 @@ const networkPreviewPort = {
 function NetworkPreview({ details }: { details: boolean }) {
   React.useEffect(() => {
     const timer = setInterval(() => {
-      const action = document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-test]");
-      if (!action || action.disabled) return;
+      const toggle = document.querySelector<HTMLButtonElement>("[data-nav-id=shell-network]");
+      if (!toggle) return;
       clearInterval(timer);
-      if (details) document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-details]")?.click();
-      action.click();
+      toggle.click();
+      if (details) window.setTimeout(() => document.querySelector(".vua-network-panel__sites")?.setAttribute("open", ""), 100);
     }, 300);
     return () => clearInterval(timer);
   }, [details]);
-  return <div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div>;
+  return <NetworkMonitor />;
 }
 const content = view.startsWith("terms-everywhere-") ? <GatewayProvider gateway={{...gateway,amfProduction:api,terms:recipeTermsPreviewPort}}><TermsEverywherePreview view={view}/></GatewayProvider> : view.startsWith("share-") ? <GatewayProvider gateway={{...gateway,amfProduction:{...api,listRecipes:async()=>[],listFits:async()=>[]},amfRelease:releasePorts("release-turn").release}}><SharePreview view={view}/></GatewayProvider> : view.startsWith("terms-") ? <GatewayProvider gateway={{ ...gateway, terms: termsPreviewPort(view) }}>
   <div style={{ maxWidth: 420, height: "100%" }}><aside className="vua-warehouse__drawer"><div className="vua-warehouse-detail__content">

@@ -17,7 +17,7 @@ and headset acceptance remains separate from renderer and synthetic UI checks.
 
 | Context | Player question | Presentation | Progress and source |
 | --- | --- | --- | --- |
-| VUA instructions | How do I use this page and recover the actual workflow? | VUA guide inside Help, optional highlight tour and small module introductions | VUA guide bookmark, explicit tour progress and separate contextual dismissals |
+| VUA instructions | How do I use this page and recover the actual workflow? | The VUA feature tour, the encyclopedia's Using VUA topic and small module introductions | VUA guide bookmark, explicit tour progress and separate contextual dismissals |
 | VRChat encyclopedia | What does a VRChat concept mean, or how do I diagnose a problem? | Local full-text search, task entries, a topic tree and source-linked articles in the main Help window | Encyclopedia bookmark, stable topic/section IDs and cited official/community sources |
 | VRChat game guide | What do I do in VRChat now? | A short adjustable-transparency guide associated with the Windows VRChat window | Independently confirmed/skipped game instructions and guide preferences |
 
@@ -31,18 +31,17 @@ A new profile uses the first supported system language, falling back to English.
 choice still wins. The first-use notice contains the app's purpose, the changelog, its Apache 2.0
 open-source/free-download statement and third-party license links.
 
-The acknowledgment explicitly starts the light feature tour with Back/Next/Skip and focus
-restoration. The beginner choice opens `help-wizard`, starting with what VRChat is and presenting
-one concept per page. Both choices record only the existing onboarding completion marker, with no
+The main button starts the VUA feature tour with Back/Next/Skip and focus restoration; first use leads
+there. The other button opens the VRChat getting-started wizard (`help-wizard`), starting with what
+VRChat is and presenting one concept per page. The tour's last step offers the same wizard. Both choices record only the existing onboarding completion marker, with no
 inferred business goals or environment facts. Completed and upgraded profiles retain their settings;
 an old active tour bookmark does not force a tour open.
 
-The concept wizard reads the same sections as the encyclopedia and VUA manual. Each page offers a
-setup entry and an acknowledgment that moves to the next concept. Setup opens the corresponding
-existing destination; that destination owns inspection, plans and consent. A concept bookmark stores
-only its stable identifier, not a task, install result or acceptance. The final acknowledgment returns
-Home. The wizard has no manual or tip-replay buttons: for using VUA itself, the feature tour is the
-guide. Explicit `guide-vua` targets still open the manual reader, and the full encyclopedia keeps its
+The wizard reads the same sections as the encyclopedia. Each page has three buttons in one fixed row:
+previous page, go to the matching page, next page. Going to a page opens the corresponding existing
+destination; that destination owns inspection, plans and consent. A bookmark stores only the concept's
+stable identifier, not a task, install result or acceptance. The last page's next button returns Home.
+Its full-explanation link opens the encyclopedia, as every guide link does; the encyclopedia keeps its
 own reading position.
 
 Help or command search can replay the feature tour. The tour navigates and explains only; it does
@@ -50,13 +49,12 @@ not execute business work.
 
 Main modules can offer one small introduction on their first visit: Home, Play, Tools, Unity setup,
 Materials, Recipes, Workshop, Finished Avatars and Packages. These introductions are non-modal, have
-no backdrop and do not take focus. The underlying page remains usable. They offer Later, a permanent
-dismissal and, where useful, a link to an actual article or the explicit feature tour. An active
+no backdrop and do not take focus. The underlying page remains usable. One button closes an
+introduction for good; where useful it also links to an actual article or the explicit feature tour. An active
 feature tour suppresses them. They do not appear over the first-use notice or Settings. Home's
 introduction offers the tour, so it stays closed once the tour ran or was skipped.
 
 - Permanent dismissal is versioned by stable module ID and revision in local storage.
-- Later is session-local and independent of permanent dismissal, task facts and readiness.
 - A source association, detected runtime, installation, account authentication, production plan or
   upload is never completed by an introduction.
 
@@ -144,9 +142,7 @@ not guarantee appearance or behavior. Final upload remains a user-confirmed offi
 
 `GuideOverlayView` accepts a topic set, initial topic/fallback, reading key and whether to record
 encyclopedia history. Defaults preserve the existing reader. The encyclopedia shows hardware, play,
-basics, safety, creator, devices and tutorials/reference content. The VUA guide uses only `guide-vua`,
-an independent `vua-vua-guide-reading-v1` bookmark and no encyclopedia hash writes. `help-wizard`
-defaults to the concept wizard; explicit `guide-vua` targets open its manual reader. Old article IDs,
+basics, safety, creator, devices and tutorials/reference content. `guide-vua` is the encyclopedia's Using VUA topic, and old `guide-vua` links open it there. `help-wizard` opens the VRChat getting-started wizard. Old article IDs,
 including the first-use article's ID, remain valid for bookmarks. The legacy `guide-tutorials`
 meta-reading topic is retained as a valid bookmark ID but is not a main encyclopedia category.
 

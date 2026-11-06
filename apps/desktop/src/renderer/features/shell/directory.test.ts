@@ -23,9 +23,8 @@ describe("directory", () => {
     expect(directoryItemSelected(materials, "workshop")).toBe(false);
   });
 
-  it("names the Avatar group with the player's word and the module", () => {
+  it("names the Avatar group with the player's word", () => {
     expect(directoryGroupLabel("env")).toBe("VRChat");
-    expect(directoryGroupLabel("production")).toContain("AMF");
   });
 
   it("presents Unity setup as Avatar work while its owner stays the environment", () => {

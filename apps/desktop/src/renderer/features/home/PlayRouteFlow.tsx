@@ -14,6 +14,7 @@ import { openExternalUrl } from "../../app/open-external.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { readDeploymentReceipt, type DeploymentReceiptBookmark } from "../deployer/deployment-receipt.ts";
 import { readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
+import { ToolReinstallRow } from "../tools/ToolReinstall.tsx";
 import { checklistSignature, playChecklist, playFlowPhase, progressPercent, readConfirmed, writeConfirmed, type PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
 
@@ -28,7 +29,7 @@ const readConnection = (): ScenarioConnection => read(storageKeys.picoConnection
 const readRegion = (): PicoInstallRegion | "" => { const value = read(storageKeys.picoRegion); return value === "china_mainland" || value === "other" ? value : ""; };
 const finished = (task: TaskSnapshotV01 | null) => task !== null && (isTerminalTaskStateV01(task.state) || task.recoveryDisposition === "inspect_required");
 
-const PHASE_ICONS: Partial<Record<PlayFlowPhase, IconName>> = { check: "refresh", confirm: "square-check", execute: "download", handoff: "arrow-right", retry: "refresh", unavailable: "warning" };
+const PHASE_ICONS: Partial<Record<PlayFlowPhase, IconName>> = { check: "refresh", confirm: "list", execute: "download", handoff: "arrow-right", retry: "refresh", unavailable: "warning" };
 
 /** What the route's card shows and does for the next step. */
 export interface PlayFlowStep {
@@ -184,12 +185,14 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
   const scenario = strings.scenarioEnvironment;
   const componentName = (component: string) => strings.deployment.components[component as keyof typeof strings.deployment.components] ?? component;
   const percent = progressPercent(step);
-  const items = playChecklist(sop, { check, confirmed, session });
+  const items = playChecklist(sop);
   const observed = new Map((check?.observations ?? []).map(o => [o.component, o.presence === "verified"] as const));
   const software = (session?.software.map(s => s.component) ?? DEFAULT_SOFTWARE[route]).map(component => {
     const fact = session?.software.find(s => s.component === component);
     return { component, ready: observed.get(component) ?? fact?.presence === "verified", running: !unavailable && !!fact?.running, owned: !!fact?.owned };
   });
+  const [repairOpen, setRepairOpen] = useState(false);
+  const repairable = software.filter(item => item.ready && (item.component === "vrchat" || item.component === "steamvr"));
   const failure = task?.error?.code.replace(/^vua\.deployment\./, "");
   const notice = phase === "retry"
     ? checkFailed ? scenario.failed
@@ -228,18 +231,25 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
         </label>)}
       </fieldset> : null}
     </div> : null}
-    {items.length > 0 ? <ol className="vua-play-flow__checklist" aria-label={copy.checklist}>
-      {items.map((item, index) => {
-        const text = scenario.steps[item.id as keyof typeof scenario.steps];
-        return <li key={item.id} data-done={item.done} data-automatic={item.automatic} title={text?.explanation}>
-          <span className="vua-play-flow__mark" aria-hidden="true">{item.done ? <Icon name="check" size={16} /> : index + 1}</span>
-          <span>{text?.title ?? item.id}</span>
-        </li>;
-      })}
-    </ol> : null}
+    {items.length > 0 ? <div className="vua-play-flow__review" data-confirming={phase === "confirm" || undefined}>
+      <h3><Icon name="list" size={16} />{phase === "confirm" ? copy.checklist : copy.steps}</h3>
+      <ol className="vua-play-flow__checklist">
+        {items.map((item, index) => {
+          const text = scenario.steps[item.id as keyof typeof scenario.steps];
+          return <li key={item.id} data-automatic={item.automatic} title={text?.explanation}>
+            <span className="vua-play-flow__mark" aria-hidden="true">{index + 1}</span>
+            <span>{text?.title ?? item.id}</span>
+          </li>;
+        })}
+      </ol>
+    </div> : null}
     {notice ? <p className="vua-play-flow__notice" role="status" data-tone={phase === "retry" ? "warning" : undefined}>{notice}</p> : null}
+    {repairable.length > 0 ? <details className="vua-play-flow__repair" onToggle={event => setRepairOpen(event.currentTarget.open)}>
+      <summary>{copy.repair}</summary>
+      {repairOpen ? repairable.map(item => <ToolReinstallRow key={item.component} toolId={item.component as "vrchat" | "steamvr"} title={componentName(item.component)} />) : null}
+    </details> : null}
     <div className="vua-play-flow__actions">
-      {phase === "confirm" ? <Button variant="primary" data-nav-id={`play-confirm-${route}`} onClick={act}>{label}</Button> : null}
+      {phase === "confirm" ? <Button variant="primary" data-nav-id={`play-confirm-${route}`} onClick={act}>{copy.confirmContinue}</Button> : null}
       {phase === "execute" && pico ? <Button variant="primary" data-nav-id={`play-install-${route}`} disabled={regionMissing} onClick={act}>{label}</Button> : null}
       {phase === "running" && task !== null && taskActive && !task.cancellationRequested && deployment
         ? <Button variant="subtle" onClick={() => { void deployment.cancel(task.taskId, task.revision).catch(() => {}); }}>{copy.cancel}</Button> : null}

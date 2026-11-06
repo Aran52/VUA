@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ExternalToolSnapshot } from "@vua/contracts";
 import { deriveToolCardState } from "./tool-connection-state.ts";
 
-const base: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.2", toolId: "space", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
+const base: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.3", toolId: "space", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
 const live = (snapshot: ExternalToolSnapshot | null, pending = false, failed = false) => ({ snapshot, pending, failed });
 
 describe("SteamToolCard state derivation", () => {

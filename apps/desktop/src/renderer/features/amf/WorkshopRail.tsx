@@ -1,4 +1,4 @@
-/** The workshop's production lines: open one, start a new one, or hide or delete a line from its card. */
+/** The workshop's production lines: open one, start a new one, or rename, hide or delete a line from its menu. */
 import { useEffect, useState } from "react";
 import { Icon } from "@vua/design-system";
 import { useGateway } from "../../gateway/index.ts";
@@ -25,9 +25,10 @@ export interface RailLine {
 /** How many Unity jobs may run at once, and whether it can change now (only while nothing runs or waits). */
 export interface RailCapacity { readonly value: 1 | 2 | 3; readonly changeable: boolean }
 
-export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDeleting, onDeleted, onError, refresh }: {
+export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onRename, onDeleting, onDeleted, onError, refresh }: {
   lines: readonly RailLine[]; current: string; capacity?: RailCapacity | undefined;
   onSelect: (runId: string) => void; onNew: () => void;
+  onRename: (runId: string, name: string) => void;
   /** A delete was accepted; the line leaves the page now. */
   onDeleting: (runId: string) => void;
   onDeleted: (runId: string) => void;
@@ -39,11 +40,12 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDele
   const [hidden, setHidden] = useState(storedHidden);
   const [showHidden, setShowHidden] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [confirmLine, setConfirmLine] = useState<RailLine | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState<ReadonlyMap<string, string>>(new Map());
 
-  // The two bars close on Escape or a press elsewhere.
+  // The menu closes on Escape or a press elsewhere.
   useEffect(() => {
     if (open === null) return;
     const outside = (event: PointerEvent) => { if (!(event.target instanceof Element) || !event.target.closest(`[data-line-menu="${open}"]`)) setOpen(null); };
@@ -104,14 +106,23 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDele
         const removing = deleting.has(line.runId);
         const isHidden = hidden.has(line.runId);
         return <li key={line.runId} className="vua-workshop__line-item" data-line-menu={line.runId} data-hidden={isHidden || undefined} data-selected={line.runId === current || undefined}>
-          <button type="button" className="vua-workshop__line" aria-current={line.runId === current || undefined} disabled={removing} onClick={() => onSelect(line.runId)}>
+          {renaming === line.runId ? <input className="vua-workshop__line-rename" autoFocus defaultValue={line.name} maxLength={80} aria-label={menu.rename} data-nav-id="workshop-line-name"
+            onFocus={event => event.currentTarget.select()}
+            onBlur={event => { onRename(line.runId, event.currentTarget.value); setRenaming(null); }}
+            onKeyDown={event => {
+              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Escape") { event.stopPropagation(); event.currentTarget.value = line.name; event.currentTarget.blur(); }
+            }} />
+          : <button type="button" className="vua-workshop__line" aria-current={line.runId === current || undefined} disabled={removing} onClick={() => onSelect(line.runId)}>
             <span>{line.name}</span>
             {line.extra && <small className="vua-workshop__line-extra">{line.extra}</small>}
             {removing ? <span className="vua-line__status" data-status="running">{menu.deleting}</span> : <StatusChip status={line.status}/>}
-          </button>
-          {!removing && open !== line.runId && <button type="button" className="vua-workshop__line-close" aria-label={format(menu.close, { name: line.name })}
-            title={format(menu.close, { name: line.name })} onClick={() => setOpen(line.runId)} data-nav-id="workshop-line-close"><Icon name="close" size={16}/></button>}
+          </button>}
+          {!removing && renaming !== line.runId && <button type="button" className="vua-workshop__line-menu" aria-haspopup="true" aria-expanded={open === line.runId}
+            aria-label={format(menu.open, { name: line.name })} title={format(menu.open, { name: line.name })}
+            onClick={() => setOpen(current => current === line.runId ? null : line.runId)} data-nav-id="workshop-line-menu"><Icon name="caret-down" size={16}/></button>}
           {!removing && open === line.runId && <div className="vua-workshop__line-choices">
+            <button type="button" className="vua-workshop__line-hide" onClick={() => { setOpen(null); setRenaming(line.runId); }} data-nav-id="workshop-line-rename">{menu.rename}</button>
             <button type="button" className="vua-workshop__line-hide" onClick={() => toggleHidden(line.runId)} data-nav-id="workshop-line-hide">{isHidden ? menu.unhide : menu.hide}</button>
             <button type="button" className="vua-workshop__line-delete" disabled={line.status === "running"} onClick={() => { setConfirmLine(line); setConfirming(true); }} data-nav-id="workshop-line-delete">{menu.delete}</button>
           </div>}
@@ -120,12 +131,12 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onDele
     </ul>
     {hiddenCount > 0 && <button type="button" className="vua-workshop__hidden-toggle" onClick={() => setShowHidden(value => !value)}>
       {showHidden ? menu.hideHidden : format(menu.showHidden, { count: hiddenCount })}</button>}
-    {capacity && <div className="vua-workshop__capacity" role="group" aria-label={factory.capacity.label}>
-      <span className="vua-caption">{factory.capacity.label}</span>
+    {capacity && <details className="vua-workshop__capacity" aria-label={factory.capacity.label}>
+      <summary>{factory.capacity.label} · {capacity.value}</summary>
       <div className="vua-workshop__capacity-choices">{([1, 2, 3] as const).map(value => <button key={value} type="button" aria-pressed={value === capacity.value}
         disabled={!capacity.changeable || settingCapacity} onClick={() => { void chooseCapacity(value); }} data-nav-id={`workshop-capacity-${value}`}>{value}</button>)}</div>
       <small className="vua-text-secondary">{capacity.changeable ? factory.capacity.hint : factory.capacity.busy}</small>
-    </div>}
+    </details>}
   </aside>
     <ConfirmDialog open={confirming} danger title={menu.deleteTitle} cancelLabel={menu.cancel} confirmLabel={menu.deleteConfirm}
       onCancel={() => setConfirming(false)} onConfirm={() => { if (confirmLine) void remove(confirmLine); }}>

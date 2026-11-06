@@ -195,14 +195,14 @@ async function run() {
     window.setSize(1180, 820);
     await delay(100);
     if (process.env.VUA_TEST_NETWORK_LIVE === "1") {
-      await waitFor(() => js('!document.querySelector("[data-nav-id=play-network-test]").disabled'), "Regional probe available");
-      await js('document.querySelector("[data-nav-id=play-network-test]").click()');
-      await waitFor(() => js('!document.querySelector("[data-nav-id=play-network-test]").disabled'), "Explicit regional response");
-      const timings = await js('document.querySelector(".vua-network-tile__results").textContent');
+      await js('document.querySelector("[data-nav-id=shell-network]").click()');
+      await waitFor(() => js('!!document.querySelector("[data-nav-id=network-test]") && !document.querySelector("[data-nav-id=network-test]").disabled'), "Regional response");
+      const timings = await js('document.querySelector(".vua-network__references").textContent');
+      await js('document.querySelector("[data-nav-id=shell-network]").click()');
       fs.writeFileSync(path.join(output, "live-regional-reference.json"), JSON.stringify({ scope: "Actual native HTTPS response time to Oracle regional origins, not game Ping", timings }, null, 2));
       assert(timings.includes("≈"), "At least one live regional reference returned a timed response");
     }
-    assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "All Play cards, including network, are half-height");
+    assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "All Play cards are half-height");
     const cardLayout = await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card button")].map(b=>({label:b.getAttribute("data-nav-id"),overflow:b.scrollHeight-b.clientHeight}))');
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");

@@ -54,6 +54,7 @@ import { OnboardingPage, type OnboardingResult } from "./features/onboarding/Onb
 import { NavigationConfirmOverlay } from "./app/NavigationConfirmOverlay.tsx";
 import { AppTour } from "./features/tour/AppTour.tsx";
 import { ContextGuidance } from "./features/guidance/ContextGuidance.tsx";
+import { NetworkMonitor } from "./features/deployer/NetworkPanel.tsx";
 import { LoginBrowserOverlay } from "./app/LoginBrowserOverlay.tsx";
 import { closeLoginBrowser } from "./app/login-browser-store.ts";
 import { closeBrowserModal } from "./components/primitives/modal-layer.tsx";
@@ -736,7 +737,7 @@ function AppShell({
   useEffect(() => window.vua?.window.shellCommandEvents?.subscribe(onShellCommand), []);
   const onEncyclopediaTarget = useEffectEvent((target: GuideTargetV1 | null) => {
     setGuideRequest({ target, nonce: ++guideRequestNonce.current });
-    navigate(target?.topic === "guide-vua" ? "help-wizard" : "help-encyclopedia");
+    navigate("help-encyclopedia");
   });
   useEffect(() => {
     const unsubscribe = window.vua?.window.encyclopediaTargetEvents.subscribe(onEncyclopediaTarget);
@@ -983,7 +984,8 @@ function AppShell({
           {settingsOpen ? <Button variant="primary" className="vua-shell__back" data-nav-id="shell-back" onClick={returnFromSettings}><Icon name="arrow-left" size={20} />{strings.journey.back}</Button> : null}
           <ThemeAddress page={contentPage ?? page} navigate={navigate} openPalette={() => setPaletteOpen(true)} />
         </div>
-        {/* Resource headroom summary; details retain each measured resource. */}
+        {/* Latency and resource headroom, one click from any page. */}
+        <NetworkMonitor />
         <ResourceMonitor />
         {/* External AI tools sit beside Help and Settings: their connection and pending requests are one page. */}
         {resolvedThemeFamily !== "frutiger-aero" ? <button type="button" className="vua-shell__tab vua-shell__ai" aria-current={page === "help-ai" ? "page" : undefined} data-nav-id="shell-ai" onClick={() => navigate("help-ai")}>

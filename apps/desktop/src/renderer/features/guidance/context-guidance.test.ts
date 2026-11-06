@@ -5,10 +5,8 @@ import {
   CONTEXT_GUIDES,
   contextGuideForPage,
   dismissContextGuide,
-  readContextGuideSnoozed,
   readContextGuideState,
   resetContextGuides,
-  snoozeContextGuide,
   type ContextGuideStore,
 } from "./context-guidance.ts";
 
@@ -51,30 +49,15 @@ test("permanent dismissal preserves the other preference and unrelated storage",
   store.data.set(storageKeys.contextGuide, JSON.stringify({ v: 1, dismissed: { play: 1 } }));
   assert.deepEqual(dismissContextGuide(store, CONTEXT_GUIDES.home), { v: 1, dismissed: { play: 1, home: 1 } });
   assert.equal(store.data.get(storageKeys.theme), "dark");
-  assert.equal(store.data.get(storageKeys.contextGuideSnoozed), undefined);
 });
 
-test("snooze is session-local, deduplicated and independent of permanent dismissal", () => {
-  const session = memoryStore();
-  snoozeContextGuide(session, "home");
-  snoozeContextGuide(session, "home");
-  snoozeContextGuide(session, "play");
-  assert.deepEqual(readContextGuideSnoozed(session), ["home", "play"]);
-  assert.equal(session.data.get(storageKeys.contextGuide), undefined);
-  session.data.set(storageKeys.contextGuideSnoozed, '["home","bogus",4]');
-  assert.deepEqual(readContextGuideSnoozed(session), ["home"]);
-});
-
-test("replay clears only guide dismissal and snooze", () => {
+test("replay clears only guide dismissal", () => {
   const local = memoryStore();
-  const session = memoryStore();
   dismissContextGuide(local, CONTEXT_GUIDES.home);
-  snoozeContextGuide(session, "play");
   local.data.set(storageKeys.guideReading, '{"topic":"guide-safety"}');
   local.data.set(storageKeys.theme, "light");
-  resetContextGuides(local, session);
+  resetContextGuides(local);
   assert.equal(local.data.has(storageKeys.contextGuide), false);
-  assert.equal(session.data.has(storageKeys.contextGuideSnoozed), false);
   assert.equal(local.data.get(storageKeys.guideReading), '{"topic":"guide-safety"}');
   assert.equal(local.data.get(storageKeys.theme), "light");
 });

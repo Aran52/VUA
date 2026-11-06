@@ -14,8 +14,8 @@ export function LibraryCorner({ state, onAction, busy = false }: { state: Librar
     <span className="vua-library-marker" data-corner-state={state}>
       <button type="button" className="vua-library-corner" data-vua-control-role="indicator" data-corner-state={state} data-action={action || undefined}
         aria-label={copy[state]} aria-describedby={anchor === null ? undefined : id} aria-disabled={!action}
-        onMouseEnter={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left, top: rect.bottom + 8 }); }}
-        onMouseLeave={() => setAnchor(null)} onFocus={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.left, top: rect.bottom + 8 }); }} onBlur={() => setAnchor(null)}
+        onMouseEnter={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.right + 8, top: rect.top + 4 }); }}
+        onMouseLeave={() => setAnchor(null)} onFocus={event => { const rect = event.currentTarget.getBoundingClientRect(); setAnchor({ left: rect.right + 8, top: rect.top + 4 }); }} onBlur={() => setAnchor(null)}
         onClick={event => { event.stopPropagation(); if (action) onAction?.(); }} onDoubleClick={event => event.stopPropagation()}>
         <span className="vua-library-corner__rest"><Icon name={icons[state]} size={16} /></span>
         <span className="vua-library-corner__hover"><Icon name={action ? hoveredIcon : icons[state]} size={16} /></span>

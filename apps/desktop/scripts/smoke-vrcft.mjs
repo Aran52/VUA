@@ -20,7 +20,7 @@ process.env.VUA_AMF_EXECUTABLE = process.env.VUA_TEST_AMF_EXECUTABLE ?? path.res
 delete process.env.VUA_RENDERER_URL;
 BrowserWindow.prototype.show = function () {}; BrowserWindow.prototype.focus = function () {};
 let window, exitCode = 1, nativeRead = false, unavailable = false;
-let synthetic = { schemaVersion: "vua.external-tool/v0.2", toolId: "vrcft", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
+let synthetic = { schemaVersion: "vua.external-tool/v0.3", toolId: "vrcft", capturedAt: "synthetic", presence: "missing", steamReady: true, buildId: null, running: false, canStop: false, activity: "idle", issue: null };
 const actions = [], errors = [], checks = [];
 const handle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel, listener) => handle(channel, async (event, request, ...rest) => {
@@ -60,7 +60,7 @@ async function run() {
     const observed = await js('window.vua.gateway.invoke({schemaVersion:1,requestId:"native-tool-read",method:"tools.observeConnection",params:{toolId:"vrcft"}})');
     // CI may have no vendor apps. Schema validation and the actual native gate must still work.
     const nativeSchema = observed.value?.toolConnection?.schemaVersion;
-    assert(observed.ok && observed.value.toolConnection.toolId === "vrcft" && nativeSchema === "vua.external-tool/v0.2", "Native host returns VRCFT v0.2 facts while AMF is disabled");
+    assert(observed.ok && observed.value.toolConnection.toolId === "vrcft" && nativeSchema === "vua.external-tool/v0.3", "Native host returns VRCFT v0.2 facts while AMF is disabled");
     const nativePresence = observed.value.toolConnection.presence; nativeRead = false;
     await click('[data-nav-id=nav-tools-discover]'); await waitFor(() => js('!!document.querySelector("[data-nav-id=tool-vrcft-action]")'), "tool card"); await refresh();
     assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].length===8 && [...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].every(button=>(button.textContent.trim()==="" || button.textContent.trim()==="—") && !!button.getAttribute("aria-label"))'), "All eight tool actions show only symbols and retain accessible operation names");

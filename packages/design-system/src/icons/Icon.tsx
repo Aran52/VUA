@@ -42,7 +42,10 @@ export type IconName =
   | "tools"
   | "modules"
   | "settings"
-  | "info";
+  | "info"
+  | "list"
+  | "signal"
+  | "caret-down";
 
 const paths: Record<IconName, string> = {
   tools: "M14 4a5 5 0 0 0-6 6L3 15a3 3 0 0 0 4 4l5-5a5 5 0 0 0 6-6l-3 3-3-3 3-3ZM5 17l1-1",
@@ -91,6 +94,9 @@ const paths: Record<IconName, string> = {
   "square-check": "M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4ZM8.5 12.2l2.5 2.5 4.8-5",
   shield: "M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6L12 3Z",
   info: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 11v6M12 7.5v.5",
+  list: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
+  signal: "M5 20v-3M10 20v-7M15 20V9M20 20V4",
+  "caret-down": "M6 9h12l-6 7Z",
 };
 
 export interface IconProps {

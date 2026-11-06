@@ -3,7 +3,6 @@ import { Icon, type IconName } from "@vua/design-system";
 import { strings, format } from "../../i18n/index.ts";
 import { RouteGlyph } from "../../components/RouteTile.tsx";
 import type { VrBrand } from "../../components/vr-brand-glyphs.ts";
-import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 export type EnvironmentAction = "prepare" | "start" | "stop" | "busy" | "attention" | "unknown";
 export function ActionGlyph({ action, spinning = false }: { action: EnvironmentAction; spinning?: boolean }) {
   return <svg className={spinning ? "vua-environment-card__spin" : undefined} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -11,11 +10,14 @@ export function ActionGlyph({ action, spinning = false }: { action: EnvironmentA
   </svg>;
 }
 /** Two sibling buttons; neither half is nested inside the other control. */
-export function EnvironmentCard({ title, titleContent, kind, brand, icon, logo, id, action, status, actionHint, iconOnlyAction = false, selected, onDetails, onAction, disabled, spinning, warning, developing, primary, actionIcon, progress, phase, children }: {
-  title: string; titleContent?: ReactNode; kind?: "screen" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName;
+export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, logo, id, action, status, actionHint, selected, onDetails, onAction, disabled, spinning, warning, developing, primary, actionIcon, progress, phase, children }: {
+  title: string; titleContent?: ReactNode;
+  /** One line on what this is, for a player who has not met it yet. */
+  hint?: string | undefined;
+  kind?: "screen" | "unity" | undefined; brand?: VrBrand | undefined; icon?: IconName;
   /** The item's own logo, shown in place of the glyph. */
   logo?: ReactNode; id: string; action: EnvironmentAction; status: string;
-  actionHint?: string | undefined; iconOnlyAction?: boolean;
+  actionHint?: string | undefined;
   selected?: boolean; onDetails?: () => void; onAction?: () => void; disabled?: boolean; spinning?: boolean; warning?: boolean; developing?: boolean;
   /** This half is the card's next step; it reads as the page's main action. */
   primary?: boolean | undefined;
@@ -32,13 +34,12 @@ export function EnvironmentCard({ title, titleContent, kind, brand, icon, logo, 
   const actionLabel = actionHint ? actionHint.includes(title) ? actionHint : `${title} · ${actionHint}` : format(label, { name: title });
   const actionButton = <button type="button" className="vua-environment-card__action" data-nav-id={`${id}-action`} data-primary={primary || undefined} data-phase={phase} disabled={disabled || developing} aria-label={actionLabel} aria-busy={spinning} onClick={onAction}
     style={progress === null || progress === undefined ? undefined : { "--vua-card-progress": `${progress}%` } as CSSProperties}>
-    {developing ? <span aria-hidden="true">—</span> : <>{actionIcon && !spinning ? <Icon name={actionIcon} size={20} /> : <ActionGlyph action={action} spinning={!!spinning} />}{warning && action === "stop" ? <span className="vua-environment-card__warning"><ActionGlyph action="attention" /></span> : null}{!iconOnlyAction ? <span role="status">{status}</span> : null}</>}
+    {developing ? <span className="vua-environment-card__developing">{strings.journey.developing}</span> : <>{actionIcon && !spinning ? <Icon name={actionIcon} size={20} /> : <ActionGlyph action={action} spinning={!!spinning} />}{warning && action === "stop" ? <span className="vua-environment-card__warning"><ActionGlyph action="attention" /></span> : null}<span role="status">{status}</span></>}
   </button>;
   return <article className="vua-environment-card" data-card={id} data-action={action} data-selected={selected}>
-    {developing ? <span className="vua-route-tile__tag">{strings.journey.developing}</span> : null}
     <button type="button" className="vua-environment-card__details" data-nav-id={id} disabled={!onDetails} aria-label={format(copy.details, { name: title })} aria-expanded={onDetails ? !!selected : undefined} aria-controls={onDetails ? `${id}-details` : undefined} onClick={onDetails}>
-      {logo ?? <RouteGlyph kind={kind} brand={brand} icon={icon} />}<strong>{titleContent ?? title}</strong>{children}
+      {logo ?? <RouteGlyph kind={kind} brand={brand} icon={icon} />}<span className="vua-environment-card__name"><strong>{titleContent ?? title}</strong>{hint ? <small title={hint}>{hint}</small> : null}</span>{children}
     </button>
-    {iconOnlyAction ? <Tooltip content={actionLabel} delayMs={1200} block>{actionButton}</Tooltip> : actionButton}
+    {actionButton}
   </article>;
 }

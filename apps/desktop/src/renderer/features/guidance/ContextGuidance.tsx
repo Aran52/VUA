@@ -6,9 +6,7 @@ import { openEncyclopedia } from "../help/encyclopedia-navigation.ts";
 import {
   contextGuideForPage,
   dismissContextGuide,
-  readContextGuideSnoozed,
   readContextGuideState,
-  snoozeContextGuide,
   tourAnswered,
   type ContextGuideDefinition,
 } from "./context-guidance.ts";
@@ -22,20 +20,15 @@ export function ContextGuidance({ page, startTour, suppressed = false, replayTok
 }) {
   const definition = contextGuideForPage(page);
   const [dismissed, setDismissed] = useState(() => readContextGuideState(localStorage).dismissed);
-  const [snoozed, setSnoozed] = useState(() => readContextGuideSnoozed(sessionStorage));
-  useEffect(() => {
-    setDismissed(readContextGuideState(localStorage).dismissed);
-    setSnoozed(readContextGuideSnoozed(sessionStorage));
-  }, [replayToken]);
+  useEffect(() => { setDismissed(readContextGuideState(localStorage).dismissed); }, [replayToken]);
 
-  if (suppressed || definition === null || (dismissed[definition.id] ?? 0) >= definition.revision || snoozed.includes(definition.id)) return null;
+  if (suppressed || definition === null || (dismissed[definition.id] ?? 0) >= definition.revision) return null;
   // Offering the tour right after the player took or skipped it would only ask again.
   if (definition.action === "tour" && tourAnswered(localStorage)) return null;
   const copy = strings.contextGuide;
   const content = copy[definition.id];
   const actionLabel = content.action || strings.helpFaq.uploadAction;
   const dismiss = () => setDismissed(dismissContextGuide(localStorage, definition).dismissed);
-  const later = () => setSnoozed(snoozeContextGuide(sessionStorage, definition.id));
   const action = (definition: ContextGuideDefinition) => {
     dismiss();
     if (definition.action === "tour") startTour();
@@ -43,12 +36,11 @@ export function ContextGuidance({ page, startTour, suppressed = false, replayTok
   };
 
   return <aside className="vua-context-guide" aria-label={content.title} data-context-guide={definition.id}
-    onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); later(); } }}>
+    onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); dismiss(); } }}>
     <h2>{content.title}</h2>
     <p>{content.body}</p>
     <div className="vua-context-guide__actions">
       {definition.action !== "none" ? <Button variant={definition.action === "tour" ? "primary" : "default"} onClick={() => action(definition)}>{actionLabel}</Button> : null}
-      <Button variant="subtle" onClick={later}>{copy.later}</Button>
       <Button variant="subtle" onClick={dismiss}>{copy.dismiss}</Button>
     </div>
   </aside>;

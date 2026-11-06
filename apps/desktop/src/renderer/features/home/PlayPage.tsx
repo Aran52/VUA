@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { PLAY_ROUTES, type PlayRoute } from "@vua/contracts";
 import { currentLocale, strings } from "../../i18n/index.ts";
 import { playFlowCopy } from "../../i18n/play-flow-copy.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
@@ -9,22 +10,24 @@ import { useGridColumns } from "../../components/use-grid-columns.ts";
 import { RouteGlyph } from "../../components/RouteTile.tsx";
 import { useEnvironmentView, useGateway, type EnvironmentView } from "../../gateway/index.ts";
 import { CHECK_GROUPS } from "../deployer/deployer-model.ts";
-import { NetworkPanel } from "../deployer/NetworkPanel.tsx";
 import { EnvironmentCard, type EnvironmentAction } from "./EnvironmentCard.tsx";
 import { takeRequestedPlayRoute } from "./play-route-request.ts";
 import { usePlaySessions } from "./use-play-sessions.ts";
 import { PlayRouteFlow, type PlayFlowStep } from "./PlayRouteFlow.tsx";
+import { ToolGroup } from "../tools/ToolsHub.tsx";
 import type { PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
 
 const copy = strings.environmentCards;
+const structure = structureCopy[currentLocale];
 const developingRoutes = [
   { id: "quest", title: "Meta Quest", brand: "meta" },
   { id: "vive", title: "HTC VIVE", brand: "htcvive" },
   { id: "index", title: "Valve Index", brand: "valve" },
 ] as const;
+const OTHER_PLATFORMS = { icon: "anim", tools: [{ id: "chilloutvr", title: "ChilloutVR" }, { id: "reborn", title: "Reborn" }] } as const;
 const cardId = (route: PlayRoute) => route === "desktop_play" ? "route-desktop" : "route-pico";
-const runtimeBrand = (id: string) => id === "pico_runtime" ? "pico" : id === "oculus_runtime" ? "meta" : id === "vive_runtime" ? "htcvive" : id === "steamvr" ? "valve" : undefined;
+const runtimeBrand = (id: string) => id === "pico_runtime" ? "pico-mark" : id === "oculus_runtime" ? "meta" : id === "vive_runtime" ? "htcvive" : id === "steamvr" ? "valve" : undefined;
 /** The card's glyph for a step; the other steps name themselves with an icon. */
 const stepAction = (phase: PlayFlowPhase | undefined): EnvironmentAction =>
   phase === "launch" ? "start" : phase === "stop" ? "stop" : phase === "unavailable" ? "unknown" : phase === "check" || phase === "confirm" || phase === "execute" || phase === "handoff" || phase === "retry" ? "prepare" : "busy";
@@ -57,6 +60,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   // The drawer keeps its place and content while it closes.
   const [shown, setShown] = useState<PlayRoute>(requestedRoute ?? "desktop_play");
   const [steps, setSteps] = useState<Partial<Record<PlayRoute, PlayFlowStep>>>({});
+  const [platform, setPlatform] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const live = usePlaySessions();
   const scan = useDeviceScan();
@@ -90,7 +94,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
     ...PLAY_ROUTES.map(route => {
       const step = steps[route];
       return <div className="vua-card-entry" data-card-entry={cardId(route)} key={route}>
-        <EnvironmentCard title={title(route)} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico" : undefined} id={cardId(route)}
+        <EnvironmentCard title={title(route)} hint={route === "desktop_play" ? structure.routes.desktop : structure.routes.pico} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={cardId(route)}
           action={stepAction(step?.phase)} actionIcon={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.icon} phase={step?.phase}
           status={step?.label ?? copy.checking} actionHint={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.label ?? copy.checking} spinning={step === undefined || step.spinning} disabled={step === undefined || step.disabled}
           primary={stepIsPrimary(step)} progress={step?.percent} warning={!!live.sessions[route]?.issue} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />
@@ -113,6 +117,8 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
         : <li data-empty="true">{flowCopy.devicesNone}</li>}
     </ul> : null}
     <div className="vua-environment-grid" ref={grid} data-tour-anchor="play-environments">{items}</div>
-    <NetworkPanel compact />
+    <div className="vua-other-platforms">
+      <ToolGroup title={structure.platforms.title} group={OTHER_PLATFORMS} selected={platform} onSelect={setPlatform} onPrepareSteam={() => { setPlatform(null); open("desktop_play"); }} />
+    </div>
   </div>;
 }

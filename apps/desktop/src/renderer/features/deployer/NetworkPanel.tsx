@@ -1,6 +1,7 @@
-/** Compact website tests. Preferences belong to the renderer; observations come
+/** Network latency and website tests. Preferences belong to the renderer; observations come
  * only from the typed Gateway. Individual cards never clear unrelated results. */
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@vua/design-system";
 import { WEBSITE_TEST_LIMIT, type WebsiteObservation } from "@vua/contracts";
 import { useGateway } from "../../gateway/index.ts";
@@ -9,15 +10,15 @@ import { storageKeys } from "../../app/storage-keys.ts";
 import { Card } from "../../components/primitives/Card.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
-import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { DEFAULT_TEST_WEBSITES, normalizeWebsiteUrl, parseTestWebsites, type TestWebsite } from "./website-model.ts";
 import { brandGlyphPath } from "./website-glyphs.ts";
 import { REGIONAL_REFERENCES } from "./regional-reference.ts";
-import { RegionalTierList, RegionalTierSummary, regionalMeasuredViaProxy } from "./RegionalTiers.tsx";
+import { RegionalTierList, closestRegion, regionalMeasuredViaProxy } from "./RegionalTiers.tsx";
 import "./website-tests.css";
 
 const copy = strings.websiteTests;
 type CardState = { readonly busy: true } | { readonly busy: false; readonly result?: WebsiteObservation };
+const regionSites: readonly TestWebsite[] = REGIONAL_REFERENCES.map(region => ({ name: copy.regionCities[region.id], url: region.url }));
 
 /** 品牌站用 Simple Icons 官方字形(Simple Icons CC0),其余回落中性 globe;
  *  全部内联,不发远程 favicon 请求(测试前不暴露浏览行踪)。 */
@@ -35,8 +36,7 @@ function WebsiteGlyph({ url }: { url: string }) {
   );
 }
 
-export function NetworkPanel({ compact = false }: { compact?: boolean }) {
-  const [expanded, setExpanded] = useState(false);
+function useNetworkTests() {
   const port = useGateway().environment.network;
   const [ready, setReady] = useState<boolean | null>(null);
   const [sites, setSites] = useState<readonly TestWebsite[]>(() => {
@@ -93,28 +93,16 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
     setStates(previous => { const next = { ...previous }; if (editor.original) delete next[editor.original]; return next; });
     setEditor(null);
   };
-  if (!port && !compact) return null;
+  return { port, ready, sites, states, referenceStates, editor, setEditor, formError, setFormError, storageFailed, saveSites, test, saveEditor };
+}
+type NetworkTests = ReturnType<typeof useNetworkTests>;
+
+function WebsiteTests({ tests }: { tests: NetworkTests }) {
+  const { ready, sites, states, setEditor, setFormError, storageFailed, test } = tests;
   const busy = sites.some(site => states[site.url]?.busy);
-  const regionBusy = REGIONAL_REFERENCES.some(region => referenceStates[region.url]?.busy);
-  const regionViaProxy = regionalMeasuredViaProxy(referenceStates);
-  const regionSites = REGIONAL_REFERENCES.map(region => ({ name: copy.regionCities[region.id], url: region.url }));
   return <>
-    <div className={compact ? "vua-network-block" : undefined}>
-    {compact ? <article className="vua-environment-card vua-network-tile" data-proxy={regionViaProxy || undefined}>
-      <button type="button" className="vua-environment-card__details" data-nav-id="play-network-details" aria-expanded={expanded} aria-controls="play-network-drawer" onClick={() => setExpanded(value => !value)}>
-        <span className="vua-route-tile__icon" aria-hidden="true"><Icon name="gauge" size={24} /></span><strong>{copy.regionTitle}</strong>
-        <RegionalTierSummary states={referenceStates} />
-      </button>
-      <button type="button" className="vua-environment-card__action" data-nav-id="play-network-test" disabled={!ready || regionBusy} aria-label={ready === false ? copy.regionUnavailable : copy.testRegions} onClick={() => { void test(regionSites, true); }}>
-        <span className={regionBusy ? "vua-environment-card__spin" : undefined} aria-hidden="true"><Icon name={regionBusy ? "refresh" : "gauge"} size={24} /></span><span role="status">{regionBusy ? copy.testing : ready === false ? copy.regionUnavailable : copy.testRegions}</span>
-      </button>
-      {regionViaProxy ? <p className="vua-network-tile__proxy">{copy.regionViaProxy}</p> : null}
-    </article> : null}
-    <SlideDrawer id="play-network-drawer" open={!compact || expanded} label={copy.title}><Card className="vua-network">
-    {compact ? <RegionalTierList states={referenceStates} ready={ready} onTest={region => { void test([{ name: copy.regionCities[region.id], url: region.url }], true); }} /> : null}
     <header className="vua-network__header">
-      {/* 仪表盘字形:本面板测的是到站耗时(ms),不是信号有无 */}
-      <span className="vua-network__heading-icon"><Icon name="gauge" size={24} /></span><h2>{copy.title}</h2>
+      <h3>{copy.title}</h3>
       <div className="vua-network__toolbar">
         <button type="button" className="vua-network__icon-button" title={copy.testAll} aria-label={copy.testAll}
           disabled={!ready || busy || !sites.length} onClick={() => { void test(sites); }}><Icon name="refresh" size={20} /></button>
@@ -142,16 +130,87 @@ export function NetworkPanel({ compact = false }: { compact?: boolean }) {
     {!sites.length ? <p className="vua-network__note">{copy.empty}</p> : null}
     {ready === false ? <p className="vua-network__note" role="status">{copy.unavailable}</p> : null}
     {storageFailed ? <p className="vua-network__note" role="status">{copy.storageFailed}</p> : null}
-  </Card></SlideDrawer></div><ContentDialog open={editor !== null} title={editor?.original ? copy.edit : copy.add} closeLabel={copy.cancel} onClose={() => setEditor(null)}>
-      {editor ? <form className="vua-network__form" onSubmit={saveEditor}>
-        <label>{copy.name}<input autoFocus required maxLength={40} value={editor.name} onChange={e => setEditor({ ...editor, name: e.target.value })} /></label>
-        <label>{copy.url}<input required maxLength={2048} placeholder="https://" value={editor.url} onChange={e => setEditor({ ...editor, url: e.target.value })} /></label>
-        {formError ? <p role="alert">{copy.invalid}</p> : null}
-        <div className="vua-network__form-actions">
-          {editor.original ? <Button variant="subtle" onClick={() => { saveSites(sites.filter(s => s.url !== editor.original)); setEditor(null); }}>{copy.remove}</Button> : null}
-          <Button variant="subtle" onClick={() => setEditor(null)}>{copy.cancel}</Button><Button variant="primary" type="submit">{copy.save}</Button>
-        </div>
-      </form> : null}
-    </ContentDialog>
+  </>;
+}
+
+function WebsiteEditor({ tests }: { tests: NetworkTests }) {
+  const { editor, setEditor, formError, sites, saveSites, saveEditor } = tests;
+  return <ContentDialog open={editor !== null} title={editor?.original ? copy.edit : copy.add} closeLabel={copy.cancel} onClose={() => setEditor(null)}>
+    {editor ? <form className="vua-network__form" onSubmit={saveEditor}>
+      <label>{copy.name}<input autoFocus required maxLength={40} value={editor.name} onChange={e => setEditor({ ...editor, name: e.target.value })} /></label>
+      <label>{copy.url}<input required maxLength={2048} placeholder="https://" value={editor.url} onChange={e => setEditor({ ...editor, url: e.target.value })} /></label>
+      {formError ? <p role="alert">{copy.invalid}</p> : null}
+      <div className="vua-network__form-actions">
+        {editor.original ? <Button variant="subtle" onClick={() => { saveSites(sites.filter(s => s.url !== editor.original)); setEditor(null); }}>{copy.remove}</Button> : null}
+        <Button variant="subtle" onClick={() => setEditor(null)}>{copy.cancel}</Button><Button variant="primary" type="submit">{copy.save}</Button>
+      </div>
+    </form> : null}
+  </ContentDialog>;
+}
+
+/** Website tests as a page section. */
+export function NetworkPanel() {
+  const tests = useNetworkTests();
+  if (!tests.port) return null;
+  return <>
+    <Card className="vua-network"><WebsiteTests tests={tests} /></Card>
+    <WebsiteEditor tests={tests} />
+  </>;
+}
+
+/** Latency in the top bar: a player can check it from any page, and opening it runs the regional test
+ * once. Website tests sit one level down, for when a specific site will not load. */
+export function NetworkMonitor() {
+  const tests = useNetworkTests();
+  const { ready, referenceStates, test } = tests;
+  const [open, setOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const tested = useRef(false);
+  useEffect(() => {
+    if (!open || !ready || tested.current) return;
+    tested.current = true;
+    void test(regionSites, true);
+  }, [open, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && (panelRef.current?.contains(event.target) || toggleRef.current?.contains(event.target))) return;
+      // The website editor layers above the panel and keeps it open.
+      if (event.target instanceof Element && event.target.closest("[role=dialog]")) return;
+      setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape" && !document.querySelector("[role=dialog]")) { event.stopPropagation(); setOpen(false); } };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => { window.removeEventListener("pointerdown", onPointerDown, true); window.removeEventListener("keydown", onKeyDown, true); };
+  }, [open]);
+
+  const busy = REGIONAL_REFERENCES.some(region => referenceStates[region.url]?.busy);
+  const viaProxy = regionalMeasuredViaProxy(referenceStates);
+  const closest = closestRegion(referenceStates);
+  const value = busy ? copy.testing : closest ? format(copy.monitorClosest, { region: copy.regionShort[closest.id], ms: closest.ms }) : copy.monitorLabel;
+  return <>
+    <button ref={toggleRef} type="button" className="vua-shell__usage vua-shell__network vua-caption" aria-expanded={open}
+      aria-label={copy.regionTitle} title={copy.regionTitle} data-nav-id="shell-network" onClick={() => setOpen(current => !current)}>
+      <Icon name="signal" size={16} />
+      <span className="vua-shell__network-value">{value}</span>
+    </button>
+    {open ? createPortal(<div ref={panelRef} className="vua-usage-panel vua-network-panel" data-vua-native-occluder role="region" aria-label={copy.regionTitle} tabIndex={-1}>
+      <div className="vua-usage-panel__header">
+        <span className="vua-usage-panel__title">{copy.regionTitle}</span>
+        <button type="button" className="vua-usage-panel__close" aria-label={strings.resourceMonitor.closeAria} onClick={() => setOpen(false)}><Icon name="close" size={16} /></button>
+      </div>
+      <RegionalTierList states={referenceStates} ready={ready} onTest={region => { void test([{ name: copy.regionCities[region.id], url: region.url }], true); }} />
+      {viaProxy ? <p className="vua-network-panel__proxy">{copy.regionViaProxy}</p> : null}
+      <Button data-nav-id="network-test" disabled={!ready || busy} onClick={() => { void test(regionSites, true); }}>
+        {busy ? copy.testing : ready === false ? copy.regionUnavailable : copy.testRegions}
+      </Button>
+      <details className="vua-network-panel__sites" data-nav-id="network-websites">
+        <summary>{copy.title}</summary>
+        <div className="vua-network"><WebsiteTests tests={tests} /></div>
+      </details>
+    </div>, document.body) : null}
+    <WebsiteEditor tests={tests} />
   </>;
 }

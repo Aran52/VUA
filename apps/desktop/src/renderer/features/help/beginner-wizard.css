@@ -1,25 +1,40 @@
+/* The article scrolls inside a fixed frame, so the three buttons stay put from page to page. */
+.vua-vua-guide { display: flex; flex-direction: column; overflow: hidden; }
 .vua-beginner-wizard {
   display: grid;
-  align-content: start;
-  gap: var(--vua-space-5);
-  max-width: 880px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  flex: 1;
+  gap: var(--vua-space-4);
+  width: min(100%, 880px);
+  min-height: 0;
 }
 
-.vua-beginner-wizard__progress,
-.vua-beginner-wizard__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--vua-space-3);
+.vua-beginner-wizard__progress {
+  margin: 0;
+  color: var(--vua-text-secondary);
+  font: var(--vua-font-caption);
 }
 
 .vua-beginner-wizard__article {
   display: grid;
+  align-content: start;
   justify-items: start;
   gap: var(--vua-space-4);
+  min-height: 0;
+  overflow-y: auto;
+  padding-inline-end: var(--vua-space-2);
 }
 
-.vua-beginner-wizard p,
-.vua-beginner-wizard h2 {
+.vua-beginner-wizard__article p,
+.vua-beginner-wizard__article h2 {
   margin: 0;
 }
+
+.vua-beginner-wizard__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--vua-space-3);
+  padding-top: var(--vua-space-3);
+  border-top: 1px solid var(--vua-border);
+}
+.vua-beginner-wizard__actions > * { width: 100%; }

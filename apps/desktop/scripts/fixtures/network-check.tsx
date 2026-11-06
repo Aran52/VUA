@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import type { NetworkIntent, NetworkReport, WebsiteObservation } from "@vua/contracts";
 import { GatewayProvider } from "../../src/renderer/gateway/GatewayProvider.tsx";
 import { emptyGateway } from "../../src/renderer/gateway/empty-gateway.ts";
-import { NetworkPanel } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
+import { NetworkMonitor } from "../../src/renderer/features/deployer/NetworkPanel.tsx";
 import { REGIONAL_REFERENCES } from "../../src/renderer/features/deployer/regional-reference.ts";
 import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
 import { strings, format } from "../../src/renderer/i18n/index.ts";
@@ -35,36 +35,38 @@ function button(label: string) {
   return found;
 }
 async function click(label: string) { button(label).click(); await tick(); }
-function mount() { root.render(<StrictMode><GatewayProvider gateway={gateway}><div className="vua-play-page vua-compact-environments" style={{ maxWidth: 720 }}><NetworkPanel compact /></div></GatewayProvider></StrictMode>); }
+function mount() { root.render(<StrictMode><GatewayProvider gateway={gateway}><NetworkMonitor /></GatewayProvider></StrictMode>); }
 function rows(urls: readonly string[]): WebsiteObservation[] {
   return urls.map((url, i) => ({ url, status: i === 1 ? "timeout" : "reachable", elapsedMs: i === 1 ? 6000 : 123, httpStatus: i === 1 ? null : 200 }));
 }
 Object.assign(window, { networkReview: { run: async () => {
   localStorage.removeItem(storageKeys.testWebsites); mount();
-  for (let n = 0; n < 100 && !document.querySelector("[data-nav-id=play-network-test]:not(:disabled)"); n++) await tick();
-  assert(document.querySelectorAll(".vua-network__site").length === 3, "three default website cards");
+  const toggle = () => document.querySelector<HTMLButtonElement>("[data-nav-id=shell-network]")!;
+  for (let n = 0; n < 100 && !toggle(); n++) await tick();
+  await tick();
   assert(requestCount === 0, "mount never runs a probe");
-  const regionalTile = () => document.querySelector(".vua-network-tile")!;
-  const regionAction = () => document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-test]")!;
-  assert(!regionalTile().textContent?.includes("ms"), "unmeasured regions do not show guessed latency");
-  regionAction().click(); await tick();
+  assert(!toggle().textContent?.includes("ms"), "unmeasured regions do not show guessed latency");
+  toggle().click();
+  for (let n = 0; n < 100 && !pending; n++) await tick();
+  const regionAction = () => document.querySelector<HTMLButtonElement>("[data-nav-id=network-test]")!;
   const regionalPending = pending!;
-  assert(regionalPending.urls.join() === REGIONAL_REFERENCES.map(region => region.url).join() && regionAction().disabled, "one explicit regional batch uses four documented origins with duplicate clicks disabled");
-  document.querySelector<HTMLButtonElement>("[data-nav-id=play-network-details]")!.click(); await tick();
-  assert(document.querySelector(".vua-network")!.closest(".vua-slide-drawer")?.getAttribute("data-open") === "true" && document.querySelectorAll("[data-region-test]").length === 4, "details reveal all four cities and independent retry actions");
-  assert(document.body.textContent?.includes(strings.websiteTests.regionScope), "details explain the approximate HTTPS metric");
+  assert(regionalPending.urls.join() === REGIONAL_REFERENCES.map(region => region.url).join() && regionAction().disabled && requestCount === 1, "opening runs one regional batch of the four documented origins, with duplicate clicks disabled");
+  assert(document.querySelectorAll(".vua-network__site").length === 3, "three default website cards");
+  assert(document.querySelectorAll("[data-region-test]").length === 4, "the panel lists all four cities with independent retests");
+  assert(document.body.textContent?.includes(strings.websiteTests.regionScope), "the panel explains the approximate HTTPS metric");
   await click(strings.websiteTests.testAll);
   assert(pending?.urls.length === 3 && button(strings.websiteTests.testAll).disabled, "test all uses one bounded batch");
   assert(pending!.urls.every(url => !regionalPending.urls.includes(url)), "website tests remain independent while a regional test is pending");
   regionalPending.resolve(regionalPending.urls.map((url, index) => ({ url, status: index === 1 ? "timeout" : "http_error", elapsedMs: index === 1 ? 6000 : 210 + index, httpStatus: index === 1 ? null : 404,
     ...(index === 1 ? {} : { regional: { medianMs: 210 + index, p90Ms: index === 2 ? 330 : 210 + index, samples: 9, connections: 3, viaProxy: index === 0 } }) }))); await tick();
-  const tileText = () => regionalTile().textContent ?? "";
-  assert(tileText().includes(strings.websiteTests.regionClosest) && tileText().includes(strings.websiteTests.regionAboutSame) && !tileText().includes("≈"), "the tile speaks in tiers and keeps milliseconds out");
-  assert(tileText().indexOf(strings.websiteTests.regionShort.usw) < tileText().indexOf(strings.websiteTests.regionShort.jp) && tileText().indexOf(strings.websiteTests.regionShort.jp) < tileText().indexOf(strings.websiteTests.regionShort.eu), "regions list in closeness order");
+  const panel = () => document.querySelector<HTMLElement>(".vua-network-panel")!;
+  const tileText = () => panel().textContent ?? "";
+  assert(tileText().includes(strings.websiteTests.regionClosest) && tileText().includes(strings.websiteTests.regionAboutSame), "rows speak in tiers");
+  assert(tileText().indexOf(strings.websiteTests.regionCities.usw) < tileText().indexOf(strings.websiteTests.regionCities.jp) && tileText().indexOf(strings.websiteTests.regionCities.jp) < tileText().indexOf(strings.websiteTests.regionCities.eu), "rows go by closeness");
   assert(tileText().includes(strings.websiteTests.regionUnsteady) && tileText().includes(strings.websiteTests.regionViaProxy), "a wide-spread region reads unsteady and a proxied measurement says so");
-  assert(document.querySelector(".vua-network")!.textContent?.includes(format(strings.websiteTests.approximateMilliseconds, { ms: 210 })), "expanded rows keep the measured milliseconds");
+  assert(tileText().includes(format(strings.websiteTests.approximateMilliseconds, { ms: 210 })) && toggle().textContent?.includes("210"), "rows and the top bar show the measured milliseconds");
   assert(tileText().includes(strings.websiteTests.statuses.timeout) && !regionAction().disabled, "one timeout does not erase other regions");
-  assert(!regionalTile().textContent?.includes("6000") && !document.querySelector(".vua-network")!.textContent?.includes("6000"), "timeout duration never becomes a latency result");
+  assert(!tileText().includes("6000"), "timeout duration never becomes a latency result");
   pending!.resolve(rows(pending!.urls)); pending = null; await tick();
   assert(document.body.textContent?.includes("123 ms") && document.body.textContent?.includes(strings.websiteTests.statuses.timeout), "mixed results remain visible per card");
   await click(format(strings.websiteTests.testSite, { name: "VRChat" }));
@@ -79,9 +81,8 @@ Object.assign(window, { networkReview: { run: async () => {
   assert(document.querySelector(".vua-network__cards")!.textContent?.includes("123 ms"), "regional retry leaves website observations intact");
   regionAction().click(); await tick();
   pending!.resolve(pending!.urls.map((url, index) => ({ url, status: index === 0 ? "redirected" : "http_error", elapsedMs: 800, httpStatus: [302, 429, 503, 403][index]! }))); pending = null; await tick();
-  assert(!regionalTile().textContent?.includes("≈") && regionalTile().textContent?.includes("HTTP 429"), "redirects, rate limits and other unexpected HTTP errors show errors rather than reference numbers");
+  assert(!tileText().includes("≈") && tileText().includes("HTTP 429"), "redirects, rate limits and other unexpected HTTP errors show errors rather than reference numbers");
   assert(!tileText().includes(strings.websiteTests.regionClosest) && !tileText().includes(strings.websiteTests.regionViaProxy), "a fully failed run clears tiers and the proxy note");
-  assert(Math.abs(regionalTile().getBoundingClientRect().height - 88) < 1 && [...regionalTile().querySelectorAll("button")].every(control => control.scrollHeight - control.clientHeight < 3), "compact regional results fit the small Play content width without vertical clipping");
   await click(strings.websiteTests.add);
   assert(Boolean(document.querySelector('[role="dialog"]')), "add opens an editor");
   await click(strings.websiteTests.cancel);

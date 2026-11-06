@@ -80,23 +80,6 @@ export function dismissContextGuide(store: ContextGuideStore, definition: Contex
   return next;
 }
 
-export function readContextGuideSnoozed(store: ContextGuideStore): readonly ContextGuideId[] {
-  try {
-    const value: unknown = JSON.parse(store.getItem(storageKeys.contextGuideSnoozed) ?? "[]");
-    if (!Array.isArray(value)) return [];
-    return [...new Set(value.filter((id): id is ContextGuideId => typeof id === "string" && id in CONTEXT_GUIDES))];
-  } catch {
-    return [];
-  }
-}
-
-export function snoozeContextGuide(store: ContextGuideStore, id: ContextGuideId): readonly ContextGuideId[] {
-  const next = [...new Set([...readContextGuideSnoozed(store), id])];
-  try { store.setItem(storageKeys.contextGuideSnoozed, JSON.stringify(next)); } catch { /* Keep the session dismissal. */ }
-  return next;
-}
-
-export function resetContextGuides(local: ContextGuideStore, session: ContextGuideStore): void {
+export function resetContextGuides(local: ContextGuideStore): void {
   try { local.removeItem(storageKeys.contextGuide); } catch { /* Other preferences and task state are untouched. */ }
-  try { session.removeItem(storageKeys.contextGuideSnoozed); } catch { /* The current page can still be used. */ }
 }

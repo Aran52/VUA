@@ -1,15 +1,16 @@
-/** Candidate N2 v0.2: six fixed official Steam connections; hardware/modules stay upstream. */
-export const EXTERNAL_TOOL_IDS = ["vrcft", "space", "advanced", "toolkit", "oyasumi", "translator"] as const;
+/** Candidate N2 v0.3: fixed official Steam connections; hardware/modules stay upstream. */
+export const EXTERNAL_TOOL_IDS = ["vrcft", "space", "advanced", "toolkit", "oyasumi", "translator", "chilloutvr", "reborn", "vrchat", "steamvr"] as const;
 export type ExternalToolId = typeof EXTERNAL_TOOL_IDS[number];
 /** Product names, the same in every UI language, shown wherever the player approves an action on a tool. */
 export const EXTERNAL_TOOL_NAMES: Readonly<Record<ExternalToolId, string>> = {
   vrcft: "VRCFaceTracking", space: "OpenVR Space Calibrator", advanced: "OVR Advanced Settings",
   toolkit: "OVR Toolkit", oyasumi: "OyasumiVR", translator: "OVR Overlay Translator",
+  chilloutvr: "ChilloutVR", reborn: "Reborn", vrchat: "VRChat", steamvr: "SteamVR",
 };
-export const EXTERNAL_TOOL_ACTIONS = ["install", "start", "stop", "cancel"] as const;
+export const EXTERNAL_TOOL_ACTIONS = ["install", "start", "stop", "cancel", "reinstall"] as const;
 export type ExternalToolAction = typeof EXTERNAL_TOOL_ACTIONS[number];
 export interface ExternalToolSnapshot {
-  readonly schemaVersion: "vua.external-tool/v0.2";
+  readonly schemaVersion: "vua.external-tool/v0.3";
   readonly toolId: ExternalToolId;
   readonly capturedAt: string;
   readonly presence: "installed" | "missing" | "incomplete" | "unknown";
@@ -17,8 +18,8 @@ export interface ExternalToolSnapshot {
   readonly buildId: string | null;
   readonly running: boolean;
   readonly canStop: boolean;
-  readonly activity: "idle" | "install_requested" | "starting" | "stopping";
-  readonly issue: "steam_missing" | "not_installed" | "handoff_failed" | "start_timeout" | "close_failed" | "close_timeout" | null;
+  readonly activity: "idle" | "install_requested" | "reinstall_requested" | "starting" | "stopping";
+  readonly issue: "steam_missing" | "not_installed" | "handoff_failed" | "start_timeout" | "close_failed" | "close_timeout" | "close_first" | "reinstall_timeout" | null;
 }
 export interface ExternalToolResult { readonly toolConnection: ExternalToolSnapshot }
 function keys(v: unknown, names: readonly string[]): v is Record<string, unknown> { return typeof v === "object" && v !== null && !Array.isArray(v) && Object.keys(v).length === names.length && names.every(key => Object.hasOwn(v, key)); }
@@ -29,11 +30,11 @@ export function isExternalToolParams(value: unknown, command: boolean): boolean 
 export function isExternalToolResult(value: unknown): value is ExternalToolResult {
   if (!keys(value, ["toolConnection"]) || !keys(value.toolConnection, ["schemaVersion", "toolId", "capturedAt", "presence", "steamReady", "buildId", "running", "canStop", "activity", "issue"])) return false;
   const v = value.toolConnection;
-  return v.schemaVersion === "vua.external-tool/v0.2" && EXTERNAL_TOOL_IDS.includes(v.toolId as ExternalToolId) && typeof v.capturedAt === "string" && v.capturedAt.length > 0
+  return v.schemaVersion === "vua.external-tool/v0.3" && EXTERNAL_TOOL_IDS.includes(v.toolId as ExternalToolId) && typeof v.capturedAt === "string" && v.capturedAt.length > 0
     && ["installed", "missing", "incomplete", "unknown"].includes(v.presence as string) && typeof v.steamReady === "boolean"
     && (v.buildId === null || (typeof v.buildId === "string" && /^\d{1,32}$/.test(v.buildId)))
     && typeof v.running === "boolean" && typeof v.canStop === "boolean" && (!v.canStop || v.running)
-    && ["idle", "install_requested", "starting", "stopping"].includes(v.activity as string)
-    && (v.issue === null || ["steam_missing", "not_installed", "handoff_failed", "start_timeout", "close_failed", "close_timeout"].includes(v.issue as string))
+    && ["idle", "install_requested", "reinstall_requested", "starting", "stopping"].includes(v.activity as string)
+    && (v.issue === null || ["steam_missing", "not_installed", "handoff_failed", "start_timeout", "close_failed", "close_timeout", "close_first", "reinstall_timeout"].includes(v.issue as string))
     && (v.activity !== "stopping" || v.canStop) && (v.activity !== "starting" || !v.running);
 }

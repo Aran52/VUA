@@ -39,7 +39,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/environment-deployment-v0.1.md | 0.1 | Candidate | Environment | 2026-09-30 |
 | docs/protocols/environment-network-v0.1.md | 0.1 | Candidate | Environment | 2026-10-03 |
 | docs/protocols/external-tool-v0.1.md | 0.1 | Superseded (→ docs/protocols/external-tool-v0.2.md) | Environment | 2026-10-10 |
-| docs/protocols/external-tool-v0.2.md | 0.1.0 | Candidate | Environment | 2026-10-14 |
+| docs/protocols/external-tool-v0.2.md | 0.1.2 | Superseded (→ docs/protocols/external-tool-v0.3.md) | Environment | 2026-10-14 |
+| docs/protocols/external-tool-v0.3.md | 0.1.0 | Candidate | Environment | 2026-11-06 |
 | docs/protocols/inspection-evidence-v0.1.md | 0.1 | Frozen | Production | 2026-09-13 |
 | docs/protocols/inspection-queries-v0.1.md | 0.1 | Frozen | Data | 2026-09-13 |
 | docs/protocols/library-download-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
@@ -131,7 +132,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/environment-managers/v0.1 | 0.1 | Frozen | Environment | 2026-09-10 |
 | schemas/environment-network/v0.1/ | 0.1 | Candidate | Environment | 2026-10-03 |
 | schemas/external-tool/v0.1/ | 0.1 | Superseded (→ schemas/external-tool/v0.2/) | Environment | 2026-10-10 |
-| schemas/external-tool/v0.2/ | 0.2 | Candidate | Environment | 2026-10-14 |
+| schemas/external-tool/v0.2/ | 0.2 | Superseded (→ schemas/external-tool/v0.3/) | Environment | 2026-10-14 |
+| schemas/external-tool/v0.3/ | 0.3 | Candidate | Environment | 2026-11-06 |
 | schemas/game-window-observe/v0.1/ | 0.1 | Candidate | Environment | 2026-10-08 |
 | schemas/inspection-queries/v0.1 | 0.1 | Frozen | Data | 2026-09-13 |
 | schemas/library-download/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |

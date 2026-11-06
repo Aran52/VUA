@@ -15,6 +15,15 @@ export function takeRequestedNewProductionLine(): boolean {
   try { const asked = sessionStorage.getItem(newLineKey) !== null; sessionStorage.removeItem(newLineKey); return asked; } catch { return false; }
 }
 
+// Full auto continues into the 360° preview when the player follows a finished line to Finished Avatars.
+const turntableKey = "vua-amf-production-turntable";
+export function requestTurntable(runId: string): void {
+  try { sessionStorage.setItem(turntableKey, runId); } catch { /* The button under the stage still offers it. */ }
+}
+export function takeRequestedTurntable(): string | null {
+  try { const runId = sessionStorage.getItem(turntableKey); sessionStorage.removeItem(turntableKey); return runId; } catch { return null; }
+}
+
 // The run an AI request acts on: taken when the production page mounts, or delivered to it while open.
 let requestedRun: string | null = null;
 let runPersisted = false;

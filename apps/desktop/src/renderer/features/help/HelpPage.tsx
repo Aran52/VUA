@@ -38,7 +38,7 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
     <AiToolsPage navigate={navigate} />
   </div>;
   if (page === "help-encyclopedia") return <EncyclopediaPage onBack={() => navigate("help")} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
-  if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} navigate={navigate} guideRequest={guideRequest} acknowledgeGuide={acknowledgeGuide} />;
+  if (page === "help-wizard") return <VuaGuide onBack={() => navigate("help")} navigate={navigate} />;
 
   const openGameGuide = () => {
     setOpenFailed(false);
@@ -74,9 +74,9 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
     <section className="vua-help-section" aria-labelledby="help-vua-title">
       <h2 id="help-vua-title">{faq.vuaTitle}</h2>
       <div className="vua-help-rows">
-        <HelpRow id="help-encyclopedia" icon="folder" title={copy.guide} hint={hints.encyclopediaHint} onClick={() => navigate("help-encyclopedia")} />
-        <HelpRow id="help-wizard" icon="arrow-right" title={copy.wizard} hint={hints.wizardHint} onClick={() => navigate("help-wizard")} />
         <HelpRow id="help-tour" icon="question" title={strings.tour.paletteEntry} hint={hints.tourHint} onClick={startTour} />
+        <HelpRow id="help-wizard" icon="arrow-right" title={copy.wizard} hint={hints.wizardHint} onClick={() => navigate("help-wizard")} />
+        <HelpRow id="help-encyclopedia" icon="folder" title={copy.guide} hint={hints.encyclopediaHint} onClick={() => navigate("help-encyclopedia")} />
         <HelpRow id="help-game-assistant" icon="anim" title={copy.gameGuide} hint={hints.gameHint} onClick={openGameGuide} />
       </div>
       {openFailed ? <p role="status">{strings.helpUi.openFailed}</p> : null}

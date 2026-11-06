@@ -35,19 +35,11 @@ export function playFlowPhase(f: PlayFlowFacts): PlayFlowPhase {
   return f.confirmed ? "execute" : "confirm";
 }
 
-export interface PlayChecklistItem { readonly id: string; readonly automatic: boolean; readonly done: boolean }
+export interface PlayChecklistItem { readonly id: string; readonly automatic: boolean }
 
-/** The route's SOP as a checklist. Automatic steps reflect observed facts; the player's own steps
- * count as done once the checklist is confirmed. The recovery note is not a step to tick. */
-export function playChecklist(sop: ScenarioSop | null, f: Pick<PlayFlowFacts, "check" | "confirmed" | "session">): PlayChecklistItem[] {
-  return (sop?.steps ?? []).filter(step => step.id !== "recovery").map(step => ({
-    id: step.id,
-    automatic: step.automatic,
-    done: step.id === "check" ? f.check !== null
-      : step.id === "install" ? f.check?.softwareReady === true
-      : step.id === "launch" ? f.session?.state === "running"
-      : f.confirmed,
-  }));
+/** The route's SOP as a numbered list to read before installing. The recovery note is not a step. */
+export function playChecklist(sop: ScenarioSop | null): PlayChecklistItem[] {
+  return (sop?.steps ?? []).filter(step => step.id !== "recovery").map(step => ({ id: step.id, automatic: step.automatic }));
 }
 
 /** Identifies a confirmed checklist: a changed SOP or connection asks for confirmation again. */

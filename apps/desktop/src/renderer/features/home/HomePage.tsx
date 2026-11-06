@@ -22,7 +22,10 @@ const factory = strings.factory;
 const structure = structureCopy[currentLocale];
 const copy = structure.home;
 const flow = playFlowCopy[currentLocale];
-const ROUTES: readonly { readonly route: PlayRoute; readonly id: string }[] = [{ route: "desktop_play", id: "home-route-desktop" }, { route: "pico_pcvr", id: "home-route-pico" }];
+const ROUTES: readonly { readonly route: PlayRoute; readonly id: string; readonly hint: string }[] = [
+  { route: "desktop_play", id: "home-route-desktop", hint: structure.routes.desktop },
+  { route: "pico_pcvr", id: "home-route-pico", hint: structure.routes.pico },
+];
 /** Rows the activity list shows before pointing at the workshop for the rest. */
 const MAX_LINE_ROWS = 3;
 
@@ -30,7 +33,7 @@ function PlayRoutes({ navigate }: { navigate: (page: PageId) => void }) {
   const live = usePlaySessions(5000);
   const openRoute = (route: PlayRoute) => { requestPlayRoute(route); navigate("env-play"); };
   return <div className="vua-environment-grid">
-    {ROUTES.map(({ route, id }) => {
+    {ROUTES.map(({ route, id, hint }) => {
       const decision = playCardDecision(live.sessions[route] ?? null, !!live.unavailable[route], false, false);
       const canAct = decision.action === "stop" || decision.action === "start";
       const label = decision.action === "stop" ? flow.phases.stop
@@ -39,9 +42,9 @@ function PlayRoutes({ navigate }: { navigate: (page: PageId) => void }) {
         : copy.prepareRoute;
       const title = route === "desktop_play" ? journey.desktop : "PICO";
       return <div className="vua-card-entry" data-card-entry={id} key={route}>
-        <EnvironmentCard title={title} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico" : undefined} id={id}
+        <EnvironmentCard title={title} hint={hint} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={id}
           action={canAct ? decision.action : decision.spinning ? "busy" : "prepare"} status={label} spinning={decision.spinning || !!live.pending[route]}
-          disabled={decision.disabled || !!live.pending[route]} primary={canAct}
+          disabled={decision.disabled || !!live.pending[route]} primary={!decision.spinning && !decision.disabled}
           onDetails={() => openRoute(route)} onAction={() => { if (canAct) void live.act(route, decision.action === "stop"); else openRoute(route); }} />
       </div>;
     })}

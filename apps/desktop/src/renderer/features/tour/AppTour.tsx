@@ -296,9 +296,8 @@ export function AppTour({
         <p className="vua-tour__body">{format(stepCopy.body, { amf: termLabel("amf") })}</p>
         {absent ? <p className="vua-tour__absent">{absentCopy ?? copy.absentDefault}</p> : null}
         <div className="vua-tour__actions">
-          <Button variant="subtle" onClick={() => exit("skipped")}>
-            {copy.skip}
-          </Button>
+          {lastStep ? <Button data-nav-id="tour-open-wizard" onClick={() => { exit("completed"); navigate("help-wizard"); }}>{copy.openWizard}</Button>
+            : <Button variant="subtle" onClick={() => exit("skipped")}>{copy.skip}</Button>}
           <div className="vua-tour__nav">
             <Button variant="default" disabled={stepIndex === 0} onClick={() => goTo(stepIndex - 1)}>
               {copy.back}

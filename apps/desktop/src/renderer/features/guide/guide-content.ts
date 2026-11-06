@@ -40,7 +40,7 @@ export type GuideTopicId =
   | "guide-tutorials"
   | "guide-vua";
 
-/** All IDs remain valid for bookmarks, including the separate VUA guide. */
+/** All IDs remain valid for bookmarks. */
 export const GUIDE_TOPIC_IDS: readonly GuideTopicId[] = [
   "guide-hardware",
   "guide-room",
@@ -54,7 +54,7 @@ export const GUIDE_TOPIC_IDS: readonly GuideTopicId[] = [
   "guide-vua",
 ];
 
-export const ENCYCLOPEDIA_TOPIC_IDS: readonly GuideTopicId[] = GUIDE_TOPIC_IDS.filter(topic => topic !== "guide-vua" && topic !== "guide-tutorials");
+export const ENCYCLOPEDIA_TOPIC_IDS: readonly GuideTopicId[] = GUIDE_TOPIC_IDS.filter(topic => topic !== "guide-tutorials");
 
 type GuideTopicCopyKey = keyof typeof strings.guide.pages | "avatars";
 export const GUIDE_TOPIC_COPY_KEY: Record<GuideTopicId, GuideTopicCopyKey> = {

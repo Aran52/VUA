@@ -1,5 +1,7 @@
 # External tool connection v0.2
 
+> **Superseded by [external tool connection v0.3](external-tool-v0.3.md).** This document is kept as history.
+
 > Document version: 0.1.2
 > Status: Candidate
 > Owner: Environment

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { EXTERNAL_TOOL_IDS, type ExternalToolId, type ExternalToolSnapshot } from "@vua/contracts";
 import type { GatewayClient } from "./gateway-client.ts";
 import { createLiveToolPort } from "./live-tool-port.ts";
-const snapshot: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.2", toolId: "vrcft", capturedAt: "synthetic", presence: "installed", steamReady: true, buildId: "123", running: true, canStop: false, activity: "idle", issue: null };
+const snapshot: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.3", toolId: "vrcft", capturedAt: "synthetic", presence: "installed", steamReady: true, buildId: "123", running: true, canStop: false, activity: "idle", issue: null };
 describe("live external-tool Gateway port", () => {
   it("preserves caller command identity and borrowed-instance facts", async () => {
     const invoke = vi.fn<GatewayClient["invoke"]>().mockResolvedValue({ ok: true, value: { toolConnection: snapshot } });

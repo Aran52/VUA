@@ -218,7 +218,7 @@ and status observation. VRCFT also has its device picker and hardware SOP. VRCS 
 description cards for now. Local Windows runs on 2026-10-14 exercised discovery, reuse of
 installed software, Steam launch handoff and process observation for all six tools, and found
 launches slower than the observation window and normal-close failures; the findings are in
-[external-tool v0.2](protocols/external-tool-v0.2.md) and the raw evidence stays on the author's
+[external-tool v0.3](protocols/external-tool-v0.3.md) and the raw evidence stays on the author's
 machine under `_local_real_machine/n2-steam-tools-20261014/`. Fresh installation, tracking and
 calibration, and human UI review are the remaining rows. MioVRC stays outside VUA. Agents reach
 these tools through the local [MCP adapter](protocols/ai-tools-v0.1.md).

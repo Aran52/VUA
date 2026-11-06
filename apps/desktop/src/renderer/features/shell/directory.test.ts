@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isAmfPage, isPageId } from "../../app/nav-model.ts";
 import { migratePageId } from "../../app/onboarding-model.ts";
+import { strings } from "../../i18n/index.ts";
 import { directory, directoryGroupLabel, directoryItemSelected, presentedModule } from "./directory.ts";
 import { summarizeLines } from "./use-line-summary.ts";
 
@@ -24,7 +25,7 @@ describe("directory", () => {
   });
 
   it("names the Avatar group with the player's word", () => {
-    expect(directoryGroupLabel("env")).toBe("VRChat");
+    expect(directoryGroupLabel("env")).toBe(strings.journey.play);
   });
 
   it("presents Unity setup as Avatar work while its owner stays the environment", () => {

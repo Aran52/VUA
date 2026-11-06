@@ -10,7 +10,7 @@ export function ActionGlyph({ action, spinning = false }: { action: EnvironmentA
   </svg>;
 }
 /** Two sibling buttons; neither half is nested inside the other control. */
-export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, logo, id, action, status, actionHint, selected, onDetails, detailsOpen = true, onAction, disabled, spinning, warning, developing, primary, actionIcon, progress, phase, children }: {
+export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, logo, id, action, status, actionHint, selected, onDetails, detailsOpen = true, onAction, disabled, spinning, warning, developing, actionText, primary, actionIcon, progress, phase, children }: {
   title: string; titleContent?: ReactNode;
   /** One line on what this is, for a player who has not met it yet. */
   hint?: string | undefined;
@@ -22,6 +22,8 @@ export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, 
   /** The left half opens details here, so it shows a caret; false when it leads to another page. */
   detailsOpen?: boolean;
   onAction?: () => void; disabled?: boolean; spinning?: boolean; warning?: boolean; developing?: boolean;
+  /** Words in place of a glyph and status, for an action that only opens this card's details. */
+  actionText?: string | undefined;
   /** This half is the card's next step; it reads as the page's main action. */
   primary?: boolean | undefined;
   /** An icon that names the next step better than the action glyph. */
@@ -37,7 +39,7 @@ export function EnvironmentCard({ title, titleContent, hint, kind, brand, icon, 
   const actionLabel = actionHint ? actionHint.includes(title) ? actionHint : `${title} · ${actionHint}` : format(label, { name: title });
   const actionButton = <button type="button" className="vua-environment-card__action" data-nav-id={`${id}-action`} data-primary={primary || undefined} data-phase={phase} disabled={disabled || developing} aria-label={actionLabel} aria-busy={spinning} onClick={onAction}
     style={progress === null || progress === undefined ? undefined : { "--vua-card-progress": `${progress}%` } as CSSProperties}>
-    {developing ? <span className="vua-environment-card__developing">{strings.journey.developing}</span> : <>{actionIcon && !spinning ? <Icon name={actionIcon} size={20} /> : <ActionGlyph action={action} spinning={!!spinning} />}{warning && action === "stop" ? <span className="vua-environment-card__warning"><ActionGlyph action="attention" /></span> : null}<span role="status">{status}</span></>}
+    {developing || actionText ? <span className="vua-environment-card__developing">{actionText ?? strings.journey.developing}</span> : <>{actionIcon && !spinning ? <Icon name={actionIcon} size={20} /> : <ActionGlyph action={action} spinning={!!spinning} />}{warning && action === "stop" ? <span className="vua-environment-card__warning"><ActionGlyph action="attention" /></span> : null}<span role="status">{status}</span></>}
   </button>;
   return <article className="vua-environment-card" data-card={id} data-action={action} data-selected={selected}>
     <button type="button" className="vua-environment-card__details" data-nav-id={id} disabled={!onDetails} aria-label={format(copy.details, { name: title })} aria-expanded={onDetails ? !!selected : undefined} aria-controls={onDetails ? `${id}-details` : undefined} onClick={onDetails}>

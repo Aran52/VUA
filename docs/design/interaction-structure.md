@@ -24,7 +24,7 @@ page, what Home does and where a task's main action sits. The
 
 | Group | Pages, in order |
 | --- | --- |
-| VRChat | Play, Tools |
+| Play | Play, Tools |
 | Avatar editing | Materials, Workshop, Finished Avatars, Recipes, Packages, Unity setup |
 
 The Avatar group follows the player's order: materials become a line in the Workshop, and the line
@@ -51,7 +51,7 @@ Home has three parts, and the first appears only when it has content:
 
 1. **Current work:** running tasks, then lines that need attention or review, at most three of each.
    A row opens its task's page or its line.
-2. **VRChat:** the two available routes. A route whose software is ready launches from here; otherwise
+2. **Play:** the two available routes. A route whose software is ready launches from here; otherwise
    its button opens that route's details on Play. Home reads play sessions every five seconds; Play
    reads them every 1.5 seconds.
 3. **Avatar editing:** Materials, Workshop and Finished Avatars with their live facts, and one
@@ -75,14 +75,17 @@ environment, please review, install, retry, open the official page, launch or cl
   close through Steam. They share the Tools cards' connection.
 - Headset routes still in development (Meta Quest, Steam Frame, HTC VIVE, Valve Index, PS VR2) open a
   connection guide: choose a connection, see what the PC and the headset need and whether the PC
-  software is already there, and open the official page. PICO lists the other streaming software under
-  its details. The [planned connections](../tool-catalog/external/planned-connections.md) list what each
-  needs to become a working route.
+  software is already there, and open the official page. Either half of such a card opens the guide,
+  because reading it is the next step. PICO lists the other streaming software under its details. The
+  [planned connections](../tool-catalog/external/planned-connections.md) list what each needs to become a
+  working route.
+- Less common headsets follow under their own heading with the same guide: Bigscreen Beyond, Pimax,
+  Varjo, MeganeX, Oculus Rift S and Windows MR, then a card for any other model SteamVR supports.
 
 ## Cards
 
 Every compact card reads the same way: logo, name and one line on what the item is on the left, and
-the next step in words on the right. An item still in development says so in the right part, in place of
+the next step in words on the right. A tool still in development says so in the right part, in place of
 an action. A card's details hold whatever a player needs when something is wrong, including reinstalling.
 Installing uses one icon on every card. Library cards keep the same rows on every card, so shop and
 variant line up across the wall. A left part that opens details in place carries a small caret that turns

@@ -24,7 +24,7 @@ export function ThemeAddress({ page, navigate, openPalette }: { page: PageId; na
   return <div className="vua-theme-address">
     <nav className="vua-theme-address__crumbs" aria-label={strings.journey.home}>
       <button type="button" onClick={() => navigate("home")}>VUA</button>
-      {where.group ? <><span aria-hidden="true">▸</span><span>{where.group}</span></> : null}
+      {where.group && where.group !== where.title ? <><span aria-hidden="true">▸</span><span>{where.group}</span></> : null}
       <span aria-hidden="true">▸</span><span aria-current="page">{where.title}</span>
     </nav>
     <button type="button" className="vua-theme-address__search" onClick={openPalette} aria-keyshortcuts="Control+P Meta+P">

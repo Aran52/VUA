@@ -4,9 +4,9 @@
 
 These tools and headset routes have their interface in VUA ahead of a working connection (author
 request, 2026-11-06: interface first, backend to follow). VUA describes each one, links its official
-page and, where the environment check already observes it, shows whether it is on the computer. Its
-action reads "In development" until the connection below exists. Licenses and sources were checked on
-the date above; recheck them when a connection is built.
+page and, where the environment check already observes it, shows whether it is on the computer. A tool's
+action reads "In development" and a headset's opens its connection guide until the connection below
+exists. Licenses and sources were checked on the date above; recheck them when a connection is built.
 
 ## Tools
 
@@ -45,6 +45,13 @@ The routes and their connections are listed in `apps/desktop/src/renderer/featur
 | | Virtual Desktop, ALVR | As above | As above |
 | Valve Index | SteamVR | SteamVR | `steamvr` |
 | PlayStation VR2 | PlayStation VR2 App (Steam App ID 2580190, free), with the PC adapter | The app and SteamVR | `psvr2` |
+| Bigscreen Beyond | Bigscreen Beyond Utility, which installs with SteamVR (Steam App ID 2467050) | SteamVR; base stations required | `bigscreen_beyond` |
+| Pimax | [Pimax Play](https://www.pimax.com/support/downloads), which installs the SteamVR driver | Pimax Play and SteamVR | `pimax_runtime` |
+| Varjo | [Varjo Base](https://support.varjo.com/hc/en-us/downloads), with OpenVR on | Varjo Base and SteamVR; Aero works up to Varjo Base 4.14 | `varjo_runtime` |
+| MeganeX | [MeganeX Configurator](https://shiftall.notion.site/meganex8k-manual-en) | Configurator and SteamVR; base stations; modern NVIDIA GPU | Nothing separate to observe yet |
+| Oculus Rift S | Meta Horizon Link, over DisplayPort and USB 3; legacy on Meta's list | Meta Horizon Link | `oculus_runtime` |
+| Windows MR | Windows Mixed Reality for SteamVR (Steam App ID 719950), Windows 10 or Windows 11 23H2 only | Guide only; Windows 11 24H2 removed the platform | Nothing separate to observe |
+| Another model | Its maker's software, then SteamVR | Guide only | `steamvr` |
 
 PICO keeps its full route and lists Virtual Desktop and ALVR under its details as other streaming
 software.
@@ -59,6 +66,7 @@ guide can stay as the options of that flow. The detailed device requirements rem
 - **VRCVideoCacher** replaces `yt-dlp.exe` in VRChat's folder with its own stub. That changes VRChat's
   installed files, which the [product boundary](../../product-boundary.md) does not authorize on the
   strength of another tool's practice.
-- **Bigscreen Beyond, Pimax and Varjo** already have environment checks. Their routes follow the
-  device pool in the N1 plan.
-- **WMR** remains an investigation candidate in the N1 plan.
+- **Working Bigscreen Beyond, Pimax and Varjo routes** follow the device pool in the N1 plan; their
+  guides are here now (author request, 2026-11-06).
+- **A working WMR route** remains an investigation candidate in the N1 plan. Microsoft removed the
+  platform in Windows 11 24H2, so the guide says which Windows versions still run it.

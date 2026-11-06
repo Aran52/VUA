@@ -25,7 +25,10 @@ const copy = strings.environmentCards;
 const structure = structureCopy[currentLocale];
 const OTHER_PLATFORMS = { icon: "anim", tools: [{ id: "chilloutvr", title: "ChilloutVR" }, { id: "reborn", title: "Reborn" }] } as const;
 type RouteKey = PlayRoute | PlannedRouteId;
-const ROUTE_KEYS: readonly RouteKey[] = [...PLAY_ROUTES, ...PLANNED_ROUTES.map(route => route.id)];
+const MAIN_PLANNED = PLANNED_ROUTES.filter(route => !route.other);
+const OTHER_PLANNED = PLANNED_ROUTES.filter(route => route.other);
+const MAIN_KEYS: readonly RouteKey[] = [...PLAY_ROUTES, ...MAIN_PLANNED.map(route => route.id)];
+const OTHER_KEYS: readonly RouteKey[] = OTHER_PLANNED.map(route => route.id);
 const cardId = (route: PlayRoute) => route === "desktop_play" ? "route-desktop" : "route-pico";
 const runtimeBrand = (id: string) => id === "pico_runtime" ? "pico-mark" : id === "oculus_runtime" ? "meta" : id === "vive_runtime" ? "htcvive" : id === "steamvr" ? "valve" : undefined;
 /** The card's glyph for a step; the other steps name themselves with an icon. */
@@ -70,7 +73,9 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   const columns = useGridColumns(grid);
   const desktopStep = useCallback((step: PlayFlowStep) => setSteps(p => ({ ...p, desktop_play: step })), []);
   const picoStep = useCallback((step: PlayFlowStep) => setSteps(p => ({ ...p, pico_pcvr: step })), []);
-  const title = (route: RouteKey) => route === "desktop_play" ? strings.journey.desktop : route === "pico_pcvr" ? "PICO" : PLANNED_ROUTES.find(item => item.id === route)!.title;
+  const plannedCopy = plannedRoutesCopy[currentLocale];
+  const plannedTitle = (route: (typeof PLANNED_ROUTES)[number]) => route.title || plannedCopy.otherModel;
+  const title = (route: RouteKey) => route === "desktop_play" ? strings.journey.desktop : route === "pico_pcvr" ? "PICO" : plannedTitle(PLANNED_ROUTES.find(item => item.id === route)!);
   const open = (route: RouteKey) => { setShown(route); setSelected(route); };
   const toggle = (route: RouteKey) => { setShown(route); setSelected(current => current === route ? null : route); };
   const detected = scan.devices.map(item => item.id);
@@ -95,10 +100,14 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
         onStep={route === "desktop_play" ? desktopStep : picoStep} />
     </div>)}
     {PLANNED_ROUTES.map(route => <div key={route.id} id={`route-${route.id}-details`} hidden={shown !== route.id}>
-      <PlannedRouteFlow id={route.id} connections={route.connections} detected={detected} />
+      <PlannedRouteFlow id={route.id} connections={route.connections} detected={detected} guideOnly={route.guideOnly === true} />
     </div>)}
   </SlideDrawer>;
-  const cards: ReactNode[] = [
+  const plannedCard = (route: (typeof PLANNED_ROUTES)[number]) => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} data-other={route.other} key={route.id}>
+    <EnvironmentCard title={plannedTitle(route)} hint={plannedCopy.hints[route.id]} brand={route.brand} kind={route.brand ? undefined : "headset"} id={`route-${route.id}`}
+      action="unknown" status="" actionText={plannedCopy.guide} actionHint={plannedCopy.guide} selected={selected === route.id} onDetails={() => toggle(route.id)} onAction={() => toggle(route.id)} />
+  </div>;
+  const mainCards: ReactNode[] = [
     ...PLAY_ROUTES.map(route => {
       const step = steps[route];
       return <div className="vua-card-entry" data-card-entry={cardId(route)} key={route}>
@@ -108,13 +117,20 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
           primary={stepIsPrimary(step)} progress={step?.percent} warning={!!live.sessions[route]?.issue} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />
       </div>;
     }),
-    ...PLANNED_ROUTES.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>
-      <EnvironmentCard title={route.title} hint={plannedRoutesCopy[currentLocale].hints[route.id]} brand={route.brand} kind={route.brand ? undefined : "headset"} id={`route-${route.id}`}
-        action="unknown" status="" developing actionHint={strings.journey.developingTip} selected={selected === route.id} onDetails={() => toggle(route.id)} />
-    </div>),
+    ...MAIN_PLANNED.map(plannedCard),
   ];
-  const drawerAfter = Math.min(cards.length - 1, (Math.floor(ROUTE_KEYS.indexOf(shown) / columns) + 1) * columns - 1);
-  const items = cards.flatMap((card, index) => index === drawerAfter ? [card, drawer] : [card]);
+  /** The drawer opens under the row of the card it belongs to. */
+  const withDrawer = (keys: readonly RouteKey[], cards: readonly ReactNode[]) => {
+    const index = keys.indexOf(shown);
+    if (index < 0) return cards;
+    const after = Math.min(cards.length - 1, (Math.floor(index / columns) + 1) * columns - 1);
+    return cards.flatMap((card, position) => position === after ? [card, drawer] : [card]);
+  };
+  const items = [
+    ...withDrawer(MAIN_KEYS, mainCards),
+    <h2 className="vua-play-group" key="other-headsets">{plannedCopy.otherHeadsets}</h2>,
+    ...withDrawer(OTHER_KEYS, OTHER_PLANNED.map(plannedCard)),
+  ];
 
   return <div className="vua-page vua-route-page vua-play-page vua-compact-environments" data-route-stage={selected ? "prepare" : "pick"}>
     <header className="vua-page__hero vua-environment-heading">
@@ -122,6 +138,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
       <Button variant="subtle" data-nav-id="play-refresh-devices" disabled={scan.busy} aria-busy={scan.busy} onClick={refresh}>{scan.busy ? flowCopy.detecting : flowCopy.refreshDevices}</Button>
     </header>
     {scan.scanned ? <ul className="vua-play-devices" aria-label={copy.runtime}>
+      {scan.devices.length > 0 ? <li className="vua-play-devices__label">{plannedCopy.detected}</li> : null}
       {scan.devices.length > 0 ? scan.devices.map(item => <li key={item.id}><RouteGlyph brand={runtimeBrand(item.id)} kind="headset" />{item.title}</li>)
         : <li data-empty="true">{flowCopy.devicesNone}</li>}
     </ul> : null}

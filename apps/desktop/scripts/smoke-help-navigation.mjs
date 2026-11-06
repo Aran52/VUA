@@ -207,7 +207,13 @@ async function run() {
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");
     // Headset routes still in development open a connection guide with official pages.
-    assert(await js(`['route-quest','route-steam-frame','route-vive','route-index','route-psvr2'].every(id=>document.querySelector('[data-card="'+id+'"] .vua-environment-card__action').disabled && !!document.getElementById(id+'-details'))`), "Headset routes in development have a guide and no action yet");
+    assert(await js(`['route-quest','route-steam-frame','route-vive','route-index','route-psvr2','route-bigscreen','route-pimax','route-varjo','route-meganex','route-rift-s','route-wmr','route-other-headset'].every(id=>!document.querySelector('[data-card="'+id+'"] .vua-environment-card__action').disabled && !!document.getElementById(id+'-details'))`), "Every headset route opens its guide from either half of the card");
+    assert(await js('document.querySelector(".vua-play-group").compareDocumentPosition(document.querySelector("[data-card=route-bigscreen]")) & Node.DOCUMENT_POSITION_FOLLOWING'), "Less common headsets follow their own heading");
+    await js('document.querySelector("[data-nav-id=route-varjo-action]").click()');
+    await waitFor(() => js('!document.getElementById("route-varjo-details").hidden && document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The Varjo guide opens from its action");
+    assert(await js('!!document.querySelector("[data-nav-id=planned-official-varjo-base]")'), "The Varjo guide links its official page");
+    await js('document.querySelector("[data-nav-id=route-varjo-action]").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "The same action closes the guide");
     await js('document.querySelector("[data-nav-id=route-quest]").click()');
     await waitFor(() => js('!document.getElementById("route-quest-details").hidden && document.querySelector(".vua-play-drawer").dataset.open==="true"'), "Meta Quest connection guide");
     assert(await js('document.querySelectorAll("#route-quest-details input[type=radio]").length===4 && !!document.querySelector("[data-nav-id=planned-official-quest-link]")'), "Meta Quest offers its four connections, each with its official page");

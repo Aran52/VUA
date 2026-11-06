@@ -34,7 +34,7 @@ export const directory: Readonly<Record<"env" | "production", readonly Directory
 };
 
 export const directoryGroupLabel = (group: keyof typeof directory): string =>
-  group === "env" ? "VRChat" : journey.create;
+  group === "env" ? journey.play : journey.create;
 
 /** The name a page goes by in links from outside the directory. */
 export function directoryPageTitle(page: PageId): string {

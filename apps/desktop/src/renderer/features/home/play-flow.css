@@ -52,5 +52,6 @@
 .vua-play-devices { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); margin: 0; padding: 0; list-style: none; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-play-devices li { display: inline-flex; align-items: center; gap: 8px; color: var(--vua-text-strong); }
 .vua-play-devices .vua-route-tile__icon, .vua-play-devices .vua-route-tile__icon[data-brand] { width: 22px; height: 22px; }
-.vua-play-devices li[data-empty] { color: var(--vua-text-secondary); }
+.vua-play-devices li[data-empty], .vua-play-devices li.vua-play-devices__label { color: var(--vua-text-secondary); }
+.vua-play-group { grid-column: 1 / -1; margin: var(--vua-space-2) 0 calc(-1 * var(--vua-space-1)); font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-play-flow__software li[data-running] { border-color: var(--vua-accent); }

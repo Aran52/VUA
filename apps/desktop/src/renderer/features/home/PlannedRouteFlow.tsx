@@ -47,10 +47,10 @@ export function PlannedConnections({ id, connections, detected }: { id: string; 
   </div>;
 }
 
-export function PlannedRouteFlow({ id, connections, detected }: { id: string; connections: readonly ConnectionId[]; detected: readonly string[] }) {
+export function PlannedRouteFlow({ id, connections, detected, guideOnly = false }: { id: string; connections: readonly ConnectionId[]; detected: readonly string[]; guideOnly?: boolean }) {
   const copy = plannedRoutesCopy[currentLocale];
   return <div className="vua-play-flow">
     <PlannedConnections id={id} connections={connections} detected={detected} />
-    <p className="vua-play-flow__notice">{copy.note}</p>
+    {guideOnly ? null : <p className="vua-play-flow__notice">{copy.note}</p>}
   </div>;
 }

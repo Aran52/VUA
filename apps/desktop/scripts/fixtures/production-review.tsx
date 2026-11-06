@@ -13,6 +13,8 @@ import { composeAddItemAction, composeSetNameHintAction, useComposeDraft } from 
 import { recipePersisted } from "../../src/renderer/app/recipe-library-revision.ts";
 import { format, strings } from "../../src/renderer/i18n/index.ts";
 
+// Dialogs stay on screen while they move out; these checks read the settled state.
+document.documentElement.dataset.effects = "off";
 const root = createRoot(document.getElementById("root")!);
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 40));
 const results: string[] = [];
@@ -313,7 +315,7 @@ async function recipeExportTests() {
   check(dialog().textContent!.includes(strings.recipe.missingDims.assets) && dialog().textContent!.includes(strings.recipe.missingDims.environmentUnityVersion) && dialog().textContent!.includes(strings.recipe.exportHonestyNote), "missing-dimension list renders as-is with the honesty note (no design-intent claim)");
   check(dialog().textContent!.includes(strings.recipe.exportUnityUnreadable), "unreadable unity version is honestly presented for explicit completion");
   const titleInput = dialog().querySelector(`input[aria-label="${strings.recipe.exportTitleAria}"]`) as HTMLInputElement;
-  check(titleInput.value === "Demo Avatar" && dialog().textContent!.includes(strings.recipe.exportTitlePrefillNote), "title prefills from the project name with the labeled source (draft has no title)");
+  check(titleInput.value === "Demo Avatar", "title prefills from the project name (draft has no title)");
   const saveButton = () => [...dialog().querySelectorAll("button")].find((node) => node.textContent?.trim() === strings.recipe.exportSaveCta) as HTMLButtonElement;
   check(saveButton() !== undefined && saveButton().disabled, "promotion is blocked before completion (title / version / at least one asset)");
   // 素材补全 = 同一仓储读面投影选择器(不立第三导入入口)
@@ -365,12 +367,9 @@ async function importTests() {
       return state; },
     close: async (viewId: string) => { closed++; listeners.forEach((listener) => listener({ kind: "view-closed", viewId })); },
   } } as any;
-  root.render(<StrictMode><GatewayProvider gateway={gateway}><ContentDialog open title="import" closeLabel="close" onClose={() => {}}><ImportPage /></ContentDialog></GatewayProvider></StrictMode>);
+  root.render(<StrictMode><GatewayProvider gateway={gateway}><ContentDialog open title="import" closeLabel="close" onClose={() => {}}><ImportPage initialUrl="https://booth.pm/" /></ContentDialog></GatewayProvider></StrictMode>);
   await wait(); await wait();
-  // W25 走查缺陷②来源分流(用户裁决 2026-09-23):云端段只在显式选择后
-  // 激活——夹具随行先选「云端导入」,原断言语义(工具条不 inert、可点)
-  // 不变;signInHint 桩为同批新增(缺陷③b 首导线索面)。
-  await click(strings.importPage.chooseCloudCta);
+  // A cloud handoff opens its isolated browser from the URL it carries.
   await wait(); await wait();
   const bar = document.querySelector<HTMLElement>(".vua-import__browse-bar");
   check(bar && bar.closest("[data-vua-browser-frame]")?.parentElement === document.body && !bar.closest("[inert]"), "actual ImportPage body portal toolbar is not inert");

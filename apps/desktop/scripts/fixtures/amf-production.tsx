@@ -14,6 +14,8 @@ import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
 
 localStorage.removeItem("vua-amf-production-run-v01");localStorage.removeItem("vua-amf-production-materials-v01");
+// These checks walk each review step, so the line stops at every station.
+localStorage.setItem("vua-amf-permission-mode-v01","ask");document.documentElement.dataset.effects="off";
 const copy=strings.amfProduction;
 const sources=[{sourceId:"avatar",itemId:"item-avatar",itemName:"Synthetic Avatar",name:"PC/Avatar.unitypackage"},
   {sourceId:"outfit",itemId:"item-outfit",itemName:"Synthetic Coat",name:"Clothes/Coat.unitypackage"}];
@@ -50,7 +52,7 @@ const api:AmfProductionPort={
   async getRecipe(id){if(!saved||saved.recipe.recipeId!==id)throw new Error("Recipe missing");return structuredClone(saved);},
   async saveRecipe(_runId,title){if(!selected)throw new Error("Nothing assembled");saved={revision:1,updatedAt:"2026-10-15T00:00:00Z",recipe:{formatVersion:"0.4",recipeId:"recipe-dom",title,editorVersion:"2022.3.22f1c1",materials:[{id:"m-"+"a".repeat(64),packageName:"Avatar.unitypackage",sha256:"a".repeat(64)},{id:"m-"+"b".repeat(64),packageName:"Coat.unitypackage",sha256:"b".repeat(64)}],avatar:{materialId:"m-"+"a".repeat(64),prefabPath:"Assets/Avatar.prefab"},outfits:selected.outfits.map(o=>({materialId:"m-"+"b".repeat(64),prefabPath:o.prefabPath,mode:o.mode,bone:o.bone,toggleName:o.toggleName,active:o.active})),packages:{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}}};return structuredClone(saved);},
   async prepareRecipe(id){if(!saved||saved.recipe.recipeId!==id)throw new Error("Wrong Recipe");recipePrepared=true;run={...run,runId:"n3-recipe-dom",phase:"ready",selection:selected,result:null};return{runId:run.runId,taskId:"n3-task"};},
-  async list(){return{sources,editors:[run.editor],runs:[],busy:false,queue:[]};},
+  async list(){return{sources,editors:[run.editor],runs:[{runId:run.runId,phase:run.phase,sourceNames:run.sources.map(s=>s.itemName)}],busy:false,capacity:1,running:[],queue:[]};},
   async get(){return structuredClone(run);},
   async prepare(choices){if(choices.length!==2||choices.some(s=>s.role!=="auto"))throw new Error("nonautomatic inputs");prepared=true;return{runId:run.runId,taskId:"n3-task"};},
   async plan(runId,selection){selected=selection;return{runId,planDigest:"a".repeat(64),selection,inputs:[{sourceId:"avatar",name:"Synthetic Avatar",role:"avatar"},{sourceId:"outfit",name:"Synthetic Coat",role:"outfit"}]};},

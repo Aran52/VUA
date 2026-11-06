@@ -13,6 +13,8 @@ describe("tool logos come from Steam and are cached in the profile", () => {
   it("accepts only the fixed tools and real icon files", () => {
     expect(isToolLogoId("oyasumi")).toBe(true);
     expect(isToolLogoId("vrcs")).toBe(true);
+    for (const id of ["slimevr", "vrct", "vrcx", "xsoverlay", "desktopplus", "fpsvr"]) expect(isToolLogoId(id)).toBe(true);
+    expect(toolLogoUrl("", "slimevr")).toMatch(/^https:\/\/raw\.githubusercontent\.com\/SlimeVR\/SlimeVR-Server\/[a-f0-9]{40}\/.+\.png$/u);
     expect(isToolLogoId("toString")).toBe(false);
     expect(isIcoFile(ico)).toBe(true);
     expect(isIcoFile(new TextEncoder().encode("<html>not found</html>"))).toBe(false);

@@ -4,7 +4,6 @@ import { currentLocale, strings } from "../../i18n/index.ts";
 import { playFlowCopy } from "../../i18n/play-flow-copy.ts";
 import { structureCopy } from "../../i18n/structure-copy.ts";
 import { Button } from "../../components/primitives/Button.tsx";
-import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { SlideDrawer } from "../../components/SlideDrawer.tsx";
 import { useGridColumns } from "../../components/use-grid-columns.ts";
 import { RouteGlyph } from "../../components/RouteTile.tsx";
@@ -14,18 +13,19 @@ import { EnvironmentCard, type EnvironmentAction } from "./EnvironmentCard.tsx";
 import { takeRequestedPlayRoute } from "./play-route-request.ts";
 import { usePlaySessions } from "./use-play-sessions.ts";
 import { PlayRouteFlow, type PlayFlowStep } from "./PlayRouteFlow.tsx";
+import { PlannedRouteFlow } from "./PlannedRouteFlow.tsx";
+import { useEscapeClose } from "../../components/use-escape-close.ts";
+import { PLANNED_ROUTES, type PlannedRouteId } from "./planned-routes.ts";
+import { plannedRoutesCopy } from "../../i18n/planned-routes-copy.ts";
 import { ToolGroup } from "../tools/ToolsHub.tsx";
 import type { PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
 
 const copy = strings.environmentCards;
 const structure = structureCopy[currentLocale];
-const developingRoutes = [
-  { id: "quest", title: "Meta Quest", brand: "meta" },
-  { id: "vive", title: "HTC VIVE", brand: "htcvive" },
-  { id: "index", title: "Valve Index", brand: "valve" },
-] as const;
 const OTHER_PLATFORMS = { icon: "anim", tools: [{ id: "chilloutvr", title: "ChilloutVR" }, { id: "reborn", title: "Reborn" }] } as const;
+type RouteKey = PlayRoute | PlannedRouteId;
+const ROUTE_KEYS: readonly RouteKey[] = [...PLAY_ROUTES, ...PLANNED_ROUTES.map(route => route.id)];
 const cardId = (route: PlayRoute) => route === "desktop_play" ? "route-desktop" : "route-pico";
 const runtimeBrand = (id: string) => id === "pico_runtime" ? "pico-mark" : id === "oculus_runtime" ? "meta" : id === "vive_runtime" ? "htcvive" : id === "steamvr" ? "valve" : undefined;
 /** The card's glyph for a step; the other steps name themselves with an icon. */
@@ -56,21 +56,26 @@ function useDeviceScan() {
 export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   const flowCopy = playFlowCopy[currentLocale];
   const [requestedRoute] = useState(takeRequestedPlayRoute);
-  const [selected, setSelected] = useState<PlayRoute | null>(requestedRoute);
+  const [selected, setSelected] = useState<RouteKey | null>(requestedRoute);
   // The drawer keeps its place and content while it closes.
-  const [shown, setShown] = useState<PlayRoute>(requestedRoute ?? "desktop_play");
+  const [shown, setShown] = useState<RouteKey>(requestedRoute ?? "desktop_play");
   const [steps, setSteps] = useState<Partial<Record<PlayRoute, PlayFlowStep>>>({});
   const [platform, setPlatform] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const closeRoute = useCallback(() => setSelected(null), []);
+  const closePlatform = useCallback(() => setPlatform(null), []);
   const live = usePlaySessions();
   const scan = useDeviceScan();
   const grid = useRef<HTMLDivElement>(null);
   const columns = useGridColumns(grid);
   const desktopStep = useCallback((step: PlayFlowStep) => setSteps(p => ({ ...p, desktop_play: step })), []);
   const picoStep = useCallback((step: PlayFlowStep) => setSteps(p => ({ ...p, pico_pcvr: step })), []);
-  const title = (route: PlayRoute) => route === "desktop_play" ? strings.journey.desktop : "PICO";
-  const open = (route: PlayRoute) => { setShown(route); setSelected(route); };
-  const toggle = (route: PlayRoute) => { setShown(route); setSelected(current => current === route ? null : route); };
+  const title = (route: RouteKey) => route === "desktop_play" ? strings.journey.desktop : route === "pico_pcvr" ? "PICO" : PLANNED_ROUTES.find(item => item.id === route)!.title;
+  const open = (route: RouteKey) => { setShown(route); setSelected(route); };
+  const toggle = (route: RouteKey) => { setShown(route); setSelected(current => current === route ? null : route); };
+  const detected = scan.devices.map(item => item.id);
+  useEscapeClose(selected !== null, closeRoute);
+  useEscapeClose(platform !== null, closePlatform);
   const next = (route: PlayRoute) => {
     const step = steps[route];
     if (!step || (step.needsDetails && selected !== route)) { open(route); return; }
@@ -86,8 +91,11 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   const drawer = <SlideDrawer key="play-drawer" open={selected !== null} className="vua-play-drawer" label={title(shown)}>
     {PLAY_ROUTES.map(route => <div key={route} id={`${cardId(route)}-details`} hidden={shown !== route}>
       <PlayRouteFlow route={route} session={live.sessions[route] ?? null} unavailable={!!live.unavailable[route]} launchPending={!!live.pending[route]}
-        refreshToken={refreshToken} onLaunch={stop => { void live.act(route, stop); }} onAccounts={onAccounts}
+        refreshToken={refreshToken} onLaunch={stop => { void live.act(route, stop); }} onAccounts={onAccounts} detected={detected}
         onStep={route === "desktop_play" ? desktopStep : picoStep} />
+    </div>)}
+    {PLANNED_ROUTES.map(route => <div key={route.id} id={`route-${route.id}-details`} hidden={shown !== route.id}>
+      <PlannedRouteFlow id={route.id} connections={route.connections} detected={detected} />
     </div>)}
   </SlideDrawer>;
   const cards: ReactNode[] = [
@@ -100,11 +108,12 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
           primary={stepIsPrimary(step)} progress={step?.percent} warning={!!live.sessions[route]?.issue} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />
       </div>;
     }),
-    ...developingRoutes.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>
-      <Tooltip block content={strings.journey.developingTip}><EnvironmentCard title={route.title} brand={route.brand} id={`route-${route.id}`} action="unknown" status="" developing /></Tooltip>
+    ...PLANNED_ROUTES.map(route => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} key={route.id}>
+      <EnvironmentCard title={route.title} hint={plannedRoutesCopy[currentLocale].hints[route.id]} brand={route.brand} kind={route.brand ? undefined : "headset"} id={`route-${route.id}`}
+        action="unknown" status="" developing actionHint={strings.journey.developingTip} selected={selected === route.id} onDetails={() => toggle(route.id)} />
     </div>),
   ];
-  const drawerAfter = Math.min(cards.length - 1, (Math.floor(PLAY_ROUTES.indexOf(shown) / columns) + 1) * columns - 1);
+  const drawerAfter = Math.min(cards.length - 1, (Math.floor(ROUTE_KEYS.indexOf(shown) / columns) + 1) * columns - 1);
   const items = cards.flatMap((card, index) => index === drawerAfter ? [card, drawer] : [card]);
 
   return <div className="vua-page vua-route-page vua-play-page vua-compact-environments" data-route-stage={selected ? "prepare" : "pick"}>

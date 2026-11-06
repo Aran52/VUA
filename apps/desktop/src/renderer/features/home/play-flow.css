@@ -26,6 +26,19 @@
 .vua-play-flow__checklist { display: flex; flex-wrap: wrap; gap: var(--vua-space-2) var(--vua-space-4); margin: 0; padding: 0; list-style: none; counter-reset: none; }
 .vua-play-flow__checklist li { display: inline-flex; align-items: center; gap: 8px; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-play-flow__mark { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--vua-border); font-size: 11px; line-height: 1; }
+/* A planned route: the chosen connection, what each side needs and where to get it. */
+.vua-planned { display: grid; gap: var(--vua-space-3); }
+.vua-planned__detail { display: grid; gap: var(--vua-space-2); }
+.vua-planned__detail > p { margin: 0; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-planned__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-1) var(--vua-space-2); }
+.vua-planned__head strong { font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
+.vua-planned__tag { padding-inline: var(--vua-space-2); border: 1px solid var(--vua-border); border-radius: var(--vua-corners-indicator, 2px); color: var(--vua-text-secondary); font: var(--vua-font-caption); line-height: 18px; }
+.vua-planned__state { display: inline-flex; align-items: center; gap: var(--vua-space-1); margin-inline-start: auto; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
+.vua-planned__state[data-found] { color: var(--vua-success-text, var(--vua-success)); }
+.vua-planned__needs { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--vua-space-1) var(--vua-space-3); margin: 0; font: var(--vua-font-caption); }
+.vua-planned__needs dt { color: var(--vua-text-secondary); }
+.vua-planned__needs dd { margin: 0; color: var(--vua-text-strong); }
+.vua-planned__actions { display: flex; gap: var(--vua-space-2); margin-top: var(--vua-space-1); }
 .vua-play-flow__notice { margin: 0; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-play-flow__notice[data-tone='warning'] { color: var(--vua-warning-text, var(--vua-text-strong)); }
 
@@ -38,6 +51,6 @@
 .vua-play-drawer .vua-play-flow[hidden] { display: none; }
 .vua-play-devices { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vua-space-2) var(--vua-space-4); margin: 0; padding: 0; list-style: none; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-play-devices li { display: inline-flex; align-items: center; gap: 8px; color: var(--vua-text-strong); }
-.vua-play-devices .vua-route-tile__icon { width: 22px; height: 22px; }
+.vua-play-devices .vua-route-tile__icon, .vua-play-devices .vua-route-tile__icon[data-brand] { width: 22px; height: 22px; }
 .vua-play-devices li[data-empty] { color: var(--vua-text-secondary); }
 .vua-play-flow__software li[data-running] { border-color: var(--vua-accent); }

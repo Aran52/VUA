@@ -1,6 +1,6 @@
 # VUA development sequence
 
-> Updated: 2026-10-30
+> Updated: 2026-11-06
 
 The N sequence schedules VUA's work toward the [north star](north-star.md). Each stage names a
 player task, the acceptance rows that show it works and the evidence those rows need. The
@@ -236,7 +236,9 @@ these tools through the local [MCP adapter](protocols/ai-tools-v0.1.md).
 
 Steam pricing/access descriptions are checked on 2026-10-03; show the current store offer rather
 than hardcoding a price. Required hardware modules are not extra top-level tools. Further additions
-need an explicit scope decision. Record the actual installed release/source for each run.
+need an explicit scope decision. The [planned connections](tool-catalog/external/planned-connections.md)
+have their interface in place at the author's request of 2026-11-06, and join this table when they are
+connected. Record the actual installed release/source for each run.
 
 ### Shared connection acceptance
 

@@ -16,6 +16,8 @@ or capability-bounded VUA plugin.
 - [Motion tracking](motion-tracking.md)
 - [Avatar optimizer](avatar-optimizer.md)
 - [ALCOM / VCC (VRChat Creator Companion)](alcom-vcc.md)
+- [Planned connections](planned-connections.md): tools and headset routes with their interface in place
+  and their connection still to build
 
 ## Planned Steam inventory
 

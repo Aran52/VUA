@@ -63,10 +63,10 @@ async function run() {
     assert(observed.ok && observed.value.toolConnection.toolId === "vrcft" && nativeSchema === "vua.external-tool/v0.3", "Native host returns VRCFT v0.2 facts while AMF is disabled");
     const nativePresence = observed.value.toolConnection.presence; nativeRead = false;
     await click('[data-nav-id=nav-tools-discover]'); await waitFor(() => js('!!document.querySelector("[data-nav-id=tool-vrcft-action]")'), "tool card"); await refresh();
-    assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].length===8 && [...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].every(button=>!!button.textContent.trim() && !!button.getAttribute("aria-label"))'), "All eight tool actions name their next step in a word and keep an accessible operation name");
+    assert(await js('[...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].length===14 && [...document.querySelectorAll(".vua-tools-hub .vua-environment-card__action")].every(button=>!!button.textContent.trim() && !!button.getAttribute("aria-label"))'), "All fourteen tool actions name their next step in a word and keep an accessible operation name");
     for (const scale of [1, 1.5]) {
       window.setSize(960, 800); window.webContents.setZoomFactor(scale);
-      for (const toolId of ['vrcft','space','vrcs','translator','advanced','toolkit','oyasumi','liv']) {
+      for (const toolId of ['vrcft','space','slimevr','vrcs','translator','vrct','advanced','toolkit','oyasumi','xsoverlay','desktopplus','fpsvr','vrcx','liv']) {
         await click(`[data-nav-id=tool-${toolId}]`);
         await waitFor(() => js(`(()=>{
           const trigger=document.querySelector('[data-nav-id=tool-${toolId}]'), entry=trigger.closest('[data-card-entry]');

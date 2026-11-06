@@ -206,8 +206,15 @@ async function run() {
     const cardLayout = await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card button")].map(b=>({label:b.getAttribute("data-nav-id"),overflow:b.scrollHeight-b.clientHeight}))');
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");
-    // In-development headsets explain themselves in a tooltip and open no details.
-    assert(await js(`['route-quest','route-vive','route-index'].every(id=>document.querySelector('[data-nav-id="'+id+'"]').disabled && !document.getElementById(id+'-details'))`), "In-development headsets have no details panel");
+    // Headset routes still in development open a connection guide with official pages.
+    assert(await js(`['route-quest','route-steam-frame','route-vive','route-index','route-psvr2'].every(id=>document.querySelector('[data-card="'+id+'"] .vua-environment-card__action').disabled && !!document.getElementById(id+'-details'))`), "Headset routes in development have a guide and no action yet");
+    await js('document.querySelector("[data-nav-id=route-quest]").click()');
+    await waitFor(() => js('!document.getElementById("route-quest-details").hidden && document.querySelector(".vua-play-drawer").dataset.open==="true"'), "Meta Quest connection guide");
+    assert(await js('document.querySelectorAll("#route-quest-details input[type=radio]").length===4 && !!document.querySelector("[data-nav-id=planned-official-quest-link]")'), "Meta Quest offers its four connections, each with its official page");
+    await js('document.querySelector("[data-nav-id=planned-quest-virtual-desktop]").click()');
+    await waitFor(() => js('!!document.querySelector("#route-quest-details [data-connection=virtual-desktop]")'), "Choosing a connection shows its needs");
+    await js('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "Esc closes open route details");
     for (const button of ['route-desktop','route-pico']) {
       await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
       assert(await js(`!document.getElementById('${button}-details').hidden`), `${button} opens inline details`);

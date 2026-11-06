@@ -116,8 +116,9 @@ offers Unity Hub, VCC and ALCOM from their official pages, because those install
 | Workshop, line | The current station's action; a finished line offers **View finished Avatar** | Finished Avatars |
 | Finished Avatars | **Upload to VRChat**, right under the line's name; the 360° preview on the left | Upload dialog |
 
-Selecting stays a single click and opening details a double click (Explorer semantics). The row under
-the wall shows the selection's actions, and a one-line hint while nothing is selected.
+Selecting stays a single click and opening details a double click (Explorer semantics): Ctrl adds or
+removes a card and Shift extends from the last click. The row under the wall appears with a selection and
+holds its actions.
 
 An empty step points back to the step before it: an empty new-line page offers Import materials, and
 a missing Editor offers Unity setup.
@@ -131,8 +132,28 @@ Finished Avatars shows the 360° preview once it exists, and three still views u
 takes a Unity job, so the button to create it sits right under the stills; in full auto, following a
 finished line to this page creates it without asking.
 
-Recipes open as a list, which says at a glance what each Recipe is; the graph is one click away and
-the choice is remembered.
+Recipes open as cards: the Avatar's and outfits' pictures, whether this PC has the materials, and one
+button that starts a line. A card's details open beside the cards and list each material with its state.
+The graph is one click away and the choice is remembered. Renaming and deleting a Recipe wait for the
+engine; their menu entries say so.
+
+## Materials
+
+One row of controls sits under the title: search, source, download state, BOOTH category, VN3 terms, order
+and view. Their values name them, so they carry no labels above. The count and a way to clear filters sit
+under that row, and page buttons appear only when there is more than one page.
+
+- **Order:** recently added by default, then first added, name, shop, price, newest on BOOTH and largest on
+  disk. The choice and the view are remembered. An order other than the default shows its value on each
+  card, so it explains itself; the list's title and shop headers sort too. Filters and the place in the
+  wall last until the app closes.
+- **VN3 terms:** a panel with the terms state (all, has VN3, no VN3, not read yet, see the document) and
+  the uses the terms must allow, grouped as VN3 words them, each with how many materials would match.
+  Unread terms can be read from the panel. A matching card says so only when it is conditional, needs the
+  creator's permission or has a special note.
+- **Details:** a page in place of the wall, which stays where it was. The pictures stay in view beside the
+  name, the one main action, facts, VN3 terms, files and description. Esc or the arrow beside the title
+  returns; the left and right arrow keys move to the neighbouring cards of the current page.
 
 ## Help and Settings
 

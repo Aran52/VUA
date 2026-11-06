@@ -1,0 +1,51 @@
+/** What a Recipe card and its details say: which materials it needs, and whether this PC has them. */
+import type { AmfRecipeDocument, AmfRecipeMaterialPlan, AmfRecipeMaterialResolution } from "@vua/contracts";
+
+export type RecipeReadiness =
+  | { readonly kind: "ready" }
+  | { readonly kind: "choose"; readonly count: number }
+  | { readonly kind: "missing"; readonly count: number };
+
+/** One sentence for a whole Recipe: missing materials come first, since they stop a new line. */
+export function recipeReadiness(plan: Pick<AmfRecipeMaterialPlan, "materials" | "ready">): RecipeReadiness {
+  const missing = plan.materials.filter(material => material.status === "material_not_downloaded" || material.status === "material_not_owned" || material.status === "material_missing").length;
+  if (missing > 0) return { kind: "missing", count: missing };
+  const choose = plan.materials.filter(material => material.status === "material_choice_required").length;
+  if (choose > 0) return { kind: "choose", count: choose };
+  return { kind: "ready" };
+}
+
+export type RecipeMaterialRole = "avatar" | "outfit" | "other";
+export interface RecipeMaterialRow {
+  readonly materialId: string;
+  readonly packageName: string;
+  readonly role: RecipeMaterialRole;
+  readonly productId: string | null;
+  readonly status: AmfRecipeMaterialResolution["status"] | null;
+}
+
+/** The Avatar first, then outfits in the Recipe's order, then whatever else it uses. */
+export function recipeMaterialRows(recipe: AmfRecipeDocument, plan?: Pick<AmfRecipeMaterialPlan, "materials"> | null): readonly RecipeMaterialRow[] {
+  const outfits = recipe.outfits.map(outfit => outfit.materialId);
+  const rank = (id: string) => id === recipe.avatar.materialId ? -1 : outfits.includes(id) ? outfits.indexOf(id) : outfits.length;
+  return [...recipe.materials].sort((a, b) => rank(a.id) - rank(b.id)).map(material => {
+    const resolved = plan?.materials.find(item => item.materialId === material.id);
+    const native = material.boothProductId ?? resolved?.boothProductId ?? null;
+    return {
+      materialId: material.id, packageName: material.packageName,
+      role: material.id === recipe.avatar.materialId ? "avatar" : outfits.includes(material.id) ? "outfit" : "other",
+      productId: native === null ? null : `booth:${native}`,
+      status: resolved?.status ?? null,
+    };
+  });
+}
+
+/** Distinct BOOTH products across Recipes, whose pictures the cards show. */
+export function recipeProductIds(rows: readonly (readonly RecipeMaterialRow[])[]): readonly string[] {
+  return [...new Set(rows.flatMap(list => list.flatMap(row => row.productId === null ? [] : [row.productId])))];
+}
+
+/** The summary a card shows, newest save first. */
+export function newestFirst<T extends { readonly updatedAt: string }>(items: readonly T[]): readonly T[] {
+  return [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}

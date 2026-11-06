@@ -212,6 +212,10 @@ export interface AmfProductionPort {
   importRecipe(text: string): Promise<AmfSavedRecipe>;
   listRecipes(): Promise<readonly AmfRecipeSummary[]>;
   getRecipe(recipeId: string): Promise<AmfSavedRecipe>;
+  /** Renames a saved Recipe; absent until the engine offers it, and the interface says so. */
+  renameRecipe?(recipeId: string, expectedRevision: number, title: string): Promise<AmfSavedRecipe>;
+  /** Deletes a saved Recipe; lines already made from it keep working. Absent until the engine offers it. */
+  deleteRecipe?(recipeId: string, expectedRevision: number): Promise<void>;
   saveRecipe(runId: string, title: string): Promise<AmfSavedRecipe>;
   prepareRecipe(recipeId: string, editorPath: string, materialChoices?: AmfMaterialChoices): Promise<AmfProductionAccepted>;
   list(): Promise<AmfProductionList>;

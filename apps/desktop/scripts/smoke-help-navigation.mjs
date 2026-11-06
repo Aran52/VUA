@@ -514,8 +514,8 @@ async function run() {
       ["en", "What do you want to know?", "Avatars & outfits"],
       ["zh-CN", "想先解决什么问题？", "Avatar 与换装"],
       ["zh-TW", "想先解決什麼問題？", "Avatar 與換裝"],
-      ["ja", "何を知りたいですか？", "Avatar と衣装"],
-      ["ko", "무엇이 궁금한가요?", "Avatar와 의상"],
+      ["ja", "何を知りたいですか？", "アバターと衣装"],
+      ["ko", "무엇이 궁금한가요?", "아바타와 의상"],
     ];
     for (const [locale, homeTitle, avatarTitle] of encyclopediaLocales) {
       await js(`localStorage.setItem("vua-locale",${JSON.stringify(locale)}); location.hash="#help-encyclopedia?guideTopic=guide-avatars&guideSection=visibility"; location.reload()`);

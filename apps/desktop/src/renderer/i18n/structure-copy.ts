@@ -33,7 +33,7 @@ const en = {
   library: {
     selected: "{count} selected",
     openDetails: "Details",
-    howToStart: "Select an Avatar to start a line.",
+   
   },
   help: {
     gameHint: "A floating guide that follows the VRChat window.",
@@ -75,7 +75,7 @@ const zhCN: Copy = {
   library: {
     selected: "已选 {count} 项",
     openDetails: "详情",
-    howToStart: "选中 Avatar 后可开一条产线。",
+   
   },
   help: {
     gameHint: "跟随 VRChat 窗口的悬浮说明。",
@@ -116,7 +116,7 @@ const zhTW: Copy = {
   library: {
     selected: "已選 {count} 項",
     openDetails: "詳情",
-    howToStart: "選中 Avatar 後可開一條產線。",
+   
   },
   help: {
     gameHint: "跟隨 VRChat 視窗的懸浮說明。",
@@ -157,7 +157,7 @@ const ja: Copy = {
   library: {
     selected: "{count} 件を選択中",
     openDetails: "詳細",
-    howToStart: "アバターを選ぶと生産ラインを始められます。",
+   
   },
   help: {
     gameHint: "VRChat のウィンドウに追従する案内です。",
@@ -198,7 +198,7 @@ const ko: Copy = {
   library: {
     selected: "{count}개 선택됨",
     openDetails: "세부 정보",
-    howToStart: "아바타를 선택하면 생산 라인을 시작할 수 있어요.",
+   
   },
   help: {
     gameHint: "VRChat 창을 따라다니는 안내예요.",

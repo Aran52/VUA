@@ -495,7 +495,7 @@ demoTaskTitle: "데모 작업",
     absentDefault: "이 입구는 지금 표시되지 않아요",
     steps: {
       welcome: {
-        title: "환영합니다, 현실에서 온 여행자여.",
+        title: "환영해요, 현실에서 온 여행자여.",
         body: "VUA는 플레이 준비, 자주 쓰는 도구, 편집 준비를 모아 둬요. 1분 동안 각 기능의 위치를 안내해요.",
       },
       tools: {
@@ -1566,7 +1566,6 @@ rolled_back: "롤백됨",
       manageFiles: "다운로드 파일 관리", chooseReplacement: "덮어쓸 복사본 선택", copyOption: "복사본 {index}: {name} · {state}",
       replaceCta: "다시 다운로드하고 덮어쓰기 ({count})", previousPage: "이전", nextPage: "다음", page: "{page} / {total} 페이지",
     },
-    viewCards: "카드",
     listColumns: {
       title: "제목", shop: "상점", variant: "옵션", source: "출처", variants: "총{count}개", resize: "{name} 열 너비 조절",
       states: { cloud: "클라우드", downloading: "다운로드 중", paused: "다운로드 일시 중지", downloaded: "다운로드됨", imported: "로컬 가져오기", error: "오류" },
@@ -1699,7 +1698,6 @@ rolled_back: "롤백됨",
       openProduct: "출처 상품 보기",
     },
     viewList: "목록",
-    viewToggleAria: "카드/목록 전환",
     openFolderFailed: "폴더를 열지 못했어요. 로컬 파일을 확인한 뒤 다시 시도하세요.",
     catalogSync: {
       checking: "BOOTH 로그인 확인 중…",
@@ -1722,7 +1720,6 @@ rolled_back: "롤백됨",
       signInAction: "BOOTH 로그인",
       syncTitle: "BOOTH 라이브러리 동기화",
     },
-    searchPlaceholder: "제목 또는 상품 ID 검색",
     searchAria: "카탈로그 상품 검색",
     /** 029 슬라이스 3(A3 로컬 구간): 자산 선택기=창고 읽기 면의 투영.
      *  여기에 세 번째 가져오기 진입을 두지 않음(가져오기는 가져오기 페이지).
@@ -1779,7 +1776,6 @@ rolled_back: "롤백됨",
       allRelationKinds: "모든 관계",
     },
     resultCount: "라이브러리 항목 총 {total}개 중 {shown}개 표시",
-    resultCountAll: "라이브러리 항목 {total}개",
     availability: {
       available: "판매 중",
       unavailable: "판매 종료",
@@ -1956,7 +1952,7 @@ rolled_back: "롤백됨",
     closeWindow: "창 닫기",
     steps: {
       "demo-welcome": {
-        title: "VUA 튜토리얼에 오신 것을 환영합니다",
+        title: "VUA 튜토리얼에 오신 것을 환영해요",
         body: "데스크톱과 VR이 함께 진행되는 데모 세션으로, 듀얼 서페이스 동기화 링크를 검증해요.",
       },
       "demo-controls": {
@@ -2977,7 +2973,7 @@ rolled_back: "롤백됨",
     notOpenTitle: "아직 열리지 않은 기능이에요",
     recipeDescription: "레시피 조합과 다층 관계 그래프는 이후 마일스톤에서 연결돼요.",
     releaseDescription: "이 페이지에서는 완료된 아바타의 업로드 준비를 아직 지원하지 않아요.",
-    donateDescription: "후원 채널은 정식 버전 출시 전에 열려요. 응원해 주셔서 감사합니다.",
+    donateDescription: "후원 채널은 정식 버전 출시 전에 열려요. 응원해 주셔서 감사해요.",
     packagesDescription: "Unity 프로젝트의 패키지 설치, 업데이트, 마이그레이션, 백업은 후속 마일스톤에서 제공돼요. ALCOM과 VCC의 상호작용을 참고해 초보자용으로 다시 구성해요.",
   },
   navConfirm: {

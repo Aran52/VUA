@@ -4,6 +4,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import { useAcquireView, type WarehouseEntry } from "../../gateway/index.ts";
 import { format, strings } from "../../i18n/index.ts";
+import { libraryViewCopy } from "../../i18n/library-view-copy.ts";
 import { warehouseEntrySelectorRows } from "./acquire-model.ts";
 
 const acquireCopy = strings.warehouse.acquire;
@@ -48,7 +49,7 @@ export function WarehouseEntrySelector({
         <input
           type="search"
           className="vua-warehouse__search"
-          placeholder={strings.warehouse.searchPlaceholder}
+          placeholder={libraryViewCopy.search}
           aria-label={strings.warehouse.searchAria}
           value={text}
           onChange={(event) => setText(event.target.value)}

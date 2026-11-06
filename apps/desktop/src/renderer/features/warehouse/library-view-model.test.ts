@@ -1,7 +1,16 @@
 import { LIBRARY_VN3_ITEMS } from "@vua/contracts";
 import { describe, expect, it } from "vitest";
 import { libraryViewTables } from "../../i18n/library-view-copy.ts";
-import { EMPTY_LIBRARY_SESSION, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, sortFactOf, toggleVn3Item, VN3_FILTER_GROUPS, vn3ChoiceActive, vn3FilterWire } from "./library-view-model.ts";
+import { EMPTY_LIBRARY_SESSION, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, offeredLibrarySorts, sortFactOf, toggleVn3Item, VN3_FILTER_GROUPS, vn3ChoiceActive, vn3FilterWire } from "./library-view-model.ts";
+
+describe("sort choices", () => {
+  it("offers BOOTH's publish date once a row has one, and keeps a stored choice", () => {
+    expect(offeredLibrarySorts("added_desc", [{ publishedAt: null }, {}])).not.toContain("published_desc");
+    expect(offeredLibrarySorts("added_desc", [{ publishedAt: null }, { publishedAt: "2026-01-01T00:00:00Z" }])).toContain("published_desc");
+    expect(offeredLibrarySorts("published_desc", [])).toContain("published_desc");
+    expect(offeredLibrarySorts("added_desc", [])).toContain("size_desc");
+  });
+});
 
 describe("the VN3 filter", () => {
   it("keeps letters in VN3 order and sends only what is chosen", () => {

@@ -11,7 +11,7 @@ import { Skeleton } from "../../components/primitives/Skeleton.tsx";
 import type { CatalogProductDetail, LibraryCardFacts, LibraryFileInventory } from "../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../i18n/index.ts";
 import { libraryViewCopy } from "../../i18n/library-view-copy.ts";
-import { priceLabel, sizeLabel } from "./library-text.ts";
+import { priceLabel, readableDescription, sizeLabel, videoLink } from "./library-text.ts";
 import { ProductTerms } from "./ProductTerms.tsx";
 import { DetailAlbum } from "./WarehouseAlbum.tsx";
 
@@ -101,8 +101,9 @@ function ProductFiles({ productId, revision, onManage }: { productId: string; re
 }
 
 const LONG_DESCRIPTION = 480;
-function Description({ text }: { text: string }) {
+function Description({ text: recorded }: { text: string }) {
   const [all, setAll] = useState(false);
+  const text = readableDescription(recorded);
   const long = text.length > LONG_DESCRIPTION;
   return <section className="vua-warehouse-detail__section">
     <h3>{copy.detail.descriptionTitle}</h3>
@@ -150,13 +151,12 @@ export function ProductDetail({ product, facts, title, badges, actions, filesRev
       {badges}
     </>}>
     {product.availability === "deleted" ? <p className="vua-caption vua-text-secondary">{copy.detail.tombstoneNote}</p> : null}
-    {product.availabilityRaw !== null ? <p className="vua-caption vua-text-secondary">{format(copy.detail.availabilityEvidence, { raw: product.availabilityRaw })}</p> : null}
     {product.ageRestriction !== null ? <p className="vua-caption vua-text-secondary">{format(copy.detail.ageRestrictionNote, { value: product.ageRestriction })}</p> : null}
 
     <ProductTerms productId={product.productId} title={title} onUpdated={onTermsUpdated} />
     <ProductFiles productId={product.productId} revision={filesRevision} onManage={onManageFiles} />
 
-    {product.subproducts.length > 0 ? <section className="vua-warehouse-detail__section">
+    {product.subproducts.length > 1 ? <section className="vua-warehouse-detail__section">
       <h3>{copy.detail.subproductsTitle}</h3>
       <ul className="vua-warehouse-detail__subproducts">{product.subproducts.map((subproduct, index) => <li key={subproduct.variationId ?? index}>
         {/* An unnamed variation takes the product's title; a BOOTH ID is internal. */}
@@ -169,9 +169,12 @@ export function ProductDetail({ product, facts, title, badges, actions, filesRev
 
     {product.media.videoUrls.length > 0 ? <section className="vua-warehouse-detail__section">
       <h3>{copy.detail.videosTitle}</h3>
-      <ul className="vua-warehouse-detail__videos">{product.media.videoUrls.map(url => <li key={url}>
-        <button type="button" className="vua-terms__link" onClick={() => { setOpenVideoFailed(false); void openExternalUrl(url).then(ok => { if (!ok) setOpenVideoFailed(true); }); }}>{url}</button>
-      </li>)}</ul>
+      <ul className="vua-warehouse-detail__videos">{product.media.videoUrls.map(url => {
+        const video = videoLink(url);
+        return <li key={url}>
+          <button type="button" className="vua-terms__link" title={video.href} onClick={() => { setOpenVideoFailed(false); void openExternalUrl(video.href).then(ok => { if (!ok) setOpenVideoFailed(true); }); }}>{format(view.watchOn, { site: video.site })}</button>
+        </li>;
+      })}</ul>
       {openVideoFailed ? <p className="vua-caption vua-text-secondary">{copy.detail.openVideoFailed}</p> : null}
     </section> : null}
 

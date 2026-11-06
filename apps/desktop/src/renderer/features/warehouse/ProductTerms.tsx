@@ -75,7 +75,7 @@ export function ProductTerms({ productId, title, onUpdated }: { productId: strin
           {reading !== null ? copy.reading : terms.state === "not_observed" ? copy.read : copy.readAgain}</Button>
       </span>
     </div>
-    {terms.state !== "parsed" && <p className="vua-caption vua-text-secondary">{copy.state[terms.state]}</p>}
+    {terms.state !== "parsed" && terms.state !== "not_observed" && <p className="vua-caption vua-text-secondary">{copy.state[terms.state]}</p>}
     {links.map(source => <button key={source.sourceId} type="button" className="vua-terms__link" onClick={() => { void openExternalUrl(source.sourceUrl); }}>{source.sourceUrl}</button>)}
     {readable && <>
       <ul className="vua-terms__uses" aria-label={copy.uses}>{TERMS_PRESET_IDS.map(presetId => {

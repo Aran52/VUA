@@ -58,6 +58,12 @@ export function sortFactOf(sort: LibrarySort): LibrarySortFact {
 }
 
 /** The list's column headers sort by their own column; a second click reverses where that makes sense. */
+/** BOOTH's publish date arrives with some product pages only, so that choice appears once a row has one. */
+export function offeredLibrarySorts(current: LibrarySort, rows: Iterable<{ readonly publishedAt?: string | null | undefined }>): readonly LibrarySort[] {
+  const dated = [...rows].some(row => row.publishedAt);
+  return LIBRARY_SORTS.filter(option => option !== "published_desc" || dated || current === option);
+}
+
 export function nextHeaderSort(column: "title" | "shop", current: LibrarySort): LibrarySort {
   if (column === "shop") return "shop_asc";
   return current === "title_asc" ? "title_desc" : "title_asc";

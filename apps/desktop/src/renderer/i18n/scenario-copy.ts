@@ -62,7 +62,7 @@ export const scenarioCopy = {
       stream: { title: "開始串流", explanation: "在 PICO Connect 中確認連線，再啟動 SteamVR。", result: "頭戴裝置裡能看到電腦的 VR 環境。" },
       openxr: { title: "需要時設定 OpenXR 執行時", explanation: "需要 OpenXR 的遊戲可按百科說明將 SteamVR 設為預設執行時。", result: "SteamVR 中顯示它是所選 OpenXR 執行時。" },
       "unity-license": { title: "開始製作前啟用 Unity", explanation: "在下方的 Unity 登入與授權步驟中完成登入、啟用和檢查。", result: "Unity 能使用符合條件的 Personal 或已分配的付費授權啟動。" },
-      materials: { title: "選擇素材", explanation: "在 {amf} 中選擇本地素體和衣服包，將生成獨立的工作專案。", result: "Unity 報告素材中實際存在的 prefab 候選。" },
+      materials: { title: "選擇素材", explanation: "在 {amf} 中選擇本機素體和衣服包，將生成獨立的工作專案。", result: "Unity 報告素材中實際存在的 prefab 候選。" },
       assembly: { title: "確認怎麼穿、怎麼切換", explanation: "確認候選、為開關命名，再確認裝配計畫。", result: "保留結果記錄，顯示實際檢查結果和需要注意的問題。" },
       sdk: { title: "去 Unity 看看成品", explanation: "檢查外觀和開關，執行官方 SDK 檢查，是否上傳自行決定。", result: "獲得實際外觀和 SDK 檢查結果" },
       recovery: { title: "中斷後怎麼接著做", explanation: "重新讀取目前狀態，重查安裝或保留的 {amf} 改模專案，再確認新計畫。", result: "從實際狀態繼續，不重複已完成的工作" },

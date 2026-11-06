@@ -18,7 +18,7 @@ export const fileDropCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> 
     limit: "单次最多 200 个文件或文件夹", busy: "当前操作完成后可拖入",
   },
   "zh-TW": {
-    drop: "鬆開滑鼠，匯入本地素材", title: "匯入本地素材", cancel: "取消",
+    drop: "鬆開滑鼠，匯入本機素材", title: "匯入本機素材", cancel: "取消",
     needsAmf: "匯入需啟用 {amf}",
     enable: "啟用 {amf} 並匯入", importing: "正在開始匯入…", retry: "重試", continue: "匯入",
     failed: "匯入未能開始",

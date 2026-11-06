@@ -293,7 +293,7 @@ export const amfProductionCopy = {
     more: "顯示更多素材",
     title: "製作 Avatar",
     materials: "選擇素材", settings: "選單開關", review: "確認計畫", execution: "開始裝配", result: "檢視成品",
-    search: "查詢本地素材…", empty: "暫無本地 UnityPackage 素材", emptyHint: "在素材庫下載或匯入素材。",
+    search: "查詢本機素材…", empty: "暫無本機 UnityPackage 素材", emptyHint: "在素材庫下載或匯入素材。",
     library: "開啟素材庫", prepare: "準備素材", preparing: "正在準備素材…", loading: "正在讀取…",
     unavailable: "暫時無法連線 {amf} 製作功能", retry: "重試", error: "此步驟需處理", editorMissing: "需要 Unity 2022.3.22f1 或 2022.3.22f1c1。",
     environment: "準備 Unity", advanced: "專案與編輯器", editor: "Unity 編輯器",

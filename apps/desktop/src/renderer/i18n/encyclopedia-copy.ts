@@ -113,14 +113,14 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     tasks: {
       "new-player": { title: "我剛開始玩 VRChat", body: "帳號、首次啟動和基本安全設定。" },
       "wear-outfit": { title: "我想穿上獲得的衣服", body: "先確認模型本體、檔案和依賴。" },
-      "avatar-visibility": { title: "別人看不到我的模型", body: "本地測試、平台構建、Shield 和效能過濾。" },
+      "avatar-visibility": { title: "別人看不到我的模型", body: "本機測試、平台構建、Shield 和效能過濾。" },
       "outfit-problem": { title: "衣服不跟隨或變粉", body: "從現象開始，一次排查一個可能原因。" },
-      "build-test": { title: "我想構建並測試", body: "本地測試和正式發佈不是一回事。" },
+      "build-test": { title: "我想構建並測試", body: "本機測試和正式發佈不是一回事。" },
       terminology: { title: "我想查一個術語", body: "搜尋名稱、縮寫或常用叫法。" },
     },
     media: {
       firstRun: { alt: "VUA 首次啟動只要求選擇語言的實際介面", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
-      help: { alt: "VUA 幫助頁中的常見 VRChat 問題與本地說明入口", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
+      help: { alt: "VUA 幫助頁中的常見 VRChat 問題與本機說明入口", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
       avatarPreparation: { alt: "製作準備頁面說明完整帳號和 New User 上傳條件", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
       themes: { alt: "VUA 主題設定中四個英文主題名稱", caption: "VUA 實機介面 · 構建 {build} · {date}。隔離測試環境，不含帳號或私有素材。" },
     },

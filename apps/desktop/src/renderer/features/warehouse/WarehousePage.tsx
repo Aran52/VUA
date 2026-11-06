@@ -1,10 +1,10 @@
-import { LIBRARY_SORTS, type LibrarySort } from "@vua/contracts";
+import type { LibrarySort } from "@vua/contracts";
 import { LibraryDetailBar, LibraryDetailLoading, ProductDetail } from "./LibraryDetail.tsx";
 import { LibraryVn3Filter } from "./LibraryVn3Filter.tsx";
 import { libraryViewCopy } from "../../i18n/library-view-copy.ts";
 import { priceLabel, sortFactLabel } from "./library-text.ts";
 import {
-  DEFAULT_LIBRARY_SORT, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, readLibrarySession, rememberLibrarySort, rememberLibraryView, saveLibrarySession, sortFactOf,
+  DEFAULT_LIBRARY_SORT, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, offeredLibrarySorts, readLibrarySession, rememberLibrarySort, rememberLibraryView, saveLibrarySession, sortFactOf,
   storedLibrarySort, storedLibraryView, vn3ChoiceActive, vn3FilterWire, type LibraryVn3Choice, type LibraryViewMode,
 } from "./library-view-model.ts";
 import { SegmentBar } from "../../components/SegmentBar.tsx";
@@ -248,6 +248,8 @@ function WarehouseCard({
 
 /* ---- 页面 ---- */
 
+let lastAccountAnswer: CatalogAccountState | null = null;
+
 export function WarehousePage({
   onNavigate,
 }: {
@@ -488,11 +490,13 @@ export function WarehousePage({
     const remote = window.vua?.remoteContent;
     if (remote === undefined) setAccountState("unknown");
     else void remote.authProbe().then(
-      probe => { if (active) setAccountState(probe.authOk ? "signed-in" : "sign-in"); },
-      () => { if (active) setAccountState("unknown"); },
+      probe => { lastAccountAnswer = probe.authOk ? "signed-in" : "sign-in"; if (active) setAccountState(lastAccountAnswer); },
+      () => { lastAccountAnswer = "unknown"; if (active) setAccountState("unknown"); },
     );
     return () => { active = false; };
   }, [loginBrowserOpen, importDialogOpen, remoteBrowser, accountProbeKey]);
+  // The button stays disabled during a check and keeps the last answer's word, so reopening the page shows no flash of text.
+  const accountWord = accountState === "checking" ? lastAccountAnswer ?? "checking" : accountState;
   const startCatalogSync = async (): Promise<void> => {
     const catalogSync = window.vua?.catalogSync;
     const remote = window.vua?.remoteContent;
@@ -1325,7 +1329,7 @@ export function WarehousePage({
           />
           {source !== "local" && remoteBrowser ? (
             <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
-              {accountState === "checking" || syncStarting ? copy.catalogSync.checking : accountState === "sign-in" ? copy.catalogSync.signInAction : accountState === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
+              {syncStarting || accountWord === "checking" ? copy.catalogSync.checking : accountWord === "sign-in" ? copy.catalogSync.signInAction : accountWord === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
             </Button>
           ) : null}
           {folderOpenFailed && folderChoices === null ? <span className="vua-caption vua-text-secondary" role="status">{copy.openFolderFailed}</span> : null}
@@ -1397,7 +1401,7 @@ export function WarehousePage({
           onChange={next => changeFilters(() => setVn3(next))} onUpdated={() => setReloadKey(key => key + 1)} />
         <div className="vua-warehouse__select">
           <select className="vua-warehouse__filter" aria-label={view.sort.label} data-nav-id="warehouse-sort" value={sort} disabled={dataSource !== "live" || libraryPage?.older === true} onChange={event => chooseSort(event.target.value as LibrarySort)}>
-            {LIBRARY_SORTS.map(option => <option key={option} value={option}>{view.sort[option]}</option>)}
+            {offeredLibrarySorts(sort, libraryPage?.facts.values() ?? []).map(option => <option key={option} value={option}>{view.sort[option]}</option>)}
           </select>
           <Icon name="chevron-down" size={16} />
         </div>

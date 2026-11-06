@@ -61,6 +61,8 @@ export function LibraryVn3Filter({ value, counts, disabled, open, onOpenChange, 
           </label>;
         })}
       </div>
+      <div className="vua-vn3-filter__allow">
+      {(counts?.unread ?? 0) > 0 ? <div className="vua-vn3-filter__read"><LibraryTermsRead onUpdated={onUpdated} label={format(copy.read, { count: counts!.unread })} primary={counts!.readable === 0} /></div> : null}
       <fieldset className="vua-vn3-filter__items" disabled={value.state !== null && value.state !== "readable"}>
         <legend>{copy.allow}</legend>
         <div className="vua-vn3-filter__groups">
@@ -73,12 +75,12 @@ export function LibraryVn3Filter({ value, counts, disabled, open, onOpenChange, 
           </section>)}
         </div>
       </fieldset>
+      </div>
       <div className="vua-vn3-filter__foot">
         <label className="vua-vn3-filter__contact">
           <input type="checkbox" checked={value.includeContact} data-nav-id="warehouse-vn3-contact" onChange={event => onChange({ ...value, includeContact: event.target.checked })} />
           <span>{copy.includeContact}</span>
         </label>
-        {(counts?.unread ?? 0) > 0 ? <LibraryTermsRead onUpdated={onUpdated} label={format(copy.read, { count: counts!.unread })} /> : null}
         <Button variant="subtle" disabled={!vn3ChoiceActive(value) && !value.includeContact} data-nav-id="warehouse-vn3-reset" onClick={() => onChange(NO_VN3_CHOICE)}>{copy.reset}</Button>
       </div>
     </div> : null}

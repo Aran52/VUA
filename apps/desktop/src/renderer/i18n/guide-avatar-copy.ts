@@ -89,7 +89,7 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
         "別人能否看到，也取決於是否有適用其平台的構建。衣服包不會改變這個條件。",
       ] },
       { id: "visibility", title: "為什麼別人看不到我的模型？", paragraphs: [
-        "本地測試的 Avatar 只有自己能看到。要讓別人看到，需要上傳並提供適用對方平台的構建。",
+        "本機測試的 Avatar 只有自己能看到。要讓別人看到，需要上傳並提供適用對方平台的構建。",
         "如果之前能看到，先確認對方的平台，以及是否調整了 Shield 或效能過濾。看到 Fallback、部分元件被關閉或模型被隱藏，不等於上傳失敗。",
       ] },
       { id: "performance", title: "效能等級不是信任等級，也不是幀率保證", paragraphs: [

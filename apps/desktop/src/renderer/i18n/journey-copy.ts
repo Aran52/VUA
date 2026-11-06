@@ -85,7 +85,7 @@ const zhTW: Copy = {
   playGoal: "玩 VRChat",
   createGoal: "準備製作 Avatar",
   playMode: "遊玩方式", desktopHint: "用電腦螢幕、鍵盤和滑鼠，無需頭戴裝置。", headset: "頭戴裝置型號",
-  creatorStart: "起點", assetsGoal: "整理已有素材", assetsHint: "進入素材庫，匯入本地檔案或下載已購買的 BOOTH 素材，暫不需要 Unity。",
+  creatorStart: "起點", assetsGoal: "整理已有素材", assetsHint: "進入素材庫，匯入本機檔案或下載已購買的 BOOTH 素材，暫不需要 Unity。",
   environmentGoal: "準備 Unity",
   target: "Avatar 要用在哪個平臺？", pcAvatar: "PC Avatar", questAvatar: "Android／Quest Avatar",
   questHint: "準備 Unity 和 Android 構建支援（非連線 Quest 頭戴裝置）。",

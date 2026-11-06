@@ -39,9 +39,9 @@ const copy: Partial<Record<LocaleId, typeof en>> = {
     home: { continue: "現在の作業を続ける", environment: "確認済みの環境", utilities: "アプリとヘルプ" },
   },
   ko: {
-    workshop: { viewing: "보는 단계: {step}", executing: "실행 중: {step}", idle: "실행 중인 단계가 없습니다", materials: "소재 {count}개",
-      unknownAvatar: "Avatar 확인 대기", details: "소재 이름 및 라인 세부 정보", lineId: "라인 ID" },
-    settings: { family: "테마 스타일", ...themeNames, fixedAppearanceHint: "고정 모드 프리셋입니다. 다른 모드는 테마 스타일을 변경하세요." },
+    workshop: { viewing: "보는 단계: {step}", executing: "실행 중: {step}", idle: "실행 중인 단계가 없어요", materials: "소재 {count}개",
+      unknownAvatar: "아바타 확인 대기", details: "소재 이름 및 라인 세부 정보", lineId: "라인 ID" },
+    settings: { family: "테마 스타일", ...themeNames, fixedAppearanceHint: "고정 모드 프리셋이에요. 다른 모드는 테마 스타일을 변경하세요." },
     repositories: { source: "출처", count: "패키지 수", actions: "작업", use: "사용", uncached: "캐시 없음" },
     home: { continue: "현재 작업 계속", environment: "관찰된 환경", utilities: "앱 및 도움말" },
   },

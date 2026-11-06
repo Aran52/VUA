@@ -158,7 +158,7 @@ test("label keys resolve in the string table and term ids are valid", () => {
 
 test("sidebar labels use localized names without English prefixes", () => {
   const warehouse = allPages.find((p) => p.id === "warehouse");
-  assert.equal(warehouse ? pageLabel(warehouse) : "", "仓储");
+  assert.equal(warehouse ? pageLabel(warehouse) : "", "素材");
   // 2026-09-25 用户裁决:车间侧栏标签由复合术语序列(装配 → 生产 → 检测)
   // 改为直给词面「车间」
   const workshop = allPages.find((p) => p.id === "workshop");

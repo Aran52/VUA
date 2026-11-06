@@ -35,7 +35,7 @@ export const toolConnectionCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", 
     recheck: "重新檢查",
     steamMissing: "此版本的 {tool} 需透過 Steam 安裝和開啟。", prepareSteam: "準備 Steam",
     presence: { installed: "已找到 Steam 中的安裝", missing: "Steam 中未安裝 {tool}", incomplete: "Steam 中 {tool} 安裝未完成", unknown: "暫時無法讀取 Steam 中的安裝" },
-    issues: { close_first: "請先關閉 {tool}，再重新安裝。", reinstall_timeout: "沒有等到 Steam 的解除安裝確認，準備好後再試一次。", steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 {tool} 安裝後重新檢查。", handoff_failed: "Steam 未開啟，手動開啟後重試。", start_timeout: "{tool} 未啟動，檢視 Steam 後重試。", close_failed: "無法正常關閉，需從 {tool} 視窗或系統匣退出。", close_timeout: "{tool} 仍在執行，需從其視窗或系統匣退出。" },
+    issues: { close_first: "請先關閉 {tool}，再重新安裝。", reinstall_timeout: "沒有等到 Steam 的解除安裝確認，準備好後再試一次。", steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 {tool} 安裝後重新檢查。", handoff_failed: "Steam 未開啟，手動開啟後重試。", start_timeout: "{tool} 未啟動，檢視 Steam 後重試。", close_failed: "無法正常關閉，需從 {tool} 視窗或系統匣結束。", close_timeout: "{tool} 仍在執行，需從其視窗或系統匣結束。" },
     cancelWait: "停止等待", existing: "{tool} 已在 VUA 外執行，需從其視窗或系統匣關閉。",
   },
   ja: {

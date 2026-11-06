@@ -47,7 +47,7 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
     intro: "更换模型、弄清别人看到的内容，并在上传前检查衣服。",
     sections: [
       { id: "change-avatar", title: "更换 Avatar，选择谁能使用", paragraphs: [
-        "在 VRChat 的 Avatars 菜单中选择已经上传的模型。公开模型可以按游戏规则被他人克隆，私有模型只供自己使用；克隆不等于拿到源工程。",
+        "在 VRChat 的 Avatars 菜单中选择已经上传的模型。公开模型可以按游戏规则被他人克隆，私有模型只供自己使用；克隆不等于拿到源项目。",
         "别人能否看到，还取决于有没有适用于其平台的构建。衣服包不会改变这个要求。",
       ] },
       { id: "visibility", title: "为什么别人看不到我的模型？", paragraphs: [
@@ -119,30 +119,30 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
     ],
   },
   ja: {
-    title: "Avatar と衣装",
-    intro: "Avatar の変更、ほかの人からの見え方、衣装の公開前チェック。",
+    title: "アバターと衣装",
+    intro: "アバターの変更、ほかの人からの見え方、衣装の公開前チェック。",
     sections: [
-      { id: "change-avatar", title: "Avatar を変更し、公開範囲を選ぶ", paragraphs: [
-        "VRChat の Avatars メニューでアップロード済みの Avatar を選びます。Public はゲームのルールで Clone できますが、Private は自分用です。Clone とソースプロジェクトの取得は別物です。",
+      { id: "change-avatar", title: "アバターを変更し、公開範囲を選ぶ", paragraphs: [
+        "VRChat の Avatars メニューでアップロード済みのアバター を選びます。Public はゲームのルールで Clone できますが、Private は自分用です。Clone とソースプロジェクトの取得は別物です。",
         "表示には、見る人のプラットフォームに対応したビルドも必要です。衣装パッケージがこの条件を変えることはありません。",
       ] },
-      { id: "visibility", title: "ほかの人に Avatar が見えない理由", paragraphs: [
-        "ローカルテストの Avatar は自分にだけ見えます。ほかの人に見せるには、アップロードと、その人のプラットフォーム向けビルドが必要です。",
-        "以前は見えたなら、相手のプラットフォームと、Shield やパフォーマンスフィルターの変更を確認します。Fallback、一部コンポーネントの無効化、Avatar の非表示だけでアップロード失敗とは判断できません。",
+      { id: "visibility", title: "ほかの人にアバター が見えない理由", paragraphs: [
+        "ローカルテストのアバター は自分にだけ見えます。ほかの人に見せるには、アップロードと、その人のプラットフォーム向けビルドが必要です。",
+        "以前は見えたなら、相手のプラットフォームと、Shield やパフォーマンスフィルターの変更を確認します。Fallback、一部コンポーネントの無効化、アバターの非表示だけでアップロード失敗とは判断できません。",
       ] },
       { id: "performance", title: "Performance Rank と Trust Rank、FPS の違い", paragraphs: [
-        "Performance Rank は Avatar の構造から描画コストを推定します。Trust Rank はアカウントのもので、アップロード資格に関係します。別の仕組みです。",
+        "Performance Rank はアバター の構造から描画コストを推定します。Trust Rank はアカウントのもので、アップロード資格に関係します。別の仕組みです。",
         "PC とモバイルでは既定のフィルターが異なります。ランクは高負荷な部分を探す手掛かりですが、FPS や表示の可否を保証しません。",
       ] },
-      { id: "outfit-assembly", title: "Avatar、衣装、UnityPackage、FBX、Prefab、VPM", paragraphs: [
-        "Avatar 本体と追加する衣装を分けて考えます。作者の説明、対象 Avatar、依存関係を確認し、ファイル名だけで互換性を判断しません。",
+      { id: "outfit-assembly", title: "アバター、衣装、UnityPackage、FBX、Prefab、VPM", paragraphs: [
+        "アバター本体と追加する衣装を分けて考えます。作者の説明、対象アバター、依存関係を確認し、ファイル名だけで互換性を判断しません。",
         "UnityPackage は Unity にアセットを取り込む形式、FBX はモデルファイル、Prefab は Unity のまとまったオブジェクト、VPM はパッケージの配布仕組みです。Modular Avatar はビルド時に非破壊で衣装を統合できますが、すべてが自動で合うわけではありません。",
       ] },
       { id: "outfit-diagnostics", title: "衣装が追従しない、ずれる、貫通する", paragraphs: [
-        "追従しない場合は対象 Avatar、アーマチュア、取り付け位置を確認します。ずれる場合は親、スケール、姿勢、貫通する場合は形状とスキンウェイトを調べます。",
+        "追従しない場合は対象アバター、アーマチュア、取り付け位置を確認します。ずれる場合は親、スケール、姿勢、貫通する場合は形状とスキンウェイトを調べます。",
         "スイッチは Animator パラメーターとメニュー、物理挙動は PhysBone と衝突を確認します。一度に一つずつ変更して試し、すべてをプラグイン不足のせいにしません。",
       ] },
-      { id: "pink-materials", title: "Avatar や衣装がピンクになる理由", paragraphs: [
+      { id: "pink-materials", title: "アバターや衣装がピンクになる理由", paragraphs: [
         "マテリアル、テクスチャ、作者が指定するパッケージがそろっているか確認します。ファイル不足と依存関係不足は別の問題で、ピンクだけでは区別できません。",
         "次に Shader が対象プラットフォームと描画パスに対応するか確認します。作者の説明に沿って確認し、適当な Shader を入れただけで直ったと判断しません。",
       ] },
@@ -151,36 +151,36 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
         "名前、公開範囲、コンテンツタグ、SDK の検証結果を確認します。VUA は制作記録を残せますが、公開は公式 SDK で本人が行います。",
       ] },
       { id: "platforms", title: "PC とモバイルに対応したビルド", paragraphs: [
-        "PC と Android/Quest ではアセット制限と既定の表示フィルターが異なります。対象プラットフォーム向けにビルドしないと、PC 版だけではモバイルで同じ Avatar を見られません。",
+        "PC と Android/Quest ではアセット制限と既定の表示フィルターが異なります。対象プラットフォーム向けにビルドしないと、PC 版だけではモバイルで同じアバター を見られません。",
         "テクスチャ、メッシュ、マテリアル、ボーンはいずれもコストに関係しますが、ランクは FPS の保証ではありません。対象環境で試してから、最適化や Fallback の要否を決めます。",
       ] },
     ],
   },
   ko: {
-    title: "Avatar와 의상",
-    intro: "Avatar 변경, 다른 사람에게 보이는 모습, 업로드 전 의상 점검.",
+    title: "아바타와 의상",
+    intro: "아바타 변경, 다른 사람에게 보이는 모습, 업로드 전 의상 점검.",
     sections: [
-      { id: "change-avatar", title: "Avatar 변경과 사용 범위 선택", paragraphs: [
-        "VRChat의 Avatars 메뉴에서 업로드한 Avatar를 고르세요. Public은 게임 규칙에 따라 Clone할 수 있고 Private은 본인 전용이에요. Clone과 원본 프로젝트 다운로드는 다릅니다.",
+      { id: "change-avatar", title: "아바타 변경과 사용 범위 선택", paragraphs: [
+        "VRChat의 Avatars 메뉴에서 업로드한 아바타를 고르세요. Public은 게임 규칙에 따라 Clone할 수 있고 Private은 본인 전용이에요. Clone과 원본 프로젝트 다운로드는 달라요.",
         "보는 사람의 플랫폼에 맞는 빌드도 필요해요. 의상 패키지가 이 조건을 바꾸지는 않아요.",
       ] },
-      { id: "visibility", title: "다른 사람에게 내 Avatar가 보이지 않을 때", paragraphs: [
-        "로컬 테스트 Avatar는 본인에게만 보여요. 다른 사람에게 보이려면 업로드와 상대 플랫폼용 빌드가 필요해요.",
-        "이전에 보였다면 상대의 플랫폼과 Shield 또는 성능 필터 변경을 확인하세요. Fallback, 일부 컴포넌트 비활성화, Avatar 숨김만으로 업로드 실패라고 단정할 수 없어요.",
+      { id: "visibility", title: "다른 사람에게 내 아바타가 보이지 않을 때", paragraphs: [
+        "로컬 테스트 아바타는 본인에게만 보여요. 다른 사람에게 보이려면 업로드와 상대 플랫폼용 빌드가 필요해요.",
+        "이전에 보였다면 상대의 플랫폼과 Shield 또는 성능 필터 변경을 확인하세요. Fallback, 일부 컴포넌트 비활성화, 아바타 숨김만으로 업로드 실패라고 단정할 수 없어요.",
       ] },
       { id: "performance", title: "Performance Rank와 Trust Rank, FPS의 차이", paragraphs: [
-        "Performance Rank는 Avatar 구조로 렌더링 비용을 추정해요. Trust Rank는 계정의 등급으로 업로드 자격과 관련돼요. 서로 다른 개념이에요.",
+        "Performance Rank는 아바타 구조로 렌더링 비용을 추정해요. Trust Rank는 계정의 등급으로 업로드 자격과 관련돼요. 서로 다른 개념이에요.",
         "PC와 모바일의 기본 필터는 달라요. 등급은 비용이 큰 부분을 찾는 단서이지 FPS나 표시 여부를 보장하지 않아요.",
       ] },
-      { id: "outfit-assembly", title: "Avatar, 의상, UnityPackage, FBX, Prefab, VPM", paragraphs: [
-        "Avatar 본체와 추가할 의상을 구분하세요. 제작자의 설명, 대상 Avatar, 의존성을 확인하고 파일명만으로 호환성을 판단하지 마세요.",
+      { id: "outfit-assembly", title: "아바타, 의상, UnityPackage, FBX, Prefab, VPM", paragraphs: [
+        "아바타 본체와 추가할 의상을 구분하세요. 제작자의 설명, 대상 아바타, 의존성을 확인하고 파일명만으로 호환성을 판단하지 마세요.",
         "UnityPackage는 Unity에 에셋을 가져오는 형식, FBX는 모델 파일, Prefab은 Unity의 조합된 오브젝트, VPM은 패키지 배포 방식이에요. Modular Avatar는 빌드할 때 비파괴적으로 의상을 결합할 수 있지만 모든 의상이 자동으로 맞는 것은 아니에요.",
       ] },
       { id: "outfit-diagnostics", title: "의상이 따라오지 않거나 어긋나고 뚫릴 때", paragraphs: [
-        "따라오지 않으면 대상 Avatar, 아마추어, 부착 위치를 확인하세요. 어긋나면 부모, 스케일, 포즈를, 뚫리면 형태와 스킨 가중치를 살펴요.",
+        "따라오지 않으면 대상 아바타, 아마추어, 부착 위치를 확인하세요. 어긋나면 부모, 스케일, 포즈를, 뚫리면 형태와 스킨 가중치를 살펴요.",
         "스위치는 Animator 파라미터와 메뉴, 물리 움직임은 PhysBone과 충돌을 확인하세요. 한 번에 하나씩 바꾸고 시험하며 모든 원인을 플러그인 부족으로 돌리지 마세요.",
       ] },
-      { id: "pink-materials", title: "Avatar나 의상이 분홍색으로 보일 때", paragraphs: [
+      { id: "pink-materials", title: "아바타나 의상이 분홍색으로 보일 때", paragraphs: [
         "머티리얼, 텍스처, 제작자가 요구한 패키지가 모두 있는지 확인하세요. 파일 부족과 의존성 부족은 다른 문제이며 분홍색만으로 구분할 수 없어요.",
         "Shader가 대상 플랫폼과 렌더링 경로를 지원하는지도 확인하세요. 제작자의 안내에 따라 확인하고, 아무 Shader나 넣었다고 해결됐다고 판단하지 마세요.",
       ] },
@@ -189,7 +189,7 @@ export const guideAvatarCopy: Record<LocaleId, GuidePageContent> = {
         "이름, 공개 범위, 콘텐츠 태그, SDK 검증 결과를 확인하세요. VUA는 제작 기록을 남길 수 있지만 게시는 공식 SDK에서 본인이 진행해요.",
       ] },
       { id: "platforms", title: "PC와 모바일에 맞는 빌드", paragraphs: [
-        "PC와 Android/Quest는 에셋 제한과 기본 표시 필터가 달라요. 대상 플랫폼용으로 빌드해야 하며 PC 업로드만으로 모바일에서 같은 Avatar를 볼 수 있는 것은 아니에요.",
+        "PC와 Android/Quest는 에셋 제한과 기본 표시 필터가 달라요. 대상 플랫폼용으로 빌드해야 하며 PC 업로드만으로 모바일에서 같은 아바타를 볼 수 있는 것은 아니에요.",
         "텍스처, 메시, 머티리얼, 본 모두 비용에 영향을 주지만 등급이 FPS를 보장하지는 않아요. 대상 환경에서 확인한 뒤 최적화와 Fallback 필요 여부를 정하세요.",
       ] },
     ],

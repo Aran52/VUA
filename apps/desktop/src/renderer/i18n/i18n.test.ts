@@ -37,8 +37,8 @@ test("suite pins the annotation table to zh-CN (BOARD #8 mock is in effect)", as
 });
 
 test("termLabel uses local names without forcing English prefixes; brands stay unchanged", () => {
-  assert.equal(termLabel("warehouse"), "仓储");
-  assert.equal(termLabel("release"), "出厂");
+  assert.equal(termLabel("warehouse"), "素材");
+  assert.equal(termLabel("release"), "成品");
   assert.equal(termLabel("amf"), "AMF");
   for (const id of Object.keys(TERMS) as TermId[]) {
     assert.equal(termLabel(id), strings.terms[id] || TERMS[id]);

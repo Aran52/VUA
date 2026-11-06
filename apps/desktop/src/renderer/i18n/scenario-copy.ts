@@ -39,10 +39,10 @@ export const scenarioCopy = {
       stream: { title: "开始串流", explanation: "在 PICO Connect 中确认连接，再启动 SteamVR。", result: "头显里能看到电脑的 VR 环境。" },
       openxr: { title: "需要时设置 OpenXR 运行时", explanation: "需要 OpenXR 的游戏可按百科说明将 SteamVR 设为默认运行时。", result: "SteamVR 中显示它是所选 OpenXR 运行时。" },
       "unity-license": { title: "开始制作前激活 Unity", explanation: "在下方的 Unity 登录与许可证步骤中完成登录、激活和检查。", result: "Unity 能使用符合条件的 Personal 或已分配的付费许可证启动。" },
-      materials: { title: "选择素材", explanation: "在 {amf} 中选择本地素体和衣服包，将生成独立的工作工程。", result: "Unity 报告素材中实际存在的 prefab 候选。" },
+      materials: { title: "选择素材", explanation: "在 {amf} 中选择本地素体和衣服包，将生成独立的工作项目。", result: "Unity 报告素材中实际存在的 prefab 候选。" },
       assembly: { title: "确认怎么穿、怎么切换", explanation: "确认候选、为开关命名，再确认装配计划。", result: "保留结果记录，显示实际检查结果和需要注意的问题。" },
       sdk: { title: "去 Unity 看看成品", explanation: "检查外观和开关，运行官方 SDK 检查，是否上传自行决定。", result: "获得实际外观和 SDK 检查结果" },
-      recovery: { title: "中断后怎么接着做", explanation: "重新读取当前状态，重查安装或保留的 {amf} 改模工程，再确认新计划。", result: "从实际状态继续，不重复已完成的工作" },
+      recovery: { title: "中断后怎么接着做", explanation: "重新读取当前状态，重查安装或保留的 {amf} 改模项目，再确认新计划。", result: "从实际状态继续，不重复已完成的工作" },
     },
   },
   "zh-TW": {

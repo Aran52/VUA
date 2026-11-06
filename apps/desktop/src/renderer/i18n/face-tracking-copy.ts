@@ -56,7 +56,7 @@ export const faceTrackingCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Co
     recheck: "重新檢查", saveFailed: "裝置選擇未儲存，本次仍可使用。", linkFailed: "說明未能開啟，請重試。",
     steamMissing: "此版本的 VRCFT 需透過 Steam 安裝和開啟。", prepareSteam: "準備 Steam",
     presence: { installed: "已找到 Steam 中的安裝", missing: "Steam 中未安裝 VRCFT", incomplete: "Steam 中 VRCFT 安裝未完成", unknown: "暫時無法讀取 Steam 中的安裝" },
-    issues: { steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 VRCFT 安裝後重新檢查。", handoff_failed: "Steam 未開啟，手動開啟後重試。", start_timeout: "VRCFT 未啟動，檢視 Steam 後重試。", close_failed: "無法正常關閉，需從 VRCFT 視窗或系統匣退出。", close_timeout: "VRCFT 仍在執行，需從其視窗或系統匣退出。" },
+    issues: { steam_missing: "需要 Steam。", not_installed: "在 Steam 完成 VRCFT 安裝後重新檢查。", handoff_failed: "Steam 未開啟，手動開啟後重試。", start_timeout: "VRCFT 未啟動，檢視 Steam 後重試。", close_failed: "無法正常關閉，需從 VRCFT 視窗或系統匣結束。", close_timeout: "VRCFT 仍在執行，需從其視窗或系統匣結束。" },
     cancelWait: "停止等待", existing: "VRCFT 已在 VUA 外執行，需從其視窗或系統匣關閉。",
     notes: { accessory: "眼動和面捕依賴頭戴裝置內建感測器或外接追蹤器，所需配件見型號說明。", pico: "普通 PICO 4 無眼動和面捕感測器。Pro / Enterprise：啟動 VRCFT 前啟用並校準追蹤，連線 PICO Connect 和 SteamVR。", pimax: "僅限帶眼動的型號，需 PimaxPlay 和 BrokenEye。Crystal Light 無內建眼動。", galaxy: "在 Galaxy XR 中啟用並校準追蹤，連線方式同上遊說明。", iphone: "需要支援 TrueDepth 的 iPhone 或 iPad，並安裝所選應用（可能收費）。" },
     steps: {
@@ -86,7 +86,7 @@ export const faceTrackingCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Co
     steps: {
       hardware: { title: "デバイスを接続", body: "ハードウェアの説明どおりにトラッキングを有効化し、対応アプリかストリーミングソフトを用意して、デバイスを接続してから VRCFT を開きます。", done: "接続して追跡を有効にしました" },
       module: { title: "VRCFT で module をインストール", body: "", done: "VRCFT に module をインストール済み" },
-      osc: { title: "VRChat に表情を送る", body: "VRChat のアクションメニューから OSC を開いて有効にします。Unified Expressions など、顔・目の追跡に対応した Avatar に切り替えてください。", done: "OSC を有効にし、対応 Avatar を選びました" },
+      osc: { title: "VRChat に表情を送る", body: "VRChat のアクションメニューから OSC を開いて有効にします。Unified Expressions など、顔・目の追跡に対応したアバター に切り替えてください。", done: "OSC を有効にし、対応アバター を選びました" },
       test: { title: "ゲームで試す", body: "VRCFT がトラッキングデータを受信していることを確認し、VRChat の鏡の前で目と顔を動かしてアバターが追従するか確認します。", done: "ゲームで追跡を確認しました" },
     },
     moduleStep: "VRCFT の Module Registry で {module} を検索して Install をクリックし、完了後は案内に従って再起動します。",
@@ -110,7 +110,7 @@ export const faceTrackingCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Co
     steps: {
       hardware: { title: "기기 연결", body: "하드웨어 안내대로 추적을 켜고 해당 앱이나 스트리밍 소프트웨어를 준비해 기기를 연결한 뒤 VRCFT를 여세요.", done: "기기가 연결되고 추적이 켜졌어요" },
       module: { title: "VRCFT에서 module 설치", body: "", done: "VRCFT에 module 설치함" },
-      osc: { title: "VRChat에 표정 전달", body: "VRChat 액션 메뉴에서 OSC를 열고 켭니다. Unified Expressions 등 얼굴 / 눈 추적을 지원하는 Avatar로 바꿔 주세요.", done: "OSC를 켜고 추적 지원 Avatar를 골랐어요" },
+      osc: { title: "VRChat에 표정 전달", body: "VRChat 액션 메뉴에서 OSC를 열고 켜요. Unified Expressions 등 얼굴 / 눈 추적을 지원하는 아바타로 바꿔 주세요.", done: "OSC를 켜고 추적 지원 아바타를 골랐어요" },
       test: { title: "게임에서 확인", body: "VRCFT가 추적 데이터를 받는지 확인한 뒤 VRChat 거울 앞에서 눈과 얼굴을 움직여 아바타가 따라오는지 확인하세요.", done: "게임에서 추적이 작동하는 것을 확인했어요" },
     },
     moduleStep: "VRCFT의 Module Registry에서 {module}을 검색해 Install을 누르고, 설치 후 안내에 따라 다시 시작하세요.",

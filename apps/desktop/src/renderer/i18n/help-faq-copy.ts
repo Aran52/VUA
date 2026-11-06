@@ -85,20 +85,20 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "説明を見る",
     uploadAction: "アップロード条件を確認",
     eligibilityTitle: "アップロード前にアカウントを確認",
-    eligibility: "Unity と公式 SDK でカスタム Avatar をアップロードするには、VRChat アカウントと New User 以上のトラストランクが必要です。ランクが足りなくてもローカルでテストできます。",
+    eligibility: "Unity と公式 SDK でカスタムアバター をアップロードするには、VRChat アカウントと New User 以上のトラストランクが必要です。ランクが足りなくてもローカルでテストできます。",
     trust: {
       title: "トラストランク",
-      body: "VRChat アカウントで New User 以上になると、カスタム Avatar をアップロードできます。それ未満でもローカルテストは可能です。",
+      body: "VRChat アカウントで New User 以上になると、カスタムアバター をアップロードできます。それ未満でもローカルテストは可能です。",
       what: "トラストランクとは？",
       improve: "ランクを上げるには？",
     },
     shield: {
       title: "Shield Level（安全表示）",
-      body: "ほかのプレイヤーの音声、Avatar、パーティクル、Shader などを表示するかを決めます。アップロード資格や Avatar の Performance Rank とは別の設定です。",
+      body: "ほかのプレイヤーの音声、アバター、パーティクル、Shader などを表示するかを決めます。アップロード資格やアバター の Performance Rank とは別の設定です。",
     },
     personalSpace: {
       title: "Personal Space",
-      body: "近づきすぎた Avatar を非表示またはフェードアウトします。自分の表示だけに影響し、相手をブロックしたり、相手の表示を変えたりはしません。",
+      body: "近づきすぎたアバター を非表示またはフェードアウトします。自分の表示だけに影響し、相手をブロックしたり、相手の表示を変えたりはしません。",
     },
     untrustedUrls: {
       title: "不明なリンクとメディア",
@@ -111,20 +111,20 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "설명 보기",
     uploadAction: "업로드 조건 보기",
     eligibilityTitle: "업로드 전 계정 확인",
-    eligibility: "Unity와 공식 SDK로 커스텀 Avatar를 업로드하려면 VRChat 계정과 New User 이상의 신뢰 등급이 필요해요. 등급이 부족해도 로컬 테스트는 할 수 있어요.",
+    eligibility: "Unity와 공식 SDK로 커스텀 아바타를 업로드하려면 VRChat 계정과 New User 이상의 신뢰 등급이 필요해요. 등급이 부족해도 로컬 테스트는 할 수 있어요.",
     trust: {
       title: "사용자 등급",
-      body: "VRChat 계정에서 New User 이상이어야 커스텀 Avatar를 업로드할 수 있어요. 그 미만이어도 로컬 테스트는 가능해요.",
+      body: "VRChat 계정에서 New User 이상이어야 커스텀 아바타를 업로드할 수 있어요. 그 미만이어도 로컬 테스트는 가능해요.",
       what: "사용자 등급이란?",
       improve: "어떻게 올리나요?",
     },
     shield: {
       title: "Shield Level(안전 표시)",
-      body: "다른 플레이어의 음성, Avatar, 파티클, Shader 등을 표시할지 결정해요. 업로드 자격이나 Avatar Performance Rank와는 다른 설정이에요.",
+      body: "다른 플레이어의 음성, 아바타, 파티클, Shader 등을 표시할지 결정해요. 업로드 자격이나 아바타 Performance Rank와는 다른 설정이에요.",
     },
     personalSpace: {
       title: "Personal Space",
-      body: "너무 가까이 온 Avatar를 숨기거나 페이드 아웃해요. 내 화면에만 영향을 주며 상대를 차단하거나 상대의 화면을 바꾸지는 않아요.",
+      body: "너무 가까이 온 아바타를 숨기거나 페이드 아웃해요. 내 화면에만 영향을 주며 상대를 차단하거나 상대의 화면을 바꾸지는 않아요.",
     },
     untrustedUrls: {
       title: "알 수 없는 링크와 미디어",

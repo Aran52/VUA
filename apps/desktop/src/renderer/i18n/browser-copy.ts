@@ -1,5 +1,5 @@
 const en = {
-  assets: "Browse assets", wiki: "Official VRChat Wiki", shortcuts: "Website shortcuts",
+  assets: "Browse BOOTH", wiki: "Official VRChat Wiki", shortcuts: "Website shortcuts",
   loading: "Loading website…", failed: "The site did not open",
   unavailable: "Built-in browser unavailable. Restart VUA.",
   retry: "Try again", reopen: "Open BOOTH",

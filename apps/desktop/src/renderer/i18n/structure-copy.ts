@@ -129,7 +129,7 @@ const ja: Copy = {
   planned: { steamPaid: "Steam・有料", steamFree: "Steam・無料", github: "GitHub", githubLicense: "GitHub・{license}", note: "VUA からインストール・起動する機能は開発中です。今は公式ページから入手できます。" },
   routes: { desktop: "VR ヘッドセットは不要です" },
   platforms: { title: "ほかのソーシャルプラットフォーム", chilloutvr: "VRChat に似たソーシャルプラットフォーム", reborn: "マルチプレイの世界とカスタムアバター" },
-  toolHints: { vrcft: "ヘッドセットやカメラで表情と目を動かす", space: "ヘッドセットと外部トラッカーを合わせる", vrcs: "音声の文字起こしと翻訳", translator: "VR 内で翻訳を表示", advanced: "SteamVR の設定を調整", toolkit: "PC のウィンドウを VR に持ち込む", oyasumi: "VR での休憩と睡眠の自動化", liv: "VR の録画と配信", slimevr: "SlimeVR トラッカーでフルトラッキング", vrct: "チャットボックス翻訳と音声文字起こし", xsoverlay: "VR 内でデスクトップと通知を表示", desktopplus: "無料でデスクトップを VR に表示", fpsvr: "VR 内でフレームレートと負荷を表示", vrcx: "フレンド、ワールド、Avatar を管理" },
+  toolHints: { vrcft: "ヘッドセットやカメラで表情と目を動かす", space: "ヘッドセットと外部トラッカーを合わせる", vrcs: "音声の文字起こしと翻訳", translator: "VR 内で翻訳を表示", advanced: "SteamVR の設定を調整", toolkit: "PC のウィンドウを VR に持ち込む", oyasumi: "VR での休憩と睡眠の自動化", liv: "VR の録画と配信", slimevr: "SlimeVR トラッカーでフルトラッキング", vrct: "チャットボックス翻訳と音声文字起こし", xsoverlay: "VR 内でデスクトップと通知を表示", desktopplus: "無料でデスクトップを VR に表示", fpsvr: "VR 内でフレームレートと負荷を表示", vrcx: "フレンド、ワールド、アバターを管理" },
   home: {
     prepareRoute: "準備する",
     confirmLine: "確認する",
@@ -170,7 +170,7 @@ const ko: Copy = {
   planned: { steamPaid: "Steam · 유료", steamFree: "Steam · 무료", github: "GitHub", githubLicense: "GitHub · {license}", note: "VUA에서 설치하고 실행하는 기능은 개발 중이에요. 지금은 공식 페이지에서 받을 수 있어요." },
   routes: { desktop: "VR 헤드셋이 없어도 돼요" },
   platforms: { title: "다른 소셜 플랫폼", chilloutvr: "VRChat과 비슷한 소셜 플랫폼", reborn: "멀티플레이 월드와 커스텀 아바타" },
-  toolHints: { vrcft: "헤드셋이나 카메라로 표정과 눈을 움직여요", space: "헤드셋과 외부 트래커를 맞춰요", vrcs: "음성 텍스트 변환과 번역", translator: "VR 안에서 번역을 보여줘요", advanced: "SteamVR 설정 조정", toolkit: "PC 창을 VR로 가져와요", oyasumi: "VR 휴식과 수면 자동화", liv: "VR 녹화와 방송", slimevr: "SlimeVR 트래커로 전신 트래킹", vrct: "채팅박스 번역과 음성 텍스트 변환", xsoverlay: "VR에서 데스크톱 창과 알림 보기", desktopplus: "무료로 데스크톱 창을 VR로", fpsvr: "VR에서 프레임과 성능 보기", vrcx: "친구, 월드, Avatar 관리" },
+  toolHints: { vrcft: "헤드셋이나 카메라로 표정과 눈을 움직여요", space: "헤드셋과 외부 트래커를 맞춰요", vrcs: "음성 텍스트 변환과 번역", translator: "VR 안에서 번역을 보여줘요", advanced: "SteamVR 설정 조정", toolkit: "PC 창을 VR로 가져와요", oyasumi: "VR 휴식과 수면 자동화", liv: "VR 녹화와 방송", slimevr: "SlimeVR 트래커로 전신 트래킹", vrct: "채팅박스 번역과 음성 텍스트 변환", xsoverlay: "VR에서 데스크톱 창과 알림 보기", desktopplus: "무료로 데스크톱 창을 VR로", fpsvr: "VR에서 프레임과 성능 보기", vrcx: "친구, 월드, 아바타 관리" },
   home: {
     prepareRoute: "준비하기",
     confirmLine: "확인하기",

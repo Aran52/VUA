@@ -154,8 +154,8 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     kinds: { concept: "概念", procedure: "手順", reference: "参考", troubleshooting: "トラブルシューティング" },
     tasks: {
       "new-player": { title: "VRChat を始めたばかり", body: "アカウント、初回起動、基本的な安全設定。" },
-      "wear-outfit": { title: "入手した衣装を着たい", body: "Avatar 本体、ファイル、依存関係を先に確認。" },
-      "avatar-visibility": { title: "ほかの人に Avatar が見えない", body: "ローカルテスト、プラットフォーム、Shield、性能フィルター。" },
+      "wear-outfit": { title: "入手した衣装を着たい", body: "アバター本体、ファイル、依存関係を先に確認。" },
+      "avatar-visibility": { title: "ほかの人にアバター が見えない", body: "ローカルテスト、プラットフォーム、Shield、性能フィルター。" },
       "outfit-problem": { title: "衣装が追従しない・ピンクになる", body: "症状から一つずつ原因を確認。" },
       "build-test": { title: "ビルドして試したい", body: "ローカルテストと公開の違い。" },
       terminology: { title: "用語を調べたい", body: "名称、略語、よくある呼び方で検索。" },
@@ -196,8 +196,8 @@ export const encyclopediaCopy: Record<LocaleId, typeof en> = {
     kinds: { concept: "개념", procedure: "방법", reference: "참고", troubleshooting: "문제 해결" },
     tasks: {
       "new-player": { title: "VRChat이 처음이에요", body: "계정, 첫 실행과 기본 안전 설정." },
-      "wear-outfit": { title: "받은 의상을 입고 싶어요", body: "Avatar 본체, 파일과 의존성부터 확인." },
-      "avatar-visibility": { title: "다른 사람에게 Avatar가 보이지 않아요", body: "로컬 테스트, 플랫폼 빌드, Shield와 성능 필터." },
+      "wear-outfit": { title: "받은 의상을 입고 싶어요", body: "아바타 본체, 파일과 의존성부터 확인." },
+      "avatar-visibility": { title: "다른 사람에게 아바타가 보이지 않아요", body: "로컬 테스트, 플랫폼 빌드, Shield와 성능 필터." },
       "outfit-problem": { title: "의상이 따라오지 않거나 분홍색이에요", body: "증상부터 하나씩 원인을 확인." },
       "build-test": { title: "빌드하고 테스트하고 싶어요", body: "로컬 테스트와 게시의 차이." },
       terminology: { title: "용어를 찾고 싶어요", body: "이름, 약어, 자주 쓰는 표현으로 검색." },

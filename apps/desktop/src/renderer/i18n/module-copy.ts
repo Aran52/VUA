@@ -1,6 +1,6 @@
 const en = {
   title: "Modules", choose: "Choose how to create your Avatar", amf: "{amf}",
-  enable: "Enable {amf}", disable: "Disable {amf}", retry: "Retry startup", open: "Open asset library",
+  enable: "Enable {amf}", disable: "Disable {amf}", retry: "Retry startup", open: "Open Materials",
   retained: "Materials, recipes and projects stay. Running tasks must finish or be cancelled first.",
   absent: "Not enabled", starting: "Starting…", ready: "Enabled", failed: "{amf} could not start. Play is still available.", stopping: "Stopping…",
   busy: "{amf} has running tasks. Finish or cancel them, then retry.", changeFailed: "Not completed; data kept.",
@@ -29,7 +29,7 @@ export const moduleCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = 
     disableConfirm: "停用 {amf}？",
   },
   ja: {
-    title: "機能モジュール", choose: "どの方法で Avatar を編集しますか？", amf: "{amf}",
+    title: "機能モジュール", choose: "どの方法でアバター を編集しますか？", amf: "{amf}",
     enable: "{amf} を有効にする", disable: "{amf} を無効にする", retry: "起動を再試行", open: "素材ライブラリを開く",
     retained: "素材、レシピ、プロジェクトは残ります。実行中のタスクは先に完了かキャンセルが必要です。",
     absent: "未有効", starting: "起動中…", ready: "有効", failed: "{amf} を起動できませんでした。プレイは利用できます。", stopping: "停止中…",
@@ -38,10 +38,10 @@ export const moduleCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = 
     disableConfirm: "{amf} を無効にしますか？",
   },
   ko: {
-    title: "기능 모듈", choose: "어떤 방식으로 Avatar를 편집할까요?", amf: "{amf}",
+    title: "기능 모듈", choose: "어떤 방식으로 아바타를 편집할까요?", amf: "{amf}",
     enable: "{amf} 켜기", disable: "{amf} 끄기", retry: "시작 다시 시도", open: "에셋 라이브러리 열기",
     retained: "에셋, 레시피, 프로젝트는 남아요. 진행 중인 작업은 먼저 끝내거나 취소해야 해요.",
-    absent: "꺼짐", starting: "시작 중…", ready: "켜짐", failed: "{amf}를 시작하지 못했습니다. 플레이는 계속 사용할 수 있습니다.", stopping: "중지 중…",
+    absent: "꺼짐", starting: "시작 중…", ready: "켜짐", failed: "{amf}를 시작하지 못했어요. 플레이는 계속 사용할 수 있어요.", stopping: "중지 중…",
     busy: "{amf}에 진행 중인 작업이 있어요. 끝내거나 취소한 뒤 다시 시도하세요.", changeFailed: "완료되지 않았어요. 데이터는 유지돼요.",
     wait: "잠시만요…", manage: "모듈 관리", loading: "{amf} 여는 중…", developing: "개발 중",
     disableConfirm: "{amf}를 끌까요?",

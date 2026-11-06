@@ -1,5 +1,5 @@
 const en = {
-  drop: "Drop to import local assets", title: "Import local assets", cancel: "Cancel",
+  drop: "Drop to import local materials", title: "Import local materials", cancel: "Cancel",
   needsAmf: "Importing needs {amf}",
   enable: "Enable {amf} and import", importing: "Starting import…", retry: "Try again", continue: "Import",
   failed: "Import did not start",

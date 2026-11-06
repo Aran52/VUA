@@ -16,6 +16,6 @@ export function formatDateMinute(value: string, locale: LocaleId = currentLocale
 export function formatDateTime(value: string, locale: LocaleId = currentLocale): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, {
-    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   }).format(date);
 }

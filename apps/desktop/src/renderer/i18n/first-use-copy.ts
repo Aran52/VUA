@@ -150,7 +150,7 @@ export const firstUseCopy: Record<LocaleId, typeof en> = {
 },
   "ko": {
   "notice": {
-    "title": "VUA에 오신 것을 환영해요",
+    "title": "VUA에 오신 것을 환영합니다",
     "purposeTitle": "VUA가 돕는 일",
     "purpose": "VRChat에 필요한 소프트웨어를 준비하고 다음 단계를 안내하며, 보유한 소재로 아바타를 조립해요. 로그인과 SDK의 최종 업로드는 사용자가 직접 진행해요.",
     "changesTitle": "이번 버전의 변경 사항",

@@ -309,3 +309,8 @@
   --vua-purple: #6557d2;
   --vua-orange: #bb4a10;
 }
+
+/* Han characters take different forms per language, so each language names its own UI font. */
+:root:lang(ja) { --vua-font-family: "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Meiryo UI", sans-serif; }
+:root:lang(ko) { --vua-font-family: "Segoe UI Variable", "Segoe UI", "Malgun Gothic", sans-serif; }
+:root:lang(zh-TW) { --vua-font-family: "Segoe UI Variable", "Segoe UI", "Microsoft JhengHei UI", sans-serif; }

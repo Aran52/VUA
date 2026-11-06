@@ -110,7 +110,7 @@ Theme/tray entries, alternate layouts and directional shell navigation. Ignore a
 mode preferences; a legacy native command cannot reactivate it. Language selection sits above
 **Search**, with a translation glyph at its left, a shorter selector and a visible gap between
 the two rows. Remove the separate Goal reselection, Language, Version and Donation pages;
-old goal links open Help's VUA guide. About includes the existing version/update
+old goal links open the VRChat beginner wizard. About includes the existing version/update
 and diagnostic controls.
 
 Settings → Theme → Appearance uses three connected native buttons in the order Dark, Light,
@@ -122,7 +122,7 @@ the frame movement without changing selection, keyboard access or theme propagat
 The 2026-10-11 ruling restores **Help** to the topbar beside Settings, using the same parallelogram
 button and pressed styling. Remove its Environment-sidebar entry; keep Tools above Avatar editing.
 Help stays selected throughout its child pages and remains accessible through Home and Search.
-Help starts with common VRChat questions, then offers the VUA guide, optional app tour,
+Help starts with common VRChat questions, then offers the VUA feature tour, the VRChat beginner wizard,
 encyclopedia, game assistant and optional AI tools. The encyclopedia is a page inside Help with an
 explicit return to Help, sharing Main's appearance. Hardware introductions are a peer chapter;
 Play's "What device do I have?" link opens it directly.
@@ -154,8 +154,8 @@ Leaving an import browser still dismisses its modal. Close controls, website his
 remain reachable. Local confirmation cards take precedence over native
 content. Respect the current domain colour, appearance, glass, matrix and resource-saving settings.
 All Help cards open main-window child pages. Each child supports mouse-side-button
-Back/Forward; encyclopedia chapter choices participate in history, while the VUA guide
-keeps its reading position separate. Tour and game-assistant child pages retain explicit buttons for their existing
+Back/Forward; encyclopedia chapter choices participate in history, and the beginner wizard
+keeps its own page. Tour and game-assistant child pages retain explicit buttons for their existing
 highlight overlay and floating window, respectively.
 Tools groups tracking, translation, VR utilities and capture entries. Unwired integrations stay
 unavailable on the action side, with the same development badge as other unavailable peers.
@@ -234,7 +234,7 @@ connection guidance and the official handoff. Save reading position separately f
 revisiting preparation requires reinspection. Account help opens Settings → Accounts and returns to
 the source step. Registration and linking have dedicated guides.
 
-Help exposes common VRChat questions, the VUA guide, an optional app tour, the encyclopedia and the
+Help exposes common VRChat questions, the VUA feature tour, the VRChat beginner wizard, the encyclopedia and the
 game guide. Contextual help opens its destination directly. The [guidance architecture](../architecture/guidance.md) owns the
 window behavior and independent progress. In the transparent game guide, fade only the matrix/background
 and preserve readable text/controls; a dragged relative position survives automatic hiding/restoration.
@@ -789,10 +789,10 @@ changelog history already uses.
   (capability_missing) and engine absence (unavailable) are presented distinctly; repeated
   toggles claim no idempotence and refusals surface as refusals.
 - **Guidance and overlays:** use a transparent highlight layer over actual VUA controls for the
-  explicitly started app tour, a main-window encyclopedia and VUA guide, and a compact translucent
+  explicitly started app tour, a main-window encyclopedia and beginner wizard, and a compact translucent
   guide associated with VRChat for in-game steps. Help first presents common VRChat questions with
   local answers and official links. The encyclopedia supports long-form content and keyboard reading
-  inside its own scroll container; the VUA guide has an independent bookmark and does not write
+  inside its own scroll container; the beginner wizard keeps its own page and does not write
   encyclopedia history. The game guide has short instructions, readable controls and the
   following/transparency preferences defined in [guidance architecture](../architecture/guidance.md).
   Do not apply its transparency default to the encyclopedia or app-tour mask. Facts may be shared,

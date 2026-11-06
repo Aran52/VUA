@@ -1443,7 +1443,7 @@ demoTaskTitle: "Demo task",
        *  for what the app actually does today — no promises about unshipped
        *  capabilities. */
       vua: {
-        title: "VUA guide",
+        title: "Using VUA",
         intro: "The current routes for materials, production, settings and upload.",
         sections: [
           {

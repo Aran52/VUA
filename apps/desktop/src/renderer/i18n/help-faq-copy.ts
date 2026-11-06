@@ -1,6 +1,6 @@
 const en = {
   sectionTitle: "VRChat quick answers",
-  vuaTitle: "VUA guides",
+  vuaTitle: "Guides and reference",
   readMore: "Read the explanation",
   uploadAction: "Check upload requirements",
   eligibilityTitle: "Check your account before upload",
@@ -29,7 +29,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
   en,
   "zh-CN": {
     sectionTitle: "VRChat 常见问题",
-    vuaTitle: "VUA 使用帮助",
+    vuaTitle: "引导与资料",
     readMore: "查看说明",
     uploadAction: "查看上传条件",
     eligibilityTitle: "上传前确认账号条件",
@@ -55,7 +55,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
   },
   "zh-TW": {
     sectionTitle: "VRChat 常見問題",
-    vuaTitle: "VUA 使用幫助",
+    vuaTitle: "引導與資料",
     readMore: "查看說明",
     uploadAction: "查看上傳條件",
     eligibilityTitle: "上傳前確認帳號條件",
@@ -81,7 +81,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
   },
   ja: {
     sectionTitle: "VRChat のよくある質問",
-    vuaTitle: "VUA ガイド",
+    vuaTitle: "ガイドと資料",
     readMore: "説明を見る",
     uploadAction: "アップロード条件を確認",
     eligibilityTitle: "アップロード前にアカウントを確認",
@@ -107,7 +107,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
   },
   ko: {
     sectionTitle: "VRChat 자주 묻는 질문",
-    vuaTitle: "VUA 사용 도움말",
+    vuaTitle: "가이드와 자료",
     readMore: "설명 보기",
     uploadAction: "업로드 조건 보기",
     eligibilityTitle: "업로드 전 계정 확인",

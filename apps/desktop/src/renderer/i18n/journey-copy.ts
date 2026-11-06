@@ -1,4 +1,4 @@
-/** Copy shared by the fixed directory and the separate VUA guide. */
+/** Copy shared by the fixed directory and the VRChat wizard. */
 const en = {
   home: "Home", finish: "Finish guide", environment: "Environment", avatar: "Avatar", help: "Help", tasks: "Tasks",
   play: "Play", create: "Avatar editing", library: "Asset library", recipes: "Recipes", production: "Create an Avatar",

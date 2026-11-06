@@ -7,8 +7,8 @@ interface BeginnerConcept {
   readonly setup: PageId;
 }
 
-// The wizard reads the same sections as the encyclopedia and VUA manual.
-// Want this opens a real setup destination; that page owns its plans and consent.
+// The wizard reads the same sections as the encyclopedia.
+// Go to opens a real setup destination; that page owns its plans and consent.
 export const BEGINNER_CONCEPTS: readonly BeginnerConcept[] = [
   { id: "vrchat", target: { topic: "guide-start", section: "what-is-vrchat" }, setup: "env-play" },
   { id: "steam", target: { topic: "guide-start", section: "steam-account" }, setup: "settings-accounts" },

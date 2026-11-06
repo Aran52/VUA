@@ -123,7 +123,7 @@ const editors = ["2022.3.22f1", "2019.4.31f1"].map(version => ({ version, path: 
 const sopFor = (selection: { scenario: string; connection?: string }) => ({
   schemaVersion: "vua.scenario-environment/v0.1", scenario: selection.scenario, connection: selection.connection ?? null,
   requirements: scenarioRequiredComponents([selection.scenario as DeploymentPurpose]),
-  steps: ["install_software", "steam_login", "launch_vrchat"].map((id, index) => ({ id, title: id, explanation: id, expectedResult: id, automatic: index === 0 })),
+  steps: ["check", "install", "steam-account", "launch", "vrchat-account"].map((id, index) => ({ id, title: id, explanation: id, expectedResult: id, automatic: index < 2 })),
   performed: "sop_only", nextAction: "check_environment", licenseRequiredFor: "none",
 });
 const toolConnection = (toolId: string) => ({ toolConnection: { schemaVersion: "vua.external-tool/v0.3", toolId, capturedAt: now(), presence: envMissing ? "missing" : ["vrcft", "space", "chilloutvr", "vrchat", "steamvr"].includes(toolId) ? "installed" : "missing", steamReady: !envMissing, buildId: null, running: false, canStop: false, activity: "idle", issue: null } });

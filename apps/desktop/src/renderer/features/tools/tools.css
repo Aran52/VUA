@@ -66,7 +66,9 @@
 /* SteamToolCard 详情区操作行(与 vua-vrcft-actions 同一布局,通用命名) */
 .vua-tool-reinstall { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2) var(--vua-space-4); padding-top: var(--vua-space-3); border-top: 1px solid var(--vua-border); }
 .vua-tool-reinstall p { flex: 1 1 240px; margin: 0; color: var(--vua-text-secondary); font: var(--vua-font-caption); }
-.vua-tool-reinstall-row { display: grid; gap: var(--vua-space-2); }
+.vua-tool-reinstall > .vua-button:only-child { margin-inline-start: auto; }
+.vua-tool-reinstall-row { display: grid; gap: var(--vua-space-1); padding-block: var(--vua-space-3); border-top: 1px solid var(--vua-border); }
+.vua-tool-reinstall-row .vua-tool-reinstall { padding-top: 0; border-top: 0; }
 .vua-tool-reinstall-row p[role="alert"] { margin: 0; color: var(--vua-warning-text); font: var(--vua-font-caption); }
 .vua-tool-connection-actions {
   display: flex;

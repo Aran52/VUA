@@ -1,6 +1,6 @@
 # Interaction structure
 
-> Updated: 2026-11-06
+> Updated: 2026-11-07
 > Status: proposed; the author reviews it locally on `slice/ui-structure`
 
 This document owns how the desktop app is organized for the player: the directory, the name of each
@@ -42,8 +42,13 @@ becomes a Finished Avatar. Recipes, Packages and Unity setup support that path.
   Help.
 
 The directory shows a count on Workshop while lines wait for review or need attention, and a small
-mark while lines only run. Lines the player hid stay out of the count. The summary reads again when
-a task changes and when Home or the Workshop opens or closes, so an idle app makes no requests for it.
+mark while lines only run. Lines the player hid stay out of the count. An idle app makes no requests
+for it.
+
+The AMF module answers one request at a time, and the production list takes seconds, so pages share one
+read: a page draws the last list at once and reads again after a task changes or when the list is over a
+minute old. The page just opened goes first. The new-line dialog always reads, because starting a line is
+a decision.
 
 ## Home
 
@@ -57,6 +62,8 @@ Home has three parts, and the first appears only when it has content:
 3. **Avatar editing:** Materials, Workshop and Finished Avatars with their live facts, and one
    button: New line, or Import materials while the library is empty. With AMF off this part explains
    AMF and offers to turn it on.
+
+Home holds both goals and stays in one accent, as every page does.
 
 ## Play
 
@@ -133,7 +140,9 @@ takes a Unity job, so the button to create it sits right under the stills; in fu
 finished line to this page creates it without asking.
 
 Recipes open as cards: the Avatar's and outfits' pictures, whether this PC has the materials, and one
-button that starts a line. A card's details open beside the cards and list each material with its state.
+button that starts a line. A Recipe saved without a BOOTH id finds its pictures through the production list.
+Whether a Recipe's materials are here takes seconds to work out, so plans run one at a time, the open Recipe
+first, and each keeps its answer until a task changes or five minutes pass. A card's details open beside the cards and list each material with its state.
 The graph is one click away and the choice is remembered. Renaming and deleting a Recipe wait for the
 engine; their menu entries say so.
 
@@ -143,8 +152,8 @@ One row of controls sits under the title: search, source, download state, BOOTH 
 and view. Their values name them, so they carry no labels above. The count and a way to clear filters sit
 under that row, and page buttons appear only when there is more than one page.
 
-- **Order:** recently added by default, then first added, name, shop, price, newest on BOOTH and largest on
-  disk. The choice and the view are remembered. An order other than the default shows its value on each
+- **Order:** recently added by default, then first added, name, shop, price and largest on disk; newest on
+  BOOTH joins them once a row has BOOTH's date. The choice and the view are remembered. An order other than the default shows its value on each
   card, so it explains itself; the list's title and shop headers sort too. Filters and the place in the
   wall last until the app closes.
 - **VN3 terms:** a panel with the terms state (all, has VN3, no VN3, not read yet, see the document) and

@@ -61,7 +61,7 @@ async function main() { try {
         const rect=node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};
         return {id:card.dataset.card,card:rect(card),details:rect(card.querySelector('.vua-environment-card__details')),
           icon:rect(card.querySelector('.vua-route-tile__icon')),logo:rect(card.querySelector('.vua-route-tile__icon > svg')),
-          title:rect(card.querySelector('strong')),action:rect(card.querySelector('.vua-environment-card__action'))};
+          title:rect(card.querySelector('.vua-environment-card__name')),action:rect(card.querySelector('.vua-environment-card__action'))};
       }))`);
       geometry.push({ family, width, cards });
       await writeFile(path.join(evidence, "geometry.json"), JSON.stringify(geometry, null, 2));

@@ -105,3 +105,9 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:resource-brand
       - name: VRCFT device selection and recovery (isolated profile, synthetic actions)
         run: pnpm --filter @vua/desktop smoke:vrcft
+      - name: Recipes, dialogs and imports on the production pages (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:production-review
+      - name: Materials to Recipe sharing in the Workshop (synthetic port)
+        run: pnpm --filter @vua/desktop smoke:amf-production
+      - name: External AI tool connection and approval (synthetic ports)
+        run: pnpm --filter @vua/desktop smoke:ai-ui

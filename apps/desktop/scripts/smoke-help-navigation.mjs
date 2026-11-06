@@ -168,7 +168,7 @@ async function run() {
     await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help for the first encyclopedia catalog");
     await js('document.querySelector("[data-nav-id=help-encyclopedia]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), "First encyclopedia catalog");
-    assert(await js('document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===8 && !document.querySelector("[data-guide-continue]")'), "Encyclopedia starts with six questions and eight topics");
+    assert(await js('document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===9 && !document.querySelector("[data-guide-continue]")'), "Encyclopedia starts with six questions and nine topics");
     assert(await js('localStorage.getItem("vua-guide-reading")===null'), "Browsing the catalog alone writes no reading bookmark");
     await capture("encyclopedia-catalog");
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
@@ -289,9 +289,15 @@ async function run() {
       assert(await js('document.querySelector("[data-nav-id=shell-help]").getAttribute("aria-current")==="page"'), `${child} restores on mouse Forward`);
       if (child === 'help-wizard') {
         await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !!document.querySelector("[data-wizard-step=vrchat]")'), "Help opens the concept wizard at VRChat");
-        await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"production-line"})');
-        await waitFor(() => js('localStorage.getItem("vua-vua-guide-reading-v1")?.includes("production-line") && !localStorage.getItem("vua-guide-reading")?.includes("production-line")'), "VUA guide has a separate bookmark");
-        assert(true, "VUA guide navigation does not rewrite the encyclopedia bookmark");
+        const wizardButtons = () => js('JSON.stringify(["wizard-previous","wizard-want","wizard-next"].map(id=>{const r=document.querySelector(`[data-nav-id="${id}"]`).getBoundingClientRect();return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)]}))');
+        const firstPageButtons = await wizardButtons();
+        assert(await js('document.querySelector("[data-nav-id=wizard-previous]").disabled'), "The first wizard page has no previous page");
+        await js('document.querySelector("[data-nav-id=wizard-next]").click()');
+        await waitFor(() => js('!document.querySelector("[data-wizard-step=vrchat]")'), "Wizard next page");
+        assert(await wizardButtons() === firstPageButtons, "The three wizard buttons keep one place across pages");
+        assert(await js('!document.querySelector("[data-nav-id=wizard-previous]").disabled'), "Later wizard pages can go back");
+        await js('document.querySelector("[data-nav-id=wizard-previous]").click()');
+        await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat]")'), "Wizard previous page");
       }
       await js('document.querySelector("[data-nav-id=help-child-back]").click()');
       await waitFor(() => js('!!document.querySelector("[data-nav-id=help-encyclopedia]")'), "Help return");
@@ -364,15 +370,20 @@ async function run() {
     await waitFor(() => js('!!document.querySelector("[data-guide-section=visibility]")'), "Back returns from catalog to the article");
     side('browser-forward');
     await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), "Forward returns to the catalog");
-    assert(await js('localStorage.getItem("vua-guide-reading")?.includes("visibility") && !localStorage.getItem("vua-vua-guide-reading-v1")?.includes("visibility")'), "Catalog and article preserve the encyclopedia bookmark only");
+    assert(await js('localStorage.getItem("vua-guide-reading")?.includes("visibility")'), "Catalog and article preserve the encyclopedia bookmark");
     await js('window.vua.window.showEncyclopedia({topic:"guide-vua",section:"first-run-language"})');
     await waitFor(() => js('!!document.querySelector("[data-guide-section=first-run-language]") && !Array.from(document.querySelectorAll("figure img")).some(image=>image.getAttribute("src").endsWith("/first-run.png"))'), "Updated first-use explanation excludes the retired language-choice capture");
-    assert(true, "The first-use manual reflects the notice without reusing an older UI capture");
+    assert(await js('document.querySelector("[role=tab][aria-selected=true]")?.id.includes("guide-vua")'), "Using VUA is a topic of the encyclopedia and describes the current first use");
     await capture("vua-guide-media");
     await js('document.querySelector("[data-nav-id=help-child-back]").click()');
-    await js('document.querySelector("[data-nav-id=help-encyclopedia]").click()');
-    await waitFor(() => js('document.querySelector("[role=tab][aria-selected=true]")?.id.includes("guide-avatars")'), "VUA guide leaves the encyclopedia on its own Avatar topic");
-    assert(await js('localStorage.getItem("vua-vua-guide-reading-v1")?.includes("first-run-language") && !localStorage.getItem("vua-guide-reading")?.includes("first-run-language")'), "VUA screenshot reading does not overwrite the encyclopedia bookmark");
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=help-wizard]")'), "Help before the full explanation");
+    await js('document.querySelector("[data-nav-id=help-wizard]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-wizard-step=vrchat] [data-guide-entry=what-is-vrchat]")'), "Wizard full explanation");
+    await js('document.querySelector("[data-guide-entry=what-is-vrchat]").click()');
+    await waitFor(() => js('location.hash.startsWith("#help-encyclopedia") && !!document.querySelector("[data-guide-section=what-is-vrchat]")'), "The wizard's full explanation opens that section of the encyclopedia");
+    assert(BrowserWindow.getAllWindows().length === 1, "The full explanation stays in the main window");
+    await js('window.vua.window.showEncyclopedia({topic:"guide-avatars",section:"visibility"})');
+    await waitFor(() => js('!!document.querySelector("[data-guide-section=visibility]") && localStorage.getItem("vua-guide-reading")?.includes("visibility")'), "Encyclopedia article before Settings");
     const articleHashBeforeSettings = await js('location.hash');
     await js('document.querySelector("[data-nav-id=shell-settings]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-settings-theme]")'), "Settings navigation");
@@ -482,7 +493,7 @@ async function run() {
     assert(await js('document.querySelector("[data-nav-id=settings-search]").textContent.trim()==="Search"') && await languageFooterFits(), "English uses the short Search label and a separate compact language row");
     await js('location.hash="/settings-goals"');
     await waitFor(() => js('!!document.querySelector(".vua-vua-guide") && !!document.querySelector("[data-nav-id=help-child-back]") && !document.querySelector(".vua-shell__sidebar--settings")'), "Retired goal destination migration");
-    assert(true, "Old goal-reselection links open Help's VUA guide");
+    assert(true, "Old goal-reselection links open the VRChat wizard");
     await js('document.querySelector("[data-nav-id=nav-env-play]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=play-refresh-devices]")'), "Ordinary Play after migration");
     assert(await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card")].every(c=>Math.abs(c.getBoundingClientRect().height-88)<1)'), "Retired preferences never enlarge Play cards");
@@ -498,7 +509,7 @@ async function run() {
       await waitFor(() => js(`document.documentElement.lang===${JSON.stringify(locale)} && !!document.querySelector("[data-guide-section=visibility]")`), `${locale} encyclopedia reader`);
       await js('document.querySelector("[data-nav-id=help-catalog]").click()');
       await waitFor(() => js('!!document.querySelector(".vua-encyclopedia-home")'), `${locale} encyclopedia catalog`);
-      assert(await js(`document.querySelector(".vua-encyclopedia-home h2").textContent===${JSON.stringify(homeTitle)} && document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===8`), `${locale} renders its localized catalog, six tasks and eight topics`);
+      assert(await js(`document.querySelector(".vua-encyclopedia-home h2").textContent===${JSON.stringify(homeTitle)} && document.querySelectorAll("[data-guide-task]").length===6 && document.querySelectorAll(".vua-encyclopedia-tree > li > details").length===9`), `${locale} renders its localized catalog, six tasks and nine topics`);
       await setSearch("Quest");
       await waitFor(() => js(`!!document.querySelector('[data-guide-result="guide-avatars/platforms"]')`), `${locale} local search`);
       await capture(`encyclopedia-${locale}`);

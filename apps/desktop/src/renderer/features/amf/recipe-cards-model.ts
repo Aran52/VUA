@@ -16,26 +16,33 @@ export function recipeReadiness(plan: Pick<AmfRecipeMaterialPlan, "materials" | 
 }
 
 export type RecipeMaterialRole = "avatar" | "outfit" | "other";
+/** A file the production list knows, with the BOOTH products it came from. */
+export interface RecipeMaterialSource { readonly sourceId: string; readonly itemId: string; readonly name: string; readonly productIds?: readonly string[] }
 export interface RecipeMaterialRow {
   readonly materialId: string;
   readonly packageName: string;
   readonly role: RecipeMaterialRole;
   readonly productId: string | null;
   readonly status: AmfRecipeMaterialResolution["status"] | null;
+  readonly source: RecipeMaterialSource | null;
 }
 
 /** The Avatar first, then outfits in the Recipe's order, then whatever else it uses. */
-export function recipeMaterialRows(recipe: AmfRecipeDocument, plan?: Pick<AmfRecipeMaterialPlan, "materials"> | null): readonly RecipeMaterialRow[] {
+export function recipeMaterialRows(recipe: AmfRecipeDocument, plan?: Pick<AmfRecipeMaterialPlan, "materials"> | null, sources: readonly RecipeMaterialSource[] = []): readonly RecipeMaterialRow[] {
   const outfits = recipe.outfits.map(outfit => outfit.materialId);
   const rank = (id: string) => id === recipe.avatar.materialId ? -1 : outfits.includes(id) ? outfits.indexOf(id) : outfits.length;
   return [...recipe.materials].sort((a, b) => rank(a.id) - rank(b.id)).map(material => {
     const resolved = plan?.materials.find(item => item.materialId === material.id);
     const native = material.boothProductId ?? resolved?.boothProductId ?? null;
+    // The plan names the exact file; until it arrives the file name is enough for a picture.
+    const named = sources.filter(source => source.name === material.packageName);
+    const source = sources.find(item => item.sourceId === resolved?.resolved?.sourceId) ?? named.find(item => (item.productIds?.length ?? 0) > 0) ?? named[0] ?? null;
     return {
       materialId: material.id, packageName: material.packageName,
       role: material.id === recipe.avatar.materialId ? "avatar" : outfits.includes(material.id) ? "outfit" : "other",
-      productId: native === null ? null : `booth:${native}`,
+      productId: native === null ? source?.productIds?.[0] ?? null : `booth:${native}`,
       status: resolved?.status ?? null,
+      source,
     };
   });
 }

@@ -112,6 +112,7 @@ import { UpdatePlanPanel } from "./features/modules/UpdatePlanPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
 import { AmfSurface as AmfPages, AmfUiRuntimeBridge } from "./features/modules/AmfSurface.tsx";
+import { DelayedStatus } from "./components/primitives/DelayedStatus.tsx";
 import { HomePage } from "./features/home/HomePage.tsx";
 import { ThemeAddress, ThemeCommandBar, ThemeDetails } from "./features/shell/ThemeChrome.tsx";
 import { directory, directoryGroupLabel, directoryItemSelected, presentedModule } from "./features/shell/directory.ts";
@@ -575,7 +576,7 @@ function renderPage(
     case "env-play": case "env-create":
       return <RouteEnvironmentPage zone={page === "env-play" ? "play" : "create"} onAccounts={actions.openAccounts} onOpenAmf={() => actions.navigate("warehouse")} onWorkshop={() => actions.navigate("workshop")} />;
     case "warehouse": case "asset-browser": case "recipe": case "release": case "packages": case "workshop":
-      return <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<p role="status">{format(strings.amfModule.loading, { amf: TERMS.amf })}</p>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>;
+      return <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<DelayedStatus>{format(strings.amfModule.loading, { amf: TERMS.amf })}</DelayedStatus>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>;
     case "settings-modules":
       return <ModulesPage onOpen={() => actions.navigate("warehouse")} />;
     case "tools-discover":
@@ -596,7 +597,7 @@ function renderPage(
       );
     case "settings-debug":
       return amf.installed && amf.state === "ready"
-        ? <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<p role="status">{format(strings.amfModule.loading, { amf: TERMS.amf })}</p>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>
+        ? <AmfBoundary key={page} manage={() => actions.navigate("settings-modules")}><Suspense fallback={<DelayedStatus>{format(strings.amfModule.loading, { amf: TERMS.amf })}</DelayedStatus>}><AmfPages page={page} creatorReady={creatorReady} navigate={actions.navigate} prepareEnv={actions.prepareEnv} /></Suspense></AmfBoundary>
         : <div className="vua-page"><section className="vua-page__hero"><h1 className="vua-title">{strings.nav.pages.settingsDebug}</h1>
           <p className="vua-text-secondary">{strings.settings.debug.unavailable}</p></section></div>;
     case "settings-about":

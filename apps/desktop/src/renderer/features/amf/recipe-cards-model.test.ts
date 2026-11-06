@@ -36,6 +36,16 @@ describe("a Recipe's material rows", () => {
     expect(rows.find(row => row.materialId === "body")!.status).toBeNull();
   });
 
+  it("finds the product through the production list when the Recipe saved no BOOTH id", () => {
+    const plain = { ...recipe, materials: recipe.materials.map(({ boothProductId: _id, ...material }) => material) };
+    const sources = [{ sourceId: "s1", itemId: "i1", name: "other.unitypackage", productIds: ["booth:40"] }, { sourceId: "s2", itemId: "i2", name: "coat.unitypackage", productIds: ["booth:50"] }];
+    const byName = recipeMaterialRows(plain, null, sources);
+    expect(byName.find(row => row.materialId === "coat")!.productId).toBe("booth:50");
+    expect(byName.find(row => row.materialId === "body")!.productId).toBeNull();
+    const planned = { ...resolution("body", "ready"), resolved: { sourceId: "s1", packageName: "body.unitypackage", sha256: "x" } };
+    expect(recipeMaterialRows(plain, { materials: [planned] }, sources).find(row => row.materialId === "body")!.productId).toBe("booth:40");
+  });
+
   it("collects each product once across Recipes", () => {
     const rows = recipeMaterialRows(recipe);
     expect(recipeProductIds([rows, rows])).toEqual(["booth:10", "booth:20"]);

@@ -10,8 +10,10 @@ import { ContextMenu, type ContextMenuState } from "../../components/primitives/
 import { ContentDialog } from "../../components/primitives/ContentDialog.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
-import { newestFirst, recipeMaterialRows, recipeProductIds, recipeReadiness, type RecipeMaterialRow } from "./recipe-cards-model.ts";
-import { useGateway, type AmfSavedRecipe } from "../../gateway/index.ts";
+import { useMaterialImages } from "./PlanImages.tsx";
+import { latestProductionList, PRODUCTION_LIST_FRESH_MS, readProductionList } from "./production-list-read.ts";
+import { newestFirst, recipeMaterialRows, recipeProductIds, recipeReadiness, type RecipeMaterialRow, type RecipeMaterialSource } from "./recipe-cards-model.ts";
+import { useGateway, useTaskCenter, type AmfSavedRecipe } from "../../gateway/index.ts";
 import type { PageId } from "../../app/nav-model.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { SegmentBar } from "../../components/SegmentBar.tsx";
@@ -31,9 +33,14 @@ import { recipeSharing } from "./recipe-sharing.ts";
 const copy = strings.controlCenter.recipes;
 const production = strings.amfProduction;
 type View = "graph" | "list";
-const viewKey = "vua-amf-control-recipes-view-v01";
+const viewKey = "vua-amf-control-recipes-view-v02";
 function storedView(): View { try { return localStorage.getItem(viewKey) === "graph" ? "graph" : "list"; } catch { return "list"; } }
 type Pictures = ReadonlyMap<string, { readonly title: string | null; readonly imageUrl: string | null }>;
+
+/** A plan hashes the material files and holds up the module's other answers for seconds, so each Recipe keeps its last one. */
+const PLAN_FRESH_MS = 300_000, PLAN_START_MS = 800;
+const knownPlans = new Map<string, { readonly at: number; readonly tasks: string; readonly plan: AmfRecipeMaterialPlan }>();
+const planKey = (item: AmfSavedRecipe) => `${item.recipe.recipeId}:${item.revision}`;
 
 /** Reads BOOTH titles and pictures for the materials the Recipes name, a few at a time. */
 function useProductPictures(productIds: readonly string[]): Pictures {
@@ -86,6 +93,7 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   }, [port]);
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [plans, setPlans] = useState<ReadonlyMap<string, AmfRecipeMaterialPlan>>(() => new Map());
+  const [sources, setSources] = useState<readonly RecipeMaterialSource[]>(() => latestProductionList(port)?.sources ?? []);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<AmfSavedRecipe | null>(null);
   const [deleting, setDeleting] = useState<AmfSavedRecipe | null>(null);
@@ -114,22 +122,40 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
     }).catch(() => { /* Package ids stay as labels. */ });
     return () => { alive = false; };
   }, [gateway]);
+  // The files the production list knows lead a Recipe saved without a BOOTH id to its pictures.
+  useEffect(() => {
+    if (!port) return;
+    let alive = true;
+    void readProductionList(port, PRODUCTION_LIST_FRESH_MS).then(list => { if (alive) setSources(list.sources); }, () => { /* The cards keep their shapes. */ });
+    return () => { alive = false; };
+  }, [port, reload]);
   // Whether this PC has each Recipe's materials; a Recipe the engine cannot plan just shows no sentence.
+  const selectedRecipe = useRef(selected); selectedRecipe.current = selected;
+  const taskKey = useTaskCenter().tasks.map(task => `${task.id}:${task.status}`).join(" ");
   useEffect(() => {
     if (!port || saved === null) return;
     let alive = true;
-    const queue = saved.map(item => item.recipe.recipeId);
-    const worker = async () => {
-      while (alive && queue.length > 0) {
-        const id = queue.shift()!;
-        try { const plan = await port.recipeMaterialPlan(id); if (alive) setPlans(current => new Map(current).set(id, plan)); } catch { /* No readiness to show. */ }
-      }
-    };
-    void Promise.all([worker(), worker()]);
-    return () => { alive = false; };
-  }, [port, saved]);
+    const known = saved.flatMap(item => { const found = knownPlans.get(planKey(item)); return found ? [[item.recipe.recipeId, found.plan] as const] : []; });
+    if (known.length > 0) setPlans(new Map(known));
+    const queue = saved.filter(item => { const found = knownPlans.get(planKey(item)); return found === undefined || found.tasks !== taskKey || Date.now() - found.at > PLAN_FRESH_MS; });
+    // One at a time, the open Recipe first, and only once the player has stayed on this page.
+    const timer = setTimeout(() => {
+      void (async () => {
+        while (alive && queue.length > 0) {
+          const open = queue.findIndex(item => recipeNodeId(item.recipe.recipeId) === selectedRecipe.current);
+          const item = queue.splice(Math.max(open, 0), 1)[0]!, id = item.recipe.recipeId;
+          try {
+            const plan = await port.recipeMaterialPlan(id);
+            knownPlans.set(planKey(item), { at: Date.now(), tasks: taskKey, plan });
+            if (alive) setPlans(current => new Map(current).set(id, plan));
+          } catch { /* No readiness to show. */ }
+        }
+      })();
+    }, PLAN_START_MS);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [port, saved, taskKey]);
   const documents = useMemo(() => (saved ?? []).map(item => item.recipe), [saved]);
-  const rowsByRecipe = useMemo(() => new Map(documents.map(recipe => [recipe.recipeId, recipeMaterialRows(recipe, plans.get(recipe.recipeId))] as const)), [documents, plans]);
+  const rowsByRecipe = useMemo(() => new Map(documents.map(recipe => [recipe.recipeId, recipeMaterialRows(recipe, plans.get(recipe.recipeId), sources)] as const)), [documents, plans, sources]);
   const productIds = useMemo(() => recipeProductIds([...rowsByRecipe.values()]), [rowsByRecipe]);
   const pictures = useProductPictures(productIds);
   const graph = useMemo(() => buildRecipeGraph(documents, packageNames), [documents, packageNames]);
@@ -155,8 +181,8 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
       <div className="vua-control__actions">
         {graph.nodes.length > 0 && <span className="vua-control__switch vua-segments" role="group" aria-label={copy.viewLabel}>
           <SegmentBar selected={view} />
-          {(["graph", "list"] as const).map(option => <button type="button" key={option} aria-pressed={view === option} onClick={() => chooseView(option)}>
-            <Icon name={option === "graph" ? "shader" : "file"} size={16}/>{copy.views[option]}</button>)}
+          {(["list", "graph"] as const).map(option => <button type="button" key={option} aria-pressed={view === option} onClick={() => chooseView(option)}>
+            <Icon name={option === "graph" ? "shader" : "modules"} size={16}/>{copy.views[option]}</button>)}
         </span>}
         {saved !== null && saved.length > 0 && <Button onClick={() => { setIncoming(null); setImporting(true); }}>{production.importRecipe}</Button>}
       </div>
@@ -233,7 +259,8 @@ function PanelHead({ kind, title, onClose }: { kind: GraphNodeKind; title: strin
 
 /** A material's picture, or its kind's shape when BOOTH has none on record. */
 function MaterialPicture({ row, pictures, kind, size }: { row: RecipeMaterialRow | undefined; pictures: Pictures; kind: GraphNodeKind; size: "large" | "small" }) {
-  const url = row?.productId ? pictures.get(row.productId)?.imageUrl : null;
+  const libraryImage = useMaterialImages();
+  const url = (row?.productId ? pictures.get(row.productId)?.imageUrl : null) ?? libraryImage(row?.source ?? undefined);
   const [failed, setFailed] = useState(false);
   return <span className="vua-recipe-picture" data-size={size} data-kind={kind}>
     {url && !failed ? <img src={catalogImageUrl(url)} alt="" loading="lazy" draggable={false} onError={() => setFailed(true)}/> : <Icon name={NODE_ICONS[kind]} size={size === "large" ? 24 : 16}/>}
@@ -257,7 +284,13 @@ function RecipeDetails({ graph, saved, rows, plan, pictures, onSelect, onClose, 
   const parts = recipeParts(graph, recipe.recipeId);
   const nodeOf = new Map(graph.nodes.map(node => [node.id, node] as const));
   const panel = useRef<HTMLDivElement>(null);
-  useEffect(() => { panel.current?.closest<HTMLElement>(".vua-control__details")?.scrollIntoView({ block: "nearest" }); }, []);
+  // A click on a card leaves the page where it is, unless the details opened out of sight.
+  useEffect(() => {
+    const details = panel.current?.closest<HTMLElement>(".vua-control__details"), view = details?.closest(".vua-shell__main")?.getBoundingClientRect();
+    if (details === null || details === undefined || view === undefined) return;
+    const top = details.getBoundingClientRect().top;
+    if (top < view.top || top > view.bottom - 120) details.scrollIntoView({ block: "start" });
+  }, []);
   const others = (node: GraphNode) => node.recipeIds.length > 1 ? format(copy.sharedWith, { count: node.recipeIds.length - 1 }) : undefined;
   const stateOf = (row: RecipeMaterialRow) => row.status === null || row.status === "ready" ? null : copy.materialStates[row.status];
   const materialDetail = (row: RecipeMaterialRow, node: GraphNode) => {

@@ -136,7 +136,7 @@ export function controlPreview(view: string, base: VuaGateway, production: AmfPr
     snapshot: async () => ({ ...packagesView, blocks: { ...packagesView.blocks, repoLifecycle: false } }),
   } : packagesPort;
   const gateway = { ...base, amfModule, amfProduction, packages: previewPackages, projectOps: projectOps(base.projectOps) };
-  try { localStorage.setItem("vua-amf-control-recipes-view-v01", view === "control-recipes-list" ? "list" : "graph"); } catch { /* preview only */ }
+  try { localStorage.setItem("vua-amf-control-recipes-view-v02", view === "control-recipes-list" ? "list" : "graph"); } catch { /* preview only */ }
   // Package page modes: the view suffix picks the workshop's permission mode.
   try { localStorage.setItem("vua-amf-permission-mode-v01", view.endsWith("-full") ? "full" : view.endsWith("-smart") ? "smart" : "ask"); } catch { /* preview only */ }
   // Resource-saving mode: the graph draws its settled layout without a frame loop.

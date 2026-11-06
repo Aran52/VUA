@@ -15,6 +15,7 @@ import { FullAutoConfirm, type FullAutoReason } from "./FullAutoConfirm.tsx";
 import { PermissionModePicker } from "./PermissionModePicker.tsx";
 import { requestProductionRun } from "./production-recipe-navigation.ts";
 import { readStartLibrary, type MaterialsStartAvatar } from "./materials-start-model.ts";
+import { PRODUCTION_LIST_FRESH_MS, readProductionList } from "./production-list-read.ts";
 import "./factory.css";
 
 const copy = strings.factory.materialsStart;
@@ -59,7 +60,7 @@ export function MaterialsStartDialog({ avatar, onNavigate, onClose }: {
   useEffect(() => {
     if (port === undefined) { setLoad({ kind: "failed" }); return; }
     let alive = true; setLoad({ kind: "loading" }); setChecked(new Set()); setStartError(null);
-    void port.list().then(async list => [list, await readStartLibrary(library, avatar, list.sources)] as const)
+    void readProductionList(port, PRODUCTION_LIST_FRESH_MS).then(async list => [list, await readStartLibrary(library, avatar, list.sources)] as const)
       .then(([list, library]) => {
         if (!alive) return;
         const avatarIds = new Set(library.avatarEntryIds);

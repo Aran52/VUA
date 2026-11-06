@@ -28,6 +28,7 @@ import { Popconfirm } from "../../components/primitives/Popconfirm.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip.tsx";
 import { Alert } from "../../components/primitives/Alert.tsx";
 import { toast } from "../../components/primitives/toast-store.ts";
+import { PRODUCTION_LIST_FRESH_MS, readProductionList } from "./production-list-read.ts";
 import "./control-center.css";
 
 const copy = strings.controlCenter.packages;
@@ -59,7 +60,8 @@ export function ControlPackagesPage({ onNavigate, initialScreen = { kind: "proje
     const port = gateway.amfProduction;
     if (!port) { setWork([]); return; }
     let alive = true;
-    void port.list().then(async list => {
+    // Opening the page reuses a recent list; a change made here reads again.
+    void readProductionList(port, projectsReload === 0 ? PRODUCTION_LIST_FRESH_MS : 0).then(async list => {
       const runs = list.runs.slice(0, MAX_WORK_PROJECTS);
       const details = await Promise.allSettled(runs.map(run => port.get(run.runId)));
       if (!alive) return;

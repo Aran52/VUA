@@ -234,20 +234,36 @@ mod tests {
         assert!(fake.0.lock().unwrap().handoffs.is_empty());
         fake.0.lock().unwrap().processes.clear();
         service.act(ToolAction::Reinstall, "again").unwrap();
-        assert_eq!(service.act(ToolAction::Cancel, "cancel").unwrap().activity, "idle");
+        assert_eq!(
+            service.act(ToolAction::Cancel, "cancel").unwrap().activity,
+            "idle"
+        );
     }
     #[test]
     fn reinstall_of_a_missing_tool_is_an_install_and_gives_up_waiting_for_steam() {
         let (fake, service) = fixture();
         fake.0.lock().unwrap().missing = true;
-        assert_eq!(service.act(ToolAction::Reinstall, "1").unwrap().activity, "install_requested");
+        assert_eq!(
+            service.act(ToolAction::Reinstall, "1").unwrap().activity,
+            "install_requested"
+        );
         assert_eq!(fake.0.lock().unwrap().handoffs, vec![ToolAction::Install]);
         service.act(ToolAction::Cancel, "2").unwrap();
         fake.0.lock().unwrap().missing = false;
         service.act(ToolAction::Reinstall, "3").unwrap();
-        service.state.lock().unwrap().pending.as_mut().unwrap().since = Instant::now() - Duration::from_secs(301);
+        service
+            .state
+            .lock()
+            .unwrap()
+            .pending
+            .as_mut()
+            .unwrap()
+            .since = Instant::now() - Duration::from_secs(301);
         let timed_out = service.observe().unwrap();
-        assert_eq!((timed_out.activity, timed_out.issue), ("idle", Some("reinstall_timeout")));
+        assert_eq!(
+            (timed_out.activity, timed_out.issue),
+            ("idle", Some("reinstall_timeout"))
+        );
     }
     #[test]
     fn prerequisites_and_failed_handoffs_do_not_fake_a_running_tool() {
@@ -546,7 +562,11 @@ fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
         .eq_ignore_ascii_case(&b.to_string_lossy())
 }
 impl ToolService {
-    pub fn new(platform: Arc<dyn ToolPlatform>, clock: Arc<dyn Clock>, tool_id: &'static str) -> Self {
+    pub fn new(
+        platform: Arc<dyn ToolPlatform>,
+        clock: Arc<dyn Clock>,
+        tool_id: &'static str,
+    ) -> Self {
         Self {
             platform,
             clock,
@@ -691,11 +711,12 @@ impl ToolService {
         state.issue = None;
         match action {
             ToolAction::Cancel => {
-                if state
-                    .pending
-                    .as_ref()
-                    .is_some_and(|p| matches!(p.action, ToolAction::Install | ToolAction::Reinstall | ToolAction::Start))
-                {
+                if state.pending.as_ref().is_some_and(|p| {
+                    matches!(
+                        p.action,
+                        ToolAction::Install | ToolAction::Reinstall | ToolAction::Start
+                    )
+                }) {
                     state.pending = None;
                 }
                 // Stop observing the handoff; Steam's download/launch continues. Never adopt a late process.

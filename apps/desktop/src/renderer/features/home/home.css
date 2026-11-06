@@ -136,7 +136,7 @@
 /* Device names stay on one line: the name side takes three fifths of a compact card. */
 .vua-compact-environments .vua-environment-card { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .vua-compact-environments .vua-environment-card strong { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--vua-text-title-size); line-height: var(--vua-text-title-leading); }
-.vua-environment-card__name { display: grid; gap: 2px; min-width: 0; justify-self: stretch; }
+.vua-environment-card__name { display: grid; gap: var(--vua-space-1); min-width: 0; justify-self: stretch; }
 .vua-environment-card__name small { overflow: hidden; color: var(--vua-text-secondary); font: var(--vua-font-caption); text-overflow: ellipsis; white-space: nowrap; }
 .vua-environment-card__developing { color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-tools-hub .vua-environment-card strong { font-size: var(--vua-text-body-size); line-height: var(--vua-text-body-leading); }

@@ -1,8 +1,8 @@
-# VUA — Virtual Unified Assistant
+# VUA
 
 English | [简体中文](README_ZH.md) | [日本語](README_JA.md) | [한국어](README_KO.md)
 
-**VUA (Virtual Unified Assistant)** is a Windows-first, local-first scenario installer, manager and
+**VUA** is a Windows-first, local-first scenario installer, manager and
 launcher for VRChat players. A scenario brings together a goal, the required software and the
 steps to prepare, launch and recover it: play on a PC screen, stream to a PICO, or edit an Avatar
 with a selected module. Start with what you want to do; VUA helps you work out what comes next.

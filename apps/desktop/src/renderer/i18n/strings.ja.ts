@@ -3115,7 +3115,7 @@ rolled_back: "ロールバック済み",
       pending: "翻訳中",
     },
     version: {
-      heading: "Virtual Unified Assistant",
+      heading: "VUA",
       versionLine: "v{version} · 早期プレビュー",
       debugHeading: "デバッグモード",
       debugToggle: "商品デバッグ情報を表示",

@@ -222,7 +222,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     const title = titleOf(runId);
     // Finished Avatars with the same name are told apart by when their line started.
     const started = runStartedAt(runId);
-    const tab = started && ids.some(other => other !== runId && titleOf(other) === title) ? `${title} · ${formatShortDateTime(started)}` : title;
+    const tab = started && ids.some(other => other !== runId && titleOf(other) === title) ? `${title}\n${formatShortDateTime(started)}` : title;
     const request = requests.find(item => requestRunId(item) === runId) ?? null;
     const notice: ReactNode = request && <div className="vua-album__ai" role="status">
       <strong><Icon name="bell" size={16} />{copy.aiRequest.title}</strong>

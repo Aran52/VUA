@@ -61,7 +61,7 @@
   border-start-end-radius: var(--vua-radius-control); border-end-end-radius: var(--vua-radius-control); background: var(--vua-album-binding); color: var(--vua-text-secondary);
   font: var(--vua-font-caption); text-align: start; white-space: nowrap; cursor: pointer; }
 .vua-album__tabs button span:first-child { flex: none; font-weight: var(--vua-weight-strong); color: var(--room); }
-.vua-album__tabs button span + span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vua-album__tabs button span + span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
 .vua-album__tabs button[aria-current] { position: relative; z-index: 1; color: var(--vua-text-strong); background: var(--vua-album-paper); box-shadow: inset 2px 0 0 var(--room); font-weight: var(--vua-weight-strong); }
 .vua-album__tabs button:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
 .vua-album__nav { display: flex; align-items: center; gap: var(--vua-space-3); padding-inline: var(--vua-space-1); }

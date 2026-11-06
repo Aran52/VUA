@@ -236,7 +236,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "进行中", succeeded: "已上传", failed: "未完成", cancelled: "已停止" },
     },
-    queue: { waiting: "{work}在队列中 · 前方 {count} 个任务", remove: "移出队列", work: { upload: "上传", bakeTurntable: "转台拍摄", reinspect: "检查", sdkFix: "SDK 修复", changeSources: "更换原料", delete: "删除产线", other: "工作" } },
+    queue: { waiting: "{work}在队列中 · 前方 {count} 个任务", remove: "移出队列", work: { upload: "上传", bakeTurntable: "转台拍摄", reinspect: "检查", sdkFix: "SDK 修复", changeSources: "更换素材", delete: "删除产线", other: "工作" } },
     stages: {
       starting: "正在打开 Unity",
       sdk_panel: "正在打开 VRChat SDK",
@@ -399,7 +399,7 @@ export const releaseRoomCopy = {
       historyLine: "{time} · {result}",
       results: { running: "進行中", succeeded: "已上傳", failed: "未完成", cancelled: "已停止" },
     },
-    queue: { waiting: "{work}在佇列中 · 前方 {count} 個任務", remove: "移出佇列", work: { upload: "上傳", bakeTurntable: "轉檯拍攝", reinspect: "檢查", sdkFix: "SDK 修復", changeSources: "更換原料", delete: "刪除產線", other: "工作" } },
+    queue: { waiting: "{work}在佇列中 · 前方 {count} 個任務", remove: "移出佇列", work: { upload: "上傳", bakeTurntable: "轉檯拍攝", reinspect: "檢查", sdkFix: "SDK 修復", changeSources: "更換素材", delete: "刪除產線", other: "工作" } },
     stages: {
       starting: "正在開啟 Unity",
       sdk_panel: "正在開啟 VRChat SDK",

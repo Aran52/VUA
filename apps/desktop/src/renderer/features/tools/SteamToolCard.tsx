@@ -36,7 +36,7 @@ export function SteamToolCard({ toolId, title, hint, icon, selected, onDetails, 
   };
   return <>
     <EnvironmentCard title={title} icon={icon} logo={<ToolLogo id={toolId} icon={icon} />} id={`tool-${toolId}`}
-      hint={hint} selected={selected} action={state.action} status={copy.short[state.status]} actionHint={actionHint} onDetails={onDetails} onAction={act}
+      hint={hint} selected={selected} action={state.action} status={copy.short[state.status]} actionHint={actionHint} actionIcon={state.status === "install" ? "download" : undefined} onDetails={onDetails} onAction={act}
       disabled={state.action === "busy"} spinning={state.action === "busy"} warning={!!s?.issue && s.canStop} />
     <ToolDetails id={toolId} title={title} selected={selected}>
       <header className="vua-environment-heading"><h2>{title}</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>

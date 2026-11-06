@@ -106,6 +106,7 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onRena
         const removing = deleting.has(line.runId);
         const isHidden = hidden.has(line.runId);
         return <li key={line.runId} className="vua-workshop__line-item" data-line-menu={line.runId} data-hidden={isHidden || undefined} data-selected={line.runId === current || undefined}>
+          <div className="vua-workshop__line-row">
           {renaming === line.runId ? <input className="vua-workshop__line-rename" autoFocus defaultValue={line.name} maxLength={80} aria-label={menu.rename} data-nav-id="workshop-line-name"
             onFocus={event => event.currentTarget.select()}
             onBlur={event => { onRename(line.runId, event.currentTarget.value); setRenaming(null); }}
@@ -121,6 +122,7 @@ export function WorkshopRail({ lines, current, capacity, onSelect, onNew, onRena
           {!removing && renaming !== line.runId && <button type="button" className="vua-workshop__line-menu" aria-haspopup="true" aria-expanded={open === line.runId}
             aria-label={format(menu.open, { name: line.name })} title={format(menu.open, { name: line.name })}
             onClick={() => setOpen(current => current === line.runId ? null : line.runId)} data-nav-id="workshop-line-menu"><Icon name="caret-down" size={16}/></button>}
+          </div>
           {!removing && open === line.runId && <div className="vua-workshop__line-choices">
             <button type="button" className="vua-workshop__line-hide" onClick={() => { setOpen(null); setRenaming(line.runId); }} data-nav-id="workshop-line-rename">{menu.rename}</button>
             <button type="button" className="vua-workshop__line-hide" onClick={() => toggleHidden(line.runId)} data-nav-id="workshop-line-hide">{isHidden ? menu.unhide : menu.hide}</button>

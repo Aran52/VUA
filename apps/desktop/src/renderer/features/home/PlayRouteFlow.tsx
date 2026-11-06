@@ -6,14 +6,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { isTerminalTaskStateV01, type DeploymentIntent, type DeploymentPlan, type DeploymentProgress, type PicoInstallRegion, type PlayRoute, type PlaySession, type ScenarioConnection, type ScenarioEnvironmentCheck, type ScenarioSop, type TaskSnapshotV01 } from "@vua/contracts";
 import { Icon, type IconName } from "@vua/design-system";
 import { useGateway } from "../../gateway/index.ts";
-import { currentLocale, strings } from "../../i18n/index.ts";
+import { currentLocale, format, strings } from "../../i18n/index.ts";
 import { playFlowCopy } from "../../i18n/play-flow-copy.ts";
+import { structureCopy } from "../../i18n/structure-copy.ts";
 import { storageKeys } from "../../app/storage-keys.ts";
 import { useUnityMirrors } from "../../app/unity-download-preference.ts";
 import { openExternalUrl } from "../../app/open-external.ts";
 import { Button } from "../../components/primitives/Button.tsx";
 import { readDeploymentReceipt, type DeploymentReceiptBookmark } from "../deployer/deployment-receipt.ts";
-import { readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
+import { PICO_RUNTIME_PAGE, readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
 import { ToolReinstallRow } from "../tools/ToolReinstall.tsx";
 import { checklistSignature, playChecklist, playFlowPhase, progressPercent, readConfirmed, writeConfirmed, type PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
@@ -193,6 +194,7 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
   });
   const [repairOpen, setRepairOpen] = useState(false);
   const repairable = software.filter(item => item.ready && (item.component === "vrchat" || item.component === "steamvr"));
+  const picoRepairable = software.some(item => item.ready && item.component === "pico_runtime");
   const failure = task?.error?.code.replace(/^vua\.deployment\./, "");
   const notice = phase === "retry"
     ? checkFailed ? scenario.failed
@@ -244,9 +246,13 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
       </ol>
     </div> : null}
     {notice ? <p className="vua-play-flow__notice" role="status" data-tone={phase === "retry" ? "warning" : undefined}>{notice}</p> : null}
-    {repairable.length > 0 ? <details className="vua-play-flow__repair" onToggle={event => setRepairOpen(event.currentTarget.open)}>
+    {repairable.length > 0 || picoRepairable ? <details className="vua-play-flow__repair" onToggle={event => setRepairOpen(event.currentTarget.open)}>
       <summary>{copy.repair}</summary>
       {repairOpen ? repairable.map(item => <ToolReinstallRow key={item.component} toolId={item.component as "vrchat" | "steamvr"} title={componentName(item.component)} />) : null}
+      {repairOpen && picoRepairable ? <div className="vua-tool-reinstall-row">
+        <strong>{componentName("pico_runtime")}</strong>
+        <div className="vua-tool-reinstall"><Button data-nav-id="play-repair-pico" onClick={() => { void openExternalUrl(PICO_RUNTIME_PAGE); }}>{format(structureCopy[currentLocale].reinstallFromPage, { tool: componentName("pico_runtime") })}</Button></div>
+      </div> : null}
     </details> : null}
     <div className="vua-play-flow__actions">
       {phase === "confirm" ? <Button variant="primary" data-nav-id={`play-confirm-${route}`} onClick={act}>{copy.confirmContinue}</Button> : null}

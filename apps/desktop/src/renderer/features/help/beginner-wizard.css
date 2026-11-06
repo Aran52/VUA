@@ -1,5 +1,6 @@
 /* The article scrolls inside a fixed frame, so the three buttons stay put from page to page. */
 .vua-vua-guide { display: flex; flex-direction: column; overflow: hidden; }
+.vua-beginner-wizard__article h2:focus-visible { outline: none; }
 .vua-beginner-wizard {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

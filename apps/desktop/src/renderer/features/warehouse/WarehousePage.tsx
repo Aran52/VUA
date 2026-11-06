@@ -250,16 +250,12 @@ function WarehouseCard({
         <p className="vua-warehouse-card__title" title={item.title ?? item.productId}>
           {item.title ?? item.productId}
         </p>
-        {item.shopName !== null ? (
-          <p className="vua-caption vua-text-secondary vua-warehouse-card__shop">
-            {item.shopName}
-          </p>
-        ) : null}
-        {item.variantName !== null ? (
-          <p className="vua-warehouse-card__variant" title={item.variantName}>
-            {item.variantName}
-          </p>
-        ) : null}
+        <p className="vua-caption vua-text-secondary vua-warehouse-card__shop" title={item.shopName ?? undefined}>
+          {item.shopName}
+        </p>
+        <p className="vua-warehouse-card__variant" title={item.variantName ?? undefined}>
+          {item.variantName}
+        </p>
         <div className="vua-warehouse-card__badges">
           {/* 在售是默认态不贴标;停售/未知/墓碑以中性灰文字徽标表达(§6.1) */}
           {/* 未知 = 诚实缺席不渲染(人审 2026-10-07);仅停售等明确事实出徽标 */}

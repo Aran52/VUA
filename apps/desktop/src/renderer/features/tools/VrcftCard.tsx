@@ -52,7 +52,7 @@ export function VrcftCard({ hint, selected, onDetails, onReveal, onPrepareSteam 
   };
   return <>
     <EnvironmentCard title="VRCFaceTracking" titleContent={<>VRCFace<wbr />Tracking</>} icon="avatar" logo={<ToolLogo id="vrcft" icon="avatar" />} id="tool-vrcft"
-      hint={hint} selected={selected} action={action} status={shortStatus} actionHint={actionHint} onDetails={onDetails} onAction={act}
+      hint={hint} selected={selected} action={action} status={shortStatus} actionHint={actionHint} actionIcon={shortStatus === short.install ? "download" : undefined} onDetails={onDetails} onAction={act}
       disabled={action === "busy"} spinning={action === "busy"} warning={!!s?.issue && s.canStop} />
     <ToolDetails id="vrcft" title="VRCFaceTracking" selected={selected} className="vua-vrcft-detail">
       <header className="vua-environment-heading"><h2>VRCFaceTracking</h2><Button variant="subtle" onClick={onDetails}>{strings.environmentCards.closeDetails}</Button></header>

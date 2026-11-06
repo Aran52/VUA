@@ -79,6 +79,8 @@ environment, please review, install, retry, open the official page, launch or cl
 Every compact card reads the same way: logo, name and one line on what the item is on the left, and
 the next step in words on the right. An item still in development says so in the right part, in place of
 an action. A card's details hold whatever a player needs when something is wrong, including reinstalling.
+Installing uses one icon on every card. Library cards keep the same rows on every card, so shop and
+variant line up across the wall.
 
 ## Latency
 
@@ -90,8 +92,8 @@ tests sit one level down in the same panel.
 
 A Steam application that stopped working reinstalls from its details: Steam asks to uninstall, then VUA
 installs it again. Tools and other platforms offer this on each card. Play's details offer it for VRChat
-and SteamVR under "Software not working?". Unity setup offers Unity Hub, VCC and ALCOM from their
-official pages, because those installers are not VUA's to run.
+and SteamVR under "Software not working?", with PICO's own software on its official page. Unity setup
+offers Unity Hub, VCC and ALCOM from their official pages, because those installers are not VUA's to run.
 
 ## From materials to upload
 

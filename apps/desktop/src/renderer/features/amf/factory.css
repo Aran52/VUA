@@ -21,11 +21,12 @@
 .vua-workshop__rail { position: sticky; top: 0; display: flex; flex-direction: column; gap: var(--vua-space-4); min-width: 0; }
 .vua-workshop__rail > .vua-button:first-child { min-height: 64px; }
 .vua-workshop__lines { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.vua-workshop__line-item { position: relative; display: grid; gap: 4px; }
-.vua-workshop__line-item > .vua-workshop__line { width: 100%; padding-inline-end: 36px; }
-.vua-workshop__line-item[data-hidden] > .vua-workshop__line { opacity: 0.6; }
-/* A card closes from its corner: the x gives way to two bars, hide and delete. */
-.vua-workshop__line-menu { position: absolute; inset-inline-end: 6px; top: 6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-secondary); cursor: pointer; opacity: 0; }
+.vua-workshop__line-item { display: grid; gap: 4px; }
+.vua-workshop__line-row { position: relative; }
+.vua-workshop__line-row > .vua-workshop__line { width: 100%; padding-inline-end: 36px; }
+.vua-workshop__line-item[data-hidden] .vua-workshop__line { opacity: 0.6; }
+/* A line's menu opens from the triangle in its lower corner. */
+.vua-workshop__line-menu { position: absolute; inset-inline-end: 6px; bottom: 6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--vua-radius-control); background: transparent; color: var(--vua-text-secondary); cursor: pointer; opacity: 0; }
 .vua-workshop__line-item:hover .vua-workshop__line-menu, .vua-workshop__line-item:focus-within .vua-workshop__line-menu, .vua-workshop__line-item[data-selected] .vua-workshop__line-menu, .vua-workshop__line-menu[aria-expanded="true"] { opacity: 1; }
 .vua-workshop__line-menu:hover, .vua-workshop__line-menu:focus-visible { opacity: 1; background: color-mix(in srgb, var(--vua-text-strong) 8%, transparent); }
 .vua-workshop__line-menu:focus-visible { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }

@@ -1919,7 +1919,7 @@ demoTaskTitle: "Demo task",
         generated_vpm: "Generated VPM package",
       },
       kind: {
-        imported_material: "Batch import",
+        imported_material: "Local import",
         downloaded_material: "Authorized download",
       },
       mode: {

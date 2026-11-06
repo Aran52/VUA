@@ -4,7 +4,7 @@ const en = {
   readMore: "Read the explanation",
   uploadAction: "Check upload requirements",
   eligibilityTitle: "Check your account before upload",
-  eligibility: "Uploading a custom Avatar with Unity and the official SDK needs a full VRChat account and the New User trust rank or higher. You can still build and test locally below that rank. VUA cannot raise your rank or skip the official check.",
+  eligibility: "Uploading a custom Avatar with Unity and the official SDK needs a full VRChat account and the New User trust rank or higher. You can still build and test locally below that rank.",
   trust: {
     title: "Trust rank",
     body: "A full VRChat account with New User or higher can upload custom Avatars. Below that rank, local testing is still available.",
@@ -33,7 +33,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "查看说明",
     uploadAction: "查看上传条件",
     eligibilityTitle: "上传前确认账号条件",
-    eligibility: "用 Unity 和官方 SDK 上传自定义 Avatar，需要完整 VRChat 账号，并达到 New User 或更高信任等级。等级不足时仍可本地测试。VUA 不能替你提升等级或跳过官方检查。",
+    eligibility: "用 Unity 和官方 SDK 上传自定义 Avatar，需要完整 VRChat 账号，并达到 New User 或更高信任等级。等级不足时仍可本地测试。",
     trust: {
       title: "用户等级",
       body: "完整 VRChat 账号且达到 New User 或更高，才能上传自定义 Avatar。等级不足仍可本地测试。",
@@ -59,7 +59,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "查看說明",
     uploadAction: "查看上傳條件",
     eligibilityTitle: "上傳前確認帳號條件",
-    eligibility: "用 Unity 和官方 SDK 上傳自訂 Avatar，需要完整 VRChat 帳號，並達到 New User 或更高信任等級。等級不足時仍可本機測試。VUA 不能替你提升等級或跳過官方檢查。",
+    eligibility: "用 Unity 和官方 SDK 上傳自訂 Avatar，需要完整 VRChat 帳號，並達到 New User 或更高信任等級。等級不足時仍可本機測試。",
     trust: {
       title: "使用者等級",
       body: "完整 VRChat 帳號且達到 New User 或更高，才能上傳自訂 Avatar。等級不足仍可本機測試。",
@@ -85,7 +85,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "説明を見る",
     uploadAction: "アップロード条件を確認",
     eligibilityTitle: "アップロード前にアカウントを確認",
-    eligibility: "Unity と公式 SDK でカスタム Avatar をアップロードするには、VRChat アカウントと New User 以上のトラストランクが必要です。ランクが足りなくてもローカルでテストできます。VUA がランクを上げたり、公式チェックを省略したりすることはできません。",
+    eligibility: "Unity と公式 SDK でカスタム Avatar をアップロードするには、VRChat アカウントと New User 以上のトラストランクが必要です。ランクが足りなくてもローカルでテストできます。",
     trust: {
       title: "トラストランク",
       body: "VRChat アカウントで New User 以上になると、カスタム Avatar をアップロードできます。それ未満でもローカルテストは可能です。",
@@ -111,7 +111,7 @@ export const helpFaqCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", typeof 
     readMore: "설명 보기",
     uploadAction: "업로드 조건 보기",
     eligibilityTitle: "업로드 전 계정 확인",
-    eligibility: "Unity와 공식 SDK로 커스텀 Avatar를 업로드하려면 VRChat 계정과 New User 이상의 신뢰 등급이 필요해요. 등급이 부족해도 로컬 테스트는 할 수 있어요. VUA가 등급을 올리거나 공식 확인을 우회하지는 않아요.",
+    eligibility: "Unity와 공식 SDK로 커스텀 Avatar를 업로드하려면 VRChat 계정과 New User 이상의 신뢰 등급이 필요해요. 등급이 부족해도 로컬 테스트는 할 수 있어요.",
     trust: {
       title: "사용자 등급",
       body: "VRChat 계정에서 New User 이상이어야 커스텀 Avatar를 업로드할 수 있어요. 그 미만이어도 로컬 테스트는 가능해요.",

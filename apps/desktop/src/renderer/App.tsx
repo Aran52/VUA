@@ -264,9 +264,8 @@ function ThemeSettingsPage({
         <h1 className="vua-title">{strings.nav.pages.settingsTheme}</h1>
       </section>
       <Card className="vua-settings-group">
-        <h2>{presentationCopy.settings.group}</h2>
         <div className="vua-preference-row">
-          <div><h3>{presentationCopy.settings.family}</h3><p>{presentationCopy.settings.familyHint}</p></div>
+          <div><h3>{presentationCopy.settings.family}</h3></div>
           <div className="vua-theme-family" role="group" aria-label={presentationCopy.settings.family}>
             {familyOptions.map(option => (
               <button
@@ -286,8 +285,8 @@ function ThemeSettingsPage({
           </div>
         </div>
         <div className="vua-preference-row">
-          <div><h3>{copy.appearanceHeading}</h3><p id="theme-appearance-hint">{fixedTheme ? presentationCopy.settings.fixedAppearanceHint : presentationCopy.settings.appearanceHint}</p></div>
-          <div className="vua-theme-choice" role="group" aria-label={copy.appearanceAria} aria-describedby="theme-appearance-hint" aria-disabled={fixedTheme !== null}>
+          <div><h3>{copy.appearanceHeading}</h3>{fixedTheme ? <p id="theme-appearance-hint">{presentationCopy.settings.fixedAppearanceHint}</p> : null}</div>
+          <div className="vua-theme-choice" role="group" aria-label={copy.appearanceAria} aria-describedby={fixedTheme ? "theme-appearance-hint" : undefined} aria-disabled={fixedTheme !== null}>
             <span
               className="vua-theme-choice__selection"
               aria-hidden="true"
@@ -309,7 +308,7 @@ function ThemeSettingsPage({
           </div>
         </div>
         <div className="vua-preference-row">
-          <div><h3>{copy.hcHeading}</h3><p>{presentationCopy.settings.contrastHint}</p></div>
+          <div><h3>{copy.hcHeading}</h3></div>
           <div className="vua-theme-choice vua-theme-choice--pair" role="group" aria-label={copy.hcAria}>
             <span
               className="vua-theme-choice__selection"

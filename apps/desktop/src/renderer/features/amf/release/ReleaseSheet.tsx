@@ -247,7 +247,6 @@ export function ReleaseSheet({ run, title, state, number, live, actions, notice,
     <header className="vua-album__heading">
       <span className="vua-album__number">{format(copy.number, { number: String(number).padStart(2, "0") })}</span>
       <h2>{title}</h2>
-      <p className="vua-text-secondary">{materialsLine(run)}</p>
       {run.completedAt && <p className="vua-caption vua-text-secondary">{format(copy.finishedAt, { time: time(run.completedAt) })}</p>}
     </header>
     {notice}

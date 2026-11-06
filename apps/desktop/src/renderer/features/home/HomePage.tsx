@@ -22,9 +22,9 @@ const factory = strings.factory;
 const structure = structureCopy[currentLocale];
 const copy = structure.home;
 const flow = playFlowCopy[currentLocale];
-const ROUTES: readonly { readonly route: PlayRoute; readonly id: string; readonly hint: string }[] = [
+const ROUTES: readonly { readonly route: PlayRoute; readonly id: string; readonly hint?: string }[] = [
   { route: "desktop_play", id: "home-route-desktop", hint: structure.routes.desktop },
-  { route: "pico_pcvr", id: "home-route-pico", hint: structure.routes.pico },
+  { route: "pico_pcvr", id: "home-route-pico" },
 ];
 /** Rows the activity list shows before pointing at the workshop for the rest. */
 const MAX_LINE_ROWS = 3;

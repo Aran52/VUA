@@ -678,8 +678,8 @@ function PredictionNote({ prediction }: { prediction: AmfPlanPrediction }) {
 function RecommendationNote({ recommendation, prefabs }: { recommendation: AmfRecommendation; prefabs: readonly AmfPrefab[] }) {  const reasons = strings.factory.reasons;
   const prefabName = (path: string) => prefabs.find(prefab => prefab.path === path)?.name ?? path.split("/").pop()?.replace(/\.prefab$/iu, "") ?? path;
   const parts = [
-    ...(recommendation.avatar.path && recommendation.avatar.reason ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),
-    ...recommendation.outfits.flatMap(outfit => outfit.path && outfit.reason ? [format(reasons[outfit.reason], { name: prefabName(outfit.path) })] : []),
+    ...(recommendation.avatar.path && recommendation.avatar.reason && recommendation.avatar.reason !== "only" ? [format(reasons[recommendation.avatar.reason], { name: prefabName(recommendation.avatar.path) })] : []),
+    ...recommendation.outfits.flatMap(outfit => outfit.path && outfit.reason && outfit.reason !== "only" ? [format(reasons[outfit.reason], { name: prefabName(outfit.path) })] : []),
   ];
   if (parts.length === 0) return null;
   return <p className="vua-caption vua-text-secondary">{format(reasons.lead, { reasons: parts.join(reasons.join) })}</p>;

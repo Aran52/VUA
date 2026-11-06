@@ -1921,7 +1921,7 @@ rolled_back: "已回滚",
       },
       /** 条目路径(键与 gateway WarehouseEntryKind 对应) */
       kind: {
-        imported_material: "批量导入",
+        imported_material: "本地导入",
         downloaded_material: "授权下载",
       },
       /** 产物模式(键与 gateway WarehouseArtifactMode 对应;模式行是 F4-9 编辑展示位) */

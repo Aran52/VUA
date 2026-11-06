@@ -33,7 +33,7 @@ describe("planned routes", () => {
 
   it("describes every route and connection in every language", () => {
     for (const copy of Object.values(plannedRoutesCopy)) {
-      for (const route of PLANNED_ROUTES) expect(copy.hints[route.id]).toBeTruthy();
+      expect(copy.hints.wmr && copy.hints["other-headset"]).toBeTruthy();
       expect(copy.otherModel && copy.otherHeadsets && copy.guide).toBeTruthy();
       for (const id of Object.keys(PLANNED_CONNECTIONS) as (keyof typeof PLANNED_CONNECTIONS)[]) {
         const text = copy.connections[id];

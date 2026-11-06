@@ -104,14 +104,14 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
     </div>)}
   </SlideDrawer>;
   const plannedCard = (route: (typeof PLANNED_ROUTES)[number]) => <div className="vua-card-entry" data-card-entry={`route-${route.id}`} data-other={route.other} key={route.id}>
-    <EnvironmentCard title={plannedTitle(route)} hint={plannedCopy.hints[route.id]} brand={route.brand} kind={route.brand ? undefined : "headset"} id={`route-${route.id}`}
+    <EnvironmentCard title={plannedTitle(route)} hint={(plannedCopy.hints as Partial<Record<string, string>>)[route.id]} brand={route.brand} kind={route.brand ? undefined : "headset"} id={`route-${route.id}`}
       action="unknown" status="" actionText={plannedCopy.guide} actionHint={plannedCopy.guide} selected={selected === route.id} onDetails={() => toggle(route.id)} onAction={() => toggle(route.id)} />
   </div>;
   const mainCards: ReactNode[] = [
     ...PLAY_ROUTES.map(route => {
       const step = steps[route];
       return <div className="vua-card-entry" data-card-entry={cardId(route)} key={route}>
-        <EnvironmentCard title={title(route)} hint={route === "desktop_play" ? structure.routes.desktop : structure.routes.pico} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={cardId(route)}
+        <EnvironmentCard title={title(route)} hint={route === "desktop_play" ? structure.routes.desktop : undefined} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={cardId(route)}
           action={stepAction(step?.phase)} actionIcon={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.icon} phase={step?.phase}
           status={step?.label ?? copy.checking} actionHint={step?.phase === "launch" || step?.phase === "stop" ? undefined : step?.label ?? copy.checking} spinning={step === undefined || step.spinning} disabled={step === undefined || step.disabled}
           primary={stepIsPrimary(step)} progress={step?.percent} warning={!!live.sessions[route]?.issue} selected={selected === route} onDetails={() => toggle(route)} onAction={() => next(route)} />

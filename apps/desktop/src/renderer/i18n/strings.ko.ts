@@ -1875,7 +1875,7 @@ rolled_back: "롤백됨",
         generated_vpm: "생성된 VPM 패키지",
       },
       kind: {
-        imported_material: "일괄 가져오기",
+        imported_material: "로컬 가져오기",
         downloaded_material: "인가된 다운로드",
       },
       mode: {

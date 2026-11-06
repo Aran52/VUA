@@ -93,7 +93,7 @@ export const releaseRoomCopy = {
     },
     uploadGuide: {
       title: "Upload it yourself in the VRChat SDK panel",
-      intro: "Four steps on the SDK 3.10.5 panel. A managed upload does these for you; this guide is for uploading yourself or checking a problem.",
+      intro: "Four steps on the SDK 3.10.5 panel.",
       step1: { title: "Select the Avatar", text: "In the panel's Builder tab, select the Avatar to upload — the same one this page shows.",
         shot: "The SDK panel's Builder tab with the Avatar selected" },
       step2: { title: "Build & Publish", text: "Select Build & Publish. A new Avatar needs a name in Name and a picture in Thumbnail.",
@@ -256,7 +256,7 @@ export const releaseRoomCopy = {
     },
     uploadGuide: {
       title: "在 VRChat SDK 面板里自己上传",
-      intro: "共四步，以 SDK 3.10.5 面板为例。托管上传会替你完成这些；这份图解用于自己上传或排查问题。",
+      intro: "共四步，以 SDK 3.10.5 面板为例。",
       step1: { title: "选中 Avatar", text: "在面板的 Builder（构建）页签里，选中要上传的 Avatar，就是本页这个。",
         shot: "SDK 面板 Builder 页签里选中的 Avatar" },
       step2: { title: "构建并发布", text: "点 Build & Publish（构建并发布）；新 Avatar 要在 Name（名字）里填名字，在 Thumbnail（缩略图）里传一张图。",
@@ -419,7 +419,7 @@ export const releaseRoomCopy = {
     },
     uploadGuide: {
       title: "在 VRChat SDK 面板裡自己上傳",
-      intro: "共四步，以 SDK 3.10.5 面板為例。託管上傳會替你完成這些；這份圖解用於自己上傳或排查問題。",
+      intro: "共四步，以 SDK 3.10.5 面板為例。",
       step1: { title: "選中 Avatar", text: "在面板的 Builder（構建）頁籤裡，選中要上傳的 Avatar，就是本頁這個。",
         shot: "SDK 面板 Builder 頁籤裡選中的 Avatar" },
       step2: { title: "構建並發佈", text: "點 Build & Publish（構建並發佈）；新 Avatar 要在 Name（名字）裡填名字，在 Thumbnail（縮圖）裡傳一張圖。",
@@ -582,7 +582,7 @@ export const releaseRoomCopy = {
     },
     uploadGuide: {
       title: "VRChat SDK パネルで自分でアップロード",
-      intro: "SDK 3.10.5 パネルの 4 ステップです。管理アップロードならこれらは自動です。自分でアップロードするときや、問題を調べるときに読んでください。",
+      intro: "SDK 3.10.5 パネルの 4 ステップです。",
       step1: { title: "Avatar を選ぶ", text: "パネルの Builder(ビルダー)タブで、アップロードする Avatar を選びます。このページと同じ Avatar です。",
         shot: "SDK パネルの Builder タブで選ばれた Avatar" },
       step2: { title: "Build & Publish", text: "Build & Publish(ビルドして公開)を押します。新しい Avatar には Name(名前)に名前を、Thumbnail(サムネイル)に画像を設定します。",
@@ -745,7 +745,7 @@ export const releaseRoomCopy = {
     },
     uploadGuide: {
       title: "VRChat SDK 패널에서 직접 업로드하기",
-      intro: "SDK 3.10.5 패널 기준 네 단계예요. 관리형 업로드는 이 과정을 대신해 줘요. 직접 업로드하거나 문제를 확인할 때 볼 만해요.",
+      intro: "SDK 3.10.5 패널 기준 네 단계예요.",
       step1: { title: "Avatar 선택", text: "패널의 Builder(빌더) 탭에서 업로드할 Avatar를 선택하세요. 이 페이지에 있는 그 Avatar예요.",
         shot: "SDK 패널의 Builder 탭에서 선택된 Avatar" },
       step2: { title: "Build & Publish", text: "Build & Publish(빌드 후 게시)를 누르세요. 새 Avatar는 Name(이름)에 이름을 적고 Thumbnail(섬네일)에 그림을 올려야 해요.",

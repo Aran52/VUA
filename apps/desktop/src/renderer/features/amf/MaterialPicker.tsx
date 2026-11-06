@@ -8,6 +8,10 @@ import { MaterialThumb, useMaterialImages } from "./PlanImages.tsx";
 
 const copy = strings.amfProduction;
 
+/** "Coat.zip" holding "Coat.unitypackage" needs one line. */
+const baseName = (name: string) => name.replace(/\.(zip|unitypackage)$/iu, "").toLocaleLowerCase();
+const sameName = (item: string, file: string) => baseName(item) === baseName(file);
+
 export function MaterialPicker({ sources, chosen, onChange, disabled }: {
   sources: readonly AmfProductionSource[]; chosen: readonly string[]; onChange: (ids: readonly string[]) => void; disabled: boolean;
 }) {
@@ -22,7 +26,7 @@ export function MaterialPicker({ sources, chosen, onChange, disabled }: {
       <div className="vua-n3__materials">{filtered.slice(0, visible).map(source => <label key={source.sourceId} className="vua-n3__material" data-selected={chosen.includes(source.sourceId) || undefined}>
         <input type="checkbox" checked={chosen.includes(source.sourceId)} disabled={disabled || (!chosen.includes(source.sourceId) && chosen.length >= 64)}
           onChange={e => onChange(e.target.checked ? [...chosen, source.sourceId] : chosen.filter(id => id !== source.sourceId))}/>
-        <MaterialThumb src={image(source)} /><span><strong title={source.itemName}>{source.itemName}</strong><small title={source.name}>{source.name}</small></span></label>)}</div>}
+        <MaterialThumb src={image(source)} /><span><strong title={source.itemName}>{source.itemName}</strong>{sameName(source.itemName, source.name) ? null : <small title={source.name}>{source.name}</small>}</span></label>)}</div>}
     {filtered.length > visible && <Button variant="subtle" onClick={() => setVisible(v => v + 60)}>{copy.more}</Button>}
   </>;
 }

@@ -1882,7 +1882,7 @@ rolled_back: "ロールバック済み",
         generated_vpm: "生成 VPM パッケージ",
       },
       kind: {
-        imported_material: "一括インポート",
+        imported_material: "ローカル取り込み",
         downloaded_material: "認可済みダウンロード",
       },
       mode: {

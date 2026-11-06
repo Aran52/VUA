@@ -15,10 +15,10 @@ import { GUIDE_TARGETS } from "../guide/guide-target.ts";
 const hints = structureCopy[currentLocale].help;
 
 /** One thing Help can do, done directly: a row opens its page or starts its tour or window. */
-function HelpRow({ id, icon, title, hint, onClick }: { id: string; icon: IconName; title: string; hint: string; onClick: () => void }) {
+function HelpRow({ id, icon, title, hint, onClick }: { id: string; icon: IconName; title: string; hint?: string; onClick: () => void }) {
   return <button type="button" className="vua-help-row" data-nav-id={id} onClick={onClick}>
     <Icon name={icon} size={20} />
-    <span className="vua-help-row__text"><strong>{title}</strong><small>{hint}</small></span>
+    <span className="vua-help-row__text"><strong>{title}</strong>{hint ? <small>{hint}</small> : null}</span>
     <Icon name="arrow-right" size={16} />
   </button>;
 }
@@ -74,9 +74,9 @@ export function HelpPage({ page, navigate, startTour, guideRequest, acknowledgeG
     <section className="vua-help-section" aria-labelledby="help-vua-title">
       <h2 id="help-vua-title">{faq.vuaTitle}</h2>
       <div className="vua-help-rows">
-        <HelpRow id="help-tour" icon="question" title={strings.tour.paletteEntry} hint={hints.tourHint} onClick={startTour} />
-        <HelpRow id="help-wizard" icon="arrow-right" title={copy.wizard} hint={hints.wizardHint} onClick={() => navigate("help-wizard")} />
-        <HelpRow id="help-encyclopedia" icon="folder" title={copy.guide} hint={hints.encyclopediaHint} onClick={() => navigate("help-encyclopedia")} />
+        <HelpRow id="help-tour" icon="question" title={strings.tour.paletteEntry} onClick={startTour} />
+        <HelpRow id="help-wizard" icon="arrow-right" title={copy.wizard} onClick={() => navigate("help-wizard")} />
+        <HelpRow id="help-encyclopedia" icon="folder" title={copy.guide} onClick={() => navigate("help-encyclopedia")} />
         <HelpRow id="help-game-assistant" icon="anim" title={copy.gameGuide} hint={hints.gameHint} onClick={openGameGuide} />
       </div>
       {openFailed ? <p role="status">{strings.helpUi.openFailed}</p> : null}

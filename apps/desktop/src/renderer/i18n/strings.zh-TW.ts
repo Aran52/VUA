@@ -1921,7 +1921,7 @@ rolled_back: "已回滾",
       },
       /** 條目路徑(鍵與 gateway WarehouseEntryKind 對應) */
       kind: {
-        imported_material: "批次匯入",
+        imported_material: "本機匯入",
         downloaded_material: "授權下載",
       },
       /** 產物模式(鍵與 gateway WarehouseArtifactMode 對應;模式行是 F4-9 編輯展示位) */

@@ -89,11 +89,11 @@ export function HomePage({ navigate, amfInstalled = false, lines }: {
         <Icon name="arrow-right" size={20} /><strong>{format(copy.moreLines, { count: needsYou.length - MAX_LINE_ROWS })}</strong>
       </button> : null}
     </section> : null}
-    <section className="vua-home__section vua-compact-environments" data-module="env">
+    <section className="vua-home__section vua-compact-environments">
       <h2>{directoryGroupLabel("env")}</h2>
       <PlayRoutes navigate={navigate} />
     </section>
-    <section className="vua-home__section" data-module="production">
+    <section className="vua-home__section">
       <div className="vua-environment-heading">
         <h2>{directoryGroupLabel("production")}</h2>
         {amfInstalled ? <Button variant="primary" data-nav-id="home-new-line" onClick={startLine}>{lines.loaded && lines.materials === 0 ? copy.importMaterials : factory.newLine}</Button> : null}

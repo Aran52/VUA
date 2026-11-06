@@ -2,9 +2,7 @@
 .vua-segments {
   position: relative;
   display: inline-flex;
-  gap: 2px;
   min-height: 32px;
-  padding: 2px;
   border: 1px solid var(--vua-border);
   border-radius: var(--vua-radius-control);
   background: var(--vua-bg-panel);
@@ -16,7 +14,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--vua-space-2);
-  min-height: 26px;
+  min-height: 30px;
   padding: 0 var(--vua-space-3);
   border: 0;
   border-radius: inherit;

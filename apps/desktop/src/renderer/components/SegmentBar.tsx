@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef } from "react";
 import { canAnimate, milliseconds, motionOff, token } from "./primitives/motion.ts";
 import "./segment-bar.css";
 
+const FILL_INSET = 2;
+
 /** The chosen option's fill and light bar: one element that travels between options, so a change of
  * view reads as one movement. Put it first inside a `.vua-segments` group and pass the chosen key. */
 export function SegmentBar({ selected }: { selected: string }) {
@@ -14,7 +16,8 @@ export function SegmentBar({ selected }: { selected: string }) {
     const place = (moving: boolean) => {
       const option = group.querySelector<HTMLElement>('[aria-pressed="true"], [aria-selected="true"]');
       if (!option) { element.style.opacity = "0"; last.current = null; return; }
-      const next = { x: option.offsetLeft, width: option.offsetWidth };
+      // The fill stays clear of the group's edge and of its neighbours, as it does above and below.
+      const next = { x: option.offsetLeft + FILL_INSET, width: option.offsetWidth - 2 * FILL_INSET };
       const from = last.current;
       last.current = next;
       element.style.opacity = "1";

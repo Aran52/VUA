@@ -123,7 +123,7 @@
 .vua-recipe-card__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vua-space-2); margin-top: auto; padding: var(--vua-space-2) var(--vua-space-3); border-top: 1px solid var(--vua-border); }
 .vua-recipe-card__actions { display: flex; align-items: center; gap: var(--vua-space-1); margin-inline-start: auto; }
 .vua-recipe-more { width: 32px; min-width: 32px; padding: 0; }
-.vua-recipe-picture { display: grid; place-items: center; overflow: hidden; background: color-mix(in srgb, var(--kind, var(--vua-text-secondary)) 14%, var(--vua-bg-canvas)); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); color: var(--kind, var(--vua-text-secondary)); font: var(--vua-font-caption); }
+.vua-recipe-picture { display: grid; place-items: center; overflow: hidden; background: var(--vua-bg-canvas); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); color: var(--kind, var(--vua-text-secondary)); font: var(--vua-font-caption); }
 .vua-recipe-picture[data-size="large"] { width: 88px; height: 88px; }
 .vua-recipe-picture[data-size="small"] { flex: none; width: 28px; height: 28px; }
 .vua-recipe-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }

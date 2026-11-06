@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { EXTERNAL_TOOL_ACTIONS, EXTERNAL_TOOL_IDS, type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ExternalToolSnapshot } from "@vua/contracts";
+import { type DesktopGatewayRequestV1, type DesktopGatewayResponseV1, type ExternalToolSnapshot } from "@vua/contracts";
 import { AiToolsServer } from "./ai-tools-server.js";
 import { MCP_RETRYABLE_CODES, errorFields, runSummary, safeErrorMessage, taskChange, taskSummary } from "./ai-tool-results.js";
-import { AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
+import { AGENT_TOOL_ACTIONS, AGENT_TOOL_IDS, AI_TOOLS, aiGatewayRequest } from "./ai-tool-catalog.js";
 import { request as httpRequest } from "node:http";
 import { reportLibrary, reportRun, reportRunWithRevisions, reportStatus, reportTasks } from "./ai-tool-results.fixtures.js";
 
@@ -118,7 +118,7 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect((await client.callTool({name:"vua_unity_license",arguments:{editorPath:"C:/synthetic/Unity.exe"}})).isError).toBe(true);
     expect(calls).toHaveLength(1);
   });
-  it.each(EXTERNAL_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
+  it.each(AGENT_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
     const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.3", toolId,
       capturedAt: "2026-10-29T00:00:00.000Z", presence: "installed", steamReady: true, buildId: "12345",
       running: false, canStop: false, activity: "idle", issue: null };
@@ -129,7 +129,7 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ method: "tools.observeConnection", params: { toolId } });
     expect(service.snapshot().requests).toEqual([]);
-    for (const action of EXTERNAL_TOOL_ACTIONS) {
+    for (const action of AGENT_TOOL_ACTIONS) {
       const before = calls.length;
       const args = { toolId, action };
       const queued = await client.callTool({ name: "vua_request_tool", arguments: args });
@@ -154,13 +154,16 @@ describe("built-in MCP, using the official HTTP client", () => {
     const catalog = await client.listTools();
     for (const name of ["vua_tool_status", "vua_request_tool"]) {
       const tool = catalog.tools.find(tool => tool.name === name)!;
-      expect(tool.inputSchema.properties?.toolId).toEqual({ enum: [...EXTERNAL_TOOL_IDS] });
-      for (const toolId of ["unknown", "liv", "vrcs"]) {
+      expect(tool.inputSchema.properties?.toolId).toEqual({ enum: [...AGENT_TOOL_IDS] });
+      for (const toolId of ["unknown", "liv", "vrcs", "vrchat", "steamvr"]) {
         const result = await client.callTool({ name, arguments: { toolId, ...(name === "vua_request_tool" ? { action: "start" } : {}) } });
         expect(result.isError).toBe(true);
         expect(data(result)).toHaveProperty("error", "unsupported_tool_or_parameters");
       }
     }
+    const reinstall = await client.callTool({ name: "vua_request_tool", arguments: { toolId: "vrcft", action: "reinstall" } });
+    expect(reinstall.isError).toBe(true);
+    expect(data(reinstall)).toHaveProperty("error", "unsupported_tool_or_parameters");
     expect(calls).toEqual([]);
     expect(service.snapshot().requests).toEqual([]);
   });

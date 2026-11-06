@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.11.0
+> Document version: 0.12.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-06
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -49,7 +49,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
 | `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
-| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR and OVR Overlay Translator |
+| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR and Reborn |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
@@ -60,11 +60,13 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_withdraw_request` | Withdraws a request still waiting for the player; nothing runs |
 
 The two Steam tools accept the `toolId` values from `EXTERNAL_TOOL_IDS` in
-`packages/contracts/src/external-tool.ts`; other IDs are rejected by the MCP input schema.
+`packages/contracts/src/external-tool.ts` apart from VRChat and SteamVR, which agents reach through
+the play tools; other IDs are rejected by the MCP input schema.
 For example, `vua_tool_status {"toolId":"space"}` reads Space Calibrator's installation and
 process facts. `vua_request_tool {"toolId":"space","action":"start"}` queues a request for the
 player to approve on the Tools page before dispatch. Actions and observed fields follow
-[external tool connection v0.3](external-tool-v0.3.md). Installation or a running process does
+[external tool connection v0.3](external-tool-v0.3.md), and a reinstall stays with the player on the
+tool's own page. Installation or a running process does
 not establish module, hardware, tracking or OSC configuration.
 
 `vua_amf_plan` without a selection plans VUA's [recommendation](amf-production-v0.1.md) and returns
@@ -240,6 +242,7 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.12.0 (2026-11-06): add ChilloutVR and Reborn to the Steam tools; VRChat and SteamVR stay with the play tools, and a reinstall stays with the player.
 - 0.10.1 (2026-10-31): the connection page opens from its own top-bar button instead of Help.
 - 0.10.0 (2026-10-29): expose all six connected Steam tools through contract-derived MCP tool IDs, retaining player approval on the Tools page and installation/process-only observations.
 - 0.9.0 (2026-10-24): expose complete Recipe material checklists and reviewed mapping differences.

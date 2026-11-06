@@ -1320,13 +1320,14 @@
 .vua-vn3-filter__states input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .vua-vn3-filter__states label:has(input:focus-visible) { outline: 2px solid var(--vua-border-focus); outline-offset: 1px; }
 .vua-vn3-filter small { color: var(--vua-text-secondary); font: var(--vua-font-caption); font-variant-numeric: tabular-nums; }
-.vua-vn3-filter__allow { position: relative; flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.vua-vn3-filter__read { position: absolute; top: 0; right: 0; z-index: 1; }
+/* The list scrolls here: a fieldset's content box takes no height from a flex parent. The bleed keeps focus rings whole. */
+.vua-vn3-filter__allow { position: relative; flex: 1; min-width: 0; min-height: 0; margin-inline: calc(-1 * var(--vua-space-1)); padding-inline: var(--vua-space-1); overflow-y: auto; }
+.vua-vn3-filter__read { position: absolute; top: 0; right: var(--vua-space-1); z-index: 1; }
 .vua-vn3-filter__read .vua-library-terms-read { display: flex; flex-direction: row-reverse; align-items: center; }
-.vua-vn3-filter__items { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; border: 0; }
+.vua-vn3-filter__items { min-width: 0; margin: 0; padding: 0; border: 0; }
 .vua-vn3-filter__items:disabled { opacity: 0.5; }
 .vua-vn3-filter__items legend { display: flex; align-items: center; min-height: 32px; margin-bottom: var(--vua-space-2); padding: 0; color: var(--vua-text-strong); font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
-.vua-vn3-filter__groups { flex: 1; min-height: 0; overflow-y: auto; column-count: 2; column-gap: var(--vua-space-5); }
+.vua-vn3-filter__groups { column-count: 2; column-gap: var(--vua-space-5); }
 .vua-vn3-filter__groups section { break-inside: avoid; margin-bottom: var(--vua-space-3); }
 .vua-vn3-filter__groups h3 { margin: 0 0 var(--vua-space-1); color: var(--vua-text-secondary); font: var(--vua-font-caption); }
 .vua-vn3-filter__groups label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--vua-space-2); min-height: 24px; font: var(--vua-font-caption); cursor: pointer; }

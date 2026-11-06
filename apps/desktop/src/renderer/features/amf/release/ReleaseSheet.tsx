@@ -6,7 +6,7 @@ import { AMF_UPLOAD_STAGES, type AmfProductionRun, type AmfReleaseState, type Am
 import { format, formatDateTime, strings } from "../../../i18n/index.ts";
 import { sdkMessageKey } from "./sdk-messages.ts";
 import { UploadGuide, scrollToUploadGuide } from "./UploadGuide.tsx";
-import { materialsLine, outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
+import { outfitLines, releaseChecks, runningUpload, sdkReviewView, uploadedAvatarId, type CheckLine } from "./release-model.ts";
 
 const copy = strings.releaseRoom;
 const vrchatCopy = strings.vrchat.release;

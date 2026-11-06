@@ -238,12 +238,12 @@ pub fn list(
             .map(|entry| json!({"entryId":entry.warehouse_item_id,"displayName":entry.display_name})).collect();
         if !local_entries.is_empty() { rows.last_mut().expect("product row")["localEntries"] = json!(local_entries); }
         if current {
-            let (first_seen, published) = dates.get(&product.product_id).cloned().unwrap_or((None, None));
+            let product_dates = dates.get(&product.product_id).cloned().unwrap_or_default();
             let earliest_copy = attached.iter().map(|copy| copy.copy.created_at.clone()).min();
-            let added = [first_seen, earliest_copy].into_iter().flatten().min();
+            let added = [product_dates.first_seen_at, earliest_copy].into_iter().flatten().min();
             let row = rows.last_mut().expect("product row");
             row["addedAt"] = json!(added);
-            row["publishedAt"] = json!(published);
+            row["publishedAt"] = json!(product_dates.published_at);
             row["sizeBytes"] = json!(present_size(&attached, &presences));
         }
     }

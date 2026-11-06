@@ -6,6 +6,7 @@ import { storageKeys } from "../../src/renderer/app/storage-keys.ts";
 import { TOUR_STEPS } from "../../src/renderer/features/tour/tour-model.ts";
 import { BEGINNER_CONCEPTS } from "../../src/renderer/features/help/beginner-wizard-model.ts";
 import { playFlowCopy } from "../../src/renderer/i18n/play-flow-copy.ts";
+import { plannedRoutesCopy } from "../../src/renderer/i18n/planned-routes-copy.ts";
 import { structureCopy } from "../../src/renderer/i18n/structure-copy.ts";
 import "@vua/design-system/tokens.css";
 import "@vua/design-system/base.css";
@@ -386,7 +387,7 @@ const review = {
     playStates.desktop_play = "idle";
     await click(flowCopy.refreshDevices); await wait(() => card().dataset.action === "start", "all owned software exited");
     check("exit of all owned software restores Play without an extra close request", playCalls.filter(call => call.startsWith("environment.stopPlay:")).length === 1);
-    check("Quest, Vive and Index remain development peers", ["quest", "vive", "index"].every(id => document.querySelector(`[data-card="route-${id}"] .vua-environment-card__developing`)?.textContent === copy.developing));
+    check("Quest, Vive and Index offer their connection guide as peers", ["quest", "vive", "index"].every(id => document.querySelector(`[data-card="route-${id}"] .vua-environment-card__developing`)?.textContent === plannedRoutesCopy[currentLocale].guide));
     playUnavailable = true; await click(flowCopy.refreshDevices); await wait(() => card().dataset.action === "unknown", "provider failure shown as unknown");
     check("provider failure is unknown instead of missing or ready", card().textContent?.includes(flowCopy.phases.unavailable));
     await click(unitySetup); await wait(() => document.querySelector('[data-nav-id="editor-2019.4.31f1"]'));

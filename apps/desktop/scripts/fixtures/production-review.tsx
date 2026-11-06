@@ -144,7 +144,7 @@ function settleSave(success = true) {
     assets: document.assets.map((asset: any) => ({ ...asset, label: `asset-rev-${revision}` })) };
   resolve(ok({ recipeId: document.recipeId, revision }));
 }
-async function openCompose() { await click(strings.nav.pages.composePage); }
+async function openCompose() { await click(strings.recipe.createCta); }
 async function save() { await click(strings.compose.saveCta); }
 async function recipeTests() {
   window.vua = { gateway: { invoke } } as any;

@@ -17,10 +17,6 @@ export function avatarTitle(run: AmfProductionRun): string {
 }
 
 /** The packages that went into the Avatar: "Meiyun + TshirtShorts_Meiyun". */
-export function materialsLine(run: AmfProductionRun): string {
-  return [...new Set(run.sources.map(source => baseName(source.itemName)))].join(" + ");
-}
-
 /** A name VRChat accepts for a new Avatar, proposed from the Avatar and its outfits. */
 export function proposedUploadName(run: AmfProductionRun): string {
   const outfits = outfitLines(run).map(outfit => outfit.name);

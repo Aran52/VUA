@@ -1,6 +1,13 @@
 //! Local evidence read faces. Current presence and task interpretation belong to AMF.
 use super::*;
 
+/// When a product first entered an account library, and BOOTH's own publish date when recorded.
+#[derive(Clone, Debug, Default)]
+pub struct LibraryProductDates {
+    pub first_seen_at: Option<String>,
+    pub published_at: Option<String>,
+}
+
 pub struct LibraryCopyEvidence {
     pub copy: StoredArtifactCopy,
     pub size_bytes: u64,
@@ -41,13 +48,12 @@ impl BdlStore {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    /// When each product first entered an account library, and BOOTH's own publish date when recorded.
-    pub fn library_product_dates(&self) -> Result<std::collections::HashMap<String, (Option<String>, Option<String>)>, BdlStoreError> {
+    pub fn library_product_dates(&self) -> Result<std::collections::HashMap<String, LibraryProductDates>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         let mut statement = connection.prepare(
             "SELECT p.product_id,(SELECT MIN(m.first_seen_at) FROM product_library_memberships m WHERE m.product_id=p.product_id),p.source_published_at FROM products p",
         )?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, (row.get::<_, Option<String>>(1)?, row.get::<_, Option<String>>(2)?))))?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, LibraryProductDates { first_seen_at: row.get(1)?, published_at: row.get(2)? })))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 

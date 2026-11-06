@@ -48,7 +48,7 @@ mod managed_library_files;
 pub use managed_library_files::{ManagedLibraryFile, ManagedLibraryDelivery};
 #[path = "library_evidence.rs"]
 mod library_evidence;
-pub use library_evidence::LibraryCopyEvidence;
+pub use library_evidence::{LibraryCopyEvidence, LibraryProductDates};
 #[path = "archive_members.rs"]
 mod archive_members;
 pub use archive_members::{ArchiveMember, StoredArchiveMember};

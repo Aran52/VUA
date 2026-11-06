@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AmfProductionRun, AmfReleaseState } from "../../../gateway/index.ts";
-import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, materialsLine, outfitLines, proposedUploadName, releaseChecks, sdkReviewView, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
+import { avatarTitle, cubicBezier, dragProgress, durationOf, easeInOut, easingOf, finishedRunIds, outfitLines, proposedUploadName, releaseChecks, sdkReviewView, turnCompletes, turnTo, uploadedAvatarId, viewAfter } from "./release-model.ts";
 
 const run = {
   schemaVersion: "0.1", runId: "n3-a", phase: "succeeded", taskId: "t", editor: { path: "Unity.exe", version: "2022.3.22f1" }, projectRoot: "C:/w", choices: [],
@@ -21,7 +21,6 @@ describe("release room facts", () => {
   it("names the Avatar, its materials and a VRChat name from what Unity observed", () => {
     expect(avatarTitle(run)).toBe("Meiyu_改変");
     expect(avatarTitle({ ...run, result: null })).toBe("Meiyun");
-    expect(materialsLine(run)).toBe("Meiyun_v2.1.0 + TshirtShorts_Meiyun_v1.00");
     expect(proposedUploadName(run)).toBe("Meiyu_改変 TshirtShorts");
     expect([...proposedUploadName({ ...run, result: { facts: { ...run.result!.facts!, avatarName: "名".repeat(80) } } })]).toHaveLength(64);
     expect(outfitLines(run)).toEqual([{ name: "TshirtShorts", toggle: "T-shirt", active: true }]);

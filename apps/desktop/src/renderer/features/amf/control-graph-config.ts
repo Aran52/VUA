@@ -42,13 +42,11 @@ export const GRAPH_CONFIG = {
   nodeRadius: { recipe: 24, avatar: 20, outfit: 13, material: 11, package: 14 } satisfies Record<GraphNodeKind, number>,
   linkLength: { avatar: 120, outfit: 92, material: 110, package: 170 } satisfies Record<GraphEdgeKind, number>,
   label: {
-    maxChars: 30,
-    /** Graphs up to this size show every caption; larger ones show Recipes and Avatars and the lit neighbourhood. */
+    /** Graphs up to this size try every caption; larger ones try Recipes and Avatars and show the rest on demand. */
     allUpTo: 30,
-    gap: 16,
-    /** Estimated caption widths per character, for the room a caption keeps. */
-    latin: 6.6, wide: 12, recipeLatin: 7.4, recipeWide: 13.5,
-    roomMax: 84,
-    roomOffset: 12,
+    /** Room a node keeps beyond its outline. */
+    nodeRoom: 18,
+    /** While the graph moves, captions follow a few times a second. */
+    movingIntervalMs: 120,
   },
 } as const;

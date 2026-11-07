@@ -162,6 +162,8 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
   const shared = useMemo(() => sharedParts(graph), [graph]);
   const savedById = useMemo(() => new Map((saved ?? []).map(item => [item.recipe.recipeId, item] as const)), [saved]);
   const node = graph.nodes.find(item => item.id === selected) ?? null;
+  // The graph shows what Recipes share, so it appears once there are two.
+  const shownView: View = documents.length > 1 ? view : "list";
   const chooseView = (next: View) => { setView(next); rememberView(next); };
   const reproduce = (recipeId: string) => { requestProductionRecipe(recipeId); onNavigate("workshop"); };
   const closeDetails = () => setSelected(null);
@@ -179,9 +181,9 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
     <header className="vua-page__hero">
       <h1 className="vua-title">{copy.title}</h1>
       <div className="vua-control__actions">
-        {graph.nodes.length > 0 && <span className="vua-control__switch vua-segments" role="group" aria-label={copy.viewLabel}>
-          <SegmentBar selected={view} />
-          {(["list", "graph"] as const).map(option => <button type="button" key={option} aria-pressed={view === option} onClick={() => chooseView(option)}>
+        {documents.length > 1 && <span className="vua-control__switch vua-segments" role="group" aria-label={copy.viewLabel}>
+          <SegmentBar selected={shownView} />
+          {(["list", "graph"] as const).map(option => <button type="button" key={option} aria-pressed={shownView === option} onClick={() => chooseView(option)}>
             <Icon name={option === "graph" ? "shader" : "modules"} size={16}/>{copy.views[option]}</button>)}
         </span>}
         {saved !== null && saved.length > 0 && <Button onClick={() => { setIncoming(null); setImporting(true); }}>{production.importRecipe}</Button>}
@@ -196,10 +198,10 @@ export function ControlRecipesPage({ onNavigate, initialSelected = null }: { onN
         <div className="vua-n3__actions"><Button onClick={() => onNavigate("workshop")}>{copy.openWorkshop}</Button><Button variant="primary" onClick={() => { setIncoming(null); setImporting(true); }}>{production.importRecipe}</Button></div>
       </div>
     : <div className="vua-control__body" data-details={node !== null || undefined}>
-        <section className="vua-control__stage" data-view={view} aria-label={view === "graph" ? copy.graphLabel : copy.listLabel}>
+        <section className="vua-control__stage" data-view={shownView} aria-label={shownView === "graph" ? copy.graphLabel : copy.listLabel}>
           {unreadable > 0 && <p className="vua-caption vua-control__warn"><Icon name="warning" size={16}/>{format(copy.unreadable, { count: unreadable })}
             <button type="button" className="vua-control__link" onClick={() => setReload(value => value + 1)}>{production.retry}</button></p>}
-          {view === "graph" ? <>
+          {shownView === "graph" ? <>
             <SkinSlot name="control-stage-backdrop" className="vua-control__backdrop"/><SkinSlot name="control-stage-edge" className="vua-control__edge"/>
             <div className="vua-control__stage-bar">
               <span className="vua-caption">{format(copy.count, { recipes: documents.length, shared: shared.length })}</span>

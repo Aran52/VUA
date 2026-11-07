@@ -62,6 +62,8 @@
 .vua-control__stage-bar p { margin: var(--vua-space-1) 0 0; }
 .vua-control__details { position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
+.vua-graph-frame { position: relative; overflow: hidden; }
+.vua-graph__labels { position: absolute; inset: 0; pointer-events: none; }
 .vua-graph { display: block; width: 100%; height: clamp(420px, calc(100vh - 340px), 820px); touch-action: none; user-select: none; cursor: grab; outline: none; }
 .vua-graph:active { cursor: grabbing; }
 .vua-graph__edges line { stroke: var(--vua-graph-edge); stroke-width: 1.4; transition: opacity var(--vua-motion-fast) var(--vua-motion-ease), stroke var(--vua-motion-fast) var(--vua-motion-ease); }
@@ -80,9 +82,10 @@
 .vua-graph__node[data-kind="outfit"] .vua-graph__icon, .vua-graph__node[data-kind="material"] .vua-graph__icon, .vua-graph__node[data-kind="package"] .vua-graph__icon { transform: translate(-6px, -6px) scale(0.75); }
 .vua-graph__count circle { fill: var(--kind); stroke: var(--vua-bg-canvas); stroke-width: 2; }
 .vua-graph__count text { fill: var(--vua-bg-canvas); font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); text-anchor: middle; }
-.vua-graph__label { fill: var(--vua-text-strong); font: var(--vua-font-caption); text-anchor: middle; paint-order: stroke; stroke: var(--vua-bg-canvas); stroke-width: 4px; stroke-linejoin: round; opacity: 0; pointer-events: none; transition: opacity var(--vua-motion-fast) var(--vua-motion-ease); }
-.vua-graph__node[data-label] .vua-graph__label { opacity: 1; }
-.vua-graph__node[data-kind="recipe"] .vua-graph__label { font-weight: var(--vua-weight-strong); }
+.vua-graph__label { position: absolute; left: 0; top: 0; box-sizing: border-box; max-width: 168px; padding: 1px 6px; overflow: hidden; border-radius: var(--vua-radius-sm, 2px); background: color-mix(in srgb, var(--vua-bg-canvas) 84%, transparent); color: var(--vua-text-strong); font: var(--vua-font-caption); white-space: nowrap; text-overflow: ellipsis; transition: opacity var(--vua-motion-fast) var(--vua-motion-ease); }
+.vua-graph__label[data-shown="false"] { visibility: hidden; }
+.vua-graph__label[data-dim] { opacity: 0.35; }
+.vua-graph__label[data-kind="recipe"] { font-weight: var(--vua-weight-strong); }
 
 .vua-control__legend { display: flex; flex-wrap: wrap; gap: var(--vua-space-2) 16px; margin: 0; padding: 8px var(--vua-space-4); list-style: none; border-top: 1px solid var(--vua-border); background: var(--vua-bg-panel); font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-control__legend li { display: inline-flex; align-items: center; gap: var(--vua-space-2); }
@@ -287,7 +290,7 @@ html[data-effects="off"] .vua-graph__edges line, html[data-effects="off"] .vua-g
   .vua-graph__shape { fill: Canvas; stroke: CanvasText; }
   .vua-graph__node[data-selected] .vua-graph__halo { stroke: Highlight; }
   .vua-graph__edges line, .vua-graph__edges line[data-lit] { stroke: CanvasText; }
-  .vua-graph__label { fill: CanvasText; stroke: Canvas; }
+  .vua-graph__label { background: Canvas; color: CanvasText; }
   .vua-control__corner, .vua-control__edge { background: CanvasText; }
   .vua-control__backdrop { display: none; }
 }

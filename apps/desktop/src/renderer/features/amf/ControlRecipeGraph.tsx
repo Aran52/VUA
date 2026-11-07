@@ -1,9 +1,12 @@
-/** The Recipe graph: an SVG drawing driven by the force simulation; the frame loop writes positions straight to the DOM. */
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
+/** The Recipe graph: an SVG drawing driven by the force simulation; the frame loop writes positions straight to the DOM.
+ * Captions sit in a text layer above it, at one size and on whole pixels, so they stay crisp at every zoom. */
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 import { Icon, type IconName } from "@vua/design-system";
 import { adjacency, graphCaption, type GraphNode, type GraphNodeKind, type RecipeGraph } from "./control-graph-model.ts";
 import { bounds, createSimulation, hold, isSettled, nearestInDirection, place, reheat, release, settle, tick, type Simulation } from "./control-physics.ts";
 import { GRAPH_CONFIG } from "./control-graph-config.ts";
+import { placeLabels, type LabelInput } from "./control-graph-labels.ts";
+import { readGraphPositions, rememberGraphPositions } from "./control-graph-positions.ts";
 import { useEffectsOn } from "./motion.ts";
 
 const { nodeRadius: NODE_RADIUS, linkLength: LINK_LENGTH, view: VIEW, label: LABEL } = GRAPH_CONFIG;
@@ -33,16 +36,10 @@ export function NodeShape({ kind }: { kind: GraphNodeKind }) {
   if (kind === "material") return <rect className="vua-graph__shape" x={-r} y={-r} width={r * 2} height={r * 2}/>;
   return <circle className="vua-graph__shape" r={r}/>;
 }
-function shortLabel(label: string): string { return [...label].length > LABEL.maxChars ? `${[...label].slice(0, LABEL.maxChars - 1).join("")}…` : label; }
-/** Room a node keeps around itself: its outline, and its caption below it when the caption shows by default. */
-function collideRoom(node: GraphNode, labelled: boolean): { radius: number; offset: number } {
-  const r = NODE_RADIUS[node.kind] + 4;
-  if (!labelled) return { radius: r, offset: 0 };
-  const latin = node.kind === "recipe" ? LABEL.recipeLatin : LABEL.latin; const wide = node.kind === "recipe" ? LABEL.recipeWide : LABEL.wide;
-  const width = [...shortLabel(graphCaption(node))].reduce((sum, char) => sum + (char.codePointAt(0)! > 0x2e80 ? wide : latin), 0);
-  return { radius: Math.min(LABEL.roomMax, Math.max(r + 8, width / 2 + 4)), offset: LABEL.roomOffset };
-}
+/** Room a node keeps around itself. Captions find their own spot afterwards. */
+const collideRoom = (node: GraphNode) => NODE_RADIUS[node.kind] + LABEL.nodeRoom;
 const labelledByDefault = (node: GraphNode, count: number) => count <= LABEL.allUpTo || node.kind === "recipe" || node.kind === "avatar";
+const LABEL_RANK: Record<GraphNodeKind, number> = { recipe: 0, avatar: 1, outfit: 2, material: 3, package: 4 };
 
 interface Camera { scale: number; x: number; y: number; auto: boolean }
 interface GraphControls { move: () => void; drop: (index: number, x: number, y: number) => void }
@@ -58,7 +55,10 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
   const sceneRef = useRef<SVGGElement>(null);
   const nodeRefs = useRef<(SVGGElement | null)[]>([]);
   const edgeRefs = useRef<(SVGLineElement | null)[]>([]);
-  const remembered = useRef(new Map<string, { x: number; y: number }>());
+  const labelRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const labelSizes = useRef<{ width: number; height: number }[]>([]);
+  const requiredLabels = useRef<ReadonlySet<string>>(new Set());
+  const remembered = useRef(new Map<string, { x: number; y: number }>(readGraphPositions()));
   const camera = useRef<Camera>({ scale: 1, x: 0, y: 0, auto: true });
   const gesture = useRef<Gesture | null>(null);
   const controls = useRef<GraphControls>(idleControls);
@@ -70,11 +70,10 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
   const indexOf = useMemo(() => new Map(graph.nodes.map((node, i) => [node.id, i] as const)), [graph]);
   const near = useMemo(() => adjacency(graph), [graph]);
   const edgeEnds = useMemo(() => graph.edges.map(edge => [indexOf.get(edge.from) ?? -1, indexOf.get(edge.to) ?? -1] as const), [graph, indexOf]);
-  if (resetKey !== lastReset) { setLastReset(resetKey); remembered.current.clear(); camera.current.auto = true; }
+  if (resetKey !== lastReset) { setLastReset(resetKey); remembered.current.clear(); rememberGraphPositions(remembered.current); camera.current.auto = true; }
   const sim: Simulation = useMemo(() => {
     const start = graph.nodes.map(node => remembered.current.get(node.id));
-    const rooms = graph.nodes.map(node => collideRoom(node, labelledByDefault(node, graph.nodes.length)));
-    return createSimulation(rooms.map(room => room.radius), graph.edges.map((edge, i) => ({ source: edgeEnds[i]![0], target: edgeEnds[i]![1], length: LINK_LENGTH[edge.kind] })), start, rooms.map(room => room.offset));
+    return createSimulation(graph.nodes.map(collideRoom), graph.edges.map((edge, i) => ({ source: edgeEnds[i]![0], target: edgeEnds[i]![1], length: LINK_LENGTH[edge.kind] })), start);
     // resetKey starts a fresh layout from the deterministic start positions.
   }, [graph, edgeEnds, lastReset]);
 
@@ -90,8 +89,36 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
     return () => observer.disconnect();
   }, []);
 
+  /** Places every caption for the current camera and node positions. */
+  const drawLabels = useRef(() => {});
+  drawLabels.current = () => {
+    const cam = camera.current;
+    const inputs: LabelInput[] = graph.nodes.map((node, i) => ({
+      x: cam.x + sim.x[i]! * cam.scale, y: cam.y + sim.y[i]! * cam.scale, radius: NODE_RADIUS[node.kind] * cam.scale,
+      width: labelSizes.current[i]?.width ?? 0, height: labelSizes.current[i]?.height ?? 0, rank: LABEL_RANK[node.kind],
+      required: requiredLabels.current.has(node.id), optional: labelledByDefault(node, graph.nodes.length),
+    }));
+    placeLabels(inputs, size).forEach((spot, i) => {
+      const element = labelRefs.current[i];
+      if (!element) return;
+      element.dataset.shown = spot.shown ? "true" : "false";
+      if (spot.shown) element.style.transform = `translate(${spot.x}px, ${spot.y}px)`;
+    });
+  };
+  // Measured once per caption: their size does not change with the zoom.
+  useLayoutEffect(() => {
+    const measure = () => {
+      labelSizes.current = graph.nodes.map((_, i) => { const element = labelRefs.current[i]; return { width: element?.offsetWidth ?? 0, height: element?.offsetHeight ?? 0 }; });
+      drawLabels.current();
+    };
+    measure();
+    let alive = true;
+    void document.fonts?.ready.then(() => { if (alive) measure(); });
+    return () => { alive = false; };
+  }, [graph]);
+
   useEffect(() => {
-    let frame = 0; let running = false; let last = 0; let carry = 0;
+    let frame = 0; let running = false; let last = 0; let carry = 0; let lastLabels = 0;
     // The layout leans a little further than the view's own shape, so a wide view fills out.
     const aspect = Math.min(VIEW.aspectMax, Math.max(VIEW.aspectMin, Math.pow(size.width / Math.max(1, size.height), VIEW.aspectLean)));
     if (Math.abs(aspect - sim.aspect) > 0.05) { sim.aspect = aspect; reheat(sim, 0.3); }
@@ -120,13 +147,13 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
       });
       return moving && ease < 1;
     };
-    const remember = () => { graph.nodes.forEach((node, i) => remembered.current.set(node.id, { x: sim.x[i]!, y: sim.y[i]! })); };
+    const remember = () => { graph.nodes.forEach((node, i) => remembered.current.set(node.id, { x: sim.x[i]!, y: sim.y[i]! })); rememberGraphPositions(remembered.current); };
     if (motion === "static") {
       // One finished frame: the layout settles at once and a drop re-settles around the dropped node.
-      settle(sim); remember(); draw(1);
+      settle(sim); remember(); draw(1); drawLabels.current();
       controls.current = {
-        move: () => { draw(1); },
-        drop: (index, x, y) => { hold(sim, index, x, y); place(sim, index, x, y); for (let i = 0; i < VIEW.staticDropTicks; i += 1) tick(sim); release(sim); settle(sim); remember(); draw(1); },
+        move: () => { draw(1); drawLabels.current(); },
+        drop: (index, x, y) => { hold(sim, index, x, y); place(sim, index, x, y); for (let i = 0; i < VIEW.staticDropTicks; i += 1) tick(sim); release(sim); settle(sim); remember(); draw(1); drawLabels.current(); },
       };
       return () => { controls.current = idleControls; };
     }
@@ -136,12 +163,14 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
       while (carry >= STEP_MS && steps < VIEW.maxStepsPerFrame) { tick(sim); carry -= STEP_MS; steps += 1; }
       if (steps === VIEW.maxStepsPerFrame) carry = 0;
       const cameraMoving = draw(VIEW.cameraEase);
-      if (isSettled(sim) && !cameraMoving) { running = false; remember(); return; }
+      if (now - lastLabels > LABEL.movingIntervalMs) { lastLabels = now; drawLabels.current(); }
+      if (isSettled(sim) && !cameraMoving) { running = false; remember(); drawLabels.current(); return; }
       frame = requestAnimationFrame(loop);
     };
     const start = () => { if (running) return; running = true; last = performance.now(); carry = STEP_MS; frame = requestAnimationFrame(loop); };
     controls.current = { move: start, drop: () => { release(sim); reheat(sim, GRAPH_CONFIG.physics.releaseAlpha); start(); } };
     draw(1);
+    drawLabels.current();
     start();
     return () => { cancelAnimationFrame(frame); running = false; remember(); controls.current = idleControls; };
   }, [sim, motion, size, graph, edgeEnds]);
@@ -158,6 +187,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
       const next = Math.min(VIEW.maxScale, Math.max(VIEW.minScale, cam.scale * Math.exp(-event.deltaY * VIEW.wheelZoom)));
       cam.x = px - ((px - cam.x) / cam.scale) * next; cam.y = py - ((py - cam.y) / cam.scale) * next; cam.scale = next;
       sceneRef.current?.setAttribute("transform", `translate(${cam.x.toFixed(2)} ${cam.y.toFixed(2)}) scale(${cam.scale.toFixed(4)})`);
+      drawLabels.current();
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
@@ -187,6 +217,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
       const cam = camera.current; cam.auto = false;
       cam.x += event.clientX - g.lastX; cam.y += event.clientY - g.lastY;
       sceneRef.current?.setAttribute("transform", `translate(${cam.x.toFixed(2)} ${cam.y.toFixed(2)}) scale(${cam.scale.toFixed(4)})`);
+      drawLabels.current();
     }
     g.lastX = event.clientX; g.lastY = event.clientY;
   };
@@ -221,7 +252,9 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
 
   const spotlight = hovered ?? focused ?? selectedId;
   const lit = spotlight === null ? null : new Set([spotlight, ...(near.get(spotlight) ?? [])]);
-  return <svg ref={svgRef} className="vua-graph" role="group" aria-label={label} aria-roledescription="graph"
+  requiredLabels.current = lit ?? new Set(selectedId === null ? [] : [selectedId]);
+  useEffect(() => { drawLabels.current(); }, [spotlight, selectedId, size]);
+  return <div className="vua-graph-frame"><svg ref={svgRef} className="vua-graph" role="group" aria-label={label} aria-roledescription="graph"
     onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onKeyDown={onKeyDown}>
     <desc>{hint}</desc>
     <g ref={sceneRef}>
@@ -234,7 +267,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
         const isLit = lit?.has(node.id) ?? false;
         return <g key={node.id} ref={element => { nodeRefs.current[i] = element; }} className="vua-graph__node" data-node-index={i} data-kind={node.kind}
           data-shared={node.kind !== "recipe" && node.recipeIds.length > 1 || undefined} data-selected={node.id === selectedId || undefined}
-          data-dim={lit !== null && !isLit || undefined} data-label={labelledByDefault(node, graph.nodes.length) || isLit || undefined}
+          data-dim={lit !== null && !isLit || undefined}
           role="button" tabIndex={node.id === active ? 0 : -1} aria-pressed={node.id === selectedId} aria-label={describe(node)}
           onPointerEnter={() => setHovered(node.id)} onPointerLeave={() => setHovered(current => (current === node.id ? null : current))}
           onFocus={() => setFocused(node.id)} onBlur={() => setFocused(current => (current === node.id ? null : current))}>
@@ -243,9 +276,12 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
           <g className="vua-graph__icon" transform="translate(-8 -8)"><Icon name={NODE_ICONS[node.kind]} size={16}/></g>
           {node.kind !== "recipe" && node.recipeIds.length > 1 && <g className="vua-graph__count" transform={`translate(${NODE_RADIUS[node.kind] * 0.78} ${-NODE_RADIUS[node.kind] * 0.78})`}>
             <circle r={9}/><text dy="0.35em">{node.recipeIds.length}</text></g>}
-          <text className="vua-graph__label" y={NODE_RADIUS[node.kind] + LABEL.gap}>{shortLabel(graphCaption(node))}</text>
         </g>;
       })}
     </g>
-  </svg>;
+  </svg>
+  <div className="vua-graph__labels" aria-hidden="true">
+    {graph.nodes.map((node, i) => <span key={node.id} ref={element => { labelRefs.current[i] = element; }} className="vua-graph__label" data-kind={node.kind} data-shown="false"
+      data-dim={lit !== null && !lit.has(node.id) || undefined}>{graphCaption(node)}</span>)}
+  </div></div>;
 }

@@ -6,6 +6,12 @@
   font-display: swap;
 }
 
+/* ZCOOL KuaiLe draws Simplified Chinese. Japanese and Traditional Chinese titles take the rounded face
+ * throughout, so one title never mixes two drawings. */
+:root[data-theme-family="jirai"]:is(:lang(ja), :lang(zh-TW)) {
+  --vua-font-title-family: "Resource Han Rounded CN", var(--vua-font-family);
+}
+
 [data-theme-family="jirai"] {
   color-scheme: dark;
   --vua-font-title-family: "ZCOOL KuaiLe", var(--vua-font-family);

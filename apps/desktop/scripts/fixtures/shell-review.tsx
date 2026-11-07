@@ -21,6 +21,7 @@ import { termsPreviewPort } from "./terms-preview.tsx";
 
 const params = new URLSearchParams(location.search);
 const lang = params.get("lang") ?? "zh-CN";
+document.documentElement.lang = lang;
 const newProfile = params.get("profile") === "new";
 const envMissing = params.get("env") === "missing";
 const noLines = params.get("lines") === "none";

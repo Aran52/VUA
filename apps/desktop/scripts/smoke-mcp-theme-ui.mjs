@@ -66,7 +66,13 @@ async function main() { try {
       geometry.push({ family, width, cards });
       await writeFile(path.join(evidence, "geometry.json"), JSON.stringify(geometry, null, 2));
       await writeFile(path.join(evidence, `play-${family}-${width}.png`), (await win.webContents.capturePage()).toPNG());
-      assert.ok(cards.length >= 5);
+      assert.ok(cards.length >= 1);
+      const tiles = await evaluate(`([...document.querySelectorAll('.vua-setup__device .vua-route-tile__icon')].map(icon=>{
+        const frame=icon.getBoundingClientRect(), logo=icon.querySelector('svg').getBoundingClientRect();
+        return {x:frame.x,y:frame.y,right:frame.right,bottom:frame.bottom,logoX:logo.x,logoY:logo.y,logoRight:logo.right,logoBottom:logo.bottom};
+      }))`);
+      assert.ok(tiles.length >= 5, `${family}/${width}: device choices`);
+      for (const tile of tiles) assert.ok(tile.logoX >= tile.x - 0.5 && tile.logoRight <= tile.right + 0.5 && tile.logoY >= tile.y - 0.5 && tile.logoBottom <= tile.bottom + 0.5, `${family}/${width}: a device logo fits its frame`);
       const titleInset = cards[0].title.x - cards[0].card.x;
       for (const item of cards) {
         assert.ok(Math.abs(item.title.x - item.card.x - titleInset) < 1, `${family}/${width}/${item.id}: title column`);

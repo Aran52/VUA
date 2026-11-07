@@ -17,7 +17,7 @@ const en = {
   },
   connections: {
     "quest-link": { tag: "Official · Free", summary: "Meta's own connection, over a USB cable or Wi-Fi.", pc: "Install the Meta Horizon Link app and sign in to your Meta account", headset: "Turn on Link in the headset's settings" },
-    "steam-link": { tag: "Valve · Free", summary: "Valve's wireless streaming. The PC only needs Steam and SteamVR.", pc: "Run Steam and SteamVR, ideally with the PC wired to your router", headset: "Install Steam Link from the Meta Horizon Store and join the same network over 5 GHz Wi-Fi" },
+    "steam-link": { tag: "Valve · Free", summary: "Valve's wireless streaming. The PC only needs Steam and SteamVR.", pc: "Run Steam and SteamVR, ideally with the PC wired to your router", headset: "Install Steam Link from the headset's store and join the same network over 5 GHz Wi-Fi" },
     "virtual-desktop": { tag: "Paid headset app", summary: "A popular wireless streamer for Quest, PICO and VIVE standalone headsets.", pc: "Install the free Virtual Desktop Streamer and enter your headset store username", headset: "Buy and install Virtual Desktop from the headset's store" },
     alvr: { tag: "Open source", summary: "Open-source wireless streaming for Quest, PICO and VIVE standalone headsets. It needs SteamVR.", pc: "Install ALVR from Steam or GitHub and run SteamVR", headset: "Install the ALVR client: from the Meta Horizon Store on Quest, and as ALVR's guide describes on other headsets" },
     "steam-frame": { tag: "Valve", summary: "Steam Frame connects to SteamVR on your PC through the USB wireless adapter in the box.", pc: "Plug in the wireless adapter and run SteamVR", headset: "Follow Steam Frame's setup to connect to the PC" },
@@ -55,7 +55,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     },
     connections: {
       "quest-link": { tag: "官方 · 免费", summary: "Meta 官方的连接方式，可以用 USB 线或 Wi-Fi。", pc: "安装 Meta Horizon Link 应用，登录 Meta 账号", headset: "在头显设置里开启 Link" },
-      "steam-link": { tag: "Valve · 免费", summary: "Valve 的无线串流，电脑只需要 Steam 和 SteamVR。", pc: "运行 Steam 和 SteamVR，电脑最好用网线连接路由器", headset: "从 Meta Horizon 商店安装 Steam Link，用 5 GHz Wi-Fi 连接同一网络" },
+      "steam-link": { tag: "Valve · 免费", summary: "Valve 的无线串流，电脑只需要 Steam 和 SteamVR。", pc: "运行 Steam 和 SteamVR，电脑最好用网线连接路由器", headset: "从头显商店安装 Steam Link，用 5 GHz Wi-Fi 连接同一网络" },
       "virtual-desktop": { tag: "头显应用付费", summary: "常用的无线串流软件，支持 Quest、PICO 和 VIVE 一体机。", pc: "安装免费的 Virtual Desktop Streamer，填写头显商店的用户名", headset: "在头显商店购买并安装 Virtual Desktop" },
       alvr: { tag: "开源", summary: "开源的无线串流软件，支持 Quest、PICO 和 VIVE 一体机，需要 SteamVR。", pc: "从 Steam 或 GitHub 安装 ALVR，并运行 SteamVR", headset: "安装 ALVR 客户端：Quest 在 Meta Horizon 商店，其他头显按 ALVR 的说明安装" },
       "steam-frame": { tag: "Valve", summary: "Steam Frame 通过包装内的 USB 无线适配器连接电脑上的 SteamVR。", pc: "插入无线适配器，运行 SteamVR", headset: "按 Steam Frame 的引导连接电脑" },
@@ -89,7 +89,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     },
     connections: {
       "quest-link": { tag: "官方 · 免費", summary: "Meta 官方的連接方式，可以用 USB 線或 Wi-Fi。", pc: "安裝 Meta Horizon Link 應用程式，登入 Meta 帳號", headset: "在頭戴裝置設定裡開啟 Link" },
-      "steam-link": { tag: "Valve · 免費", summary: "Valve 的無線串流，電腦只需要 Steam 和 SteamVR。", pc: "執行 Steam 和 SteamVR，電腦最好用網路線連接路由器", headset: "從 Meta Horizon 商店安裝 Steam Link，用 5 GHz Wi-Fi 連接同一網路" },
+      "steam-link": { tag: "Valve · 免費", summary: "Valve 的無線串流，電腦只需要 Steam 和 SteamVR。", pc: "執行 Steam 和 SteamVR，電腦最好用網路線連接路由器", headset: "從頭戴裝置的商店安裝 Steam Link，用 5 GHz Wi-Fi 連接同一網路" },
       "virtual-desktop": { tag: "頭戴裝置應用付費", summary: "常用的無線串流軟體，支援 Quest、PICO 和 VIVE 一體機。", pc: "安裝免費的 Virtual Desktop Streamer，填寫頭戴裝置商店的使用者名稱", headset: "在頭戴裝置商店購買並安裝 Virtual Desktop" },
       alvr: { tag: "開源", summary: "開源的無線串流軟體，支援 Quest、PICO 和 VIVE 一體機，需要 SteamVR。", pc: "從 Steam 或 GitHub 安裝 ALVR，並執行 SteamVR", headset: "安裝 ALVR 用戶端：Quest 在 Meta Horizon 商店，其他頭戴裝置按 ALVR 的說明安裝" },
       "steam-frame": { tag: "Valve", summary: "Steam Frame 透過包裝內的 USB 無線轉接器連接電腦上的 SteamVR。", pc: "插入無線轉接器，執行 SteamVR", headset: "按 Steam Frame 的引導連接電腦" },
@@ -123,7 +123,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     },
     connections: {
       "quest-link": { tag: "公式・無料", summary: "Meta 公式の接続方法です。USB ケーブルまたは Wi-Fi で接続します。", pc: "Meta Horizon Link アプリをインストールし、Meta アカウントでログイン", headset: "ヘッドセットの設定で Link をオン" },
-      "steam-link": { tag: "Valve・無料", summary: "Valve のワイヤレスストリーミングです。PC に必要なのは Steam と SteamVR だけです。", pc: "Steam と SteamVR を起動。PC はルーターに有線接続するのがおすすめ", headset: "Meta Horizon ストアから Steam Link をインストールし、同じネットワークの 5 GHz Wi-Fi に接続" },
+      "steam-link": { tag: "Valve・無料", summary: "Valve のワイヤレスストリーミングです。PC に必要なのは Steam と SteamVR だけです。", pc: "Steam と SteamVR を起動。PC はルーターに有線接続するのがおすすめ", headset: "ヘッドセットのストアから Steam Link をインストールし、同じネットワークの 5 GHz Wi-Fi に接続" },
       "virtual-desktop": { tag: "ヘッドセットアプリは有料", summary: "Quest、PICO、VIVE のスタンドアロン機に対応した定番のワイヤレスストリーミングソフトです。", pc: "無料の Virtual Desktop Streamer をインストールし、ヘッドセットのストアのユーザー名を入力", headset: "ヘッドセットのストアで Virtual Desktop を購入してインストール" },
       alvr: { tag: "オープンソース", summary: "Quest、PICO、VIVE のスタンドアロン機に対応したオープンソースのワイヤレスストリーミングソフトです。SteamVR が必要です。", pc: "Steam または GitHub から ALVR をインストールし、SteamVR を起動", headset: "ALVR クライアントをインストール。Quest は Meta Horizon ストアから、ほかのヘッドセットは ALVR の案内に従います" },
       "steam-frame": { tag: "Valve", summary: "Steam Frame は付属の USB ワイヤレスアダプターで PC の SteamVR に接続します。", pc: "ワイヤレスアダプターを差し込み、SteamVR を起動", headset: "Steam Frame の案内に従って PC に接続" },
@@ -157,7 +157,7 @@ export const plannedRoutesCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", C
     },
     connections: {
       "quest-link": { tag: "공식 · 무료", summary: "Meta 공식 연결 방식으로, USB 케이블이나 Wi-Fi로 연결해요.", pc: "Meta Horizon Link 앱을 설치하고 Meta 계정으로 로그인", headset: "헤드셋 설정에서 Link 켜기" },
-      "steam-link": { tag: "Valve · 무료", summary: "Valve의 무선 스트리밍으로, PC에는 Steam과 SteamVR만 있으면 돼요.", pc: "Steam과 SteamVR 실행. PC는 공유기에 유선으로 연결하는 것이 좋아요", headset: "Meta Horizon 스토어에서 Steam Link를 설치하고 같은 네트워크의 5 GHz Wi-Fi에 연결" },
+      "steam-link": { tag: "Valve · 무료", summary: "Valve의 무선 스트리밍으로, PC에는 Steam과 SteamVR만 있으면 돼요.", pc: "Steam과 SteamVR 실행. PC는 공유기에 유선으로 연결하는 것이 좋아요", headset: "헤드셋 스토어에서 Steam Link를 설치하고 같은 네트워크의 5 GHz Wi-Fi에 연결" },
       "virtual-desktop": { tag: "헤드셋 앱 유료", summary: "Quest, PICO, VIVE 독립형 헤드셋을 지원하는 인기 무선 스트리밍 소프트웨어예요.", pc: "무료 Virtual Desktop Streamer를 설치하고 헤드셋 스토어 사용자 이름 입력", headset: "헤드셋 스토어에서 Virtual Desktop을 구매해 설치" },
       alvr: { tag: "오픈 소스", summary: "Quest, PICO, VIVE 독립형 헤드셋을 지원하는 오픈 소스 무선 스트리밍 소프트웨어로, SteamVR이 필요해요.", pc: "Steam이나 GitHub에서 ALVR을 설치하고 SteamVR 실행", headset: "ALVR 클라이언트 설치: Quest는 Meta Horizon 스토어에서, 다른 헤드셋은 ALVR 안내에 따라 설치" },
       "steam-frame": { tag: "Valve", summary: "Steam Frame은 동봉된 USB 무선 어댑터로 PC의 SteamVR에 연결해요.", pc: "무선 어댑터를 꽂고 SteamVR 실행", headset: "Steam Frame 안내에 따라 PC에 연결" },

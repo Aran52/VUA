@@ -532,13 +532,13 @@ demoTaskTitle: "Demo task",
         absent: "Network latency is at the top right.",
       },
       checks: {
-        title: "Software status",
-        body: "Each card is one play setup. Its left half shows the software and checklist.",
+        title: "What and how you play",
+        body: "Choose a platform, a device and a connection. The steps below follow your choice.",
         absent: "Setup is on Launch",
       },
       plan: {
         title: "The next step",
-        body: "The right half names the next step: check, review, install, launch. Close only closes what this card started.",
+        body: "The button names the next step: check, review, install, launch. Close only closes what it started.",
         absent: "Choose a setup on Launch to see its steps.",
       },
       tasks: {

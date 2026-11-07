@@ -5,6 +5,8 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+// Destroying the last window must not end the run before a failure's exit code is set.
+app.on("window-all-closed", () => {});
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.resolve(root, "../../_local_real_machine/acquisition-handoff-2026-10-08/ui");
 app.setPath("userData", path.join(output, "profile"));

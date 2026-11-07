@@ -21,6 +21,8 @@ export const storageKeys = {
   /** How Materials orders and shows its cards. */
   librarySort: "vua-library-sort",
   libraryView: "vua-library-view",
+  /** The platform, device and connection chosen on Launch. */
+  playSetup: "vua-play-setup-v1",
   /** Column widths the player dragged in the Materials list. */
   libraryColumns: "vua-library-columns",
   /** Where the Recipe graph nodes last settled. */

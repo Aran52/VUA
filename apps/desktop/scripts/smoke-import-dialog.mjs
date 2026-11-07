@@ -8,6 +8,8 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import os from "node:os";
 import { mkdtempSync } from "node:fs";
+// Destroying the last window must not end the run before a failure's exit code is set.
+app.on("window-all-closed", () => {});
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isolated = mkdtempSync(path.join(os.tmpdir(), "vua-import-profile-"));
 app.setPath("userData", isolated);

@@ -25,6 +25,7 @@
     margin var(--vua-motion-normal, 240ms) var(--vua-motion-ease-enter, cubic-bezier(0.22, 0.8, 0.3, 1)),
     visibility 0s;
 }
-.vua-slide-drawer__inner { min-height: 0; overflow: hidden; }
+/* The inner box holds absolutely placed children too, so a closed drawer adds nothing to the scroll height. */
+.vua-slide-drawer__inner { position: relative; min-height: 0; overflow: hidden; }
 html[data-effects='off'] .vua-slide-drawer { transition: none; }
 @media (prefers-reduced-motion: reduce) { .vua-slide-drawer { transition: none; } }

@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { FIXTURES } from "./design-audit/views.mjs";
+// Destroying the last window must not end the run before a failure's exit code is set.
+app.on("window-all-closed", () => {});
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const profile = await mkdtemp(path.join(os.tmpdir(), "vua-layout-stability-"));
@@ -52,7 +54,8 @@ function sameWidths(before, after, label) {
 }
 async function overflowRoundTrip(pageCss, openCss, closeCss, label) {
   const natural = await snapshot(pageCss);
-  const height = Math.ceil(natural.viewport-natural.client+natural.content+4);
+  // The last row's own margin counts towards the scroll height.
+  const height = Math.ceil(natural.viewport-natural.client+natural.content+12);
   win.setContentSize(1280, height);
   await pause(300);
   const before = await snapshot(pageCss);
@@ -187,6 +190,8 @@ async function main() {
       await creatorMotion(theme);
       await creatorNarrow(theme);
       await firstRun(theme,'window.firstRunReview.previewEnvironment("play")');
+      // The choices open on a first visit; this measures opening them from the closed card.
+      await click('[data-nav-id="route-desktop"]'); await pause(500);
       await overflowRoundTrip(".vua-play-page",'[data-nav-id="route-desktop"]','[data-nav-id="route-desktop"]',`play ${theme}`);
       await firstRun(theme,"window.firstRunReview.previewTools()");
       await overflowRoundTrip(".vua-tools-hub",'[data-nav-id="tool-vrcs"]','[data-nav-id="tool-vrcs"]',`tools ${theme}`);

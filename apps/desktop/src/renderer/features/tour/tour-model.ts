@@ -42,7 +42,7 @@ export const TOUR_STEPS: readonly TourStepDef[] = [
   { id: "welcome", page: "home", anchor: null },
   { id: "route", page: "home", anchor: '[data-nav-id="logo-home"]' },
   { id: "checks", page: "env-play", anchor: '[data-tour-anchor="play-environments"]' },
-  { id: "plan", page: "env-play", anchor: '[data-nav-id="route-desktop-action"]' },
+  { id: "plan", page: "env-play", anchor: '.vua-play-current .vua-environment-card__action' },
   { id: "tools", page: "tools-discover", anchor: '[data-nav-id="nav-tools-discover"]' },
   { id: "creator", page: "home", anchor: '.vua-shell__sidebar-group[data-module="production"]' },
   { id: "network", page: "home", anchor: '[data-nav-id="shell-network"]' },

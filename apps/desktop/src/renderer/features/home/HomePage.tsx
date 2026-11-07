@@ -1,6 +1,5 @@
 /** Home answers "what now": the work that is waiting, then the next step of each goal.
  * The sidebar stays the directory; nothing here repeats it. */
-import type { PlayRoute } from "@vua/contracts";
 import { Icon, type IconName } from "@vua/design-system";
 import type { PageId } from "../../app/nav-model.ts";
 import { currentLocale, format, presentationCopy, strings, TERMS } from "../../i18n/index.ts";
@@ -15,6 +14,8 @@ import { isActiveStatus, taskRowOpenTarget } from "../task-center/notification-m
 import { EnvironmentCard } from "./EnvironmentCard.tsx";
 import { playCardDecision } from "./play-card-model.ts";
 import { requestPlayRoute } from "./play-route-request.ts";
+import { PC_SETUP, playDevice, readPlaySetup, setupEngine } from "./play-setup-model.ts";
+import { setupTitle } from "./play-setup-text.ts";
 import { usePlaySessions } from "./use-play-sessions.ts";
 
 const journey = strings.journey;
@@ -22,33 +23,37 @@ const factory = strings.factory;
 const structure = structureCopy[currentLocale];
 const copy = structure.home;
 const flow = playFlowCopy[currentLocale];
-const ROUTES: readonly { readonly route: PlayRoute; readonly id: string; readonly hint?: string }[] = [
-  { route: "desktop_play", id: "home-route-desktop", hint: structure.routes.desktop },
-  { route: "pico_pcvr", id: "home-route-pico" },
-];
 /** Rows the activity list shows before pointing at the workshop for the rest. */
 const MAX_LINE_ROWS = 3;
 
+/** The combination chosen on Launch, ready to start from here. */
 function PlayRoutes({ navigate }: { navigate: (page: PageId) => void }) {
   const live = usePlaySessions(5000);
-  const openRoute = (route: PlayRoute) => { requestPlayRoute(route); navigate("env-play"); };
-  return <div className="vua-environment-grid">
-    {ROUTES.map(({ route, id, hint }) => {
-      const decision = playCardDecision(live.sessions[route] ?? null, !!live.unavailable[route], false, false);
-      const canAct = decision.action === "stop" || decision.action === "start";
-      const label = decision.action === "stop" ? flow.phases.stop
-        : canAct ? flow.phases.launch
-        : decision.spinning ? strings.environmentCards[decision.status]
-        : copy.prepareRoute;
-      const title = route === "desktop_play" ? journey.desktop : "PICO";
-      return <div className="vua-card-entry" data-card-entry={id} key={route}>
-        <EnvironmentCard title={title} hint={hint} detailsOpen={false} kind={route === "desktop_play" ? "screen" : undefined} brand={route === "pico_pcvr" ? "pico-mark" : undefined} id={id}
-          action={canAct ? decision.action : decision.spinning ? "busy" : "prepare"} status={label} spinning={decision.spinning || !!live.pending[route]}
-          disabled={decision.disabled || !!live.pending[route]} primary={!decision.spinning && !decision.disabled}
-          onDetails={() => openRoute(route)} onAction={() => { if (canAct) void live.act(route, decision.action === "stop"); else openRoute(route); }} />
-      </div>;
-    })}
-  </div>;
+  const setup = readPlaySetup() ?? PC_SETUP;
+  const engine = setupEngine(setup);
+  const device = playDevice(setup.device);
+  const kind = device.brand ? undefined : device.kind ?? "headset";
+  if (engine.kind !== "route") {
+    const open = () => navigate("env-play");
+    return <div className="vua-environment-grid"><div className="vua-card-entry" data-card-entry="home-route-current">
+      <EnvironmentCard title={setupTitle(setup)} detailsOpen={false} kind={kind} brand={device.brand} id="home-route-current" action="prepare" status={journey.launchPage} primary onDetails={open} onAction={open} />
+    </div></div>;
+  }
+  const route = engine.route;
+  const id = route === "desktop_play" ? "home-route-desktop" : "home-route-pico";
+  const openRoute = () => { requestPlayRoute(route); navigate("env-play"); };
+  const decision = playCardDecision(live.sessions[route] ?? null, !!live.unavailable[route], false, false);
+  const canAct = decision.action === "stop" || decision.action === "start";
+  const label = decision.action === "stop" ? flow.phases.stop
+    : canAct ? flow.phases.launch
+    : decision.spinning ? strings.environmentCards[decision.status]
+    : copy.prepareRoute;
+  return <div className="vua-environment-grid"><div className="vua-card-entry" data-card-entry={id}>
+    <EnvironmentCard title={setupTitle(setup)} hint={route === "desktop_play" ? structure.routes.desktop : undefined} detailsOpen={false} kind={kind} brand={device.brand} id={id}
+      action={canAct ? decision.action : decision.spinning ? "busy" : "prepare"} status={label} spinning={decision.spinning || !!live.pending[route]}
+      disabled={decision.disabled || !!live.pending[route]} primary={!decision.spinning && !decision.disabled}
+      onDetails={openRoute} onAction={() => { if (canAct) void live.act(route, decision.action === "stop"); else openRoute(); }} />
+  </div></div>;
 }
 
 function StationTile({ id, icon, title, fact, onClick }: { id: string; icon: IconName; title: string; fact: string; onClick: () => void }) {

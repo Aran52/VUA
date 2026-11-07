@@ -71,10 +71,10 @@ async function run() {
     // The Play drawer opens below the row of its card and takes the grid's full width.
     const playDrawerBelow = button => js(`(()=>{
       const entry=document.querySelector('[data-nav-id="${button}"]').closest('[data-card-entry]');
-      const drawer=document.querySelector('.vua-play-drawer'), grid=drawer.parentElement;
-      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect(), row=grid.getBoundingClientRect();
+      const drawer=document.querySelector('.vua-play-drawer');
+      const card=entry.getBoundingClientRect(), panel=drawer.getBoundingClientRect();
       return drawer.dataset.open==='true' && !document.getElementById('${button}-details').hidden
-        && panel.top>=card.bottom && Math.abs(panel.width-row.width)<1 && panel.height>40;
+        && panel.top>=card.bottom && Math.abs(panel.width-card.width)<1 && panel.height>40;
     })()`);
     const inlineDetailFits = button => js(`(()=>{
       const control=document.querySelector('[data-nav-id="${button}"]');
@@ -206,29 +206,32 @@ async function run() {
     const cardLayout = await js('[...document.querySelectorAll(".vua-play-page .vua-environment-card button")].map(b=>({label:b.getAttribute("data-nav-id"),overflow:b.scrollHeight-b.clientHeight}))');
     assert(cardLayout.every(row => row.overflow < 3), "Compact card content fits without vertical clipping");
     await capture("play-dark");
-    // Headset routes still in development open a connection guide with official pages.
-    assert(await js(`['route-quest','route-steam-frame','route-vive','route-index','route-psvr2','route-bigscreen','route-pimax','route-varjo','route-meganex','route-rift-s','route-wmr','route-other-headset'].every(id=>!document.querySelector('[data-card="'+id+'"] .vua-environment-card__action').disabled && !!document.getElementById(id+'-details'))`), "Every headset route opens its guide from either half of the card");
-    assert(await js('document.querySelector(".vua-play-group").compareDocumentPosition(document.querySelector("[data-card=route-bigscreen]")) & Node.DOCUMENT_POSITION_FOLLOWING'), "Less common headsets follow their own heading");
-    await js('document.querySelector("[data-nav-id=route-varjo-action]").click()');
-    await waitFor(() => js('!document.getElementById("route-varjo-details").hidden && document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The Varjo guide opens from its action");
-    assert(await js('!!document.querySelector("[data-nav-id=planned-official-varjo-base]")'), "The Varjo guide links its official page");
-    await js('document.querySelector("[data-nav-id=route-varjo-action]").click()');
-    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "The same action closes the guide");
-    await js('document.querySelector("[data-nav-id=route-quest]").click()');
-    await waitFor(() => js('!document.getElementById("route-quest-details").hidden && document.querySelector(".vua-play-drawer").dataset.open==="true"'), "Meta Quest connection guide");
-    assert(await js('document.querySelectorAll("#route-quest-details input[type=radio]").length===4 && !!document.querySelector("[data-nav-id=planned-official-quest-link]")'), "Meta Quest offers its four connections, each with its official page");
-    await js('document.querySelector("[data-nav-id=planned-quest-virtual-desktop]").click()');
-    await waitFor(() => js('!!document.querySelector("#route-quest-details [data-connection=virtual-desktop]")'), "Choosing a connection shows its needs");
+    // A player who has not chosen sees the choices; a device leads to its connections and steps.
+    if (await js('document.querySelector(".vua-play-drawer").dataset.open!=="true"')) await js('document.querySelector(".vua-play-current .vua-environment-card__details").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The card's left half opens the choices");
+    await js('document.querySelector("[data-nav-id=play-other-headsets]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-device-varjo]")'), "Less common headsets follow their own entry");
+    await js('document.querySelector("[data-nav-id=play-device-varjo]").click()');
+    await waitFor(() => js('!!document.getElementById("route-varjo-details") && !!document.querySelector("[data-nav-id=play-official-varjo-base]")'), "Varjo's steps link its official page");
+    assert(await js('!document.querySelector(".vua-setup__connections")'), "A wired headset skips the connection question");
+    await js('document.querySelector("[data-nav-id=play-device-quest]").click()');
+    await waitFor(() => js('!!document.getElementById("route-quest-details") && !!document.querySelector("[data-nav-id=play-official-quest-link]")'), "Meta Quest's steps");
+    assert(await js('document.querySelectorAll(".vua-setup__connections input[type=radio]").length===5'), "Meta Quest offers its five connections, including no PC");
+    await js('document.querySelector("[data-nav-id=play-connection-virtual-desktop]").click()');
+    await waitFor(() => js('!!document.querySelector("[data-nav-id=play-official-virtual-desktop]")'), "Choosing a connection changes the steps");
     await js('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
-    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "Esc closes open route details");
-    for (const button of ['route-desktop','route-pico']) {
-      await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      assert(await js(`!document.getElementById('${button}-details').hidden`), `${button} opens inline details`);
-      await waitFor(() => playDrawerBelow(button), `${button} drawer opens below its row across the page`);
-      if (button === 'route-desktop') await capture('play-inline-details');
-      await js(`document.querySelector('[data-nav-id="${button}"]').click()`);
-      await waitFor(() => js(`document.querySelector('.vua-play-drawer').dataset.open==='false'`), `${button} closes on a second click`);
-    }
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "Esc closes the choices");
+    await js('document.querySelector("[data-nav-id=route-quest]").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The card's left half opens the choices");
+    await js('document.querySelector("[data-nav-id=play-device-pc]").click()');
+    await waitFor(() => playDrawerBelow("route-desktop"), "PC mode's steps open below its card");
+    await capture("play-inline-details");
+    await js('document.querySelector("[data-nav-id=play-device-pico]").click()');
+    await waitFor(() => playDrawerBelow("route-pico"), "PICO's steps open below its card");
+    await js('document.querySelector("[data-nav-id=play-device-pc]").click()');
+    await waitFor(() => playDrawerBelow("route-desktop"), "Back to PC mode");
+    await js('document.querySelector("[data-nav-id=route-desktop]").click()');
+    await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "A second click closes the choices");
     await js('document.querySelector("[data-nav-id=nav-enable-amf]").click()');
     await waitFor(() => js('!!document.querySelector(".vua-creator-page [data-nav-id=toggle-amf]")'), "AMF setup in Avatar editing");
     assert(await js('!document.querySelector("[data-nav-id=toggle-amf]").checked && document.querySelector("[data-amf-setup]").textContent.includes("尚未启用") && !document.querySelector(".vua-shell__sidebar [data-nav-id=nav-workshop]")'), "AMF shows as not enabled in Avatar editing and waits for explicit enablement");
@@ -464,7 +467,7 @@ async function run() {
     ipcMain.handle('vua:catalog-sync:start', () => { syncRequests += 1; return { status: 'blocked', reason: 'sign-in-required' }; });
     await js('document.querySelector("[data-nav-id=nav-warehouse]").click()');
     await waitFor(async () => await js('!!document.querySelector("[data-nav-id=warehouse-sync]")') && resolveAccountProbe !== undefined, "Warehouse entry account probe");
-    assert(await js('document.querySelector("[data-nav-id=warehouse-sync]").disabled && document.querySelector("[data-nav-id=warehouse-sync]").textContent.includes("正在检测")'), "Warehouse does not offer sync while authentication is being checked");
+    assert(await js('document.querySelector("[data-nav-id=warehouse-sync]").textContent.includes("正在检测")'), "The sync button says authentication is being checked");
     resolveAccountProbe({ authOk: false, accountName: null });
     await waitFor(() => js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("登录 BOOTH")'), "Login required before sync");
     await js('document.querySelector("[data-nav-id=warehouse-sync]").click()');

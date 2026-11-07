@@ -16,9 +16,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { readDeploymentReceipt, type DeploymentReceiptBookmark } from "../deployer/deployment-receipt.ts";
 import { PICO_RUNTIME_PAGE, readDeploymentManualHandoff } from "../deployer/deployment-handoff.ts";
 import { ToolReinstallRow } from "../tools/ToolReinstall.tsx";
-import { PlannedConnections } from "./PlannedRouteFlow.tsx";
-import { PICO_OTHER_CONNECTIONS } from "./planned-routes.ts";
-import { plannedRoutesCopy } from "../../i18n/planned-routes-copy.ts";
+import { StepRows } from "./PlaySetupFlow.tsx";
 import { checklistSignature, playChecklist, playFlowPhase, progressPercent, readConfirmed, writeConfirmed, type PlayFlowPhase } from "./play-flow-model.ts";
 import "./play-flow.css";
 
@@ -49,13 +47,11 @@ export interface PlayFlowStep {
   readonly act: () => void;
 }
 
-export function PlayRouteFlow({ route, session, unavailable, launchPending, refreshToken, onLaunch, onAccounts, onStep, detected }: {
+export function PlayRouteFlow({ route, session, unavailable, launchPending, refreshToken, onLaunch, onAccounts, onStep }: {
   route: PlayRoute; session: PlaySession | null; unavailable: boolean; launchPending: boolean;
   /** Changes when the page asks every route to check its environment again. */
   refreshToken: number;
   onLaunch: (stop: boolean) => void; onAccounts: () => void; onStep: (step: PlayFlowStep) => void;
-  /** What the device scan found on this computer. */
-  detected: readonly string[];
 }) {
   const gateway = useGateway();
   const scenarios = gateway.environment.scenarios, deployment = gateway.environment.deployment;
@@ -227,7 +223,7 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
       </li>)}
     </ul>
     {pico ? <div className="vua-play-flow__options">
-      <fieldset className="vua-segmented" disabled={spinning}><legend>{copy.connection}</legend>
+      <fieldset className="vua-segmented" disabled={spinning}><legend className="vua-play-flow__sr">{copy.connection}</legend>
         {(["usb", "wifi"] as const).map(value => <label key={value} data-checked={connection === value}>
           <input type="radio" name={`vua-${route}-connection`} checked={connection === value} onChange={() => { setConnection(value); write(storageKeys.picoConnection, value); }} />{scenario[value]}
         </label>)}
@@ -239,16 +235,11 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
       </fieldset> : null}
     </div> : null}
     {items.length > 0 ? <div className="vua-play-flow__review" data-confirming={phase === "confirm" || undefined}>
-      <h3><Icon name="list" size={16} />{phase === "confirm" ? copy.checklist : copy.steps}</h3>
-      <ol className="vua-play-flow__checklist">
-        {items.map((item, index) => {
-          const text = scenario.steps[item.id as keyof typeof scenario.steps];
-          return <li key={item.id} data-automatic={item.automatic} title={text?.explanation}>
-            <span className="vua-play-flow__mark" aria-hidden="true">{index + 1}</span>
-            <span>{text?.title ?? item.id}</span>
-          </li>;
-        })}
-      </ol>
+      {phase === "confirm" ? <h3><Icon name="list" size={16} />{copy.checklist}</h3> : null}
+      <StepRows rows={items.map(item => {
+        const words = scenario.steps[item.id as keyof typeof scenario.steps];
+        return { id: item.id, text: words?.title ?? item.id, actor: item.automatic ? "vua" as const : "player" as const, title: words?.explanation };
+      })} />
     </div> : null}
     {notice ? <p className="vua-play-flow__notice" role="status" data-tone={phase === "retry" ? "warning" : undefined}>{notice}</p> : null}
     {repairable.length > 0 || picoRepairable ? <details className="vua-play-flow__repair" onToggle={event => setRepairOpen(event.currentTarget.open)}>
@@ -258,10 +249,6 @@ export function PlayRouteFlow({ route, session, unavailable, launchPending, refr
         <strong>{componentName("pico_runtime")}</strong>
         <div className="vua-tool-reinstall"><Button data-nav-id="play-repair-pico" onClick={() => { void openExternalUrl(PICO_RUNTIME_PAGE); }}>{format(structureCopy[currentLocale].reinstallFromPage, { tool: componentName("pico_runtime") })}</Button></div>
       </div> : null}
-    </details> : null}
-    {pico ? <details className="vua-play-flow__repair" data-other-connections>
-      <summary>{plannedRoutesCopy[currentLocale].otherConnections}</summary>
-      <PlannedConnections id="pico" connections={PICO_OTHER_CONNECTIONS} detected={detected} />
     </details> : null}
     <div className="vua-play-flow__actions">
       {phase === "confirm" ? <Button variant="primary" data-nav-id={`play-confirm-${route}`} onClick={act}>{copy.confirmContinue}</Button> : null}

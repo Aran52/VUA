@@ -287,6 +287,8 @@ async function main() {
       recentConsoleErrors = [];
       shellParams = { locale, theme, themeFamily: THEME_FAMILY };
       const url = viewUrl(view, theme);
+      // What one view remembered, such as the Materials list mode, must not shape the next.
+      await win.webContents.session.clearStorageData({ storages: ["localstorage"] });
       // A Vite re-optimization reloads the page mid-navigation and aborts the
       // load (ERR_ABORTED); one retry after the dust settles.
       try {

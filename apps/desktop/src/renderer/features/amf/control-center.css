@@ -82,7 +82,7 @@
 .vua-graph__node[data-kind="outfit"] .vua-graph__icon, .vua-graph__node[data-kind="material"] .vua-graph__icon, .vua-graph__node[data-kind="package"] .vua-graph__icon { transform: translate(-6px, -6px) scale(0.75); }
 .vua-graph__count circle { fill: var(--kind); stroke: var(--vua-bg-canvas); stroke-width: 2; }
 .vua-graph__count text { fill: var(--vua-bg-canvas); font: var(--vua-font-caption); font-weight: var(--vua-weight-strong); text-anchor: middle; }
-.vua-graph__label { position: absolute; left: 0; top: 0; box-sizing: border-box; max-width: 168px; padding: 1px 6px; overflow: hidden; border-radius: var(--vua-radius-sm, 2px); background: color-mix(in srgb, var(--vua-bg-canvas) 84%, transparent); color: var(--vua-text-strong); font: var(--vua-font-caption); white-space: nowrap; text-overflow: ellipsis; transition: opacity var(--vua-motion-fast) var(--vua-motion-ease); }
+.vua-graph__label { position: absolute; left: 0; top: 0; box-sizing: border-box; max-width: 168px; padding: 1px var(--vua-space-1); overflow: hidden; border-radius: var(--vua-radius-sm, 2px); background: color-mix(in srgb, var(--vua-bg-canvas) 84%, transparent); color: var(--vua-text-strong); font: var(--vua-font-caption); white-space: nowrap; text-overflow: ellipsis; transition: opacity var(--vua-motion-fast) var(--vua-motion-ease); }
 .vua-graph__label[data-shown="false"] { visibility: hidden; }
 .vua-graph__label[data-dim] { opacity: 0.35; }
 .vua-graph__label[data-kind="recipe"] { font-weight: var(--vua-weight-strong); }

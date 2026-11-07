@@ -3,7 +3,7 @@
 .vua-play-flow__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .vua-play-flow__software { display: flex; flex-wrap: wrap; gap: var(--vua-space-2); margin: 0; padding: 0; list-style: none; }
-.vua-play-flow__software li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 6px; border: 1px solid var(--vua-border); border-radius: 999px; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
+.vua-play-flow__software li { display: inline-flex; align-items: center; gap: var(--vua-space-1); padding: 4px 12px 4px 4px; border: 1px solid var(--vua-border); border-radius: 999px; font: var(--vua-font-caption); color: var(--vua-text-secondary); }
 .vua-play-flow__software li[data-ready='true'] { color: var(--vua-text-strong); }
 .vua-play-flow__state { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px dashed var(--vua-border-strong, var(--vua-border)); }
 .vua-play-flow__software li[data-ready='true'] .vua-play-flow__state { border: 0; background: var(--vua-success); color: var(--vua-bg-panel); }
@@ -47,7 +47,7 @@
 .vua-setup__devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: var(--vua-space-2); }
 .vua-setup__device { position: relative; display: flex; align-items: center; gap: var(--vua-space-2); min-height: 56px; padding: var(--vua-space-2) var(--vua-space-3); border: 1px solid var(--vua-border); border-radius: var(--vua-radius-control); background: var(--vua-bg-canvas); color: var(--vua-text-strong); text-align: start; cursor: pointer; transition: border-color var(--vua-motion-fast) var(--vua-motion-ease), background-color var(--vua-motion-fast) var(--vua-motion-ease); }
 .vua-setup__device:hover { border-color: var(--vua-border-strong); }
-.vua-setup__device[aria-pressed="true"] { border-color: var(--vua-accent); background: color-mix(in srgb, var(--vua-accent) 14%, var(--vua-bg-canvas)); }
+.vua-setup__device[aria-pressed="true"] { border-color: var(--vua-accent); background: var(--vua-accent-tint); }
 .vua-setup__device > span:not(.vua-route-tile__icon) { display: grid; min-width: 0; }
 .vua-setup__device strong { overflow: hidden; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); white-space: nowrap; text-overflow: ellipsis; }
 .vua-setup__device small { overflow: hidden; color: var(--vua-text-secondary); font: var(--vua-font-caption); white-space: nowrap; text-overflow: ellipsis; }

@@ -90,9 +90,9 @@ function UnityLicenseInstructions() {
     <ol>{[copy.register, copy.hub, copy.activate, copy.locate, copy.resume].map((paragraph, i) => <li key={i}><p>{text(paragraph)}</p></li>)}</ol>
     <p>{text(copy.expected)}</p>
     <div className="vua-ai-tools__controls">
-      <a href="https://unity.com/download" onClick={event => { event.preventDefault(); void openExternalUrl(event.currentTarget.href); }}>{copy.download}</a>
-      <a href="https://unity.com/pages/license-compliance" onClick={event => { event.preventDefault(); void openExternalUrl(event.currentTarget.href); }}>{copy.policy}</a>
-      <a href="https://docs.unity3d.com/2022.3/Documentation/Manual/LicenseActivationMethods.html" onClick={event => { event.preventDefault(); void openExternalUrl(event.currentTarget.href); }}>{copy.official}</a>
+      <Button variant="subtle" onClick={() => { void openExternalUrl("https://unity.com/download"); }}>{copy.download}</Button>
+      <Button variant="subtle" onClick={() => { void openExternalUrl("https://unity.com/pages/license-compliance"); }}>{copy.policy}</Button>
+      <Button variant="subtle" onClick={() => { void openExternalUrl("https://docs.unity3d.com/2022.3/Documentation/Manual/LicenseActivationMethods.html"); }}>{copy.official}</Button>
     </div>
   </div>;
 }

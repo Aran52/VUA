@@ -25,6 +25,7 @@ export function collectAuditSnapshot(options) {
   function paintedRect(element, rectangle) {
     let left = rectangle.left, right = rectangle.right, top = rectangle.top, bottom = rectangle.bottom;
     let escapingPosition = null;
+    let scrollerX = null, scrollerY = null;
     for (let node = element; node; node = node.parentElement) {
       const style = styleOf(node);
       if (style.display === "none" || (node === element && style.visibility !== "visible") || Number(style.opacity) === 0) return null;
@@ -50,9 +51,14 @@ export function collectAuditSnapshot(options) {
       const clipX = /^(hidden|clip)$/.test(style.overflowX);
       const clipY = /^(hidden|clip)$/.test(style.overflowY);
       if (node !== element && !escapingPosition && (clipX || clipY)) {
+        // A scroller inside this frame can still bring the content into view.
         const clip = node.getBoundingClientRect();
-        if (clipX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
-        if (clipY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+        if (clipX && !(scrollerX && scrollerX.left >= clip.left - 1 && scrollerX.right <= clip.right + 1)) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+        if (clipY && !(scrollerY && scrollerY.top >= clip.top - 1 && scrollerY.bottom <= clip.bottom + 1)) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+      }
+      if (node !== element && !escapingPosition) {
+        if (/^(auto|scroll)$/.test(style.overflowX) && node.scrollWidth > node.clientWidth + 1) scrollerX ??= node.getBoundingClientRect();
+        if (/^(auto|scroll)$/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 1) scrollerY ??= node.getBoundingClientRect();
       }
       // Overflow between a positioned descendant and its containing block does
       // not clip it. Visibility and zero-opacity ancestors still apply above.

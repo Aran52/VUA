@@ -229,7 +229,9 @@ does not declare a second brand or primary action. These are component roles, no
 Overflow clipping follows the positioned element's containing-block chain, as specified by
 [CSS overflow](https://drafts.csswg.org/css2/#overflow-clipping). Fixed and absolute overlays can
 escape unrelated overflow ancestors; transforms and paint/layout containment restore the
-containing-block boundary. Synthetic cases retain both escaping overlays and truly clipped text.
+containing-block boundary. Text a scroller inside the frame can bring into view counts as scrolled, not
+clipped. Synthetic cases retain both escaping overlays and truly clipped text. Each state starts with
+empty local storage, so nothing one view remembers shapes the next.
 
 Art content — the base-map scene canvas, WebGL scenes, turntable frames,
 product photos, avatar covers — is excluded from the audit. Wrap the art

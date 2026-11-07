@@ -500,6 +500,10 @@ export function WarehousePage({
   const loginBrowserOpen = useLoginBrowserRequest() !== null;
   // One probe per entry/closed browser, with stale replies ignored. Visiting a
   // login page can leave cookies without completing login, so do not use hints.
+  // A click during the short account check is kept and carried out when the answer arrives.
+  const syncClicked = useRef(false);
+  const syncAction = useRef<() => void>(() => {});
+  const answerClick = () => { if (syncClicked.current) { syncClicked.current = false; window.setTimeout(() => syncAction.current(), 0); } };
   useEffect(() => {
     if (loginBrowserOpen || importDialogOpen || !remoteBrowser) return;
     let active = true;
@@ -507,13 +511,14 @@ export function WarehousePage({
     const remote = window.vua?.remoteContent;
     if (remote === undefined) setAccountState("unknown");
     else void remote.authProbe().then(
-      probe => { lastAccountAnswer = probe.authOk ? "signed-in" : "sign-in"; if (active) setAccountState(lastAccountAnswer); },
-      () => { lastAccountAnswer = "unknown"; if (active) setAccountState("unknown"); },
+      probe => { lastAccountAnswer = probe.authOk ? "signed-in" : "sign-in"; if (active) { setAccountState(lastAccountAnswer); answerClick(); } },
+      () => { lastAccountAnswer = "unknown"; if (active) { setAccountState("unknown"); answerClick(); } },
     );
     return () => { active = false; };
   }, [loginBrowserOpen, importDialogOpen, remoteBrowser, accountProbeKey]);
-  // The button stays disabled during a check and keeps the last answer's word, so reopening the page shows no flash of text.
+  // The button keeps the last answer's word during a check, so reopening the page shows no flash of text.
   const accountWord = accountState === "checking" ? lastAccountAnswer ?? "checking" : accountState;
+  syncAction.current = () => { void startCatalogSync(); };
   const startCatalogSync = async (): Promise<void> => {
     const catalogSync = window.vua?.catalogSync;
     const remote = window.vua?.remoteContent;
@@ -1364,7 +1369,7 @@ export function WarehousePage({
   }, [wallEl, loadedCount, viewMode]);
 
   return (
-    <div ref={pageRef} className="vua-page vua-warehouse" data-detail={detailOpen || undefined}>
+    <div ref={pageRef} className="vua-page vua-warehouse" data-scroll-frame data-detail={detailOpen || undefined}>
       {detailOpen ? <LibraryDetailBar title={strings.factory.rooms.materials.name} index={neighbours.index} total={libraryPage?.total ?? neighbours.total} onBack={closeDetail}
         onPrevious={neighbours.previous === null ? null : () => openDetail(neighbours.previous!)} onNext={neighbours.next === null ? null : () => openDetail(neighbours.next!)} /> : null}
       <section className="vua-page__hero" hidden={detailOpen}>
@@ -1380,7 +1385,7 @@ export function WarehousePage({
             onMigration={() => setMigrationPreviewOpen(true)}
           />
           {source !== "local" && remoteBrowser ? (
-            <Button variant="default" data-nav-id="warehouse-sync" disabled={accountState === "checking" || syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => void startCatalogSync()}>
+            <Button variant="default" data-nav-id="warehouse-sync" disabled={syncStarting || loginBrowserOpen || importDialogOpen} onClick={() => { if (accountState === "checking") syncClicked.current = true; else void startCatalogSync(); }}>
               {syncStarting || accountWord === "checking" ? copy.catalogSync.checking : accountWord === "sign-in" ? copy.catalogSync.signInAction : accountWord === "unknown" ? copy.catalogSync.retryCheck : copy.catalogSync.action}
             </Button>
           ) : null}
@@ -1499,6 +1504,7 @@ export function WarehousePage({
             {/* 滚动限定在本容器:工具栏/hero 不随图片墙滚动(用户反馈 #2) */}
             <div
               className="vua-warehouse__wall-scroll"
+              data-scroll-frame
               ref={setWallEl}
               onPointerDown={onWallPointerDown}
               onClick={onWallClick}

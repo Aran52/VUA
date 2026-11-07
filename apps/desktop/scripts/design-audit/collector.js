@@ -441,6 +441,7 @@ export function collectAuditSnapshot(options) {
       backdropFilter: cs.backdropFilter || cs.webkitBackdropFilter || "none",
       borders,
       radius: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"].map(k => parseRadius(cs["border" + k + "Radius"])),
+      scrollFrame: el.hasAttribute("data-scroll-frame"),
       paddings: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["padding" + k]) || 0)),
       margins: ["Top", "Right", "Bottom", "Left"].map(k => Math.round(parseFloat(cs["margin" + k]) || 0)),
       autoMargins: ["top", "right", "bottom", "left"].map(side => typedStyle?.get(`margin-${side}`)?.toString() === "auto"),
@@ -490,6 +491,22 @@ export function collectAuditSnapshot(options) {
   // collection failure instead of auditing the overlay page.
   const errorOverlay = Boolean(document.querySelector("vite-error-overlay"));
 
+
+  // Captions placed over a node or over one another hide what they name.
+  function captionOverlaps() {
+    const shown = [...document.querySelectorAll('[data-audit-caption="true"]')].filter(node => node.dataset.shown !== "false");
+    const boxes = shown.map(node => ({ node, rect: node.getBoundingClientRect() }));
+    const avoid = [...document.querySelectorAll("[data-audit-caption-avoid]")].map(node => ({ node, rect: node.getBoundingClientRect() }));
+    const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+    const found = [];
+    boxes.forEach((box, index) => {
+      const text = box.node.textContent.slice(0, 40);
+      const rect = { x: Math.round(box.rect.left), y: Math.round(box.rect.top), w: Math.round(box.rect.width), h: Math.round(box.rect.height) };
+      for (const other of boxes.slice(index + 1)) if (hit(box.rect, other.rect)) found.push({ text, rect, other: `caption "${other.node.textContent.slice(0, 40)}"` });
+      for (const other of avoid) if (other.node.dataset.nodeId !== box.node.dataset.nodeId && hit(box.rect, other.rect)) found.push({ text, rect, other: `node "${other.node.dataset.nodeId}"` });
+    });
+    return found;
+  }
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight },
     scroll: { x: window.scrollX, y: window.scrollY },
@@ -499,6 +516,8 @@ export function collectAuditSnapshot(options) {
     errorOverlay,
     accentModuleScope, accentRootScope,
     palette, shadowTokens, radiusTokens, tokenRaw,
+    scrollbarSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--vua-scrollbar-size")) || 0,
+    captionOverlaps: captionOverlaps(),
     elementCount: elements.length,
     elements,
   };

@@ -9,6 +9,8 @@ import "@vua/design-system/base.css";
 
 const root = createRoot(document.getElementById("root")!);
 const wait = (ms = 40) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** The panel leaves with a short motion. */
+async function panelGone() { for (let i = 0; i < 40 && document.querySelector(".vua-usage-panel") !== null; i += 1) await wait(); }
 const results: string[] = [];
 function check(ok: unknown, name: string) {
   if (!ok) throw new Error(name);
@@ -116,6 +118,7 @@ async function closePaths() {
   // Esc
   await key("Escape");
   await wait();
+  await panelGone();
   check(panel() === null, "Esc 关闭弹层");
   check(toggle().getAttribute("aria-expanded") === "false", "Esc 后 aria-expanded 复位");
   // 外击
@@ -123,6 +126,7 @@ async function closePaths() {
   await wait();
   document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
   await wait();
+  await panelGone();
   check(panel() === null, "弹层外点击关闭");
   // × 按钮
   toggle().click();
@@ -132,6 +136,7 @@ async function closePaths() {
   check(close!.getAttribute("aria-label") === copy.closeAria, "× 按钮具名(aria-label)");
   close!.click();
   await wait();
+  await panelGone();
   check(panel() === null, "× 关闭弹层");
   // 失焦
   toggle().click();
@@ -139,6 +144,7 @@ async function closePaths() {
   check(panel() !== null, "失焦场景前置:弹层已开");
   window.dispatchEvent(new Event("blur"));
   await wait();
+  await panelGone();
   check(panel() === null, "窗口失焦关闭弹层");
 }
 
@@ -166,6 +172,7 @@ async function vramUnavailableHonestFace() {
   check(!text.includes("16%"), "不可用时不渲染 VRAM 百分比(不编造读数)");
   await key("Escape");
   await wait();
+  await panelGone();
   check(panel() === null, "不可用场景收尾:弹层已关");
 }
 

@@ -1,0 +1,7 @@
+{
+  "first-use": "Shared setup that other smokes import; it checks nothing itself.",
+  "f4-deliverables": "Runs download-port and the remote smokes together, for a release check.",
+  "download-port": "Stops at its retry check on Electron 44 (the file it looks for has already moved); needs its own fix before CI.",
+  "remote-permissions": "Permission requests time out in a hidden window on Electron 44; needs its own fix before CI.",
+  "m2-deliverables": "Ends every provider process on the machine by name, so it runs only with no VUA open."
+}

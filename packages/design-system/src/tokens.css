@@ -189,6 +189,8 @@
   --vua-scene-fps: 30;
 
   /* ---- Layers: the feedback tiers stack in this order; anything that opens from inside a dialog sits above it ---- */
+  /* The scrollbar's room; a page frame that scrolls inside itself leaves this much at its edge. */
+  --vua-scrollbar-size: 10px;
   --vua-z-browser: 500;
   --vua-z-drawer: 600;
   --vua-z-dialog: 800;

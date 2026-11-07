@@ -94,7 +94,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
   drawLabels.current = () => {
     const cam = camera.current;
     const inputs: LabelInput[] = graph.nodes.map((node, i) => ({
-      x: cam.x + sim.x[i]! * cam.scale, y: cam.y + sim.y[i]! * cam.scale, radius: NODE_RADIUS[node.kind] * cam.scale,
+      x: cam.x + sim.x[i]! * cam.scale, y: cam.y + sim.y[i]! * cam.scale, radius: (NODE_RADIUS[node.kind] + (node.kind === "package" ? 3 : 0)) * cam.scale,
       width: labelSizes.current[i]?.width ?? 0, height: labelSizes.current[i]?.height ?? 0, rank: LABEL_RANK[node.kind],
       required: requiredLabels.current.has(node.id), optional: labelledByDefault(node, graph.nodes.length),
     }));
@@ -272,7 +272,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
           onPointerEnter={() => setHovered(node.id)} onPointerLeave={() => setHovered(current => (current === node.id ? null : current))}
           onFocus={() => setFocused(node.id)} onBlur={() => setFocused(current => (current === node.id ? null : current))}>
           <circle className="vua-graph__halo" r={NODE_RADIUS[node.kind] + 7}/>
-          <NodeShape kind={node.kind}/>
+          <g data-audit-caption-avoid="true" data-node-id={node.id}><NodeShape kind={node.kind}/></g>
           <g className="vua-graph__icon" transform="translate(-8 -8)"><Icon name={NODE_ICONS[node.kind]} size={16}/></g>
           {node.kind !== "recipe" && node.recipeIds.length > 1 && <g className="vua-graph__count" transform={`translate(${NODE_RADIUS[node.kind] * 0.78} ${-NODE_RADIUS[node.kind] * 0.78})`}>
             <circle r={9}/><text dy="0.35em">{node.recipeIds.length}</text></g>}
@@ -281,7 +281,7 @@ export function RecipeGraphCanvas({ graph, selectedId, onSelect, resetKey, label
     </g>
   </svg>
   <div className="vua-graph__labels" aria-hidden="true">
-    {graph.nodes.map((node, i) => <span key={node.id} ref={element => { labelRefs.current[i] = element; }} className="vua-graph__label" data-kind={node.kind} data-shown="false"
+    {graph.nodes.map((node, i) => <span key={node.id} ref={element => { labelRefs.current[i] = element; }} className="vua-graph__label" data-kind={node.kind} data-shown="false" data-audit-caption="true" data-node-id={node.id}
       data-dim={lit !== null && !lit.has(node.id) || undefined}>{graphCaption(node)}</span>)}
   </div></div>;
 }

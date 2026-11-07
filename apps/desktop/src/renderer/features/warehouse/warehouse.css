@@ -7,7 +7,7 @@
    * hero/工具栏/详情抽屉常驻 */
   overflow: visible;
   /* Without a page scrollbar this keeps the frame's right edge; the wall's scrollbar sits in the gap. */
-  padding-inline-end: calc(var(--vua-space-2) + 10px);
+  padding-inline-end: calc(var(--vua-space-2) + var(--vua-scrollbar-size));
 }
 
 /* ---- 双轨视图头(S-IX-3):云端目录 / 本地文件 大号轨道卡 ---- */
@@ -99,7 +99,7 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  margin-inline: calc(-1 * var(--vua-space-2)) -10px;
+  margin-inline: calc(-1 * var(--vua-space-2)) calc(-1 * var(--vua-scrollbar-size));
   /* 卡片 hover 上浮(-2px)与焦点环在滚动区内不裁切 */
   padding-top: var(--vua-space-1);
   padding-inline-start: var(--vua-space-2);

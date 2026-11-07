@@ -176,12 +176,36 @@ const review = {
     await wait(() => document.querySelector('[data-wizard-step="vrchat"]'));
     await settlePage();
   },
+  async updatePrivacy() {
+    const original = window.vua!.componentUpdates;
+    const requests: string[] = [];
+    const port = {
+      snapshot: async (component: string) => ({schemaVersion: "0.2", component, available: true, state: "idle", rollbackAvailable: false}),
+      check: async (component: string) => { requests.push(component); }, subscribe: () => () => {},
+    };
+    Object.defineProperty(window.vua, "componentUpdates", {value: port, configurable: true});
+    localStorage.removeItem(storageKeys.goals); autoConfirmFirstRun = false;
+    try {
+      await mount();
+      check("first-use includes update privacy information", document.querySelector("[data-first-use-notice] [data-update-privacy]"));
+      await new Promise(resolve => setTimeout(resolve, 2800));
+      check("no automatic request while the first-use notice is open", requests.length === 0);
+      localStorage.setItem("vua-component-update-host-enabled", "off");
+      document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-beginner"]')!.click();
+      await wait(() => requests.length > 0, "automatic update after first-use acknowledgment");
+      check("closing the notice schedules only the separately enabled AMF check", requests.join(",") === "amf");
+      return checks.slice(-3);
+    } finally {
+      autoConfirmFirstRun = true;
+      Object.defineProperty(window.vua, "componentUpdates", {value: original, configurable: true});
+    }
+  },
   async firstUseChoices() {
     localStorage.removeItem(storageKeys.goals);
     autoConfirmFirstRun = false;
     try { await mount(); } finally { autoConfirmFirstRun = true; }
-    check("first use has four notice parts, two choices and no language question",
-      document.querySelectorAll("[data-first-use-part]").length === 4
+    check("first use has five notice parts including update disclosure, two choices and no language question",
+      document.querySelectorAll("[data-first-use-part]").length === 5
       && document.querySelectorAll("[data-first-use-notice] button").length === 2
       && !document.querySelector("[data-first-use-notice] select, [data-first-use-notice] input"));
     document.querySelector<HTMLButtonElement>('[data-nav-id="first-use-beginner"]')!.click();

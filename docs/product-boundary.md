@@ -561,11 +561,34 @@ User-adopted implementation boundary (2026-09-29), informed by the
   SDK builder on the player's device after the player's own confirmation of the content rights for
   each upload (managed upload, user ruling 2026-10-17).
 - Store only necessary data locally by default; no unnecessary friend-activity tracking, profiling
-  or cross-user database. Sanitize logs and retain purchased files locally.
+  or cross-user profiling database. Sanitize logs and retain purchased files locally. The narrowly
+  scoped update-distribution exception below permits service logs and aggregate counts only.
 - Any future allowed API adapter needs bounded request rates, backoff and accurate identification,
   and a concrete policy review. This section grants no new API feature or execution permission.
 - State clearly that VUA has no VRChat Inc. affiliation or endorsement. Do not infer approval from
   the continued existence of VRCX or other tools, or promise blanket policy compliance.
+
+## Update-distribution request statistics (user ruling, 2026-11-07)
+
+Update checks and downloads can contact ph-r.com, GitHub and configured mirrors. The distribution
+service may process ordinary request IPs, timestamps, paths, HTTP status and User-Agent for delivery
+diagnostics and daily independent-IP/version counts. New clients include installed Host and AMF
+versions in the distribution User-Agent; mirrors may receive it too. This does not authorize an
+installation ID, an additional tracking request, account/material association or a cross-day personal
+profile. Purchased materials and user projects remain local.
+
+PH-R retains raw distribution logs for at most seven days, including error logs, rotations and
+copies. Independent-IP deduplication is confined to collector process memory; only count summaries
+are persisted and may be retained long term. Days use Asia/Shanghai. These are approximate network
+sources, not people or installations; shared exits, changing IPs and disabled checks affect coverage.
+Third-party services follow their own retention policies. The public project/download notice must
+precede new statistics collection and channel opening.
+
+Host and AMF automatic-check switches are independent. New clients wait until the first-use notice
+closes before scheduling automatic checks; published v1.0.0 instead schedules them about 2.5 seconds
+after startup, including while that notice is open. Turning off both switches stops automatic
+checks; manual checks and downloads still connect. Neither server logs nor HTTP success prove
+that a download was validated, an update applied or a component is running.
 
 ## Explicit boundaries
 

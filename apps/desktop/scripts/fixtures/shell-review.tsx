@@ -10,6 +10,7 @@
 //   gone=1           the finished lines' work projects are gone
 //   library=empty    no materials (default: a small library)
 //   library=large    2000 more materials, for scrolling
+//   slow=1           the AMF module answers one request at a time, with its real delays
 //   mode=ask         permission mode (default: full auto, the setting for new players)
 //   lang=<locale>    UI language (default: zh-CN)
 import type { VuaDesktopApiV2 } from "@vua/contracts";
@@ -185,7 +186,17 @@ const sopFor = (selection: { scenario: string; connection?: string }) => ({
 const toolConnection = (toolId: string) => ({ toolConnection: { schemaVersion: "vua.external-tool/v0.3", toolId, capturedAt: now(), presence: envMissing ? "missing" : ["vrcft", "space", "chilloutvr", "vrchat", "steamvr"].includes(toolId) ? "installed" : "missing", steamReady: !envMissing, buildId: null, running: false, canStop: false, activity: "idle", issue: null } });
 
 const unknownMethods = new Set<string>();
+/* The AMF module's one lane: its slow reads hold up every other AMF request behind them. */
+const AMF_DELAYS: Readonly<Record<string, number>> = { "amf.production.list": 2500, "amf.production.recipeMaterialPlan": 6500, "library.list": 60 };
+let amfLane: Promise<unknown> = Promise.resolve();
+function slowly(method: string): Promise<void> {
+  if (params.get("slow") !== "1" || !/^(amf\.|library\.|catalog\.)/u.test(method)) return Promise.resolve();
+  const turn = amfLane.then(() => new Promise<void>(resolve => setTimeout(resolve, AMF_DELAYS[method] ?? 10)));
+  amfLane = turn;
+  return turn;
+}
 async function reply(method: string, input: Record<string, any>): Promise<unknown> {
+  await slowly(method);
   switch (method) {
     case "app.snapshot": return { capabilities: { tasks: true, operations: [{ operationId: "environment.testWebsites", availability: "available" }] } };
     case "task.list": return { revision: 1, tasks: [] };

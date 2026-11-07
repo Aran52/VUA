@@ -111,6 +111,8 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:amf-production
       - name: External AI tool connection and approval (synthetic ports)
         run: pnpm --filter @vua/desktop smoke:ai-ui
+      - name: Page switches stay quick while the AMF module is slow (synthetic delays)
+        run: pnpm --filter @vua/desktop smoke:page-speed
       - name: Bundled MCP implementation loads nothing from node_modules
         run: pnpm --filter @vua/desktop smoke:ai-bundle
       - name: MCP client through the real Gateway and host provider (read-only observations)

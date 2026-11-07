@@ -3,7 +3,7 @@ use crate::library_download::{LibraryDownloadError, LibraryDownloadService};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use vua_bdl_store::{ArtifactMode, BdlStore, CopyRole, LibraryCopyEvidence};
 
 const SORTS: [&str; 9] = ["added_desc", "added_asc", "title_asc", "title_desc", "shop_asc", "price_asc", "price_desc", "published_desc", "size_desc"];
@@ -51,28 +51,52 @@ fn limit() -> usize {
     50
 }
 
+/// Reads the presence of many files, most under the same folders, so each folder resolves once.
+pub(crate) struct PresenceCheck {
+    root: Option<PathBuf>,
+    folders: HashMap<PathBuf, Option<PathBuf>>,
+}
+
+impl PresenceCheck {
+    pub(crate) fn new(root: &Path) -> Self {
+        Self {
+            root: std::fs::canonicalize(root).ok(),
+            folders: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn presence(&mut self, evidence: &LibraryCopyEvidence) -> &'static str {
+        let path = Path::new(&evidence.copy.stored_path);
+        let meta = match std::fs::symlink_metadata(path) {
+            Ok(meta) => meta,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return "missing",
+            Err(_) => return "unreadable",
+        };
+        if !meta.file_type().is_file() || !self.inside(path) {
+            return "unreadable";
+        }
+        if meta.len() != evidence.size_bytes {
+            return "changed";
+        }
+        // Presence is a metadata check. Production must recheck the selected hash.
+        "present"
+    }
+
+    /// A regular file is no link, so only its folder can lead outside the warehouse.
+    fn inside(&mut self, path: &Path) -> bool {
+        let (Some(root), Some(folder)) = (&self.root, path.parent()) else {
+            return false;
+        };
+        self.folders
+            .entry(folder.to_owned())
+            .or_insert_with(|| std::fs::canonicalize(folder).ok())
+            .as_ref()
+            .is_some_and(|folder| folder.starts_with(root))
+    }
+}
+
 pub(crate) fn presence(root: &Path, evidence: &LibraryCopyEvidence) -> &'static str {
-    let path = Path::new(&evidence.copy.stored_path);
-    let meta = match std::fs::symlink_metadata(path) {
-        Ok(meta) => meta,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return "missing",
-        Err(_) => return "unreadable",
-    };
-    if !meta.file_type().is_file() {
-        return "unreadable";
-    }
-    let inside = std::fs::canonicalize(root)
-        .ok()
-        .zip(std::fs::canonicalize(path).ok())
-        .is_some_and(|(root, path)| path.starts_with(root));
-    if !inside {
-        return "unreadable";
-    }
-    if meta.len() != evidence.size_bytes {
-        return "changed";
-    }
-    // Presence is a metadata check. Production must recheck the selected hash.
-    "present"
+    PresenceCheck::new(root).presence(evidence)
 }
 
 fn storage(copies: &[&LibraryCopyEvidence], presences: &HashMap<String, &'static str>) -> Value {
@@ -171,16 +195,17 @@ pub fn list(
     let copies: Vec<_> = bdl.library_copy_evidence()?.into_iter().filter(|copy| !removed.contains(&copy.copy.warehouse_item_id)).collect();
     let metadata: HashMap<_, _> = bdl.library_entry_metadata_all()?.into_iter().map(|m| (m.entry_id.clone(), m)).collect();
     let explicit_sources: HashMap<_, _> = metadata.values().filter_map(|m| m.product_id.as_ref().map(|id| (m.entry_id.clone(), id.clone()))).collect();
+    let mut check = PresenceCheck::new(root);
     let mut presences = copies
         .iter()
-        .map(|copy| (copy.copy.copy_id.clone(), presence(root, copy)))
+        .map(|copy| (copy.copy.copy_id.clone(), check.presence(copy)))
         .collect();
-    let mut managed_products = HashMap::new();
-    for id in copies.iter().filter_map(|copy| copy.downloadable_id) {
-        if let Some(product) = bdl.product_of_downloadable(id)? {
-            managed_products.insert(id, product);
-        }
-    }
+    let owners = bdl.downloadable_owners()?;
+    let managed_products: HashMap<_, _> = copies
+        .iter()
+        .filter_map(|copy| copy.downloadable_id)
+        .filter_map(|id| owners.get(&id).map(|product| (id, product.clone())))
+        .collect();
     let grouping = crate::library_reconcile::group(
         &entries,
         &products,
@@ -193,15 +218,10 @@ pub fn list(
             .expect("library checks poisoned"),
         &explicit_sources,
     );
-    let memberships: HashMap<_, _> = products
-        .iter()
-        .map(|p| {
-            Ok((
-                p.product_id.clone(),
-                bdl.product_library_memberships(&p.product_id)?,
-            ))
-        })
-        .collect::<Result<_, vua_bdl_store::BdlStoreError>>()?;
+    let mut memberships = bdl.library_memberships_all()?;
+    for product in &products {
+        memberships.entry(product.product_id.clone()).or_default();
+    }
     let snapshots = downloads.library_snapshots()?;
     let mut operations = HashMap::new();
     // An active attempt takes precedence over an older terminal attempt.
@@ -214,27 +234,36 @@ pub fn list(
             .entry(snapshot["productId"].as_str().unwrap_or("").to_owned())
             .or_insert(snapshot.clone());
     }
+    let mut copies_of_product: HashMap<&str, Vec<&LibraryCopyEvidence>> = HashMap::new();
+    let mut copies_of_entry: HashMap<&str, Vec<&LibraryCopyEvidence>> = HashMap::new();
+    for copy in &copies {
+        copies_of_entry.entry(copy.copy.warehouse_item_id.as_str()).or_default().push(copy);
+        for id in grouping.assignments.get(&copy.copy.copy_id).into_iter().flatten() {
+            copies_of_product.entry(id.as_str()).or_default().push(copy);
+        }
+    }
+    let imported_places: HashMap<&str, usize> = entries
+        .iter()
+        .enumerate()
+        .filter(|(_, entry)| entry.kind == "imported_material")
+        .map(|(place, entry)| (entry.warehouse_item_id.as_str(), place))
+        .collect();
     let mut rows = Vec::new();
     let removed_products = bdl.removed_library_products()?;
     for product in &mut products {
         if removed_products.contains(&product.product_id) { continue; }
-        let attached: Vec<_> = copies
-            .iter()
-            .filter(|copy| {
-                grouping
-                    .assignments
-                    .get(&copy.copy.copy_id)
-                    .is_some_and(|ids| ids.contains(&product.product_id))
-            })
-            .collect();
-        let facts = storage(&attached, &presences);
+        let attached = copies_of_product.get(product.product_id.as_str()).map_or(&[][..], Vec::as_slice);
+        let facts = storage(attached, &presences);
         if attached.is_empty() && memberships[&product.product_id].is_empty() { continue; }
         // Compatibility projection: this new face counts present physical copies,
         // while the frozen catalog face retains its historical mapping count.
         product.imported_artifacts = facts["presentCopies"].as_u64().unwrap_or(0) as u32;
         rows.push(json!({"kind":"product","product":product,"variantCount":variant_counts.get(&product.product_id).copied().unwrap_or(0),"sources":memberships[&product.product_id],"sourceCategory":categories.get(&product.product_id).and_then(|v| v.as_ref()),
             "storage":facts,"copyIds":attached.iter().map(|c|&c.copy.copy_id).collect::<Vec<_>>(),"operation":operations.remove(&product.product_id)}));
-        let local_entries: Vec<_> = entries.iter().filter(|entry| entry.kind == "imported_material" && attached.iter().any(|copy| copy.copy.warehouse_item_id == entry.warehouse_item_id))
+        let mut places: Vec<_> = attached.iter().filter_map(|copy| imported_places.get(copy.copy.warehouse_item_id.as_str()).copied()).collect();
+        places.sort_unstable();
+        places.dedup();
+        let local_entries: Vec<_> = places.into_iter().map(|place| &entries[place])
             .map(|entry| json!({"entryId":entry.warehouse_item_id,"displayName":entry.display_name})).collect();
         if !local_entries.is_empty() { rows.last_mut().expect("product row")["localEntries"] = json!(local_entries); }
         if current {
@@ -244,16 +273,17 @@ pub fn list(
             let row = rows.last_mut().expect("product row");
             row["addedAt"] = json!(added);
             row["publishedAt"] = json!(product_dates.published_at);
-            row["sizeBytes"] = json!(present_size(&attached, &presences));
+            row["sizeBytes"] = json!(present_size(attached, &presences));
         }
     }
+    let sources = crate::library_reconcile::SourceIndex::new(&products);
     for mut entry in entries {
-        let unassociated: Vec<_> = copies
-            .iter()
-            .filter(|copy| {
-                copy.copy.warehouse_item_id == entry.warehouse_item_id
-                    && !grouping.assignments.contains_key(&copy.copy.copy_id)
-            })
+        let unassociated: Vec<_> = copies_of_entry
+            .get(entry.warehouse_item_id.as_str())
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|copy| !grouping.assignments.contains_key(&copy.copy.copy_id))
             .collect();
         if unassociated.is_empty() && !entry.artifacts.is_empty() {
             continue;
@@ -266,12 +296,12 @@ pub fn list(
             })
         });
         let hint =
-            crate::library_reconcile::source_hint(&entry, &unassociated, &products, &grouping, explicit_sources.get(&entry.warehouse_item_id).map(String::as_str));
+            crate::library_reconcile::source_hint(&entry, &unassociated, &sources, &grouping, explicit_sources.get(&entry.warehouse_item_id).map(String::as_str));
         let mut row = json!({"kind":"local","entry":entry,"storage":storage(&unassociated,&presences),
             "copyIds":unassociated.iter().map(|c|&c.copy.copy_id).collect::<Vec<_>>(),"sourceCategory":null});
         if let Some(metadata) = metadata.get(&entry.warehouse_item_id) { row["metadata"] = json!(metadata); }
         if let Some((basis, id, content)) = hint {
-            if let Some(product) = products.iter().find(|p| p.product_id == id) {
+            if let Some(product) = sources.product(&id) {
                 row["sourceMatch"] = crate::library_reconcile::hint_value(
                     product,
                     &memberships[&id],
@@ -610,11 +640,11 @@ pub(crate) fn product_copy_ids(bdl: &BdlStore, root: &Path, downloads: &LibraryD
     let copies: Vec<_> = bdl.library_copy_evidence()?.into_iter().filter(|copy| !removed.contains(&copy.copy.warehouse_item_id)).collect();
     let products = bdl.library_product_summaries()?;
     let explicit: HashMap<_, _> = bdl.library_entry_metadata_all()?.into_iter().filter_map(|m| m.product_id.map(|id| (m.entry_id, id))).collect();
-    let mut managed = HashMap::new();
-    for id in copies.iter().filter_map(|copy| copy.downloadable_id.or(copy.archive_downloadable_id)) {
-        if let Some(product) = bdl.product_of_downloadable(id)? { managed.insert(id, product); }
-    }
-    let mut presences = copies.iter().map(|copy| (copy.copy.copy_id.clone(), presence(root, copy))).collect();
+    let owners = bdl.downloadable_owners()?;
+    let managed: HashMap<_, _> = copies.iter().filter_map(|copy| copy.downloadable_id.or(copy.archive_downloadable_id))
+        .filter_map(|id| owners.get(&id).map(|product| (id, product.clone()))).collect();
+    let mut check = PresenceCheck::new(root);
+    let mut presences = copies.iter().map(|copy| (copy.copy.copy_id.clone(), check.presence(copy))).collect();
     let checks = downloads.library_content_checks.lock().expect("library checks poisoned");
     let grouping = crate::library_reconcile::group(&entries, &products, &copies, &managed, &mut presences, &checks, &explicit);
     Ok(grouping.assignments.into_iter().filter_map(|(copy, products)| products.contains(product_id).then_some(copy)).collect())

@@ -1056,3 +1056,84 @@ fn recovery_material_is_never_overwritten_and_owned_temporary_files_are_cleaned(
     assert_eq!(std::fs::read(&old.stored_path).unwrap(), b"old");
     assert!(!folder.join(".vua-new-library-download-again-901").exists());
 }
+
+fn library_page_item() -> crate::library_page::LibraryPageItem {
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap(),
+    )
+    .unwrap();
+    crate::library_page::extract_library_page(fixture["params"]["html"].as_str().unwrap()).unwrap().items[0].clone()
+}
+
+fn seed_bought(w: &World, item: &crate::library_page::LibraryPageItem, id: i64, title: &str) {
+    let mut item = item.clone();
+    item.native_product_id = id.to_string();
+    item.name = Some(title.to_owned());
+    let observation = crate::library_page::library_item_to_observation(&item, &format!("sha256:{id:064}"), "2026-10-08T00:00:00Z", None, Some("bought"));
+    w.bdl.record_product_observation(&observation).unwrap();
+}
+
+#[test]
+fn a_local_entry_suggests_one_product_by_its_number_or_title_and_stays_quiet_when_unsure() {
+    let w = World::new();
+    let item = library_page_item();
+    seed_bought(&w, &item, 100_001, "Fluffy Hair");
+    seed_bought(&w, &item, 100_002, "Twin Title");
+    seed_bought(&w, &item, 100_003, "Twin Title");
+    let hint = |folder: &str, file: &str| {
+        let entry = w.import_local(folder, &[(file, folder.as_bytes())]);
+        let view = library_view(&w, json!({"schemaVersion":"0.1","limit":200}));
+        view["items"].as_array().unwrap().iter().find(|row| row["entry"]["warehouseItemId"] == entry.warehouse_item_id).unwrap()["sourceMatch"].clone()
+    };
+    let by_folder = hint("avatar_100001_v2", "a.unitypackage");
+    assert_eq!((&by_folder["basis"], &by_folder["product"]["productId"]), (&json!("product_id"), &json!("booth:100001")));
+    let by_file = hint("plain name", "pack-100002.unitypackage");
+    assert_eq!((&by_file["basis"], &by_file["product"]["productId"]), (&json!("product_id"), &json!("booth:100002")));
+    assert!(hint("100001 and 100002", "b.unitypackage").is_null(), "two numbers name no single product");
+    assert!(hint("1000011", "c.unitypackage").is_null(), "a longer number is another number");
+    assert!(hint("release 90", "d.unitypackage").is_null(), "booth:90 is too short to count inside a name");
+    let by_title = hint("fluffy   HAIR", "e.unitypackage");
+    assert_eq!((&by_title["basis"], &by_title["product"]["productId"]), (&json!("name"), &json!("booth:100001")));
+    assert!(hint("twin title", "f.unitypackage").is_null(), "a shared title names no single product");
+}
+
+/// Run by hand: cargo test --release -p vua-acquisition a_large_library -- --ignored --nocapture
+#[test]
+#[ignore = "measures one read at the size of a large library"]
+fn a_large_library_reads_quickly() {
+    let w = World::new();
+    let item = library_page_item();
+    let started = std::time::Instant::now();
+    for i in 0..2000_i64 {
+        let id = 100_000 + i;
+        seed_bought(&w, &item, id, &format!("Synthetic {i}"));
+        w.bdl
+            .upsert_product_downloadables(
+                &format!("booth:{id}"),
+                &[(1_000_000 + i * 2, "a.zip".into()), (1_000_001 + i * 2, "b.pdf".into())],
+                "2026-10-08T00:00:00Z",
+                None,
+                Some("bought"),
+            )
+            .unwrap();
+    }
+    for i in 0..300 {
+        w.import_local(&format!("local-{i}"), &[("Avatar.unitypackage", format!("bytes {i}").as_bytes())]);
+    }
+    let places: Vec<(usize, String)> = (0..2000).map(|i| (i, format!("booth:{}", 100_000 + i))).collect();
+    w.bdl.record_library_positions("bought", &places).unwrap();
+    eprintln!("seeded in {:?}", started.elapsed());
+    let reads = [
+        ("first batch", json!({"schemaVersion":"0.3","limit":100,"sort":"added_desc"})),
+        ("later batch", json!({"schemaVersion":"0.3","limit":100,"offset":1000,"sort":"added_desc"})),
+        ("by title", json!({"schemaVersion":"0.3","limit":100,"sort":"title_asc"})),
+        ("search", json!({"schemaVersion":"0.3","limit":100,"sort":"added_desc","text":"Synthetic 19"})),
+    ];
+    for (name, query) in reads {
+        for _ in 0..2 {
+            let began = std::time::Instant::now();
+            let view = library_view(&w, query.clone());
+            eprintln!("{name}: {:?}, {} rows of {}", began.elapsed(), view["items"].as_array().unwrap().len(), view["total"]);
+        }
+    }
+}

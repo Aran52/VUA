@@ -343,7 +343,12 @@ pub fn apply_catalog_sync(
             let mut upserted = 0;
             let mut rejected = Vec::new();
             // BOOTH lists an account's products newest first; their places order "recently added".
-            let earlier: usize = current.receipts.iter().filter(|page| page.library_type == request.library_type).map(|page| page.result.parsed_count).sum();
+            let earlier: usize = current
+                .receipts
+                .iter()
+                .filter(|page| page.library_type == request.library_type)
+                .map(|page| page.result.parsed_count)
+                .sum();
             let mut positions = Vec::with_capacity(page.items.len());
             for (index, item) in page.items.iter().enumerate() {
                 let observation = crate::library_page::library_item_to_observation(

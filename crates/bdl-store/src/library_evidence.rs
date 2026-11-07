@@ -122,6 +122,44 @@ impl BdlStore {
         Ok(rows)
     }
 
+    /// Every product's memberships at once, for reads that cover the whole library.
+    pub fn library_memberships_all(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Vec<String>>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare(
+            "SELECT product_id,library_type FROM product_library_memberships ORDER BY product_id,library_type",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let mut memberships = std::collections::HashMap::<String, Vec<String>>::new();
+        for row in rows {
+            let (product, library_type) = row?;
+            memberships.entry(product).or_default().push(library_type);
+        }
+        Ok(memberships)
+    }
+
+    /// The product each downloadable was first seen under, for reads that cover the whole library.
+    pub fn downloadable_owners(
+        &self,
+    ) -> Result<std::collections::HashMap<i64, String>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare(
+            "SELECT downloadable_id,product_id FROM product_downloadables ORDER BY first_seen_at,downloadable_id",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let mut owners = std::collections::HashMap::new();
+        for row in rows {
+            let (downloadable, product) = row?;
+            owners.entry(downloadable).or_insert(product);
+        }
+        Ok(owners)
+    }
+
     pub fn library_copy_evidence(&self) -> Result<Vec<LibraryCopyEvidence>, BdlStoreError> {
         let connection = self.connection.lock().expect("SQLite connection poisoned");
         let mut statement = connection.prepare(

@@ -316,18 +316,22 @@ pub(crate) fn group(
             assignments.insert(copy.copy.copy_id.clone(), ids);
         }
     }
+    let mut copies_of_entry: HashMap<&str, Vec<&LibraryCopyEvidence>> = HashMap::new();
+    for copy in copies {
+        copies_of_entry.entry(copy.copy.warehouse_item_id.as_str()).or_default().push(copy);
+    }
     // A derivative is grouped only when every original in its entry has matched
     // the same product. A partial match must not swallow unrelated local files.
     for entry in entries
         .iter()
         .filter(|e| !downloaded.contains(e.warehouse_item_id.as_str()))
     {
-        let originals: Vec<_> = copies
+        let Some(own) = copies_of_entry.get(entry.warehouse_item_id.as_str()) else {
+            continue;
+        };
+        let originals: Vec<_> = own
             .iter()
-            .filter(|c| {
-                c.copy.warehouse_item_id == entry.warehouse_item_id
-                    && c.copy.role == CopyRole::Original
-            })
+            .filter(|c| c.copy.role == CopyRole::Original)
             .collect();
         let Some(first) = originals
             .first()
@@ -349,10 +353,7 @@ pub(crate) fn group(
         if common.is_empty() {
             continue;
         }
-        for copy in copies.iter().filter(|c| {
-            c.copy.warehouse_item_id == entry.warehouse_item_id
-                && c.copy.role == CopyRole::GeneratedVpm
-        }) {
+        for copy in own.iter().filter(|c| c.copy.role == CopyRole::GeneratedVpm) {
             assignments.insert(copy.copy.copy_id.clone(), common.clone());
         }
     }
@@ -369,24 +370,84 @@ fn normalized_name(name: &str) -> String {
         .to_lowercase()
 }
 
+/// The products one library read matches its local entries against. Every entry
+/// asks, so the products are indexed once.
+pub(crate) struct SourceIndex<'a> {
+    by_id: HashMap<&'a str, &'a CatalogProductSummary>,
+    /// BOOTH ids by number, for numbers long enough to mean something inside a name.
+    by_number: HashMap<&'a str, Vec<&'a str>>,
+    by_title: HashMap<String, Vec<&'a str>>,
+    booth_ids: Vec<&'a str>,
+    other_ids: Vec<&'a str>,
+}
+
+impl<'a> SourceIndex<'a> {
+    pub(crate) fn new(products: &'a [CatalogProductSummary]) -> Self {
+        let mut index = Self {
+            by_id: HashMap::with_capacity(products.len()),
+            by_number: HashMap::new(),
+            by_title: HashMap::new(),
+            booth_ids: Vec::new(),
+            other_ids: Vec::new(),
+        };
+        for product in products {
+            let id = product.product_id.as_str();
+            index.by_id.insert(id, product);
+            match id.strip_prefix("booth:") {
+                Some(number) => {
+                    index.booth_ids.push(id);
+                    if number.len() >= 5 {
+                        index.by_number.entry(number).or_default().push(id);
+                    }
+                }
+                None => index.other_ids.push(id),
+            }
+            if let Some(title) = &product.title {
+                index.by_title.entry(normalized_name(title)).or_default().push(id);
+            }
+        }
+        index
+    }
+
+    pub(crate) fn product(&self, id: &str) -> Option<&'a CatalogProductSummary> {
+        self.by_id.get(id).copied()
+    }
+
+    /// Products a name states outright: their whole id, or their number as a whole run of digits.
+    fn named_by(&self, names: &[&str]) -> HashSet<&'a str> {
+        let mut named = HashSet::new();
+        for name in names {
+            for digits in name.split(|c: char| !c.is_ascii_digit()) {
+                if let Some(ids) = self.by_number.get(digits) {
+                    named.extend(ids.iter().copied());
+                }
+            }
+            if name.contains("booth:") {
+                named.extend(self.booth_ids.iter().copied().filter(|id| name.contains(id)));
+            }
+            named.extend(self.other_ids.iter().copied().filter(|id| name.contains(id)));
+        }
+        named
+    }
+}
+
 /// Suggestions are deterministic, local, and unambiguous. They are read-model
 /// hints, not persisted user confirmations or compatibility claims.
 pub(crate) fn source_hint(
     entry: &WarehouseEntryCard,
     copies: &[&LibraryCopyEvidence],
-    products: &[CatalogProductSummary],
+    products: &SourceIndex,
     grouping: &Grouping,
     explicit_source: Option<&str>,
 ) -> Option<(&'static str, String, &'static str)> {
-    let known: HashSet<_> = products.iter().map(|p| p.product_id.as_str()).collect();
     let mapped: HashSet<_> = copies
         .iter()
         .filter(|c| c.copy.role == CopyRole::Original)
         .flat_map(|c| &c.product_ids)
-        .filter(|id| known.contains(id.as_str()))
+        .filter(|id| products.by_id.contains_key(id.as_str()))
         .cloned()
         .collect();
-    let (basis, id) = if let Some(id) = explicit_source.filter(|id| known.contains(id)) {
+    let (basis, id) = if let Some(id) = explicit_source.filter(|id| products.by_id.contains_key(id)) {
         ("mapping", id.to_owned())
     } else if !mapped.is_empty() {
         if mapped.len() != 1 {
@@ -402,24 +463,12 @@ pub(crate) fn source_hint(
                     .map(|c| c.copy.relative_path.as_str()),
             )
             .collect();
-        let ids: Vec<_> = products
-            .iter()
-            .filter(|p| {
-                let native = p.product_id.strip_prefix("booth:").unwrap_or("");
-                names.iter().any(|name| {
-                    name.contains(&p.product_id)
-                        || native.len() >= 5
-                            && name
-                                .split(|c: char| !c.is_ascii_digit())
-                                .any(|part| part == native)
-                })
-            })
-            .collect();
-        if ids.len() > 1 {
+        let named = products.named_by(&names);
+        if named.len() > 1 {
             return None;
         }
-        if let Some(product) = ids.first() {
-            ("product_id", product.product_id.clone())
+        if let Some(id) = named.into_iter().next() {
+            ("product_id", id.to_owned())
         } else {
             let names: HashSet<_> = names
                 .iter()
@@ -431,18 +480,15 @@ pub(crate) fn source_hint(
                     ]
                 })
                 .collect();
-            let matches: Vec<_> = products
+            let matches: Vec<_> = names
                 .iter()
-                .filter(|p| {
-                    p.title
-                        .as_ref()
-                        .is_some_and(|t| names.contains(&normalized_name(t)))
-                })
+                .filter_map(|name| products.by_title.get(name))
+                .flatten()
                 .collect();
             if matches.len() != 1 {
                 return None;
             }
-            ("name", matches[0].product_id.clone())
+            ("name", (*matches[0]).to_owned())
         }
     };
     let content = if grouping.reference_hashes.get(&id).is_some_and(|hashes| {
@@ -464,4 +510,46 @@ pub(crate) fn hint_value(
     content: &str,
 ) -> Value {
     json!({"product":product,"sources":sources,"basis":basis,"content":content})
+}
+
+#[cfg(test)]
+mod source_index_tests {
+    use super::*;
+    use vua_bdl_store::bdl_queries::AvailabilityStatus;
+
+    fn product(id: &str) -> CatalogProductSummary {
+        CatalogProductSummary {
+            product_id: id.to_owned(),
+            title: None,
+            library_type: None,
+            imported_artifacts: 0,
+            shop_name: None,
+            variant_name: None,
+            price: None,
+            image_url: None,
+            image_urls: Vec::new(),
+            availability_raw: None,
+            availability_status: AvailabilityStatus::Unknown,
+            entity_count: 0,
+            entity_types: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_name_states_a_product_by_its_whole_id_or_its_whole_number() {
+        let products = [product("booth:123456"), product("booth:1234"), product("other:abc")];
+        let index = SourceIndex::new(&products);
+        let named = |name| {
+            let mut ids: Vec<_> = index.named_by(&[name]).into_iter().collect();
+            ids.sort_unstable();
+            ids
+        };
+        assert_eq!(named("pack_123456_v2"), ["booth:123456"]);
+        assert_eq!(named("from booth:1234 page"), ["booth:1234"]);
+        assert_eq!(named("see other:abc"), ["other:abc"]);
+        assert!(named("1234567").is_empty(), "a longer run of digits is another number");
+        assert!(named("version 1234").is_empty(), "short numbers need the whole id");
+        assert_eq!(index.product("booth:1234").map(|p| p.product_id.as_str()), Some("booth:1234"));
+        assert!(index.product("booth:9").is_none());
+    }
 }

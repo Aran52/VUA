@@ -1659,11 +1659,11 @@ impl BdlStore {
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
+        let mut artifacts = self.warehouse_artifact_refs(&connection)?;
         let mut cards = Vec::with_capacity(items.len());
         for item in items {
-            let artifacts =
-                self.warehouse_artifact_refs(&connection, &item.warehouse_item_id)?;
-            cards.push(warehouse_card(item, global_default, artifacts)?);
+            let refs = artifacts.remove(&item.warehouse_item_id).unwrap_or_default();
+            cards.push(warehouse_card(item, global_default, refs)?);
         }
         Ok(cards)
     }
@@ -1835,44 +1835,42 @@ impl BdlStore {
         }))
     }
 
+    /// Every entry's artifacts at once, by entry.
     fn warehouse_artifact_refs(
         &self,
         connection: &Connection,
-        warehouse_item_id: &str,
-    ) -> Result<Vec<WarehouseArtifactRef>, BdlStoreError> {
+    ) -> Result<std::collections::HashMap<String, Vec<WarehouseArtifactRef>>, BdlStoreError> {
         let mut statement = connection.prepare(
-            "SELECT c.relative_path, a.artifact_sha256, a.inspection_state, a.size_bytes, c.role
+            "SELECT c.warehouse_item_id, c.relative_path, a.artifact_sha256, a.inspection_state, a.size_bytes, c.role
              FROM artifact_copies c
              JOIN local_artifacts a ON a.artifact_sha256 = c.artifact_sha256
-             WHERE c.warehouse_item_id = ?1
-             ORDER BY c.relative_path",
+             ORDER BY c.warehouse_item_id, c.relative_path",
         )?;
         let rows = statement
-            .query_map([warehouse_item_id], |row| {
+            .query_map([], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, String>(5)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
-        rows.into_iter()
-            .map(
-                |(relative_path, artifact_sha256, inspection_state, size_bytes, role)| {
-                    Ok(WarehouseArtifactRef {
-                        relative_path,
-                        artifact_sha256,
-                        state: ArtifactInspectionVerdict::from_storage_state(
-                            ArtifactInspectionState::parse(&inspection_state)?,
-                        ),
-                        size_bytes: to_u64(size_bytes, "artifact size")?,
-                        role: CopyRole::parse(&role)?,
-                    })
-                },
-            )
-            .collect()
+        let mut artifacts = std::collections::HashMap::<String, Vec<WarehouseArtifactRef>>::new();
+        for (warehouse_item_id, relative_path, artifact_sha256, inspection_state, size_bytes, role) in rows {
+            artifacts.entry(warehouse_item_id).or_default().push(WarehouseArtifactRef {
+                relative_path,
+                artifact_sha256,
+                state: ArtifactInspectionVerdict::from_storage_state(ArtifactInspectionState::parse(
+                    &inspection_state,
+                )?),
+                size_bytes: to_u64(size_bytes, "artifact size")?,
+                role: CopyRole::parse(&role)?,
+            });
+        }
+        Ok(artifacts)
     }
 
     fn mapped_product_ids(

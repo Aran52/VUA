@@ -342,6 +342,9 @@ pub fn apply_catalog_sync(
                 .map_err(|_| SyncError("not_a_library_page"))?;
             let mut upserted = 0;
             let mut rejected = Vec::new();
+            // BOOTH lists an account's products newest first; their places order "recently added".
+            let earlier: usize = current.receipts.iter().filter(|page| page.library_type == request.library_type).map(|page| page.result.parsed_count).sum();
+            let mut positions = Vec::with_capacity(page.items.len());
             for (index, item) in page.items.iter().enumerate() {
                 let observation = crate::library_page::library_item_to_observation(
                     item,
@@ -353,6 +356,7 @@ pub fn apply_catalog_sync(
                 match bdl.record_product_observation(&observation) {
                     Ok(_) => {
                         upserted += 1;
+                        positions.push((earlier + index, observation.product_id.clone()));
                         let rows = item
                             .downloadables
                             .iter()
@@ -385,6 +389,8 @@ pub fn apply_catalog_sync(
                     }),
                 }
             }
+            // The order is a convenience; the page's products are already recorded either way.
+            let _ = bdl.record_library_positions(request.library_type.name(), &positions);
             let result = PageResult {
                 schema_version: "0.3".into(),
                 source_url: request.source_url.clone(),

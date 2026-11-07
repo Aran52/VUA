@@ -1,7 +1,7 @@
 import { isLibraryViewParamsV01, isLibraryListV01, type LibraryListParamsV01, type LibraryListV01, type LibraryRowV01 } from "./library-view-v01.js";
 
 /** How the library is ordered; each direction a player would ask for is its own word. */
-export const LIBRARY_SORTS = ["added_desc", "added_asc", "title_asc", "title_desc", "shop_asc", "price_asc", "price_desc", "published_desc", "size_desc"] as const;
+export const LIBRARY_SORTS = ["added_desc", "added_asc", "title_asc", "title_desc", "shop_asc", "price_asc", "price_desc", "published_desc", "size_desc", "size_asc"] as const;
 export type LibrarySort = typeof LIBRARY_SORTS[number];
 /** VN3 items a filter can require. X is the creator's free text, so it has no value to compare. */
 export const LIBRARY_VN3_ITEMS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W"] as const;

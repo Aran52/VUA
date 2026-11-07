@@ -20,7 +20,7 @@ const unitySetup = structureCopy[currentLocale].unitySetup;
 
 export const directory: Readonly<Record<"env" | "production", readonly DirectoryItem[]>> = {
   env: [
-    { id: "env-play", title: journey.play, icon: "anim" },
+    { id: "env-play", title: journey.launchPage, icon: "anim" },
     { id: "tools-discover", title: journey.tools, icon: "tools" },
   ],
   production: [
@@ -34,7 +34,7 @@ export const directory: Readonly<Record<"env" | "production", readonly Directory
 };
 
 export const directoryGroupLabel = (group: keyof typeof directory): string =>
-  group === "env" ? journey.play : journey.create;
+  group === "env" ? journey.play : journey.avatar;
 
 /** The name a page goes by in links from outside the directory. */
 export function directoryPageTitle(page: PageId): string {

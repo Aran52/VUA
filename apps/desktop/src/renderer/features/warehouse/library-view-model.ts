@@ -49,7 +49,7 @@ export const VN3_FILTER_GROUPS: readonly { readonly id: "use" | "upload" | "expr
 export type LibrarySortFact = "size" | "price" | "published" | "added" | null;
 export function sortFactOf(sort: LibrarySort): LibrarySortFact {
   switch (sort) {
-    case "size_desc": return "size";
+    case "size_desc": case "size_asc": return "size";
     case "price_asc": case "price_desc": return "price";
     case "published_desc": return "published";
     case "added_asc": return "added";
@@ -64,9 +64,34 @@ export function offeredLibrarySorts(current: LibrarySort, rows: Iterable<{ reado
   return LIBRARY_SORTS.filter(option => option !== "published_desc" || dated || current === option);
 }
 
-export function nextHeaderSort(column: "title" | "shop", current: LibrarySort): LibrarySort {
-  if (column === "shop") return "shop_asc";
-  return current === "title_asc" ? "title_desc" : "title_asc";
+export type LibraryHeaderColumn = "title" | "shop" | "size" | "added";
+export function nextHeaderSort(column: LibraryHeaderColumn, current: LibrarySort): LibrarySort {
+  switch (column) {
+    case "shop": return "shop_asc";
+    case "title": return current === "title_asc" ? "title_desc" : "title_asc";
+    case "size": return current === "size_desc" ? "size_asc" : "size_desc";
+    case "added": return current === "added_desc" ? "added_asc" : "added_desc";
+  }
+}
+export function headerSortState(column: LibraryHeaderColumn, sort: LibrarySort): "ascending" | "descending" | "none" {
+  switch (column) {
+    case "shop": return sort === "shop_asc" ? "ascending" : "none";
+    case "title": return sort === "title_asc" ? "ascending" : sort === "title_desc" ? "descending" : "none";
+    case "size": return sort === "size_asc" ? "ascending" : sort === "size_desc" ? "descending" : "none";
+    case "added": return sort === "added_asc" ? "ascending" : sort === "added_desc" ? "descending" : "none";
+  }
+}
+
+const DEFAULT_COLUMNS: readonly number[] = [3.6, 1.5, 1, 0.8, 1];
+/** Widths survive a damaged or older record by falling back to the defaults. */
+export function readLibraryColumns(): readonly number[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(storageKeys.libraryColumns) ?? "null");
+    return Array.isArray(value) && value.length === DEFAULT_COLUMNS.length && value.every(width => typeof width === "number" && Number.isFinite(width) && width > 0) ? value as number[] : DEFAULT_COLUMNS;
+  } catch { return DEFAULT_COLUMNS; }
+}
+export function rememberLibraryColumns(widths: readonly number[]): void {
+  try { localStorage.setItem(storageKeys.libraryColumns, JSON.stringify(widths.map(width => Math.round(width)))); } catch { /* The widths apply to this visit. */ }
 }
 
 export interface LibraryNeighbours<T> { readonly index: number; readonly total: number; readonly previous: T | null; readonly next: T | null }
@@ -79,9 +104,9 @@ export function neighboursOf<T>(order: readonly T[], matches: (item: T) => boole
 export interface LibrarySession {
   readonly text: string; readonly source: "all" | "bought" | "gifts" | "free" | "local";
   readonly downloadState: "all" | "downloaded" | "not-downloaded" | "missing" | "in_progress" | "attention";
-  readonly sourceCategory: string; readonly vn3: LibraryVn3Choice; readonly pageOffset: number; readonly scrollTop: number;
+  readonly sourceCategory: string; readonly vn3: LibraryVn3Choice; readonly wanted: number; readonly scrollTop: number;
 }
-export const EMPTY_LIBRARY_SESSION: LibrarySession = { text: "", source: "all", downloadState: "all", sourceCategory: "all", vn3: NO_VN3_CHOICE, pageOffset: 0, scrollTop: 0 };
+export const EMPTY_LIBRARY_SESSION: LibrarySession = { text: "", source: "all", downloadState: "all", sourceCategory: "all", vn3: NO_VN3_CHOICE, wanted: 100, scrollTop: 0 };
 let session = EMPTY_LIBRARY_SESSION;
 export const readLibrarySession = (): LibrarySession => session;
 export const saveLibrarySession = (next: LibrarySession): void => { session = next; };

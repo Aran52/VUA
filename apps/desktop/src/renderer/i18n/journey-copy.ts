@@ -1,7 +1,7 @@
 /** Copy shared by the fixed directory and the VRChat wizard. */
 const en = {
   home: "Home", finish: "Finish guide", environment: "Environment", avatar: "Avatar", help: "Help", tasks: "Tasks",
-  play: "Play", create: "Avatar editing", library: "Materials", recipes: "Recipes", production: "Create an Avatar",
+  play: "Play", launchPage: "Launch", library: "Materials", recipes: "Recipes", production: "Create an Avatar",
   developing: "In development", desktop: "Desktop", vr: "VR headset", unity2022: "Unity 2022", unity6: "Unity 6",
   back: "Back", exit: "Go to the main page",
   tools: "Tools", identifyHardware: "How do I identify my device?", backToHelp: "Back to Help",
@@ -40,7 +40,7 @@ const en = {
 type Copy = { [K in keyof typeof en]: (typeof en)[K] extends string[] ? string[] : string };
 const zh: Copy = {
   home: "首页", finish: "完成引导", environment: "环境", avatar: "Avatar", help: "帮助", tasks: "任务",
-  play: "游玩", create: "改模", library: "素材库", recipes: "配方", production: "制作 Avatar",
+  play: "游玩", launchPage: "启动", library: "素材库", recipes: "配方", production: "制作 Avatar",
   developing: "开发中", desktop: "电脑屏幕", vr: "VR 头显", unity2022: "Unity 2022", unity6: "Unity 6",
   back: "返回", exit: "前往主页面",
   tools: "工具", identifyHardware: "识别我的设备是什么？", backToHelp: "返回帮助",
@@ -76,7 +76,7 @@ const zh: Copy = {
 };
 const zhTW: Copy = {
   home: "首頁", finish: "完成引導", environment: "環境", avatar: "Avatar", help: "幫助", tasks: "任務",
-  play: "遊玩", create: "改模", library: "素材庫", recipes: "配方", production: "製作 Avatar",
+  play: "遊玩", launchPage: "啟動", library: "素材庫", recipes: "配方", production: "製作 Avatar",
   developing: "開發中", desktop: "電腦螢幕", vr: "VR 頭戴裝置", unity2022: "Unity 2022", unity6: "Unity 6",
   back: "返回", exit: "前往主頁面",
   tools: "工具", identifyHardware: "識別我的裝置是什麼？", backToHelp: "返回幫助",
@@ -112,7 +112,7 @@ const zhTW: Copy = {
 };
 const ja: Copy = {
   home: "ホーム", finish: "ガイドを終える", environment: "環境", avatar: "アバター", help: "ヘルプ", tasks: "タスク",
-  play: "プレイ", create: "アバター編集", library: "素材ライブラリ", recipes: "レシピ", production: "アバターを制作",
+  play: "プレイ", launchPage: "起動", library: "素材ライブラリ", recipes: "レシピ", production: "アバターを制作",
   developing: "開発中", desktop: "PC 画面", vr: "VR ヘッドセット", unity2022: "Unity 2022", unity6: "Unity 6",
   back: "戻る", exit: "メインページへ",
   tools: "ツール", identifyHardware: "自分の機器を見分けるには？", backToHelp: "ヘルプに戻る",
@@ -148,7 +148,7 @@ const ja: Copy = {
 };
 const ko: Copy = {
   home: "홈", finish: "안내 마치기", environment: "환경", avatar: "아바타", help: "도움말", tasks: "작업",
-  play: "플레이", create: "아바타 편집", library: "소재 라이브러리", recipes: "레시피", production: "아바타 제작",
+  play: "플레이", launchPage: "실행", library: "소재 라이브러리", recipes: "레시피", production: "아바타 제작",
   developing: "개발 중", desktop: "PC 화면", vr: "VR 헤드셋", unity2022: "Unity 2022", unity6: "Unity 6",
   back: "뒤로", exit: "메인 페이지로",
   tools: "도구", identifyHardware: "내 기기를 어떻게 확인하나요?", backToHelp: "도움말로 돌아가기",

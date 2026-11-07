@@ -10,6 +10,8 @@ import {
 import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
 import {
+  memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -59,6 +61,8 @@ import { useCardSpotlight } from "./use-card-spotlight.ts";
 import type { RecipeAssetRef } from "../../gateway/index.ts";
 import { AddToRecipeDialog } from "./AddToRecipeDialog.tsx";
 import { LibraryListRow, libraryListSource, useLibraryColumns } from "./LibraryList.tsx";
+import { LIBRARY_BATCH, LIBRARY_READ_MAX, moreRowsExist, readLibraryRange, refreshLibraryHead, rowsLoaded, wallRows } from "./library-pages.ts";
+import { boothCategoryLabel } from "../../i18n/booth-category-copy.ts";
 import { registerTaskIdentity } from "../../gateway/index.ts";
 import { CardAlbumMedia } from "./WarehouseAlbum.tsx";
 import { MaterialEntryCard, EntryDetail } from "./WarehouseAcquire.tsx";
@@ -85,7 +89,8 @@ import { BulkRemoveFilesDialog } from "./BulkRemoveFilesDialog.tsx";
 import { removalScopes, type BulkProduct, type BulkDownloadMode } from "./bulk-file-model.ts";
 import { boothProductUrl } from "./booth-source.ts";
 import { LibraryCorner } from "./LibraryCorner.tsx";
-import { libraryCornerState, type LocalSourceSearchState } from "./library-corner-model.ts";
+import { libraryCornerState, type LibraryCornerState, type LocalSourceSearchState } from "./library-corner-model.ts";
+import { DelayedStatus } from "../../components/primitives/DelayedStatus.tsx";
 import { boothSearchKeyword, exactBoothMatch } from "./booth-match-model.ts";
 import { BoothMatchDialog } from "./BoothMatchDialog.tsx";
 import { ProductTerms } from "./ProductTerms.tsx";
@@ -167,28 +172,35 @@ function MaterialEntryView(props: Parameters<typeof MaterialEntryCard>[0] & { vi
   if (props.viewMode === "cards") return <MaterialEntryCard {...props} />;
   const { card, source, metadata, facts } = props;
   return <LibraryListRow id={card.key} title={metadata?.displayName ?? source?.title ?? card.entry.displayName}
-    shop={source?.shopName} variant={source?.variantName} variantCount={facts?.variantCount} source={libraryListSource(facts, card.entry.kind)}
+    shop={source?.shopName} variant={source?.variantName} variantCount={facts?.variantCount} source={libraryListSource(facts, card.entry.kind)} sizeBytes={facts?.sizeBytes} addedAt={facts?.addedAt}
     selected={props.selected} style={props.columnStyle} onSelect={props.onSelect} onOpen={props.onOpen} onMenu={props.onMenu} />;
 }
 
-function WarehouseCard({
+/** Handlers stay the same across renders and read the page's current state, so choosing one card redraws one card. */
+const WarehouseCard = memo(function WarehouseCard({
   item,
   facts,
   selected,
   onSelect,
   onOpen,
   onMenu,
-  corner,
+  cornerState,
+  cornerBusy,
+  cornerActs,
+  onCorner,
   fact,
 }: {
   item: CatalogProductSummary;
   facts?: LibraryCardFacts | undefined;
   selected: boolean;
-  onSelect: (event: ReactMouseEvent<HTMLElement>) => void;
-  onOpen: () => void;
+  onSelect: (item: CatalogProductSummary, event: ReactMouseEvent<HTMLElement>) => void;
+  onOpen: (item: CatalogProductSummary) => void;
   /** 素材卡右键菜单(S-XII):由页面组装真实动作项 */
-  onMenu: (event: ReactMouseEvent<HTMLElement>) => void;
-  corner?: ReactNode;
+  onMenu: (event: ReactMouseEvent<HTMLElement>, item: CatalogProductSummary) => void;
+  cornerState: LibraryCornerState;
+  cornerBusy: boolean;
+  cornerActs: boolean;
+  onCorner: (item: CatalogProductSummary) => void;
   /** The value a non-default order goes by. */
   fact?: string | null;
 }) {
@@ -198,9 +210,9 @@ function WarehouseCard({
       data-selected={selected || undefined}
       data-product-id={item.productId}
       data-selection-id={item.productId}
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      onContextMenu={onMenu}
+      onClick={event => onSelect(item, event)}
+      onDoubleClick={() => onOpen(item)}
+      onContextMenu={event => onMenu(event, item)}
       // 键盘可达:Enter/Space 打开详情(用户反馈 #5;购买标记由其他功能模块承担)
       role="listitem"
       tabIndex={0}
@@ -208,12 +220,12 @@ function WarehouseCard({
         if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onOpen();
+          onOpen(item);
         }
       }}
     >
       <div className="vua-warehouse-card__media">
-        {corner}
+        <LibraryCorner state={cornerState} busy={cornerBusy} onAction={cornerActs ? () => onCorner(item) : undefined} />
         {item.imageUrls.length > 0 ? (
           // 多图卡:悬停 2s 进相册(光标横向位置翻页);单图退化为普通媒体槽
           <CardAlbumMedia imageUrls={item.imageUrls} title={item.title ?? item.productId} />
@@ -222,7 +234,7 @@ function WarehouseCard({
             <span className="vua-caption vua-text-secondary">{copy.card.noImage}</span>
           </div>
         )}
-        <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={copy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event); }}><Icon name="more" size={16} /></Button>
+        <Button className="vua-warehouse-card__menu" variant="subtle" aria-label={copy.removeFiles.actions} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); onMenu(event, item); }}><Icon name="more" size={16} /></Button>
         <div className="vua-warehouse-card__badges">
           {/* 未知 = 诚实缺席不渲染(人审 2026-10-07);仅停售等明确事实出徽标 */}
           {item.availability !== "available" && item.availability !== "unknown" ? <Badge tone="neutral">{copy.availability[item.availability]}</Badge> : null}
@@ -244,7 +256,7 @@ function WarehouseCard({
       </div>
     </article>
   );
-}
+});
 
 /* ---- 页面 ---- */
 
@@ -264,7 +276,7 @@ export function WarehousePage({
   const [viewMode, setViewModeState] = useState<LibraryViewMode>(storedLibraryView);
   const setViewMode = (mode: LibraryViewMode) => { setViewModeState(mode); rememberLibraryView(mode); };
   const [sort, setSortState] = useState<LibrarySort>(storedLibrarySort);
-  const chooseSort = (next: LibrarySort) => { setSortState(next); rememberLibrarySort(next); setPageOffset(0); setSelectedIds(new Set()); };
+  const chooseSort = (next: LibrarySort) => { setSortState(next); rememberLibrarySort(next); setWanted(LIBRARY_BATCH); setSelectedIds(new Set()); wallEl?.scrollTo({ top: 0 }); };
   const columns = useLibraryColumns(sort, column => chooseSort(nextHeaderSort(column, sort)));
   // 选区(Explorer 语义,用户裁决 2026-10-05):单击选卡/框选/右键拖选,
   // 无独立"选择模式"开关;Esc、空白单击、重新框选即清空
@@ -425,7 +437,12 @@ export function WarehousePage({
     void poll(); const timer = window.setInterval(() => void poll(), 2000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
-  const [pageOffset, setPageOffset] = useState(remembered.pageOffset);
+  const [wanted, setWanted] = useState(remembered.wanted);
+  const [moreFailed, setMoreFailed] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const loadedCountRef = useRef(0);
+  const loaded = useRef<{ readonly key: string; readonly page: LibraryPageView } | null>(null);
+  const lastReload = useRef(0);
 
   const [query, setQuery] = useState<WarehouseQueryState>({ ...emptyWarehouseQuery, text: remembered.text });
   const [listState, setListState] = useState<ListState>({ kind: "loading" });
@@ -820,7 +837,7 @@ export function WarehousePage({
       return;
     }
     if (event?.shiftKey && selectionAnchor.current !== null) {
-      const order = [...(resultsView?.items ?? []).map(item => item.productId), ...visibleLocalCards.map(card => card.key)];
+      const order = rows.map(row => row.kind === "product" ? row.item.productId : row.card.key);
       const from = order.indexOf(selectionAnchor.current), to = order.indexOf(id);
       if (from >= 0 && to >= 0) { setSelectedIds(new Set(order.slice(Math.min(from, to), Math.max(from, to) + 1))); return; }
     }
@@ -833,28 +850,27 @@ export function WarehousePage({
   };
 
   const [adaptation, setAdaptation] = useState<{ productId: string; title: string; previous: {
-    query: WarehouseQueryState; source: typeof source; downloadState: typeof downloadState; sourceCategory: string; vn3: LibraryVn3Choice; pageOffset: number;
+    query: WarehouseQueryState; source: typeof source; downloadState: typeof downloadState; sourceCategory: string; vn3: LibraryVn3Choice; wanted: number;
     viewMode: typeof viewMode; selectedIds: ReadonlySet<string>; selectedId: string | null; selectedLocalId: string | null; scrollTop: number; scrollLeft: number;
   } } | null>(null);
   const restoreScroll = useRef<{ top: number; left: number } | null>(remembered.scrollTop > 0 ? { top: remembered.scrollTop, left: 0 } : null);
-  const changeFilters = (change: () => void) => { change(); setPageOffset(0); setSelectedIds(new Set()); };
-  const changePage = (offset: number) => { setPageOffset(offset); setSelectedIds(new Set()); };
+  const changeFilters = (change: () => void) => { change(); setWanted(LIBRARY_BATCH); setSelectedIds(new Set()); wallEl?.scrollTo({ top: 0 }); };
   const showAdaptations = (product: { productId: string; title: string | null }) => {
     setAdaptation({ productId: product.productId, title: product.title ?? product.productId, previous: adaptation?.previous ?? {
-      query, source, downloadState, sourceCategory, vn3, pageOffset, viewMode, selectedIds: new Set(selectedIdsRef.current), selectedId, selectedLocalId,
+      query, source, downloadState, sourceCategory, vn3, wanted, viewMode, selectedIds: new Set(selectedIdsRef.current), selectedId, selectedLocalId,
       scrollTop: wallEl?.scrollTop ?? 0, scrollLeft: wallEl?.scrollLeft ?? 0,
     } });
     restoreScroll.current = null; setQuery(emptyWarehouseQuery); setSource("all"); setDownloadState("all"); setSourceCategory("all"); setVn3(NO_VN3_CHOICE);
-    setPageOffset(0); setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); setLibraryPage(null); setListState({ kind: "loading" });
+    setWanted(LIBRARY_BATCH); setSelectedIds(new Set()); setSelectedId(null); setSelectedLocalId(null); loaded.current = null; setLibraryPage(null); setListState({ kind: "loading" });
     if (wallEl) { wallEl.scrollTop = 0; wallEl.scrollLeft = 0; }
   };
   const cancelAdaptations = () => {
     if (!adaptation) return;
     const previous = adaptation.previous;
     setQuery(previous.query); setSource(previous.source); setDownloadState(previous.downloadState); setSourceCategory(previous.sourceCategory); setVn3(previous.vn3);
-    setPageOffset(previous.pageOffset); setViewMode(previous.viewMode); setSelectedIds(previous.selectedIds); setSelectedId(previous.selectedId); setSelectedLocalId(previous.selectedLocalId);
+    setWanted(previous.wanted); setViewMode(previous.viewMode); setSelectedIds(previous.selectedIds); setSelectedId(previous.selectedId); setSelectedLocalId(previous.selectedLocalId);
     restoreScroll.current = { top: previous.scrollTop, left: previous.scrollLeft };
-    setAdaptation(null); setLibraryPage(null); setListState({ kind: "loading" });
+    setAdaptation(null); loaded.current = null; setLibraryPage(null); setListState({ kind: "loading" });
   };
   useLayoutEffect(() => {
     const scroll = restoreScroll.current;
@@ -863,36 +879,58 @@ export function WarehousePage({
     if (wall) { wall.scrollTop = scroll.top; wall.scrollLeft = scroll.left; restoreScroll.current = null; }
   }, [libraryPage, listState, adaptation]);
 
+  const listKey = JSON.stringify([dataSource, query.text.trim(), source, downloadState, sourceCategory, vn3, vn3Open, sort, adaptation?.productId ?? null]);
   // Ordinary filter changes retain old results. Entering/leaving link filtering
   // clears them so a previous page never poses as a reverse-link result.
   useEffect(() => {
     if (!connected) return;
     let active = true;
     setListState((prev) => (prev.kind === "loaded" ? prev : { kind: "loading" }));
-    const read = dataSource === "fixture"
-      ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
-      : libraryBrowser.list({ schemaVersion: "0.3", sort, ...(vn3ChoiceActive(vn3) || vn3Open ? { vn3: vn3FilterWire(vn3) } : {}), source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
+    const list = (offset: number, limit: number) => libraryBrowser.list({ schemaVersion: "0.3", sort, ...(vn3ChoiceActive(vn3) || vn3Open ? { vn3: vn3FilterWire(vn3) } : {}), source: source === "local" ? "imported" : source === "free" ? "free_downloads" : source,
         state: downloadState === "not-downloaded" ? "cloud_only" : downloadState, text: query.text.trim(),
         ...(sourceCategory === "all" ? {} : { sourceCategory: sourceCategory === "unknown" ? null : sourceCategory.slice(9) }),
         ...(adaptation === null ? {} : { descriptionLinksTo: adaptation.productId }),
-        limit: 50, offset: pageOffset });
+        limit, offset });
+    const shown = loaded.current?.key === listKey ? loaded.current.page : null;
+    const refreshing = lastReload.current !== reloadKey;
+    lastReload.current = reloadKey;
+    // More rows of the same list come after the ones shown. A refresh of a long list reads its top;
+    // anything else reads the list from the start.
+    const read: Promise<LibraryPageView> | null = dataSource === "fixture"
+      ? catalogBrowser.list(toPortQuery(query)).then((catalog) => ({ catalog, localEntries: [], facts: new Map(), total: catalog.kind === "results" ? catalog.total : 0, offset: 0, limit: 50 }))
+      : shown === null ? readLibraryRange(list, 0, wanted, null)
+      : refreshing ? wanted > LIBRARY_READ_MAX ? list(0, LIBRARY_READ_MAX).then(head => refreshLibraryHead(shown, head)) : readLibraryRange(list, 0, wanted, null)
+      : moreRowsExist(shown) && rowsLoaded(shown) < wanted ? readLibraryRange(list, rowsLoaded(shown), wanted, shown)
+      : null;
+    if (read === null) return;
+    setMoreFailed(false);
     read.then(
       (page) => {
         if (!active) return;
-        if (pageOffset > 0 && pageOffset >= page.total) {
-          setPageOffset(Math.max(0, Math.floor((page.total - 1) / 50) * 50));
-          return;
-        }
+        loaded.current = { key: listKey, page };
         setLibraryPage(page); setListState({ kind: "loaded", view: page.catalog });
       },
       () => {
-        if (active) setListState({ kind: "failed" });
+        if (!active) return;
+        if (shown !== null) setMoreFailed(true); else { loaded.current = null; setListState({ kind: "failed" }); }
       },
     );
     return () => {
       active = false;
     };
-  }, [query, connected, reloadKey, source, downloadState, sourceCategory, vn3, vn3Open, sort, pageOffset, dataSource, adaptation]);
+  }, [listKey, query, connected, reloadKey, source, downloadState, sourceCategory, vn3, vn3Open, sort, wanted, dataSource, adaptation]);
+  // Rows come in as the end of the wall nears, and a new batch can follow while it is still in reach.
+  const loadedCount = libraryPage === null ? 0 : rowsLoaded(libraryPage);
+  loadedCountRef.current = loadedCount;
+  const hasMore = moreRowsExist(libraryPage);
+  const requestMore = useCallback(() => setWanted(current => Math.max(current, loadedCountRef.current + LIBRARY_BATCH)), []);
+  useEffect(() => {
+    const node = moreRef.current;
+    if (node === null || wallEl === null || !hasMore || moreFailed) return;
+    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) requestMore(); }, { root: wallEl, rootMargin: "0px 0px 800px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [wallEl, hasMore, moreFailed, loadedCount, viewMode, requestMore]);
   useEffect(() => {
     const refresh = () => setReloadKey((key) => key + 1);
     window.addEventListener("focus", refresh);
@@ -930,10 +968,18 @@ export function WarehousePage({
     listState.kind === "loaded" && listState.view.kind === "results" ? listState.view : null;
 
   const visibleLocalCards = dataSource === "live" || source !== "gifts" && source !== "bought" && source !== "free" ? localCards : [];
-  const selectAll = () => setSelectedIds(new Set([
-    ...(resultsView?.items ?? []).map(item => item.productId),
-    ...visibleLocalCards.map(card => card.key),
-  ]));
+  const rows = wallRows(libraryPage?.order, resultsView?.items ?? [], visibleLocalCards);
+  const allRowIds = () => rows.map(row => row.kind === "product" ? row.item.productId : row.card.key);
+  const selectAllPending = useRef(false);
+  const selectAll = () => {
+    setSelectedIds(new Set(allRowIds()));
+    if (hasMore && libraryPage !== null) { selectAllPending.current = true; setWanted(libraryPage.total); }
+  };
+  useEffect(() => {
+    if (!selectAllPending.current || hasMore) return;
+    selectAllPending.current = false;
+    setSelectedIds(new Set(allRowIds()));
+  }, [hasMore, libraryPage]); // eslint-disable-line react-hooks/exhaustive-deps
   const selectAllMenuItem = {
     id: "selectAll", label: copy.selectBar.selectAll, shortcut: "Ctrl+A",
     disabled: (resultsView?.items.length ?? 0) + visibleLocalCards.length === 0,
@@ -1022,10 +1068,10 @@ export function WarehousePage({
     } catch { setDownloadNotice(copy.sourceSearch.controlFailed); }
     finally { busyCorners.current.delete(item.productId); setCornerBusy(new Set(busyCorners.current)); }
   };
-  const productCorner = (item: CatalogProductSummary) => {
+  const productCornerFacts = (item: CatalogProductSummary) => {
     const active = transfers.filter(t => t.productId === item.productId);
     const state = libraryCornerState(libraryPage?.facts.get(item.productId), "product", { active: active.length > 0, paused: active.length > 0 && active.every(t => t.paused) });
-    return <LibraryCorner state={state} busy={cornerBusy.has(item.productId)} onAction={state === "cloud" || state === "error" || active.length > 0 ? () => void actOnProductCorner(item) : undefined} />;
+    return { state, acts: state === "cloud" || state === "error" || active.length > 0 };
   };
   const knownLocalProduct = (entryId: string) => {
     const facts = libraryPage?.facts.get(entryId);
@@ -1264,11 +1310,12 @@ export function WarehousePage({
     : null;
 
   const detailOpen = selectedId !== null || selectedLocalEntry !== null;
-  const detailOrder: readonly { readonly product?: string; readonly local?: string }[] = [
-    ...(resultsView?.items ?? []).map(item => ({ product: item.productId })),
-    ...visibleLocalCards.map(card => ({ local: card.entry.warehouseItemId })),
-  ];
+  const detailOrder: readonly { readonly product?: string; readonly local?: string }[] = rows.map(row => row.kind === "product" ? { product: row.item.productId } : { local: row.card.entry.warehouseItemId });
   const neighbours = neighboursOf(detailOrder, item => selectedId !== null ? item.product === selectedId : item.local === selectedLocalId);
+  // Stepping through details near the end of what is loaded brings in the next rows.
+  useEffect(() => {
+    if (detailOpen && hasMore && neighbours.index >= 0 && neighbours.index >= neighbours.total - 3) requestMore();
+  }, [detailOpen, hasMore, neighbours.index, neighbours.total, requestMore]);
   const openDetail = (target: { readonly product?: string; readonly local?: string }) => {
     setSelectedId(target.product ?? null); setSelectedLocalId(target.local ?? null);
     const key = target.product ?? visibleLocalCards.find(card => card.entry.warehouseItemId === target.local)?.key;
@@ -1297,23 +1344,28 @@ export function WarehousePage({
     return () => window.removeEventListener("keydown", onKey);
   });
   // Filters and place outlive a visit to another page in this session.
-  const sessionRef = useRef({ text: query.text, source, downloadState, sourceCategory, vn3, pageOffset });
-  sessionRef.current = { text: query.text, source, downloadState, sourceCategory, vn3, pageOffset };
+  const sessionRef = useRef({ text: query.text, source, downloadState, sourceCategory, vn3, wanted });
+  sessionRef.current = { text: query.text, source, downloadState, sourceCategory, vn3, wanted };
   const wallRef = useRef(wallEl); wallRef.current = wallEl;
   useEffect(() => () => { saveLibrarySession({ ...sessionRef.current, scrollTop: wallRef.current?.scrollTop ?? 0 }); }, []);
 
-  const totalPages = Math.max(1, Math.ceil((libraryPage?.total ?? 0) / 50));
   const sortFact = sortFactOf(sort);
-  const pagination = (totalPages > 1 && libraryPage !== null) || adaptation !== null ? <div className="vua-library-pagination">
-    <Button variant="subtle" disabled={libraryPage === null || pageOffset === 0} onClick={() => changePage(Math.max(0, pageOffset - 50))}>{copy.libraryState.previousPage}</Button>
-    <span className="vua-caption">{format(copy.libraryState.page, { page: Math.floor(pageOffset / 50) + 1, total: totalPages })}</span>
-    <Button variant="subtle" disabled={libraryPage === null || pageOffset + 50 >= libraryPage.total} onClick={() => changePage(pageOffset + 50)}>{copy.libraryState.nextPage}</Button>
-    {adaptation !== null ? <Button variant="default" onClick={cancelAdaptations}>{copy.adaptation.cancel}</Button> : null}
-  </div> : null;
+  const cancelFilter = adaptation !== null ? <Button variant="default" onClick={cancelAdaptations}>{copy.adaptation.cancel}</Button> : null;
+  const cardHandlers = useRef({ selectSingle, openCardMenu, actOnProductCorner });
+  cardHandlers.current = { selectSingle, openCardMenu, actOnProductCorner };
+  const onProductSelect = useCallback((item: CatalogProductSummary, event: ReactMouseEvent<HTMLElement>) => cardHandlers.current.selectSingle(item.productId, event), []);
+  const onProductOpen = useCallback((item: CatalogProductSummary) => { setSelectedLocalId(null); setSelectedId(item.productId); }, []);
+  const onProductMenu = useCallback((event: ReactMouseEvent<HTMLElement>, item: CatalogProductSummary) => cardHandlers.current.openCardMenu(event, item), []);
+  const onProductCorner = useCallback((item: CatalogProductSummary) => { void cardHandlers.current.actOnProductCorner(item); }, []);
+  // A card not yet drawn reserves the height of one that has been, so the scrollbar stays put.
+  useLayoutEffect(() => {
+    const first = wallEl?.querySelector<HTMLElement>(".vua-warehouse-card");
+    if (first && first.offsetHeight > 0) wallEl!.style.setProperty("--vua-card-estimate", `${first.offsetHeight}px`);
+  }, [wallEl, loadedCount, viewMode]);
 
   return (
     <div ref={pageRef} className="vua-page vua-warehouse" data-detail={detailOpen || undefined}>
-      {detailOpen ? <LibraryDetailBar title={strings.factory.rooms.materials.name} index={neighbours.index} total={neighbours.total} onBack={closeDetail}
+      {detailOpen ? <LibraryDetailBar title={strings.factory.rooms.materials.name} index={neighbours.index} total={libraryPage?.total ?? neighbours.total} onBack={closeDetail}
         onPrevious={neighbours.previous === null ? null : () => openDetail(neighbours.previous!)} onNext={neighbours.next === null ? null : () => openDetail(neighbours.next!)} /> : null}
       <section className="vua-page__hero" hidden={detailOpen}>
         <div className="vua-warehouse__heading">
@@ -1376,7 +1428,6 @@ export function WarehousePage({
             <option value="free">{copy.filters.sourceFree}</option>
             <option value="local">{copy.filters.sourceLocal}</option>
           </select>
-          <Icon name="chevron-down" size={16} />
         </div>
         <div className="vua-warehouse__select">
           <select className="vua-warehouse__filter" aria-label={copy.filters.downloadState} value={downloadState} onChange={event => changeFilters(() => setDownloadState(event.target.value as typeof downloadState))}>
@@ -1387,15 +1438,13 @@ export function WarehousePage({
             <option value="in_progress">{copy.libraryState.downloading}</option>
             <option value="attention">{copy.libraryState.attention}</option>
           </select>
-          <Icon name="chevron-down" size={16} />
         </div>
         <div className="vua-warehouse__select">
           <select className="vua-warehouse__filter" aria-label={copy.filters.category} value={sourceCategory} onChange={event => changeFilters(() => setSourceCategory(event.target.value))} disabled={dataSource !== "live"}>
             <option value="all">{copy.filters.categoryAll}</option>
             <option value="unknown">{copy.filters.categoryUnknown}</option>
-            {[...new Set([...(libraryPage?.sourceCategories ?? []), ...(sourceCategory.startsWith("category:") ? [sourceCategory.slice(9)] : [])])].map(category => <option key={category} value={`category:${category}`}>{category}</option>)}
+            {[...new Set([...(libraryPage?.sourceCategories ?? []), ...(sourceCategory.startsWith("category:") ? [sourceCategory.slice(9)] : [])])].sort((a, b) => boothCategoryLabel(a).localeCompare(boothCategoryLabel(b), currentLocale)).map(category => <option key={category} value={`category:${category}`}>{boothCategoryLabel(category)}</option>)}
           </select>
-          <Icon name="chevron-down" size={16} />
         </div>
         <LibraryVn3Filter value={vn3} counts={libraryPage?.vn3Counts} disabled={dataSource !== "live" || libraryPage?.older === true} open={vn3Open} onOpenChange={setVn3Open}
           onChange={next => changeFilters(() => setVn3(next))} onUpdated={() => setReloadKey(key => key + 1)} />
@@ -1403,7 +1452,6 @@ export function WarehousePage({
           <select className="vua-warehouse__filter" aria-label={view.sort.label} data-nav-id="warehouse-sort" value={sort} disabled={dataSource !== "live" || libraryPage?.older === true} onChange={event => chooseSort(event.target.value as LibrarySort)}>
             {offeredLibrarySorts(sort, libraryPage?.facts.values() ?? []).map(option => <option key={option} value={option}>{view.sort[option]}</option>)}
           </select>
-          <Icon name="chevron-down" size={16} />
         </div>
         <span className="vua-warehouse__views vua-segments" role="group" aria-label={view.view.label}>
           <SegmentBar selected={viewMode} />
@@ -1419,7 +1467,7 @@ export function WarehousePage({
         <EmptyState title={copy.states.notConnectedTitle} />
       ) : listState.kind === "loaded" && listState.view.kind === "error" ? (
         /* W17 透传呈现:服务端 application 错误按冻结码映射文案,不与断连混淆 */
-        <>{adaptation !== null ? pagination : null}<EmptyState
+        <>{cancelFilter}<EmptyState
           title={copy.states.loadFailedTitle}
           description={catalogErrorText(listState.view.messageKey)}
           action={
@@ -1429,7 +1477,7 @@ export function WarehousePage({
           }
         /></>
       ) : listState.kind === "failed" ? (
-        <>{adaptation !== null ? pagination : null}<EmptyState
+        <>{cancelFilter}<EmptyState
           title={copy.states.loadFailedTitle}
           action={
             <Button variant="default" onClick={() => setReloadKey((key) => key + 1)}>
@@ -1445,7 +1493,7 @@ export function WarehousePage({
               {filtersActive ? <Button variant="subtle" data-nav-id="warehouse-clear-filters" onClick={clearFilters}>{view.clear}</Button> : null}
               <span className="vua-warehouse__toolbar-gap" />
               {adaptation !== null ? <span className="vua-caption vua-text-secondary" title={copy.adaptation.boundary}>{format(copy.adaptation.active, { name: adaptation.title })}</span> : null}
-              {pagination}
+              {cancelFilter}
             </div>
 
             {/* 滚动限定在本容器:工具栏/hero 不随图片墙滚动(用户反馈 #2) */}
@@ -1535,45 +1583,10 @@ export function WarehousePage({
                   role={viewMode === "cards" ? "list" : "table"}
                 >
                   {viewMode === "list" ? columns.header : null}
-                  {resultsView?.items
-                      .map((item) =>
-                        viewMode === "cards" ? (
-                          <WarehouseCard
-                            key={item.productId}
-                            item={item}
-                            facts={libraryPage?.facts.get(item.productId)}
-                            corner={productCorner(item)}
-                            fact={sortFactLabel(sortFact, libraryPage?.facts.get(item.productId), item.price)}
-                            selected={selectedIds.has(item.productId)}
-                            onSelect={(event) => selectSingle(item.productId, event)}
-                            onOpen={() => {
-                              setSelectedLocalId(null);
-                              setSelectedId(item.productId);
-                            }}
-                            onMenu={(event) => openCardMenu(event, item)}
-                          />
-                        ) : (
-                          <LibraryListRow
-                            key={item.productId}
-                            id={item.productId} productId={item.productId} title={item.title ?? item.productId} shop={item.shopName} variant={item.variantName}
-                            variantCount={libraryPage?.facts.get(item.productId)?.variantCount} style={columns.style}
-                            source={libraryListSource(libraryPage?.facts.get(item.productId), "product", {
-                              active: transfers.some(transfer => transfer.productId === item.productId),
-                              paused: transfers.filter(transfer => transfer.productId === item.productId).every(transfer => transfer.paused),
-                            })}
-                            selected={selectedIds.has(item.productId)}
-                            onSelect={(event) => selectSingle(item.productId, event)}
-                            onOpen={() => {
-                              setSelectedLocalId(null);
-                              setSelectedId(item.productId);
-                            }}
-                            onMenu={(event) => openCardMenu(event, item)}
-                          />
-                        )
-                      )
-                  }
-                  {visibleLocalCards.map((card) => (
-                        <MaterialEntryView
+                  {rows.map((row) => {
+                      if (row.kind === "local") {
+                        const card = row.card;
+                        return <MaterialEntryView
                           viewMode={viewMode} columnStyle={columns.style} facts={libraryPage?.facts.get(card.entry.warehouseItemId)}
                           key={card.key}
                           card={card}
@@ -1590,10 +1603,47 @@ export function WarehousePage({
                             setSelectedLocalId(card.entry.warehouseItemId);
                           }}
                           onMenu={(event) => openLocalMenu(event, card)}
-                        />
-                    ))}
+                        />;
+                      }
+                      const item = row.item;
+                      const corner = productCornerFacts(item);
+                      return viewMode === "cards" ? (
+                          <WarehouseCard
+                            key={item.productId}
+                            item={item}
+                            facts={libraryPage?.facts.get(item.productId)}
+                            cornerState={corner.state} cornerBusy={cornerBusy.has(item.productId)} cornerActs={corner.acts} onCorner={onProductCorner}
+                            fact={sortFactLabel(sortFact, libraryPage?.facts.get(item.productId), item.price)}
+                            selected={selectedIds.has(item.productId)}
+                            onSelect={onProductSelect}
+                            onOpen={onProductOpen}
+                            onMenu={onProductMenu}
+                          />
+                        ) : (
+                          <LibraryListRow
+                            key={item.productId}
+                            id={item.productId} productId={item.productId} title={item.title ?? item.productId} shop={item.shopName} variant={item.variantName}
+                            variantCount={libraryPage?.facts.get(item.productId)?.variantCount} sizeBytes={libraryPage?.facts.get(item.productId)?.sizeBytes} addedAt={libraryPage?.facts.get(item.productId)?.addedAt} style={columns.style}
+                            source={libraryListSource(libraryPage?.facts.get(item.productId), "product", {
+                              active: transfers.some(transfer => transfer.productId === item.productId),
+                              paused: transfers.filter(transfer => transfer.productId === item.productId).every(transfer => transfer.paused),
+                            })}
+                            selected={selectedIds.has(item.productId)}
+                            onSelect={(event) => selectSingle(item.productId, event)}
+                            onOpen={() => {
+                              setSelectedLocalId(null);
+                              setSelectedId(item.productId);
+                            }}
+                            onMenu={(event) => openCardMenu(event, item)}
+                          />
+                        );
+                    })}
                 </div>
               ) : null}
+              {hasMore || moreFailed ? <div ref={moreRef} className="vua-warehouse__more">
+                {moreFailed ? <Button variant="subtle" data-nav-id="warehouse-load-more" onClick={() => { setMoreFailed(false); setWanted(loadedCount + LIBRARY_BATCH + 1); }}>{strings.warehouse.states.retry}</Button>
+                  : <DelayedStatus>{view.loadingMore}</DelayedStatus>}
+              </div> : null}
             </div>
             {/* The way to start a line: select a card, and its next step appears here. Single click selects
                 (Explorer semantics, 2026-10-05), so a card's own click cannot be the action. */}

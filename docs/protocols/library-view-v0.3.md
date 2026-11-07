@@ -17,7 +17,7 @@ reverse-description-link, offset and limit fields of v0.1. The purpose fields of
 
 | Field | Values | Omitted |
 | --- | --- | --- |
-| `sort` | `added_desc`, `added_asc`, `title_asc`, `title_desc`, `shop_asc`, `price_asc`, `price_desc`, `published_desc`, `size_desc` | The order of v0.1 |
+| `sort` | `added_desc`, `added_asc`, `title_asc`, `title_desc`, `shop_asc`, `price_asc`, `price_desc`, `published_desc`, `size_desc`, `size_asc` | The order of v0.1 |
 | `vn3` | Object with optional `state`, `items` and `includeContact` | No terms read, no annotation |
 
 `vn3.state` is `readable`, `no_vn3`, `unread` or `unreadable`. `vn3.items` lists distinct letters from

@@ -11,6 +11,7 @@ import { Skeleton } from "../../components/primitives/Skeleton.tsx";
 import type { CatalogProductDetail, LibraryCardFacts, LibraryFileInventory } from "../../gateway/index.ts";
 import { format, formatDateTime, strings } from "../../i18n/index.ts";
 import { libraryViewCopy } from "../../i18n/library-view-copy.ts";
+import { boothCategoryLabel } from "../../i18n/booth-category-copy.ts";
 import { priceLabel, readableDescription, sizeLabel, videoLink } from "./library-text.ts";
 import { ProductTerms } from "./ProductTerms.tsx";
 import { DetailAlbum } from "./WarehouseAlbum.tsx";
@@ -70,7 +71,7 @@ export function sharedFacts(facts: LibraryCardFacts | undefined): readonly (read
   const size = facts?.sizeBytes ?? 0;
   return [
     [view.source, [...new Set(sources)].join(" · ")],
-    [view.category, facts?.sourceCategory ?? null],
+    [view.category, facts?.sourceCategory ? boothCategoryLabel(facts.sourceCategory) : null],
     [view.size, size > 0 ? sizeLabel(size) : null],
     [view.added, facts?.addedAt ? formatDateTime(facts.addedAt) : null],
   ];
@@ -105,8 +106,13 @@ function Description({ text: recorded }: { text: string }) {
   const [all, setAll] = useState(false);
   const text = readableDescription(recorded);
   const long = text.length > LONG_DESCRIPTION;
+  const [copied, setCopied] = useState(false);
+  const copyText = () => { void navigator.clipboard.writeText(text).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1600); }, () => {}); };
   return <section className="vua-warehouse-detail__section">
-    <h3>{copy.detail.descriptionTitle}</h3>
+    <div className="vua-warehouse-detail__section-head">
+      <h3>{copy.detail.descriptionTitle}</h3>
+      <Button variant="subtle" data-nav-id="warehouse-copy-description" onClick={copyText}>{copied ? view.copied : view.copyDescription}</Button>
+    </div>
     <p className="vua-warehouse-detail__description" data-clamped={long && !all ? true : undefined}>{text}</p>
     {long ? <div><Button variant="subtle" className="vua-warehouse-detail__more" onClick={() => setAll(value => !value)}>{all ? view.showLess : view.showAll}</Button></div> : null}
   </section>;
@@ -140,7 +146,7 @@ export function ProductDetail({ product, facts, title, badges, actions, filesRev
   const metaLine = [shop, creator !== shop ? creator : null, product.variantName, price].filter((part): part is string => part !== null && part !== "").join(" · ");
   const published = product.sourcePublishedAt ?? facts?.publishedAt ?? null;
   const factRows: readonly (readonly [string, ReactNode])[] = [
-    ...sharedFacts(facts).map(([name, value]) => name === view.category ? [name, value ?? product.sourceCategory] as const : [name, value] as const),
+    ...sharedFacts(facts).map(([name, value]) => name === view.category ? [name, value ?? (product.sourceCategory ? boothCategoryLabel(product.sourceCategory) : null)] as const : [name, value] as const),
     [view.published, published ? formatDateTime(published) : null],
     [view.variants, product.variations.length > 1 ? String(product.variations.length) : null],
   ];

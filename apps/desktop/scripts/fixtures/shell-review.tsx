@@ -8,6 +8,7 @@
 //   amf=off          AMF is switched off (default: ready)
 //   lines=none       no production lines (default: one in each state)
 //   library=empty    no materials (default: a small library)
+//   library=large    2000 more materials, for scrolling
 //   mode=ask         permission mode (default: full auto, the setting for new players)
 //   lang=<locale>    UI language (default: zh-CN)
 import type { VuaDesktopApiV2 } from "@vua/contracts";
@@ -69,7 +70,8 @@ const localEntry = {
   entry: { warehouseItemId: "wh-local", folderName: "wh-local", displayName: "My own hair.zip", kind: "imported_material", createdAt: "2026-10-08T00:00:00Z", artifactMode: null, effectiveArtifactMode: "use_original_unitypackage",
     artifacts: [{ relativePath: "My own hair.unitypackage", artifactSha256: `sha256:${"a".repeat(64)}`, state: "clean", sizeBytes: 123456, role: "original" }] },
 };
-const libraryRows = emptyLibrary ? [] : [...catalog, localEntry];
+const largeLibrary = new URLSearchParams(location.search).get("library") === "large";
+const libraryRows = emptyLibrary ? [] : largeLibrary ? [...catalog, localEntry, ...Array.from({ length: 2000 }, (_, i) => productCard(1000 + i, `Synthetic material ${i + 1}`, `Shop ${i % 40}`, 100 + i, i % 7 === 0))] : [...catalog, localEntry];
 /* Synthetic terms: three products read and allowing most uses, one that forbids modifying, one without VN3, the rest unread. */
 const allowed = "ABCDFGIJKLOSTUV".split("");
 const vn3Facts: Record<string, { state: "readable" | "no_vn3" | "unread" | "unreadable"; items: readonly string[]; conditional?: readonly string[]; special?: boolean }> = {
@@ -83,7 +85,7 @@ const vn3Facts: Record<string, { state: "readable" | "no_vn3" | "unread" | "unre
 const rowFacts = (row: (typeof libraryRows)[number]) => {
   const id = row.kind === "product" ? (row as ReturnType<typeof productCard>).product.productId : null;
   const number = id === null ? 0 : Number(id.slice(6));
-  return { id, number, addedAt: id === null ? "2026-10-08T00:00:00Z" : `2026-10-${String(number - 90).padStart(2, "0")}T03:00:00Z`, publishedAt: id === null ? null : `2025-0${number % 9 + 1}-12T00:00:00Z`, sizeBytes: row.storage.presentCopies > 0 ? number * 7_340_032 : 0 };
+  return { id, number, addedAt: id === null ? "2026-10-08T00:00:00Z" : `2026-10-${String(((number - 91) % 28) + 1).padStart(2, "0")}T03:00:00Z`, publishedAt: id === null ? null : `2025-0${number % 9 + 1}-12T00:00:00Z`, sizeBytes: row.storage.presentCopies > 0 ? number * 7_340_032 : 0 };
 };
 function libraryList(input: Record<string, any>) {
   const offset = input.offset ?? 0, limit = input.limit ?? 50;
@@ -116,7 +118,7 @@ function libraryList(input: Record<string, any>) {
     title_asc: (a, b) => titleOf(a as never).localeCompare(titleOf(b as never)), title_desc: (a, b) => titleOf(b as never).localeCompare(titleOf(a as never)),
     shop_asc: (a, b) => String(a.product?.shopName ?? "~").localeCompare(String(b.product?.shopName ?? "~")),
     price_asc: (a, b) => (price(a) ?? 1e12) - (price(b) ?? 1e12), price_desc: (a, b) => (price(b) ?? -1) - (price(a) ?? -1),
-    published_desc: (a, b) => String(b.publishedAt ?? "").localeCompare(String(a.publishedAt ?? "")), size_desc: (a, b) => b.sizeBytes - a.sizeBytes,
+    published_desc: (a, b) => String(b.publishedAt ?? "").localeCompare(String(a.publishedAt ?? "")), size_desc: (a, b) => b.sizeBytes - a.sizeBytes, size_asc: (a, b) => a.sizeBytes - b.sizeBytes,
   };
   rows.sort((a, b) => compare[input.sort ?? "added_desc"]!(a, b) || number(b) - number(a));
   return { schemaVersion: "0.3", items: rows.slice(offset, offset + limit), total: rows.length, offset, limit, sourceCategories: ["3D Avatar", "3D Clothing"], ...(counts ? { vn3Counts: counts } : {}) };

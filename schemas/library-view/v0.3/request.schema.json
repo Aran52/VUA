@@ -90,7 +90,8 @@
                 "price_asc",
                 "price_desc",
                 "published_desc",
-                "size_desc"
+                "size_desc",
+                "size_asc"
               ]
             },
             "vn3": {

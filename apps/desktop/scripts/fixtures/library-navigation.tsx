@@ -157,15 +157,16 @@ async function listAndAdaptationChecks() {
   const cloud = rows[1]; Object.assign(cloud.storage, { state: "cloud_only", storedCopies: 0, presentCopies: 0 }); cloud.copyIds = []; cloud.product.importedArtifacts = 0;
   const error = rows[2]; Object.assign(error.storage, { state: "missing", presentCopies: 0, missingCopies: 1 }); error.product.importedArtifacts = 0;
   const imported = structuredClone(local); Object.assign(imported.storage, { state: "present", presentCopies: 2, missingCopies: 0 }); rows.push(imported);
+  localStorage.removeItem("vua-library-columns");
   descriptionLinks.set("booth:5002", ["booth:5055"]); descriptionLinks.set("booth:5010", ["booth:5055"]);
   root.render(<StrictMode><GatewayProvider gateway={gateway}><div style={{ marginLeft: 112, overflow: "hidden", width: "calc(100% - 112px)" }}><WarehousePage /></div></GatewayProvider></StrictMode>);
-  await until(() => cards().length === 50, "paged column collection loaded");
+  await until(() => cards().length === 79, "column collection loaded");
   check(![...document.querySelectorAll("button")].some(node => node.textContent === copy.dependencyLookup.open), "standalone dependency lookup route is retired");
   document.querySelector<HTMLButtonElement>('[data-nav-id="warehouse-view-list"]')!.click(); await until(() => !!document.querySelector(".vua-library-list__header"), "list headers");
   const cellSource = (id: string) => document.querySelector<HTMLElement>(`[data-selection-id="${id}"] [data-source]`)!;
   check(cellSource("booth:5000").textContent === copy.listColumns.states.downloaded && cellSource("booth:5001").textContent === copy.listColumns.states.cloud && cellSource("booth:5002").textContent === copy.listColumns.states.error, "source column displays plain downloaded, cloud and error values");
   const first = cards()[0]!;
-  check(first.querySelectorAll('[role="cell"]').length === 4 && first.children[1]!.textContent === "Synthetic shop" && first.children[2]!.textContent === format(copy.listColumns.variants, { count: 3 }) && !first.querySelector(".vua-badge"), "title, shop, variants and source have separate columns with compact multiple-variant count");
+  check(first.querySelectorAll('[role="cell"]').length === 5 && first.children[1]!.textContent === "Synthetic shop" && first.children[0]!.querySelector("small")?.textContent === format(copy.listColumns.variants, { count: 3 }) && !first.querySelector(".vua-badge"), "title with its variant count, shop, source, size and added have their own columns with compact multiple-variant count");
   const headings = [...document.querySelectorAll<HTMLElement>(".vua-library-list__heading")]; const widths = headings.map(node => node.getBoundingClientRect().width);
   const separator = headings[0]!.querySelector<HTMLElement>('[role="separator"]')!; const edge = separator.getBoundingClientRect().left;
   separator.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: edge }));
@@ -176,21 +177,19 @@ async function listAndAdaptationChecks() {
   activeTransfers = [{ ...activeTransfers[0]!, paused: true }]; await until(() => cellSource("booth:5001").textContent === copy.listColumns.states.paused, "paused transfer label");
   check(!cellSource("booth:5001").querySelector("button, .vua-badge"), "downloading and paused statuses remain plain source text");
   activeTransfers = []; await until(() => cellSource("booth:5001").textContent === copy.listColumns.states.cloud, "finished native queue reconciles source text");
-  await click(copy.libraryState.nextPage); await until(() => cards().length === 29, "second source page");
-  check(cellSource(imported.entry.warehouseItemId).textContent === copy.listColumns.states.imported && document.querySelector(`[data-selection-id="${imported.entry.warehouseItemId}"]`)?.classList.contains("vua-warehouse-list-row"), "local imports use the same four list columns");
+  check(cellSource(imported.entry.warehouseItemId).textContent === copy.listColumns.states.imported && document.querySelector(`[data-selection-id="${imported.entry.warehouseItemId}"]`)?.classList.contains("vua-warehouse-list-row"), "local imports use the same list columns");
   const source = document.querySelector<HTMLSelectElement>(`select[aria-label="${copy.filters.source}"]`)!;
-  source.value = "bought"; source.dispatchEvent(new Event("change", { bubbles: true })); await until(() => cards().length === 50, "source filter resets offset");
+  source.value = "bought"; source.dispatchEvent(new Event("change", { bubbles: true })); await until(() => cards().length === 78, "source filter reads its own rows");
   const text = document.querySelector<HTMLInputElement>(".vua-warehouse__search")!; inputValue(text, "Synthetic column"); await pause();
-  await click(copy.libraryState.nextPage); await until(() => cards().length === 28, "second bought page");
   const wall = document.querySelector<HTMLDivElement>(".vua-warehouse__wall-scroll")!; wall.style.maxHeight = "230px"; wall.scrollTop = 150; await pause();
   const previousScroll = wall.scrollTop; const previousIds = cards().map(node => node.dataset.selectionId); const previousWidths = [...document.querySelectorAll<HTMLElement>(".vua-library-list__heading")].map(node => node.getBoundingClientRect().width);
   const target = cards().find(node => node.dataset.selectionId === "booth:5055")!; target.click(); await pause();
-  const openAdaptation = async (node: HTMLElement) => { node.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 260, clientY: 220 })); await pause(); await click(copy.cardMenu.showCompatible); };
+  const openAdaptation = async (node: HTMLElement) => { node.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 260, clientY: 220 })); await until(() => [...document.querySelectorAll("button")].some(item => item.textContent?.trim() === copy.cardMenu.showCompatible), "card menu"); await click(copy.cardMenu.showCompatible); };
   await openAdaptation(target); await until(() => cards().length === 2, "reverse link wall");
   check(cards().map(node => node.dataset.selectionId).join(",") === "booth:5002,booth:5010" && !document.querySelector('[role="dialog"]') && calls.at(-1)?.params.descriptionLinksTo === "booth:5055", "single-card adaptation replaces the wall through an exact product-link filter without a dialog");
-  check(source.value === "all" && text.value === "" && button(copy.adaptation.cancel).previousElementSibling?.textContent === copy.libraryState.nextPage, "adaptation starts from all sources and clear filter is immediately right of pagination");
-  await click(copy.adaptation.cancel); await until(() => cards().length === 28, "previous library page restored"); await pause();
-  check(cards().map(node => node.dataset.selectionId).join(",") === previousIds.join(",") && source.value === "bought" && text.value === "Synthetic column" && cards().some(node => node.dataset.selectionId === "booth:5055" && node.dataset.selected === "true"), "cancel restores source, search, exact page and selected card");
+  check(source.value === "all" && text.value === "" && !!button(copy.adaptation.cancel).closest(".vua-warehouse__toolbar"), "adaptation starts from all sources and clear filter sits on the count row");
+  await click(copy.adaptation.cancel); await until(() => cards().length === 78, "previous library place restored"); await pause();
+  check(cards().map(node => node.dataset.selectionId).join(",") === previousIds.join(",") && source.value === "bought" && text.value === "Synthetic column" && cards().some(node => node.dataset.selectionId === "booth:5055" && node.dataset.selected === "true"), "cancel restores source, search, place and selected card");
   check(Math.abs(document.querySelector<HTMLElement>(".vua-warehouse__wall-scroll")!.scrollTop - previousScroll) < 1 && previousWidths.every((width, index) => Math.abs(document.querySelectorAll<HTMLElement>(".vua-library-list__heading")[index]!.getBoundingClientRect().width - width) < 1), "cancel restores scroll and retains resized list columns");
   const multiple = cards().find(node => node.dataset.selectionId === "booth:5055")!;
   multiple.focus(); multiple.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true })); await pause();
@@ -199,15 +198,15 @@ async function listAndAdaptationChecks() {
   await openAdaptation(cards().find(node => node.dataset.selectionId === "booth:5055")!);
   await until(() => cards().length === 2 && !!document.querySelector('[data-selection-id="booth:5002"]'), "multi-selection opens the clicked product's link filter");
   check(calls.at(-1)?.params.descriptionLinksTo === "booth:5055", "multi-selection never turns a clicked product's link read into batch inference");
-  await click(copy.adaptation.cancel); await until(() => cards().length === 28, "multi-selection filter returns to the prior page");
+  await click(copy.adaptation.cancel); await until(() => cards().length === 78, "multi-selection filter returns to the prior place");
   check(cards().filter(node => node.dataset.selected === "true").map(node => node.dataset.selectionId).join(",") === selectedBefore.join(","), "cancelling the product filter restores the complete multi-selection");
   await openAdaptation(cards().find(node => node.dataset.selectionId === "booth:5055")!); await until(() => cards().length === 2, "nested adaptation starting point");
   await openAdaptation(cards()[0]!); await until(() => cards().length === 0 && document.body.textContent?.includes(copy.adaptation.emptyTitle) === true, "empty link filter");
   check(!!button(copy.adaptation.cancel), "empty link results remain cancellable and do not request account login");
-  await click(copy.adaptation.cancel); await until(() => cards().length === 28, "nested filter restores the original baseline");
+  await click(copy.adaptation.cancel); await until(() => cards().length === 78, "nested filter restores the original baseline");
   failLinkRead = true; await openAdaptation(cards().find(node => node.dataset.selectionId === "booth:5055")!); await until(() => document.body.textContent?.includes(copy.states.loadFailedTitle) === true, "failed link read");
-  check(!!button(copy.adaptation.cancel), "failed read still exposes cancel next to pagination"); failLinkRead = false;
-  await click(copy.adaptation.cancel); await until(() => cards().length === 28, "failed filter recovers to original page");
+  check(!!button(copy.adaptation.cancel), "failed read still exposes cancel"); failLinkRead = false;
+  await click(copy.adaptation.cancel); await until(() => cards().length === 78, "failed filter recovers to original place");
 }
 async function showPicker() {
   if (document.querySelector('[role="dialog"]')) { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await pause(); }

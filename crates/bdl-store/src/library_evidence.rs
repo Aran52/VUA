@@ -1,6 +1,8 @@
 //! Local evidence read faces. Current presence and task interpretation belong to AMF.
 use super::*;
 
+const LIBRARY_POSITION_PREFIX: &str = "library_position:";
+
 /// When a product first entered an account library, and BOOTH's own publish date when recorded.
 #[derive(Clone, Debug, Default)]
 pub struct LibraryProductDates {
@@ -76,6 +78,36 @@ impl BdlStore {
                 ..Default::default()
             })?
             .entries)
+    }
+
+    /// Where products sit in one of BOOTH's account lists, newest purchase first. These live beside
+    /// the format version, so builds that do not read them keep opening this store.
+    pub fn record_library_positions(&self, library_type: &str, positions: &[(usize, String)]) -> Result<(), BdlStoreError> {
+        let mut connection = self.connection.lock().expect("SQLite connection poisoned");
+        let transaction = connection.transaction()?;
+        for (position, product_id) in positions {
+            transaction.execute(
+                "INSERT INTO bdl_meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![format!("{LIBRARY_POSITION_PREFIX}{library_type}:{product_id}"), position.to_string()],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// Every recorded place: library type, product and position.
+    pub fn library_positions(&self) -> Result<Vec<(String, String, i64)>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare("SELECT key, value FROM bdl_meta WHERE key LIKE 'library_position:%'")?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let mut positions = Vec::new();
+        for row in rows {
+            let (key, value) = row?;
+            let Some((kind, product)) = key.strip_prefix(LIBRARY_POSITION_PREFIX).and_then(|rest| rest.split_once(':')) else { continue };
+            let Ok(position) = value.parse() else { continue };
+            positions.push((kind.to_owned(), product.to_owned(), position));
+        }
+        Ok(positions)
     }
 
     pub fn product_library_memberships(

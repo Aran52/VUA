@@ -21,6 +21,8 @@ export const storageKeys = {
   /** How Materials orders and shows its cards. */
   librarySort: "vua-library-sort",
   libraryView: "vua-library-view",
+  /** Column widths the player dragged in the Materials list. */
+  libraryColumns: "vua-library-columns",
   scenario: "vua-scenario",
   goals: "vua-goals",
   /** 素材生命周期(G8):版本化 StoredLifecycleV1,见 features/warehouse/asset-lifecycle.ts */

@@ -244,8 +244,8 @@ demoTaskTitle: "데모 작업",
     },
     pages: {
       assetBrowser: browserCopy["ko"].assets,
-      envPlay: "플레이",
-      envCreate: "아바타 편집",
+      envPlay: "실행",
+      envCreate: "Unity 환경",
       help: "도움말",
       guideStart: "시작하기",
       guideBasics: "기본 조작",
@@ -503,7 +503,7 @@ demoTaskTitle: "데모 작업",
         body: "얼굴 추적, 번역 등 플레이 도구",
       },
       creator: {
-        title: "아바타 편집",
+        title: "아바타",
         body: "소재, 작업장, 완성품 순서로 진행해요. 레시피, 패키지, Unity 환경도 이 그룹에 있어요.",
       },
       settings: {
@@ -522,12 +522,12 @@ demoTaskTitle: "데모 작업",
       checks: {
         title: "소프트웨어 상태",
         body: "카드 하나가 플레이 환경 하나예요. 왼쪽을 누르면 포함된 소프트웨어와 체크리스트를 볼 수 있어요.",
-        absent: "환경 카드는 플레이에 있어요",
+        absent: "조합은 실행 페이지에서 고를 수 있어요",
       },
       plan: {
         title: "다음 단계",
         body: "오른쪽 버튼에 다음 단계가 표시돼요. 확인, 체크리스트, 설치, 시작 순서예요. 닫기는 이 카드가 실행한 것만 닫아요.",
-        absent: "플레이에서 환경을 선택해 준비 계획을 확인하세요.",
+        absent: "실행 페이지에서 조합을 골라 준비 단계를 확인하세요.",
       },
       tasks: {
         title: "작업 진행",
@@ -1567,7 +1567,7 @@ rolled_back: "롤백됨",
       replaceCta: "다시 다운로드하고 덮어쓰기 ({count})", previousPage: "이전", nextPage: "다음", page: "{page} / {total} 페이지",
     },
     listColumns: {
-      title: "제목", shop: "상점", variant: "옵션", source: "상태", variants: "총{count}개", resize: "{name} 열 너비 조절",
+      title: "제목", shop: "상점", size: "크기", added: "추가일", source: "상태", variants: "총{count}개", resize: "{name} 열 너비 조절",
       states: { cloud: "미다운로드", downloading: "다운로드 중", paused: "다운로드 일시 중지", downloaded: "다운로드됨", imported: "로컬 가져오기", error: "조치 필요" },
     },
     adaptation: {

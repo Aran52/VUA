@@ -255,8 +255,8 @@ demoTaskTitle: "演示任務",
     },
     pages: {
       assetBrowser: browserCopy["zh-TW"].assets,
-      envPlay: "遊玩",
-      envCreate: "改模",
+      envPlay: "啟動",
+      envCreate: "Unity 環境",
       help: "幫助",
       guideStart: "開始遊玩",
       guideBasics: "基礎操作",
@@ -503,14 +503,14 @@ demoTaskTitle: "演示任務",
     steps: {
       welcome: {
         title: "歡迎，來自現實的旅人。",
-        body: "VUA 集中了遊玩準備、常用工具和改模準備。一分鐘瞭解各功能的位置。",
+        body: "VUA 集中了遊玩準備、常用工具和 Avatar 準備。一分鐘瞭解各功能的位置。",
       },
       tools: {
         title: "想加點額外的工具？",
         body: "面部追蹤、翻譯等遊玩工具",
       },
       creator: {
-        title: "改模",
+        title: "Avatar",
         body: "按順序來：素材、車間、成品。配方、包管理和 Unity 環境也在這組。",
       },
       settings: {
@@ -529,12 +529,12 @@ demoTaskTitle: "演示任務",
       checks: {
         title: "軟體狀態",
         body: "每張卡是一套遊玩環境。點左邊檢視包含的軟體和清單。",
-        absent: "環境卡片在「遊玩」中",
+        absent: "環境選擇在「啟動」頁",
       },
       plan: {
         title: "下一步",
         body: "右邊的按鈕寫著下一步：檢查、請確認、安裝、啟動。關閉只會關掉本卡啟動的軟體。",
-        absent: "在「遊玩」選擇一套環境，檢視準備計畫。",
+        absent: "在「啟動」頁選擇組合，檢視準備步驟。",
       },
       tasks: {
         title: "任務進度",
@@ -1155,7 +1155,7 @@ rolled_back: "已回滾",
             id: "prepare",
             title: "開始前準備",
             paragraphs: [
-              "在 VUA 的「遊玩」頁檢查軟體和網路。缺少 Steam 或 VRChat 時，按頁面給出的官方入口準備。",
+              "在 VUA 的「啟動」頁檢查軟體和網路。缺少 Steam 或 VRChat 時，按頁面給出的官方入口準備。",
               "桌面遊玩需要 Steam 和 VRChat；PICO 串流還需要 SteamVR 和 PICO Connect。VRChat 免費下載。",
               "檢測失敗時，先按頁面顯示的具體項目處理，再重新檢查。",
             ],
@@ -1441,9 +1441,9 @@ rolled_back: "已回滾",
           },
           {
             id: "environment-page",
-            title: "遊玩與改模準備",
+            title: "遊玩與 Avatar 準備",
             paragraphs: [
-              "「遊玩」頁檢查 Steam、VRChat 和串流環境；「Unity 環境」頁檢查 Unity、套件管理器和 {amf}。檢測失敗時，頁面會給出目前可執行的處理方式。",
+              "「啟動」頁檢查 Steam、VRChat 和串流環境；「Unity 環境」頁檢查 Unity、套件管理器和 {amf}。檢測失敗時，頁面會給出目前可執行的處理方式。",
               "工具按用途分組。未接入的條目會標明開發中，不會顯示成已經安裝。",
             ],
           },
@@ -1598,7 +1598,7 @@ rolled_back: "已回滾",
       replaceCta: "重新下載並覆蓋（{count}）", previousPage: "上一頁", nextPage: "下一頁", page: "第 {page} / {total} 頁",
     },
     listColumns: {
-      title: "標題", shop: "商店", variant: "款式", source: "狀態", variants: "共{count}件", resize: "調整{name}欄寬度",
+      title: "標題", shop: "商店", size: "大小", added: "新增時間", source: "狀態", variants: "共{count}件", resize: "調整{name}欄寬度",
       states: { cloud: "未下載", downloading: "下載中", paused: "下載暫停", downloaded: "已下載", imported: "本機匯入", error: "需要處理" },
     },
     adaptation: {

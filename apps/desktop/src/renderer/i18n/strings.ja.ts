@@ -244,8 +244,8 @@ demoTaskTitle: "デモタスク",
     },
     pages: {
       assetBrowser: browserCopy["ja"].assets,
-      envPlay: "プレイ",
-      envCreate: "アバター編集",
+      envPlay: "起動",
+      envCreate: "Unity 環境",
       help: "ヘルプ",
       guideStart: "はじめに",
       guideBasics: "基本操作",
@@ -503,7 +503,7 @@ demoTaskTitle: "デモタスク",
         body: "フェイストラッキングや翻訳などのプレイ用ツール",
       },
       creator: {
-        title: "改変",
+        title: "アバター",
         body: "素材、工房、完成品の順に進みます。レシピ、パッケージ、Unity 環境もこのグループにあります。",
       },
       settings: {
@@ -522,12 +522,12 @@ demoTaskTitle: "デモタスク",
       checks: {
         title: "ソフトの状態",
         body: "各カードが 1 つのプレイ環境です。左側を押すと、含まれるソフトとチェックリストを確認できます。",
-        absent: "環境カードは「プレイ」にあります",
+        absent: "組み合わせは「起動」ページで選べます",
       },
       plan: {
         title: "次のステップ",
         body: "右側のボタンに次のステップが表示されます。確認、チェックリスト、インストール、起動の順です。閉じるとこのカードで起動したソフトだけを閉じます。",
-        absent: "プレイで環境を選び、準備計画を確認してください。",
+        absent: "「起動」ページで組み合わせを選び、準備の手順を確認してください。",
       },
       tasks: {
         title: "タスクの進捗",
@@ -1574,7 +1574,7 @@ rolled_back: "ロールバック済み",
       replaceCta: "再ダウンロードして置き換え（{count}）", previousPage: "前へ", nextPage: "次へ", page: "{page} / {total} ページ",
     },
     listColumns: {
-      title: "タイトル", shop: "ショップ", variant: "バリエーション", source: "状態", variants: "全{count}件", resize: "{name}列の幅を変更",
+      title: "タイトル", shop: "ショップ", size: "サイズ", added: "追加日", source: "状態", variants: "全{count}件", resize: "{name}列の幅を変更",
       states: { cloud: "未ダウンロード", downloading: "ダウンロード中", paused: "ダウンロード一時停止", downloaded: "ダウンロード済み", imported: "ローカル取込", error: "対応が必要" },
     },
     adaptation: {

@@ -99,6 +99,102 @@ button {
   min-height: var(--vua-control-height);
 }
 
+/* A select opens an in-page list, so the list follows the theme. Keyboard use and typing to
+ * jump to an option stay the browser's own. */
+select {
+  appearance: base-select;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vua-space-2);
+  cursor: pointer;
+}
+
+select:disabled {
+  cursor: default;
+}
+
+select::picker-icon {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: var(--vua-text-secondary);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: rotate var(--vua-motion-fast) var(--vua-motion-ease);
+}
+
+select:open::picker-icon {
+  rotate: 180deg;
+}
+
+::picker(select) {
+  appearance: base-select;
+  box-sizing: border-box;
+  max-height: min(320px, 60vh);
+  margin-block: var(--vua-space-1);
+  padding: var(--vua-space-1);
+  overflow-y: auto;
+  border: 1px solid var(--vua-border-strong);
+  border-radius: var(--vua-corners-field, var(--vua-radius-control));
+  background: var(--vua-bg-elevated);
+  color: var(--vua-text-strong);
+  box-shadow: var(--vua-shadow-elevated);
+  opacity: 0;
+  translate: 0 -4px;
+  transition:
+    opacity var(--vua-motion-fast) var(--vua-motion-ease),
+    translate var(--vua-motion-fast) var(--vua-motion-ease),
+    display var(--vua-motion-fast) allow-discrete,
+    overlay var(--vua-motion-fast) allow-discrete;
+}
+
+::picker(select):popover-open {
+  opacity: 1;
+  translate: 0;
+}
+
+@starting-style {
+  ::picker(select):popover-open {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vua-space-3);
+  min-height: 32px;
+  padding: var(--vua-space-1) var(--vua-space-2);
+  border-radius: var(--vua-corners-field, var(--vua-radius-control));
+  background: transparent;
+  color: var(--vua-text-strong);
+  font: var(--vua-font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+option:is(:hover, :focus-visible) {
+  outline: none;
+  background: color-mix(in srgb, var(--vua-accent) 16%, transparent);
+}
+
+option:checked {
+  font-weight: var(--vua-weight-strong);
+}
+
+option::checkmark {
+  order: 1;
+  color: var(--vua-accent);
+}
+
+option:disabled {
+  color: var(--vua-text-disabled);
+  cursor: default;
+}
+
 /* Default text-field skin, shared with the folder picker's path editor. Opt in only
  * where no feature-specific appearance exists; widths and text direction stay local. */
 .vua-text-input {

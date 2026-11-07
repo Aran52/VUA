@@ -134,7 +134,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
 
   return <div className="vua-page vua-route-page vua-play-page vua-compact-environments" data-route-stage={selected ? "prepare" : "pick"}>
     <header className="vua-page__hero vua-environment-heading">
-      <h1 className="vua-title">{strings.journey.play}</h1>
+      <h1 className="vua-title">{strings.journey.launchPage}</h1>
       <Button variant="subtle" data-nav-id="play-refresh-devices" disabled={scan.busy} aria-busy={scan.busy} onClick={refresh}>{scan.busy ? flowCopy.detecting : flowCopy.refreshDevices}</Button>
     </header>
     {scan.scanned ? <ul className="vua-play-devices" aria-label={copy.runtime}>

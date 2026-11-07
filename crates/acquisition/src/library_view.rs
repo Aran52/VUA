@@ -393,7 +393,10 @@ pub fn list(
     if let Some(category) = category_filter {
         rows.retain(|row| row["sourceCategory"] == category);
     }
-    if let Some(sort) = &query.sort { sort_rows(&mut rows, sort); }
+    if let Some(sort) = &query.sort {
+        let order = added_order(&rows, &bdl.library_positions()?);
+        sort_rows(&mut rows, sort, &order);
+    }
     let total = rows.len();
     let mut result = json!({"schemaVersion":query.schema_version,"total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()});
     if let Some(counts) = vn3_counts { result["vn3Counts"] = counts; }
@@ -467,12 +470,36 @@ fn missing_last<T>(a: Option<T>, b: Option<T>, order: impl FnOnce(T, T) -> std::
     }
 }
 
-fn sort_rows(rows: &mut [Value], sort: &str) {
+/// BOOTH lists an account's products newest first, and a first sync gives them all nearly the same
+/// time, later pages later still. So a product's place in that list decides its order among the
+/// others from the list: it is never newer than a product listed above it. Local imports keep
+/// their own times and fall between them. Maps a product to its effective time and place.
+fn added_order(rows: &[Value], positions: &[(String, String, i64)]) -> HashMap<String, (String, i64)> {
+    let added: HashMap<&str, &str> = rows.iter().filter_map(|row| Some((row["product"]["productId"].as_str()?, row_text(row, "addedAt")?))).collect();
+    let mut order = HashMap::new();
+    for kind in ["bought", "gifts", "free_downloads"] {
+        let mut listed: Vec<(i64, &str, &str)> = positions.iter().filter(|(library, _, _)| library == kind)
+            .filter_map(|(_, product, position)| added.get_key_value(product.as_str()).map(|(id, time)| (*position, *id, *time))).collect();
+        listed.sort();
+        let mut newest: Option<&str> = None;
+        for (position, id, time) in listed {
+            let effective = newest.map_or(time, |above| above.min(time));
+            newest = Some(effective);
+            order.entry(id.to_owned()).or_insert((effective.to_owned(), position));
+        }
+    }
+    order
+}
+
+fn sort_rows(rows: &mut [Value], sort: &str, order: &HashMap<String, (String, i64)>) {
+    let listed = |row: &Value| row["product"]["productId"].as_str().and_then(|id| order.get(id)).map(|(time, place)| (time.clone(), *place));
+    let added = |row: &Value| listed(row).map(|(time, _)| time).or_else(|| row_text(row, "addedAt").map(str::to_owned));
+    let place = |row: &Value| listed(row).map_or(i64::MAX, |(_, place)| place);
     let by_title = |a: &Value, b: &Value| natural(&row_title(a), &row_title(b));
     let price = |a: f64, b: f64| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal);
     rows.sort_by(|a, b| {
         let order = match sort {
-            "added_asc" => missing_last(row_text(a, "addedAt"), row_text(b, "addedAt"), |a, b| a.cmp(b)),
+            "added_asc" => missing_last(added(a), added(b), |a, b| a.cmp(&b)).then_with(|| place(b).cmp(&place(a))),
             "title_asc" => by_title(a, b),
             "title_desc" => by_title(b, a),
             "shop_asc" => missing_last(row_shop(a), row_shop(b), |a, b| natural(&a, &b)),
@@ -480,7 +507,8 @@ fn sort_rows(rows: &mut [Value], sort: &str) {
             "price_desc" => missing_last(row_price(a), row_price(b), |a, b| price(b, a)),
             "published_desc" => missing_last(row_text(a, "publishedAt"), row_text(b, "publishedAt"), |a, b| b.cmp(a)),
             "size_desc" => b["sizeBytes"].as_u64().cmp(&a["sizeBytes"].as_u64()),
-            _ => missing_last(row_text(a, "addedAt"), row_text(b, "addedAt"), |a, b| b.cmp(a)),
+            "size_asc" => a["sizeBytes"].as_u64().cmp(&b["sizeBytes"].as_u64()),
+            _ => missing_last(added(a), added(b), |a, b| b.cmp(&a)).then_with(|| place(a).cmp(&place(b))),
         };
         order.then_with(|| row_number(b).cmp(&row_number(a))).then_with(|| by_title(a, b))
     });
@@ -635,4 +663,48 @@ pub fn product_files(
         files.push(json!({"downloadableId":id,"fileName":name,"managedCopyId":bound.map(|bound|bound.copy_id),"copies":copies}));
     }
     Ok(json!({"schemaVersion":"0.1","productId":request.product_id,"items":files}))
+}
+
+#[cfg(test)]
+mod added_order_tests {
+    use super::*;
+
+    fn product(id: &str, added: &str) -> Value {
+        json!({"kind":"product","product":{"productId":id,"title":id},"addedAt":added})
+    }
+
+    fn entry(title: &str, added: &str) -> Value {
+        json!({"kind":"local","entry":{"displayName":title},"addedAt":added})
+    }
+
+    fn sorted(mut rows: Vec<Value>, positions: &[(String, String, i64)], sort: &str) -> Vec<String> {
+        let order = added_order(&rows, positions);
+        sort_rows(&mut rows, sort, &order);
+        rows.iter().map(|row| row["product"]["productId"].as_str().or(row["entry"]["displayName"].as_str()).unwrap().to_owned()).collect()
+    }
+
+    fn bought(places: &[(&str, i64)]) -> Vec<(String, String, i64)> {
+        places.iter().map(|(id, place)| ("bought".to_owned(), (*id).to_owned(), *place)).collect()
+    }
+
+    #[test]
+    fn a_first_sync_follows_booths_list_even_when_later_pages_were_read_later() {
+        let rows = vec![product("booth:1", "2026-10-11T00:00:09Z"), product("booth:2", "2026-10-11T00:00:01Z"), product("booth:3", "2026-10-11T00:00:05Z")];
+        let positions = bought(&[("booth:2", 0), ("booth:3", 1), ("booth:1", 2)]);
+        assert_eq!(sorted(rows.clone(), &positions, "added_desc"), ["booth:2", "booth:3", "booth:1"]);
+        assert_eq!(sorted(rows, &positions, "added_asc"), ["booth:1", "booth:3", "booth:2"]);
+    }
+
+    #[test]
+    fn a_local_import_falls_between_purchases_by_its_own_time() {
+        let rows = vec![product("booth:1", "2026-10-11T00:00:00Z"), product("booth:2", "2026-11-01T00:00:00Z"), entry("hair", "2026-10-20T00:00:00Z")];
+        let positions = bought(&[("booth:2", 0), ("booth:1", 1)]);
+        assert_eq!(sorted(rows, &positions, "added_desc"), ["booth:2", "hair", "booth:1"]);
+    }
+
+    #[test]
+    fn rows_without_a_recorded_place_keep_their_times() {
+        let rows = vec![product("booth:1", "2026-10-01T00:00:00Z"), product("booth:2", "2026-10-02T00:00:00Z")];
+        assert_eq!(sorted(rows, &[], "added_desc"), ["booth:2", "booth:1"]);
+    }
 }

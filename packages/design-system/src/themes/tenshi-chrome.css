@@ -62,7 +62,7 @@
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-home__activity > button { border-bottom: 0; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile { padding-top: 30px; border-radius: 18px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile:hover:not(:disabled), [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile[aria-pressed="true"] { border-color: #4a9be8; background-color: #f2f8ff; transform: none; }
-[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile__icon { position: relative; width: 56px; height: 56px; border: 2px solid #2a72c8; border-radius: 14px; color: #ffffff; background: #4a9be8;
+[data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile__icon { position: relative; width: 56px; height: 56px; border: 2px solid #2a72c8; border-radius: 14px; color: #ffffff; background: #3a86d8;
   outline: 1.5px dashed #ffffff; outline-offset: -6px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-grid > :first-child .vua-route-tile__icon::before { content: ""; position: absolute; inset-inline-start: 10px; top: -13px; width: 32px; height: 9px; border: 2.5px solid #f0c94a; border-radius: 50%; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-route-tile strong { color: #2a72c8; font-size: 22px; }
@@ -71,7 +71,7 @@
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-button { border-radius: 999px; font-weight: var(--vua-weight-strong); }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-button--default { border: 2px solid #4a9be8; background: #ffffff; color: #2a72c8; outline: 1px dashed #8ec5f5; outline-offset: -5px; }
 [data-theme-family="tenshi"]:not([data-hc="on"]) .vua-button--primary, [data-theme-family="tenshi"]:not([data-hc="on"]) [data-module="production"] .vua-button--primary {
-  color: #ffffff; border: 2px solid #2a72c8; background: linear-gradient(180deg, #6bb6ff, #4a9be8 50%, #2a72c8);
+  color: #ffffff; border: 2px solid #1f5ca8; background: linear-gradient(180deg, #4a9be8, #2a72c8 50%, #1f5ca8);
   outline: 1px dashed rgb(255 255 255 / 0.9); outline-offset: -5px; box-shadow: 0 4px 10px rgb(42 114 200 / 0.3);
 }
 

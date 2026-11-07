@@ -91,12 +91,15 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
   const [runReload, setRunReload] = useState(0);
   const [list, setList] = useState<AmfProductionList | null>(() => latestProductionList(port));
   const [sourceIds, setSourceIds] = useState<readonly string[]>(storedMaterials);
+  const askedMaterials = useRef<readonly string[] | null>(null);
   const [editorPath, setEditorPath] = useState("");
   const [requestedRecipe] = useState(takeRequestedProductionRecipe);
   const [runId, setRunId] = useState(() => {
-    const wantsNewLine = takeRequestedNewProductionLine();
-    return takeRequestedProductionRun() ?? (requestedRecipe || wantsNewLine ? "" : storedRun());
+    const newLine = takeRequestedNewProductionLine();
+    if (newLine !== null && newLine.length > 0) askedMaterials.current = newLine;
+    return takeRequestedProductionRun() ?? (requestedRecipe || newLine !== null ? "" : storedRun());
   });
+  useEffect(() => { if (askedMaterials.current !== null) { setSourceIds(askedMaterials.current); askedMaterials.current = null; } }, []);
   // A new line starts from materials or from a saved Recipe; opening a Recipe shows its preview.
   const [startFrom, setStartFrom] = useState<"materials" | "recipe">("materials");
   useEffect(() => { if (runId) remember(runKey, runId); }, [runId]);
@@ -386,7 +389,14 @@ export function AmfProductionPage({ onNavigate, onPrepareEnv }: {
             <Button variant="subtle" disabled={busy} data-nav-id="workshop-close-unity">{closeOffer.retry ? editorClose.actionContinue : editorClose.action}</Button>
           </Popconfirm>
         : <Button variant="subtle" onClick={() => { setError(null); void refreshList(); }}>{copy.retry}</Button>}>{closeOffer !== null && closeOffer.message === error ? editorClose.held : error}</Alert>}
-    {run === null ? <>
+    {run !== null && list?.runs.find(item => item.runId === run.runId)?.projectGone ? <>
+      <header className="vua-line__header"><div className="vua-line__object"><h1 className="vua-title">{lineName(run.runId, run.sources[0]?.itemName ?? "", lineNames) || objectName}</h1></div></header>
+      <Card className="vua-line__gone" data-nav-id="workshop-project-gone">
+        <h2>{factory.projectGone.title}</h2>
+        <div className="vua-n3__actions"><Button variant="primary" data-nav-id="workshop-rebuild" onClick={() => { setSourceIds(run.sources.map(item => item.sourceId)); newPreparation(); }}>{factory.projectGone.newLine}</Button></div>
+      </Card>
+      {port && <AmfResultViews port={port} run={run}/>}
+    </> : run === null ? <>
       <header className="vua-line__header"><div className="vua-page__hero"><h1 className="vua-title">{factory.newLine}</h1></div><PermissionModePicker value={effective} onChoose={chooseLevel} /></header>
       {recipePreview && <Card><Button disabled={busy} onClick={() => setSharingRecipe(recipePreview.recipe.recipeId)}>{copy.shareRecipe}</Button><h2>{recipePreview.recipe.title}</h2><p>{format(copy.recipeSummary,{materials:recipePreview.recipe.materials.length,outfits:recipePreview.recipe.outfits.length})}</p>
         <details><summary>{copy.materials}</summary><ul>{recipePreview.recipe.materials.map(material => <li key={material.id}>{material.packageName}</li>)}</ul></details>

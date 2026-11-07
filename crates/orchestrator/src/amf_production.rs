@@ -1080,6 +1080,7 @@ impl AmfProductionEngine {
         match result {
             Ok(()) => {
                 Self::close_step(run, "succeeded");
+                self.keep_stills(run);
                 self.save(run)
             }
             // A stop keeps the work project and its imported materials; reinspection continues
@@ -1367,6 +1368,8 @@ impl AmfProductionEngine {
                 }
             }
         }
+        let stills = self.kept_stills(run_id);
+        if stills.exists() { remove_tree(&stills).map_err(|e| production_error("delete_failed", e.to_string()))?; }
         fs::remove_file(self.run_file(run_id)?).map_err(io_error)?;
         *self.usual.lock().expect("AMF durations poisoned") = None;
         Ok(())
@@ -1905,12 +1908,50 @@ impl AmfProductionEngine {
         if !preview_paths(&run).iter().any(|known| known == path) {
             return Err(production_error("preview_unknown", "This run reports another set of previews. Read the run again."));
         }
-        let bytes = fs::read(preview_file(Path::new(&run.project_root), path)?)
-            .map_err(|e| production_error("preview_missing", e.to_string()))?;
+        let bytes = match preview_file(Path::new(&run.project_root), path) {
+            Ok(file) => fs::read(file).map_err(|e| production_error("preview_missing", e.to_string()))?,
+            // The work project is gone or lost this file: the copy kept with the line still shows the Avatar.
+            Err(error) => fs::read(self.kept_still(run_id, path)).map_err(|_| error)?,
+        };
         if bytes.len() as u64 > MAX_PREVIEW_BYTES || !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
             return Err(production_error("preview_invalid", "The preview file is not a bounded PNG image."));
         }
         Ok(bytes)
+    }
+
+    fn kept_stills(&self, run_id: &str) -> PathBuf {
+        self.root.join("stills").join(run_id)
+    }
+
+    /// A preview path is plain ASCII with one separator, so it names one file here.
+    fn kept_still(&self, run_id: &str, path: &str) -> PathBuf {
+        self.kept_stills(run_id).join(path.replace('/', "_"))
+    }
+
+    /// Copies the finished Avatar's views out of the work project, so the picture outlives the project.
+    /// A failure leaves the line as it is: the project still holds the originals.
+    pub fn keep_stills(&self, run: &ProductionRun) {
+        let views: Vec<String> = run.result["facts"]["previews"].as_array().into_iter().flatten()
+            .filter_map(|view| view["path"].as_str().map(str::to_owned)).collect();
+        if views.is_empty() { return; }
+        let directory = self.kept_stills(&run.run_id);
+        if fs::create_dir_all(&directory).is_err() { return; }
+        for view in &views {
+            let target = self.kept_still(&run.run_id, view);
+            if target.exists() { continue; }
+            let Ok(file) = preview_file(Path::new(&run.project_root), view) else { continue };
+            let pending = target.with_extension("pending");
+            if fs::copy(file, &pending).is_ok() { let _ = fs::rename(&pending, &target); }
+        }
+        let current: Vec<PathBuf> = views.iter().map(|view| self.kept_still(&run.run_id, view)).collect();
+        for entry in fs::read_dir(&directory).into_iter().flatten().flatten() {
+            if !current.contains(&entry.path()) { let _ = fs::remove_file(entry.path()); }
+        }
+    }
+
+    /// The line's work project is no longer on this computer.
+    pub fn project_gone(run: &ProductionRun) -> bool {
+        !Path::new(&run.project_root).exists()
     }
 }
 

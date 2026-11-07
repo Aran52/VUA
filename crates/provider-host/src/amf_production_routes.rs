@@ -357,7 +357,9 @@ fn route(
         let view = service.lane_view();
         let runs = service.engine.list()?.into_iter().map(|run| {
             let run = project_view(run, &service);
-            json!({"runId":run.run_id,"phase":run.phase,"sourceNames":run.sources.iter().map(|s| &s.item_name).take(3).collect::<Vec<_>>()})
+            let mut row = json!({"runId":run.run_id,"phase":run.phase,"sourceNames":run.sources.iter().map(|s| &s.item_name).take(3).collect::<Vec<_>>()});
+            if AmfProductionEngine::project_gone(&run) { row["projectGone"] = json!(true); }
+            row
         }).collect::<Vec<_>>();
         return Ok(
             json!({"schemaVersion":"0.1","sources":service.engine.sources()?,"editors":service.engine.editors()?,"runs":runs,"busy":!view.running.is_empty(),

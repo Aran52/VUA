@@ -616,6 +616,19 @@ fn only_previews_the_run_reports_are_read() {
     assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap_err().code, "vua.amf_production.preview_invalid");
 }
 #[test]
+fn a_finished_avatars_views_outlive_its_work_project() {
+    let h = Harness::new();
+    h.prepared();
+    let run = h.engine.get("n3-test").unwrap();
+    h.engine.keep_stills(&run);
+    let original = h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap();
+    assert!(!AmfProductionEngine::project_gone(&run));
+    fs::remove_dir_all(&run.project_root).unwrap();
+    assert!(AmfProductionEngine::project_gone(&run));
+    assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/front.png").unwrap(), original);
+    assert_eq!(h.engine.preview_image("n3-test", ".vua/previews/cmd/candidate-000.png").unwrap_err().code, "vua.amf_production.project_missing");
+}
+#[test]
 fn project_drift_refuses_before_snapshot_or_mutation() {
     let h = Harness::new();
     h.prepared();

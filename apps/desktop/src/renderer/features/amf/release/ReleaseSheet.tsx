@@ -30,6 +30,8 @@ export interface SheetActions {
   readonly otherWork?: boolean;
   readonly queued?: QueuedWork | null;
   readonly onUpload: () => void;
+  /** The work project is gone: the Avatar can be built again from its materials. */
+  readonly onNewLine?: () => void;
   readonly onStop: () => void;
   readonly onCheckAgain: () => void;
   /** Runs the SDK's own Auto Fix for the chosen items. */
@@ -251,7 +253,12 @@ export function ReleaseSheet({ run, title, state, number, live, actions, notice,
     </header>
     {notice}
     {/* A queued upload is the notice alone; other queued work keeps the button, disabled. */}
-    <section className="vua-release-upload" aria-label={copy.upload.button}>
+    {live && actions?.onNewLine ? <section className="vua-release-upload" data-nav-id="release-project-gone">
+      <p>{copy.projectGone.title}</p>
+      <button type="button" className="vua-release-upload__button" onClick={actions.onNewLine} data-nav-id="release-new-line"><Icon name="refresh" size={20} />{copy.projectGone.newLine}</button>
+      {latest && latest.state !== "running" && <UploadResult upload={latest} check={avatarCheck ?? null} busy={false}
+        {...(onRefreshAvatarCheck ? { onRefreshCheck: onRefreshAvatarCheck } : {})} {...(onOpenOnVrchat ? { onOpenOnVrchat } : {})} />}
+    </section> : <section className="vua-release-upload" aria-label={copy.upload.button}>
       {live && actions?.queued && <QueuedNotice queued={actions.queued} />}
       {running ? <UploadProgress upload={running} {...(live && actions ? { onStop: actions.onStop } : {})} /> : <>
         {!(live && uploadQueued) && <>
@@ -269,7 +276,7 @@ export function ReleaseSheet({ run, title, state, number, live, actions, notice,
       {earlier.length > 0 && <details className="vua-release-upload__history"><summary>{copy.upload.history}</summary>
         <ul>{earlier.map(upload => <li key={upload.uploadId}>{format(copy.upload.historyLine, { time: time(upload.endedAt ?? upload.startedAt), result: copy.upload.results[upload.state] })}
           {upload.blueprintId && <code>{upload.blueprintId}</code>}</li>)}</ul></details>}
-    </section>
+    </section>}
     <section className="vua-album__block">
       <h3>{copy.outfits}</h3>
       {outfits.length === 0 ? <p className="vua-text-secondary">{copy.noOutfits}</p> : <ul className="vua-album__outfits">
@@ -282,8 +289,8 @@ export function ReleaseSheet({ run, title, state, number, live, actions, notice,
       <ul className="vua-album__checks">{checks.map(check => <li key={check.key} data-state={check.state}>
         <Icon name={check.state === "ok" ? "check" : check.state === "attention" ? "warning" : "question"} size={16} />{checkText(check)}</li>)}</ul>
     </section>}
-    <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />
+    {!actions?.onNewLine && <SdkReviewBlock run={run} busy={!live || !actions || actions.busy} {...(live && actions ? { onCheckAgain: actions.onCheckAgain } : {})} {...(live && actions?.onSdkFix ? { onFix: actions.onSdkFix } : {})} />}
     {terms}
-    <UploadGuide />
+    {!actions?.onNewLine && <UploadGuide />}
   </div>;
 }

@@ -8,11 +8,18 @@ export function takeRequestedProductionRecipe(): string | null {
 // Home's "new line": the workshop opens on the start page instead of the last line it showed.
 // Host and independently bundled AMF can have separate copies of this module, so the hint is stored.
 const newLineKey = "vua-amf-production-new-line";
-export function requestNewProductionLine(): void {
-  try { sessionStorage.setItem(newLineKey, "1"); } catch { /* The workshop opens on its last line instead. */ }
+export function requestNewProductionLine(sourceIds?: readonly string[]): void {
+  try { sessionStorage.setItem(newLineKey, JSON.stringify(sourceIds ?? [])); } catch { /* The workshop opens on its last line instead. */ }
 }
-export function takeRequestedNewProductionLine(): boolean {
-  try { const asked = sessionStorage.getItem(newLineKey) !== null; sessionStorage.removeItem(newLineKey); return asked; } catch { return false; }
+/** The asked-for materials, or null when no new line was asked for. */
+export function takeRequestedNewProductionLine(): readonly string[] | null {
+  try {
+    const asked = sessionStorage.getItem(newLineKey);
+    sessionStorage.removeItem(newLineKey);
+    if (asked === null) return null;
+    const value: unknown = JSON.parse(asked);
+    return Array.isArray(value) && value.every(id => typeof id === "string") ? value as string[] : [];
+  } catch { return null; }
 }
 
 // Full auto continues into the 360° preview when the player follows a finished line to Finished Avatars.

@@ -7,6 +7,7 @@
 //   env=missing      Steam and VRChat are not installed (default: installed)
 //   amf=off          AMF is switched off (default: ready)
 //   lines=none       no production lines (default: one in each state)
+//   gone=1           the finished lines' work projects are gone
 //   library=empty    no materials (default: a small library)
 //   library=large    2000 more materials, for scrolling
 //   mode=ask         permission mode (default: full auto, the setting for new players)
@@ -241,7 +242,7 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
     case "terms.checkUse": return swapProduct(await termsPreviewPort("terms-parsed").checkUse(input.presetId, ["booth:1"]), input.productIds[0]);
     case "amf.production.list": return { schemaVersion: "0.1", sources: sourcesForList, editors: [editor], busy: lineRecords["n3-running"] !== undefined, capacity: 1, queue: [],
       running: lineRecords["n3-running"] ? [{ taskId: "task-n3-running", runId: "n3-running", operation: "amf.production.prepare" }] : [],
-      runs: Object.values(lineRecords).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(source => source.itemName) })) };
+      runs: Object.values(lineRecords).map(run => ({ runId: run.runId, phase: run.phase, sourceNames: run.sources.map(source => source.itemName), ...(params.get("gone") === "1" && run.phase === "succeeded" ? { projectGone: true } : {}) })) };
     case "amf.production.get": return lineRecords[input.runId] ?? null;
     case "amf.production.listRecipes": return { schemaVersion: "0.1", recipes: noLines ? [] : [{ recipeId: "r-1", title: "Meiyun T恤短裤", revision: 1, updatedAt: "2026-10-30T03:00:00Z" }, { recipeId: "r-2", title: "Karin 水手服", revision: 3, updatedAt: "2026-11-02T03:00:00Z" }] };
     case "amf.production.getRecipe": return { schemaVersion: "0.1", document: recipeDocument(input.recipeId, input.recipeId === "r-2" ? "Karin 水手服" : "Meiyun T恤短裤") };
@@ -252,7 +253,7 @@ async function reply(method: string, input: Record<string, any>): Promise<unknow
       return { schemaVersion: "0.1", plan: { recipeId: input.recipeId, materials, materialChoices: {}, ready: materials.every(item => item.status === "ready"), planDigest: "c".repeat(64) } };
     }
     case "amf.production.listFits": return { schemaVersion: "0.1", fits: [] };
-    case "amf.production.previewImage": return null;
+    case "amf.production.previewImage": if (params.get("gone") === "1") throw new Error("vua.amf_production.project_missing"); return null;
     case "amf.production.releaseState": return { schemaVersion: "0.1", runId: input.runId, editorOpen: false, turntable: null, uploads: [] };
     case "amf.production.plan": {
       const line = lineRecords[input.runId]!;

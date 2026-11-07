@@ -22,15 +22,16 @@ function previewUrl(port: AmfProductionPort, runId: string, path: string): Promi
 /** One Bridge preview read through the typed Gateway. */
 export function AmfPreview({ port, runId, path, label }: { port: AmfProductionPort; runId: string; path: string | undefined; label: string }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    setSrc(null);
+    setSrc(null); setFailed(false);
     if (path === undefined) return;
     let alive = true;
-    void previewUrl(port, runId, path).then(url => { if (alive) setSrc(url); }, () => { /* The name stays as the caption. */ });
+    void previewUrl(port, runId, path).then(url => { if (alive) setSrc(url); }, () => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [port, runId, path]);
   return <figure className="vua-n3__preview">
-    {src !== null ? <img src={src} alt={label} draggable={false} data-audit-skip="bridge-preview-image"/> : <span className="vua-n3__preview-frame" aria-busy={path !== undefined || undefined}/>}
+    {src !== null ? <img src={src} alt={label} draggable={false} data-audit-skip="bridge-preview-image"/> : <span className="vua-n3__preview-frame" aria-busy={path !== undefined && !failed || undefined}/>}
     <figcaption title={label}>{label}</figcaption>
   </figure>;
 }

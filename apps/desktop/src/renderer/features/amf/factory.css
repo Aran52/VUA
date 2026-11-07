@@ -113,6 +113,9 @@
 .vua-line__live-head { display: flex; align-items: center; gap: 12px; }
 .vua-line__live .vua-n3__actions { margin-top: 12px; }
 .vua-line__live .vua-n3__actions p { margin: 0; flex: 1; min-width: 200px; }
+.vua-line__gone { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--vua-space-3); }
+.vua-line__gone .vua-n3__actions { margin: 0; }
+.vua-line__gone > h2 { margin: 0; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); }
 .vua-line__attention { border-inline-start: 4px solid var(--vua-error); }
 .vua-line__attention[data-status="stopped"] { border-inline-start-color: var(--vua-text-secondary); }
 .vua-line__sentence { font: var(--vua-font-title); }

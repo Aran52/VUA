@@ -89,7 +89,8 @@ export interface AmfSdkReview {
 export type AmfQueuedWork = AmfProductionWorkV01;
 export interface AmfProductionList extends AmfProductionLaneV01 {
   readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[];
-  readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[] }[];
+  /** `projectGone`: the line's work project is no longer on this computer. */
+  readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[]; readonly projectGone?: boolean }[];
 }
 export interface AmfProductionPlan {
   readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection;
@@ -482,7 +483,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     async list() {
       const v = await call({ method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.sources) || !v.sources.every(source) || !Array.isArray(v.editors) || !v.editors.every(editor)
-        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames))
+        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames) && (r.projectGone === undefined || r.projectGone === true))
         || !isAmfProductionCapacity(v.capacity) || !Array.isArray(v.running) || v.running.length > v.capacity || !v.running.every(work)
         || v.busy !== (v.running.length > 0)
         || !Array.isArray(v.queue) || v.queue.length > 64 || !v.queue.every(work)) throw new Error("amf_production_list_invalid");

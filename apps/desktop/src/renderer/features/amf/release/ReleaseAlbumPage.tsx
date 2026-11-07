@@ -25,7 +25,7 @@ import { TurntableExportDialog } from "./TurntableExportDialog.tsx";
 import { recipeShareCopy } from "../../../i18n/index.ts";
 import { lineName } from "../line-presentation.ts";
 import { SegmentBar } from "../../../components/SegmentBar.tsx";
-import { takeRequestedTurntable } from "../production-recipe-navigation.ts";
+import { requestNewProductionLine, takeRequestedTurntable } from "../production-recipe-navigation.ts";
 
 const copy = strings.releaseRoom;
 const shelfCopy = strings.vrchat.shelf;
@@ -219,6 +219,7 @@ function Album({ production, release, checksEnabled, onNavigate }: {
   const titleOf = (runId: string) => lineName(runId, list?.runs.find(item => item.runId === runId)?.sourceNames[0] ?? runs[runId]?.sources[0]?.itemName ?? "") || baseName(runId);
   const spreads: AlbumSpread[] = ids.map((runId, at) => {
     const run = runs[runId];
+    const projectGone = list?.runs.find(item => item.runId === runId)?.projectGone === true;
     const state = states[runId] ?? null;
     const title = titleOf(runId);
     // Finished Avatars with the same name are told apart by when their line started.
@@ -237,13 +238,14 @@ function Album({ production, release, checksEnabled, onNavigate }: {
     return {
       key: runId, tab,
       left: live => run ? <div className="vua-album__left">
-        <ReleaseStage production={production} release={release} run={run} turntable={state?.turntable ?? null} title={title} live={live} />
-        {live && <TurntableBar run={run} state={state} busy={ownWork(runId)} error={error?.kind === "bake" ? error.error : null}
+        <ReleaseStage production={production} release={release} run={run} turntable={projectGone ? null : state?.turntable ?? null} title={title} live={live} projectGone={projectGone} />
+        {live && !projectGone && <TurntableBar run={run} state={state} busy={ownWork(runId)} error={error?.kind === "bake" ? error.error : null}
           onBake={() => act(runId, "bake", () => release.bakeTurntable(runId))} onExport={() => setExportRun(runId)} />}
       </div> : <p className="vua-text-secondary">{copy.loading}</p>,
       right: live => run ? <>
         <ReleaseSheet run={run} title={title} state={state} number={at + 1} live={live} notice={live ? notice : null}
-          terms={live && list ? <LineTerms run={run} sources={list.sources} onOpenMaterials={() => onNavigate("warehouse")} /> : null} actions={{
+          terms={live && list && !projectGone ? <LineTerms run={run} sources={list.sources} onOpenMaterials={() => onNavigate("warehouse")} /> : null} actions={{
+          ...(projectGone ? { onNewLine: () => { requestNewProductionLine(run.sources.map(item => item.sourceId)); onNavigate("workshop"); } } : {}),
           busy: ownWork(runId),
           uploadBlocked: runningUpload(state) !== null || queuedFor(runId)?.operation === "amf.production.upload",
           otherWork,

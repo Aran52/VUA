@@ -7,6 +7,9 @@ import {
   DEFAULT_LIBRARY_SORT, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, offeredLibrarySorts, readLibrarySession, rememberLibrarySort, rememberLibraryView, saveLibrarySession, sortFactOf,
   storedLibrarySort, storedLibraryView, vn3ChoiceActive, vn3FilterWire, type LibraryVn3Choice, type LibraryViewMode,
   shownVariant,
+  historyDetail,
+  type LibraryDetailEntry,
+  syncHistoryDetail,
 } from "./library-view-model.ts";
 import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
@@ -458,7 +461,7 @@ export function WarehousePage({
     previousTerminalTasks.current = terminalTasks;
     setReloadKey(key => key + 1);
   }, [terminalTasks]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => historyDetail()?.product ?? null);
   const currentDetailId = useRef(selectedId); currentDetailId.current = selectedId;
   const [detailState, setDetailState] = useState<DetailState>({ kind: "loading" });
   const [detailReloadKey, setDetailReloadKey] = useState(0);
@@ -497,7 +500,7 @@ export function WarehousePage({
   const [syncReadFailed, setSyncReadFailed] = useState(false);
   const [syncRunId, setSyncRunId] = useState<string | null>(null);
   /** 统一卡片墙:选中的本地条目(云端商品用 selectedId,两者互斥呈现) */
-  const [selectedLocalId, setSelectedLocalId] = useState<string | null>(null);
+  const [selectedLocalId, setSelectedLocalId] = useState<string | null>(() => historyDetail()?.local ?? null);
   const loginBrowserOpen = useLoginBrowserRequest() !== null;
   // One probe per entry/closed browser, with stale replies ignored. Visiting a
   // login page can leave cookies without completing login, so do not use hints.
@@ -1322,7 +1325,7 @@ export function WarehousePage({
   useEffect(() => {
     if (detailOpen && hasMore && neighbours.index >= 0 && neighbours.index >= neighbours.total - 3) requestMore();
   }, [detailOpen, hasMore, neighbours.index, neighbours.total, requestMore]);
-  const openDetail = (target: { readonly product?: string; readonly local?: string }) => {
+  const openDetail = (target: LibraryDetailEntry) => {
     setSelectedId(target.product ?? null); setSelectedLocalId(target.local ?? null);
     const key = target.product ?? visibleLocalCards.find(card => card.entry.warehouseItemId === target.local)?.key;
     if (key !== undefined) { setSelectedIds(new Set([key])); selectionAnchor.current = key; }
@@ -1337,6 +1340,21 @@ export function WarehousePage({
     });
   };
   useEscapeClose(detailOpen, closeDetail);
+  // The side buttons walk the same history as the page's own back button.
+  useEffect(() => {
+    syncHistoryDetail(selectedId !== null ? { product: selectedId } : selectedLocalId !== null ? { local: selectedLocalId } : null);
+  }, [selectedId, selectedLocalId]);
+  const detailMoves = useRef({ detailOpen, openDetail, closeDetail });
+  detailMoves.current = { detailOpen, openDetail, closeDetail };
+  useEffect(() => {
+    const onHistory = () => {
+      const entry = historyDetail();
+      if (entry !== null) detailMoves.current.openDetail(entry);
+      else if (detailMoves.current.detailOpen) detailMoves.current.closeDetail();
+    };
+    window.addEventListener("popstate", onHistory);
+    return () => window.removeEventListener("popstate", onHistory);
+  }, []);
   useEffect(() => {
     if (!detailOpen) return;
     const onKey = (event: KeyboardEvent) => {

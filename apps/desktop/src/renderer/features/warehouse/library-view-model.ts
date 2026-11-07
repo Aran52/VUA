@@ -4,6 +4,21 @@ import { storageKeys } from "../../app/storage-keys.ts";
 
 export type LibraryViewMode = "cards" | "list";
 
+/** The material a history entry shows. Opening one adds an entry, so the back and forward side buttons leave and
+ * re-enter it; stepping to a neighbour stays on the same entry. */
+export interface LibraryDetailEntry { readonly product?: string | undefined; readonly local?: string | undefined }
+export function historyDetail(): LibraryDetailEntry | null {
+  return (window.history.state as { vuaLibraryDetail?: LibraryDetailEntry } | null)?.vuaLibraryDetail ?? null;
+}
+export function syncHistoryDetail(wanted: LibraryDetailEntry | null): void {
+  const shown = historyDetail();
+  if (wanted?.product === shown?.product && wanted?.local === shown?.local) return;
+  if (wanted === null) { window.history.back(); return; }
+  const state = { ...window.history.state, vuaLibraryDetail: wanted };
+  if (shown === null) window.history.pushState(state, "");
+  else window.history.replaceState(state, "");
+}
+
 const comparable = (text: string): string => text.trim().replace(/\s+/gu, " ").toLowerCase();
 /** The purchased variation, unless BOOTH's row only repeats the product's name. */
 export function shownVariant(title: string | null | undefined, variant: string | null | undefined): string | null {

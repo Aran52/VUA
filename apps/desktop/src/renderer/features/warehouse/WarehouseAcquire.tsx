@@ -25,7 +25,7 @@ import {
   type CatalogProductSummary,
   type LibraryCardFacts,
 } from "../../gateway/index.ts";
-import { format, strings, termLabel } from "../../i18n/index.ts";
+import { format, formatDateTime, strings, termLabel } from "../../i18n/index.ts";
 import {
   artifactCardMatches,
   artifactCards,
@@ -254,7 +254,7 @@ export function EntryDetail({
   return (
     <LibraryDetailLayout itemKey={entry.warehouseItemId} title={title} media={media} actions={actions}
       meta={[source?.shopName, shownVariant(title, source?.variantName)].filter(Boolean).join(" · ") || null}
-      facts={[[libraryViewCopy.detail.source, entry.kind === "imported_material" ? libraryViewCopy.detail.sources.imported : copy.kind[entry.kind]], ...sharedFacts(facts).filter(([name]) => name !== libraryViewCopy.detail.source)]}
+      facts={[[libraryViewCopy.detail.source, entry.kind === "imported_material" ? libraryViewCopy.detail.sources.imported : copy.kind[entry.kind]], ...sharedFacts(facts).filter(([name]) => name !== libraryViewCopy.detail.source), [libraryViewCopy.detail.imported, facts?.addedAt ? formatDateTime(facts.addedAt) : null]]}
       badges={<>
         {badges}
         {surfaces ? <><Badge tone="neutral">{copy.mode[mode.effective]}</Badge><Badge tone="neutral">{mode.overridden ? copy.modeOverride : copy.modeFollowGlobal}</Badge></> : null}

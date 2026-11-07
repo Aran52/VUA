@@ -115,6 +115,8 @@ jobs:
         run: pnpm --filter @vua/desktop smoke:page-speed
       - name: A finished line whose project was removed (synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:project-gone
+      - name: Sidebar highlight and material details in history (synthetic Gateway)
+        run: pnpm --filter @vua/desktop smoke:shell-navigation
       - name: Bundled MCP implementation loads nothing from node_modules
         run: pnpm --filter @vua/desktop smoke:ai-bundle
       - name: MCP client through the real Gateway and host provider (read-only observations)

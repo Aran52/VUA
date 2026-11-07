@@ -52,6 +52,7 @@
     "smoke:library-drop": "electron scripts/smoke-library-drop.mjs",
     "smoke:page-speed": "electron scripts/smoke-page-speed.mjs",
     "smoke:project-gone": "electron scripts/smoke-project-gone.mjs",
+    "smoke:shell-navigation": "electron scripts/smoke-shell-navigation.mjs",
     "smoke:library-navigation": "electron scripts/smoke-library-navigation.mjs",
     "smoke:library-bulk": "electron scripts/smoke-library-bulk.mjs",
     "smoke:startup": "electron scripts/smoke-startup.mjs",

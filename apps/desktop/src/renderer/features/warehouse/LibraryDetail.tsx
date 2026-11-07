@@ -12,6 +12,7 @@ import type { CatalogProductDetail, LibraryCardFacts, LibraryFileInventory } fro
 import { format, formatDateTime, strings } from "../../i18n/index.ts";
 import { libraryViewCopy } from "../../i18n/library-view-copy.ts";
 import { boothCategoryLabel } from "../../i18n/booth-category-copy.ts";
+import { shownVariant } from "./library-view-model.ts";
 import { priceLabel, readableDescription, sizeLabel, videoLink } from "./library-text.ts";
 import { ProductTerms } from "./ProductTerms.tsx";
 import { DetailAlbum } from "./WarehouseAlbum.tsx";
@@ -143,7 +144,7 @@ export function ProductDetail({ product, facts, title, badges, actions, filesRev
   const shop = product.attribution?.shopName ?? null;
   const creator = product.attribution?.creatorName ?? null;
   const price = priceLabel({ price: product.price, priceHigh: product.price?.high });
-  const metaLine = [shop, creator !== shop ? creator : null, product.variantName, price].filter((part): part is string => part !== null && part !== "").join(" · ");
+  const metaLine = [shop, creator !== shop ? creator : null, shownVariant(product.title, product.variantName), price].filter((part): part is string => part !== null && part !== "").join(" · ");
   const published = product.sourcePublishedAt ?? facts?.publishedAt ?? null;
   const factRows: readonly (readonly [string, ReactNode])[] = [
     ...sharedFacts(facts).map(([name, value]) => name === view.category ? [name, value ?? (product.sourceCategory ? boothCategoryLabel(product.sourceCategory) : null)] as const : [name, value] as const),

@@ -3,6 +3,13 @@ import { LIBRARY_SORTS, type LibrarySort, type LibraryVn3FilterV03, type Library
 import { storageKeys } from "../../app/storage-keys.ts";
 
 export type LibraryViewMode = "cards" | "list";
+
+const comparable = (text: string): string => text.trim().replace(/\s+/gu, " ").toLowerCase();
+/** The purchased variation, unless BOOTH's row only repeats the product's name. */
+export function shownVariant(title: string | null | undefined, variant: string | null | undefined): string | null {
+  if (!variant) return null;
+  return title && comparable(title) === comparable(variant) ? null : variant;
+}
 export const DEFAULT_LIBRARY_SORT: LibrarySort = "added_desc";
 
 export function storedLibrarySort(): LibrarySort {

@@ -167,7 +167,7 @@ read in the player's language; descriptions stay as the shop wrote them, with a 
 
 One row of controls sits under the title: search, source, download state, BOOTH category, VN3 terms, order
 and view. Their values name them, so they carry no labels above. The count and a way to clear filters sit
-under that row, and page buttons appear only when there is more than one page.
+under that row.
 
 - **Order:** recently added by default, then first added, name, shop, price and largest on disk; newest on
   BOOTH joins them once a row has BOOTH's date. The choice and the view are remembered. An order other than the default shows its value on each
@@ -215,7 +215,8 @@ Settings opens on its first item, Theme.
 A work project can leave the computer, most often to free disk space after an upload. Finished Avatars and the
 Workshop then say so plainly and offer a new line from the same materials. It reads as a neutral fact and stays
 out of the Workshop's count. The Avatar's views stay, because finishing a step copies them next to the line's
-record; the turntable stays in the project.
+record; the turntable stays in the project. A line finished before those copies existed says once that its
+pictures are gone, in place of empty frames.
 
 ## Rulings this changes
 

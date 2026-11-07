@@ -4,7 +4,7 @@ import { format, strings } from "../../i18n/index.ts";
 import { formatDateOnly } from "../../i18n/date-time.ts";
 import type { LibrarySort } from "@vua/contracts";
 import type { LibraryCardFacts } from "../../gateway/index.ts";
-import { headerSortState, readLibraryColumns, rememberLibraryColumns, type LibraryHeaderColumn } from "./library-view-model.ts";
+import { headerSortState, readLibraryColumns, rememberLibraryColumns, shownVariant, type LibraryHeaderColumn } from "./library-view-model.ts";
 import { sizeLabel } from "./library-text.ts";
 
 const copy = strings.warehouse.listColumns;
@@ -69,7 +69,7 @@ export function LibraryListRow({ id, productId, title, shop, variant, variantCou
   id: string; productId?: string | undefined; title: string; shop?: string | null | undefined; variant?: string | null | undefined; variantCount?: number | undefined;
   source: ReturnType<typeof libraryListSource>; sizeBytes?: number | undefined; addedAt?: string | null | undefined; selected: boolean; style: CSSProperties; onSelect: (event: MouseEvent<HTMLElement>) => void; onOpen: () => void; onMenu: (event: MouseEvent<HTMLElement>) => void;
 }) {
-  const variation = (variantCount ?? 0) > 1 ? format(copy.variants, { count: variantCount! }) : variant || null;
+  const variation = (variantCount ?? 0) > 1 ? format(copy.variants, { count: variantCount! }) : shownVariant(title, variant);
   const size = (sizeBytes ?? 0) > 0 ? sizeLabel(sizeBytes!) : "—";
   return <div className="vua-warehouse-list-row" style={style} data-selected={selected || undefined} data-product-id={productId} data-selection-id={id}
     role="row" tabIndex={0} onClick={onSelect} onDoubleClick={onOpen} onContextMenu={onMenu}

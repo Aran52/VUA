@@ -147,6 +147,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
   const otherRunning = PLAY_ROUTES.filter(other => other !== route && live.sessions[other]?.canStop);
   const headset = engine.kind === "headset";
   const ready = phase === "launch" || phase === "stop";
+  const label = phase === "confirm" && expanded ? flowCopy.confirmContinue : step?.label ?? copy.checking;
 
   return <div className="vua-page vua-route-page vua-play-page vua-compact-environments" data-route-stage={expanded ? "prepare" : "pick"}>
     <header className="vua-page__hero vua-environment-heading">
@@ -156,7 +157,7 @@ export function PlayPage({ onAccounts }: { onAccounts: () => void }) {
     <div className="vua-play-current vua-card-entry" data-card-entry={cardId(setup)}>
       <EnvironmentCard title={title} hint={ready && !expanded ? words.ready : words.changeHint} brand={device.brand} kind={device.brand ? undefined : device.kind ?? "headset"} id={cardId(setup)}
         action={headset ? "unknown" : stepAction(phase)} actionIcon={phase === "launch" || phase === "stop" ? undefined : step?.icon} phase={phase}
-        status={headset ? "" : step?.label ?? copy.checking} actionText={headset ? words.inHeadset : undefined} actionHint={headset ? words.inHeadset : phase === "launch" || phase === "stop" ? undefined : step?.label ?? copy.checking}
+        status={headset ? "" : label} actionText={headset ? words.inHeadset : undefined} actionHint={headset ? words.inHeadset : phase === "launch" || phase === "stop" ? undefined : label}
         spinning={!headset && (step === undefined || step.spinning)} disabled={!headset && (step === undefined || step.disabled)} primary={stepIsPrimary(step)} progress={step?.percent}
         warning={issue !== undefined && issue !== null} selected={expanded} onDetails={() => setExpanded(value => !value)} onAction={next} />
     </div>

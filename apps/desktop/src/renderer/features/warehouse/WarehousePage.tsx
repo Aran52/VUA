@@ -6,6 +6,7 @@ import { priceLabel, sortFactLabel } from "./library-text.ts";
 import {
   DEFAULT_LIBRARY_SORT, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, offeredLibrarySorts, readLibrarySession, rememberLibrarySort, rememberLibraryView, saveLibrarySession, sortFactOf,
   storedLibrarySort, storedLibraryView, vn3ChoiceActive, vn3FilterWire, type LibraryVn3Choice, type LibraryViewMode,
+  shownVariant,
 } from "./library-view-model.ts";
 import { SegmentBar } from "../../components/SegmentBar.tsx";
 import { useEscapeClose } from "../../components/use-escape-close.ts";
@@ -250,8 +251,8 @@ const WarehouseCard = memo(function WarehouseCard({
         <p className="vua-caption vua-text-secondary vua-warehouse-card__shop" title={item.shopName ?? undefined}>
           {item.shopName}
         </p>
-        <p className="vua-warehouse-card__variant" title={item.variantName ?? undefined}>
-          {item.variantName}
+        <p className="vua-warehouse-card__variant" title={shownVariant(item.title, item.variantName) ?? undefined}>
+          {shownVariant(item.title, item.variantName)}
         </p>
       </div>
     </article>

@@ -48,7 +48,7 @@ export function GuidedFlow({ setup, toolId, detected, onStep }: { setup: PlaySet
   };
   const actRef = useRef(act); actRef.current = act;
   const phase = state.action === "start" ? "launch" as const : state.action === "stop" ? "stop" as const : state.action === "busy" ? "starting" as const : state.action === "unknown" ? "retry" as const : s && !s.steamReady ? "handoff" as const : "execute" as const;
-  const label = phase === "handoff" ? tools.prepareSteam : phase === "retry" ? tools.recheck : phase === "starting" ? format(tools.short[state.status], { tool: name }) : flow.phases[phase];
+  const label = phase === "execute" ? format(copy.steps.platform, { platform: name }) : phase === "handoff" ? tools.prepareSteam : phase === "retry" ? tools.recheck : phase === "starting" ? format(tools.short[state.status], { tool: name }) : flow.phases[phase];
   useEffect(() => {
     onStep({ phase, label, icon: phase === "execute" ? "download" : phase === "handoff" ? "arrow-right" : phase === "retry" ? "refresh" : undefined, spinning: phase === "starting", percent: null, needsDetails: false, disabled: phase === "starting", act: () => actRef.current() });
   }, [phase, label, onStep]);

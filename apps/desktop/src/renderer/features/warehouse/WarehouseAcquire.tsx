@@ -3,6 +3,7 @@ import type { LibraryEntryMetadataV01 } from "@vua/contracts";
 import { catalogBrowser } from "../../app/catalog-browser-instance.ts";
 import { Badge } from "../../components/primitives/Badge.tsx";
 import { Button } from "../../components/primitives/Button.tsx";
+import { shownVariant } from "./library-view-model.ts";
 import { EmptyState } from "../../components/primitives/EmptyState.tsx";
 import {
   ContextMenu,
@@ -67,7 +68,7 @@ export function MaterialEntryCard({ card, selected, onSelect, onOpen, onMenu, so
     <div className="vua-warehouse-card__body">
       <p className="vua-warehouse-card__title" title={title}>{title}</p>
       <p className="vua-caption vua-text-secondary vua-warehouse-card__shop" title={source?.shopName ?? undefined}>{source?.shopName ?? copy.kind[entry.kind]}</p>
-      <p className="vua-warehouse-card__variant">{source?.variantName ?? `${format(copy.fileCount, { count: entry.artifacts.length })} · ${format(copy[size.unitKey], { amount: size.amount })}`}</p>
+      <p className="vua-warehouse-card__variant">{shownVariant(title, source?.variantName) ?? `${format(copy.fileCount, { count: entry.artifacts.length })} · ${format(copy[size.unitKey], { amount: size.amount })}`}</p>
     </div>
   </article>;
 }
@@ -252,7 +253,7 @@ export function EntryDetail({
     </div>);
   return (
     <LibraryDetailLayout itemKey={entry.warehouseItemId} title={title} media={media} actions={actions}
-      meta={[source?.shopName, source?.variantName].filter(Boolean).join(" · ") || null}
+      meta={[source?.shopName, shownVariant(title, source?.variantName)].filter(Boolean).join(" · ") || null}
       facts={[[libraryViewCopy.detail.source, entry.kind === "imported_material" ? libraryViewCopy.detail.sources.imported : copy.kind[entry.kind]], ...sharedFacts(facts).filter(([name]) => name !== libraryViewCopy.detail.source)]}
       badges={<>
         {badges}

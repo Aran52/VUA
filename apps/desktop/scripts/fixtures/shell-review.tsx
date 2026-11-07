@@ -148,7 +148,7 @@ const runBase = (runId: string, phase: string, avatar: number, outfit: number, s
     selection: null, error: null, recovery: null, result: null, snapshotId: null,
   };
 };
-const finishedFacts = (name: string) => ({ sdkDescriptorRecognized: true, missingReferences: 0, avatarName: name, instances: [{ sourceId: productionSources[1]!.sourceId, bindingVerified: true, menuVerified: true, menuModified: true }], missingShaderMaterials: [], sdkSignedIn: "no" });
+const finishedFacts = (name: string) => ({ ...(params.get("gone") === "1" ? { previews: (["front", "side", "back"] as const).map(view => ({ view, path: `.vua/previews/result/${view}.png` })) } : {}), sdkDescriptorRecognized: true, missingReferences: 0, avatarName: name, instances: [{ sourceId: productionSources[1]!.sourceId, bindingVerified: true, menuVerified: true, menuModified: true }], missingShaderMaterials: [], sdkSignedIn: "no" });
 const lineRecords: Record<string, ReturnType<typeof runBase> & Record<string, unknown>> = noLines || emptyLibrary ? {} : {
   "n3-running": { ...runBase("n3-running", "preparing", 0, 2, [["project", "succeeded"], ["materials", "succeeded"], ["inspect", "running"]]),
     progress: { step: "inspect", name: "Read prefabs", startedAt: new Date(Date.now() - 161_000).toISOString(), elapsedSeconds: 161, usualSeconds: 310, unity: { stage: "importing", current: 123, total: 379, lastActivityAt: now() } } },

@@ -1,7 +1,17 @@
 import { LIBRARY_VN3_ITEMS } from "@vua/contracts";
 import { describe, expect, it } from "vitest";
 import { libraryViewTables } from "../../i18n/library-view-copy.ts";
-import { EMPTY_LIBRARY_SESSION, headerSortState, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, offeredLibrarySorts, sortFactOf, toggleVn3Item, VN3_FILTER_GROUPS, vn3ChoiceActive, vn3FilterWire } from "./library-view-model.ts";
+import { EMPTY_LIBRARY_SESSION, shownVariant, headerSortState, libraryFiltersActive, neighboursOf, nextHeaderSort, NO_VN3_CHOICE, offeredLibrarySorts, sortFactOf, toggleVn3Item, VN3_FILTER_GROUPS, vn3ChoiceActive, vn3FilterWire } from "./library-view-model.ts";
+
+describe("variation next to the name", () => {
+  it("leaves out a variation that only repeats the name", () => {
+    expect(shownVariant("Facial Tracking (Free)", " facial  tracking (free) ")).toBeNull();
+    expect(shownVariant("Winter Uniform", "Meiyun")).toBe("Meiyun");
+    expect(shownVariant(null, "Meiyun")).toBe("Meiyun");
+    expect(shownVariant("Winter Uniform", null)).toBeNull();
+    expect(shownVariant("Winter Uniform", "")).toBeNull();
+  });
+});
 
 describe("sort choices", () => {
   it("offers BOOTH's publish date once a row has one, and keeps a stored choice", () => {

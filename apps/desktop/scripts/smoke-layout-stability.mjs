@@ -71,6 +71,12 @@ async function firstRun(theme, step) {
   requestedTheme = theme;
   win.setContentSize(1280, 1600);
   await win.loadURL(`${server.resolvedUrls.local[0]}__layout-app`);
+  // Initialize the page before CDP media emulation; hosted Windows reduces motion.
+  // Reduced-motion behavior has its own fixture, while this case verifies transitions.
+  if (!win.webContents.debugger.isAttached()) win.webContents.debugger.attach("1.3");
+  await win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
+    features: [{name:"prefers-reduced-motion",value:"no-preference"}],
+  });
   await until("!!window.firstRunReview", "App fixture did not load");
   await evaluate(step);
   await pause(200);
@@ -180,12 +186,6 @@ async function main() {
     await server.listen();
     win=new BrowserWindow({show:false,width:1280,height:1600,webPreferences:{contextIsolation:true,sandbox:true,offscreen:true,backgroundThrottling:false}});
     win.webContents.setWindowOpenHandler(()=>({action:"deny"}));
-    // Hosted Windows runners disable system animations. This case verifies motion;
-    // reduced-motion behavior has its own fixture, so pin the media preference here.
-    win.webContents.debugger.attach("1.3");
-    await win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
-      features: [{name:"prefers-reduced-motion",value:"no-preference"}],
-    });
     for(const theme of ["dark","light"]){
       await firstRun(theme,'window.firstRunReview.previewEnvironment("create","standard")');
       await sidebar(); await creatorRows(`creator ${theme} / standard`);

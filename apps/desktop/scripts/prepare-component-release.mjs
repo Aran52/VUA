@@ -89,7 +89,7 @@ export function verifyBuildReceipt(componentRoot, receipt, expected) {
 }
 
 /** Prepare only one component, never rewrite a published object or the other channel. */
-export function prepareComponentRelease({ component, version, build, componentRoot, baseline, previous, output, privateKey, publicKey, compatibility, activation }) {
+export function prepareComponentRelease({ component, version, build, componentRoot, baseline, previous, output, privateKey, publicKey, compatibility, activation, sequence, retainVersions }) {
   if (!COMPONENTS.includes(component) || !validVersion(version) || !/^[a-f0-9]{40}$/.test(build)) throw Error("invalid_component_identity");
   const original = verifyInventory(baseline, publicKey);
   signingKey(privateKey, publicKey);
@@ -138,6 +138,15 @@ export function prepareComponentRelease({ component, version, build, componentRo
     compatibility: next.compatibility, activation: component === "host" || next.compatibility.bdlWrite !== original.compatibility.bdlWrite ? "restart" : activation ?? "reload",
     ...(component === "host" ? { runtimeVersion: next.runtime.version } : {}) };
   const index = before ? appendRelease(before, entry) : validateIndex({ schemaVersion: "0.2", product: "VUA", platform: "windows", arch: "x64", channel: "beta", component, sequence: 1, releases: [entry] });
+  if (sequence !== undefined) {
+    if (!Number.isSafeInteger(sequence) || sequence <= (before?.sequence ?? 0)) throw Error("publication_sequence_mismatch");
+    index.sequence = sequence;
+  }
+  if (retainVersions !== undefined) {
+    if (!Array.isArray(retainVersions) || retainVersions.some(value => typeof value !== "string")) throw Error("invalid_retained_versions");
+    index.releases = index.releases.filter(item => item.version === entry.version || retainVersions.includes(item.version));
+  }
+  validateIndex(index);
   const signedIndex = sealEnvelope(index, "0.2", privateKey, publicKey);
   const packPath = `updates/objects/${packSha}.bin`; const manifestPath = `updates/objects/${manifestSha}.json`;
   fs.mkdirSync(path.dirname(ownedPath(output, packPath)), { recursive: true });
@@ -176,9 +185,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (component === "host") verifyHostRuntimeIdentity(JSON.parse(fs.readFileSync(path.join(path.resolve(componentRoot), "dist/renderer/update-runtime.json"))), { build: receipt.build });
   if (component === "host" && original.runtime.version !== pkg.devDependencies.electron) throw Error("Provide a signed baseline with the exact configured Electron runtime");
   const previousPath = process.argv.find(value => value.startsWith("--previous="))?.slice(11);
+  const sequenceArg = process.argv.find(value => value.startsWith("--sequence="))?.slice(11);
+  const retainedArg = process.argv.find(value => value.startsWith("--retain="))?.slice(9);
   const privateKeyPath = process.env.VUA_RELEASE_KEY ?? path.join(process.env.USERPROFILE, ".codex/private/vua-release-ed25519.pem");
   const privateKey = createPrivateKey(fs.readFileSync(privateKeyPath));
   console.log(JSON.stringify(prepareComponentRelease({ component, version, build: git(["rev-parse", "HEAD"]), componentRoot: path.resolve(componentRoot), baseline,
-    previous: previousPath ? fs.readFileSync(path.resolve(previousPath)) : undefined, output: path.resolve(destination), privateKey, publicKey: trust.publicKey,
+    previous: previousPath ? fs.readFileSync(path.resolve(previousPath)) : undefined, sequence: sequenceArg === undefined ? undefined : Number(sequenceArg),
+    retainVersions: retainedArg === undefined ? undefined : retainedArg ? retainedArg.split(",") : [], output: path.resolve(destination), privateKey, publicKey: trust.publicKey,
     compatibility: component === "amf" ? Object.fromEntries(Object.entries(amf).filter(([key]) => key !== "version")) : undefined })));
 }

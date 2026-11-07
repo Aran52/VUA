@@ -38,7 +38,7 @@ VUA 从用户的目标和现有素材出发，展示计划、执行步骤与结�
 - VUA 是独立运行的第三方助手，与 VRChat Inc. 无官方隶属或背书关系；交互范围限定为已文档化的外部接口、OSC、启动参数、必要的本地日志和已文档化的配置项，不注入、Hook、Patch VRChat 客户端或绕过 EAC。
 - 首轮账号引导使用隔离的临时浏览器会话，VUA 应用功能不收集密码，也不把登录 Cookie、Token 提取到应用数据、日志或 Agent 上下文中；首轮不记住 VRChat 登录状态。后续网页读取与实验性持久化另行开发，不代表平台认可，详见[账号边界](docs/product-boundary.md#account-onboarding-user-ruling-2026-09-30)。
 - 涉及账号修改的操作必须由用户通过允许的流程主动发起，VUA 不在云端代替用户控制账号，也不代替用户自动上传 Avatar。
-- 仅保留功能所必需的数据，默认本地保存，不建立不必要的好友活动追踪或用户画像；付费素材留在本地，分享的 Recipe 不含素材本体。
+- 仅保留功能所必需的数据，默认本地保存，不建立不必要的好友活动追踪或用户画像；付费素材留在本地，分享的 Recipe 不含素材本体。更新请求会产生短期服务日志与每日计数，遵循[分发统计边界](docs/product-boundary.md#update-distribution-request-statistics-user-ruling-2026-11-07)，不增加安装 ID。
 - 未文档化的客户端行为、隐藏配置项与不受控的 API 自动化不属于默认功能范围，技术检查通过也不保证外观、行为或生产安全性。
 
 [VRChat Creator Guidelines](https://hello.vrchat.com/creator-guidelines) · [Configuration File](https://docs.vrchat.com/docs/configuration-file)

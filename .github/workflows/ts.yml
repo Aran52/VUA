@@ -69,6 +69,8 @@ jobs:
         run: pnpm check
       - name: Library maintenance interaction (isolated profile, synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:library-maintenance
+      - name: Update disclosure and independently enabled checks after first-use acknowledgment
+        run: pnpm --filter @vua/desktop smoke:update-privacy
       - name: Local material entry and saved source display (synthetic Gateway)
         run: pnpm --filter @vua/desktop smoke:material-entry
       - name: Bundle Main and preload for module interaction

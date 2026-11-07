@@ -9,6 +9,8 @@ import { digest, sealEnvelope, verifyIndex, verifyInventory } from "../distribut
 import { prepareComponentRelease, verifyBuildReceipt, fileDigest, verifyAmfIdentity, verifyHostRuntimeIdentity } from "./prepare-component-release.mjs";
 import { publishComponentRelease } from "./publish-component-release.mjs";
 import { exportComponentPublisher } from "./export-component-publisher.mjs";
+import {prepareComponentIndex} from "./prepare-component-index.mjs";
+import {seedComponentRelease} from "./seed-component-release.mjs";
 
 const privateKey = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.alloc(32, 7)]), format: "der", type: "pkcs8" });
 const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).subarray(-32).toString("hex");
@@ -39,6 +41,44 @@ function fixture(component = "amf") {
     baseline: sealEnvelope(original, "0.1", privateKey, publicKey), output: path.join(root, "prepared"), privateKey, publicKey } };
 }
 const readIndex = (root, component) => fs.readFileSync(path.join(root, "updates/beta", `${component}.json`));
+
+test("Candidate sequence gaps promote identical bytes and removal-only revisions can empty a channel", () => {
+  const f=fixture();prepareComponentRelease(f.options);const web=path.join(f.root,"web");
+  publishComponentRelease(f.options.output,web,publicKey);const before=readIndex(web,"amf");
+  const next={...f.options,previous:before,sequence:7,version:"0.1.2",retainVersions:[],output:path.join(f.root,"candidate")};prepareComponentRelease(next);
+  publishComponentRelease(next.output,web,publicKey,{candidate:true,minimumSequence:6});
+  assert.deepEqual(readIndex(web,"amf"),before);
+  const candidate=fs.readFileSync(path.join(web,"updates/candidates/amf.json"));
+  assert.equal(verifyIndex(candidate,publicKey,"amf").sequence,7);
+  publishComponentRelease(next.output,web,publicKey);assert.deepEqual(readIndex(web,"amf"),candidate);
+  const removal=path.join(f.root,"removal");
+  prepareComponentIndex({component:"amf",previous:candidate,sequence:10,removeVersions:["0.1.2"],output:removal,privateKey,publicKey});
+  publishComponentRelease(removal,web,publicKey);
+  assert.deepEqual(verifyIndex(readIndex(web,"amf"),publicKey,"amf").releases,[]);
+  assert.equal(publishComponentRelease(removal,web,publicKey).unchanged,true);
+  assert.throws(()=>publishComponentRelease(next.output,web,publicKey),/channel_changed/);
+});
+
+test("Seed extraction verifies official signed ranges and refuses corrupt file hashes", () => {
+  const f=fixture();let offset=0;const pieces=[];
+  f.original.amf.files=f.fileNames.slice().reverse().map(name=>{const bytes=fs.readFileSync(path.join(f.source,name));const item={path:name,bytes:bytes.length,offset,sha256:digest(bytes)};offset+=bytes.length;pieces.push(bytes);return item;});
+  const pack=Buffer.concat(pieces);f.original.amf.pack={bytes:pack.length,sha256:digest(pack),sources:["https://example.test/original.bin"]};
+  const packFile=path.join(f.root,"official.bin");fs.writeFileSync(packFile,pack);
+  const opts={component:"amf",baseline:sealEnvelope(f.original,"0.1",privateKey,publicKey),packFile,sequence:4,output:path.join(f.root,"seed"),privateKey,publicKey};
+  const result=seedComponentRelease(opts);assert.equal(result.packSha256,digest(pack));
+  assert.deepEqual(fs.readFileSync(path.join(opts.output,`updates/objects/${result.packSha256}.bin`)),pack);
+  f.original.amf.files[0].sha256="0".repeat(64);
+  assert.throws(()=>seedComponentRelease({...opts,baseline:sealEnvelope(f.original,"0.1",privateKey,publicKey),output:path.join(f.root,"bad")}),/seed_file_corrupt/);
+});
+
+test("A private publisher umask still creates readable public indexes, objects and pages", {skip: process.platform === "win32"}, () => {
+  const f=fixture();prepareComponentRelease(f.options);const web=path.join(f.root,"web");
+  const previous=process.umask(0o077);
+  try {publishComponentRelease(f.options.output,web,publicKey);} finally {process.umask(previous);}
+  const record=JSON.parse(fs.readFileSync(path.join(f.options.output,"publication.json")));
+  for(const file of [`updates/beta/amf.json`,`updates/objects/${record.packSha256}.bin`,`components/amf/v0.1.1/index.html`]) assert.equal(fs.statSync(path.join(web,file)).mode&0o777,0o644);
+  for(const dir of ["updates","updates/beta","updates/objects","components/amf/v0.1.1"]) assert.equal(fs.statSync(path.join(web,dir)).mode&0o777,0o755);
+});
 
 test("AMF-only preparation preserves host/runtime inventories and publishes only its own channel", () => {
   const f = fixture(); const record = prepareComponentRelease(f.options);

@@ -1,11 +1,11 @@
 # Play environment sessions
 
 > Status: Candidate
-> Updated: 2026-10-09
+> Updated: 2026-11-07
 > Scope: Desktop/PICO software launch and card-scoped close; play-session v0.2
 
-The Play page has fixed environment cards. Their left half opens details; their right half
-reports observed readiness and the current action. Installation remains the reviewed
+Launch shows one card for the chosen combination. Its left half opens the choices and steps; its right half
+reports observed readiness and the current action. PC mode and PICO Connect are the combinations these sessions cover. Installation remains the reviewed
 [deployment plan](unity-deployment.md), with its existing installer consent and receipts.
 Network diagnostics do not grant software readiness. A running process does not prove headset
 connection, account login, or entry into a VRChat world.

@@ -24,8 +24,8 @@ page, what Home does and where a task's main action sits. The
 
 | Group | Pages, in order |
 | --- | --- |
-| Play | Play, Tools |
-| Avatar editing | Materials, Workshop, Finished Avatars, Recipes, Packages, Unity setup |
+| Play | Launch, Tools |
+| Avatar | Materials, Workshop, Finished Avatars, Recipes, Packages, Unity setup |
 
 The Avatar group follows the player's order: materials become a line in the Workshop, and the line
 becomes a Finished Avatar. Recipes, Packages and Unity setup support that path.
@@ -56,38 +56,48 @@ Home has three parts, and the first appears only when it has content:
 
 1. **Current work:** running tasks, then lines that need attention or review, at most three of each.
    A row opens its task's page or its line.
-2. **Play:** the two available routes. A route whose software is ready launches from here; otherwise
-   its button opens that route's details on Play. Home reads play sessions every five seconds; Play
-   reads them every 1.5 seconds.
-3. **Avatar editing:** Materials, Workshop and Finished Avatars with their live facts, and one
+2. **Play:** the combination chosen on Launch. It starts from here when its software is ready; otherwise
+   its button opens Launch. Home reads play sessions every five seconds; Launch reads them every 1.5
+   seconds.
+3. **Avatar:** Materials, Workshop and Finished Avatars with their live facts, and one
    button: New line, or Import materials while the library is empty. With AMF off this part explains
    AMF and offers to turn it on.
 
 Home holds both goals and stays in one accent, as every page does.
 
-## Play
+## Launch
 
-The right part of a route card is the route's one button. It names the next step: check the
-environment, please review, install, retry, open the official page, launch or close.
+Launch asks what the player plays and how, then lists what that takes. One card stands for the chosen
+combination. Its right part is the one button and names the next step: check the environment, please
+review, install, retry, open the official page, launch or close. Its left part opens the choices and the
+steps. A first visit opens them; a player who has chosen sees just the card, and Home shows the same one.
 
-- Ready software launches at once. The steps to review guard installing what is missing.
-- The left part opens details: software, connection and download region, the numbered steps and
-  notices. Confirming the steps and choosing a PICO download region happen there, next to what they
-  refer to, so those two steps also show a button in the details. The steps are a list to read, never
-  boxes to tick.
+- **Platform:** VRChat, ChilloutVR or Reborn. ChilloutVR and Reborn take the device and connection steps
+  through Steam; settings, tutorials and Avatar work stay with VRChat. Reborn's store page names no desktop
+  mode, so it has no PC mode.
+- **Device:** PC mode by default, or the one headset whose software is on this computer. Once the player
+  has chosen, what is installed no longer changes the choice. A green dot marks a device whose software is
+  here. Less common headsets sit behind their own entry: Bigscreen Beyond, Pimax, Varjo, MeganeX, Oculus
+  Rift S and Windows MR, then any other model SteamVR supports.
+- **Connection:** asked only where a device has several, with the recommended one first, or the one
+  already on this computer. Standalone headsets (PICO, Meta Quest, VIVE standalone) offer their own
+  streaming, Steam Link, Virtual Desktop and ALVR, and "No PC" where the headset has its own VRChat. Wired
+  headsets have one route and skip the question.
+- **Steps:** they change with the choice, and each says who does it: VUA, VUA opening the official page, or
+  the player. Software steps tick off from what the computer reports. The steps are a list to read, never
+  boxes to tick. Steps that come from official guides say so.
+- PC mode and PICO Connect run their own flow: ready software launches at once, and the steps to review
+  guard installing what is missing. Confirming them and choosing a PICO download region happen in the
+  details, next to what they refer to.
+- Other combinations install and open the platform through Steam, and the official pages cover the
+  connection. The [planned connections](../tool-catalog/external/planned-connections.md) list what each
+  needs to become a full flow.
 - A failure, an official page to open or a session issue opens the details by itself.
 - The running observation overrides an older check, so software installed outside VUA shows up without
   another check.
-- Other social platforms (ChilloutVR and Reborn) follow the routes, as cards that install, open and
-  close through Steam. They share the Tools cards' connection.
-- Headset routes still in development (Meta Quest, Steam Frame, HTC VIVE, Valve Index, PS VR2) open a
-  connection guide: choose a connection, see what the PC and the headset need and whether the PC
-  software is already there, and open the official page. Either half of such a card opens the guide,
-  because reading it is the next step. PICO lists the other streaming software under its details. The
-  [planned connections](../tool-catalog/external/planned-connections.md) list what each needs to become a
-  working route.
-- Less common headsets follow under their own heading with the same guide: Bigscreen Beyond, Pimax,
-  Varjo, MeganeX, Oculus Rift S and Windows MR, then a card for any other model SteamVR supports.
+
+`features/home/play-setup-model.ts` holds the combinations and composes their steps, in the shape a later
+provider contract will serve, so the app and an agent read one source.
 
 ## Cards
 
@@ -143,10 +153,17 @@ Recipes open as cards: the Avatar's and outfits' pictures, whether this PC has t
 button that starts a line. A Recipe saved without a BOOTH id finds its pictures through the production list.
 Whether a Recipe's materials are here takes seconds to work out, so plans run one at a time, the open Recipe
 first, and each keeps its answer until a task changes or five minutes pass. A card's details open beside the cards and list each material with its state.
-The graph is one click away and the choice is remembered. Renaming and deleting a Recipe wait for the
+With two or more Recipes the graph is one click away, since it shows what Recipes share, and the choice is remembered. Its captions keep one size at every zoom and sit clear of nodes and each other; one with no clear spot waits for the pointer. Node positions survive leaving the page. Renaming and deleting a Recipe wait for the
 engine; their menu entries say so.
 
 ## Materials
+
+Rows load in batches as the wall scrolls and stay in the library's order, so a local import sorts among
+products. Selection, Ctrl+A, arrow keys and details cover the whole list; Ctrl+A reads the rows still to come
+first. Cancel filter sits on the count row. The list has title with its variation, shop, status, size and
+added, sortable by name, shop, size and added, and it keeps dragged widths. "Recently added" follows BOOTH's
+own list among account products, and local imports fall between them by their own time. BOOTH's 3D categories
+read in the player's language; descriptions stay as the shop wrote them, with a copy button.
 
 One row of controls sits under the title: search, source, download state, BOOTH category, VN3 terms, order
 and view. Their values name them, so they carry no labels above. The count and a way to clear filters sit
@@ -193,9 +210,16 @@ Settings opens on its first item, Theme.
 - The album's page controls sit under its tabs, in view without scrolling.
 - A disabled start button says what it waits for.
 
+## A line whose work project is gone
+
+A work project can leave the computer, most often to free disk space after an upload. Finished Avatars and the
+Workshop then say so plainly and offer a new line from the same materials. It reads as a neutral fact and stays
+out of the Workshop's count. The Avatar's views stay, because finishing a step copies them next to the line's
+record; the turntable stays in the project.
+
 ## Rulings this changes
 
-These earlier author rulings change here. The 2026-11-06 author message asked for the last two; the rest wait for this review:
+These earlier author rulings change here. The author's 2026-11-06 message asked for the two guidance rows and the 2026-11-07 message approved the last three; the rest wait for this review:
 
 | Ruling | Before | Now |
 | --- | --- | --- |
@@ -208,6 +232,8 @@ These earlier author rulings change here. The 2026-11-06 author message asked fo
 | F12, 2026-10-09 | The latency tile sits on Play | Latency sits in the top bar |
 | 2026-10-05 guidance | Page introductions offer Later and Don't show again | One button closes them |
 | 2026-10-28 guidance | The wizard's buttons say "I want this" and "Got it"; a separate VUA manual | Previous page, Go to, Next page in one row; the manual joined the encyclopedia |
+| 2026-11-06 | ChilloutVR and Reborn install and open, with no preparation | They also take Launch's device and connection steps |
+| 2026-10-12 | Materials pages through results, Cancel filter follows the pagination, and the list has title, shop, variant and source columns | Materials scrolls, Cancel filter sits on the count row, and the list has title with variant, shop, status, size and added |
+| 2026-10-31 | The corner triangle has a 72 px tail, and a product on BOOTH is green | The triangle stays 40 px with no tail, and such a product is grey until the pointer reaches it |
 
-Permission modes, themes, the material card's corner triangle and the Explorer selection semantics are
-unchanged.
+Permission modes, themes and the Explorer selection semantics are unchanged.

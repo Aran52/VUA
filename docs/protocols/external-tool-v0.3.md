@@ -21,8 +21,8 @@ module packages from Renderer.
 | `toolkit` | OVR Toolkit | 1068820 | OVR Toolkit | Launcher/OVR Toolkit Launcher.exe | paid Steam application; the current entry point is the Launcher subdirectory (real-machine verified 2026-10-14) |
 | `oyasumi` | OyasumiVR | 2538150 | OyasumiVR | OyasumiVR.exe | free Steam application; Steam launch observed only while SteamVR is stopped — with SteamVR running, both `steam://run` and `-applaunch` are silently ignored (real-machine verified 2026-10-14, build v25.6.12-STEAM_CN) |
 | `translator` | OVR Overlay Translator | 4304620 | OVR Overlay Translator | OVR-Overlay-Translator.exe | paid Steam application; auto-starts with SteamVR as a registered overlay, so a pre-existing unowned instance is expected while SteamVR runs (real-machine verified 2026-10-14) |
-| `chilloutvr` | ChilloutVR | 661130 | ChilloutVR | ChilloutVR.exe | free Steam application; a social platform shown on Play |
-| `reborn` | Reborn | 2089520 | Reborn | Reborn.exe | free Steam application; a social platform shown on Play |
+| `chilloutvr` | ChilloutVR | 661130 | ChilloutVR | ChilloutVR.exe | free Steam application; a social platform chosen on Launch |
+| `reborn` | Reborn | 2089520 | Reborn | Reborn.exe | free Steam application; a social platform chosen on Launch |
 | `vrchat` | VRChat | 438100 | VRChat | VRChat.exe | reinstall only in the UI; play sessions keep launching it |
 | `steamvr` | SteamVR | 250820 | SteamVR | bin/win64/vrstartup.exe | reinstall only in the UI; play sessions keep launching it |
 

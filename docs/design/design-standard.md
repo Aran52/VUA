@@ -1,7 +1,7 @@
 # VUA design standard
 
 > Scope: Electron desktop, desktop overlay, and VR overlay presentation
-> Updated: 2026-11-06
+> Updated: 2026-11-07
 
 ## 0. Position of this version
 
@@ -457,8 +457,8 @@ changelog history already uses.
   restores the previous filters, page, mode, selection and scroll, including after an empty or
   failed query. Recorded links are evidence, never a guarantee of production compatibility.
   Card media's upper-left corner replaces cloud/local text badges: purple computer for local
-  import, green cloud for cloud-only content, orange computer for linked local files, red cross
-  for missing/failed content. Hover shows a short explanation; green cloud becomes a download
+  import, grey cloud for cloud-only content, orange computer for linked local files, red cross
+  for missing/failed content. Hover shows a short explanation; the grey cloud turns green and becomes a download
   arrow. During actual transfer, click pauses; yellow pause continues the same transfer. Local
   purple hover becomes a refresh arrow and requests public BOOTH keyword lookup. The arrow spins
   only while searching. An uncertain result remains a yellow question until the next library

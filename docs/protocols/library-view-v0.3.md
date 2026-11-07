@@ -2,7 +2,7 @@
 
 > Document version: 0.3.0
 > Status: Candidate
-> Updated: 2026-11-06
+> Updated: 2026-11-07
 > Owner: AMF
 
 This `library.list` face adds an order and a filter on VN3 items to the local library projection.
@@ -38,6 +38,13 @@ Ordering happens after every filter and before pagination.
 - **Size:** bytes of the row's copies present on disk.
 
 Ties go to the higher BOOTH number, then the title.
+
+## Recently added
+
+`added_desc` and `added_asc` order account products by BOOTH's own list: catalog sync records each product's place
+in `bdl_meta` as `library_position:<library type>:<product id>`, beside the format version, so the BDL format does not
+change. A product is never newer than one listed above it, which also covers a first sync where later pages were
+read later. Local imports keep their own times and fall between them. Rows without a recorded place keep their times.
 
 ## VN3 filter
 

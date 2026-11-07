@@ -1,7 +1,7 @@
 # Electron desktop and presentation architecture
 
 > Scope: `apps/desktop`, `packages/design-system`, frontend Gateway
-> Updated: 2026-11-06
+> Updated: 2026-11-07
 
 ## Technology decision
 
@@ -97,7 +97,7 @@ questions, including trust rank, Shield Level, Personal Space and untrusted URLs
 VUA instructions, the app tour, the encyclopedia, the game assistant and optional AI tools. The
 encyclopedia remains a main-window page with hardware introductions and shared preparation chapters.
 Its official Wiki entry opens `wiki.vrchat.com` in an isolated host browser, including when AMF is
-disabled. Play links directly to hardware reading.
+disabled. Launch links directly to hardware reading.
 
 The internal `help-wizard` route owns the VRChat getting-started wizard; using VUA is a topic in the encyclopedia.
 `vua-goals` parsing and migration. Desktop/PICO and creator routes use the existing typed
@@ -107,18 +107,18 @@ step reinspects files, and accepted tasks remain observable through their receip
 confirmation is explicitly user-declared, not headset evidence. Opening Steam or a guide does not
 prove installation, login or successful play.
 
-Play and Tools have equally sized two-half cards: collapsible details on the left and status/action on the
-right. Normal game exit retains **Close** only while owned software survives, with no failure
-warning. Play/Tools cards are 88 px high, half their previous heights;
+Launch and Tools use the same two-half card: collapsible details on the left and status/action on the
+right. Launch has one, for the chosen combination. Normal game exit retains **Close** only while owned software survives, with no failure
+warning. These cards are 88 px high, half their previous heights;
 the two action/detail halves remain intact. Network's equally tall tile is above the grid; it offers
 approximate [regional HTTPS references](network-onboarding.md), while website tests remain in expanded details. The expandable runtime inventory stays
-on Play. The retired Software & connections page is absent from Home, sidebar and tour;
-old stored page IDs migrate to Play. First-run language and contextual choices still do not control these entries.
+on Launch. The retired Software & connections page is absent from Home, sidebar and tour;
+old stored page IDs migrate to Launch. First-run language and contextual choices still do not control these entries.
 The typed play port consumes the Candidate [play-session family](play-sessions.md), keeps
 unavailable observations distinct from missing software, and disables launch while installation
 is active. Scoped deployment bookmarks retain Desktop and PICO work independently while
 reading a matching legacy bookmark. Hidden details keep accepted installation receipts alive.
-Play, Tools and Avatar-editing cards expand directly beneath their own card, within that grid
+Launch, Tools and Avatar cards expand directly beneath their own card, within that grid
 column, and collapse on a second click. Hidden preparation panels stay mounted so accepted
 work and inspection state survive switching or closing details.
 Development entries expose descriptions while installation/launch remain unavailable; tool

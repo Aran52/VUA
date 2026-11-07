@@ -1,6 +1,6 @@
 # Planned connections
 
-> Updated: 2026-11-06
+> Updated: 2026-11-07
 
 These tools and headset routes have their interface in VUA ahead of a working connection (author
 request, 2026-11-06: interface first, backend to follow). VUA describes each one, links its official
@@ -30,7 +30,8 @@ listed in `apps/desktop/src/electron/tool-logos.ts`.
 
 ## Headset routes
 
-The routes and their connections are listed in `apps/desktop/src/renderer/features/home/planned-routes.ts`.
+The devices and their connections are listed in `apps/desktop/src/renderer/features/home/play-setup-model.ts`.
+Steam Link also serves PICO and VIVE standalone, from the headset's own store.
 `component` there names the existing environment check that observes the PC software.
 
 | Route | Connections, recommended first | PC software | Observed by |

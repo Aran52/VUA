@@ -1,6 +1,6 @@
 # Controls and motion
 
-> Updated: 2026-11-06
+> Updated: 2026-11-07
 > Scope: control sizes, the shape language a theme defines, states, elevation and motion
 > Status: approved direction (author, 2026-10-25); the Grid values below are the default theme
 
@@ -99,16 +99,23 @@ titles share a vertical centre; a long title truncates inside its own column. Th
 remain inside the icon slot, with the glyph inset into Jirai's heart rather than filling or
 extending beyond it (author follow-up, 2026-11-01).
 
+### Selects and scrollbars
+
+Every `<select>` uses `appearance: base-select`, so its list opens in the page and follows the theme, while
+keyboard use and typing to jump to an option stay the browser's own. A list long enough to need searching gets
+a dedicated control when one appears. Scrollbars use the designed thin look, sized by `--vua-scrollbar-size`. A
+page frame that scrolls inside itself leaves that room at its edge and marks itself `data-scroll-frame`, which
+the design audit reads.
+
 ### Corners
 
 Grid uses rectangles and rounded rectangles only, with small radii, and the same geometry in the
 VUA host and in AMF content (author ruling, 2026-10-28; it replaces the 2026-10-25 cut-corner
 direction). Only the module accent colour differs between host and AMF pages.
 The material card's upper-left status/action marker is a named exception: a 40 px
-triangle attached to the corner, restored by the author ruling of 2026-10-31.
-Its 72 px decorative tail fades to transparency down-right at 45 degrees and passes
-pointer input through to the preview. The marker paints above the card frame in resting,
-hover and selected states. Its triangular outline appears only for keyboard focus;
+triangle attached to the corner (author rulings, 2026-10-31 and 2026-11-07). It carries no tail.
+Colour marks what stands out: a product still on BOOTH is a low-saturation grey at rest and green under
+the pointer. The marker paints above the card frame in resting, hover and selected states. Its triangular outline appears only for keyboard focus;
 the card itself keeps the container geometry (author follow-up, 2026-10-31).
 
 Corners are set per **role group**, one radius per group:

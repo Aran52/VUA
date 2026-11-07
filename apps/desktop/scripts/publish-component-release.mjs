@@ -104,11 +104,13 @@ export function publishComponentRelease(prepared, webRoot, publicKey, options = 
       return retained && !isDeepStrictEqual(retained, old);
     })) throw Error("published_component_changed");
     if (indexOnly && index.releases.some(item => !before?.releases.some(old => isDeepStrictEqual(item, old)))) throw Error("index_revision_must_only_remove");
-    const staging = ownedPath(webRoot, "updates/.staging"); fs.mkdirSync(staging, { recursive: true });
+    const staging = ownedPath(webRoot, "updates/.staging"); fs.mkdirSync(staging, { recursive: true, mode: 0o700 });
+    const pageStaging = ownedPath(webRoot, "components/.staging"); fs.mkdirSync(pageStaging, { recursive: true, mode: 0o700 });
     if (!indexOnly) {
     immutableCopy(packFile, ownedPath(webRoot, packPath), { sha256: pack.sha256, bytes: pack.bytes }, staging, webRoot);
     immutableCopy(ownedPath(prepared, manifestPath), ownedPath(webRoot, manifestPath), { sha256: entry.manifest.sha256, bytes: entry.manifest.bytes }, staging, webRoot);
-    immutableCopy(pageFile, ownedPath(webRoot, pagePath), fileDigest(pageFile), staging, webRoot);
+    // Each ReadWritePaths tree can be a separate bind mount, even on the same disk.
+    immutableCopy(pageFile, ownedPath(webRoot, pagePath), fileDigest(pageFile), pageStaging, webRoot);
     }
     // Validate every retained inventory/object too, using the frozen v1.0.0 rules.
     for (const item of index.releases) {

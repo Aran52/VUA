@@ -80,6 +80,15 @@ test("A private publisher umask still creates readable public indexes, objects a
   for(const dir of ["updates","updates/beta","updates/objects","components/amf/v0.1.1"]) assert.equal(fs.statSync(path.join(web,dir)).mode&0o777,0o755);
 });
 
+test("Publication works when updates and components are separate sandbox mounts", () => {
+  const f=fixture();prepareComponentRelease(f.options);const web=path.join(f.root,"web");
+  const link=fs.linkSync;
+  const tree=file=>path.relative(web,file).split(path.sep)[0];
+  fs.linkSync=(source,target)=>{if(tree(source)!==tree(target))throw Object.assign(Error("separate mount"),{code:"EXDEV"});return link(source,target);};
+  try {publishComponentRelease(f.options.output,web,publicKey);} finally {fs.linkSync=link;}
+  assert.equal(verifyIndex(readIndex(web,"amf"),publicKey,"amf").sequence,1);
+});
+
 test("AMF-only preparation preserves host/runtime inventories and publishes only its own channel", () => {
   const f = fixture(); const record = prepareComponentRelease(f.options);
   const index = verifyIndex(readIndex(f.options.output, "amf"), publicKey, "amf");

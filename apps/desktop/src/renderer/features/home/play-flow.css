@@ -51,7 +51,8 @@
 .vua-setup__device > span:not(.vua-route-tile__icon) { display: grid; min-width: 0; }
 .vua-setup__device strong { overflow: hidden; font: var(--vua-font-body); font-weight: var(--vua-weight-strong); white-space: nowrap; text-overflow: ellipsis; }
 .vua-setup__device small { overflow: hidden; color: var(--vua-text-secondary); font: var(--vua-font-caption); white-space: nowrap; text-overflow: ellipsis; }
-.vua-setup__device .vua-route-tile__icon, .vua-setup__device .vua-route-tile__icon[data-brand] { flex: none; width: 24px; height: 24px; }
+/* Every theme draws this glyph as a large plate on route cards; in a device tile each stays one small size. */
+.vua-setup .vua-setup__device .vua-route-tile__icon.vua-route-tile__icon { flex: none; width: 24px; height: 24px; }
 .vua-setup__found { position: absolute; top: var(--vua-space-2); right: var(--vua-space-2); width: 8px; height: 8px; border-radius: 50%; background: var(--vua-success); }
 .vua-setup__more { justify-content: center; color: var(--vua-text-secondary); }
 .vua-setup__more strong { font-weight: var(--vua-weight-regular, 400); }

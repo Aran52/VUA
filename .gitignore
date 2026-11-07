@@ -1,7 +1,7 @@
 # Local migration and reference material
 /_migration/
 /_references/
-/_local_*/
+_local_*/
 
 # Local workspace guidance and decision process
 # docs/migration/ is local scratch except the tracked legacy asset ledger.

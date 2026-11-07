@@ -1,7 +1,7 @@
 const en = {
   dismiss: "Got it",
   home: { title: "Take a look around VUA?", body: "The tour points out the main controls one at a time. Leave it whenever you like.", action: "Start the tour" },
-  play: { title: "Prepare only what you need", body: "Review what VUA detected, then pick what to install or launch.", action: "Read play preparation" },
+  play: { title: "Prepare only what you need", body: "Choose a platform, device and connection. The steps appear below.", action: "Read play preparation" },
   tools: { title: "Tools by purpose", body: "Ready tools open from here; entries marked In development are on the way.", action: "" },
   creator: { title: "Preparation and upload eligibility", body: "Check Unity and the production environment here. Uploading an Avatar needs a full VRChat account at the New User trust rank or higher.", action: "" },
   warehouse: { title: "Start with the material", body: "Choose an Avatar, outfit or accessory, then confirm what to make. A store match records where it came from; compatibility is checked before production.", action: "How to import materials" },
@@ -16,7 +16,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
   "zh-CN": {
     dismiss: "知道了",
     home: { title: "要先看看 VUA 吗？", body: "功能导览会依次指出常用入口，随时可以退出。", action: "开始导览" },
-    play: { title: "只准备需要的内容", body: "先看检测结果，再选择要安装或启动的内容。", action: "查看游玩准备" },
+    play: { title: "只准备需要的内容", body: "选平台、设备和连接方式，下面列出要做的事。", action: "查看游玩准备" },
     tools: { title: "工具按用途分组", body: "已接入的工具可以直接打开，标着「开发中」的正在接入。", action: "" },
     creator: { title: "制作准备与上传资格", body: "这里检查 Unity 和制作环境。上传 Avatar 需要完整的 VRChat 账号，信任等级达到 New User 或更高。", action: "" },
     warehouse: { title: "先选素材", body: "选好 Avatar、衣服或配饰，再确认要做什么。商品关联记录的是来源，兼容性在开工前检查。", action: "查看素材导入" },
@@ -28,7 +28,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
   "zh-TW": {
     dismiss: "知道了",
     home: { title: "要先看看 VUA 嗎？", body: "功能導覽會依序指出常用入口，隨時可以離開。", action: "開始導覽" },
-    play: { title: "只準備需要的內容", body: "先看檢測結果，再選擇要安裝或啟動的內容。", action: "查看遊玩準備" },
+    play: { title: "只準備需要的內容", body: "選平台、裝置和連線方式，下面列出要做的事。", action: "查看遊玩準備" },
     tools: { title: "工具按用途分組", body: "已接入的工具可以直接開啟，標著「開發中」的正在接入。", action: "" },
     creator: { title: "製作準備與上傳資格", body: "這裡檢查 Unity 和製作環境。上傳 Avatar 需要完整的 VRChat 帳號，信任等級達到 New User 或更高。", action: "" },
     warehouse: { title: "先選素材", body: "選好 Avatar、衣服或配飾，再確認要做什麼。商品關聯記錄的是來源，相容性在開工前檢查。", action: "查看素材匯入" },
@@ -40,7 +40,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
   ja: {
     dismiss: "わかりました",
     home: { title: "VUA を見てみますか？", body: "ツアーで主な操作場所を順に案内します。いつでも抜けられます。", action: "ツアーを開始" },
-    play: { title: "必要なものだけを準備", body: "検出結果を見てから、インストールや起動するものを選びます。", action: "プレイの準備を見る" },
+    play: { title: "必要なものだけを準備", body: "プラットフォーム、デバイス、接続方法を選ぶと、やることが下に並びます。", action: "プレイの準備を見る" },
     tools: { title: "用途別のツール", body: "使えるツールはここから開けます。「開発中」の項目は対応を進めています。", action: "" },
     creator: { title: "制作準備とアップロード条件", body: "Unity と制作環境をここで確認します。アバターのアップロードには、New User 以上のトラストランクの VRChat アカウントが必要です。", action: "" },
     warehouse: { title: "素材から始める", body: "アバター、衣装、アクセサリーを選び、作るものを確認します。商品との紐付けは入手元の記録で、互換性は制作前に確認します。", action: "素材のインポートを見る" },
@@ -52,7 +52,7 @@ export const contextGuideCopy: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", ty
   ko: {
     dismiss: "알겠어요",
     home: { title: "VUA를 둘러볼까요?", body: "투어가 주요 조작 위치를 하나씩 보여줘요. 언제든 나갈 수 있어요.", action: "투어 시작" },
-    play: { title: "필요한 것만 준비하기", body: "검출 결과를 본 뒤 설치하거나 실행할 것을 고르세요.", action: "플레이 준비 보기" },
+    play: { title: "필요한 것만 준비하기", body: "플랫폼, 기기, 연결 방식을 고르면 할 일이 아래에 나와요.", action: "플레이 준비 보기" },
     tools: { title: "용도별 도구", body: "준비된 도구는 여기에서 열 수 있어요. ‘개발 중’ 항목은 연결하는 중이에요.", action: "" },
     creator: { title: "제작 준비와 업로드 자격", body: "Unity와 제작 환경을 여기에서 확인하세요. 아바타 업로드에는 New User 이상 신뢰 등급의 VRChat 계정이 필요해요.", action: "" },
     warehouse: { title: "소재부터 시작", body: "아바타, 의상 또는 액세서리를 고르고 무엇을 만들지 확인하세요. 상품 연결은 출처 기록이고, 호환성은 제작 전에 확인해요.", action: "소재 가져오기 보기" },

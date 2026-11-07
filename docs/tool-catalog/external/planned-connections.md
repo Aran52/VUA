@@ -54,13 +54,16 @@ Steam Link also serves PICO and VIVE standalone, from the headset's own store.
 | Windows MR | Windows Mixed Reality for SteamVR (Steam App ID 719950), Windows 10 or Windows 11 23H2 only | Guide only; Windows 11 24H2 removed the platform | Nothing separate to observe |
 | Another model | Its maker's software, then SteamVR | Guide only | `steamvr` |
 
-PICO keeps its full route and lists Virtual Desktop and ALVR under its details as other streaming
-software.
+PICO Connect keeps its full route; PICO's other connections are guided like every other headset's.
+
+Steam Frame stays on its SteamVR route. A standalone VRChat build was reported on 2026-06-12
+([Steam Deck HQ](https://steamdeckhq.com/news/vrchat-gets-standalone-steam-frame-build/), from SteamDB),
+and VRChat's [Getting Started](https://wiki.vrchat.com/wiki/Getting_Started) page does not yet name the
+headset. Its "no computer" connection follows once VRChat lists it.
 
 A route becomes live by adding it to `PLAY_ROUTES` in the contracts, with its SOP and play session
-in the backend, and removing it from `PLANNED_ROUTES`; `PlayRouteFlow` then draws it. Its connection
-guide can stay as the options of that flow. The detailed device requirements remain in the
-[N1 delivery plan](../../development/n1-delivery-plan.md).
+in the backend, and pointing `setupEngine` at it; `PlayRouteFlow` then draws it. The detailed device
+requirements remain in the [N1 delivery plan](../../development/n1-delivery-plan.md).
 
 ## Considered and left out
 

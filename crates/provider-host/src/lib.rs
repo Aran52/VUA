@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 //! Supervised provider process host: the composition root that serves the
 //! versioned application contract over stdio frames.
 

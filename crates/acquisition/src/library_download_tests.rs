@@ -1120,8 +1120,6 @@ fn a_large_library_reads_quickly() {
     for i in 0..300 {
         w.import_local(&format!("local-{i}"), &[("Avatar.unitypackage", format!("bytes {i}").as_bytes())]);
     }
-    let places: Vec<(usize, String)> = (0..2000).map(|i| (i, format!("booth:{}", 100_000 + i))).collect();
-    w.bdl.record_library_positions("bought", &places).unwrap();
     eprintln!("seeded in {:?}", started.elapsed());
     let reads = [
         ("first batch", json!({"schemaVersion":"0.3","limit":100,"sort":"added_desc"})),

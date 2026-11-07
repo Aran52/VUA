@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Catalog orders v0.1 page result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceUrl", "parsedCount", "recordedCount", "nextPageUrl"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "sourceUrl": { "type": "string", "minLength": 1 },
+    "parsedCount": { "type": "integer", "minimum": 0 },
+    "recordedCount": { "type": "integer", "minimum": 0 },
+    "nextPageUrl": { "type": ["string", "null"], "minLength": 1 }
+  }
+}

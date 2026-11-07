@@ -161,9 +161,11 @@ engine; their menu entries say so.
 Rows load in batches as the wall scrolls and stay in the library's order, so a local import sorts among
 products. Selection, Ctrl+A, arrow keys and details cover the whole list; Ctrl+A reads the rows still to come
 first. Cancel filter sits on the count row. The list has title with its variation, shop, status, size and
-added, sortable by name, shop, size and added, and it keeps dragged widths. "Recently added" follows BOOTH's
-own list among account products, and local imports fall between them by their own time. BOOTH's 3D categories
-read in the player's language; descriptions stay as the shop wrote them, with a copy button.
+added, sortable by name, shop, size and added, and it keeps dragged widths. "Recently added" uses a purchase's
+order time from BOOTH's purchase history. Gifts and free downloads have no time from BOOTH: those from the first sync
+come after everything dated and show "—", and later ones sit where their sync happened. Details show the purchase
+time. BOOTH's 3D categories read in the player's language; descriptions stay as the shop wrote them, with a copy
+button.
 
 One row of controls sits under the title: search, source, download state, BOOTH category, VN3 terms, order
 and view. Their values name them, so they carry no labels above. The count and a way to clear filters sit

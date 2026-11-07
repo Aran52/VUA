@@ -1813,6 +1813,7 @@ fn served_capabilities(state: &HostState) -> Value {
                 "unavailable"
             },
         },
+        {"operationId": "catalog.ingestOrdersPage", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "catalog.beginLibrarySync", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "catalog.finishLibrarySync", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "catalog.librarySyncStatus", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
@@ -5680,6 +5681,7 @@ fn catalog_request(
         "catalog.ingestLibraryPage" => {
             catalog_ingest_library_page(state, warehouse, request, request_id, correlation_id)
         }
+        "catalog.ingestOrdersPage" => catalog_ingest_orders_page(warehouse, request, request_id, correlation_id),
         "catalog.list" => catalog_list(warehouse, request, request_id, correlation_id),
         "catalog.searchProducts" => FrameOutcome::Response(if request["kind"] != "query" {
             application_error(request_id, correlation_id, "vua.catalog.invalid_params", "errors.catalog.invalidParams", "validation")
@@ -6406,6 +6408,19 @@ fn catalog_ingest_library_page(
 }
 
 /// The acquisition use case owns run decisions; the host only dispatches and publishes.
+/// catalog-orders v0.1: one purchase history page. Outside the run's task, so it needs no recovery state.
+fn catalog_ingest_orders_page(warehouse: Arc<WarehouseServices>, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
+    if request["kind"] != "command" { return catalog_invalid_params(request_id, correlation_id); }
+    let params = request.get("params").cloned().unwrap_or(Value::Null);
+    FrameOutcome::Response(match vua_acquisition::catalog_sync::ingest_orders_page(&warehouse.bdl, params) {
+        Ok(value) => application_success(request_id, value),
+        Err(error) => application_error(
+            request_id, correlation_id, &format!("vua.catalog.{}", error.0),
+            "errors.catalog.syncFailed", if error.0 == "store_failed" { "internal" } else { "validation" },
+        ),
+    })
+}
+
 fn catalog_sync_run_request(
     state: &HostState,
     warehouse: Arc<WarehouseServices>,

@@ -13,6 +13,7 @@ pub mod terms_links;
 pub mod vn3;
 pub mod terms;
 pub mod library_page;
+pub mod order_page;
 pub mod booth_search;
 pub mod library_download;
 pub mod library_view;

@@ -1,0 +1,8 @@
+{
+  "method": "catalog.ingestOrdersPage",
+  "params": {
+    "schemaVersion": "0.1",
+    "sourceUrl": "https://accounts.booth.pm/library",
+    "html": "<html></html>"
+  }
+}

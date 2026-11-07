@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use vua_bdl_store::{ArtifactMode, BdlStore, CopyRole, LibraryCopyEvidence};
+use vua_bdl_store::{ArtifactMode, BdlStore, CopyRole, LibraryCopyEvidence, LibraryProductDates};
 
 const SORTS: [&str; 9] = ["added_desc", "added_asc", "title_asc", "title_desc", "shop_asc", "price_asc", "price_desc", "published_desc", "size_desc"];
 const VN3_STATES: [&str; 4] = ["readable", "no_vn3", "unread", "unreadable"];
@@ -322,6 +322,7 @@ pub fn list(
         }
         rows.push(row);
     }
+    let moments = if current { settle_added(&mut rows, &dates, &bdl.library_order_times()?) } else { HashMap::new() };
     let needle = query.text.to_lowercase();
     rows.retain(|row| {
         let product = row["kind"] == "product";
@@ -424,8 +425,7 @@ pub fn list(
         rows.retain(|row| row["sourceCategory"] == category);
     }
     if let Some(sort) = &query.sort {
-        let order = added_order(&rows, &bdl.library_positions()?);
-        sort_rows(&mut rows, sort, &order);
+        sort_rows(&mut rows, sort, &moments);
     }
     let total = rows.len();
     let mut result = json!({"schemaVersion":query.schema_version,"total":total,"offset":query.offset,"limit":query.limit,"sourceCategories":source_categories,"items":rows.into_iter().skip(query.offset).take(query.limit).collect::<Vec<_>>()});
@@ -500,36 +500,69 @@ fn missing_last<T>(a: Option<T>, b: Option<T>, order: impl FnOnce(T, T) -> std::
     }
 }
 
-/// BOOTH lists an account's products newest first, and a first sync gives them all nearly the same
-/// time, later pages later still. So a product's place in that list decides its order among the
-/// others from the list: it is never newer than a product listed above it. Local imports keep
-/// their own times and fall between them. Maps a product to its effective time and place.
-fn added_order(rows: &[Value], positions: &[(String, String, i64)]) -> HashMap<String, (String, i64)> {
-    let added: HashMap<&str, &str> = rows.iter().filter_map(|row| Some((row["product"]["productId"].as_str()?, row_text(row, "addedAt")?))).collect();
-    let mut order = HashMap::new();
-    for kind in ["bought", "gifts", "free_downloads"] {
-        let mut listed: Vec<(i64, &str, &str)> = positions.iter().filter(|(library, _, _)| library == kind)
-            .filter_map(|(_, product, position)| added.get_key_value(product.as_str()).map(|(id, time)| (*position, *id, *time))).collect();
-        listed.sort();
-        let mut newest: Option<&str> = None;
-        for (position, id, time) in listed {
-            let effective = newest.map_or(time, |above| above.min(time));
-            newest = Some(effective);
-            order.entry(id.to_owned()).or_insert((effective.to_owned(), position));
+/// A sync reads its pages seconds apart; anything further apart is a later sync.
+const ONE_SYNC_MS: i64 = 120_000;
+
+/// When each account product joined the library, as far as known. A purchase has its order's time. Gifts and
+/// free downloads have none: what the first sync found could have arrived at any point before it, so its time
+/// is unknown, and what a later sync finds arrived around that sync. A local copy older than the first sighting
+/// keeps its own time. Sets `addedAt` and `purchasedAt` on product rows and returns the moment each sorts by.
+fn settle_added(rows: &mut [Value], dates: &HashMap<String, LibraryProductDates>, ordered: &HashMap<String, String>) -> HashMap<String, i64> {
+    let millis = vua_orchestrator::rfc3339_millis;
+    let first_seen = |id: &str| dates.get(id).and_then(|date| date.first_seen_at.as_deref()).and_then(millis);
+    let mut seen: Vec<(i64, String)> = rows
+        .iter()
+        .filter_map(|row| {
+            let id = row.get("product")?.get("productId")?.as_str()?;
+            Some((first_seen(id)?, id.to_owned()))
+        })
+        .collect();
+    seen.sort_unstable();
+    let mut arrivals: HashMap<String, Option<i64>> = HashMap::with_capacity(seen.len());
+    let (mut start, mut sync) = (0, 0);
+    for next in 1..=seen.len() {
+        if next == seen.len() || seen[next].0 - seen[next - 1].0 > ONE_SYNC_MS {
+            for (_, id) in &seen[start..next] {
+                arrivals.insert(id.clone(), (sync > 0).then_some(seen[next - 1].0));
+            }
+            start = next;
+            sync += 1;
         }
     }
-    order
+    let mut moments = HashMap::with_capacity(rows.len());
+    for row in rows.iter_mut() {
+        let Some(id) = row.get("product").and_then(|product| product.get("productId")).and_then(Value::as_str).map(str::to_owned) else { continue };
+        let moment = if let Some(time) = ordered.get(&id) {
+            row["purchasedAt"] = json!(time);
+            row["addedAt"] = json!(time);
+            millis(time)
+        } else {
+            row["purchasedAt"] = Value::Null;
+            let own = row_text(row, "addedAt").and_then(millis);
+            let copy_came_first = own.is_some() && first_seen(&id).is_none_or(|seen| own.is_some_and(|own| own < seen));
+            let arrival = arrivals.get(&id).copied().flatten();
+            if copy_came_first {
+                own
+            } else {
+                if arrival.is_none() { row["addedAt"] = Value::Null; }
+                arrival
+            }
+        };
+        if let Some(moment) = moment { moments.insert(id, moment); }
+    }
+    moments
 }
 
-fn sort_rows(rows: &mut [Value], sort: &str, order: &HashMap<String, (String, i64)>) {
-    let listed = |row: &Value| row["product"]["productId"].as_str().and_then(|id| order.get(id)).map(|(time, place)| (time.clone(), *place));
-    let added = |row: &Value| listed(row).map(|(time, _)| time).or_else(|| row_text(row, "addedAt").map(str::to_owned));
-    let place = |row: &Value| listed(row).map_or(i64::MAX, |(_, place)| place);
+fn sort_rows(rows: &mut [Value], sort: &str, moments: &HashMap<String, i64>) {
+    let added = |row: &Value| match row["product"]["productId"].as_str() {
+        Some(id) => moments.get(id).copied(),
+        None => row_text(row, "addedAt").and_then(vua_orchestrator::rfc3339_millis),
+    };
     let by_title = |a: &Value, b: &Value| natural(&row_title(a), &row_title(b));
     let price = |a: f64, b: f64| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal);
     rows.sort_by(|a, b| {
         let order = match sort {
-            "added_asc" => missing_last(added(a), added(b), |a, b| a.cmp(&b)).then_with(|| place(b).cmp(&place(a))),
+            "added_asc" => missing_last(added(a), added(b), |a, b| a.cmp(&b)).then_with(|| row_number(a).cmp(&row_number(b))),
             "title_asc" => by_title(a, b),
             "title_desc" => by_title(b, a),
             "shop_asc" => missing_last(row_shop(a), row_shop(b), |a, b| natural(&a, &b)),
@@ -538,7 +571,7 @@ fn sort_rows(rows: &mut [Value], sort: &str, order: &HashMap<String, (String, i6
             "published_desc" => missing_last(row_text(a, "publishedAt"), row_text(b, "publishedAt"), |a, b| b.cmp(a)),
             "size_desc" => b["sizeBytes"].as_u64().cmp(&a["sizeBytes"].as_u64()),
             "size_asc" => a["sizeBytes"].as_u64().cmp(&b["sizeBytes"].as_u64()),
-            _ => missing_last(added(a), added(b), |a, b| b.cmp(&a)).then_with(|| place(a).cmp(&place(b))),
+            _ => missing_last(added(a), added(b), |a, b| b.cmp(&a)),
         };
         order.then_with(|| row_number(b).cmp(&row_number(a))).then_with(|| by_title(a, b))
     });
@@ -696,45 +729,77 @@ pub fn product_files(
 }
 
 #[cfg(test)]
-mod added_order_tests {
+mod added_tests {
     use super::*;
 
-    fn product(id: &str, added: &str) -> Value {
-        json!({"kind":"product","product":{"productId":id,"title":id},"addedAt":added})
+    const FIRST_SYNC: &str = "2026-10-11T00:00:00.000Z";
+
+    fn product(id: &str, seen: &str) -> Value {
+        json!({"kind":"product","product":{"productId":id,"title":id},"addedAt":seen})
     }
 
     fn entry(title: &str, added: &str) -> Value {
         json!({"kind":"local","entry":{"displayName":title},"addedAt":added})
     }
 
-    fn sorted(mut rows: Vec<Value>, positions: &[(String, String, i64)], sort: &str) -> Vec<String> {
-        let order = added_order(&rows, positions);
-        sort_rows(&mut rows, sort, &order);
+    fn settled(rows: &mut [Value], ordered: &[(&str, &str)]) -> HashMap<String, i64> {
+        let dates = rows.iter().filter_map(|row| Some((row["product"]["productId"].as_str()?.to_owned(), LibraryProductDates { first_seen_at: row_text(row, "addedAt").map(str::to_owned), published_at: None }))).collect();
+        let ordered = ordered.iter().map(|(id, time)| ((*id).to_owned(), (*time).to_owned())).collect();
+        settle_added(rows, &dates, &ordered)
+    }
+
+    fn sorted(mut rows: Vec<Value>, ordered: &[(&str, &str)], sort: &str) -> Vec<String> {
+        let moments = settled(&mut rows, ordered);
+        sort_rows(&mut rows, sort, &moments);
         rows.iter().map(|row| row["product"]["productId"].as_str().or(row["entry"]["displayName"].as_str()).unwrap().to_owned()).collect()
     }
 
-    fn bought(places: &[(&str, i64)]) -> Vec<(String, String, i64)> {
-        places.iter().map(|(id, place)| ("bought".to_owned(), (*id).to_owned(), *place)).collect()
+    #[test]
+    fn purchases_follow_their_order_times_and_what_has_no_time_comes_after_them() {
+        let rows = vec![product("booth:1", FIRST_SYNC), product("booth:2", FIRST_SYNC), product("booth:7", FIRST_SYNC), product("booth:8", FIRST_SYNC)];
+        let ordered = [("booth:1", "2026-05-01T00:00:00.000Z"), ("booth:2", "2024-01-01T00:00:00.000Z")];
+        assert_eq!(sorted(rows.clone(), &ordered, "added_desc"), ["booth:1", "booth:2", "booth:8", "booth:7"]);
+        assert_eq!(sorted(rows, &ordered, "added_asc"), ["booth:2", "booth:1", "booth:7", "booth:8"]);
     }
 
     #[test]
-    fn a_first_sync_follows_booths_list_even_when_later_pages_were_read_later() {
-        let rows = vec![product("booth:1", "2026-10-11T00:00:09Z"), product("booth:2", "2026-10-11T00:00:01Z"), product("booth:3", "2026-10-11T00:00:05Z")];
-        let positions = bought(&[("booth:2", 0), ("booth:3", 1), ("booth:1", 2)]);
-        assert_eq!(sorted(rows.clone(), &positions, "added_desc"), ["booth:2", "booth:3", "booth:1"]);
-        assert_eq!(sorted(rows, &positions, "added_asc"), ["booth:1", "booth:3", "booth:2"]);
+    fn a_row_says_what_is_known_about_it() {
+        let mut rows = vec![product("booth:1", FIRST_SYNC), product("booth:2", FIRST_SYNC), product("booth:3", "2026-11-01T00:00:00.000Z")];
+        settled(&mut rows, &[("booth:1", "2026-05-01T00:00:00.000Z")]);
+        assert_eq!((&rows[0]["purchasedAt"], &rows[0]["addedAt"]), (&json!("2026-05-01T00:00:00.000Z"), &json!("2026-05-01T00:00:00.000Z")));
+        assert_eq!((&rows[1]["purchasedAt"], &rows[1]["addedAt"]), (&Value::Null, &Value::Null), "the first sync says nothing about when");
+        assert_eq!((&rows[2]["purchasedAt"], &rows[2]["addedAt"]), (&Value::Null, &json!("2026-11-01T00:00:00.000Z")));
     }
 
     #[test]
-    fn a_local_import_falls_between_purchases_by_its_own_time() {
-        let rows = vec![product("booth:1", "2026-10-11T00:00:00Z"), product("booth:2", "2026-11-01T00:00:00Z"), entry("hair", "2026-10-20T00:00:00Z")];
-        let positions = bought(&[("booth:2", 0), ("booth:1", 1)]);
-        assert_eq!(sorted(rows, &positions, "added_desc"), ["booth:2", "hair", "booth:1"]);
+    fn a_free_item_a_later_sync_finds_takes_that_syncs_place_among_purchases() {
+        let rows = vec![product("booth:1", FIRST_SYNC), product("booth:2", FIRST_SYNC), product("booth:3", "2026-11-01T00:00:00.000Z"), product("booth:4", "2026-11-01T00:00:05.000Z")];
+        let ordered = [("booth:1", "2026-12-01T00:00:00.000Z"), ("booth:2", "2024-01-01T00:00:00.000Z")];
+        assert_eq!(sorted(rows, &ordered, "added_desc"), ["booth:1", "booth:4", "booth:3", "booth:2"]);
     }
 
     #[test]
-    fn rows_without_a_recorded_place_keep_their_times() {
-        let rows = vec![product("booth:1", "2026-10-01T00:00:00Z"), product("booth:2", "2026-10-02T00:00:00Z")];
-        assert_eq!(sorted(rows, &[], "added_desc"), ["booth:2", "booth:1"]);
+    fn the_first_sync_is_every_page_it_read_and_a_pause_ends_it() {
+        let rows = vec![product("booth:1", "2026-10-11T00:00:00.000Z"), product("booth:2", "2026-10-11T00:01:30.000Z"), product("booth:3", "2026-10-11T00:03:00.000Z"), product("booth:4", "2026-10-11T00:06:00.000Z")];
+        assert_eq!(sorted(rows, &[], "added_desc"), ["booth:4", "booth:3", "booth:2", "booth:1"]);
+        let mut rows = vec![product("booth:1", "2026-10-11T00:00:00.000Z"), product("booth:2", "2026-10-11T00:01:30.000Z"), product("booth:3", "2026-10-11T00:06:00.000Z")];
+        settled(&mut rows, &[]);
+        assert_eq!((&rows[0]["addedAt"], &rows[1]["addedAt"]), (&Value::Null, &Value::Null));
+        assert_eq!(rows[2]["addedAt"], "2026-10-11T00:06:00.000Z");
+    }
+
+    #[test]
+    fn a_local_import_falls_where_its_own_time_puts_it() {
+        let rows = vec![product("booth:1", FIRST_SYNC), product("booth:2", FIRST_SYNC), product("booth:3", FIRST_SYNC), entry("hair", "2026-10-20T00:00:00.000Z")];
+        let ordered = [("booth:1", "2026-05-01T00:00:00.000Z"), ("booth:2", "2026-11-01T00:00:00.000Z")];
+        assert_eq!(sorted(rows, &ordered, "added_desc"), ["booth:2", "hair", "booth:1", "booth:3"]);
+    }
+
+    #[test]
+    fn a_local_copy_older_than_the_first_sighting_keeps_its_time() {
+        let mut rows = vec![product("booth:1", FIRST_SYNC), product("booth:2", "2026-09-01T00:00:00.000Z")];
+        let dates: HashMap<_, _> = [("booth:1", FIRST_SYNC), ("booth:2", FIRST_SYNC)].into_iter().map(|(id, seen)| (id.to_owned(), LibraryProductDates { first_seen_at: Some(seen.to_owned()), published_at: None })).collect();
+        settle_added(&mut rows, &dates, &HashMap::new());
+        assert_eq!((&rows[0]["addedAt"], &rows[1]["addedAt"]), (&Value::Null, &json!("2026-09-01T00:00:00.000Z")));
     }
 }

@@ -1,7 +1,7 @@
 //! Local evidence read faces. Current presence and task interpretation belong to AMF.
 use super::*;
 
-const LIBRARY_POSITION_PREFIX: &str = "library_position:";
+const LIBRARY_ORDERED_PREFIX: &str = "library_ordered_at:";
 
 /// When a product first entered an account library, and BOOTH's own publish date when recorded.
 #[derive(Clone, Debug, Default)]
@@ -80,36 +80,6 @@ impl BdlStore {
             .entries)
     }
 
-    /// Where products sit in one of BOOTH's account lists, newest purchase first. These live beside
-    /// the format version, so builds that do not read them keep opening this store.
-    pub fn record_library_positions(&self, library_type: &str, positions: &[(usize, String)]) -> Result<(), BdlStoreError> {
-        let mut connection = self.connection.lock().expect("SQLite connection poisoned");
-        let transaction = connection.transaction()?;
-        for (position, product_id) in positions {
-            transaction.execute(
-                "INSERT INTO bdl_meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![format!("{LIBRARY_POSITION_PREFIX}{library_type}:{product_id}"), position.to_string()],
-            )?;
-        }
-        transaction.commit()?;
-        Ok(())
-    }
-
-    /// Every recorded place: library type, product and position.
-    pub fn library_positions(&self) -> Result<Vec<(String, String, i64)>, BdlStoreError> {
-        let connection = self.connection.lock().expect("SQLite connection poisoned");
-        let mut statement = connection.prepare("SELECT key, value FROM bdl_meta WHERE key LIKE 'library_position:%'")?;
-        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
-        let mut positions = Vec::new();
-        for row in rows {
-            let (key, value) = row?;
-            let Some((kind, product)) = key.strip_prefix(LIBRARY_POSITION_PREFIX).and_then(|rest| rest.split_once(':')) else { continue };
-            let Ok(position) = value.parse() else { continue };
-            positions.push((kind.to_owned(), product.to_owned(), position));
-        }
-        Ok(positions)
-    }
-
     pub fn product_library_memberships(
         &self,
         product_id: &str,
@@ -120,6 +90,40 @@ impl BdlStore {
             .query_map([product_id], |row| row.get(0))?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
+    }
+
+    /// When bought products were ordered, for the products an account library lists; a product's latest
+    /// order stands. These live beside the format version, so builds that do not read them keep opening
+    /// this store. Returns how many were in the library.
+    pub fn record_library_orders(&self, orders: &[(String, String)]) -> Result<usize, BdlStoreError> {
+        let mut connection = self.connection.lock().expect("SQLite connection poisoned");
+        let transaction = connection.transaction()?;
+        let mut recorded = 0;
+        for (product_id, ordered_at) in orders {
+            recorded += transaction.execute(
+                "INSERT INTO bdl_meta(key, value)
+                 SELECT ?1, ?2 WHERE EXISTS (SELECT 1 FROM product_library_memberships WHERE product_id = ?3)
+                 ON CONFLICT(key) DO UPDATE SET value = MAX(value, excluded.value)",
+                params![format!("{LIBRARY_ORDERED_PREFIX}{product_id}"), ordered_at, product_id],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(recorded)
+    }
+
+    /// Every recorded order time, by product.
+    pub fn library_order_times(&self) -> Result<std::collections::HashMap<String, String>, BdlStoreError> {
+        let connection = self.connection.lock().expect("SQLite connection poisoned");
+        let mut statement = connection.prepare("SELECT key, value FROM bdl_meta WHERE key LIKE 'library_ordered_at:%'")?;
+        let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let mut times = std::collections::HashMap::new();
+        for row in rows {
+            let (key, value) = row?;
+            if let Some(product) = key.strip_prefix(LIBRARY_ORDERED_PREFIX) {
+                times.insert(product.to_owned(), value);
+            }
+        }
+        Ok(times)
     }
 
     /// Every product's memberships at once, for reads that cover the whole library.

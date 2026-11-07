@@ -25,7 +25,7 @@ const en = {
   detail: {
     back: "Back to Materials", previous: "Previous", next: "Next", position: "{index} of {total}",
     more: "More actions",
-    source: "From", category: "BOOTH category", imported: "Imported", published: "On BOOTH since", size: "On disk", variants: "Variations", folder: "Folder",
+    source: "From", category: "BOOTH category", imported: "Imported", purchased: "Purchased", published: "On BOOTH since", size: "On disk", variants: "Variations", folder: "Folder",
     files: "Files", filesEmpty: "File names appear after your BOOTH library syncs.", manage: "Manage files",
     fileStates: { present: "On this PC", missing: "Missing", changed: "Changed", unreadable: "Unreadable", cloud: "On BOOTH" },
     sources: { bought: "Purchased", gifts: "Gift", free_downloads: "Free item", imported: "Local import" },
@@ -61,7 +61,7 @@ const tables: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
     detail: {
       back: "返回素材", previous: "上一个", next: "下一个", position: "第 {index} 个，共 {total} 个",
       more: "更多操作",
-      source: "来源", category: "BOOTH 分类", imported: "导入时间", published: "上架时间", size: "占用空间", variants: "款式", folder: "文件夹",
+      source: "来源", category: "BOOTH 分类", imported: "导入时间", purchased: "购买时间", published: "上架时间", size: "占用空间", variants: "款式", folder: "文件夹",
       files: "文件", filesEmpty: "同步 BOOTH 素材库后显示文件名。", manage: "管理文件",
       fileStates: { present: "在本机", missing: "已丢失", changed: "已变更", unreadable: "无法读取", cloud: "在 BOOTH" },
       sources: { bought: "已购买", gifts: "礼物", free_downloads: "免费物品", imported: "本地导入" },
@@ -93,7 +93,7 @@ const tables: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
     detail: {
       back: "返回素材", previous: "上一個", next: "下一個", position: "第 {index} 個，共 {total} 個",
       more: "更多操作",
-      source: "來源", category: "BOOTH 分類", imported: "匯入時間", published: "上架時間", size: "占用空間", variants: "款式", folder: "資料夾",
+      source: "來源", category: "BOOTH 分類", imported: "匯入時間", purchased: "購買時間", published: "上架時間", size: "占用空間", variants: "款式", folder: "資料夾",
       files: "檔案", filesEmpty: "同步 BOOTH 素材庫後顯示檔名。", manage: "管理檔案",
       fileStates: { present: "在本機", missing: "已遺失", changed: "已變更", unreadable: "無法讀取", cloud: "在 BOOTH" },
       sources: { bought: "已購買", gifts: "禮物", free_downloads: "免費物品", imported: "本機匯入" },
@@ -125,7 +125,7 @@ const tables: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
     detail: {
       back: "素材に戻る", previous: "前へ", next: "次へ", position: "{total} 件中 {index} 件目",
       more: "その他の操作",
-      source: "入手元", category: "BOOTH カテゴリ", imported: "インポート日時", published: "公開日", size: "使用容量", variants: "バリエーション", folder: "フォルダー",
+      source: "入手元", category: "BOOTH カテゴリ", imported: "インポート日時", purchased: "購入日時", published: "公開日", size: "使用容量", variants: "バリエーション", folder: "フォルダー",
       files: "ファイル", filesEmpty: "BOOTH ライブラリを同期するとファイル名が表示されます。", manage: "ファイルを管理",
       fileStates: { present: "この PC", missing: "見つからない", changed: "変更あり", unreadable: "読み取れない", cloud: "BOOTH" },
       sources: { bought: "購入済み", gifts: "ギフト", free_downloads: "無料ダウンロード", imported: "ローカル取り込み" },
@@ -157,7 +157,7 @@ const tables: Record<"en" | "zh-CN" | "zh-TW" | "ja" | "ko", Copy> = {
     detail: {
       back: "소재로 돌아가기", previous: "이전", next: "다음", position: "{total}개 중 {index}번째",
       more: "다른 작업",
-      source: "출처", category: "BOOTH 카테고리", imported: "가져온 시간", published: "등록일", size: "사용 용량", variants: "변형", folder: "폴더",
+      source: "출처", category: "BOOTH 카테고리", imported: "가져온 시간", purchased: "구매 시간", published: "등록일", size: "사용 용량", variants: "변형", folder: "폴더",
       files: "파일", filesEmpty: "BOOTH 라이브러리를 동기화하면 파일명이 표시돼요.", manage: "파일 관리",
       fileStates: { present: "이 PC", missing: "없음", changed: "변경됨", unreadable: "읽을 수 없음", cloud: "BOOTH" },
       sources: { bought: "구매함", gifts: "선물", free_downloads: "무료 다운로드", imported: "로컬 가져오기" },

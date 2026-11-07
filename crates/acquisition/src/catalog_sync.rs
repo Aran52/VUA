@@ -210,6 +210,34 @@ fn mutate(
 }
 
 /// Requests are normalized observations and transport outcomes, never sessions.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct OrdersPageRequest {
+    schema_version: String,
+    source_url: String,
+    html: String,
+}
+
+fn is_orders_url(url: &str) -> bool {
+    url == "https://accounts.booth.pm/orders"
+        || url.strip_prefix("https://accounts.booth.pm/orders?page=").is_some_and(|page| {
+            !page.is_empty() && !page.starts_with('0') && page.bytes().all(|byte| byte.is_ascii_digit())
+        })
+}
+
+/// One page of the purchase history (catalog-orders v0.1). It only adds times to products the library
+/// already lists, so it stands apart from the run's checkpoints.
+pub fn ingest_orders_page(bdl: &BdlStore, params: Value) -> Result<Value, SyncError> {
+    let request: OrdersPageRequest = serde_json::from_value(params)?;
+    if request.schema_version != "0.1" || request.html.is_empty() || !is_orders_url(&request.source_url) {
+        return Err(SyncError("invalid_params"));
+    }
+    let page = crate::order_page::extract_orders_page(&request.html).map_err(|_| SyncError("not_an_orders_page"))?;
+    let orders: Vec<(String, String)> = page.orders.into_iter().map(|order| (order.product_id, order.ordered_at)).collect();
+    let recorded = bdl.record_library_orders(&orders).map_err(|_| SyncError("store_failed"))?;
+    Ok(json!({"schemaVersion": "0.1", "sourceUrl": request.source_url, "parsedCount": orders.len(), "recordedCount": recorded, "nextPageUrl": page.next_page_url}))
+}
+
 pub fn apply_catalog_sync(
     store: &SqliteTaskStore,
     bdl: &BdlStore,
@@ -342,14 +370,6 @@ pub fn apply_catalog_sync(
                 .map_err(|_| SyncError("not_a_library_page"))?;
             let mut upserted = 0;
             let mut rejected = Vec::new();
-            // BOOTH lists an account's products newest first; their places order "recently added".
-            let earlier: usize = current
-                .receipts
-                .iter()
-                .filter(|page| page.library_type == request.library_type)
-                .map(|page| page.result.parsed_count)
-                .sum();
-            let mut positions = Vec::with_capacity(page.items.len());
             for (index, item) in page.items.iter().enumerate() {
                 let observation = crate::library_page::library_item_to_observation(
                     item,
@@ -361,7 +381,6 @@ pub fn apply_catalog_sync(
                 match bdl.record_product_observation(&observation) {
                     Ok(_) => {
                         upserted += 1;
-                        positions.push((earlier + index, observation.product_id.clone()));
                         let rows = item
                             .downloadables
                             .iter()
@@ -394,8 +413,6 @@ pub fn apply_catalog_sync(
                     }),
                 }
             }
-            // The order is a convenience; the page's products are already recorded either way.
-            let _ = bdl.record_library_positions(request.library_type.name(), &positions);
             let result = PageResult {
                 schema_version: "0.3".into(),
                 source_url: request.source_url.clone(),

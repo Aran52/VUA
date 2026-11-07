@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CatalogSyncPageV03, CatalogSyncPageResultV03, CatalogSyncSnapshotV03 } from "@vua/contracts";
-import { CATALOG_SYNC_DEFAULT_START_URL as BOUGHT, isSignInPage, startCatalogSync, type CatalogSyncRunnerOptions } from "./catalog-sync.js";
+import { CATALOG_SYNC_DEFAULT_START_URL as BOUGHT, CATALOG_SYNC_ORDERS_URL as ORDERS, isSignInPage, startCatalogSync, type CatalogSyncRunnerOptions } from "./catalog-sync.js";
 
 const GIFTS = "https://accounts.booth.pm/library/gifts?page=1";
 const FREE = "https://accounts.booth.pm/library/free_downloads?page=1";
@@ -130,6 +130,56 @@ describe("catalog sync v0.3 transport", () => {
     const h = harness((request) => receipt(request, { upsertedCount: request.pageNumber === 1 ? 1 : 2,
       rejectedItems: request.pageNumber === 1 ? [{ index: 0, code: "synthetic_rejection", reason: "synthetic rejection" }] : [] }));
     expect(await startCatalogSync(h.options, { segments }).result).toMatchObject({ status: "completed", pages: 3, upsertedCount: 5, rejectedCount: 1 });
+  });
+});
+
+describe("purchase history", () => {
+  const ordersResult = (url: string, nextPageUrl: string | null = null) => ({ ok: true, value: { schemaVersion: "0.1", sourceUrl: url, parsedCount: 1, recordedCount: 1, nextPageUrl } });
+  it("is read after the libraries and before the run finishes, following its pages", async () => {
+    const h = harness();
+    const ingestOrders = vi.fn(async ({ sourceUrl }: { sourceUrl: string }) => { h.calls.push(`orders:${sourceUrl}`); return ordersResult(sourceUrl, sourceUrl === ORDERS ? "/orders?page=2" : null); });
+    const result = await startCatalogSync({ ...h.options, ingestOrders }, { segments }).result;
+    expect(result.status).toBe("completed");
+    const order = h.calls.filter((call) => !call.startsWith("fetch:"));
+    expect(order.slice(-3)).toEqual([`orders:${ORDERS}`, `orders:${ORDERS}?page=2`, "finish:completed:"]);
+    expect(ingestOrders.mock.calls[0]?.[0]).toEqual({ schemaVersion: "0.1", sourceUrl: ORDERS, html: "<synthetic-library/>" });
+  });
+  it("is left alone when the run does not cover bought products", async () => {
+    const h = harness();
+    const ingestOrders = vi.fn();
+    await startCatalogSync({ ...h.options, ingestOrders }, { segments: [{ startUrl: GIFTS, libraryType: "gifts" }] }).result;
+    expect(ingestOrders).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["an HTTP failure", { fetch: async (url: string) => ({ status: url === ORDERS ? 500 : 200, body: "<synthetic-library/>", finalUrl: url }) }, async () => ordersResult(ORDERS)],
+    ["a signed-out page", { fetch: async (url: string) => ({ status: 200, body: url === ORDERS ? '<form action="/users/auth/pixiv"></form>' : "<synthetic-library/>", finalUrl: url }) }, async () => ordersResult(ORDERS)],
+    ["a refused page", {}, async () => ({ ok: false, error: { code: "vua.catalog.not_an_orders_page" } })],
+    ["a malformed result", {}, async () => ({ ok: true, value: { parsedCount: "many" } })],
+    ["a thrown error", {}, async () => { throw new Error("synthetic"); }],
+  ])("leaves the library sync's result standing after %s", async (_name, overrides, ingestOrders) => {
+    const h = harness();
+    const result = await startCatalogSync({ ...h.options, ...overrides, ingestOrders } as CatalogSyncRunnerOptions, { segments }).result;
+    expect(result).toMatchObject({ status: "completed", pages: 3 });
+    expect(h.calls.at(-1)).toBe("finish:completed:");
+  });
+  it("accepts a next page only on the history itself and stops on a repeat", async () => {
+    for (const next of ["https://evil.example/orders?page=2", "/library?page=2", "/orders/1", "/orders?page=1&x=1"]) {
+      const h = harness();
+      const ingestOrders = vi.fn(async ({ sourceUrl }: { sourceUrl: string }) => ordersResult(sourceUrl, next));
+      await startCatalogSync({ ...h.options, ingestOrders }).result;
+      expect(ingestOrders).toHaveBeenCalledTimes(1);
+    }
+    const h = harness();
+    const ingestOrders = vi.fn(async ({ sourceUrl }: { sourceUrl: string }) => ordersResult(sourceUrl, "/orders"));
+    await startCatalogSync({ ...h.options, ingestOrders }).result;
+    expect(ingestOrders).toHaveBeenCalledTimes(1);
+  });
+  it("stops when the run is stopped", async () => {
+    const h = harness();
+    const ingestOrders = vi.fn();
+    const run = startCatalogSync({ ...h.options, ingestOrders, sleep: async (_ms, _signal) => { run.stop(); } });
+    await run.result;
+    expect(ingestOrders).not.toHaveBeenCalled();
   });
 });
 

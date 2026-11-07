@@ -73,6 +73,7 @@ export function sharedFacts(facts: LibraryCardFacts | undefined): readonly (read
   return [
     [view.source, [...new Set(sources)].join(" · ")],
     [view.category, facts?.sourceCategory ? boothCategoryLabel(facts.sourceCategory) : null],
+    [view.purchased, facts?.purchasedAt ? formatDateTime(facts.purchasedAt) : null],
     [view.size, size > 0 ? sizeLabel(size) : null],
   ];
 }

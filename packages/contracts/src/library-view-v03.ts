@@ -11,7 +11,7 @@ export type LibraryVn3State = typeof LIBRARY_VN3_STATES[number];
 export interface LibraryVn3FilterV03 { readonly state?: LibraryVn3State; readonly items?: readonly LibraryVn3Item[]; readonly includeContact?: boolean }
 export type LibraryListParamsV03 = Omit<LibraryListParamsV01, "schemaVersion"> & { readonly schemaVersion: "0.3"; readonly sort?: LibrarySort; readonly vn3?: LibraryVn3FilterV03 };
 export interface LibraryVn3RowV03 { readonly state: LibraryVn3State; readonly match: "allowed" | "conditional" | "contact" | null; readonly hasSpecialNote: boolean }
-export type LibraryRowV03 = LibraryRowV01 & { readonly addedAt: string | null; readonly publishedAt: string | null; readonly sizeBytes: number; readonly vn3?: LibraryVn3RowV03 };
+export type LibraryRowV03 = LibraryRowV01 & { readonly addedAt: string | null; readonly purchasedAt?: string | null; readonly publishedAt: string | null; readonly sizeBytes: number; readonly vn3?: LibraryVn3RowV03 };
 export interface LibraryVn3CountsV03 { readonly readable: number; readonly noVn3: number; readonly unread: number; readonly unreadable: number; readonly items: Readonly<Record<LibraryVn3Item, number>> }
 export type LibraryListV03 = Omit<LibraryListV01, "schemaVersion" | "items"> & { readonly schemaVersion: "0.3"; readonly items: readonly LibraryRowV03[]; readonly vn3Counts?: LibraryVn3CountsV03 };
 
@@ -47,8 +47,8 @@ export function isLibraryListV03(value: unknown): value is LibraryListV03 {
   if (Object.hasOwn(value, "vn3Counts") && !isVn3Counts(vn3Counts)) return false;
   const items: unknown[] = [];
   for (const row of value.items) {
-    if (!record(row) || !date(row.addedAt) || !date(row.publishedAt) || !count(row.sizeBytes) || (Object.hasOwn(row, "vn3") && !isVn3Row(row.vn3))) return false;
-    const { addedAt: _added, publishedAt: _published, sizeBytes: _size, vn3: _vn3, ...previous } = row;
+    if (!record(row) || !date(row.addedAt) || (Object.hasOwn(row, "purchasedAt") && !date(row.purchasedAt)) || !date(row.publishedAt) || !count(row.sizeBytes) || (Object.hasOwn(row, "vn3") && !isVn3Row(row.vn3))) return false;
+    const { addedAt: _added, purchasedAt: _purchased, publishedAt: _published, sizeBytes: _size, vn3: _vn3, ...previous } = row;
     items.push(previous);
   }
   return isLibraryListV01({ ...list, schemaVersion: "0.1", items });

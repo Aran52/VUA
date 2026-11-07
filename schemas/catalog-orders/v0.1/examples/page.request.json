@@ -1,0 +1,8 @@
+{
+  "method": "catalog.ingestOrdersPage",
+  "params": {
+    "schemaVersion": "0.1",
+    "sourceUrl": "https://accounts.booth.pm/orders",
+    "html": "<html><body><div class=\"container l-orders-index\"><a class=\"nav-reverse\" href=\"/orders/10000002\"><div class=\"sheet\"><div class=\"on-white-bg\"><img src=\"https://booth.pximg.net/c/76x76_a2_g5/00000000-0000-0000-0000-000000000000/i/901/00000000-0000-0000-0000-000000000000_base_resized.jpg\"></div><div class=\"badge order-state completed\">Completed</div><div class=\"u-tpg-caption1\">Synthetic material</div><div class=\"u-tpg-caption2\">Created At: 2026/10/16 12:00:00</div></div></a><a class=\"nav-reverse\" href=\"/orders/10000001\"><div class=\"sheet\"><div class=\"on-white-bg\"><img src=\"https://booth.pximg.net/c/76x76_a2_g5/00000000-0000-0000-0000-000000000000/i/999/00000000-0000-0000-0000-000000000000_base_resized.jpg\"></div><div class=\"badge order-state completed\">Completed</div><div class=\"u-tpg-caption1\">Synthetic goods outside the library</div><div class=\"u-tpg-caption2\">Created At: 2026/10/15 12:00:00</div></div></a><div class=\"pager\"></div></div></body></html>"
+  }
+}

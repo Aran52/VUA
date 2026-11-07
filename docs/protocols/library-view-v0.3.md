@@ -28,9 +28,7 @@ counts without filtering, for a filter panel that is open.
 
 Ordering happens after every filter and before pagination.
 
-- **Added:** the earliest of a product's first account-library observation and its first local copy; a
-  local entry's creation time. BOOTH's library page records no purchase date, so this is when VUA first
-  saw the item.
+- **Added:** when the row joined the library, as far as known; `null` when unknown. See below.
 - **Title:** the name the card shows, case-insensitive, with digit runs compared by value.
 - **Shop and price:** the product's recorded values, or a local row's source hint. A row without the
   value goes last in either direction.
@@ -41,10 +39,17 @@ Ties go to the higher BOOTH number, then the title.
 
 ## Recently added
 
-`added_desc` and `added_asc` order account products by BOOTH's own list: catalog sync records each product's place
-in `bdl_meta` as `library_position:<library type>:<product id>`, beside the format version, so the BDL format does not
-change. A product is never newer than one listed above it, which also covers a first sync where later pages were
-read later. Local imports keep their own times and fall between them. Rows without a recorded place keep their times.
+BOOTH's library pages carry no dates, so `addedAt` is the best time known for each row:
+
+- A product with an order in [catalog orders v0.1](catalog-orders-v0.1.md) has that order's time, also given as
+  `purchasedAt`. Other rows have `purchasedAt: null` or omit it.
+- Gifts and free downloads have no time of their own. What the first sync found has `addedAt: null`, because it could
+  have arrived at any point before that sync. What a later sync finds has its first sighting. Products first seen within
+  two minutes of each other count as one sync, and later ones sort at that sync's last moment.
+- A local copy older than the product's first sighting keeps its own time, and a local entry has its creation time.
+
+`added_desc` and `added_asc` order by this time, and rows with no time go last in both. Within one time, higher BOOTH
+numbers come first in `added_desc` and last in `added_asc`.
 
 ## VN3 filter
 

@@ -13,6 +13,7 @@ import path from "node:path";
 import type {
   ApplicationEventV01,
   CatalogSyncBeginV03,
+  CatalogOrdersPageV01,
   CatalogSyncFinishV03,
   CatalogSyncPageV03,
   DownloadEventV01,
@@ -1151,6 +1152,7 @@ function registerIpc(provider: ModuleProvider): void {
       | { readonly method: "catalog.beginLibrarySync"; readonly params: CatalogSyncBeginV03 }
       | { readonly method: "catalog.ingestLibraryPage"; readonly params: CatalogSyncPageV03 }
       | { readonly method: "catalog.finishLibrarySync"; readonly params: CatalogSyncFinishV03 }
+      | { readonly method: "catalog.ingestOrdersPage"; readonly params: CatalogOrdersPageV01 }
     ) => {
       if (provider === null) {
         return Promise.reject(new Error("provider is not running"));
@@ -1176,6 +1178,7 @@ function registerIpc(provider: ModuleProvider): void {
         begin: (params) => invokeCatalogSync({ method: "catalog.beginLibrarySync", params }),
         invoke: (params) => invokeCatalogSync({ method: "catalog.ingestLibraryPage", params }),
         finish: (params) => invokeCatalogSync({ method: "catalog.finishLibrarySync", params }),
+        ingestOrders: (params) => invokeCatalogSync({ method: "catalog.ingestOrdersPage", params }),
       },
       { segments },
     );

@@ -18,6 +18,50 @@ use serde_json::{json, Value};
 use vua_bdl_store::{ArtifactMode, BdlStore};
 use vua_provider_host::{run_provider_host_with_services, WarehouseConfig};
 
+mod orders_v01 {
+    use super::*;
+
+    fn root() -> PathBuf { schema_dir().parent().unwrap().parent().unwrap().join("catalog-orders/v0.1") }
+    fn vector(name: &str) -> Value {
+        serde_json::from_slice(&fs::read(root().join("examples").join(name)).unwrap()).unwrap()
+    }
+    fn schema(name: &str) -> jsonschema::Validator {
+        jsonschema::validator_for(&serde_json::from_slice::<Value>(&fs::read(root().join(name)).unwrap()).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn schemas_and_vectors_agree() {
+        assert!(schema("request.schema.json").is_valid(&vector("page.request.json")));
+        assert!(!schema("request.schema.json").is_valid(&vector("invalid-page.request.json")));
+        assert!(schema("response.schema.json").is_valid(&vector("page.response.json")));
+    }
+
+    #[test]
+    fn a_history_page_dates_the_products_the_library_lists_and_only_those() {
+        let world = make_world("orders");
+        let library: Value = serde_json::from_slice(&fs::read(schema_dir().parent().unwrap().join("v0.3/examples/page.request.json")).unwrap()).unwrap();
+        let begin: Value = serde_json::from_slice(&fs::read(schema_dir().parent().unwrap().join("v0.3/examples/begin.request.json")).unwrap()).unwrap();
+        let list = json!({"method": "library.list", "params": {"schemaVersion": "0.3", "sort": "added_desc"}});
+        let frames = run_frames(&world, &[begin, library, vector("page.request.json"), vector("invalid-page.request.json"), list]);
+        assert_eq!(frames[2]["payload"]["value"], vector("page.response.json"), "{}", frames[2]);
+        assert_eq!(frames[3]["payload"]["error"]["code"], "vua.catalog.invalid_params");
+        let row = &frames[4]["payload"]["value"]["items"][0];
+        assert_eq!(row["product"]["productId"], "booth:901", "{}", frames[4]);
+        assert_eq!(row["purchasedAt"], row["addedAt"]);
+        assert_eq!(vua_orchestrator::rfc3339_millis(row["purchasedAt"].as_str().unwrap()), vua_orchestrator::rfc3339_millis("2026-10-16T03:00:00Z"));
+        assert!(!world.bdl.library_order_times().unwrap().contains_key("booth:999"), "goods outside the library leave no record");
+    }
+
+    #[test]
+    fn a_document_that_is_not_a_history_page_is_named() {
+        let world = make_world("orders-not-page");
+        let mut request = vector("page.request.json");
+        request["params"]["html"] = json!("<html><body><p>Sign in</p></body></html>");
+        let frames = run_frames(&world, &[request]);
+        assert_eq!(frames[0]["payload"]["error"]["code"], "vua.catalog.not_an_orders_page");
+    }
+}
+
 mod v03 {
     use super::*;
 
@@ -196,7 +240,7 @@ fn run_frames(world: &World, requests: &[Value]) -> Vec<Value> {
         .iter()
         .enumerate()
         .map(|(index, request)| {
-            let is_query = matches!(request["method"].as_str(), Some("catalog.librarySyncStatus" | "catalog.list" | "catalog.status" | "catalog.detail" | "dependencies.listByProduct"));
+            let is_query = matches!(request["method"].as_str(), Some("library.list" | "catalog.librarySyncStatus" | "catalog.list" | "catalog.status" | "catalog.detail" | "dependencies.listByProduct"));
             let mut payload = json!({
                 "contractVersion": "0.1", "requestId": format!("req-{index}"), "correlationId": format!("corr-{index}"),
                 "kind": if is_query { "query" } else { "command" }, "method": request["method"], "params": request["params"],

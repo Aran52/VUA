@@ -13,6 +13,7 @@ import { isExternalToolParams, type ExternalToolAction, type ExternalToolId, typ
 import type { ManagerAppsResult } from "./manager-apps.js";
 import { isDownloadEventV01 } from "./download-events.js";
 import { isCatalogSyncPageRequestV01, type CatalogSyncPageRequestV01 } from "./catalog-sync.js";
+import { isCatalogOrdersPageV01, type CatalogOrdersPageV01 } from "./catalog-orders.js";
 import { isCatalogSyncParamsV03, type CatalogSyncBeginV03, type CatalogSyncPageV03, type CatalogSyncFinishV03, type CatalogSyncStatusV03 } from "./catalog-sync-v03.js";
 import { isLibraryDownloadParamsV01, type LibraryDownloadBeginV01, type LibraryDownloadObservationV01, type LibraryDownloadStatusV01 } from "./library-download-v01.js";
 import { isLibraryImportParamsV01, type LibraryImportParamsV01, type LibraryImportAcceptedV01 } from "./library-intake-v01.js";
@@ -1994,6 +1995,14 @@ export interface CatalogIngestLibraryPageCommandV01 extends ApplicationRequestBa
   readonly params: CatalogSyncPageRequestV01 | CatalogSyncPageV03;
 }
 
+/** Main → AMF: one purchase history page. Same carriage as a library page, with no session data. */
+export interface CatalogIngestOrdersPageCommandV01 extends ApplicationRequestBaseV01 {
+  readonly kind: "command";
+  readonly method: "catalog.ingestOrdersPage";
+  readonly commandId: string;
+  readonly params: CatalogOrdersPageV01;
+}
+
 export type CatalogSyncControlCommandV03 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "catalog.beginLibrarySync"; readonly params: CatalogSyncBeginV03 }
   | { readonly method: "catalog.finishLibrarySync"; readonly params: CatalogSyncFinishV03 }
@@ -2885,6 +2894,7 @@ export type ApplicationRequestV01 =
   | CatalogDetailQueryV03
   | CatalogStatusQueryV03
   | CatalogIngestLibraryPageCommandV01
+  | CatalogIngestOrdersPageCommandV01
   | CatalogSyncControlCommandV03
   | CatalogSyncStatusQueryV03
   | BoothSearchQueryV01
@@ -3754,6 +3764,10 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
     const ingestParams = value.params as { schemaVersion?: unknown; events?: unknown };
     if (ingestParams.schemaVersion !== "0.1" || !Array.isArray(ingestParams.events)) return false;
     return ingestParams.events.every((event) => isDownloadEventV01(event));
+  }
+  if (value.kind === "command" && value.method === "catalog.ingestOrdersPage") {
+    return hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "commandId", "params"])
+      && isIdentifier(value.commandId) && isCatalogOrdersPageV01(value.params);
   }
   if (value.kind === "command" && value.method === "catalog.ingestLibraryPage") {
     if (!hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "commandId", "params"])

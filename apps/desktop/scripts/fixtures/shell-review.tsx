@@ -97,7 +97,7 @@ function libraryList(input: Record<string, any>) {
     .filter(row => !input.text || titleOf(row).toLowerCase().includes(String(input.text).toLowerCase()))
     .filter(row => input.state !== "downloaded" || row.storage.presentCopies > 0)
     .filter(row => input.state !== "cloud_only" || row.storage.storedCopies === 0)
-    .map(row => { const facts = rowFacts(row); return { ...row, addedAt: facts.addedAt, publishedAt: facts.publishedAt, sizeBytes: facts.sizeBytes }; });
+    .map(row => { const facts = rowFacts(row); return { ...row, addedAt: facts.addedAt, ...(facts.id !== null && facts.number % 4 !== 0 ? { purchasedAt: facts.addedAt } : {}), publishedAt: facts.publishedAt, sizeBytes: facts.sizeBytes }; });
   const annotated = rows.map(row => {
     const id = row.product?.productId as string | undefined;
     const facts = id === undefined ? { state: "no_vn3" as const, items: [] as readonly string[] } : vn3Facts[id] ?? { state: "unread" as const, items: [] as readonly string[] };

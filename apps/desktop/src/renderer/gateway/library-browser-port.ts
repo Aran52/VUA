@@ -19,6 +19,7 @@ export interface LibraryCardFacts {
   readonly use?: LibraryUseV02;
   readonly vn3?: LibraryVn3RowV03;
   readonly addedAt?: string | null;
+  readonly purchasedAt?: string | null;
   readonly publishedAt?: string | null;
   readonly sizeBytes?: number;
   readonly variantCount?: number;
@@ -61,10 +62,10 @@ export interface LibraryBrowserPort {
   productFiles(productId: string): Promise<LibraryFileInventory>;
 }
 /** Facts the current face adds to a row, absent on earlier faces. */
-function currentFacts(row: object): Pick<LibraryCardFacts, "vn3" | "addedAt" | "publishedAt" | "sizeBytes"> {
+function currentFacts(row: object): Pick<LibraryCardFacts, "vn3" | "addedAt" | "purchasedAt" | "publishedAt" | "sizeBytes"> {
   if (!("sizeBytes" in row)) return {};
-  const current = row as { readonly addedAt: string | null; readonly publishedAt: string | null; readonly sizeBytes: number; readonly vn3?: LibraryVn3RowV03 };
-  return { addedAt: current.addedAt, publishedAt: current.publishedAt, sizeBytes: current.sizeBytes, ...(current.vn3 ? { vn3: current.vn3 } : {}) };
+  const current = row as { readonly addedAt: string | null; readonly purchasedAt?: string | null; readonly publishedAt: string | null; readonly sizeBytes: number; readonly vn3?: LibraryVn3RowV03 };
+  return { addedAt: current.addedAt, purchasedAt: current.purchasedAt ?? null, publishedAt: current.publishedAt, sizeBytes: current.sizeBytes, ...(current.vn3 ? { vn3: current.vn3 } : {}) };
 }
 export function createLiveLibraryBrowserPort(client: GatewayClient): LibraryBrowserPort {
   return {

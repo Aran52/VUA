@@ -373,6 +373,20 @@ pub(crate) fn distribution_user_agent(versions: Option<(&str, &str)>) -> Result<
     Ok(format!("VUA-distribution/0.2 host/{host} amf/{amf}"))
 }
 
+fn range_matches(response: &reqwest::Response, start: u64, end: u64, total: u64) -> bool {
+    response.status() == reqwest::StatusCode::PARTIAL_CONTENT
+        && response
+            .headers()
+            .get("Content-Range")
+            .and_then(|value| value.to_str().ok())
+            == Some(format!("bytes {start}-{end}/{total}").as_str())
+}
+pub fn verified_file(path: &Path, bytes: u64, sha256: &str) -> bool {
+    fs::symlink_metadata(path)
+        .is_ok_and(|meta| meta.is_file() && !meta.file_type().is_symlink() && meta.len() == bytes)
+        && file_digest(path).is_ok_and(|value| value == sha256)
+}
+
 #[cfg(test)]
 mod user_agent_tests {
     use super::distribution_user_agent;
@@ -388,17 +402,4 @@ mod user_agent_tests {
         );
         assert!(distribution_user_agent(Some(("1.0.1\r\nX-Fake: value", "0.3.0"))).is_err());
     }
-}
-fn range_matches(response: &reqwest::Response, start: u64, end: u64, total: u64) -> bool {
-    response.status() == reqwest::StatusCode::PARTIAL_CONTENT
-        && response
-            .headers()
-            .get("Content-Range")
-            .and_then(|value| value.to_str().ok())
-            == Some(format!("bytes {start}-{end}/{total}").as_str())
-}
-pub fn verified_file(path: &Path, bytes: u64, sha256: &str) -> bool {
-    fs::symlink_metadata(path)
-        .is_ok_and(|meta| meta.is_file() && !meta.file_type().is_symlink() && meta.len() == bytes)
-        && file_digest(path).is_ok_and(|value| value == sha256)
 }

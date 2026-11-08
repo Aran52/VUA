@@ -5,6 +5,7 @@ import { Button } from "../../components/primitives/Button.tsx";
 import { currentLocale } from "../../i18n/index.ts";
 import { firstUseCopy } from "../../i18n/first-use-copy.ts";
 import "./onboarding.css";
+import { UpdatePrivacyNotice } from "../modules/UpdatePrivacyNotice.tsx";
 
 export interface OnboardingResult {
   status: "completed" | "skipped";
@@ -38,6 +39,7 @@ export function OnboardingPage({ onComplete }: {
         <h2>{copy.licensesTitle}</h2><p>{copy.licenses}</p>
         <a href={appMeta.repoUrl + "/blob/main/THIRD_PARTY_NOTICES.md"} target="_blank" rel="noopener noreferrer">{copy.licensesLink}</a>
       </section>
+      <div className="vua-onboarding__part" data-first-use-part="updates"><UpdatePrivacyNotice /></div>
       <footer className="vua-onboarding__footer">
         <Button data-nav-id="first-use-beginner" onClick={() => onComplete({
           status: "completed", goals: [], environments: [], page: "help-wizard",

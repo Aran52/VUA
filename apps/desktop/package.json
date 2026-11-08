@@ -43,6 +43,7 @@
     "smoke:mcp-theme-ui": "electron scripts/smoke-mcp-theme-ui.mjs",
     "smoke:ai-bundle": "node scripts/smoke-ai-bundle.mjs",
     "smoke:first-run-ui": "electron scripts/smoke-first-run-ui.mjs",
+    "smoke:update-privacy": "electron scripts/smoke-first-run-ui.mjs --update-privacy-only",
     "smoke:amf-module": "electron scripts/smoke-amf-module.mjs",
     "smoke:component-updates": "electron scripts/smoke-component-updates.mjs",
     "smoke:amf-generations": "electron scripts/smoke-amf-generations.mjs",

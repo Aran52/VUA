@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.39.0
+> Document version: 0.40.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-08
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -59,6 +59,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.releaseState` | Query | `runId` | The run's turntable (`frames`, `size`, `bakedAt`, `current`), its last 10 uploads newest first and `editorOpen` |
 | `amf.production.turntableFrame` | Query | `runId`, `index` (0–59) | One turntable frame as `mediaType: "image/png"` and base64 `data` |
 | `amf.production.bakeTurntable` | Command | `runId` | Durable task baking the 60-frame turntable of the finished Avatar |
+| `amf.production.localTest` | Command | `runId` | Durable local Windows PC SDK build-and-test, with no upload rights confirmation or name |
 | `amf.production.upload` | Command | `runId`, `avatarName`, `rightsConfirmed: true` | Durable task building and uploading the finished Avatar with the VRChat SDK |
 | `amf.production.planTextureMemory` | Query | `runId`, `platform: pc / android`, `targetRank: excellent / good / medium / poor` | Digest-bound current inventory, suggested importer changes, predicted bytes/rank and `reachesTarget` |
 | `amf.production.applyTextureMemory` | Command | `runId`, `platform`, `targetRank`, `planDigest`, `textures` | Durable confirmed subset task; snapshot, version record, importer changes, independent reinspection and automatic restore on failure |
@@ -339,7 +340,7 @@ closed.
 
 Unity work has a capacity of 1, 2 or 3, defaulting to 1. The commands that start it — `prepare`, `prepareRecipe`,
 `assemble`, `reinspect`, `sdkFix`, `faceTrackingPatch`, `changeSources`, `applyRecipe`, `rollback`, `restoreRevision`, `open`, `delete`,
-`bakeTurntable`, `upload`, `closeEditor` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
+`bakeTurntable`, `upload`, `localTest`, `closeEditor` and `applyLighting` — are accepted while another job runs: their task stays `queued` and starts by itself,
 in request order, when admitted by these rules:
 
 - At most `capacity` jobs run at once. Capacity 1 runs one job at a time in submission order.
@@ -488,8 +489,8 @@ remain the record of what was assembled.
 ## Release
 
 A finished run (`succeeded`) leaves the factory through the release room. Its record lives beside
-the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. Both
-release commands share the production [queue](#queue), add a `turntable` or `upload` step to the
+the run in `releases/<runId>.json`; the run's phase and result stay as assembly left them. The
+release commands share the production [queue](#queue), add a `turntable`, `upload` or `local_test` step to the
 run while they work, and end that step as `succeeded` or `failed` with the reason in its detail.
 
 `amf.production.bakeTurntable` runs [Bridge v5](unity-bridge-v5.md#turntable) `amf_turntable`
@@ -528,6 +529,38 @@ facts read the SDK check again and list `sdkFixesApplied`. Items the last check 
 fix for are refused with `vua.amf_production.sdk_fix_unavailable` before any restore point; a
 failure restores the project. The release page offers it as "Fix with the SDK" after the player
 reads what happens.
+
+### Local SDK test and upload eligibility
+
+`amf.production.localTest {schemaVersion: "0.1", runId}` requires a succeeded run with an
+owned Avatar identity and the verified Editor. With Unity closed, the last observed project
+fingerprint must match; with Unity open the Bridge requires the work scene to be saved. It needs
+no Avatar name, thumbnail or upload rights confirmation. Local testing shares exclusive SDK
+admission with uploads and adds a `local_test` step without changing the run's phase or result.
+The official SDK's `BuildAndTest` runs on the Windows PC target only. VUA does not start VRChat.
+
+The release record adds `localTests` (default empty when reading older records), keeping 20 entries.
+Each entry carries `testId`, start/end times, state, stage, status, reason, detail, bounded errors,
+SDK sign-in source and the SDK review observed after this test. `releaseState` returns the newest
+ten. Stages are `sdk_panel`, `sign_in`, `building` and `finishing`. Cancellation is cooperative
+while waiting for the panel or sign-in. Once building starts, the public SDK cannot cancel it;
+the task waits for the actual outcome and identity restoration. A total timeout leaves an active
+build's recovery journal intact and refuses another SDK operation until Unity finishes recovery.
+An open Editor with a different embedded Bridge reports `bridge_outdated` immediately.
+
+Both uploads and local tests observe `CanPublishAvatars` after SDK sign-in. A real observation
+atomically replaces `amf-production/upload-eligibility.json` with `{schemaVersion: "0.1", canPublish,
+observedAt}`; no account name or identity is stored. `releaseState.uploadEligibility` is
+`{canPublish, observedAt} | null`. Missing, unobserved or unreadable data is unknown, never a
+negative permission decision. A later observation replaces it, so the UI must display its time.
+An observation write failure adds a task warning and a release diagnostic; it does not erase the
+SDK outcome or the ID returned by a successful upload.
+A test's fresh SDK review stays in its release record rather than replacing the assembly result.
+
+The [local SDK Bridge handoff](unity-bridge-v5.md#local-sdk-test-in-the-open-editor) owns temporary
+blueprint IDs and restoration. Synthetic regression tests do not verify appearance in VRChat,
+Visitor/New User accounts, repeated test entries or a subsequent first upload; those remain the
+real-client acceptance steps.
 
 ## Save and close the open Editor
 
@@ -828,6 +861,8 @@ controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transpor
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
 ## Document changelog
+
+- 0.40.0 (2026-11-08): add local SDK build-and-test, bounded test history and timestamped upload eligibility without changing assembled results.
 
 - 0.38.0 (2026-10-30): `amf.production.plan` carries `prediction`, the pre-assembly cost of the Avatar and each selected outfit (size, triangles, material slots, texture memory, PhysBones and parameter bits), reusing the texture-memory rules and the parameter estimate; candidates gain an optional `footprint`, and a plan from an older AMF build stays readable without one.
 

@@ -75,7 +75,7 @@ impl AmfProductionServices {
     pub(crate) fn submit(&self, request: SubmitRequest, run_id: &str, operation: &str) -> Result<CommandAcceptedV1, AppErrorV1> {
         let mut entries = self.entries.lock().expect("lane entries poisoned");
         let policy = TaskLanePolicy { key: Some(run_id.to_owned()),
-            exclusive: matches!(operation, "amf.production.upload" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.delete") };
+            exclusive: matches!(operation, "amf.production.upload" | "amf.production.localTest" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.delete") };
         let accepted = self.runtime.submit_in_lane_with_policy(request, &self.lane, policy)?;
         let snapshot = self.lane.snapshot();
         let live: Vec<String> = snapshot.running.into_iter().chain(snapshot.waiting).collect();
@@ -934,7 +934,7 @@ mod tests {
 
     #[test]
     fn upload_open_and_delete_are_exclusive_and_preserve_queue_order() {
-        for operation in ["amf.production.upload", "amf.production.open", "amf.production.closeEditor", "amf.production.delete"] {
+        for operation in ["amf.production.localTest", "amf.production.upload", "amf.production.open", "amf.production.closeEditor", "amf.production.delete"] {
             let root = std::env::temp_dir().join(format!("vua-amf-exclusive-{}", uuid_v7_identity()));
             let service = services_at(&root);
             capacity(&service, json!(2)).unwrap();

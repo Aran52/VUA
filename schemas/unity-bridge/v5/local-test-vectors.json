@@ -1,0 +1,149 @@
+[
+  {
+    "name": "local-request",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "avatarGlobalObjectId": "owned-avatar"
+    }
+  },
+  {
+    "name": "upload-fields-refused",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "avatarGlobalObjectId": "owned-avatar",
+      "rightsConfirmed": true
+    }
+  },
+  {
+    "name": "empty-avatar-refused",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "avatarGlobalObjectId": ""
+    }
+  },
+  {
+    "name": "visitor-success",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "outcome": "succeeded",
+      "reason": "",
+      "detail": "",
+      "errors": [],
+      "canPublishAvatars": false,
+      "canPublishAvatarsObserved": true,
+      "sdkSignIn": "panel"
+    }
+  },
+  {
+    "name": "unobserved-permission",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "outcome": "succeeded",
+      "reason": "",
+      "detail": "",
+      "errors": [],
+      "canPublishAvatars": false,
+      "canPublishAvatarsObserved": false,
+      "sdkSignIn": "panel"
+    }
+  },
+  {
+    "name": "permission-wrong-type",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "outcome": "succeeded",
+      "reason": "",
+      "detail": "",
+      "errors": [],
+      "canPublishAvatars": "false",
+      "canPublishAvatarsObserved": true,
+      "sdkSignIn": "panel"
+    }
+  },
+  {
+    "name": "observed-permission-missing",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "outcome": "succeeded",
+      "reason": "",
+      "detail": "",
+      "errors": [],
+      "canPublishAvatarsObserved": true,
+      "sdkSignIn": "panel"
+    }
+  },
+  {
+    "name": "building-progress",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "stage": "building",
+      "status": ""
+    }
+  },
+  {
+    "name": "upload-progress-refused",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "stage": "uploading",
+      "status": ""
+    }
+  },
+  {
+    "name": "cancel",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1"
+    }
+  },
+  {
+    "name": "recovery",
+    "valid": true,
+    "value": {
+      "schemaVersion": "0.1",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "avatarGlobalObjectId": "owned-avatar",
+      "blueprintId": "",
+      "hadPipeline": true
+    }
+  },
+  {
+    "name": "foreign-version",
+    "valid": false,
+    "value": {
+      "schemaVersion": "0.2",
+      "runId": "n3-local",
+      "testId": "test-1",
+      "avatarGlobalObjectId": "owned-avatar"
+    }
+  }
+]

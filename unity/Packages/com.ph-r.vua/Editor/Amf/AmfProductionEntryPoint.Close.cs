@@ -53,7 +53,8 @@ namespace Vua.Editor.Bridge
                 else if ((Application.unityVersion != "2022.3.22f1" && Application.unityVersion != "2022.3.22f1c1")
                     || EditorApplication.isPlayingOrWillChangePlaymode || uploadRunning
                     || PrefabStageUtility.GetCurrentPrefabStage() != null
-                    || File.Exists(Path.Combine(folder, "amf-upload.json")) || File.Exists(Path.Combine(folder, "amf-open.json")))
+                    || File.Exists(Path.Combine(folder, "amf-upload.json")) || File.Exists(Path.Combine(folder, "amf-open.json"))
+                    || File.Exists(Path.Combine(folder, "amf-test.json")) || File.Exists(Path.Combine(folder, "amf-test.started")))
                 {
                     receipt.reason = "editor_busy"; receipt.detail = "Finish Play mode, prefab editing or the SDK handoff in Unity, then try again.";
                 }

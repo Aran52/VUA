@@ -1008,6 +1008,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
     fn upload(&self, run: &ProductionRun, request: &UploadRequest, ctx: &TaskContext, progress: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
         release_handoff::upload(self, run, request, ctx, progress)
     }
+    fn local_test(&self, run: &ProductionRun, request: &LocalTestRequest, ctx: &TaskContext, progress: &mut dyn FnMut(UploadProgress)) -> Result<LocalTestReceipt, AppErrorV1> {
+        release_handoff::local_test(self, run, request, ctx, progress)
+    }
     fn snapshot_open_editor(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
         let id = format!("n3-{}", super::provider_host::uuid_v7_identity());
         FileSystemSnapshotStore.create_verified(&project(run), &id, &["Assets", "Packages", "ProjectSettings"])

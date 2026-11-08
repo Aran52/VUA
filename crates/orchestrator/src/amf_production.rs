@@ -609,6 +609,9 @@ pub trait AmfProductionPlatform: Send + Sync {
     fn upload(&self, _: &ProductionRun, _: &UploadRequest, _: &TaskContext, _: &mut dyn FnMut(UploadProgress)) -> Result<UploadReceipt, AppErrorV1> {
         Err(production_error("upload_unavailable", "Managed upload is unavailable on this platform."))
     }
+    fn local_test(&self, _: &ProductionRun, _: &LocalTestRequest, _: &TaskContext, _: &mut dyn FnMut(UploadProgress)) -> Result<LocalTestReceipt, AppErrorV1> {
+        Err(production_error("platform_unsupported", "Local SDK testing is unavailable on this platform."))
+    }
     /// Captures the on-disk state before a confirmed Editor save, without writing project files.
     fn snapshot_open_editor(&self, _: &ProductionRun) -> Result<String, AppErrorV1> {
         Err(production_error("editor_close_unavailable", "Saving and closing Unity is unavailable on this platform."))

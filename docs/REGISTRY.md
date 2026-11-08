@@ -13,8 +13,8 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/vua-instance-identity.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
-| docs/protocols/ai-tools-v0.1.md | 0.12.0 | Candidate | Integration | 2026-11-06 |
-| docs/protocols/amf-production-v0.1.md | 0.39.0 | Candidate | AMF | 2026-11-01 |
+| docs/protocols/ai-tools-v0.1.md | 0.13.0 | Candidate | Integration | 2026-11-08 |
+| docs/protocols/amf-production-v0.1.md | 0.40.0 | Candidate | AMF | 2026-11-08 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -96,7 +96,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/unity-bridge-v2.md | v2 | Frozen | Production | 2026-09-08 |
 | docs/protocols/unity-bridge-v3.md | v3 | Frozen | Production | 2026-09-13 |
 | docs/protocols/unity-bridge-v4.md | v4 | Frozen | Production | 2026-09-20 |
-| docs/protocols/unity-bridge-v5.md | 0.22.0 | Candidate | Production | 2026-10-30 |
+| docs/protocols/unity-bridge-v5.md | 0.23.0 | Candidate | Production | 2026-11-08 |
 | docs/protocols/website-tests-v0.1.md | 0.4 | Candidate | Environment | 2026-10-20 |
 | docs/protocols/windows-distribution-v0.1.md | 0.1 | Candidate | Integration | 2026-10-13 |
 | docs/protocols/windows-distribution-v0.2.md | 0.2 | Candidate | Integration | 2026-10-26 |
@@ -177,7 +177,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/unity-license/v0.1 | 0.1 | Candidate | Environment | 2026-10-19 |
 | schemas/unity-bridge/handshake/v1.0 | 1.0 | Frozen | Production | 2026-09-16 |
 | schemas/unity-bridge/v4 | v4 | Frozen | Production | 2026-09-20 |
-| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-10-24 |
+| schemas/unity-bridge/v5 | 5 | Candidate | Production | 2026-11-08 |
 | schemas/website-tests/v0.1/ | 0.1 | Candidate | Environment | 2026-10-07 |
 | schemas/windows-distribution/v0.1/ | 0.1 | Candidate | Integration | 2026-10-13 |
 | schemas/windows-distribution/v0.2/ | 0.2 | Candidate | Integration | 2026-10-26 |

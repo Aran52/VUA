@@ -296,6 +296,17 @@ describe("built-in MCP, using the official HTTP client", () => {
     const other = service.snapshot().requests.find(r => r.tool === "vua_request_play")!;
     await expect(service.resolve(other.id, "approve", { avatarName: "Meiyun", rightsConfirmed: true })).rejects.toThrow("upload_confirmation_required");
   });
+  it("waits for approval before local testing without asking for upload rights", async () => {
+    const { client, calls, service } = await setup();
+    await client.callTool({ name: "vua_request_amf_local_test", arguments: { runId: "n3-test" } });
+    const request = service.snapshot().requests[0]!;
+    expect(request.state).toBe("pending");
+    expect(calls.map(call => call.method)).toEqual(["amf.production.get"]);
+    await service.resolve(request.id, "approve");
+    expect(service.snapshot().requests[0]!.state).toBe("accepted");
+    expect(calls.at(-1)).toMatchObject({ method: "amf.production.localTest", params: { schemaVersion: "0.1", runId: "n3-test" } });
+    expect(calls.at(-1)!.params).toEqual({ schemaVersion: "0.1", runId: "n3-test" });
+  });
   it("returns a run's previews as labelled image content", async () => {
     const front = ".vua/previews/n3-test-1/front.png", coat = ".vua/previews/n3-test-0/candidate-000.png";
     const { client, calls } = await setup(async request => {

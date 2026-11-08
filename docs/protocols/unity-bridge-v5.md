@@ -1,8 +1,8 @@
 # Unity Bridge v5: AMF production
 
-> Document version: 0.22.0
+> Document version: 0.23.0
 > Status: Candidate
-> Updated: 2026-10-30
+> Updated: 2026-11-08
 
 This separate producing face admits the exact development pair `2022.3.22f1` and
 `2022.3.22f1c1`, retaining the complete running version. It does not change v1-v4 behavior.
@@ -208,6 +208,47 @@ started upload in `.vua/bridge/amf-upload.started` and answers `interrupted` ins
 twice. VUA accepts only answers bound to its run and upload ID, of at most 256 KiB, and a success
 only with a VRChat Avatar ID of the form `avtr_<uuid>`. It waits up to 10 minutes for the Editor to
 pick up the request and up to 90 minutes in all.
+
+## Local SDK test in the open Editor
+
+The public [SDK builder API](https://creators.vrchat.com/sdk/public-sdk-api/) exposes
+`BuildAndTest(GameObject)`. It needs the SDK panel and VRChat sign-in, but upload eligibility does
+not block it. The [first Avatar guide](https://creators.vrchat.com/avatars/creating-your-first-avatar/)
+distinguishes local tests from uploads. This handoff supports the Windows PC build target only.
+
+`schemas/unity-bridge/v5/local-test.schema.json` describes these files under `.vua/bridge/`:
+
+- `amf-test.json`: `{schemaVersion: "0.1", runId, testId, avatarGlobalObjectId}`.
+- `amf-test.progress.json`: the same run/test identity, `stage` and `status`; stages are
+  `sdk_panel`, `sign_in`, `building` and `finishing`.
+- `amf-test.result.json`: identity, `outcome`, `reason`, `detail`, `errors`,
+  `canPublishAvatars`, `canPublishAvatarsObserved`, `sdkSignIn` and `sdkReview`.
+  The observation flag is true only after SDK sign-in; the bool's default false is not an
+  observation. Upload receipts add the same two eligibility fields.
+- `amf-test.cancel`: schema/run/test identity; honored only before building starts.
+- `amf-test.started`: a recovery journal naming the run/test/owned Avatar, original
+  `blueprintId` and `hadPipeline` before any temporary identity is assigned.
+
+Uploads and local tests share one observer exclusion flag. Before a local build, the work scene
+must be saved. An empty original ID receives a deterministic local test ID derived from the run;
+an existing published ID stays unchanged. The journal is persisted before assigning an ID or
+adding a PipelineManager. Success, failure and SDK cancellation restore the original ID (or remove
+a newly added PipelineManager) and save the work scene before clearing the journal. A domain reload
+recovers from this journal even if the request disappeared, then reports `interrupted`; it never
+resumes the build. Failed restoration keeps the journal and blocks further SDK work until the
+player saves/reopens the work project for recovery.
+
+The Provider accepts only bounded (256 KiB), matching schema/run/test responses. It allows ten
+minutes for pickup and sixty minutes in total. During building, a stop request does not falsely
+report cancellation. A timed-out build keeps its request and journal because the SDK may still be
+running. Opening an old Bridge in an already-running Editor reports `bridge_outdated` before
+writing a request. A closed project receives the current embedded package first.
+
+Reasons are `sign_in_required`, `validation`, `build`, `build_blocked`, `avatar_missing`,
+`scene_not_saved`, `interrupted`, `editor_unavailable`, `timeout`, `cancelled`,
+`platform_unsupported` and `unknown`. VUA does not launch VRChat, write its installation directory,
+or perform an Android build. Repeated test entry behavior and scene fingerprints require real SDK
+acceptance; a synthetic observer test is not evidence of a successful VRChat trial.
 
 Requests and results are atomically written under the controlled Bridge directory. File hash,
 run binding, exact Editor pair, allowed operations and path containment are checked by Unity.
@@ -424,6 +465,8 @@ independent switch). A grouped item with a value below 1 or a parameter outside 
 not verify.
 
 ## Document changelog
+
+- 0.23.0 (2026-11-08): add the local SDK test handoff, durable blueprint restoration and explicit post-sign-in eligibility observations.
 
 - 0.22.0 (2026-10-30): each inspection candidate may carry `footprint` — triangles, material slots, renderer counts, decoded texture bytes, mesh buffer bytes and PhysBone counts observed before assembly, each group stating whether it is complete.
 

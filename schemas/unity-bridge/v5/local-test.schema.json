@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ph-r.com/vua/schemas/unity-bridge/v5/local-test.schema.json",
+  "title": "VUA local Avatar SDK test handoff v0.1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/progress"
+    },
+    {
+      "$ref": "#/$defs/receipt"
+    },
+    {
+      "$ref": "#/$defs/recovery"
+    },
+    {
+      "$ref": "#/$defs/cancel"
+    }
+  ],
+  "$defs": {
+    "sdkReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "platform",
+        "overall",
+        "issues",
+        "stats",
+        "detail"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_run",
+            "checked",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "platform": {
+          "enum": [
+            "",
+            "pc",
+            "android"
+          ]
+        },
+        "overall": {
+          "enum": [
+            "",
+            "None",
+            "Excellent",
+            "Good",
+            "Medium",
+            "Poor",
+            "VeryPoor"
+          ]
+        },
+        "issues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "level",
+              "text",
+              "canFix"
+            ],
+            "properties": {
+              "level": {
+                "enum": [
+                  "error",
+                  "warning",
+                  "info"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "canFix": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "stats": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "category",
+              "rating",
+              "text"
+            ],
+            "properties": {
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "rating": {
+                "enum": [
+                  "Excellent",
+                  "Good",
+                  "Medium",
+                  "Poor",
+                  "VeryPoor"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 600,
+                "pattern": "^[^\\u0000]*$"
+              }
+            }
+          }
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 600,
+          "pattern": "^[^\\u0000]*$"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "testId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "testId",
+        "avatarGlobalObjectId"
+      ]
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "testId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "stage": {
+          "enum": [
+            "sdk_panel",
+            "sign_in",
+            "building",
+            "finishing"
+          ]
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "testId",
+        "stage",
+        "status"
+      ]
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "testId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "",
+            "sign_in_required",
+            "validation",
+            "build",
+            "build_blocked",
+            "avatar_missing",
+            "scene_not_saved",
+            "interrupted",
+            "editor_unavailable",
+            "timeout",
+            "cancelled",
+            "platform_unsupported",
+            "unknown"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "errors": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string"
+          }
+        },
+        "canPublishAvatars": {
+          "type": "boolean"
+        },
+        "canPublishAvatarsObserved": {
+          "type": "boolean"
+        },
+        "sdkSignIn": {
+          "enum": [
+            "panel",
+            "vua_session"
+          ]
+        },
+        "sdkReview": {
+          "$ref": "#/$defs/sdkReview"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "testId",
+        "outcome",
+        "reason",
+        "detail",
+        "errors"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "canPublishAvatarsObserved": {
+                "const": true
+              }
+            },
+            "required": [
+              "canPublishAvatarsObserved"
+            ]
+          },
+          "then": {
+            "required": [
+              "canPublishAvatars"
+            ]
+          }
+        }
+      ]
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "testId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "avatarGlobalObjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "blueprintId": {
+          "type": "string"
+        },
+        "hadPipeline": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "testId",
+        "avatarGlobalObjectId",
+        "blueprintId",
+        "hadPipeline"
+      ]
+    },
+    "cancel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        },
+        "testId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,100}$"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "runId",
+        "testId"
+      ]
+    }
+  }
+}

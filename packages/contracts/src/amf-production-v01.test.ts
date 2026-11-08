@@ -6,6 +6,16 @@ import { isApplicationRequestV01 } from "./application-contract.js";
 
 const selection = { avatarPrefab:"Assets/Avatar.prefab",outfits:[{sourceId:"outfit",prefabPath:"Assets/Outfit.prefab",mode:"merge_armature",bone:"",toggleName:"Coat",active:true}] };
 describe("AMF material-first Candidate boundary", () => {
+  it("registers local testing without accepting upload rights, a name or caller-supplied paths", () => {
+    const params = { schemaVersion: "0.1", runId: "n3-test" };
+    expect(isDesktopGatewayRequestV1({ schemaVersion: 1, requestId: "test", method: "amf.production.localTest", params })).toBe(true);
+    const request = { contractVersion: "0.1", requestId: "test", correlationId: "test", commandId: "cmd-test", kind: "command", method: "amf.production.localTest", params };
+    expect(isApplicationRequestV01(request)).toBe(true);
+    expect(isApplicationRequestV01({ ...request, kind: "query" })).toBe(false);
+    for (const bad of [{ ...params, rightsConfirmed: true }, { ...params, avatarName: "Avatar" }, { ...params, projectRoot: "C:/project" }, { ...params, runId: "../run" }]) {
+      expect(isAmfProductionParams("amf.production.localTest", bad)).toBe(false);
+    }
+  });
   it("registers saving and closing as an explicitly confirmed command", () => {
     const params={schemaVersion:"0.1",runId:"n3-test",confirmed:true};
     expect(isDesktopGatewayRequestV1({schemaVersion:1,requestId:"close",method:"amf.production.closeEditor",params})).toBe(true);

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use vua_orchestrator::{amf_production::*, AppErrorV1, SubmitRequest, TaskExit};
 
 const QUERIES: [&str; 2] = ["amf.production.releaseState", "amf.production.turntableFrame"];
-const COMMANDS: [&str; 2] = ["amf.production.bakeTurntable", "amf.production.upload"];
+const COMMANDS: [&str; 3] = ["amf.production.bakeTurntable", "amf.production.upload", "amf.production.localTest"];
 
 /// Padded standard base64, as data URLs expect.
 fn standard_base64(bytes: &[u8]) -> String {
@@ -67,6 +67,8 @@ fn handle(service: &Arc<AmfProductionServices>, method: &str, request: &Value, q
     if service.lane.is_idle() {
         if method == "amf.production.upload" {
             service.engine.precheck_upload(&run_id, &avatar_name)?;
+        } else if method == "amf.production.localTest" {
+            service.engine.precheck_local_test(&run_id)?;
         } else {
             service.engine.precheck_turntable(&run_id)?;
         }
@@ -78,10 +80,12 @@ fn handle(service: &Arc<AmfProductionServices>, method: &str, request: &Value, q
         job: Box::new(move |ctx| {
             if action == "amf.production.upload" {
                 worker.engine.upload(&operation_run, &avatar_name, ctx)?;
+            } else if action == "amf.production.localTest" {
+                worker.engine.local_test(&operation_run, ctx)?;
             } else {
                 worker.engine.bake_turntable(&operation_run, ctx)?;
             }
-            if ctx.check_cancel() {
+            if ctx.check_cancel() && action != "amf.production.localTest" {
                 return Ok(TaskExit::Cancelled);
             }
             Ok(TaskExit::Done(json!({"schemaVersion":"0.1", "operation":"amf.production", "runId":operation_run})))

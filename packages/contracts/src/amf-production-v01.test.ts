@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { isAmfProductionParams, isAmfEditorCloseResult, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES } from "./amf-production-v01.js";
+import { isAmfProductionParams, isAmfEditorCloseResult, isAmfAssemblySelection, readAmfProductionProgress, isAmfStep, isAmfUsualDurations, isAmfRunProgress, AMF_RUN_PHASES, AMF_STEP_KEYS } from "./amf-production-v01.js";
 import { DESKTOP_GATEWAY_METHOD_KINDS, isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isApplicationRequestV01 } from "./application-contract.js";
 
@@ -126,8 +126,13 @@ describe("AMF material-first Candidate boundary", () => {
   });
 
   it("accepts every step the AMF engine records, including release steps", () => {
-    for (const key of ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"])
+    for (const key of AMF_STEP_KEYS)
       expect(isAmfStep({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-17T15:00:00.000Z", endedAt: "2026-10-17T15:01:00.000Z" }), key).toBe(true);
+    for (const name of ["progress", "status"]) {
+      const schema = JSON.parse(readFileSync(new URL(`../../../schemas/amf-production-flow/v0.1/${name}.schema.json`, import.meta.url), "utf8"));
+      const keys: string[] = schema.$defs.stepKey.enum;
+      expect(keys.filter(key => key !== "open").sort(), name).toEqual([...AMF_STEP_KEYS].sort());
+    }
   });
 });
 

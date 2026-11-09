@@ -1,0 +1,7 @@
+{
+  "operation": "amf.production",
+  "runId": "n3-example",
+  "step": "local_test",
+  "name": "Build and test with the VRChat SDK",
+  "startedAt": "2026-11-09T08:00:00.000Z"
+}

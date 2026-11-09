@@ -1194,7 +1194,7 @@
       ],
       "properties": {
         "method": {
-          "const": "amf.production.bakeTurntable"
+          "enum": ["amf.production.bakeTurntable", "amf.production.localTest"]
         },
         "kind": {
           "const": "command"

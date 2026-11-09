@@ -14,7 +14,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
 | docs/protocols/ai-tools-v0.1.md | 0.13.0 | Candidate | Integration | 2026-11-08 |
-| docs/protocols/amf-production-v0.1.md | 0.40.0 | Candidate | AMF | 2026-11-08 |
+| docs/protocols/amf-production-v0.1.md | 0.40.1 | Candidate | AMF | 2026-11-09 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -106,7 +106,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/share-links/v0.1 | 0.1 | Candidate code vectors | AMF | 2026-10-29 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
-| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-29 |
+| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-11-09 |
 | schemas/amf-recipe/v0.4 | 0.4 | Candidate | AMF | 2026-10-20 |
 | schemas/amf-recipe/v0.5 | 0.5 | Candidate | AMF | 2026-10-24 |
 | schemas/application-contract/v0.1 | 0.1 | Frozen | Core | 2026-09-15 |

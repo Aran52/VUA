@@ -1346,21 +1346,29 @@ fn steps_record_their_times_and_usual_durations_take_the_median_of_finished_step
 #[test]
 fn every_step_the_engine_records_is_in_the_published_status_schema() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let schema: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join("../../schemas/amf-production-flow/v0.1/status.schema.json")).unwrap()).unwrap();
-    let text = schema.to_string();
-    let mut sources = vec![root.join("src/amf_production.rs")];
-    sources.extend(fs::read_dir(root.join("src/amf_production")).unwrap().map(|entry| entry.unwrap().path()));
-    let marker = "self.step(&mut run, ctx, \"";
+    let mut sources = vec![root.join("src/amf_production.rs"), root.join("src/amf_production")];
+    let marker = "self.step(&mutrun,ctx,\"";
     let mut keys = Vec::new();
-    for source in sources {
-        let code = fs::read_to_string(source).unwrap();
+    while let Some(source) = sources.pop() {
+        if source.is_dir() {
+            sources.extend(fs::read_dir(source).unwrap().map(|entry| entry.unwrap().path()));
+            continue;
+        }
+        if source.extension() != Some(std::ffi::OsStr::new("rs")) { continue; }
+        // Rustfmt can split a step call across lines, including in nested release modules.
+        let code: String = fs::read_to_string(source).unwrap().chars().filter(|c| !c.is_ascii_whitespace()).collect();
         for part in code.split(marker).skip(1) {
             keys.push(part.split('"').next().unwrap().to_owned());
         }
     }
     assert!(keys.len() >= 8, "found the engine's steps: {keys:?}");
-    for key in keys {
-        assert!(text.contains(&format!("\"{key}\"")), "status.schema.json lists the step key {key}");
+    assert!(keys.iter().any(|key| key == "local_test"), "found the nested local-test step");
+    for name in ["status", "progress"] {
+        let schema: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join(format!("../../schemas/amf-production-flow/v0.1/{name}.schema.json"))).unwrap()).unwrap();
+        let allowed = schema["$defs"]["stepKey"]["enum"].as_array().unwrap();
+        for key in &keys {
+            assert!(allowed.contains(&serde_json::Value::String(key.clone())), "{name}.schema.json lists the step key {key}");
+        }
     }
 }
 

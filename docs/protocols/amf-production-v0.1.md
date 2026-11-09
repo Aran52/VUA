@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.40.0
+> Document version: 0.40.1
 > Status: Candidate
-> Updated: 2026-11-08
+> Updated: 2026-11-09
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -300,8 +300,9 @@ longer runs as `interrupted`, next to the run phase `inspect_required`.
 
 `amf.production.get` also reports `usualDurations`: for each step key, the median in whole
 seconds of the succeeded steps of the 30 most recent runs on this computer. `progress` is `null`
-unless a task works on the run (`preparing`, `inspecting`, `assembling`, `restoring`); then it
-names the running `step` with its `name`, `startedAt`, `elapsedSeconds`, `usualSeconds` (`null`
+unless the last recorded step is running. A `local_test` step can run while the production
+phase remains `succeeded`. Progress names the running `step` with its `name`, `startedAt`,
+`elapsedSeconds`, `usualSeconds` (`null`
 before a step of that kind has finished here) and, during a Unity batch run, `unity`.
 
 Task progress events of an `amf.production` task carry `operation: "amf.production"`, `runId`,
@@ -861,6 +862,8 @@ controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transpor
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
 ## Document changelog
+
+- 0.40.1 (2026-11-09): align local-test request, step, progress and status schemas with the consumers, and clarify progress on an already assembled line.
 
 - 0.40.0 (2026-11-08): add local SDK build-and-test, bounded test history and timestamped upload eligibility without changing assembled results.
 

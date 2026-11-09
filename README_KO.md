@@ -38,7 +38,7 @@ AMF는 VUA와 함께 설치되는 자체 편집 모듈이며 새 사용자에게
 - VUA는 VRChat Inc.와 제휴하거나 공식 승인을 받은 제품이 아닌 독립적인 서드파티 도우미이며, 문서화된 외부 인터페이스, OSC, 실행 옵션, 필요한 로컬 로그와 문서화된 설정만 사용하고 VRChat 클라이언트 주입·후킹·패치 또는 EAC 우회를 하지 않습니다.
 - 첫 계정 안내는 격리된 임시 브라우저 세션을 사용합니다. VUA 앱 기능은 비밀번호를 수집하거나 로그인 Cookie와 토큰을 앱 데이터, 로그 또는 에이전트 컨텍스트로 추출하지 않으며, 첫 제공 범위에서는 VRChat 로그인을 기억하지 않습니다. 이후 웹 정보 읽기와 실험적 로그인 유지 기능은 별도 개발 방향이며 플랫폼 승인을 뜻하지 않습니다. [계정 경계](docs/product-boundary.md#account-onboarding-user-ruling-2026-09-30)를 참조하세요.
 - 계정 변경은 사용자가 허용된 절차로 시작해야 하며, VUA가 클라우드에서 계정을 대신 조작하거나 Avatar를 자동으로 대신 업로드하지 않습니다.
-- 기능에 필요한 최소 데이터만 기본적으로 로컬에 보관하고 불필요한 친구 활동 추적이나 프로파일링을 만들지 않으며, 유료 소재는 로컬에 두고 공유 Recipe에는 소재 자체를 넣지 않습니다.
+- 기능에 필요한 최소 데이터만 기본적으로 로컬에 보관하고 불필요한 친구 활동 추적이나 프로파일링을 만들지 않으며, 유료 소재는 로컬에 두고 공유 Recipe에는 소재 자체를 넣지 않습니다. 업데이트 요청의 단기 서비스 로그와 일별 집계에는 [배포 통계 경계](docs/product-boundary.md#update-distribution-request-statistics-user-ruling-2026-11-07)가 적용되며 설치 ID를 추가하지 않습니다.
 - 문서화되지 않은 클라이언트 동작, 숨겨진 설정 및 통제되지 않는 API 자동화는 기본 범위에서 제외되며, 기술 검사 통과는 외형·동작·실사용 안전성을 보장하지 않습니다.
 
 [VRChat Creator Guidelines](https://hello.vrchat.com/creator-guidelines) · [Configuration File](https://docs.vrchat.com/docs/configuration-file)

@@ -108,6 +108,7 @@ import {
 } from "./gateway/index.ts";
 import { ModulesPage } from "./features/modules/ModulesPage.tsx";
 import { ComponentUpdatePanel } from "./features/modules/ComponentUpdatePanel.tsx";
+import { UpdatePrivacyNotice } from "./features/modules/UpdatePrivacyNotice.tsx";
 import { UpdatePlanPanel } from "./features/modules/UpdatePlanPanel.tsx";
 import { AmfBoundary } from "./features/modules/AmfBoundary.tsx";
 import { FileDropImporter } from "./features/import/FileDropImporter.tsx";
@@ -500,6 +501,7 @@ function AboutPage() {
         <h1 className="vua-title">{strings.nav.pages.settingsAbout}</h1>
       </section>
       <ComponentUpdatePanel component="host" />
+      <Card><UpdatePrivacyNotice /></Card>
       <UpdatePlanPanel />
       <VersionDetails />
       <Card>
@@ -1123,6 +1125,7 @@ export function App() {
     resolveEntry(storedGoals, override === null ? readStoredPage() : null),
   );
   const [showOnboarding, setShowOnboarding] = useState(entry.showOnboarding);
+  const automaticCheckStarted = useRef(false);
   // Main owns the native splash; browser previews retain an in-page fallback.
   const [splashDone, setSplashDone] = useState(false);
   const nativeStartup = window.vua?.startup;
@@ -1143,14 +1146,16 @@ export function App() {
   // 结果落缓存供设置页呈现;延迟 2.5s 让启动链路先行,失败
   // 恒落 check-failed 缓存(不弹打扰、不猜态)
   useEffect(() => {
+    if (showOnboarding || automaticCheckStarted.current) return;
     const timer = window.setTimeout(() => {
+      automaticCheckStarted.current = true;
       void (async () => {
         if ((await gateway.componentUpdates?.snapshot("host"))?.available) await checkComponents(gateway.componentUpdates);
         else await runUpdateCheck();
       })();
     }, 2500);
     return () => window.clearTimeout(timer);
-  }, [gateway.componentUpdates]);
+  }, [gateway.componentUpdates, showOnboarding]);
   // 深链接(C-EFFICIENCY):#<pageId> 优先于 ?page= 与历史落点
   const [page, setPage] = useState<PageId>(() => {
     const hashPage = readHashPage();

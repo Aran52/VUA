@@ -74,6 +74,12 @@ async function firstRun(theme, step) {
   requestedTheme = theme;
   win.setContentSize(1280, 1600);
   await win.loadURL(`${server.resolvedUrls.local[0]}__layout-app`);
+  // Initialize the page before CDP media emulation; hosted Windows reduces motion.
+  // Reduced-motion behavior has its own fixture, while this case verifies transitions.
+  if (!win.webContents.debugger.isAttached()) win.webContents.debugger.attach("1.3");
+  await win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
+    features: [{name:"prefers-reduced-motion",value:"no-preference"}],
+  });
   await until("!!window.firstRunReview", "App fixture did not load");
   await evaluate(step);
   await pause(200);
@@ -171,6 +177,7 @@ async function main() {
   try {
     await app.whenReady();
     server=await createServer({configFile:false,appType:"custom",root,plugins:[react()],logLevel:"error",
+      cacheDir:path.join(profile,"vite-cache"),
       server:{host:"127.0.0.1",port:0},optimizeDeps:{include:["react","react-dom/client","@vua/contracts"]}});
     server.middlewares.use(async(req,res,next)=>{
       const route=req.url?.split("?")[0];
@@ -205,6 +212,6 @@ async function main() {
     for(const check of checks)console.log(`✔ ${check}`);
     console.log(JSON.stringify({scope:"Real Chromium components; synthetic data; no device or material acceptance",passed:checks.length}));
     win.destroy();await server.close();app.exit(0);
-  }catch(error){console.error(error);win?.destroy();await server?.close();app.exit(1);}
+  }catch(error){console.error(error);app.exit(1);}
 }
 void main();

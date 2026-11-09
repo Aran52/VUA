@@ -1,7 +1,7 @@
 //! Durable, independent discovery. Fixed feeds and opaque inventory identities stay native.
 use crate::{
     component_feed::{self, ComponentFeed, ComponentKind, Release},
-    layout::Installation,
+    layout::{Active, Installation},
     manifest::{Component, Manifest, SignedManifest, MAX_MANIFEST_BYTES},
     paths::{atomic_json, owned_path},
     transfer::{verified_file, Transfer},
@@ -171,6 +171,21 @@ impl Installation {
         )
     }
 
+    pub(crate) fn accept_component_check(
+        &self,
+        kind: ComponentKind,
+        raw: &[u8],
+        active: &Active,
+    ) -> Result<(ComponentFeed, Value)> {
+        let feed = self.accept_component_index(kind, raw)?;
+        let withdrawn = self.invalidate_stale_component_pending(kind, active, &feed)?;
+        let mut view = self.component_snapshot(kind)?;
+        if withdrawn {
+            view["error"] = json!("update_withdrawn");
+        }
+        Ok((feed, view))
+    }
+
     pub async fn check_component(&self, kind: ComponentKind, transfer: &Transfer) -> Result<Value> {
         let _check = self.lock(&format!("component-check-{}.lock", kind.name()))?;
         let active = self.active()?;
@@ -178,10 +193,8 @@ impl Installation {
         let amf = self.manifest(&active.amf_manifest)?;
         let raw = transfer.manifest(kind.feed()).await?;
         transfer.checkpoint()?;
-        let feed = self.accept_component_index(kind, &raw)?;
-        self.invalidate_stale_component_pending(kind, &active)?;
+        let (feed, mut view) = self.accept_component_check(kind, &raw, &active)?;
         let selection = feed.select(&host, &amf)?;
-        let mut view = self.component_snapshot(kind)?;
         if let Some(latest) = selection.latest {
             view["latestVersion"] = json!(latest.version);
             if kind == ComponentKind::Amf
@@ -203,7 +216,10 @@ impl Installation {
                 view["requiresHost"] = json!(latest.compatibility.host);
             }
         }
-        if let Some(entry) = selection.target.filter(|_| view["state"] == "idle") {
+        if let Some(entry) = selection
+            .target
+            .filter(|_| view["state"] == "idle" && view["error"] != "update_withdrawn")
+        {
             let mut authenticated = None;
             for url in &entry.manifest.sources {
                 transfer.checkpoint()?;

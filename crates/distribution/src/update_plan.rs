@@ -1,9 +1,9 @@
 //! Explicit, authenticated pair plans break host/AMF compatibility cycles.
 use crate::{
-    component_feed::{self, ComponentKind, Release},
+    component_feed::{self, ComponentFeed, ComponentKind, Release},
     component_update::fetch_inventory,
     layout::{Active, Installation},
-    manifest::SignedManifest,
+    manifest::{Manifest, SignedManifest},
     paths::{digest, owned_path},
     transfer::Transfer,
     Error, Result,
@@ -34,6 +34,49 @@ fn newer(candidate: &str, installed: &str) -> bool {
         .expect("validated candidate")
         .cmp_precedence(&semver::Version::parse(installed).expect("validated installed version"))
         .is_gt()
+}
+
+pub(crate) fn select_update_pair<'a>(
+    host_feed: &'a ComponentFeed,
+    amf_feed: &'a ComponentFeed,
+    host: &Manifest,
+    amf: &Manifest,
+) -> Result<(&'a Release, &'a Release)> {
+    let mut candidates = Vec::new();
+    for next_host in &host_feed.releases {
+        if !newer(&next_host.version, &host.host.version) {
+            continue;
+        }
+        for next_amf in &amf_feed.releases {
+            if newer(&next_amf.version, &amf.amf.version)
+                && component_feed::compatible(
+                    &next_amf.compatibility,
+                    &next_host.version,
+                    &next_host.compatibility,
+                )
+                && next_amf
+                    .compatibility
+                    .bdl_read
+                    .contains(&amf.compatibility.bdl_write)
+            {
+                candidates.push((next_host, next_amf));
+            }
+        }
+    }
+    candidates.sort_by(|(a_host, a_amf), (b_host, b_amf)| {
+        let order = semver::Version::parse(&b_host.version)
+            .expect("validated version")
+            .cmp_precedence(&semver::Version::parse(&a_host.version).expect("validated version"));
+        order.then_with(|| {
+            semver::Version::parse(&b_amf.version)
+                .expect("validated version")
+                .cmp_precedence(&semver::Version::parse(&a_amf.version).expect("validated version"))
+        })
+    });
+    candidates
+        .into_iter()
+        .next()
+        .ok_or_else(|| Error("no_compatible_update_plan".into()))
 }
 
 impl Installation {
@@ -122,44 +165,7 @@ impl Installation {
         let host_feed = self.accept_component_index(ComponentKind::Host, &host_raw)?;
         let amf_raw = transfer.manifest(ComponentKind::Amf.feed()).await?;
         let amf_feed = self.accept_component_index(ComponentKind::Amf, &amf_raw)?;
-        let mut candidates = Vec::new();
-        for next_host in &host_feed.releases {
-            if !newer(&next_host.version, &host.host.version) {
-                continue;
-            }
-            for next_amf in &amf_feed.releases {
-                if newer(&next_amf.version, &amf.amf.version)
-                    && component_feed::compatible(
-                        &next_amf.compatibility,
-                        &next_host.version,
-                        &next_host.compatibility,
-                    )
-                    && next_amf
-                        .compatibility
-                        .bdl_read
-                        .contains(&amf.compatibility.bdl_write)
-                {
-                    candidates.push((next_host, next_amf));
-                }
-            }
-        }
-        candidates.sort_by(|(a_host, a_amf), (b_host, b_amf)| {
-            let order = semver::Version::parse(&b_host.version)
-                .expect("validated version")
-                .cmp_precedence(
-                    &semver::Version::parse(&a_host.version).expect("validated version"),
-                );
-            order.then_with(|| {
-                semver::Version::parse(&b_amf.version)
-                    .expect("validated version")
-                    .cmp_precedence(
-                        &semver::Version::parse(&a_amf.version).expect("validated version"),
-                    )
-            })
-        });
-        let (next_host, next_amf) = candidates
-            .first()
-            .ok_or_else(|| Error("no_compatible_update_plan".into()))?;
+        let (next_host, next_amf) = select_update_pair(&host_feed, &amf_feed, &host, &amf)?;
         let host_bytes =
             fetch_inventory(next_host, ComponentKind::Host, transfer, self.trust_key()).await?;
         let amf_bytes =

@@ -99,10 +99,12 @@ fn version(value: &str) -> Result<semver::Version> {
     semver::Version::parse(value).map_err(|_| Error("invalid_component_version".into()))
 }
 pub(crate) fn compatible(amf: &Compatibility, host_version: &str, host: &Compatibility) -> bool {
-    semver::VersionReq::parse(&amf.host)
-        .ok()
-        .zip(version(host_version).ok())
-        .is_some_and(|(range, version)| range.matches(&version))
+    host.ui_abi == UI_ABI
+        && host.application == "0.1"
+        && semver::VersionReq::parse(&amf.host)
+            .ok()
+            .zip(version(host_version).ok())
+            .is_some_and(|(range, version)| range.matches(&version))
         && amf.ui_abi == host.ui_abi
         && amf.react == host.react
         && amf.application == host.application
@@ -145,8 +147,8 @@ impl ComponentFeed {
                 return Err(Error("invalid_component_release".into()));
             }
             let c = &release.compatibility;
-            if c.ui_abi != UI_ABI
-                || c.application != "0.1"
+            if c.ui_abi.is_empty()
+                || c.application.is_empty()
                 || c.bridge.is_empty()
                 || c.bdl_write.is_empty()
                 || c.bdl_read.is_empty()

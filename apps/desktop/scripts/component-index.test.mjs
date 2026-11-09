@@ -10,10 +10,10 @@ const trustedKey = createPublicKey(privateKey).export({ type: "spki", format: "d
 const cases = JSON.parse(fs.readFileSync(new URL("../../../schemas/windows-distribution/v0.2/vectors/cases.json", import.meta.url)));
 const old = JSON.parse(fs.readFileSync(new URL("../../../schemas/windows-distribution/v0.1/vectors/cases.json", import.meta.url)));
 
-for (const vector of cases) test(`Component producer agrees with native vector: ${vector.name}`, () => {
+for (const vector of cases) test(`Component publication policy consumes vector: ${vector.name}`, () => {
   const run = () => vector.schema === "index" ? validateIndex(vector.value)
     : verifyIndex(Buffer.from(JSON.stringify(vector.value)), trustedKey, vector.component);
-  if (vector.nativeValid) assert.doesNotThrow(run);
+  if (vector.publisherValid ?? vector.nativeValid) assert.doesNotThrow(run);
   else assert.throws(run);
 });
 

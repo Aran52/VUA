@@ -7,6 +7,8 @@ use std::{
 };
 #[path = "data_recovery_tests.rs"]
 mod actual_data;
+#[path = "component_client_tests.rs"]
+mod component_client;
 fn pack(files: &[(&str, &[u8])]) -> (Vec<FileObject>, Vec<u8>, Pack) {
     let mut data = Vec::new();
     let mut inventory = Vec::new();
@@ -505,7 +507,11 @@ async fn host_component_stages_while_running_and_activates_only_after_exit_and_c
         "active_selection_changed"
     );
     installation
-        .invalidate_stale_component_pending(Amf, &active)
+        .invalidate_stale_component_pending(
+            Amf,
+            &active,
+            &installation.cached_component_index(Amf).unwrap().unwrap().0,
+        )
         .unwrap();
     assert!(installation.component_pending(Amf).unwrap().is_none());
     assert_eq!(
@@ -626,7 +632,15 @@ async fn host_component_cancellation_corruption_and_crashed_bootstrap_switch_pre
     );
     assert!(!installation.recover_component_activation().unwrap());
     installation
-        .invalidate_stale_component_pending(Host, &original)
+        .invalidate_stale_component_pending(
+            Host,
+            &original,
+            &installation
+                .cached_component_index(Host)
+                .unwrap()
+                .unwrap()
+                .0,
+        )
         .unwrap();
     assert!(installation.component_pending(Host).unwrap().is_none());
     assert!(installation

@@ -20,6 +20,22 @@ pub fn report(progress: Progress) {
         json!({"schemaVersion":"0.1", "kind":"progress", "progress":progress})
     );
 }
+pub(crate) fn active_component_versions(installation: &Installation) -> Option<(String, String)> {
+    let active = installation.active().ok()?;
+    Some((
+        installation
+            .manifest(&active.host_manifest)
+            .ok()?
+            .host
+            .version,
+        installation
+            .manifest(&active.amf_manifest)
+            .ok()?
+            .amf
+            .version,
+    ))
+}
+
 pub async fn execute(
     args: &[String],
     cancel: Arc<AtomicBool>,
@@ -53,15 +69,7 @@ pub async fn execute(
             installation.register_data_profile(Path::new(profile))?;
         }
     }
-    let versions = installation
-        .active()
-        .and_then(|active| {
-            Ok((
-                installation.manifest(&active.host_manifest)?.host.version,
-                installation.manifest(&active.amf_manifest)?.amf.version,
-            ))
-        })
-        .ok();
+    let versions = active_component_versions(&installation);
     let mut transfer = Transfer::with_versions(
         cancel,
         progress,

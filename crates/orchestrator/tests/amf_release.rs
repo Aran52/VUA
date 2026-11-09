@@ -138,7 +138,9 @@ impl Harness {
             tx.send(result.as_ref().map(|_| ()).map_err(|error| error.code.clone())).unwrap();
             result.map(|()| TaskExit::Done(json!({"synthetic":true})))
         }) }).unwrap();
-        rx.recv_timeout(Duration::from_secs(5)).unwrap()
+        // This bounds the durable synthetic job, not the SDK deadline. Concurrent SQLite/file
+        // commits on hosted Windows can outlast five seconds, as in the production-flow harness.
+        rx.recv_timeout(Duration::from_secs(60)).unwrap()
     }
     fn bake(&self) -> Result<(), String> { self.job(|engine, ctx| engine.bake_turntable(RUN, ctx)) }
     fn upload(&self, name: &'static str) -> Result<(), String> { self.job(move |engine, ctx| engine.upload(RUN, name, ctx)) }

@@ -53,7 +53,22 @@ pub async fn execute(
             installation.register_data_profile(Path::new(profile))?;
         }
     }
-    let mut transfer = Transfer::new(cancel, progress)?;
+    let versions = installation
+        .active()
+        .and_then(|active| {
+            Ok((
+                installation.manifest(&active.host_manifest)?.host.version,
+                installation.manifest(&active.amf_manifest)?.amf.version,
+            ))
+        })
+        .ok();
+    let mut transfer = Transfer::with_versions(
+        cancel,
+        progress,
+        versions
+            .as_ref()
+            .map(|(host, amf)| (host.as_str(), amf.as_str())),
+    )?;
     match command {
         "component-data-status" => installation.data_trial_status(Path::new(
             option(args, "--profile").ok_or_else(|| Error("invalid_data_profile".into()))?,

@@ -560,6 +560,7 @@ fn sort_rows(rows: &mut [Value], sort: &str, moments: &HashMap<String, i64>) {
     };
     let by_title = |a: &Value, b: &Value| natural(&row_title(a), &row_title(b));
     let price = |a: f64, b: f64| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal);
+    let published = |row: &Value| row_text(row, "publishedAt").and_then(vua_orchestrator::rfc3339_offset_millis);
     rows.sort_by(|a, b| {
         let order = match sort {
             "added_asc" => missing_last(added(a), added(b), |a, b| a.cmp(&b)).then_with(|| row_number(a).cmp(&row_number(b))),
@@ -568,7 +569,7 @@ fn sort_rows(rows: &mut [Value], sort: &str, moments: &HashMap<String, i64>) {
             "shop_asc" => missing_last(row_shop(a), row_shop(b), |a, b| natural(&a, &b)),
             "price_asc" => missing_last(row_price(a), row_price(b), price),
             "price_desc" => missing_last(row_price(a), row_price(b), |a, b| price(b, a)),
-            "published_desc" => missing_last(row_text(a, "publishedAt"), row_text(b, "publishedAt"), |a, b| b.cmp(a)),
+            "published_desc" => missing_last(published(a), published(b), |a, b| b.cmp(&a)),
             "size_desc" => b["sizeBytes"].as_u64().cmp(&a["sizeBytes"].as_u64()),
             "size_asc" => a["sizeBytes"].as_u64().cmp(&b["sizeBytes"].as_u64()),
             _ => missing_last(added(a), added(b), |a, b| b.cmp(&a)),
@@ -752,6 +753,27 @@ mod added_tests {
         let moments = settled(&mut rows, ordered);
         sort_rows(&mut rows, sort, &moments);
         rows.iter().map(|row| row["product"]["productId"].as_str().or(row["entry"]["displayName"].as_str()).unwrap().to_owned()).collect()
+    }
+
+    #[test]
+    fn publications_sort_by_instant_with_unknown_dates_last() {
+        let published = |id: &str, date: Option<&str>| {
+            let mut row = product(id, FIRST_SYNC);
+            row["publishedAt"] = json!(date);
+            row
+        };
+        let mut rows = vec![
+            published("booth:1", Some("2026-11-10T00:00:00Z")),
+            published("booth:2", Some("2026-11-10T08:00:00+09:00")),
+            published("booth:3", Some("2026-11-09T22:00:00-05:00")),
+            published("booth:4", Some("2026-11-10T09:00:00.125+09:00")),
+            published("booth:5", None),
+            published("booth:6", Some("2026-02-30T00:00:00Z")),
+        ];
+        sort_rows(&mut rows, "published_desc", &HashMap::new());
+        let ids: Vec<_> = rows.iter().map(|row| row["product"]["productId"].as_str().unwrap()).collect();
+        assert_eq!(ids, ["booth:3", "booth:4", "booth:1", "booth:2", "booth:6", "booth:5"]);
+        assert_eq!(rows[0]["publishedAt"], "2026-11-09T22:00:00-05:00", "source spelling stays intact");
     }
 
     #[test]

@@ -12,10 +12,13 @@
 //! the HTML it came from (`content_hash` + `observed_at` + processor
 //! version, attached by the caller).
 
-use scraper::{ElementRef, Html, Selector};
+use scraper::{ElementRef, Html, Node, Selector};
 use serde::Serialize;
 use serde_json::Value;
 use std::fmt;
+
+mod product_json;
+pub use product_json::extract_product_json;
 
 /// Extraction failures are structural: the page is not a product page at
 /// all. Missing *fields* are findings on a successful extraction.
@@ -23,6 +26,7 @@ use std::fmt;
 pub enum ExtractionError {
     ProductRootMissing,
     ProductIdMissing,
+    InvalidProductJson,
 }
 
 impl fmt::Display for ExtractionError {
@@ -30,6 +34,7 @@ impl fmt::Display for ExtractionError {
         match self {
             Self::ProductRootMissing => write!(f, "no #items product root found"),
             Self::ProductIdMissing => write!(f, "#items carries no data-product-id"),
+            Self::InvalidProductJson => write!(f, "unrecognized product JSON"),
         }
     }
 }
@@ -43,8 +48,8 @@ pub struct ExtractedSubproduct {
     pub name: Option<String>,
     pub price_amount: Option<String>,
     pub price_currency: Option<String>,
-    /// `available` or `sold_out` (a sold-out option is recorded, never removed).
-    pub availability: String,
+    /// `available`, `sold_out`, or None for an unknown status (a sold-out option stays).
+    pub availability: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -52,12 +57,12 @@ pub struct ExtractedSubproduct {
 pub struct ExtractedProduct {
     pub native_product_id: String,
     pub source_category: Option<String>,
-    /// Which title source answered: `h2` (primary) or `ld_json` (fallback).
+    /// Which title source answered: `h2`, `ld_json`, or public product `json`.
     pub title_source: Option<&'static str>,
     pub title: Option<String>,
     pub shop_name: Option<String>,
     pub shop_url: Option<String>,
-    /// True only with BOOTH's explicit Adult badge — never inferred.
+    /// True only with BOOTH's explicit Adult badge or JSON flag — never inferred.
     pub adult: bool,
     pub likes: Option<String>,
     pub published_date_raw: Option<String>,
@@ -289,11 +294,11 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
                 name: item.select(&variation_name).next().map(text_of).filter(|text| !text.is_empty()),
                 price_amount,
                 price_currency,
-                availability: if sold_out {
+                availability: Some(if sold_out {
                     "sold_out".to_owned()
                 } else {
                     "available".to_owned()
-                },
+                }),
             });
         }
     }
@@ -309,13 +314,13 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
     let mut body_parts = Vec::new();
     if let Some(article) = root_article.as_ref() {
         if let Some(description) = article.select(&body_selector).next() {
-            let text = text_of(description);
+            let text = description_text(description);
             if !text.is_empty() {
                 body_parts.push(text);
             }
         }
         for section in article.select(&shop_text) {
-            let text = text_of(section);
+            let text = description_text(section);
             if !text.is_empty() {
                 body_parts.push(text);
             }
@@ -325,7 +330,7 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
         missing.push("body");
         None
     } else {
-        Some(body_parts.join(" "))
+        Some(body_parts.join("\n\n"))
     };
 
     // Search projection: body, title, author, subproduct names, source
@@ -380,6 +385,45 @@ pub fn extract_product_page(html: &str) -> Result<ExtractedProduct, ExtractionEr
 }
 
 // --- helpers ---
+
+fn description_text(element: ElementRef) -> String {
+    // Explicit traversal keeps deeply nested remote HTML off the call stack.
+    // Inline nodes do not introduce spaces inside words or URLs.
+    let mut text = String::new();
+    let mut nodes = vec![(*element, false)];
+    while let Some((node, closing)) = nodes.pop() {
+        match node.value() {
+            Node::Text(value) => text.push_str(value),
+            Node::Element(value) => {
+                let name = value.name();
+                if matches!(name, "script" | "style" | "template") { continue; }
+                if name == "br" { text.push('\n'); continue; }
+                let block = matches!(name, "p" | "div" | "section" | "li" | "ul" | "ol" | "blockquote" | "pre" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6");
+                if closing {
+                    if block && !text.ends_with("\n\n") { text.push_str("\n\n"); }
+                } else {
+                    if block && !text.ends_with('\n') && !text.is_empty() { text.push_str("\n\n"); }
+                    nodes.push((node, true));
+                    nodes.extend(node.children().rev().map(|child| (child, false)));
+                }
+            }
+            _ => {}
+        }
+    }
+    normalize_description(&text)
+}
+
+fn normalize_description(text: &str) -> String {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = Vec::new();
+    for line in text.lines() {
+        let line = line.split_whitespace().collect::<Vec<_>>().join(" ");
+        if line.is_empty() && (lines.is_empty() || lines.last().is_some_and(String::is_empty)) { continue; }
+        lines.push(line);
+    }
+    if lines.last().is_some_and(String::is_empty) { lines.pop(); }
+    lines.join("\n")
+}
 
 fn text_of(element: ElementRef) -> String {
     let joined = element

@@ -48,7 +48,7 @@ pub use assembly::{
     AssemblyPlanV1, AssemblyStepV1, BridgeError, UnityBridge,
 };
 pub use booth_extraction::{
-    extract_product_page, ExtractedProduct, ExtractedSubproduct, ExtractionError,
+    extract_product_json, extract_product_page, ExtractedProduct, ExtractedSubproduct, ExtractionError,
 };
 pub use plan_documents::{ApproveOutcome, PlanDocumentStore, APPROVED_PLAN_SCHEMA_VERSION};
 pub use inspection_evidence::{
@@ -147,7 +147,7 @@ pub use state_file::{
     StateFile, StateFileError, StateLoad, StateRecoveryReason, STATE_FILE_SCHEMA_VERSION,
 };
 pub use time::{
-    rfc3339, rfc3339_millis, Clock, FixedClock, FixedIdGenerator, NanosTaskIdGenerator,
+    rfc3339, rfc3339_millis, rfc3339_offset_millis, Clock, FixedClock, FixedIdGenerator, NanosTaskIdGenerator,
     SystemClock, TaskIdGenerator,
 };
 pub use tools::{

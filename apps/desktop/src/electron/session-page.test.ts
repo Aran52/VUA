@@ -19,6 +19,13 @@ class Request extends EventEmitter {
 let request: Request;
 beforeEach(() => { vi.clearAllMocks(); request = new Request(); vi.mocked(net.request).mockReturnValue(request as unknown as ReturnType<typeof net.request>); });
 describe("private session HTML reads", () => {
+  it("requests the public JSON representation through the same local partition", async () => {
+    const url = "https://booth.pm/ja/items/99990001.json";
+    const pending = readSessionPage(partition, url, ["https://booth.pm"]);
+    request.respond('{"id":99990001}');
+    expect((await pending).body).toBe('{"id":99990001}');
+    expect(net.request).toHaveBeenCalledWith(expect.objectContaining({session:partition,headers:{accept:"application/json,text/html;q=0.5"}}));
+  });
   it("uses the supplied partition and returns a real URL without fetch Response.url", async () => {
     const result = readSessionPage(partition, url, origins);
     request.respond();

@@ -1673,6 +1673,8 @@ export interface CatalogSyncApiV1 {
   probe(): Promise<CatalogSyncProbeOutcomeV1>;
   /** 详情富化:抓取该商品页并更新本地目录观察(变体/画廊/描述) */
   fetchProduct(productId: string): Promise<{ ok: boolean }>;
+  /** A quiet batch refresh hint; consumers re-read the authoritative library. */
+  subscribeEnrichment?(listener: (event: { readonly schemaVersion: "0.1"; readonly updated: number }) => void): () => void;
   searchProducts(query: string): Promise<import("./booth-search-v01.js").BoothSearchResultV01>;
 }
 

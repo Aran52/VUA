@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.39.0
+> Document version: 0.41.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-10
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -104,6 +104,38 @@ inconsistent GUID metadata, file/directory conflicts and Windows case collisions
 Malformed unrelated ZIP files are not offered as package sources. Each listed source names the
 BOOTH products its library entry maps to (`productIds`, from download provenance and local
 matches; empty when none is known), so a line's materials can be checked against [VN3 terms](terms-v0.1.md).
+
+### Material read caches
+
+Each source in `amf.production.list` may also carry `sha256`: a previously recorded, lowercase
+64-character digest without a prefix. A direct UnityPackage uses its recorded library artifact
+digest; a ZIP member has a digest only after a material read has recorded it. Listing never hashes
+file contents. Missing digests are omitted, and consumers continue to accept older responses
+without this field. The [source schema](../../schemas/amf-production-flow/v0.1/source.schema.json)
+defines this additive field. These facts support a preliminary material checklist; they are not a
+fresh integrity check and do not authorize preparation, assembly or restoration.
+
+`recipeMaterialPlan` reuses material digests while the source path, byte length and last-modified
+time match. A ZIP member also includes its member name in the key; its metadata comes from the
+containing archive. The version-1 cache lives at `amf-production/material-hashes.json`, with at
+most 8,192 entries and four MiB. Writes use a `.pending` file followed by atomic replacement.
+Missing, corrupt, oversized or unrecognized caches are treated as empty; failed persistence does
+not fail a material read. A file that changes during hashing causes `source_drift`. Execution
+continues to verify selected bytes independently, without trusting this advisory cache.
+
+Source enumeration rechecks library membership, removal records, names, product mappings and
+file metadata on every call. Matching observations reuse ZIP directory results; an unknown file
+stamp requires another scan. Editor discovery re-enumerates installation roots and reuses at
+most 128 executable probes by path, length and last-modified time. Directory inputs and unknown
+stamps are probed again. Imports, removals, changed archives and newly installed Editors therefore
+appear on the next query.
+
+The Provider runs `amf.production.list` and `amf.production.recipeMaterialPlan` on two read workers
+with at most 32 queued requests. Fast queries can respond meanwhile, and responses retain their
+original frame and request IDs. Commands are admitted on the existing frame loop in arrival
+order. A full read queue returns `vua.amf_production.busy`; a failed worker or a query cancelled by
+shutdown returns `vua.amf_production.unavailable`. This uses the existing frame shape described
+in the [Provider process protocol](provider-process-v0.1.md).
 
 The plan digest binds the observation revision, candidates, chosen inputs, Editor, project
 fingerprints and selection. Reinspection invalidates every earlier confirmation.
@@ -828,6 +860,8 @@ controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transpor
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
 ## Document changelog
+
+- 0.41.0 (2026-11-10): add optional recorded source digests, bounded advisory material/source/Editor caches, and bounded concurrent read scheduling. Commands and execution integrity checks keep their existing behavior.
 
 - 0.38.0 (2026-10-30): `amf.production.plan` carries `prediction`, the pre-assembly cost of the Avatar and each selected outfit (size, triangles, material slots, texture memory, PhysBones and parameter bits), reusing the texture-memory rules and the parameter estimate; candidates gain an optional `footprint`, and a plan from an older AMF build stays readable without one.
 

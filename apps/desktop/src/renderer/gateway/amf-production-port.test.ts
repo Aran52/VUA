@@ -217,6 +217,19 @@ describe("AMF production response boundary", () => {
       await expect(port.list()).rejects.toThrow("list_invalid");
     }
   });
+  it("reads optional recorded source digests without requiring them from older providers", async () => {
+    const source = {sourceId:"cpy-1",itemId:"whi-1",itemName:"Synthetic.zip",name:"Avatar.unitypackage"};
+    const digest = "a".repeat(64);
+    const list = {schemaVersion:"0.1",sources:[{...source,sha256:digest},source],editors:[],runs:[],busy:false,capacity:1,running:[],queue:[]};
+    let response: unknown = list;
+    const client: GatewayClient = {async invoke(){return{ok:true,value:response as DesktopGatewaySuccessValueV1};},subscribe(){return()=>{};}};
+    const port = createAmfProductionPort(client);
+    expect((await port.list()).sources.map(item => item.sha256)).toEqual([digest, undefined]);
+    for (const sha256 of [null, 7, "", "a".repeat(63), "g".repeat(64), `sha256:${digest}`]) {
+      response = {...list,sources:[{...source,sha256}]};
+      await expect(port.list()).rejects.toThrow("list_invalid");
+    }
+  });
   it("sets capacity through the command and verifies the saved result", async () => {
     const requests: unknown[] = [];
     let result: unknown = {schemaVersion:"0.1",capacity:2};

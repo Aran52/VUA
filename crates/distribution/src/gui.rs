@@ -23,11 +23,42 @@ struct State {
     progress: HWND,
     language: usize,
 }
-const COPY: [[&str; 5]; 4] = [
-    ["Installing VUA", "Checking and preparing files…", "Cancel", "Installation failed. Retry the installer or use the offline installer. Your current installation and personal data are retained.", "Cancelling…"],
-    ["正在安装 VUA", "正在检查并准备文件…", "取消", "安装未完成。请重试安装器，或使用离线安装包。原有版本和个人数据已保留。", "正在取消…"],
-    ["VUA をインストール", "ファイルを確認・準備中…", "キャンセル", "インストールできませんでした。再試行するか、オフライン版を使用してください。既存のアプリと個人データは保持されます。", "キャンセル中…"],
-    ["VUA 설치", "파일 확인 및 준비 중…", "취소", "설치하지 못했습니다. 다시 시도하거나 오프라인 설치 파일을 사용하세요. 기존 앱과 개인 데이터는 유지됩니다.", "취소 중…"],
+const COPY: [[&str; 5]; 5] = [
+    [
+        "Installing VUA",
+        "Checking and preparing files…",
+        "Cancel",
+        "Couldn't finish installing VUA. Run the installer again, or try the offline installer instead. Your existing app and personal data were kept safe.",
+        "Cancelling…",
+    ],
+    [
+        "正在安装 VUA",
+        "正在检查并准备文件…",
+        "取消",
+        "安装未能完成。请重新运行安装程序，或改用离线安装包。原有版本与个人数据均已保留。",
+        "正在取消…",
+    ],
+    [
+        "正在安裝 VUA",
+        "正在檢查並準備檔案…",
+        "取消",
+        "安裝未能完成。請重新執行安裝程式，或改用離線安裝包。原有版本與個人資料均已保留。",
+        "正在取消…",
+    ],
+    [
+        "VUA をインストール中",
+        "ファイルを確認・準備しています…",
+        "キャンセル",
+        "インストールを完了できませんでした。もう一度実行するか、オフライン版インストーラーをお試しください。既存のアプリと個人データはそのまま保持されています。",
+        "キャンセル中…",
+    ],
+    [
+        "VUA 설치 중",
+        "파일을 확인하고 준비하는 중…",
+        "취소",
+        "설치를 완료하지 못했어요. 설치 프로그램을 다시 실행하거나 오프라인 설치 파일을 사용해 보세요. 기존 앱과 개인 데이터는 그대로 유지돼요.",
+        "취소하는 중…",
+    ],
 ];
 unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPARAM) -> LRESULT {
     let state = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut State;
@@ -97,8 +128,9 @@ unsafe extern "system" fn procedure(hwnd: HWND, message: u32, w: WPARAM, l: LPAR
 pub fn install(args: Vec<String>, cancel: Arc<AtomicBool>) -> i32 {
     let language = match vua_distribution::commands::option(&args, "--lang") {
         Some("2052") => 1,
-        Some("1041") => 2,
-        Some("1042") => 3,
+        Some("1028" | "3076" | "5124") => 2,
+        Some("1041") => 3,
+        Some("1042") => 4,
         _ => 0,
     };
     let latest = Arc::new(Mutex::new(None));
@@ -221,6 +253,6 @@ pub fn install(args: Vec<String>, cancel: Arc<AtomicBool>) -> i32 {
 }
 pub fn failure(code: &str) {
     unsafe {
-        MessageBoxW(ptr::null_mut(), wide(&format!("VUA could not start ({code}).\nRun the VUA installer again to repair program files. Personal data will be retained.")).as_ptr(), wide("VUA").as_ptr(), MB_OK|MB_ICONERROR);
+        MessageBoxW(ptr::null_mut(), wide(&format!("VUA couldn't start ({code}).\nRun the VUA installer again to repair program files — your personal data will be kept safe.")).as_ptr(), wide("VUA").as_ptr(), MB_OK|MB_ICONERROR);
     }
 }

@@ -212,7 +212,7 @@ async function run() {
     await js('document.querySelector("[data-nav-id=play-other-headsets]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=play-device-varjo]")'), "Less common headsets follow their own entry");
     await js('document.querySelector("[data-nav-id=play-device-varjo]").click()');
-    await waitFor(() => js('!!document.getElementById("route-varjo-details") && !!document.querySelector("[data-nav-id=play-official-varjo-base]")'), "Varjo's steps link its official page");
+    await waitFor(() => js('!!document.getElementById("route-varjo-details") && !!document.querySelector("[data-nav-id=play-official-varjo-base]") && document.querySelector("[data-nav-id=route-varjo-action]")?.getAttribute("aria-busy")==="false"'), "Varjo's steps link its official page");
     assert(await js('!document.querySelector(".vua-setup__connections")'), "A wired headset skips the connection question");
     await js('document.querySelector("[data-nav-id=play-device-quest]").click()');
     await waitFor(() => js('!!document.getElementById("route-quest-details") && !!document.querySelector("[data-nav-id=play-official-quest-link]")'), "Meta Quest's steps");

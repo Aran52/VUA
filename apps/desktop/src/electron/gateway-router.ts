@@ -283,13 +283,15 @@ function toApplicationRequest(
       const { commandId, ...params } = request.params;
       return { ...base, kind: "command", commandId, method: request.method, params };
     }
-    case "recipeDraft.list":
+    case "recipeDraft.list": case "recipeDraft.legacyCensus":
       return { ...base, kind: "query", method: request.method, params: request.params };
-    case "recipeDraft.get": case "recipeDraft.selectionStatus":
+    case "recipeDraft.get": case "recipeDraft.selectionStatus": case "recipeDraft.materialsForLine":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "recipeDraft.save":
       return { ...base, kind: "command", commandId: request.requestId, method: request.method, params: request.params };
     case "recipeDraft.addSelection":
+      return { ...base, kind: "command", commandId: request.requestId, method: request.method, params: request.params };
+    case "recipeDraft.migrateLegacy":
       return { ...base, kind: "command", commandId: request.requestId, method: request.method, params: request.params };
     case "catalog.detail":
       return { ...base, kind: "query", method: "catalog.detail", params: request.params };
@@ -589,11 +591,11 @@ function toApplicationRequest(
       return { ...base, kind: "command", commandId: `license-${request.requestId}`, method: request.method, params: request.params };
     case "environment.unityLicense":
     case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
-    case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
+    case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.recipeImage": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "amf.production.exportShareImage":
       return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };
-    case "amf.production.applyTextureMemory": case "amf.production.closeEditor": case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.restoreRevision": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.faceTrackingPatch": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.removeOutfit": case "amf.production.applyLighting": case "amf.production.saveFit": case "amf.production.renameFit": case "amf.production.deleteFit":
+    case "amf.production.applyTextureMemory": case "amf.production.closeEditor": case "amf.production.prepare": case "amf.production.assemble": case "amf.production.reinspect": case "amf.production.open": case "amf.production.rollback": case "amf.production.restoreRevision": case "amf.production.renameRecipe": case "amf.production.deleteRecipe": case "amf.production.saveRecipe": case "amf.production.prepareRecipe": case "amf.production.exportRecipe": case "amf.production.importRecipe": case "amf.production.applyRecipe": case "amf.production.bakeTurntable": case "amf.production.upload": case "amf.production.faceTrackingPatch": case "amf.production.sdkFix": case "amf.production.changeSources": case "amf.production.delete": case "amf.production.setCapacity": case "amf.production.removeOutfit": case "amf.production.applyLighting": case "amf.production.saveFit": case "amf.production.renameFit": case "amf.production.deleteFit":
       return { ...base, kind: "command", commandId: `amf-${request.requestId}`, method: request.method, params: request.params };
     case "recipe.save":
       return {

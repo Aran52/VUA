@@ -30,6 +30,8 @@ mod parameter_budget;
 pub use parameter_budget::*;
 mod prediction;
 pub use prediction::*;
+mod recipes;
+pub use recipes::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -888,7 +890,7 @@ impl AmfProductionEngine {
         runs.truncate(30);
         Ok(runs)
     }
-    pub(crate) fn recipe_store(&self) -> crate::RecipeDocumentStore {
+    pub fn recipe_store(&self) -> crate::RecipeDocumentStore {
         crate::RecipeDocumentStore::new_with_system_clock(self.root.join("recipes-v04"))
     }
     pub fn save_recipe(&self, run_id: &str, recipe_id: &str, title: &str) -> Result<crate::StoredRecipeDocument, AppErrorV1> {
@@ -910,9 +912,10 @@ impl AmfProductionEngine {
         self.record_recipe_products(&run, &mut recipe)?;
         if self.recipe_store().get(recipe_id).map_err(io_error)?.is_some() { return Err(production_error("recipe_exists", "Save a revised Recipe under a new identity.")); }
         self.retain_recipe_origin(&run, &recipe)?;
-        self.recipe_store().save(recipe_id, &serde_json::to_value(recipe).map_err(io_error)?, 0).map_err(io_error)
+        let stored = self.recipe_store().save(recipe_id, &serde_json::to_value(recipe).map_err(io_error)?, 0).map_err(io_error)?;
+        self.keep_recipe_still(&run, recipe_id);
+        Ok(stored)
     }
-    pub fn list_recipes(&self) -> Result<Vec<crate::RecipeListEntry>, AppErrorV1> { self.recipe_store().list().map_err(io_error) }
     pub fn get_recipe(&self, recipe_id: &str) -> Result<crate::StoredRecipeDocument, AppErrorV1> {
         let stored = self.recipe_store().get(recipe_id).map_err(io_error)?
             .ok_or_else(|| production_error("recipe_missing", "The saved Recipe is no longer available."))?;

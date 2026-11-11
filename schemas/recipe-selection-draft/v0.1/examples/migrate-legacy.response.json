@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "0.1",
+  "totalDocuments": 1,
+  "migratedCount": 1,
+  "unchangedCount": 0,
+  "unresolvedOnlyCount": 0,
+  "failedCount": 0,
+  "items": [
+    {
+      "recipeId": "01950000-0000-7000-8000-000000000001",
+      "targetDraftId": "recipe-draft-legacy-01950000-0000-7000-8000-000000000001",
+      "status": "created",
+      "draftRevision": 1,
+      "migratedSelections": 2,
+      "unresolvedAssets": [
+        {
+          "assetId": "hair-pack",
+          "reason": "entity_only"
+        }
+      ],
+      "hasGraphSettings": true
+    }
+  ]
+}

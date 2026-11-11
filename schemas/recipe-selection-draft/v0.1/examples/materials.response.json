@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "0.1",
+  "draftId": "recipe-draft-synthetic",
+  "revision": 2,
+  "sources": [
+    {
+      "sourceId": "copy-synthetic-1",
+      "itemId": "entry-synthetic-1",
+      "itemName": "Synthetic Avatar Package",
+      "name": "SyntheticAvatar.unitypackage",
+      "productIds": [
+        "booth:90"
+      ],
+      "selectionIndices": [
+        0
+      ]
+    }
+  ],
+  "missing": [
+    {
+      "index": 1,
+      "reason": "missing"
+    }
+  ]
+}

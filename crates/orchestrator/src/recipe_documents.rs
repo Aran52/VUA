@@ -84,6 +84,10 @@ impl RecipeDocumentStore {
         Self { root: root.into(), now }
     }
 
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
     /// Production constructor: `updatedAt` is the real store clock, stamped
     /// by the single hand-written civil-calendar converter (`time::rfc3339`,
     /// Howard Hinnant's `civil_from_days`, pinned against leap/century
@@ -157,6 +161,16 @@ impl RecipeDocumentStore {
             RecipeSaveError::StoreIo { detail: error.to_string() }
         })?;
         Ok(stored)
+    }
+
+    /// Deletes only the exact stored revision. Missing documents conflict at revision zero.
+    pub fn delete(&self, recipe_id: &str, expected_revision: u64) -> Result<(), RecipeSaveError> {
+        let path = self.path_for(recipe_id)?;
+        let current_revision = self.read_metadata(recipe_id)?.map_or(0, |stored| stored.revision);
+        if current_revision == 0 || current_revision != expected_revision {
+            return Err(RecipeSaveError::RevisionConflict { current_revision });
+        }
+        fs::remove_file(path).map_err(|error| RecipeSaveError::StoreIo { detail: error.to_string() })
     }
 
     /// Reads one stored document (latest revision).

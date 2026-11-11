@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.39.0
+> Document version: 0.42.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-11
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -827,7 +827,57 @@ authoritative number.
 controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transport and local
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
+## Local Recipe management
+
+These additive methods use the existing production face, command envelope and
+`schemaVersion: "0.1"`. Their closed requests join the
+[production request schema](../../schemas/amf-production-flow/v0.1/request.schema.json).
+
+| Method | Kind | Additional params | Result |
+| --- | --- | --- | --- |
+| `amf.production.renameRecipe` | Command | `recipeId`, `expectedRevision`, `title` | `{schemaVersion, document}` with the stored Recipe and revision incremented once |
+| `amf.production.deleteRecipe` | Command | `recipeId`, `expectedRevision` | `{schemaVersion, recipeId, deleted: true}` |
+| `amf.production.recipeImage` | Query | `recipeId` | `{schemaVersion, recipeId, image: {mediaType: "image/png", data} \| null}` |
+
+`expectedRevision` is a positive JavaScript-safe integer. A missing document or stale revision
+returns `vua.amf_production.recipe_revision_conflict` (category `conflict`,
+`params.currentRevision`, zero when missing). A rename validates the title by the same Recipe
+validation used by save, preserving the declaration's format and all fields except title.
+Its valid local provenance remains bound to the renamed declaration. A bounded two-digest
+local origin transition protects that binding if writing the document is interrupted;
+unmatched or malformed provenance is never promoted into evidence by a rename.
+
+Deletion refuses `recipe_in_use` when **any** retained line record references the Recipe,
+including confirmed lines, lines outside the newest-30 list and lines whose project is gone.
+Unreadable line records block deletion because their references cannot be checked. No line
+is edited by rename or delete. Commands require an idle production lane. Once references are
+clear, deletion removes the optional still before the revision-guarded document deletion;
+a later document I/O failure can leave the still absent while preserving the document.
+
+`listRecipes` adds optional `avatarName` (the declared Avatar material's package name),
+`outfitCount`, `materialCount`, `packageCount` and sorted unique `boothProductIds`. These are
+declaration facts, not a material availability plan. Both Recipe v0.4 and v0.5 are supported.
+An invalid Recipe body retains its readable identity/title/revision/time without these facts;
+an unreadable storage envelope is omitted without inventing metadata or failing other rows.
+The files are retained for repair. No source scan, hash or Unity operation runs for card facts.
+
+After a successful save, AMF best-effort copies the run's reported front view from
+`stills/<runId>` to `recipe-stills/<recipeId>.png`. An absent or invalid source leaves no image
+and does not undo the saved Recipe. The image query requires an existing Recipe, accepts only
+PNG bytes up to 640 KiB (the turntable-frame bound), and reads at most that bound plus one byte.
+No image is null; an invalid stored image is `recipe_image_invalid`. These local images do not
+alter Recipe declarations, share documents, or `exportShareImage`.
+
+`amf.production.list` adds optional `recipeId` on each line only while that Recipe has a valid
+readable declaration. This enables a caller to offer rebuilding a missing project. Older
+responses without the field remain valid; a missing/invalid Recipe does not hide its line.
+
+Legacy `recipe.*` is still retained during consumer and data migration. This addition alone
+does not retire its workspace, stores, frozen contracts, or library reference protections.
+
 ## Document changelog
+
+- 0.42.0 (2026-11-11): revision-guarded Recipe rename/delete, additive card facts, local Recipe stills and surviving source Recipe IDs on line summaries. This candidate number follows the pending 0.40/0.41 slices and must be reconciled in merge order.
 
 - 0.38.0 (2026-10-30): `amf.production.plan` carries `prediction`, the pre-assembly cost of the Avatar and each selected outfit (size, triangles, material slots, texture memory, PhysBones and parameter bits), reusing the texture-memory rules and the parameter estimate; candidates gain an optional `footprint`, and a plan from an older AMF build stays readable without one.
 

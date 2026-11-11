@@ -1,4 +1,15 @@
-import { isRecipeDraftListV01, isRecipeDraftReadV01, isRecipeDraftSelectionStatusV01, type RecipeDraftSelectionStatusV01 } from "@vua/contracts";
+import {
+  isRecipeDraftLegacyCensusV01,
+  isRecipeDraftLegacyMigrationV01,
+  isRecipeDraftListV01,
+  isRecipeDraftMaterialsForLineV01,
+  isRecipeDraftReadV01,
+  isRecipeDraftSelectionStatusV01,
+  type RecipeDraftLegacyCensusV01,
+  type RecipeDraftLegacyMigrationV01,
+  type RecipeDraftMaterialsForLineV01,
+  type RecipeDraftSelectionStatusV01,
+} from "@vua/contracts";
 import type { GatewayClient, GatewayResult } from "./gateway-client.ts";
 import type { RecipeAssetRef } from "./recipe-port.ts";
 export interface RecipeDraftSummary { readonly draftId: string; readonly title: string; readonly revision: number; readonly updatedAt: string; readonly selectionCount: number }
@@ -10,6 +21,9 @@ export interface RecipeDraftPort {
   list(): Promise<readonly RecipeDraftSummary[]>;
   get(draftId: string): Promise<RecipeDraftRead>;
   selectionStatus(draftId: string): Promise<RecipeDraftSelectionStatusV01>;
+  materialsForLine(draftId: string): Promise<RecipeDraftMaterialsForLineV01>;
+  legacyCensus(): Promise<RecipeDraftLegacyCensusV01>;
+  migrateLegacy(): Promise<RecipeDraftLegacyMigrationV01>;
   save(draftId: string, title: string, selections: readonly RecipeAssetRef[], baseRevision: number): Promise<RecipeDraftRead>;
   add(draftId: string, selections: readonly RecipeAssetRef[], baseRevision: number): Promise<RecipeDraftRead>;
 }
@@ -38,6 +52,21 @@ export function createRecipeDraftPort(client: GatewayClient): RecipeDraftPort {
     async selectionStatus(draftId) {
       const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "recipeDraft.selectionStatus", params: { schemaVersion: "0.1", draftId } });
       if (!response.ok || !isRecipeDraftSelectionStatusV01(response.value) || response.value.draftId !== draftId) throw new RecipeDraftError("read_failed");
+      return response.value;
+    },
+    async materialsForLine(draftId) {
+      const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "recipeDraft.materialsForLine", params: { schemaVersion: "0.1", draftId } });
+      if (!response.ok || !isRecipeDraftMaterialsForLineV01(response.value) || response.value.draftId !== draftId) throw new RecipeDraftError("read_failed");
+      return response.value;
+    },
+    async legacyCensus() {
+      const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "recipeDraft.legacyCensus", params: { schemaVersion: "0.1" } });
+      if (!response.ok || !isRecipeDraftLegacyCensusV01(response.value)) throw new RecipeDraftError("read_failed");
+      return response.value;
+    },
+    async migrateLegacy() {
+      const response = await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "recipeDraft.migrateLegacy", params: { schemaVersion: "0.1" } });
+      if (!response.ok || !isRecipeDraftLegacyMigrationV01(response.value)) throw new RecipeDraftError("read_failed");
       return response.value;
     },
     async save(draftId, title, selections, baseRevision) { return read(await client.invoke({ schemaVersion: 1, requestId: crypto.randomUUID(), method: "recipeDraft.save", params: { schemaVersion: "0.1", draftId, title, selections, baseRevision } }), draftId); },

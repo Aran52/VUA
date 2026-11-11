@@ -1,0 +1,6 @@
+{
+  "method": "recipeDraft.legacyCensus",
+  "params": {
+    "schemaVersion": "0.1"
+  }
+}

@@ -426,6 +426,9 @@ impl Host {
                 | "recipeDraft.list"
                 | "recipeDraft.get"
                 | "recipeDraft.selectionStatus"
+                | "recipeDraft.materialsForLine"
+                | "recipeDraft.legacyCensus"
+                | "amf.production.list"
                 | "library.removalPreview"
                 | "library.removalStatus"
                 | "library.pendingRemovals"
@@ -1229,4 +1232,126 @@ fn grouped_migration_intake_copies_reviewed_materials_and_refuses_stale_or_overl
     assert_eq!(host.call_command("library.importGroups", recursive, Some("migration-recursive"))["error"]["code"], "vua.migration.invalidParams");
     // No entry was created by any refused command.
     assert_eq!(world.bdl.warehouse_entry_cards(ArtifactMode::UseOriginalUnitypackage).unwrap().len(), 2);
+}
+
+#[test]
+fn draft_materials_for_line_matches_amf_production_sources_and_protects_v05_recipes_over_wire() {
+    let world = World::new();
+    let source = world.base.join("wire-draft-line-src");
+    std::fs::create_dir(&source).unwrap();
+    let archive = zip_bytes(&[("Pkg/SyntheticBase.unitypackage", b"synthetic base package")]);
+    std::fs::write(source.join("bundle.zip"), &archive).unwrap();
+
+    let mut host = Host::new(&world.base, world.bdl.clone());
+    let accepted = host.call_command(
+        "library.importFolders",
+        json!({"schemaVersion": "0.1", "sourceFolders": [source]}),
+        Some("import-wire-draft-line"),
+    );
+    let task_id = accepted["value"]["taskId"].as_str().unwrap();
+    let start = Instant::now();
+    loop {
+        let task = world.tasks.task(task_id).unwrap().unwrap();
+        if task.state.is_terminal() {
+            assert_eq!(task.state, vua_orchestrator::TaskState::Succeeded);
+            break;
+        }
+        assert!(start.elapsed() < WIRE_WAIT);
+        std::thread::sleep(Duration::from_millis(5));
+    }
+
+    let copies = world.bdl.library_copy_evidence().unwrap();
+    let exp_copy = copies
+        .iter()
+        .find(|c| c.copy.relative_path.ends_with("SyntheticBase.unitypackage"))
+        .unwrap();
+
+    let saved = host.call(
+        "recipeDraft.save",
+        json!({
+            "schemaVersion": "0.1",
+            "draftId": "recipe-draft-wire-line",
+            "title": "Wire line prefill",
+            "baseRevision": 0,
+            "selections": [{
+                "identity": exp_copy.copy.artifact_sha256,
+                "displayName": "Synthetic Base",
+                "source": "local",
+                "warehouseItemId": exp_copy.copy.warehouse_item_id
+            }]
+        }),
+    );
+    assert_eq!(saved["ok"], true, "{saved}");
+
+    let prod_sources = host.call("amf.production.list", json!({"schemaVersion": "0.1"}));
+    assert_eq!(prod_sources["ok"], true, "{prod_sources}");
+    let expected_source_id = prod_sources["value"]["sources"][0]["sourceId"]
+        .as_str()
+        .unwrap();
+
+    let prefill = host.call(
+        "recipeDraft.materialsForLine",
+        json!({"schemaVersion": "0.1", "draftId": "recipe-draft-wire-line"}),
+    );
+    assert_eq!(prefill["ok"], true, "{prefill}");
+    assert_eq!(prefill["value"]["sources"][0]["sourceId"], expected_source_id);
+    assert_eq!(prefill["value"]["sources"][0]["selectionIndices"], json!([0]));
+    assert_eq!(prefill["value"]["missing"], json!([]));
+
+    // Save a ProductionRecipe v0.5 in amf-production/recipes-v04 and verify removalPreview lists it.
+    let prod_store = vua_orchestrator::RecipeDocumentStore::new_with_system_clock(
+        world.base.join("amf-production").join("recipes-v04"),
+    );
+    let pkg_hex = exp_copy
+        .copy
+        .artifact_sha256
+        .strip_prefix("sha256:")
+        .unwrap();
+    prod_store
+        .save(
+            "recipe-wire-v05",
+            &json!({
+                "formatVersion": "0.5",
+                "recipeId": "recipe-wire-v05",
+                "title": "Wire V05 Recipe",
+                "editorVersion": "2022.3.22f1",
+                "materials": [{
+                    "id": "material-1",
+                    "packageName": "SyntheticBase.unitypackage",
+                    "sha256": pkg_hex
+                }],
+                "avatar": {
+                    "materialId": "material-1",
+                    "prefabPath": "Assets/SyntheticBase.prefab"
+                },
+                "outfits": [{
+                    "materialId": "material-1",
+                    "prefabPath": "Assets/SyntheticOutfit.prefab",
+                    "mode": "merge_armature",
+                    "bone": "",
+                    "toggleName": "Coat",
+                    "active": true
+                }],
+                "packages": {
+                    "com.vrchat.avatars": "3.7.0",
+                    "nadena.dev.modular-avatar": "1.10.0"
+                }
+            }),
+            0,
+        )
+        .unwrap();
+
+    let preview = host.call(
+        "library.removalPreview",
+        json!({"schemaVersion": "0.1", "target": {"kind": "entry", "id": exp_copy.copy.warehouse_item_id}}),
+    );
+    assert_eq!(preview["ok"], true, "{preview}");
+    let ref_ids: Vec<&str> = preview["value"]["references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap())
+        .collect();
+    assert!(ref_ids.contains(&"recipe-draft-wire-line"), "{preview}");
+    assert!(ref_ids.contains(&"recipe-wire-v05"), "{preview}");
 }

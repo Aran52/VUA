@@ -42,7 +42,7 @@ impl AmfProductionServices {
 
     /// A Unity job runs now.
     pub(crate) fn busy(&self) -> bool {
-        !self.lane.snapshot().running.is_empty()
+        !self.lane.is_idle()
     }
 
     /// Read the lane once while submissions cannot change its task metadata.
@@ -191,7 +191,7 @@ fn route(
     let query = matches!(
         method,
         "amf.production.faceTrackingPlan" |
-        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"
+        "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeImage" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.previewRecipeShare" | "amf.production.recipeApplyPlan" | "amf.production.previewImage" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"
     );
     if request.get("kind").and_then(Value::as_str) != Some(if query { "query" } else { "command" })
     {
@@ -215,10 +215,12 @@ fn route(
         "amf.production.deleteFit" => &["schemaVersion", "fitId"],
         "amf.production.closeEditor" => &["schemaVersion", "runId", "confirmed"],
         "amf.production.setCapacity" => &["schemaVersion", "capacity"],
-        "amf.production.getRecipe" | "amf.production.recipeSharePlan" => &["schemaVersion", "recipeId"],
+        "amf.production.getRecipe" | "amf.production.recipeImage" | "amf.production.recipeSharePlan" => &["schemaVersion", "recipeId"],
         "amf.production.previewRecipeShare" | "amf.production.importRecipe" => &["schemaVersion", "text"],
         "amf.production.exportRecipe" => &["schemaVersion", "recipeId", "planDigest", "sources"],
         "amf.production.saveRecipe" => &["schemaVersion", "runId", "title"],
+        "amf.production.renameRecipe" => &["schemaVersion", "recipeId", "expectedRevision", "title"],
+        "amf.production.deleteRecipe" => &["schemaVersion", "recipeId", "expectedRevision"],
         "amf.production.previewImage" => &["schemaVersion", "runId", "path"],
         "amf.production.prepareRecipe" => &["schemaVersion", "recipeId", "editorPath"],
         "amf.production.recipeMaterialPlan" => &["schemaVersion", "recipeId"],
@@ -359,6 +361,7 @@ fn route(
             let run = project_view(run, &service);
             let mut row = json!({"runId":run.run_id,"phase":run.phase,"sourceNames":run.sources.iter().map(|s| &s.item_name).take(3).collect::<Vec<_>>()});
             if AmfProductionEngine::project_gone(&run) { row["projectGone"] = json!(true); }
+            if let Some(id) = run.recipe_id.as_deref().filter(|id| service.engine.get_recipe(id).is_ok()) { row["recipeId"] = json!(id); }
             row
         }).collect::<Vec<_>>();
         return Ok(
@@ -412,6 +415,11 @@ fn route(
     }
     if method == "amf.production.getRecipe" {
         return Ok(json!({"schemaVersion":"0.1", "document":service.engine.get_recipe(&string("recipeId")?)?}));
+    }
+    if method == "amf.production.recipeImage" {
+        let recipe_id = string("recipeId")?;
+        let image = service.engine.recipe_image(&recipe_id)?.map(|bytes| json!({"mediaType":"image/png", "data":standard_base64(&bytes)}));
+        return Ok(json!({"schemaVersion":"0.1", "recipeId":recipe_id, "image":image}));
     }
     if method == "amf.production.recipeMaterialPlan" {
         return Ok(json!({"schemaVersion":"0.1","plan":service.engine.recipe_material_plan(&string("recipeId")?, &material_choices)?}));
@@ -497,12 +505,22 @@ fn route(
         }
         return Ok(json!({"schemaVersion":"0.1", "plan":service.engine.recipe_apply_plan_with_choices_for(&run_id, &string("recipeId")?, avatar_id.as_deref(), &material_choices)?}));
     }
-    let recipe_file = matches!(method, "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.saveRecipe");
+    let recipe_file = matches!(method, "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.saveRecipe" | "amf.production.renameRecipe" | "amf.production.deleteRecipe");
     if recipe_file && service.busy() {
         return Err(production_error("busy", "Wait for the current production operation to finish."));
     }
     // Checks against the work project run when the queued job acquires its slot.
     let queued = !service.lane.is_idle();
+    if matches!(method, "amf.production.renameRecipe" | "amf.production.deleteRecipe") {
+        let recipe_id = string("recipeId")?;
+        let revision = params["expectedRevision"].as_f64().filter(|revision| revision.fract() == 0.0 && (1.0..=9_007_199_254_740_991.0).contains(revision)).map(|revision| revision as u64)
+            .ok_or_else(|| production_error("params_invalid", "Expected a positive safe Recipe revision."))?;
+        if method == "amf.production.renameRecipe" {
+            return Ok(json!({"schemaVersion":"0.1", "document":service.engine.rename_recipe(&recipe_id, revision, &string("title")?)?}));
+        }
+        service.engine.delete_recipe(&recipe_id, revision)?;
+        return Ok(json!({"schemaVersion":"0.1", "recipeId":recipe_id, "deleted":true}));
+    }
     if method == "amf.production.exportRecipe" {
         let sources: std::collections::BTreeMap<String,String> = serde_json::from_value(params["sources"].clone()).map_err(|_| production_error("recipe_sources_invalid", "Expected material source choices."))?;
         return Ok(json!({"schemaVersion":"0.1", "export":service.engine.export_recipe(&string("recipeId")?, &string("planDigest")?, &sources)?}));
@@ -813,6 +831,49 @@ mod tests {
             Ok(TaskExit::Done(Value::Null))
         }) }, run, operation).unwrap();
         (accepted.task_id, release)
+    }
+
+    #[test]
+    fn line_summaries_offer_only_readable_surviving_recipes() {
+        let root = std::env::temp_dir().join(format!("vua-amf-recipe-summary-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let mut recipe: Value = serde_json::from_str(include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json")).unwrap();
+        recipe["recipeId"] = "recipe-line".into();
+        let store = vua_orchestrator::RecipeDocumentStore::new_with_system_clock(root.join("amf/recipes-v04"));
+        store.save("recipe-line", &recipe, 0).unwrap();
+        let run = json!({"schemaVersion":"0.1", "runId":"n3-origin", "phase":"succeeded", "taskId":"task-test",
+            "editor":{"path":"Unity.exe","version":"2022.3.22f1"}, "projectRoot":root.join("amf/projects/n3-origin"),
+            "choices":[], "sources":[], "prefabs":[], "projectFingerprint":"", "unityFingerprint":"",
+            "steps":[], "selection":null, "confirmedDigest":null, "result":null, "error":null, "recovery":null, "recipeId":"recipe-line"});
+        std::fs::write(root.join("amf/runs/n3-origin.json"), serde_json::to_vec(&run).unwrap()).unwrap();
+        let row = &list(&service)["runs"][0];
+        assert_eq!(row["recipeId"], "recipe-line"); assert_eq!(row["projectGone"], true);
+        store.save("recipe-line", &json!({"title":"Broken"}), 1).unwrap();
+        assert!(list(&service)["runs"][0].get("recipeId").is_none());
+        store.delete("recipe-line", 2).unwrap();
+        assert_eq!(list(&service)["runs"][0]["runId"], "n3-origin");
+        assert!(list(&service)["runs"][0].get("recipeId").is_none());
+        drop(service);
+        assert!(root.starts_with(std::env::temp_dir()) && root.file_name().unwrap().to_string_lossy().starts_with("vua-amf-recipe-summary-"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recipe_mutations_wait_for_the_production_lane_to_be_idle() {
+        let root = std::env::temp_dir().join(format!("vua-amf-recipe-busy-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let (_, release) = held(&service, "n3-running", "amf.production.prepare");
+        let (_, next) = held(&service, "n3-waiting", "amf.production.prepare");
+        for method in ["amf.production.renameRecipe", "amf.production.deleteRecipe"] {
+            let mut params = json!({"schemaVersion":"0.1", "recipeId":"recipe-test", "expectedRevision":1});
+            if method.ends_with("renameRecipe") { params["title"] = "Name".into(); }
+            let error = route(service.clone(), method, &json!({"kind":"command", "params":params})).unwrap_err();
+            assert_eq!(error.code, "vua.amf_production.busy");
+        }
+        release.send(()).unwrap(); next.send(()).unwrap(); wait_until(|| service.lane.is_idle());
+        drop(service);
+        assert!(root.starts_with(std::env::temp_dir()) && root.file_name().unwrap().to_string_lossy().starts_with("vua-amf-recipe-busy-"));
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

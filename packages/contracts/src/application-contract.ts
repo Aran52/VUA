@@ -26,7 +26,12 @@ import { isLibraryViewParamsV01, type LibraryListParamsV01, type LibraryProductF
 import { isRecipeDraftParamsV01, type RecipeDraftListParamsV01, type RecipeDraftGetParamsV01, type RecipeDraftSaveParamsV01, type RecipeDraftAddParamsV01, type RecipeDraftListV01, type RecipeDraftReadV01 } from "./recipe-selection-draft-v01.js";
 import { isLibraryMaintenanceParamsV01, type LibraryRemovalPreviewParamsV01, type LibraryRemoveFilesParamsV01, type LibraryRemovalStatusParamsV01, type LibraryRemovalPreviewV01, type LibraryRemovalSnapshotV01 } from "./library-maintenance-v01.js";
 import type { LibraryPendingRemovalsParamsV01, LibraryPendingRemovalsV01, LibraryResolveRemovalParamsV01 } from "./library-maintenance-v01.js";
-import type { RecipeDraftSelectionStatusV01 } from "./recipe-selection-draft-v01.js";
+import type {
+  RecipeDraftSelectionStatusV01,
+  RecipeDraftMaterialsForLineV01,
+  RecipeDraftLegacyCensusV01,
+  RecipeDraftLegacyMigrationV01,
+} from "./recipe-selection-draft-v01.js";
 
 import { isBoothSearchParamsV01, type BoothSearchParamsV01, type BoothSearchResultV01 } from "./booth-search-v01.js";
 export const APPLICATION_CONTRACT_VERSION = "0.1" as const;
@@ -2027,8 +2032,8 @@ export type LibraryViewQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "
   | { readonly method: "library.productFiles"; readonly params: LibraryProductFilesParamsV01 }
 );
 export type RecipeDraftQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "query" } & (
-  | { readonly method: "recipeDraft.list"; readonly params: RecipeDraftListParamsV01 }
-  | { readonly method: "recipeDraft.get" | "recipeDraft.selectionStatus"; readonly params: RecipeDraftGetParamsV01 }
+  | { readonly method: "recipeDraft.list" | "recipeDraft.legacyCensus"; readonly params: RecipeDraftListParamsV01 }
+  | { readonly method: "recipeDraft.get" | "recipeDraft.selectionStatus" | "recipeDraft.materialsForLine"; readonly params: RecipeDraftGetParamsV01 }
 );
 export type LibraryMaintenanceQueryV01 = ApplicationRequestBaseV01 & { readonly kind: "query" } & (
   | { readonly method: "library.removalPreview"; readonly params: LibraryRemovalPreviewParamsV01 }
@@ -2057,6 +2062,7 @@ export type LibraryEntryMetadataRequestV01 = ApplicationRequestBaseV01 & (
 export type RecipeDraftCommandV01 = ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string } & (
   | { readonly method: "recipeDraft.save"; readonly params: RecipeDraftSaveParamsV01 }
   | { readonly method: "recipeDraft.addSelection"; readonly params: RecipeDraftAddParamsV01 }
+  | { readonly method: "recipeDraft.migrateLegacy"; readonly params: RecipeDraftListParamsV01 }
 );
 
 // ---- warehouse 写命令(bdl-commands v0.1 冻结业务词表的 TS 面,proposal 005;
@@ -2865,8 +2871,8 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.unityLicense"; readonly params: {readonly schemaVersion: "0.1"} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "environment.checkUnityLicense"; readonly params: {readonly schemaVersion: "0.1"; readonly editorPath: string} })
-  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame" | "amf.production.faceTrackingPlan" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"; readonly params: Readonly<Record<string, unknown>> })
-  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.rollback" | "amf.production.restoreRevision" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.faceTrackingPatch" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity" | "amf.production.removeOutfit" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.saveFit" | "amf.production.renameFit" | "amf.production.deleteFit"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.recipeImage" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame" | "amf.production.faceTrackingPlan" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "amf.production.prepare" | "amf.production.assemble" | "amf.production.reinspect" | "amf.production.open" | "amf.production.closeEditor" | "amf.production.rollback" | "amf.production.restoreRevision" | "amf.production.renameRecipe" | "amf.production.deleteRecipe" | "amf.production.saveRecipe" | "amf.production.prepareRecipe" | "amf.production.exportRecipe" | "amf.production.importRecipe" | "amf.production.applyRecipe" | "amf.production.bakeTurntable" | "amf.production.upload" | "amf.production.faceTrackingPatch" | "amf.production.sdkFix" | "amf.production.changeSources" | "amf.production.delete" | "amf.production.setCapacity" | "amf.production.removeOutfit" | "amf.production.applyLighting" | "amf.production.applyTextureMemory" | "amf.production.saveFit" | "amf.production.renameFit" | "amf.production.deleteFit"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.inspectManagerApps"; readonly params: Readonly<Record<string, never>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } })
@@ -3050,6 +3056,7 @@ export type ApplicationSuccessValueV01 =
   | GameWindowObservationResultV1
   | LibraryListV01 | LibraryListV02 | LibraryProductFilesV01
   | RecipeDraftListV01 | RecipeDraftReadV01
+  | RecipeDraftMaterialsForLineV01 | RecipeDraftLegacyCensusV01 | RecipeDraftLegacyMigrationV01
   | LibraryRemovalPreviewV01 | LibraryRemovalSnapshotV01 | RecipeDraftSelectionStatusV01
   | LibraryPendingRemovalsV01
   | DeploymentPlanResult
@@ -3261,8 +3268,8 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
       && isUnityLicenseParams(value.method, value.params);
   }
   if (typeof value.method === "string" && value.method.startsWith("amf.production.")) {
-    const query = ["amf.production.readShareImage", "amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.revisionPlan", "amf.production.listRecipes", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeMaterialPlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage", "amf.production.releaseState", "amf.production.turntableFrame", "amf.production.faceTrackingPlan", "amf.production.planOutfitRemoval", "amf.production.planLighting", "amf.production.planTextureMemory", "amf.production.listFits"].includes(value.method);
-    const command = ["amf.production.exportShareImage", "amf.production.prepare", "amf.production.assemble", "amf.production.reinspect", "amf.production.open", "amf.production.closeEditor", "amf.production.rollback", "amf.production.restoreRevision", "amf.production.saveRecipe", "amf.production.prepareRecipe", "amf.production.exportRecipe", "amf.production.importRecipe", "amf.production.applyRecipe", "amf.production.bakeTurntable", "amf.production.upload", "amf.production.faceTrackingPatch", "amf.production.sdkFix", "amf.production.changeSources", "amf.production.delete", "amf.production.setCapacity", "amf.production.removeOutfit", "amf.production.applyLighting", "amf.production.applyTextureMemory", "amf.production.saveFit", "amf.production.renameFit", "amf.production.deleteFit"].includes(value.method);
+    const query = ["amf.production.readShareImage", "amf.production.list", "amf.production.get", "amf.production.plan", "amf.production.rollbackPlan", "amf.production.revisionPlan", "amf.production.listRecipes", "amf.production.recipeImage", "amf.production.getRecipe", "amf.production.recipeSharePlan", "amf.production.recipeMaterialPlan", "amf.production.recipeApplyPlan", "amf.production.previewRecipeShare", "amf.production.previewImage", "amf.production.releaseState", "amf.production.turntableFrame", "amf.production.faceTrackingPlan", "amf.production.planOutfitRemoval", "amf.production.planLighting", "amf.production.planTextureMemory", "amf.production.listFits"].includes(value.method);
+    const command = ["amf.production.exportShareImage", "amf.production.prepare", "amf.production.assemble", "amf.production.reinspect", "amf.production.open", "amf.production.closeEditor", "amf.production.rollback", "amf.production.restoreRevision", "amf.production.renameRecipe", "amf.production.deleteRecipe", "amf.production.saveRecipe", "amf.production.prepareRecipe", "amf.production.exportRecipe", "amf.production.importRecipe", "amf.production.applyRecipe", "amf.production.bakeTurntable", "amf.production.upload", "amf.production.faceTrackingPatch", "amf.production.sdkFix", "amf.production.changeSources", "amf.production.delete", "amf.production.setCapacity", "amf.production.removeOutfit", "amf.production.applyLighting", "amf.production.applyTextureMemory", "amf.production.saveFit", "amf.production.renameFit", "amf.production.deleteFit"].includes(value.method);
     return ((query && value.kind === "query" && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params"]))
       || (command && value.kind === "command" && isIdentifier(value.commandId) && hasExactKeys(value, ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])))
       && isAmfProductionParams(value.method, value.params);
@@ -3787,7 +3794,8 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
       && isIdentifier(value.commandId) && isCatalogSyncParamsV03(value.method, value.params);
   }
   if (typeof value.method === "string" && value.method.startsWith("recipeDraft.")) {
-    const query = value.method === "recipeDraft.list" || value.method === "recipeDraft.get" || value.method === "recipeDraft.selectionStatus";
+    const query = value.method === "recipeDraft.list" || value.method === "recipeDraft.get" || value.method === "recipeDraft.selectionStatus"
+      || value.method === "recipeDraft.materialsForLine" || value.method === "recipeDraft.legacyCensus";
     return value.kind === (query ? "query" : "command") && hasExactKeys(value, query ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"])
       && (query || isIdentifier(value.commandId)) && isRecipeDraftParamsV01(value.method, value.params);
   }

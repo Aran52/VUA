@@ -2129,6 +2129,127 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.recipeImage"
+        },
+        "kind": {
+          "const": "query"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "recipeId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "recipeId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.renameRecipe"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "recipeId",
+            "expectedRevision",
+            "title"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "recipeId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "pattern": "^(?=.*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "kind",
+        "params"
+      ],
+      "properties": {
+        "method": {
+          "const": "amf.production.deleteRecipe"
+        },
+        "kind": {
+          "const": "command"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "recipeId",
+            "expectedRevision"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "0.1"
+            },
+            "recipeId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-]{1,100}$"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        }
+      }
     }
   ]
 }

@@ -14,7 +14,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
 | docs/protocols/ai-tools-v0.1.md | 0.12.0 | Candidate | Integration | 2026-11-06 |
-| docs/protocols/amf-production-v0.1.md | 0.39.0 | Candidate | AMF | 2026-11-01 |
+| docs/protocols/amf-production-v0.1.md | 0.42.0 | Candidate | AMF | 2026-11-11 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -48,7 +48,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/library-intake-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-intake-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-migration-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-30 |
-| docs/protocols/library-maintenance-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-10-09 |
+| docs/protocols/library-maintenance-v0.1.md | 0.3.0 | Implementation baseline | AMF | 2026-11-11 |
 | docs/protocols/library-records-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-09 |
 | docs/protocols/library-records-v0.2.md | 0.2 | Implementation baseline | AMF | 2026-10-12 |
 | docs/protocols/library-view-v0.1.md | 0.8 | Implementation baseline | AMF | 2026-10-12 |
@@ -77,7 +77,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/provider-process-v0.1.md | 0.3 | Implementation baseline | Core | 2026-10-10 |
 | docs/protocols/recipe-image-share-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
-| docs/protocols/recipe-selection-draft-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
+| docs/protocols/recipe-selection-draft-v0.1.md | 0.2.0 | Implementation baseline | AMF | 2026-11-11 |
 | docs/protocols/share-links-v0.1.md | 0.1.0 | Candidate | AMF / Hosting | 2026-10-28 |
 | docs/protocols/release-handoff-v0.1.md | 0.1 | Frozen | Core | 2026-09-16 |
 | docs/protocols/release-handoff-v0.2.md | 0.2 | Frozen | Core | 2026-09-21 |
@@ -169,7 +169,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/project-ops/v0.2 | 0.2 | Frozen | Core | 2026-09-12 |
 | schemas/recipe/v0.3 | 0.3 | Frozen | Core | 2026-09-10 |
 | schemas/recipe-export/v0.1 | 0.1 | Frozen | Core | 2026-09-22 |
-| schemas/recipe-selection-draft/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |
+| schemas/recipe-selection-draft/v0.1 | 0.1 | Implementation baseline | AMF | 2026-11-11 |
 | schemas/selection-share/v0.1 | 0.1 | Candidate | AMF / Hosting | 2026-10-28 |
 | schemas/release-handoff/v0.1 | 0.1 | Frozen | Core | 2026-09-16 |
 | schemas/release-handoff/v0.2 | 0.2 | Frozen | Core | 2026-09-21 |

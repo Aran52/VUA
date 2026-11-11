@@ -85,9 +85,22 @@ const until = async (test: () => boolean, label: string) => { const deadline = p
 const button = (label: string) => { const scope = document.querySelector('[role="dialog"]') ?? document; const found = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
 const click = async (label: string) => { const node = button(label); if (node.disabled) throw Error(`Disabled ${label}`); node.click(); await pause(); };
 const cards = () => [...document.querySelectorAll<HTMLElement>("[data-selection-id]")];
+async function openCardMenu(card: HTMLElement) {
+  card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 }));
+  await until(() => !!document.querySelector(".vua-context-menu button"), "card context menu opened");
+}
 async function menu() {
-  const card = cards()[0]!; card.focus(); card.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true })); await pause();
-  card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await until(() => !document.querySelector('[role="dialog"], [aria-modal="true"]'), "dialogs closed");
+  if (document.activeElement instanceof HTMLElement && document.activeElement.matches("input, textarea, select")) document.activeElement.blur();
+  await until(() => {
+    const all = cards();
+    if (all.length < 2) return false;
+    if (all.every(node => node.dataset.selected === "true")) return true;
+    all[0]!.focus();
+    all[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true }));
+    return all.every(node => node.dataset.selected === "true");
+  }, "all cards selected");
+  await openCardMenu(cards()[0]!);
 }
 async function closeDialog() { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await until(() => !document.querySelector('[role="dialog"]'), "dialog closes"); }
 let generation = 0;
@@ -101,12 +114,12 @@ async function run() {
   const toggle = document.querySelector<HTMLElement>(".vua-warehouse__views")!;
   check(toggle.getBoundingClientRect().left >= search.getBoundingClientRect().right && !document.querySelector('[data-nav-id="warehouse-open-folder"]'), "the view switch ends the filter row and the whole-library folder button is retired");
   const localCard = cards().find(card => card.dataset.selectionId?.includes(local.entry.warehouseItemId))!;
-  localCard.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await openCardMenu(localCard);
   await click(copy.cardMenu.openFolder);
   check(openedFolders.at(-1) === local.entry.warehouseItemId, "single local card opens only its entry directory");
-  cards().find(card => card.dataset.selectionId === "booth:91")!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await openCardMenu(cards().find(card => card.dataset.selectionId === "booth:91")!);
   check(button(copy.cardMenu.openFolder).disabled, "cloud-only card keeps the folder action honestly unavailable");
-  cards()[0]!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await openCardMenu(cards()[0]!);
   await click(copy.cardMenu.openFolder); await until(() => !!document.querySelector('[role="dialog"]'), "product folder choice");
   check(text().includes(copy.cardMenu.chooseFolder) && openedFolders.length === 1, "a product with multiple directories offers a choice instead of opening a guessed root");
   await click("installed.zip");

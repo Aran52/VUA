@@ -82,18 +82,35 @@ const pause = () => new Promise<void>(resolve => setTimeout(resolve, 35));
 const text = () => document.body.textContent ?? "";
 const check = (value: unknown, label: string) => { if (!value) throw Error(label); checks.push(label); };
 const until = async (test: () => boolean, label: string) => { const deadline = performance.now() + 6000; while (!test()) { if (performance.now() > deadline) throw Error(`${label}: ${text()}`); await pause(); } };
-const button = (label: string) => { const scope = document.querySelector('[role="dialog"]') ?? document; const found = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label); if (!found) throw Error(`Missing ${label}`); return found; };
+const button = (label: string) => {
+  const scope = document.querySelector('[role="dialog"]') ?? document;
+  const found = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent?.trim() === label);
+  if (!found) throw Error(`Missing ${label}: ${JSON.stringify({
+    lastCheck: checks.at(-1), dialog: document.querySelector('[role="dialog"]')?.textContent,
+    menu: document.querySelector('[role="menu"]')?.textContent,
+    selection: cards().map(card => ({ id: card.dataset.selectionId, selected: card.dataset.selected })),
+  })}`);
+  return found;
+};
 const click = async (label: string) => { const node = button(label); if (node.disabled) throw Error(`Disabled ${label}`); node.click(); await pause(); };
 const cards = () => [...document.querySelectorAll<HTMLElement>("[data-selection-id]")];
+async function openMenu(card: HTMLElement, expectedLabel: string) {
+  card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 }));
+  await until(() => [...document.querySelectorAll('[role="menu"] button')].some(node => node.textContent?.trim() === expectedLabel), `context menu offers ${expectedLabel}`);
+}
 async function menu() {
-  const card = cards()[0]!; card.focus(); card.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true })); await pause();
-  card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  const card = cards()[0]!; card.focus({ preventScroll: true });
+  card.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true }));
+  await until(() => cards().length === 3 && cards().every(node => node.dataset.selected === "true"), "all visible cards are selected before opening the bulk menu");
+  await openMenu(card, copy.cardMenu.deleteLocal);
 }
 async function closeDialog() { document.querySelector<HTMLButtonElement>('[role="dialog"] button[aria-label]')!.click(); await until(() => !document.querySelector('[role="dialog"]'), "dialog closes"); }
 let generation = 0;
 async function showLibrary() {
+  // Three cards from the old render are not evidence that the new page has loaded.
+  const previousCard = cards()[0];
   root.render(<StrictMode><GatewayProvider gateway={gateway}><WarehousePage key={++generation} /></GatewayProvider></StrictMode>);
-  await until(() => cards().length === 3, "library loaded"); await pause();
+  await until(() => !previousCard?.isConnected && cards().length === 3, "new library generation loaded");
 }
 async function run() {
   checks.length = 0; await showLibrary();
@@ -101,12 +118,12 @@ async function run() {
   const toggle = document.querySelector<HTMLElement>(".vua-warehouse__views")!;
   check(toggle.getBoundingClientRect().left >= search.getBoundingClientRect().right && !document.querySelector('[data-nav-id="warehouse-open-folder"]'), "the view switch ends the filter row and the whole-library folder button is retired");
   const localCard = cards().find(card => card.dataset.selectionId?.includes(local.entry.warehouseItemId))!;
-  localCard.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await openMenu(localCard, copy.cardMenu.openFolder);
   await click(copy.cardMenu.openFolder);
   check(openedFolders.at(-1) === local.entry.warehouseItemId, "single local card opens only its entry directory");
-  cards().find(card => card.dataset.selectionId === "booth:91")!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await openMenu(cards().find(card => card.dataset.selectionId === "booth:91")!, copy.cardMenu.openFolder);
   check(button(copy.cardMenu.openFolder).disabled, "cloud-only card keeps the folder action honestly unavailable");
-  cards()[0]!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 220, clientY: 210 })); await pause();
+  await openMenu(cards()[0]!, copy.cardMenu.openFolder);
   await click(copy.cardMenu.openFolder); await until(() => !!document.querySelector('[role="dialog"]'), "product folder choice");
   check(text().includes(copy.cardMenu.chooseFolder) && openedFolders.length === 1, "a product with multiple directories offers a choice instead of opening a guessed root");
   await click("installed.zip");
@@ -160,7 +177,7 @@ async function run() {
     { id: "transfer-unknown", title: "Download · unknown-size.zip", status: "running", originPage: "warehouse", cancellable: true, download: { receivedBytes: 1024, expectedBytes: null, bytesPerSecond: null, sampledAt: Date.now() } },
     ...(["queued", "preparing", "running", "waitingInput", "paused", "completed", "completedWithWarnings", "failed", "cancelled"] as const).map(status => ({ id: `sync-${status}`, title: `BOOTH library sync · ${status}`, status, originPage: "warehouse" as const, cancellable: status === "running" })),
   ]} rejectedId={null} onCancel={() => {}} onRetry={() => {}} dismissible={() => undefined} onBackToOrigin={() => {}} emptyText={null} replay={null} /></div>);
-  await pause();
+  await until(() => document.querySelectorAll("progress").length === 2, "notification rows rendered");
   check(document.querySelectorAll("progress").length === 2 && document.querySelectorAll("progress:indeterminate").length === 1, "known size renders measured progress; unknown size remains indeterminate");
   check(text().includes("MiB/s") && text().includes(strings.taskCenter.speedUnavailable), "notification rows show transfer speed and an honest measuring state");
   check([...document.querySelectorAll(".vua-taskbar__task, .vua-taskbar__task-main, .vua-taskbar__task-glyph")].every(row => getComputedStyle(row).backgroundColor === "rgba(0, 0, 0, 0)"), "download and BOOTH sync rows stay transparent in every task state without a fixture stylesheet import");

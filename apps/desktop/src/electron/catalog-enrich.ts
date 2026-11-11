@@ -72,6 +72,7 @@ export interface CatalogEnrichmentOptions {
 export interface CatalogEnricher {
   scheduleIdle(): void;
   afterSync(): Promise<void>;
+  noteRead(): void;
   pause(): void;
   dispose(): void;
 }
@@ -156,6 +157,7 @@ export function createCatalogEnricher(options: CatalogEnrichmentOptions): Catalo
   return {
     scheduleIdle,
     afterSync: run,
+    noteRead() { lastReadAt = now(); },
     pause() { clearTimer(); controller?.abort(); scheduleIdle(); },
     dispose() { disposed = true; clearTimer(); controller?.abort(); },
   };

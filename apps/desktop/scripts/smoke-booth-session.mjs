@@ -102,7 +102,10 @@ async function run(){try{
   await waitFor(()=>js('!document.querySelector(".vua-login-browser__bar")'),"automatic return after successful login",15000);
   await waitFor(()=>js('!document.querySelector("[data-nav-id=accounts-booth-login]")&&document.querySelector(".vua-settings-account__head")?.textContent.includes("Synthetic account")'),"account refresh after close");
   assert(true,"Successful login automatically returns and refreshes Settings → Accounts to signed in");
-  await click("logo-home");await click("nav-warehouse");
+  await click("logo-home");
+  await waitFor(()=>js('!!document.querySelector(".vua-home")&&!document.querySelector(".vua-warehouse")'),"home before returning to the library");
+  await click("nav-warehouse");
+  await waitFor(()=>js('!!document.querySelector(".vua-warehouse")&&!document.querySelector(".vua-home")'),"new library page after login");
   await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")&&!document.querySelector("[data-nav-id=warehouse-sync]").disabled'),"signed-in library");
   assert(true,"Returning to the asset library offers sync instead of another login");
   await click("warehouse-sync");
@@ -110,13 +113,17 @@ async function run(){try{
   assert(true,"Three synthetic account libraries sync through the real AMF provider");
   await waitFor(()=>js('document.querySelectorAll(".vua-warehouse-card img").length===2&&[...document.querySelectorAll(".vua-warehouse-card img")].every(i=>i.naturalWidth===128&&!i.dataset.pending)'),"native cached card images");
   assert(true,"A renderer created during host startup displays later-synced images through the real AMF cache loader");
+  assert(productRequests===0,"Post-sync background enrichment paces after sync instead of racing immediate navigation");
   await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
   await waitFor(()=>js('!!document.querySelector(".vua-warehouse-detail .vua-media-slot img")'),"detail media");
   await js('document.querySelector(".vua-warehouse-detail .vua-media-slot").scrollIntoView({block:"nearest"})');
   await waitFor(()=>js('document.querySelector(".vua-warehouse-detail .vua-media-slot img")?.naturalWidth===128'),"detail image");
   assert(await js('!!document.querySelector("[data-nav-id=warehouse-detail-back]") && document.querySelector(".vua-warehouse-detail__title").getBoundingClientRect().width>0'),"Product details open as a page with a way back");
-  await waitFor(()=>productRequests>0,"optional description lookup");await delay(250);
-  assert(productRequests===1,"An unavailable description lookup is attempted once per opened detail, without a retry loop");
+  await waitFor(()=>requests.some(r=>r.path==="/zh-cn/items/9001"),"optional description lookup");await delay(250);
+  assert(
+    JSON.stringify(requests.filter(r=>r.path.startsWith("/zh-cn/items/9001")).map(r=>r.path)) === JSON.stringify(["/zh-cn/items/9001.json","/zh-cn/items/9001"]) && productRequests===2,
+    "An unavailable description lookup is attempted once per opened detail (JSON then HTML fallback), without a retry loop",
+  );
   const loadedImages=imageRequests;
   await js(`document.querySelector('[data-nav-id=warehouse-detail-back]').click()`);
   await js(`document.querySelector('[data-product-id="booth:9001"]').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`);
@@ -182,5 +189,7 @@ async function run(){try{
   assert((await net.fetch(cachedImage)).status===503,"The early-installed image loader denies reads after AMF is disabled");
   fs.writeFileSync(path.join(output,"checks.json"),JSON.stringify({scope:"Actual Electron/Main/preload/renderer/providers with synthetic BOOTH and stubbed Explorer; no real account/material acceptance",checks},null,2));
   console.log(JSON.stringify({passed:checks.length,output}));exitCode=0;clearTimeout(deadline);app.quit();
-}catch(error){console.error(error.stack??String(error));console.error(JSON.stringify({output,checks,requests,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}
+}catch(error){console.error(error.stack??String(error));
+  const state=window&&!window.isDestroyed()?await window.webContents.executeJavaScript('(async()=>({text:document.body.textContent.slice(-6000),amf:await window.vua.amfModule.snapshot(),sync:await window.vua.catalogSync.probe()}))()').catch(error=>({diagnosticError:String(error)})):null;
+  console.error(JSON.stringify({output,checks,requests,state,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}
 void run();

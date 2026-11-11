@@ -29,7 +29,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/catalog-sync-v0.1.md | 0.1 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.2.md | 0.2 | Frozen | Data | 2026-10-02 |
 | docs/protocols/catalog-sync-v0.3.md | 0.3 | Implementation baseline | AMF | 2026-10-07 |
-| docs/protocols/catalog-enrichment-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-10 |
+| docs/protocols/catalog-enrichment-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-11-11 |
 | docs/protocols/desktop-browser-v0.1.md | 1.1.0 | Candidate | Desktop | 2026-10-11 |
 | docs/protocols/desktop-library-v0.1.md | 1.4.0 | Candidate | Desktop | 2026-10-12 |
 | docs/protocols/desktop-resource-v0.2.md | 1.0.0 | Candidate | Desktop | 2026-10-10 |

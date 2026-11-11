@@ -205,6 +205,7 @@ let silentDownloadQueue: ReturnType<typeof createSilentDownloadQueue> | null = n
 let catalogSyncRun: CatalogSyncRun | null = null;
 let catalogEnricher: CatalogEnricher | null = null;
 let catalogProductReads = 0;
+let catalogSearchRunning = false;
 const catalogProductRequests = new Set<AbortController>();
 
 const catalogRequestBase = () => ({ contractVersion: APPLICATION_CONTRACT_VERSION,
@@ -231,7 +232,7 @@ function catalogProductReader(): CatalogProductReader {
 function ensureCatalogEnricher(): void {
   catalogEnricher ??= createCatalogEnricher({
     canRun: () => !shutdownStarted && provider?.amfReady() === true && remoteContent !== null
-      && catalogSyncRun === null && catalogProductReads === 0 && (silentDownloadQueue?.pending() ?? 0) === 0
+      && catalogSyncRun === null && catalogProductReads === 0 && !catalogSearchRunning && (silentDownloadQueue?.pending() ?? 0) === 0
       && downloadPort?.hasActiveTransfers() !== true && amfIngestSink?.pending() !== true,
     queue: async limit => {
       if (!provider?.amfReady()) throw new Error("catalog_unavailable");
@@ -1229,7 +1230,11 @@ function registerIpc(provider: ModuleProvider): void {
     catalogEnricher?.pause();
     const run = startCatalogSync(
       {
-        fetch: (url, signal) => content.fetchWithSession(url, signal),
+        fetch: async (url, signal) => {
+          catalogEnricher?.noteRead();
+          try { return await content.fetchWithSession(url, signal); }
+          finally { catalogEnricher?.noteRead(); }
+        },
         begin: (params) => invokeCatalogSync({ method: "catalog.beginLibrarySync", params }),
         invoke: (params) => invokeCatalogSync({ method: "catalog.ingestLibraryPage", params }),
         finish: (params) => invokeCatalogSync({ method: "catalog.finishLibrarySync", params }),
@@ -1327,6 +1332,7 @@ function registerIpc(provider: ModuleProvider): void {
       catalogProductReads += 1;
       const abort = new AbortController(); catalogProductRequests.add(abort);
       catalogEnricher?.pause();
+      catalogEnricher?.noteRead();
       try {
         return { ok: await readCatalogProduct(productId, catalogProductReader(), AbortSignal.any([abort.signal, AbortSignal.timeout(60_000)])) === "updated" };
       } catch {
@@ -1334,27 +1340,35 @@ function registerIpc(provider: ModuleProvider): void {
       } finally {
         catalogProductReads -= 1;
         catalogProductRequests.delete(abort);
+        catalogEnricher?.noteRead();
         catalogEnricher?.scheduleIdle();
       }
     },
   );
 
-  let searchRunning = false;
   let lastSearchAt = 0;
   ipcMain.handle("vua:catalog-sync:search-products", async (event, query: unknown) => {
     assertLocalSender(senderFrameUrl(event)); assertAmfReady();
     const remote = remoteContent; const current = provider;
-    if (remote === null || current === null || searchRunning) throw new Error("search_unavailable");
-    searchRunning = true;
+    if (remote === null || current === null || catalogSearchRunning) throw new Error("search_unavailable");
+    catalogSearchRunning = true;
+    catalogEnricher?.pause();
     try {
       const wait = 1500 - (Date.now() - lastSearchAt);
       if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
       assertAmfReady(); lastSearchAt = Date.now();
+      catalogEnricher?.noteRead();
       return await searchPublicBoothProducts(query, {
-        fetch: url => remote.fetchWithSession(url, AbortSignal.timeout(30_000)),
+        fetch: async url => {
+          try { return await remote.fetchWithSession(url, AbortSignal.timeout(30_000)); }
+          finally { catalogEnricher?.noteRead(); }
+        },
         parse: params => current.invoke({ contractVersion: APPLICATION_CONTRACT_VERSION, requestId: crypto.randomUUID(), correlationId: crypto.randomUUID(), kind: "query", method: "catalog.searchProducts", params }),
       });
-    } finally { searchRunning = false; }
+    } finally {
+      catalogSearchRunning = false;
+      catalogEnricher?.scheduleIdle();
+    }
   });
   ipcMain.handle("vua:silent-download:control", (event, batchId: unknown, paused: unknown) => {
     assertLocalSender(senderFrameUrl(event)); assertAmfReady();

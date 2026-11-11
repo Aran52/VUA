@@ -84,6 +84,39 @@ describe("application-lifetime enrichment scheduling", () => {
     expect(times).toEqual([0,5000,10000,15000]); expect(options.refreshed).toHaveBeenCalledWith(2);
     worker.dispose();
   });
+  it("paces post-sync admission after foreground or sync session reads and yields before claiming if paused", async () => {
+    let clock = 1000; const times: number[] = [];
+    const {worker,options} = scheduler({
+      now:()=>clock,
+      sleep:vi.fn(async ms => { clock += ms; }),
+      read:vi.fn(async (_id, _signal, beforeRead) => { await beforeRead(); times.push(clock); return "updated"; }),
+    });
+    worker.noteRead();
+    clock = 1200;
+    await worker.afterSync();
+    expect(times).toEqual([6000]);
+    expect(options.claim).toHaveBeenCalledOnce();
+
+    let unblockSleep!: () => void;
+    let sleeping = false;
+    const paused = scheduler({
+      now:()=>clock,
+      sleep:vi.fn((_ms, signal) => new Promise<void>((resolve, reject) => {
+        sleeping = true; unblockSleep = resolve;
+        signal.addEventListener("abort", () => reject(new Error("aborted")), {once:true});
+      })),
+    });
+    paused.worker.noteRead();
+    const pending = paused.worker.afterSync();
+    await vi.waitFor(() => expect(sleeping).toBe(true));
+    expect(paused.options.claim).not.toHaveBeenCalled();
+    paused.worker.pause();
+    void unblockSleep;
+    await pending;
+    expect(paused.options.claim).not.toHaveBeenCalled();
+    expect(paused.options.read).not.toHaveBeenCalled();
+    worker.dispose(); paused.worker.dispose();
+  });
   it("never exceeds sixty claimed products when repeatedly triggered or remounted", async () => {
     const {worker,options} = scheduler({queue:async limit => Array.from({length:limit},(_,i)=>`booth:${i+1}`)});
     await worker.afterSync(); worker.pause(); worker.scheduleIdle(); await worker.afterSync();

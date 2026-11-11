@@ -1,7 +1,7 @@
 # Catalog enrichment v0.1
 
 > Document version: 0.1
-> Status: Implementation baseline (2026-11-10)
+> Status: Implementation baseline (2026-11-11)
 > Owner: AMF acquisition
 
 This face supplements existing BOOTH product observations. Electron Main owns the
@@ -67,16 +67,17 @@ evidence; reading a description never fetches linked products or terms.
 One application-lifetime scheduler starts after sync completion or 60 seconds of
 startup idle. It claims one eligible product at a time, reads JSON first, and
 falls back to HTML on an unrecognized JSON response. Every background HTTP read,
-including fallback, is separated by at least five seconds. At most 60 products
-are attempted per application launch, including failed reads. Each read has a
-30-second deadline and uses the existing local BOOTH session.
+including the initial post-sync/foreground spacing and HTML fallback, is
+separated from the previous BOOTH session HTTP read by at least five seconds. At
+most 60 products are attempted per application launch, including failed reads.
+Each read has a 30-second deadline and uses the existing local BOOTH session.
 
 Network failures, HTTP 403, 429 or 5xx stop background reads for the rest of the
-launch. Active downloads, sync, unavailable AMF and shutdown suspend/abort reads;
-no pending request survives disposal. Resuming does not reset the launch budget
-or failure latch. Membership is rechecked after waiting for the next request
-slot, before admission, and no other pages
-are enumerated. A completed batch emits `vua:catalog-sync:enriched` with
+launch. Active downloads, sync, foreground detail/search reads, unavailable AMF
+and shutdown suspend/abort reads; no pending request survives disposal. Resuming
+does not reset the launch budget or failure latch. Membership is rechecked after
+waiting for the next request slot, before admission, and no other pages are
+enumerated. A completed batch emits `vua:catalog-sync:enriched` with
 `{schemaVersion: "0.1", updated}` (1–60), without a notification. The typed
 `catalogSync.subscribeEnrichment` port provides a refresh hint; Claude owns the
 page subscription and authoritative list reread. Explicit detail reads retain

@@ -1,4 +1,4 @@
-import { isDeploymentParams, type DeploymentIntent, type DeploymentPurpose } from "./environment-deployment.js";
+import { isDeploymentIntent, type DeploymentIntent, type DeploymentPurpose } from "./environment-deployment.js";
 export const SCENARIO_ENVIRONMENT_SCHEMA = "vua.scenario-environment/v0.1" as const;
 export type ScenarioConnection = "usb" | "wifi";
 export interface ScenarioSelection { readonly scenario: DeploymentPurpose; readonly connection?: ScenarioConnection | null }
@@ -23,7 +23,7 @@ export function isScenarioSelection(v:unknown):v is ScenarioSelection {return re
   &&Object.keys(v).every(k=>k==="scenario"||k==="connection")&&(v.connection===undefined||v.connection===null||v.connection==="usb"||v.connection==="wifi")
   &&(v.scenario==="pico_pcvr"||v.connection===undefined||v.connection===null);}
 export function isScenarioEnvironmentParams(method:unknown,v:unknown):boolean {if(!record(v)||v.schemaVersion!=="0.1"||Object.keys(v).length!==2)return false;
-  return method==="environment.getScenarioSop"?isScenarioSelection(v.scenario):method==="environment.checkScenarioEnvironment"&&isDeploymentParams({intent:v.intent},false);}
+  return method==="environment.getScenarioSop"?isScenarioSelection(v.scenario):method==="environment.checkScenarioEnvironment"&&isDeploymentIntent(v.intent);}
 export function isScenarioSop(v:unknown):v is ScenarioSop {
   if(!record(v)||!exact(v,["schemaVersion","scenario","connection","requirements","steps","performed","nextAction","licenseRequiredFor"])
     ||v.schemaVersion!==SCENARIO_ENVIRONMENT_SCHEMA||!isScenarioSelection({scenario:v.scenario,connection:v.connection}))return false;
@@ -35,7 +35,7 @@ export function isScenarioSop(v:unknown):v is ScenarioSop {
 }
 export function isScenarioEnvironmentCheck(v:unknown):v is ScenarioEnvironmentCheck {
   if(!record(v)||!exact(v,["schemaVersion","intent","observations","softwareReady","licenseState","performed","nextAction","installationStarted"])
-    ||v.schemaVersion!==SCENARIO_ENVIRONMENT_SCHEMA||!isDeploymentParams({intent:v.intent},false)||!Array.isArray(v.observations))return false;
+    ||v.schemaVersion!==SCENARIO_ENVIRONMENT_SCHEMA||!isDeploymentIntent(v.intent)||!Array.isArray(v.observations))return false;
   const required=scenarioRequiredComponents((v.intent as DeploymentIntent).purposes);
   return v.observations.length===required.length&&v.observations.every((x,i)=>record(x)&&exact(x,["component","presence","location","version"])&&x.component===required[i]
     &&["verified","missing","unsuitable","detection_failed"].includes(String(x.presence))&&(x.location===null||typeof x.location==="string")&&(x.version===null||typeof x.version==="string"))

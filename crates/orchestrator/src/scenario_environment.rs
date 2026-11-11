@@ -115,6 +115,10 @@ pub fn check_scenario(
     service: &DeploymentService,
     intent: &DeploymentIntent,
 ) -> Result<serde_json::Value, &'static str> {
+    if intent.purposes.is_empty() || !intent.tools.is_empty() || !intent.reinstall_tools.is_empty()
+    {
+        return Err("vua.deployment.invalid_intent");
+    }
     let observations = service.check_software(intent)?;
     let required = required_components(&intent.purposes);
     let facts = required

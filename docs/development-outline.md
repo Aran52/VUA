@@ -218,7 +218,8 @@ and status observation. VRCFT also has its device picker and hardware SOP. VRCS 
 description cards for now. Local Windows runs on 2026-10-14 exercised discovery, reuse of
 installed software, Steam launch handoff and process observation for all six tools, and found
 launches slower than the observation window and normal-close failures; the findings are in
-[external-tool v0.3](protocols/external-tool-v0.3.md) and the raw evidence stays on the author's
+[external-tool v0.4](protocols/external-tool-v0.4.md) (superseding [v0.3](protocols/external-tool-v0.3.md))
+and [installer-tool v0.1](protocols/installer-tool-v0.1.md), while raw evidence stays on the author's
 machine under `_local_real_machine/n2-steam-tools-20261014/`. Fresh installation, tracking and
 calibration, and human UI review are the remaining rows. MioVRC stays outside VUA. Agents reach
 these tools through the local [MCP adapter](protocols/ai-tools-v0.1.md).
@@ -231,8 +232,13 @@ these tools through the local [MCP adapter](protocols/ai-tools-v0.1.md).
 | [OVR Advanced Settings](https://store.steampowered.com/app/1009850/) | 1009850 | SteamVR settings and utilities | Shared connection only; paid Steam distribution; after the first play release |
 | [OVR Toolkit](https://store.steampowered.com/app/1068820/) | 1068820 | Desktop windows inside VR | Shared connection only; paid Steam application; after the first play release |
 | [OyasumiVR](https://store.steampowered.com/app/2538150/) | 2538150 | VR sleep utilities | Shared connection only; free Steam application; after the first play release |
-| [LIV](https://store.steampowered.com/app/755540/) | 755540 | VR capture and streaming tools | Shared connection only; free Steam base application; after the first play release |
-| [VRCS](https://github.com/Dreaminko/VRCS) | — | Speech transcription and translation | Selected addition; verify supported upstream release/acquisition and launch paths before claiming a working connection |
+| [Desktop+](https://store.steampowered.com/app/1494460/) | 1494460 | Desktop overlay inside VR | Shared Steam connection (`desktopplus` in external-tool v0.4); free Steam application; after the first play release |
+| [fpsVR](https://store.steampowered.com/app/908520/) | 908520 | In-VR performance monitor | Shared Steam connection (`fpsvr` in external-tool v0.4); paid Steam application; after the first play release |
+| [LIV](https://store.steampowered.com/app/755540/) | 755540 | VR capture and streaming tools | Pending real Steam installation verification of `installdir` and main executable; free Steam base application |
+| [SlimeVR Server](https://github.com/SlimeVR/SlimeVR-Installer) | — | Wi-Fi IMU full-body tracking | Official installer `v5.0.0` (`MIT AND Apache-2.0`, `slimevr` in deployment v0.1 + installer-tool v0.1); real-machine UAC/driver verification |
+| [VRCT](https://github.com/misyaguziya/VRCT) | — | Chatbox translation and speech transcription | Official GitHub release `v3.6.1` (`MIT` except exclusive model; official-only, `vrct` in deployment v0.1 + installer-tool v0.1) |
+| [VRCX](https://github.com/vrcx-team/VRCX) | — | Companion friend/instance manager | Official installer `v2026.09.16` (`MIT`, `vrcx` in deployment v0.1 + installer-tool v0.1; VRCX owns its own VRChat sign-in) |
+| [VRCS](https://github.com/Dreaminko/VRCS) | — | Speech transcription and translation | Official GitHub release `0.3.7` (`AGPL-3.0` verified 2026-11-11, `vrcs` in deployment v0.1 + installer-tool v0.1) |
 
 Steam pricing/access descriptions are checked on 2026-10-03; show the current store offer rather
 than hardcoding a price. Required hardware modules are not extra top-level tools. Further additions

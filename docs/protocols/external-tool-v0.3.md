@@ -1,9 +1,9 @@
 # External tool connection v0.3
 
 > Document version: 0.1.0
-> Status: Candidate
+> Status: Superseded (→ external-tool-v0.4.md)
 > Owner: Environment
-> Updated: 2026-11-06
+> Updated: 2026-11-11
 > Schemas: [request](../../schemas/external-tool/v0.3/request.schema.json), [result](../../schemas/external-tool/v0.3/result.schema.json), [vectors](../../schemas/external-tool/v0.3/vectors.json)
 
 This N2 face connects ten fixed official Steam applications and adds reinstalling through Steam. It

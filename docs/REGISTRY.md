@@ -134,7 +134,9 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/environment-network/v0.1/ | 0.1 | Candidate | Environment | 2026-10-03 |
 | schemas/external-tool/v0.1/ | 0.1 | Superseded (→ schemas/external-tool/v0.2/) | Environment | 2026-10-10 |
 | schemas/external-tool/v0.2/ | 0.2 | Superseded (→ schemas/external-tool/v0.3/) | Environment | 2026-10-14 |
-| schemas/external-tool/v0.3/ | 0.3 | Candidate | Environment | 2026-11-06 |
+| schemas/external-tool/v0.3/ | 0.3 | Superseded (→ schemas/external-tool/v0.4/) | Environment | 2026-11-06 |
+| schemas/external-tool/v0.4/ | 0.4 | Candidate | Environment | 2026-11-11 |
+| schemas/installer-tool/v0.1/ | 0.1 | Candidate | Environment | 2026-11-11 |
 | schemas/game-window-observe/v0.1/ | 0.1 | Candidate | Environment | 2026-10-08 |
 | schemas/inspection-queries/v0.1 | 0.1 | Frozen | Data | 2026-09-13 |
 | schemas/library-download/v0.1 | 0.1 | Implementation baseline | AMF | 2026-10-08 |

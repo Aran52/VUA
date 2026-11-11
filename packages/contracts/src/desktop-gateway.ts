@@ -7,6 +7,7 @@ import { isAmfProductionParams, type AmfProductionRequestV1 } from "./amf-produc
 import { isScenarioEnvironmentParams, type ScenarioEnvironmentRequestV1 } from "./scenario-environment.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute } from "./play-session.js";
 import { isExternalToolParams, type ExternalToolAction, type ExternalToolId } from "./external-tool.js";
+import { isInstallerToolParams, type InstallerToolAction, type InstallerToolId } from "./installer-tool.js";
 import { isNetworkParams, type NetworkIntent } from "./environment-network.js";
 import { isWebsiteTestParams, type WebsiteTestParams } from "./website-test.js";
 import type {
@@ -1113,6 +1114,8 @@ export type DesktopGatewayRequestV1 =
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.actConnection"; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction; readonly commandId: string } }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.observeInstaller"; readonly params: { readonly toolId: InstallerToolId } }
+  | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "tools.actInstaller"; readonly params: { readonly toolId: InstallerToolId; readonly action: InstallerToolAction; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.startPlay" | "environment.stopPlay"; readonly params: { readonly route: PlayRoute; readonly commandId: string } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.checkNetwork"; readonly params: { readonly intent: NetworkIntent } }
   | { readonly schemaVersion: 1; readonly requestId: string; readonly method: "environment.testWebsites"; readonly params: WebsiteTestParams }
@@ -1218,6 +1221,8 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "environment.observePlay": "query",
   "tools.observeConnection": "query",
   "tools.actConnection": "command",
+  "tools.observeInstaller": "query",
+  "tools.actInstaller": "command",
   "environment.inspectManagerApps": "query",
   "environment.startPlay": "command",
   "environment.stopPlay": "command",
@@ -2074,6 +2079,11 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
     case "tools.actConnection":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["toolId", "action", "commandId"])
         && isPlayCommandId(value.params.commandId) && isExternalToolParams({ toolId: value.params.toolId, action: value.params.action }, true);
+    case "tools.observeInstaller":
+      return hasExactKeys(value, REQUEST_KEYS) && isInstallerToolParams(value.params, false);
+    case "tools.actInstaller":
+      return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, ["toolId", "action", "commandId"])
+        && isPlayCommandId(value.params.commandId) && isInstallerToolParams({ toolId: value.params.toolId, action: value.params.action }, true);
     case "environment.inspectManagerApps":
       return hasExactKeys(value, REQUEST_KEYS) && hasExactKeys(value.params, []);
     case "environment.startPlay": case "environment.stopPlay":

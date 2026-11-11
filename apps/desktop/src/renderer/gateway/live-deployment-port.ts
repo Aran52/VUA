@@ -3,8 +3,13 @@
 import {
   isDeploymentAccepted,
   isDeploymentPlanResult,
+  isToolDeploymentPlanResult,
   readDeploymentProgress,
+  type DeploymentIntent,
+  type DeploymentPlan,
   type TaskSnapshotV01,
+  type ToolDeploymentIntent,
+  type ToolDeploymentPlan,
 } from "@vua/contracts";
 import { strings } from "../i18n/index.ts";
 import type { DeploymentPort } from "./environment-port.ts";
@@ -28,6 +33,18 @@ function validSnapshot(value: unknown, taskId: string): value is TaskSnapshotV01
 }
 
 export function createLiveDeploymentPort(client: GatewayClient): DeploymentPort {
+  async function plan(intent: DeploymentIntent): Promise<DeploymentPlan>;
+  async function plan(intent: ToolDeploymentIntent): Promise<ToolDeploymentPlan>;
+  async function plan(intent: DeploymentIntent | ToolDeploymentIntent): Promise<DeploymentPlan | ToolDeploymentPlan> {
+    const result = await client.invoke({
+      schemaVersion: 1, requestId: crypto.randomUUID(), method: "environment.planDeployment", params: { intent },
+    });
+    if (!result.ok || (!isDeploymentPlanResult(result.value) && !isToolDeploymentPlanResult(result.value))) {
+      throw new Error("deployment_plan_unavailable");
+    }
+    return result.value.deploymentPlan;
+  }
+
   return {
     async capability() {
       const result = await client.invoke({
@@ -40,22 +57,17 @@ export function createLiveDeploymentPort(client: GatewayClient): DeploymentPort 
         operations.some(operation => operation.operationId === id && operation.availability === "available"))
         ? { state: "ready" } : { state: "unavailable" };
     },
-    async plan(intent) {
-      const result = await client.invoke({
-        schemaVersion: 1, requestId: crypto.randomUUID(), method: "environment.planDeployment", params: { intent },
-      });
-      if (!result.ok || !isDeploymentPlanResult(result.value)) throw new Error("deployment_plan_unavailable");
-      return result.value.deploymentPlan;
-    },
+    plan,
     async execute(plan, commandId) {
       const result = await client.invoke({
         schemaVersion: 1, requestId: crypto.randomUUID(), method: "environment.executeDeployment",
         params: { intent: plan.intent, confirmedDigest: plan.digest, commandId },
       });
       if (!result.ok || !isDeploymentAccepted(result.value)) throw new Error("deployment_not_accepted");
+      const purposes = plan.intent.purposes ?? [];
       registerTaskIdentity(result.value.taskId, {
         title: strings.deployment.title,
-        originPage: plan.intent.purposes.some(p => p === "pc_avatar" || p === "quest_avatar") ? "env-create" : "env-play",
+        originPage: purposes.some(p => p === "pc_avatar" || p === "quest_avatar") ? "env-create" : "env-play",
       });
       return result.value.taskId;
     },

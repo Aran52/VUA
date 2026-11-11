@@ -237,6 +237,7 @@ struct EnvironmentServices {
     roots: EnvironmentRoots,
     play: vua_project_manager::play_session::PlayService,
     tools: HashMap<&'static str, vua_orchestrator::external_tools::ToolService>,
+    installer_tools: HashMap<&'static str, vua_orchestrator::external_tools::InstallerToolService>,
     network: vua_orchestrator::network::NetworkService,
     deployment: vua_orchestrator::deployment::DeploymentService,
     engine: EnvironmentEngine,
@@ -946,6 +947,7 @@ pub fn run_provider_host_with_legacy(
             roots: config.roots.clone(),
             play: vua_project_manager::play_session::PlayService::windows(config.roots.clone()),
             tools: vua_orchestrator::external_tools::STEAM_TOOLS.iter().map(|spec| (spec.tool_id, vua_orchestrator::external_tools::ToolService::new(Arc::new(vua_project_manager::steam_tools::SteamToolPlatform::new(config.roots.clone(), spec)), Arc::new(SystemClock), spec.tool_id))).collect(),
+            installer_tools: vua_orchestrator::external_tools::INSTALLER_TOOLS.iter().map(|spec| (spec.tool_id, vua_orchestrator::external_tools::InstallerToolService::new(Arc::new(vua_project_manager::tool_install::WindowsInstallerToolPlatform::new(config.roots.registry.clone(), spec)), Arc::new(SystemClock), spec.tool_id))).collect(),
             network: vua_orchestrator::network::NetworkService::new(
                 Arc::new(vua_project_manager::network_probe::HttpsNetworkProbe),
                 Arc::new(SystemClock),
@@ -1486,6 +1488,9 @@ fn handle_application_request(state: &mut HostState, request: &Value) -> FrameOu
     if matches!(method, "tools.observeConnection" | "tools.actConnection") {
         return crate::external_tool_routes::request(state.environment.as_ref().map(|s| &s.tools), request, request_id, correlation_id);
     }
+    if matches!(method, "tools.observeInstaller" | "tools.actInstaller") {
+        return crate::external_tool_routes::installer_request(state.environment.as_ref().map(|s| &s.installer_tools), request, request_id, correlation_id);
+    }
     if matches!(method, "environment.getScenarioSop" | "environment.checkScenarioEnvironment") {
         return crate::scenario_routes::request(state.environment.as_ref().map(|s| &s.deployment),method,request,request_id,correlation_id);
     }
@@ -1786,6 +1791,8 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "environment.observePlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.observeConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "tools.actConnection", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "tools.observeInstaller", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "tools.actInstaller", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.startPlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         {"operationId": "environment.stopPlay", "availability": if state.environment.is_some() { "available" } else { "unavailable" }},
         deployment_capability(state, "environment.planDeployment"),

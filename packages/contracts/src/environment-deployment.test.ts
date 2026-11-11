@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { isApplicationRequestV01 } from "./application-contract.js";
 import { isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
-import { DEPLOYMENT_SCHEMA, UNITY_HUB_INSTALL_LINK, isDeploymentIntent, isDeploymentParams, isDeploymentPlanResult, isDeploymentAccepted, isDeploymentCommandId, readDeploymentProgress } from "./environment-deployment.js";
+import { DEPLOYMENT_SCHEMA, OFFICIAL_TOOL_URLS, UNITY_HUB_INSTALL_LINK, isDeploymentIntent, isDeploymentParams, isDeploymentPlanResult, isToolDeploymentIntent, isToolDeploymentPlanResult, isDeploymentAccepted, isDeploymentCommandId, readDeploymentProgress } from "./environment-deployment.js";
 
 const vectors = JSON.parse(readFileSync(new URL("../../../schemas/environment-deployment/v0.1/intent-vectors.json", import.meta.url), "utf8")) as { name: string; valid: boolean; intent: unknown }[];
 const intent = { purposes: ["pc_avatar"], editorRoot: "C:\\VUA Test\\Editors" };
@@ -129,5 +129,21 @@ describe("deployment v0.1 closed boundary", () => {
     expect(isDeploymentPlanResult({ deploymentPlan: { ...plan, prerequisitesReady: true } })).toBe(false);
     expect(isDeploymentPlanResult({ deploymentPlan: { ...plan, steps: [step, step] } })).toBe(false);
     expect(isDeploymentPlanResult({ deploymentPlan: { ...plan, steps: [step, { ...editor, officialUrl: "https://example.com/installer" }] } })).toBe(false);
+  });
+  it("validates official-installer tool plans, reinstall subsets and byte progress without mixing purpose-only plans", () => {
+    const toolIntent = { tools: ["vrct", "vrcx"] as const, reinstallTools: ["vrct"] as const, editorRoot: intent.editorRoot };
+    expect(isToolDeploymentIntent(toolIntent)).toBe(true);
+    expect(isToolDeploymentIntent({ tools: ["vrct"], reinstallTools: ["slimevr"], editorRoot: intent.editorRoot })).toBe(false);
+    const steps = [
+      { component: "vrct", action: "install_official_tool", reason: "verified", location: "C:\\Tools\\VRCT.exe", version: "3.3.2", officialUrl: OFFICIAL_TOOL_URLS.vrct },
+      { component: "vrcx", action: "install_official_tool", reason: "missing", location: null, version: null, officialUrl: OFFICIAL_TOOL_URLS.vrcx },
+    ];
+    const toolPlan = { schemaVersion: DEPLOYMENT_SCHEMA, intent: toolIntent, steps, digest, prerequisitesReady: false, installer: null };
+    expect(isToolDeploymentPlanResult({ deploymentPlan: toolPlan })).toBe(true);
+    expect(isDeploymentPlanResult({ deploymentPlan: toolPlan })).toBe(false);
+    expect(isToolDeploymentPlanResult({ deploymentPlan: { ...toolPlan, steps: [{ ...steps[0], officialUrl: "https://example.com/vrct.exe" }, steps[1]] } })).toBe(false);
+    const progress = { operation: "environment.executeDeployment", component: "vrct", action: "install_official_tool", source: "official", phase: "downloading", completedBytes: 512, totalBytes: 1024 };
+    expect(readDeploymentProgress(progress)).toMatchObject({ component: "vrct", action: "install_official_tool", completedBytes: 512 });
+    expect(readDeploymentProgress({ ...progress, source: "nounitycn" })).toBeNull();
   });
 });

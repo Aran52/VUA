@@ -119,7 +119,7 @@ describe("built-in MCP, using the official HTTP client", () => {
     expect(calls).toHaveLength(1);
   });
   it.each(AGENT_TOOL_IDS)("observes %s and requires player approval for each Steam tool action", async toolId => {
-    const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.3", toolId,
+    const toolConnection: ExternalToolSnapshot = { schemaVersion: "vua.external-tool/v0.4", toolId,
       capturedAt: "2026-10-29T00:00:00.000Z", presence: "installed", steamReady: true, buildId: "12345",
       running: false, canStop: false, activity: "idle", issue: null };
     const { client, calls, service } = await setup(async request => envelope(request, { toolConnection }));

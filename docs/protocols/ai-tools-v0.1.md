@@ -49,7 +49,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
 | `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
-| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR and Reborn |
+| `vua_tool_status`, `vua_request_tool` | Candidate Steam connections for VRCFaceTracking, OpenVR Space Calibrator, OVR Advanced Settings, OVR Toolkit, OyasumiVR, OVR Overlay Translator, ChilloutVR, Reborn, Desktop+ and fpsVR |
 | `vua_library`, `vua_material_files` | Bounded existing local AMF/BDL library queries; no login/download/upload |
 | `vua_terms`, `vua_terms_check` | Recorded [VN3 terms](terms-v0.1.md) of BOOTH products and one use checked across several; local evidence only |
 | `vua_amf_materials`, `vua_amf_run`, `vua_amf_plan`, `vua_amf_release` | Candidate material-first read/plan facts and a finished Avatar's turntable and uploads |
@@ -65,7 +65,7 @@ the play tools; other IDs are rejected by the MCP input schema.
 For example, `vua_tool_status {"toolId":"space"}` reads Space Calibrator's installation and
 process facts. `vua_request_tool {"toolId":"space","action":"start"}` queues a request for the
 player to approve on the Tools page before dispatch. Actions and observed fields follow
-[external tool connection v0.3](external-tool-v0.3.md), and a reinstall stays with the player on the
+[external tool connection v0.4](external-tool-v0.4.md), and a reinstall stays with the player on the
 tool's own page. Installation or a running process does
 not establish module, hardware, tracking or OSC configuration.
 

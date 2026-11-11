@@ -1,16 +1,17 @@
-/** Candidate N2 v0.3: fixed official Steam connections; hardware/modules stay upstream. */
-export const EXTERNAL_TOOL_IDS = ["vrcft", "space", "advanced", "toolkit", "oyasumi", "translator", "chilloutvr", "reborn", "vrchat", "steamvr"] as const;
+/** Candidate N2 v0.4: fixed official Steam connections; hardware/modules stay upstream. */
+export const EXTERNAL_TOOL_IDS = ["vrcft", "space", "advanced", "toolkit", "oyasumi", "translator", "chilloutvr", "reborn", "vrchat", "steamvr", "desktopplus", "fpsvr"] as const;
 export type ExternalToolId = typeof EXTERNAL_TOOL_IDS[number];
 /** Product names, the same in every UI language, shown wherever the player approves an action on a tool. */
 export const EXTERNAL_TOOL_NAMES: Readonly<Record<ExternalToolId, string>> = {
   vrcft: "VRCFaceTracking", space: "OpenVR Space Calibrator", advanced: "OVR Advanced Settings",
   toolkit: "OVR Toolkit", oyasumi: "OyasumiVR", translator: "OVR Overlay Translator",
   chilloutvr: "ChilloutVR", reborn: "Reborn", vrchat: "VRChat", steamvr: "SteamVR",
+  desktopplus: "Desktop+", fpsvr: "fpsVR",
 };
 export const EXTERNAL_TOOL_ACTIONS = ["install", "start", "stop", "cancel", "reinstall"] as const;
 export type ExternalToolAction = typeof EXTERNAL_TOOL_ACTIONS[number];
 export interface ExternalToolSnapshot {
-  readonly schemaVersion: "vua.external-tool/v0.3";
+  readonly schemaVersion: "vua.external-tool/v0.3" | "vua.external-tool/v0.4";
   readonly toolId: ExternalToolId;
   readonly capturedAt: string;
   readonly presence: "installed" | "missing" | "incomplete" | "unknown";
@@ -30,7 +31,7 @@ export function isExternalToolParams(value: unknown, command: boolean): boolean 
 export function isExternalToolResult(value: unknown): value is ExternalToolResult {
   if (!keys(value, ["toolConnection"]) || !keys(value.toolConnection, ["schemaVersion", "toolId", "capturedAt", "presence", "steamReady", "buildId", "running", "canStop", "activity", "issue"])) return false;
   const v = value.toolConnection;
-  return v.schemaVersion === "vua.external-tool/v0.3" && EXTERNAL_TOOL_IDS.includes(v.toolId as ExternalToolId) && typeof v.capturedAt === "string" && v.capturedAt.length > 0
+  return v.schemaVersion === "vua.external-tool/v0.4" && EXTERNAL_TOOL_IDS.includes(v.toolId as ExternalToolId) && typeof v.capturedAt === "string" && v.capturedAt.length > 0
     && ["installed", "missing", "incomplete", "unknown"].includes(v.presence as string) && typeof v.steamReady === "boolean"
     && (v.buildId === null || (typeof v.buildId === "string" && /^\d{1,32}$/.test(v.buildId)))
     && typeof v.running === "boolean" && typeof v.canStop === "boolean" && (!v.canStop || v.running)

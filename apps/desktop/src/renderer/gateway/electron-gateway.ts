@@ -4,7 +4,7 @@ import { createUnityLicensePort } from "./unity-license-port.ts";
 import { createAmfModulePort } from "./amf-module-port.ts";
 import { createDistributionPort } from "./distribution-port.ts";
 import { createLivePlayPort } from "./live-play-port.ts";
-import { createLiveToolPort } from "./live-tool-port.ts";
+import { createLiveInstallerToolPort, createLiveToolPort } from "./live-tool-port.ts";
 import { createCreatorInventoryPort } from "./creator-inventory-port.ts";
 import { createLiveNetworkPort } from "./live-network-port.ts";
 import type { ApplicationEventV01, TaskEventV01 } from "@vua/contracts";
@@ -172,6 +172,7 @@ function createLiveEnvironmentPort(client: GatewayClient): EnvironmentPort {
     unityLicense: createUnityLicensePort(client),
     play: createLivePlayPort(client),
     tools: createLiveToolPort(client),
+    installerTools: createLiveInstallerToolPort(client),
     managers: createCreatorInventoryPort(client),
     network: createLiveNetworkPort(client),
     snapshot: fetchView,

@@ -1,7 +1,7 @@
 import { isLibraryListParamsV02, type LibraryListParamsV02, type LibraryListV02 } from "./library-view-v02.js";
 import { isLibraryListParamsV03, type LibraryListParamsV03 } from "./library-view-v03.js";
 import { isUnityLicenseParams } from "./unity-license-v01.js";
-import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
+import { isDeploymentCommandId, isDeploymentParams, type DeploymentPlanParams, type DeploymentExecuteParams, type DeploymentPlanResult, type ToolDeploymentPlanResult, type DeploymentAccepted } from "./environment-deployment.js";
 import { isTermsParams, type TermsPresetId, type ProductTermsV01, type TermsUseCheckV01, type TermsAcceptedV01 } from "./terms-v01.js";
 import { isAmfProductionParams } from "./amf-production-v01.js";
 import { isScenarioEnvironmentParams } from "./scenario-environment.js";
@@ -10,6 +10,7 @@ import { isWebsiteTestParams, type WebsiteTestParams, type WebsiteTestResult } f
 import { type GameWindowObservationResultV1 } from "./game-window.js";
 import { isPlayCommandId, isPlayParams, type PlayRoute, type PlaySessionResult } from "./play-session.js";
 import { isExternalToolParams, type ExternalToolAction, type ExternalToolId, type ExternalToolResult } from "./external-tool.js";
+import { isInstallerToolParams, type InstallerToolAction, type InstallerToolId, type InstallerToolResult } from "./installer-tool.js";
 import type { ManagerAppsResult } from "./manager-apps.js";
 import { isDownloadEventV01 } from "./download-events.js";
 import { isCatalogSyncPageRequestV01, type CatalogSyncPageRequestV01 } from "./catalog-sync.js";
@@ -2871,6 +2872,8 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.observePlay"; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeConnection"; readonly params: { readonly toolId: ExternalToolId } })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "tools.actConnection"; readonly commandId: string; readonly params: { readonly toolId: ExternalToolId; readonly action: ExternalToolAction } })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "tools.observeInstaller"; readonly params: { readonly toolId: InstallerToolId } })
+  | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "tools.actInstaller"; readonly commandId: string; readonly params: { readonly toolId: InstallerToolId; readonly action: InstallerToolAction } })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly method: "environment.startPlay" | "environment.stopPlay"; readonly commandId: string; readonly params: { readonly route: PlayRoute } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.checkNetwork"; readonly params: { readonly intent: NetworkIntent } })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.testWebsites"; readonly params: WebsiteTestParams })
@@ -3045,6 +3048,7 @@ export type ApplicationSuccessValueV01 =
   | ManagerAppsResult
   | PlaySessionResult
   | ExternalToolResult
+  | InstallerToolResult
   | NetworkResult
   | WebsiteTestResult
   | GameWindowObservationResultV1
@@ -3053,6 +3057,7 @@ export type ApplicationSuccessValueV01 =
   | LibraryRemovalPreviewV01 | LibraryRemovalSnapshotV01 | RecipeDraftSelectionStatusV01
   | LibraryPendingRemovalsV01
   | DeploymentPlanResult
+  | ToolDeploymentPlanResult
   | DeploymentAccepted
   | ApplicationSnapshotV01
   | TaskListSnapshotV01
@@ -3308,6 +3313,11 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
     const command = value.method === "tools.actConnection";
     return value.kind === (command ? "command" : "query") && hasExactKeys(value, command ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
       && isExternalToolParams(value.params, command) && (!command || isPlayCommandId(value.commandId));
+  }
+  if (value.method === "tools.observeInstaller" || value.method === "tools.actInstaller") {
+    const command = value.method === "tools.actInstaller";
+    return value.kind === (command ? "command" : "query") && hasExactKeys(value, command ? ["contractVersion", "requestId", "correlationId", "kind", "method", "params", "commandId"] : ["contractVersion", "requestId", "correlationId", "kind", "method", "params"])
+      && isInstallerToolParams(value.params, command) && (!command || isPlayCommandId(value.commandId));
   }
   if (value.method === "environment.observePlay" || value.method === "environment.startPlay" || value.method === "environment.stopPlay") {
     const command = value.method !== "environment.observePlay";

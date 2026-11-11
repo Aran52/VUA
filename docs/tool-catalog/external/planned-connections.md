@@ -1,32 +1,38 @@
 # Planned connections
 
-> Updated: 2026-11-07
+> Updated: 2026-11-11
 
 These tools and headset routes have their interface in VUA ahead of a working connection (author
 request, 2026-11-06: interface first, backend to follow). VUA describes each one, links its official
 page and, where the environment check already observes it, shows whether it is on the computer. A tool's
-action reads "In development" and a headset's opens its connection guide until the connection below
-exists. Licenses and sources were checked on the date above; recheck them when a connection is built.
+action reads "In development" and a headset's opens its connection guide until the UI card is switched
+onto its backend face. Licenses and sources were rechecked on 2026-11-11.
 
 ## Tools
 
-The cards are listed in `apps/desktop/src/renderer/features/tools/planned-tools.ts`.
+The cards are listed in `apps/desktop/src/renderer/features/tools/planned-tools.ts`. Backend faces
+for Desktop+, fpsVR, SlimeVR Server, VRCT, VRCX and VRCS are implemented in
+[external-tool v0.4](../../protocols/external-tool-v0.4.md) and
+[installer-tool v0.1](../../protocols/installer-tool-v0.1.md) +
+[deployment v0.1](../../protocols/environment-deployment-v0.1.md), ready for UI switch-over.
 
-| Card | Source | License or price | Steam App ID | Connection needed |
+| Card | Source | License or price | Steam App ID | Connection status |
 | --- | --- | --- | --- | --- |
-| SlimeVR Server | [SlimeVR-Installer](https://github.com/SlimeVR/SlimeVR-Installer) | MIT and Apache-2.0 | — | Official installer, which also installs the SteamVR driver and a Java runtime; discovery and launch |
-| VRCT | [GitHub](https://github.com/misyaguziya/VRCT) or BOOTH | MIT, except a chat-bubble model licensed only for VRCT | — | Official release; the model limits mirroring |
-| VRCX | [GitHub](https://github.com/vrcx-team/VRCX) | MIT | — | Official installer; VRCX keeps its own VRChat sign-in |
-| VRCS | [GitHub](https://github.com/Dreaminko/VRCS) | Verify | — | Already selected in the [N2 table](../../development-outline.md#n2-external-gameplay-tools) |
-| XSOverlay | Steam | Paid, Early Access | 1173510 | Shared Steam connection |
-| Desktop+ | Steam | Free | 1494460 (`DesktopPlus`, `DesktopPlus.exe`) | Shared Steam connection |
-| fpsVR | Steam | Paid | 908520 (`fpsVR`, `fpsVR.exe`) | Shared Steam connection |
-| LIV | Steam | Free base application | 755540 | Already in the N2 table |
+| [SlimeVR Server](slimevr-server.md) | [SlimeVR-Installer](https://github.com/SlimeVR/SlimeVR-Installer) `v5.0.0` | `MIT AND Apache-2.0` (mirror-eligible with notices) | — | Backend wired (`slimevr` in deployment v0.1 + installer-tool v0.1); elevated NSIS `/S` installs SteamVR driver and Java runtime |
+| [VRCT](vrct.md) | [GitHub](https://github.com/misyaguziya/VRCT) `v3.6.1` | `MIT`, except VRCT-exclusive chat-bubble model (official GitHub release only; no mirroring) | — | Backend wired (`vrct` in deployment v0.1 + installer-tool v0.1) |
+| [VRCX](vrcx.md) | [GitHub](https://github.com/vrcx-team/VRCX) `v2026.09.16` | `MIT` (mirror-eligible with license) | — | Backend wired (`vrcx` in deployment v0.1 + installer-tool v0.1); VRCX keeps its own VRChat sign-in and database |
+| [VRCS](vrcs.md) | [GitHub](https://github.com/Dreaminko/VRCS) `0.3.7` | `AGPL-3.0` (verified 2026-11-11; official GitHub release first, source+license required if mirrored) | — | Backend wired (`vrcs` in deployment v0.1 + installer-tool v0.1) |
+| XSOverlay | Steam | Paid, Early Access | 1173510 | Pending real Steam installation verification of `installdir` and main executable |
+| Desktop+ | Steam | Free | 1494460 (`DesktopPlus`, `DesktopPlus.exe`) | Backend wired (`desktopplus` in external-tool v0.4) |
+| fpsVR | Steam | Paid | 908520 (`fpsVR`, `fpsVR.exe`) | Backend wired (`fpsvr` in external-tool v0.4) |
+| LIV | Steam | Free base application | 755540 | Pending real Steam installation verification of `installdir` and main executable |
 
-A Steam card becomes live by adding its identifier to a new version of the
-[external tool connection](../../protocols/external-tool-v0.3.md) and moving it out of
-`planned-tools.ts`; `SteamToolCard` then draws it with no other interface work. Its logo is already
-listed in `apps/desktop/src/electron/tool-logos.ts`.
+A Steam card becomes live by adding its identifier to the
+[external tool connection](../../protocols/external-tool-v0.4.md) and moving it out of
+`planned-tools.ts`; `SteamToolCard` then draws it with no other interface work. Official-installer
+cards (`slimevr`, `vrct`, `vrcx`, `vrcs`) connect to `tools.observeInstaller` / `tools.actInstaller`
+and `environment.planDeployment` / `environment.executeDeployment`. Logos are listed in
+`apps/desktop/src/electron/tool-logos.ts`.
 
 ## Headset routes
 

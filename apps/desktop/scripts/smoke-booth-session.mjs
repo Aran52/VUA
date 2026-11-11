@@ -102,7 +102,10 @@ async function run(){try{
   await waitFor(()=>js('!document.querySelector(".vua-login-browser__bar")'),"automatic return after successful login",15000);
   await waitFor(()=>js('!document.querySelector("[data-nav-id=accounts-booth-login]")&&document.querySelector(".vua-settings-account__head")?.textContent.includes("Synthetic account")'),"account refresh after close");
   assert(true,"Successful login automatically returns and refreshes Settings → Accounts to signed in");
-  await click("logo-home");await click("nav-warehouse");
+  await click("logo-home");
+  await waitFor(()=>js('!!document.querySelector(".vua-home")&&!document.querySelector(".vua-warehouse")'),"home before returning to the library");
+  await click("nav-warehouse");
+  await waitFor(()=>js('!!document.querySelector(".vua-warehouse")&&!document.querySelector(".vua-home")'),"new library page after login");
   await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")&&!document.querySelector("[data-nav-id=warehouse-sync]").disabled'),"signed-in library");
   assert(true,"Returning to the asset library offers sync instead of another login");
   await click("warehouse-sync");
@@ -182,5 +185,7 @@ async function run(){try{
   assert((await net.fetch(cachedImage)).status===503,"The early-installed image loader denies reads after AMF is disabled");
   fs.writeFileSync(path.join(output,"checks.json"),JSON.stringify({scope:"Actual Electron/Main/preload/renderer/providers with synthetic BOOTH and stubbed Explorer; no real account/material acceptance",checks},null,2));
   console.log(JSON.stringify({passed:checks.length,output}));exitCode=0;clearTimeout(deadline);app.quit();
-}catch(error){console.error(error.stack??String(error));console.error(JSON.stringify({output,checks,requests,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}
+}catch(error){console.error(error.stack??String(error));
+  const state=window&&!window.isDestroyed()?await window.webContents.executeJavaScript('(async()=>({text:document.body.textContent.slice(-6000),amf:await window.vua.amfModule.snapshot(),sync:await window.vua.catalogSync.probe()}))()').catch(error=>({diagnosticError:String(error)})):null;
+  console.error(JSON.stringify({output,checks,requests,state,views:window?.contentView.children.map(v=>v.webContents?.getURL())}));clearTimeout(deadline);app.quit();}}
 void run();

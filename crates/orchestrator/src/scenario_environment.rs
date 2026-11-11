@@ -5,6 +5,9 @@ use crate::deployment::{
 };
 use serde::{Deserialize, Serialize};
 
+mod play_setups;
+pub use play_setups::*;
+
 pub const SCENARIO_SCHEMA: &str = "vua.scenario-environment/v0.1";
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

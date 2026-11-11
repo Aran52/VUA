@@ -1,8 +1,8 @@
 # External Agent tools v0.1
 
-> Document version: 0.12.0
+> Document version: 0.13.0
 > Status: Candidate
-> Updated: 2026-11-06
+> Updated: 2026-11-11
 > Owner: Integration
 
 The built-in MCP adapter belongs to Electron Main. The external Agent supplies conversation,
@@ -45,7 +45,7 @@ Gateway dispatch; a client cannot provide a Gateway method, shell string or arbi
 | Tools | Authority |
 | --- | --- |
 | `vua_status`, `vua_tasks`, `vua_task` | Current capabilities/task facts |
-| `vua_sop`, `vua_check_environment` | Independent [scenario read family](scenario-environment-v0.1.md) |
+| `vua_play_setups`, `vua_sop`, `vua_check_environment` | Independent [scenario read family](scenario-environment-v0.1.md) and [play-setup catalog/SOP v0.2](scenario-environment-v0.2.md) |
 | `vua_unity_license` | Metadata-only [Unity license hints](unity-license-v0.1.md) and historical checks; starts no program |
 | `vua_plan_installation`, `vua_request_installation` | Existing digest-bound deployment plan/execute |
 | `vua_play_status`, `vua_request_play` | Existing route observations and card-owned launch/stop; preexisting applications retained |
@@ -242,6 +242,7 @@ The [Recipe v0.5 contract](amf-recipe-v0.5.md) owns statuses, match rules and di
 
 ## Document changelog
 
+- 0.13.0 (2026-11-11): add `vua_play_setups` (`environment.listPlaySetups` `v0.2`) and `vua_sop` `selection` (`environment.getScenarioSop` `v0.2`) while keeping `v0.1` scenario SOP queries intact.
 - 0.12.0 (2026-11-06): add ChilloutVR and Reborn to the Steam tools; VRChat and SteamVR stay with the play tools, and a reinstall stays with the player.
 - 0.10.1 (2026-10-31): the connection page opens from its own top-bar button instead of Help.
 - 0.10.0 (2026-10-29): expose all six connected Steam tools through contract-derived MCP tool IDs, retaining player approval on the Tools page and installation/process-only observations.

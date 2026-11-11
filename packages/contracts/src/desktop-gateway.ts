@@ -1205,7 +1205,7 @@ export const DESKTOP_GATEWAY_METHOD_KINDS = {
   "terms.getProduct": "query", "terms.checkUse": "query", "terms.refreshProduct": "command", "terms.refreshLibrary": "command",
   "environment.unityLicense": "query", "environment.checkUnityLicense": "command",
   "amf.production.list": "query", "amf.production.get": "query", "amf.production.plan": "query", "amf.production.rollbackPlan": "query", "amf.production.revisionPlan": "query", "amf.production.listRecipes": "query", "amf.production.getRecipe": "query", "amf.production.recipeSharePlan": "query", "amf.production.recipeMaterialPlan": "query", "amf.production.recipeApplyPlan": "query", "amf.production.previewRecipeShare": "query", "amf.production.previewImage": "query", "amf.production.releaseState": "query", "amf.production.turntableFrame": "query", "amf.production.faceTrackingPlan": "query", "amf.production.planOutfitRemoval": "query", "amf.production.planLighting": "query", "amf.production.planTextureMemory": "query", "amf.production.listFits": "query",
-  "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
+  "environment.listPlaySetups": "query", "environment.getScenarioSop": "query", "environment.checkScenarioEnvironment": "query",
   "amf.production.prepare": "command", "amf.production.assemble": "command", "amf.production.reinspect": "command", "amf.production.open": "command", "amf.production.closeEditor": "command", "amf.production.rollback": "command", "amf.production.restoreRevision": "command", "amf.production.saveRecipe": "command", "amf.production.prepareRecipe": "command", "amf.production.exportRecipe": "command", "amf.production.importRecipe": "command", "amf.production.applyRecipe": "command", "amf.production.bakeTurntable": "command", "amf.production.upload": "command", "amf.production.faceTrackingPatch": "command", "amf.production.sdkFix": "command", "amf.production.changeSources": "command", "amf.production.delete": "command", "amf.production.setCapacity": "command", "amf.production.removeOutfit": "command", "amf.production.applyLighting": "command", "amf.production.applyTextureMemory": "command", "amf.production.saveFit": "command", "amf.production.renameFit": "command", "amf.production.deleteFit": "command",
   "app.snapshot": "query",
   "task.list": "query",
@@ -2049,7 +2049,7 @@ export function isDesktopGatewayRequestV1(value: unknown): value is DesktopGatew
         && isVrchatBlueprintId(value.params.avatarId) && isIdentifier(value.params.commandId);
     case "terms.getProduct": case "terms.checkUse": case "terms.refreshProduct": case "terms.refreshLibrary":
       return hasExactKeys(value, REQUEST_KEYS) && isTermsParams(value.method, value.params);
-    case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
+    case "environment.listPlaySetups": case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
       return hasExactKeys(value, REQUEST_KEYS) && isScenarioEnvironmentParams(value.method,value.params);
     case "environment.unityLicense": case "environment.checkUnityLicense":
       return hasExactKeys(value, REQUEST_KEYS) && isUnityLicenseParams(value.method, value.params);

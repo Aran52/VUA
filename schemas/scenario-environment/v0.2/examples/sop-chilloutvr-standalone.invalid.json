@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "sop-cvr-standalone",
+  "correlationId": "sop-cvr-standalone",
+  "kind": "query",
+  "method": "environment.getScenarioSop",
+  "params": {
+    "schemaVersion": "0.2",
+    "selection": {
+      "platform": "chilloutvr",
+      "device": "quest",
+      "connection": "standalone"
+    }
+  }
+}

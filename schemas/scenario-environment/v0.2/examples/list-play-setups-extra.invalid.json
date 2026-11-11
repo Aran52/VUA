@@ -1,0 +1,11 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "list-extra",
+  "correlationId": "list-extra",
+  "kind": "query",
+  "method": "environment.listPlaySetups",
+  "params": {
+    "schemaVersion": "0.2",
+    "extra": true
+  }
+}

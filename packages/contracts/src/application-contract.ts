@@ -2862,7 +2862,7 @@ export type ApplicationRequestV01 =
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "terms.checkUse"; readonly params: {readonly schemaVersion: "0.1"; readonly presetId: TermsPresetId; readonly productIds: readonly string[]} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshProduct"; readonly params: {readonly schemaVersion: "0.1"; readonly productId: string} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "terms.refreshLibrary"; readonly params: {readonly schemaVersion: "0.1"} })
-  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
+  | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.listPlaySetups" | "environment.getScenarioSop" | "environment.checkScenarioEnvironment"; readonly params: Readonly<Record<string, unknown>> })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "environment.unityLicense"; readonly params: {readonly schemaVersion: "0.1"} })
   | (ApplicationRequestBaseV01 & { readonly kind: "command"; readonly commandId: string; readonly method: "environment.checkUnityLicense"; readonly params: {readonly schemaVersion: "0.1"; readonly editorPath: string} })
   | (ApplicationRequestBaseV01 & { readonly kind: "query"; readonly method: "amf.production.list" | "amf.production.get" | "amf.production.plan" | "amf.production.rollbackPlan" | "amf.production.revisionPlan" | "amf.production.listRecipes" | "amf.production.getRecipe" | "amf.production.recipeSharePlan" | "amf.production.recipeMaterialPlan" | "amf.production.recipeApplyPlan" | "amf.production.previewRecipeShare" | "amf.production.previewImage" | "amf.production.releaseState" | "amf.production.turntableFrame" | "amf.production.faceTrackingPlan" | "amf.production.planOutfitRemoval" | "amf.production.planLighting" | "amf.production.planTextureMemory" | "amf.production.listFits"; readonly params: Readonly<Record<string, unknown>> })
@@ -3244,7 +3244,7 @@ export function isApplicationRequestV01(value: unknown): value is ApplicationReq
   if (!isRecord(value) || value.contractVersion !== APPLICATION_CONTRACT_VERSION) return false;
   if (!isIdentifier(value.requestId) || !isIdentifier(value.correlationId) || !isRecord(value.params)) return false;
 
-  if (value.method === "environment.getScenarioSop" || value.method === "environment.checkScenarioEnvironment") {
+  if (value.method === "environment.listPlaySetups" || value.method === "environment.getScenarioSop" || value.method === "environment.checkScenarioEnvironment") {
     return value.kind === "query" && hasExactKeys(value,["contractVersion","requestId","correlationId","kind","method","params"])
       && isScenarioEnvironmentParams(value.method,value.params);
   }

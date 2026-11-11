@@ -587,8 +587,9 @@ function toApplicationRequest(
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.checkUnityLicense":
       return { ...base, kind: "command", commandId: `license-${request.requestId}`, method: request.method, params: request.params };
+    case "environment.listPlaySetups": case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
+      return { ...base, kind: "query", method: request.method, params: request.params };
     case "environment.unityLicense":
-    case "environment.getScenarioSop": case "environment.checkScenarioEnvironment":
     case "amf.production.planTextureMemory": case "amf.production.list": case "amf.production.get": case "amf.production.plan": case "amf.production.rollbackPlan": case "amf.production.revisionPlan": case "amf.production.listRecipes": case "amf.production.getRecipe": case "amf.production.recipeSharePlan": case "amf.production.recipeMaterialPlan": case "amf.production.recipeApplyPlan": case "amf.production.previewRecipeShare": case "amf.production.previewImage": case "amf.production.releaseState": case "amf.production.readShareImage": case "amf.production.turntableFrame": case "amf.production.faceTrackingPlan": case "amf.production.planOutfitRemoval": case "amf.production.planLighting": case "amf.production.listFits":
       return { ...base, kind: "query", method: request.method, params: request.params };
     case "amf.production.exportShareImage":

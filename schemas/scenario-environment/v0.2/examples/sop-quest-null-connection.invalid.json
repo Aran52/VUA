@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.1",
+  "requestId": "sop-null-conn",
+  "correlationId": "sop-null-conn",
+  "kind": "query",
+  "method": "environment.getScenarioSop",
+  "params": {
+    "schemaVersion": "0.2",
+    "selection": {
+      "platform": "vrchat",
+      "device": "quest",
+      "connection": null
+    }
+  }
+}

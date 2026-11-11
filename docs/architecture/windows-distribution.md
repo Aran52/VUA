@@ -24,7 +24,7 @@ rights are not required for this installation. No automatic reboot is performed.
 | `payloads/amf/<pack-sha256>/` | AMF renderer entry/assets, AMF Provider and notices |
 | `manifests/<envelope-sha256>.json` | Verified immutable signed release metadata |
 | `active.json`, `previous.json`, `pending.json` | Versioned selection and explicit update recovery state |
-| `cache/` | Verified objects and inspectable incomplete acquisition |
+| `cache/` | Temporary verified transfer objects (cleaned after extraction) and inspectable incomplete acquisition |
 
 User data remains in the existing [module-owned profile layout](modules.md#data-and-migration),
 outside program payloads. Installation does not modify the AMF enable flag, material files,
@@ -32,13 +32,16 @@ projects, Recipes or BOOTH profile. Uninstall removes owned program files and re
 Unknown populated target directories and reparse/link destinations are rejected.
 
 Electron starts without an external application argument, using a small packaged
-`resources/app.asar` bootstrap. `VUA.Runtime.exe` is a byte-identical copy of the verified
-upstream `electron.exe`; the original remains in the runtime inventory. Its product filename
-allows Electron's real `app.isPackaged` classification. The bootstrap verifies signed host/module
-inventories and establishes a frozen Main-only installation context. It never selects code from
-an environment variable. The launcher clears Electron/Node/development overrides. Existing
-production guards, sandboxed preload, Renderer isolation and navigation policies remain active.
-The bootstrap and launch alias are derived owned files, not unreported changes to upstream bytes.
+`resources/app.asar` bootstrap. `VUA.Runtime.exe` is a hard link to the verified upstream
+`electron.exe` (falling back to a byte-identical copy on volumes without hard-link support);
+the original remains in the runtime inventory. Its product filename allows Electron's real
+`app.isPackaged` classification. When launched through `VUA.exe`, a single-use cryptographic
+receipt avoids re-hashing host files already verified by the launcher; launching `VUA.Runtime.exe`
+directly still verifies signed host and module inventories in full, and bootstrap establishes a frozen
+Main-only installation context. It never selects code from an environment variable. The launcher
+clears Electron/Node/development overrides. Existing production guards, sandboxed preload, Renderer
+isolation and navigation policies remain active. The bootstrap and launch alias are derived owned
+files, not unreported changes to upstream bytes.
 
 ## Mirrors and trust
 

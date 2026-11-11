@@ -161,15 +161,27 @@ impl Installation {
         let _plan = self.lock("pair-plan.lock")?;
         let base = self.active()?;
         let (host, amf) = self.validate_pair(&base)?;
-        let host_raw = transfer.manifest(ComponentKind::Host.feed()).await?;
+        let host_raw = self
+            .fetch_component_feed_raw(ComponentKind::Host, transfer)
+            .await?;
         let host_feed = self.accept_component_index(ComponentKind::Host, &host_raw)?;
-        let amf_raw = transfer.manifest(ComponentKind::Amf.feed()).await?;
+        let amf_raw = self
+            .fetch_component_feed_raw(ComponentKind::Amf, transfer)
+            .await?;
         let amf_feed = self.accept_component_index(ComponentKind::Amf, &amf_raw)?;
         let (next_host, next_amf) = select_update_pair(&host_feed, &amf_feed, &host, &amf)?;
         let host_bytes =
             fetch_inventory(next_host, ComponentKind::Host, transfer, self.trust_key()).await?;
         let amf_bytes =
             fetch_inventory(next_amf, ComponentKind::Amf, transfer, self.trust_key()).await?;
+        let verified_host =
+            next_host.verify_inventory(ComponentKind::Host, &host_bytes, self.trust_key())?;
+        let verified_amf =
+            next_amf.verify_inventory(ComponentKind::Amf, &amf_bytes, self.trust_key())?;
+        self.ensure_compressed_transfer(ComponentKind::Host, next_host, &verified_host, transfer)
+            .await?;
+        self.ensure_compressed_transfer(ComponentKind::Amf, next_amf, &verified_amf, transfer)
+            .await?;
         transfer.checkpoint()?;
         self.prepare_update_plan_objects(&base, &host_raw, &amf_raw, &host_bytes, &amf_bytes)
     }
@@ -240,7 +252,7 @@ impl Installation {
         let _plan = self.lock("pair-plan.lock")?;
         let _host = self.lock("component-stage-host.lock")?;
         let _amf = self.lock("component-stage-amf.lock")?;
-        let (mut plan, _, _) = self
+        let (mut plan, host_entry, amf_entry) = self
             .pair_plan()?
             .ok_or_else(|| Error("update_plan_required".into()))?;
         if plan_id(&plan)? != id || plan.base != self.active()? {
@@ -278,9 +290,11 @@ impl Installation {
         plan.requested = false;
         self.save_update(PLAN, &plan)?;
         fs::create_dir_all(owned_path(&self.root, "cache")?)?;
-        for (kind, value, previous, output, local) in [
+        for (kind, entry, target_manifest, value, previous, output, local) in [
             (
                 ComponentKind::Host,
+                &host_entry,
+                &host,
                 &host.host,
                 self.host_root(&old_host)?,
                 self.host_root(&host)?,
@@ -288,6 +302,8 @@ impl Installation {
             ),
             (
                 ComponentKind::Amf,
+                &amf_entry,
+                &amf,
                 &amf.amf,
                 self.amf_root(&old_amf)?,
                 self.amf_root(&amf)?,
@@ -306,16 +322,34 @@ impl Installation {
                 0,
                 value.pack.bytes,
             );
-            transfer
-                .component(
-                    &value.files,
-                    &value.pack,
-                    Some(&previous),
-                    &output,
-                    local,
-                    &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
-                )
-                .await?;
+            if local.is_none() && entry.compressed_transfer.is_some() {
+                let compressed = self
+                    .ensure_compressed_transfer(kind, entry, target_manifest, transfer)
+                    .await?
+                    .ok_or_else(|| Error("missing_compressed_transfer".into()))?;
+                transfer
+                    .component_compressed(
+                        &value.files,
+                        &value.pack,
+                        &compressed,
+                        Some(&previous),
+                        &output,
+                        &owned_path(&self.root, &format!("cache/{}.pack", compressed.pack.sha256))?,
+                        &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
+                    )
+                    .await?;
+            } else {
+                transfer
+                    .component(
+                        &value.files,
+                        &value.pack,
+                        Some(&previous),
+                        &output,
+                        local,
+                        &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
+                    )
+                    .await?;
+            }
         }
         if self
             .verify_files(&self.runtime_root(&host)?, &host.runtime.files)

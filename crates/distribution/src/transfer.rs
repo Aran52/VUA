@@ -1,9 +1,11 @@
 use crate::{
+    component_feed::{CompressedFileObject, CompressedTransfer, CompressionEncoding},
     manifest::{FileObject, Pack},
-    paths::{digest, file_digest, owned_path},
+    paths::{digest, file_digest, hex, owned_path},
     Error, Result,
 };
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     io::{Read, Seek, SeekFrom, Write},
@@ -323,7 +325,183 @@ impl Transfer {
             completed += file.bytes;
             self.progress("staging", completed, total);
         }
+        if cache.exists() {
+            let _ = fs::remove_file(cache);
+        }
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn component_compressed(
+        &mut self,
+        files: &[FileObject],
+        uncompressed_pack: &Pack,
+        compressed: &CompressedTransfer,
+        previous: Option<&Path>,
+        output: &Path,
+        compressed_cache: &Path,
+        uncompressed_cache: &Path,
+    ) -> Result<()> {
+        if files.len() != compressed.files.len() {
+            return Err(Error("component_transfer_files_mismatch".into()));
+        }
+        fs::create_dir_all(output)?;
+        let total: u64 = files.iter().map(|file| file.bytes).sum();
+        let mut completed = 0;
+        let mut full_compressed: Option<std::path::PathBuf> = None;
+        let mut full_uncompressed: Option<std::path::PathBuf> = None;
+        for (file, compressed_file) in files.iter().zip(&compressed.files) {
+            self.checkpoint()?;
+            if file.path != compressed_file.path
+                || file.bytes != compressed_file.bytes
+                || file.sha256 != compressed_file.sha256
+            {
+                return Err(Error("component_transfer_files_mismatch".into()));
+            }
+            let target = owned_path(output, &file.path)?;
+            if !verified_file(&target, file.bytes, &file.sha256) {
+                let reusable = previous
+                    .and_then(|root| owned_path(root, &file.path).ok())
+                    .filter(|path| verified_file(path, file.bytes, &file.sha256));
+                fs::create_dir_all(
+                    target
+                        .parent()
+                        .ok_or_else(|| Error("invalid_release_path".into()))?,
+                )?;
+                if let Some(path) = reusable {
+                    fs::copy(path, &target)?;
+                    self.reused += file.bytes;
+                } else if file.bytes == 0 {
+                    fs::write(&target, [])?;
+                } else {
+                    let mut written = false;
+                    if full_compressed.is_none() && full_uncompressed.is_none() {
+                        for source in &compressed.pack.sources {
+                            self.checkpoint()?;
+                            if let Ok(frame) = self
+                                .compressed_file_object(
+                                    source,
+                                    compressed_file,
+                                    compressed.pack.bytes,
+                                )
+                                .await
+                            {
+                                decompress_bounded(
+                                    &frame,
+                                    compressed.encoding,
+                                    file.bytes,
+                                    &file.sha256,
+                                    &target,
+                                )?;
+                                written = true;
+                                break;
+                            }
+                        }
+                    }
+                    if !written && full_uncompressed.is_none() {
+                        if full_compressed.is_none() {
+                            self.full_pack = true;
+                            self.progress("full-pack", completed, total);
+                            if self.archive(&compressed.pack, compressed_cache).await.is_ok() {
+                                full_compressed = Some(compressed_cache.to_path_buf());
+                            }
+                        }
+                        if let Some(pack_path) = &full_compressed {
+                            let mut source = fs::File::open(pack_path)?;
+                            source.seek(SeekFrom::Start(compressed_file.compressed_offset))?;
+                            let mut frame = Vec::with_capacity(
+                                usize::try_from(compressed_file.compressed_bytes)
+                                    .map_err(|_| Error("invalid_component_transfer_file".into()))?,
+                            );
+                            source
+                                .take(compressed_file.compressed_bytes)
+                                .read_to_end(&mut frame)?;
+                            if frame.len() as u64 != compressed_file.compressed_bytes
+                                || digest(&frame) != compressed_file.compressed_sha256
+                            {
+                                return Err(Error("download_integrity_failed".into()));
+                            }
+                            decompress_bounded(
+                                &frame,
+                                compressed.encoding,
+                                file.bytes,
+                                &file.sha256,
+                                &target,
+                            )?;
+                            written = true;
+                        }
+                    }
+                    if !written {
+                        if full_uncompressed.is_none() {
+                            self.full_pack = true;
+                            self.progress("full-pack", completed, total);
+                            self.archive(uncompressed_pack, uncompressed_cache).await?;
+                            full_uncompressed = Some(uncompressed_cache.to_path_buf());
+                        }
+                        let mut source = fs::File::open(
+                            full_uncompressed
+                                .as_ref()
+                                .ok_or_else(|| Error("missing_pack".into()))?,
+                        )?;
+                        source.seek(SeekFrom::Start(file.offset))?;
+                        let mut dest = fs::File::create(&target)?;
+                        let copied = std::io::copy(&mut source.take(file.bytes), &mut dest)?;
+                        dest.sync_all()?;
+                        if copied != file.bytes {
+                            return Err(Error("incomplete_release_pack".into()));
+                        }
+                    }
+                }
+            } else {
+                self.reused += file.bytes;
+            }
+            if !verified_file(&target, file.bytes, &file.sha256) {
+                return Err(Error("component_integrity_failed".into()));
+            }
+            completed += file.bytes;
+            self.progress("staging", completed, total);
+        }
+        if compressed_cache.exists() {
+            let _ = fs::remove_file(compressed_cache);
+        }
+        if uncompressed_cache.exists() {
+            let _ = fs::remove_file(uncompressed_cache);
+        }
+        Ok(())
+    }
+
+    async fn compressed_file_object(
+        &mut self,
+        source: &str,
+        file: &CompressedFileObject,
+        total: u64,
+    ) -> Result<Vec<u8>> {
+        let end = file.compressed_offset + file.compressed_bytes - 1;
+        let mut response = self
+            .interruptible(
+                self.client
+                    .get(source)
+                    .header("Accept-Encoding", "identity")
+                    .header("Range", format!("bytes={}-{}", file.compressed_offset, end))
+                    .send(),
+            )
+            .await?;
+        if !range_matches(&response, file.compressed_offset, end, total) {
+            return Err(Error("range_unavailable".into()));
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = self.interruptible(response.chunk()).await? {
+            if bytes.len() as u64 + chunk.len() as u64 > file.compressed_bytes {
+                return Err(Error("unexpected_download_length".into()));
+            }
+            self.received += chunk.len() as u64;
+            bytes.extend_from_slice(&chunk);
+            self.progress("downloading", bytes.len() as u64, file.compressed_bytes);
+        }
+        if bytes.len() as u64 != file.compressed_bytes || digest(&bytes) != file.compressed_sha256 {
+            return Err(Error("download_integrity_failed".into()));
+        }
+        Ok(bytes)
     }
     async fn file_object(
         &mut self,
@@ -360,17 +538,63 @@ impl Transfer {
     }
 }
 
+pub(crate) fn decompress_bounded(
+    compressed: &[u8],
+    encoding: CompressionEncoding,
+    expected_bytes: u64,
+    expected_sha256: &str,
+    target: &Path,
+) -> Result<()> {
+    let result = (|| -> Result<()> {
+        let mut reader: Box<dyn Read> = match encoding {
+            CompressionEncoding::Zstd => Box::new(
+                ruzstd::decoding::StreamingDecoder::new(compressed)
+                    .map_err(|_| Error("invalid_compressed_object".into()))?,
+            ),
+            CompressionEncoding::Gzip => Box::new(flate2::read::GzDecoder::new(compressed)),
+        };
+        let mut limited = (&mut reader).take(expected_bytes.saturating_add(1));
+        let mut dest = fs::File::create(target)?;
+        let mut hasher = Sha256::new();
+        let mut written = 0u64;
+        let mut buffer = [0u8; 64 * 1024];
+        loop {
+            let count = limited
+                .read(&mut buffer)
+                .map_err(|_| Error("invalid_compressed_object".into()))?;
+            if count == 0 {
+                break;
+            }
+            written += count as u64;
+            if written > expected_bytes {
+                return Err(Error("unexpected_decompressed_length".into()));
+            }
+            hasher.update(&buffer[..count]);
+            dest.write_all(&buffer[..count])?;
+        }
+        dest.sync_all()?;
+        if written != expected_bytes || hex(&hasher.finalize()) != expected_sha256 {
+            return Err(Error("download_integrity_failed".into()));
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(target);
+    }
+    result
+}
+
 pub(crate) fn distribution_user_agent(versions: Option<(&str, &str)>) -> String {
     let Some((host, amf)) = versions else {
-        return "VUA-distribution/0.2".into();
+        return "VUA-distribution/0.3".into();
     };
     if [host, amf]
         .iter()
         .any(|value| value.len() > 96 || semver::Version::parse(value).is_err())
     {
-        return "VUA-distribution/0.2".into();
+        return "VUA-distribution/0.3".into();
     }
-    format!("VUA-distribution/0.2 (host={host}; amf={amf})")
+    format!("VUA-distribution/0.3 (host={host}; amf={amf})")
 }
 
 fn range_matches(response: &reqwest::Response, start: u64, end: u64, total: u64) -> bool {
@@ -394,12 +618,12 @@ mod user_agent_tests {
     fn reports_only_verified_component_versions_without_a_client_identifier() {
         assert_eq!(
             distribution_user_agent(Some(("1.0.1", "0.3.0"))),
-            "VUA-distribution/0.2 (host=1.0.1; amf=0.3.0)"
+            "VUA-distribution/0.3 (host=1.0.1; amf=0.3.0)"
         );
-        assert_eq!(distribution_user_agent(None), "VUA-distribution/0.2");
+        assert_eq!(distribution_user_agent(None), "VUA-distribution/0.3");
         assert_eq!(
             distribution_user_agent(Some(("1.0.1-rc.2+build.4", "0.3.0+local"))),
-            "VUA-distribution/0.2 (host=1.0.1-rc.2+build.4; amf=0.3.0+local)"
+            "VUA-distribution/0.3 (host=1.0.1-rc.2+build.4; amf=0.3.0+local)"
         );
         for invalid in [
             "",
@@ -413,11 +637,11 @@ mod user_agent_tests {
         ] {
             assert_eq!(
                 distribution_user_agent(Some((invalid, "0.3.0"))),
-                "VUA-distribution/0.2"
+                "VUA-distribution/0.3"
             );
             assert_eq!(
                 distribution_user_agent(Some(("1.0.1", invalid))),
-                "VUA-distribution/0.2"
+                "VUA-distribution/0.3"
             );
         }
     }

@@ -6,11 +6,20 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const key = "__VUA_RELEASE_PUBLIC_KEY__";
 const hash = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+const launchToken = process.env.VUA_LAUNCH_VERIFIED;
+delete process.env.VUA_LAUNCH_VERIFIED;
 const smokeDirectory = process.argv.find(arg => arg.startsWith("--vua-smoke-test="))?.slice("--vua-smoke-test=".length);
+const bootstrapEnteredAtMs = Date.now();
 function smokePhase(phase) {
   if (!smokeDirectory || !path.isAbsolute(smokeDirectory)) return;
   fs.mkdirSync(smokeDirectory, { recursive: true });
-  fs.writeFileSync(path.join(smokeDirectory, "bootstrap-progress.json"), JSON.stringify({ phase, at: new Date().toISOString() }));
+  const nowMs = Date.now();
+  fs.writeFileSync(path.join(smokeDirectory, "bootstrap-progress.json"), JSON.stringify({
+    phase,
+    at: new Date(nowMs).toISOString(),
+    bootstrapEnteredAtMs,
+    ...(phase === "main-entry-loading" ? { bootstrapCompletedAtMs: nowMs } : {}),
+  }));
 }
 function owned(root, relative) {
   if (!relative || relative.includes("\\") || relative.split("/").some(part => !part || part === "." || part === ".." || /[:\x00-\x1f]/.test(part))) throw Error("unsafe_release_path");
@@ -39,6 +48,33 @@ function verifyFiles(root, files) {
     if (fs.statSync(target).size !== file.bytes || hash(fs.readFileSync(target)) !== file.sha256) throw Error("installed_files_need_repair");
   }
 }
+function consumeLauncherVerifiedHost(root, hostManifest, hostPackSha256) {
+  if (typeof launchToken !== "string" || !/^[0-9a-f]{64}$/.test(launchToken)) return false;
+  let receiptPath;
+  try { receiptPath = owned(root, "cache/launch-verified.json"); } catch { return false; }
+  if (!fs.existsSync(receiptPath)) return false;
+  let raw;
+  try {
+    if (fs.lstatSync(receiptPath).isSymbolicLink()) return false;
+    raw = fs.readFileSync(receiptPath);
+  } catch {
+    return false;
+  } finally {
+    try { fs.unlinkSync(receiptPath); } catch {}
+  }
+  if (raw.length > 4096) return false;
+  try {
+    const receipt = JSON.parse(raw);
+    return receipt.schemaVersion === "0.1"
+      && receipt.hostManifest === hostManifest
+      && receipt.hostPackSha256 === hostPackSha256
+      && Number.isSafeInteger(receipt.issuedAtMs)
+      && Math.abs(Date.now() - receipt.issuedAtMs) <= 30000
+      && receipt.tokenSha256 === hash(Buffer.from(launchToken, "utf8"));
+  } catch {
+    return false;
+  }
+}
 try {
   smokePhase("bootstrap-entered");
   if (!app.isPackaged || process.defaultApp) throw Error("invalid_packaged_identity");
@@ -54,7 +90,7 @@ try {
   const amfRoot = owned(root, `payloads/amf/${amf.amf.pack.sha256}`);
   const runtimeRoot = owned(root, `runtime/${host.runtime.archive.sha256}`);
   if (path.resolve(process.resourcesPath) !== path.join(runtimeRoot, "resources")) throw Error("invalid_runtime_identity");
-  verifyFiles(hostRoot, host.host.files);
+  if (!consumeLauncherVerifiedHost(root, active.hostManifest, host.host.pack.sha256)) verifyFiles(hostRoot, host.host.files);
   smokePhase("host-files-verified");
   let amfAvailable = true;
   try { verifyFiles(amfRoot, amf.amf.files); } catch { amfAvailable = false; }

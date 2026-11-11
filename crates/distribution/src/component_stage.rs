@@ -697,16 +697,34 @@ impl Installation {
         };
         self.save_update(&name(kind, "pending"), &pending)?;
         fs::create_dir_all(owned_path(&self.root, "cache")?)?;
-        transfer
-            .component(
-                &value.files,
-                &value.pack,
-                Some(&old_root),
-                &output,
-                local_pack,
-                &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
-            )
-            .await?;
+        if local_pack.is_none() && entry.compressed_transfer.is_some() {
+            let compressed = self
+                .ensure_compressed_transfer(kind, &entry, &target, transfer)
+                .await?
+                .ok_or_else(|| Error("missing_compressed_transfer".into()))?;
+            transfer
+                .component_compressed(
+                    &value.files,
+                    &value.pack,
+                    &compressed,
+                    Some(&old_root),
+                    &output,
+                    &owned_path(&self.root, &format!("cache/{}.pack", compressed.pack.sha256))?,
+                    &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
+                )
+                .await?;
+        } else {
+            transfer
+                .component(
+                    &value.files,
+                    &value.pack,
+                    Some(&old_root),
+                    &output,
+                    local_pack,
+                    &owned_path(&self.root, &format!("cache/{}.bin", value.pack.sha256))?,
+                )
+                .await?;
+        }
         if runtime_missing {
             let cache = owned_path(
                 &self.root,

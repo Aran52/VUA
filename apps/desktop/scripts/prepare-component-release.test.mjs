@@ -5,7 +5,8 @@ import path from "node:path";
 import os from "node:os";
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { digest, sealEnvelope, verifyIndex, verifyInventory } from "../distribution/component-index.mjs";
+import { zstdDecompressSync } from "node:zlib";
+import { bindTransfer, digest, sealEnvelope, verifyIndex, verifyIndexV03, verifyInventory } from "../distribution/component-index.mjs";
 import { prepareComponentRelease, verifyBuildReceipt, fileDigest, verifyAmfIdentity, verifyHostRuntimeIdentity } from "./prepare-component-release.mjs";
 import { publishComponentRelease } from "./publish-component-release.mjs";
 import { exportComponentPublisher } from "./export-component-publisher.mjs";
@@ -97,7 +98,24 @@ test("AMF-only preparation preserves host/runtime inventories and publishes only
   assert.equal(manifest.releaseVersion, f.original.releaseVersion); assert.equal(manifest.amf.version, "0.1.1");
   assert.equal(index.releases[0].activation, "reload"); assert.equal(index.releases[0].runtimeVersion, undefined);
   assert.equal(fs.existsSync(path.join(f.options.output, "updates/beta/host.json")), false);
-  assert.deepEqual(fs.readdirSync(path.join(f.options.output, "updates/objects")).sort(), [`${record.packSha256}.bin`, `${record.manifestSha256}.json`].sort());
+  assert.equal(fs.existsSync(path.join(f.options.output, "updates/v0.3/beta/host.json")), false);
+  const indexV03 = verifyIndexV03(fs.readFileSync(path.join(f.options.output, "updates/v0.3/beta/amf.json")), publicKey, "amf");
+  assert.equal(indexV03.sequence, index.sequence);
+  const transfer = bindTransfer(indexV03.releases[0], "amf", manifest, fs.readFileSync(path.join(f.options.output, "updates/objects", `${record.v03.transferManifestSha256}.json`)), publicKey);
+  const compressedPack = fs.readFileSync(path.join(f.options.output, "updates/objects", `${record.v03.compressedPackSha256}.pack`));
+  for (const file of transfer.files) {
+    const slice = compressedPack.subarray(file.compressedOffset, file.compressedOffset + file.compressedBytes);
+    assert.equal(digest(slice), file.compressedSha256);
+    const decoded = file.bytes === 0 ? Buffer.alloc(0) : zstdDecompressSync(slice);
+    assert.equal(decoded.length, file.bytes);
+    assert.equal(digest(decoded), file.sha256);
+  }
+  assert.deepEqual(fs.readdirSync(path.join(f.options.output, "updates/objects")).sort(), [
+    `${record.packSha256}.bin`,
+    `${record.manifestSha256}.json`,
+    `${record.v03.compressedPackSha256}.pack`,
+    `${record.v03.transferManifestSha256}.json`,
+  ].sort());
 });
 
 test("Host-only preparation preserves AMF and the exact runtime", () => {
@@ -251,4 +269,48 @@ test("Unowned or locked destinations remain intact, and corrupt immutable object
   fs.unlinkSync(path.join(fresh, "updates/.publish-amf.lock")); fs.appendFileSync(path.join(fresh, "updates/objects", `${record.packSha256}.bin`), "bad");
   assert.throws(() => publishComponentRelease(f.options.output, fresh, publicKey), /published_object_conflict/);
   assert.deepEqual(readIndex(fresh, "amf"), before);
+});
+
+test("v0.3 chained releases preserve previous compressedTransfer metadata and reject corrupt compressed artifacts", () => {
+  const f = fixture();
+  const firstRecord = prepareComponentRelease(f.options);
+  const web = path.join(f.root, "web");
+  publishComponentRelease(f.options.output, web, publicKey);
+  const beforeV02 = fs.readFileSync(path.join(web, "updates/beta/amf.json"));
+  const beforeV03 = fs.readFileSync(path.join(web, "updates/v0.3/beta/amf.json"));
+
+  const secondOut = path.join(f.root, "second");
+  const secondRecord = prepareComponentRelease({
+    ...f.options,
+    version: "0.1.2",
+    build: "c".repeat(40),
+    previous: beforeV02,
+    previousV03: beforeV03,
+    compressionEncoding: "gzip",
+    output: secondOut,
+  });
+  assert.equal(secondRecord.v03.encoding, "gzip");
+  publishComponentRelease(secondOut, web, publicKey);
+  const liveV03 = verifyIndexV03(fs.readFileSync(path.join(web, "updates/v0.3/beta/amf.json")), publicKey, "amf");
+  assert.equal(liveV03.sequence, 2);
+  assert.deepEqual(liveV03.releases.map(r => r.version), ["0.1.2", "0.1.1"]);
+  assert.equal(liveV03.releases[0].compressedTransfer.sha256, secondRecord.v03.transferManifestSha256);
+  assert.equal(liveV03.releases[1].compressedTransfer.sha256, firstRecord.v03.transferManifestSha256);
+
+  for (const target of [
+    `updates/objects/${ firstRecord.v03.compressedPackSha256 }.pack`,
+    `updates/objects/${ firstRecord.v03.transferManifestSha256 }.json`,
+    "updates/v0.3/beta/amf.json",
+  ]) {
+    const bad = fixture();
+    const rec = prepareComponentRelease(bad.options);
+    const actualTarget = target
+      .replace(firstRecord.v03.compressedPackSha256, rec.v03.compressedPackSha256)
+      .replace(firstRecord.v03.transferManifestSha256, rec.v03.transferManifestSha256);
+    fs.appendFileSync(path.join(bad.options.output, actualTarget), "corrupt");
+    const badWeb = path.join(bad.root, "web");
+    assert.throws(() => publishComponentRelease(bad.options.output, badWeb, publicKey));
+    assert.equal(fs.existsSync(path.join(badWeb, "updates/beta/amf.json")), false);
+    assert.equal(fs.existsSync(path.join(badWeb, "updates/v0.3/beta/amf.json")), false);
+  }
 });

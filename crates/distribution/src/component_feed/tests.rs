@@ -42,6 +42,7 @@ fn release(manifest: &Manifest, kind: ComponentKind) -> (Release, Vec<u8>) {
                 bytes: raw.len() as u64,
                 sources: vec!["https://ph-r.com/vua/objects/manifest.json".into()],
             },
+            compressed_transfer: None,
             compatibility: manifest.compatibility.clone(),
             activation: if kind == ComponentKind::Host {
                 Activation::Restart
@@ -317,4 +318,162 @@ fn component_feed_semver_order_is_numeric_and_data_migrations_cannot_hot_activat
         entry.activation_for(ComponentKind::Host, &active),
         Activation::Restart
     );
+}
+
+#[test]
+fn v03_schemas_and_transfer_manifest_binding_reject_downgrade_or_file_mismatches() {
+    let key = SigningKey::from_bytes(&[7; 32]).verifying_key().to_bytes();
+    let index_schema = jsonschema::validator_for(
+        &serde_json::from_str(include_str!(
+            "../../../../schemas/windows-distribution/v0.3/index.schema.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let envelope_schema = jsonschema::validator_for(
+        &serde_json::from_str(include_str!(
+            "../../../../schemas/windows-distribution/v0.3/envelope.schema.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let transfer_schema = jsonschema::validator_for(
+        &serde_json::from_str(include_str!(
+            "../../../../schemas/windows-distribution/v0.3/transfer.schema.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let manifest = baseline();
+    let (mut entry, raw_manifest) = release(&manifest, ComponentKind::Amf);
+    let mut offset = 0u64;
+    let mut files = Vec::new();
+    for original in &manifest.amf.files {
+        let compressed_bytes = if original.bytes == 0 { 0 } else { 12 };
+        files.push(CompressedFileObject {
+            path: original.path.clone(),
+            bytes: original.bytes,
+            sha256: original.sha256.clone(),
+            compressed_offset: offset,
+            compressed_bytes,
+            compressed_sha256: if compressed_bytes == 0 {
+                EMPTY_SHA256.into()
+            } else {
+                "a".repeat(64)
+            },
+        });
+        offset += compressed_bytes;
+    }
+    let transfer = CompressedTransfer {
+        schema_version: "0.3".into(),
+        product: "VUA".into(),
+        platform: "windows".into(),
+        arch: "x64".into(),
+        component: ComponentKind::Amf,
+        manifest_sha256: entry.manifest.sha256.clone(),
+        encoding: CompressionEncoding::Zstd,
+        pack: crate::manifest::Pack {
+            bytes: offset,
+            sha256: "b".repeat(64),
+            sources: vec!["https://ph-r.com/vua/updates/objects/pack.pack".into()],
+        },
+        files,
+    };
+    assert!(transfer_schema.is_valid(&serde_json::to_value(&transfer).unwrap()));
+    let raw_transfer = signed(&transfer, "0.3");
+    assert!(envelope_schema.is_valid(&serde_json::from_slice(&raw_transfer).unwrap()));
+    entry.compressed_transfer = Some(ManifestObject {
+        sha256: crate::paths::digest(&raw_transfer),
+        bytes: raw_transfer.len() as u64,
+        sources: vec!["https://ph-r.com/vua/updates/objects/transfer.json".into()],
+    });
+
+    // v0.2 must reject compressedTransfer so v1.0.0 compatibility remains strict.
+    let v02_with_compressed = feed(ComponentKind::Amf, vec![entry.clone()]);
+    assert!(verify(&signed(&v02_with_compressed, "0.2"), &key, ComponentKind::Amf, 1).is_err());
+
+    let mut v03_feed = feed(ComponentKind::Amf, vec![entry.clone()]);
+    v03_feed.schema_version = "0.3".into();
+    assert!(index_schema.is_valid(&serde_json::to_value(&v03_feed).unwrap()));
+    let raw_v03 = signed(&v03_feed, "0.3");
+    assert!(envelope_schema.is_valid(&serde_json::from_slice(&raw_v03).unwrap()));
+    let verified_feed = verify(&raw_v03, &key, ComponentKind::Amf, 1).unwrap();
+    let verified_inventory = verified_feed.releases[0]
+        .verify_inventory(ComponentKind::Amf, &raw_manifest, &key)
+        .unwrap();
+    let verified_transfer = verified_feed.releases[0]
+        .verify_transfer_manifest(ComponentKind::Amf, &verified_inventory, &raw_transfer, &key)
+        .unwrap();
+    assert_eq!(verified_transfer, transfer);
+
+    // Tampered compressedOffset gap must fail binding.
+    let mut bad_transfer = transfer.clone();
+    bad_transfer.pack.bytes += 1;
+    let raw_bad = signed(&bad_transfer, "0.3");
+    let mut bad_entry = entry;
+    bad_entry.compressed_transfer = Some(ManifestObject {
+        sha256: crate::paths::digest(&raw_bad),
+        bytes: raw_bad.len() as u64,
+        sources: vec!["https://ph-r.com/vua/updates/objects/transfer.json".into()],
+    });
+    assert!(bad_entry
+        .verify_transfer_manifest(ComponentKind::Amf, &verified_inventory, &raw_bad, &key)
+        .is_err());
+}
+
+#[test]
+fn v03_vectors_validate_schema_and_native_consumer() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../../schemas/windows-distribution/v0.3/vectors/cases.json"
+    ))
+    .unwrap();
+    for case in cases {
+        let schema: Value = serde_json::from_str(match case["schema"].as_str().unwrap() {
+            "index" => {
+                include_str!("../../../../schemas/windows-distribution/v0.3/index.schema.json")
+            }
+            "envelope" => {
+                include_str!("../../../../schemas/windows-distribution/v0.3/envelope.schema.json")
+            }
+            "transfer" => {
+                include_str!("../../../../schemas/windows-distribution/v0.3/transfer.schema.json")
+            }
+            other => panic!("Unknown schema {other}"),
+        })
+        .unwrap();
+        assert_eq!(
+            jsonschema::validator_for(&schema)
+                .unwrap()
+                .is_valid(&case["value"]),
+            case["schemaValid"].as_bool().unwrap(),
+            "schema: {}",
+            case["name"]
+        );
+        let kind = if case["component"] == "host" {
+            ComponentKind::Host
+        } else {
+            ComponentKind::Amf
+        };
+        let valid = match case["schema"].as_str().unwrap() {
+            "envelope" => verify(
+                &serde_json::to_vec(&case["value"]).unwrap(),
+                &key(),
+                kind,
+                0,
+            )
+            .is_ok_and(|feed| feed.schema_version == SCHEMA_V03),
+            "index" => serde_json::from_value::<ComponentFeed>(case["value"].clone())
+                .is_ok_and(|feed| feed.schema_version == SCHEMA_V03 && feed.validate().is_ok()),
+            "transfer" => serde_json::from_value::<CompressedTransfer>(case["value"].clone())
+                .is_ok_and(|tx| tx.validate().is_ok()),
+            other => panic!("Unknown schema {other}"),
+        };
+        assert_eq!(
+            valid,
+            case["nativeValid"].as_bool().unwrap(),
+            "native: {}",
+            case["name"]
+        );
+    }
 }

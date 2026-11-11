@@ -16,7 +16,7 @@ pub struct FileObject {
     pub offset: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Pack {
     pub bytes: u64,

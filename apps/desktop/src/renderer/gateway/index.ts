@@ -267,6 +267,18 @@ export {
 export type { CreatorManagers, CreatorEditor } from "./creator-inventory-port.ts";
 export type { PlayPort } from "./environment-port.ts";
 
+export { resolveGuideLocalizedText } from "@vua/contracts";
+export type {
+  DesktopGuideContentApiV01,
+  GuideContentIdV01,
+  GuideContentPayloadV01,
+  GuideContentReadResultV01,
+  GuideContentSourceV01,
+  GuideLocalizedTextV01,
+  GuideRegionalNoteV01,
+  GuideSopStepV01,
+  GuideSopV01,
+} from "@vua/contracts";
 export { useAmfModule } from "./GatewayProvider.tsx";
 export { formatBytes, recentDownloadSpeed } from "./task-progress.ts";
 export { createDistributionPort } from "./distribution-port.ts";

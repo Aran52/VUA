@@ -238,6 +238,7 @@ export function createElectronGateway(
     componentUpdates: host?.componentUpdates,
     updatePlans: host?.updatePlans,
     amfUiRuntime: host?.amfUiRuntime,
+    guideContent: host?.guideContent,
     environment: createLiveEnvironmentPort(client),
     task: createLiveTaskPort(client),
     tutorial: notRun.tutorial,

@@ -20,6 +20,8 @@ class FakeProviderProcess extends EventEmitter {
   readonly stdio = [this.stdin, this.stdout, this.stderr];
   killed = false;
   shutdownAfterExit = false;
+  holdHandshake = false;
+  readonly heldHandshakes: string[] = [];
   holdRequests = false;
   readonly heldRequests: Record<string, unknown>[] = [];
   #buffer = "";
@@ -65,6 +67,7 @@ class FakeProviderProcess extends EventEmitter {
     const frameId = frame.frameId as string;
     const kind = frame.kind as string;
     if (kind === "handshake") {
+      if (this.holdHandshake) { this.heldHandshakes.push(frameId); return; }
       this.#respond(frameId, this.#handshakePayload);
       return;
     }
@@ -265,6 +268,52 @@ describe("supervised process Provider v0.1", () => {
     expect(states).toEqual(["starting", "failed"]);
     unsubscribe();
   });
+  it("queues requests issued while handshaking and rejects them cleanly if handshake fails", async () => {
+    const processes: FakeProviderProcess[] = [];
+    const provider = new SupervisedProcessProviderV01({
+      executablePath: path.resolve("fake-provider.exe"),
+      databasePath: path.resolve("fake-provider.db"),
+    }, () => {
+      const child = new FakeProviderProcess();
+      child.holdHandshake = true;
+      processes.push(child);
+      return child as never;
+    });
+    const starting = provider.start();
+    expect(provider.status()).toMatchObject({ state: "starting", acceptingCalls: false });
+    const queued = provider.invoke(getRequest());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(processes[0]!.heldHandshakes).toHaveLength(1);
+    processes[0]!.respond(processes[0]!.heldHandshakes[0]!, {
+      contractVersion: "0.1",
+      supportedContractVersions: ["0.1"],
+      providerBuildId: "fake-build",
+      providerInstanceId: "fake-instance",
+      downloadIngest: false,
+    });
+    await expect(starting).resolves.toMatchObject({ providerInstanceId: "fake-instance" });
+    await expect(queued).resolves.toMatchObject({ ok: true, value: { taskId: "task-recovered" } });
+    await provider.prepareShutdown({ timeoutMs: 1_000 });
+    await provider.waitForExit(1_000);
+
+    const failing = new SupervisedProcessProviderV01({
+      executablePath: path.resolve("fake-provider.exe"),
+      databasePath: path.resolve("fake-provider.db"),
+    }, () => {
+      const child = new FakeProviderProcess({ contractVersion: "unknown" });
+      child.holdHandshake = true;
+      processes.push(child);
+      return child as never;
+    });
+    const failedStart = failing.start();
+    const queuedOnFailure = failing.invoke(getRequest());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    processes[1]!.respond(processes[1]!.heldHandshakes[0]!, { contractVersion: "unknown" });
+    await expect(failedStart).rejects.toThrow("invalid handshake");
+    await expect(queuedOnFailure).resolves.toMatchObject({ ok: false, error: { code: "vua.provider.not_accepting" } });
+    await failing.waitForExit(1_000);
+  });
+
   it("keeps admission closed through handshake and forwards responses and events", async () => {
     const { provider } = harness();
     expect(provider.status()).toMatchObject({ state: "stopped", acceptingCalls: false });

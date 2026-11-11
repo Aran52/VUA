@@ -18,7 +18,9 @@ export function isAllowedLocalSender(url: string, rendererUrl?: string): boolean
   if (rendererUrl) return url === rendererUrl || url.startsWith(`${rendererUrl}/`);
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "file:" && parsed.pathname.replaceAll("\\", "/").endsWith("/dist/renderer/index.html");
+    const pathname = parsed.pathname.replaceAll("\\", "/");
+    return parsed.protocol === "file:"
+      && (pathname.endsWith("/dist/renderer/index.html") || pathname.endsWith("/dist/renderer/splash.html"));
   } catch {
     return false;
   }

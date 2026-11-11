@@ -1130,8 +1130,14 @@ export function App() {
   const [splashDone, setSplashDone] = useState(false);
   const nativeStartup = window.vua?.startup;
   const finishStartup = () => {
-    setSplashDone(true);
-    void nativeStartup?.complete().catch(() => { /* Main's bounded fallback still opens the shell. */ });
+    const pending = nativeStartup?.complete();
+    if (!pending) {
+      setSplashDone(true);
+      return;
+    }
+    void pending.catch(() => { /* Main's bounded fallback still opens the shell. */ }).finally(() => {
+      setSplashDone(true);
+    });
   };
   // 启动里程碑(Phase A 牵线):gateway 装配完成即报;provider 探针=首个
   // capability 应答(任一结果均计,测网关链活性);paint 由 AppShell 首效应上报
@@ -1237,7 +1243,7 @@ export function App() {
 
   return (
     <GatewayProvider gateway={gateway}>
-      {!splashDone ? (nativeStartup ? <BootGate onDone={finishStartup} /> : <BootSplash onDone={finishStartup} />) : null}
+      {!splashDone ? (nativeStartup ? <BootGate native onDone={finishStartup} /> : <BootSplash onDone={finishStartup} />) : null}
       {uiRoot === "forest-green" ? (
         <ForestVariantRoot onBackToCurrent={() => setUiRoot("current")} />
       ) : (

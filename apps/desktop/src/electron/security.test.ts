@@ -25,6 +25,9 @@ describe("Electron local window security", () => {
   it("rejects remote callers", () => {
     expect(isAllowedLocalSender("https://booth.pm/", "http://127.0.0.1:5173")).toBe(false);
     expect(isAllowedLocalSender("http://127.0.0.1:5173/", "http://127.0.0.1:5173")).toBe(true);
+    expect(isAllowedLocalSender("file:///C:/vua/dist/renderer/index.html")).toBe(true);
+    expect(isAllowedLocalSender("file:///C:/vua/dist/renderer/splash.html?surface=splash")).toBe(true);
+    expect(isAllowedLocalSender("file:///C:/vua/dist/renderer/other.html")).toBe(false);
   });
 });
 

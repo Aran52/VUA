@@ -37,8 +37,9 @@ verifyAmfIdentity(JSON.parse(execFileSync(path.join(amfRoot, "provider/vua-amf-p
   JSON.parse(fs.readFileSync(path.join(amfRoot, "ui/component.json"))), { ...amf, build });
 copy(path.join(native, "vua-distribution.exe"), path.join(output, "VUA.exe"));
 copy(path.join(native, "vua-distribution.exe"), path.join(hostRoot, "launcher/VUA.exe"));
+copy(path.join(desktop, "out/release-notices/host"), path.join(hostRoot, "notices"));
+copy(path.join(desktop, "out/release-notices/amf"), path.join(amfRoot, "notices"));
 for (const root of [hostRoot, amfRoot]) {
-  copy(path.join(desktop, "out/release-notices"), path.join(root, "notices"));
   for (const name of ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]) copy(path.join(workspace, name), path.join(root, name));
 }
 const bootstrap = path.join(output, "bootstrap-source"); fs.mkdirSync(bootstrap);

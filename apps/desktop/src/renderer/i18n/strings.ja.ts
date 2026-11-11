@@ -297,7 +297,7 @@ export const strings: Strings = {
     reopenBrowseCta: "アプリ内ブラウザを開き直す",
     localTitle: "PC 内の素材を取り込む",
     importModes: "その他の取り込み方法",
-    migrationTitle: "フォルダーをまとめて整理・取り込み（ライブラリ移行）",
+    migrationTitle: "まとめて取り込み（ライブラリ移行）",
     migration: {
       description: "どのファイルが同じ商品・素材に属するかを確認してから取り込みます。選択したファイルはコピーされ、元のファイルはそのまま残ります。",
       oneMaterial: "1つの素材",

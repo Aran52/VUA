@@ -102,10 +102,23 @@ async function run(){try{
   await waitFor(()=>js('!document.querySelector(".vua-login-browser__bar")'),"automatic return after successful login",15000);
   await waitFor(()=>js('!document.querySelector("[data-nav-id=accounts-booth-login]")&&document.querySelector(".vua-settings-account__head")?.textContent.includes("Synthetic account")'),"account refresh after close");
   assert(true,"Successful login automatically returns and refreshes Settings → Accounts to signed in");
-  await click("logo-home");await click("nav-warehouse");
+  await click("logo-home");
+  const beforeWarehouseProbe=libraryRequests;
+  await click("nav-warehouse");
+  await waitFor(()=>libraryRequests>beforeWarehouseProbe,"warehouse session check");
+  await delay(120);
   await waitFor(()=>js('document.querySelector("[data-nav-id=warehouse-sync]")?.textContent.includes("同步 BOOTH")&&!document.querySelector("[data-nav-id=warehouse-sync]").disabled'),"signed-in library");
   assert(true,"Returning to the asset library offers sync instead of another login");
-  await click("warehouse-sync");
+  let lastSyncClick=0;
+  await waitFor(async()=>{
+    const probe=await js('window.vua.catalogSync.probe()');
+    if(probe.runId!==null)return true;
+    if(Date.now()-lastSyncClick>=600){
+      const clicked=await js('(()=>{const b=document.querySelector("[data-nav-id=warehouse-sync]");if(b&&!b.disabled&&b.textContent.includes("同步 BOOTH")){b.click();return true;}return false;})()');
+      if(clicked)lastSyncClick=Date.now();
+    }
+    return false;
+  },"native provider sync started",15000);
   await waitFor(()=>js('document.body.textContent.includes("账号列表同步完成")'),"completed native provider sync",30000);
   assert(true,"Three synthetic account libraries sync through the real AMF provider");
   await waitFor(()=>js('document.querySelectorAll(".vua-warehouse-card img").length===2&&[...document.querySelectorAll(".vua-warehouse-card img")].every(i=>i.naturalWidth===128&&!i.dataset.pending)'),"native cached card images");

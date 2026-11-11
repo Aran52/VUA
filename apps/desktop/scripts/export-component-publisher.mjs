@@ -14,7 +14,7 @@ export function exportComponentPublisher(destination) {
     const target = ownedPath(output, relative); fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.cpSync(source, target, { recursive: true, dereference: false, errorOnExist: true, force: false });
   };
-  for (const name of ["distribution/component-index.mjs", "distribution/trust.json", "scripts/prepare-component-release.mjs", "scripts/publish-component-release.mjs"]) copy(path.join(desktop, name), `apps/desktop/${name}`);
+  for (const name of ["distribution/component-index.mjs", "distribution/trust.json", "scripts/prepare-component-release.mjs", "scripts/publish-component-release.mjs", "scripts/prepare-component-index.mjs", "scripts/seed-component-release.mjs"]) copy(path.join(desktop, name), `apps/desktop/${name}`);
   const semverRoot = path.dirname(require.resolve("semver/package.json"));
   if (JSON.parse(fs.readFileSync(path.join(semverRoot, "package.json"))).version !== "7.8.5") throw Error("Publication dependency differs from lockfile");
   copy(semverRoot, "node_modules/semver");

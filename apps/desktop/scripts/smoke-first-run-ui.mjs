@@ -61,6 +61,13 @@ try {
   window.webContents.debugger.attach("1.3");
   await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
   await waitForReview();
+  if (process.argv.includes("--update-privacy-only")) {
+    const checks = await window.webContents.executeJavaScript("window.firstRunReview.updatePrivacy()");
+    const report = {testedAt: new Date().toISOString(), scope: "Actual Chromium App, synthetic component port; no installed-client acceptance", checks, passed: checks.length};
+    await writeFile(path.join(os.tmpdir(), "vua-update-privacy-ui.json"), JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(report)); clearTimeout(deadline); exitCode=0;
+    window.destroy(); await server.close(); app.exit(0); return;
+  }
   const checks = await window.webContents.executeJavaScript("window.firstRunReview.run().catch(error => { throw new Error(error.stack ?? String(error)); })");
   if (!await window.webContents.executeJavaScript('JSON.parse(localStorage.getItem("vua-goals") ?? "null")?.onboarding === "completed"')) throw new Error("First-use acknowledgment was not persisted");
   checks.unshift("Both first-use entries persist completion without requiring a renderer reload");

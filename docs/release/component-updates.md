@@ -94,6 +94,32 @@ manifest and an exact 206 range before recording live delivery evidence.
 
 ## Verification and remaining gates
 
+### Candidate publication and withdrawal (2026-11-07)
+
+Keep the frozen beta URLs and wire fields. Route the candidate signed index only to the
+operator's controlled egress, leaving other clients on the formal index (or closed for the first
+baseline). Use no-store and bypass shared caches. Validate every entry with the oldest supported
+client, then exercise an unmodified v1.0.0 installation before promoting the exact same signed
+file bytes. A baseline is subject to this gate too.
+
+Sequence numbers are positive, strictly increasing per component, and may skip abandoned
+candidates. Persist the highest issued candidate sequence; never reuse it or reset a test client's
+high-water mark. The publisher still compares the exact previous formal index hash. Preparation
+accepts `--sequence=N` and optional `--retain=version,...`; `--retain=` removes old entries while
+keeping the new release. The seed tool extracts only verified official pack files and calls the
+exported preparation API, without inventing a build receipt or rebuilding a published version.
+
+`prepare-component-index.mjs` creates a signed higher-sequence, removal-only revision, including
+an empty releases list. It never adds a withdrawn field. Withdrawal affects future discovery;
+clients with an old cached index, especially an already staged update, may still apply it. Ship a
+higher component version for the fix. Before a new ABI/application value enters this feed, deliver
+the client migration that can safely skip incompatible entries.
+
+Signing stays on the release machine. The Web process may request only fixed publication actions
+through the bounded oneshot; it cannot write the distribution tree. Stale locks are shown for
+inspection and are never expired automatically. The public notice must precede request statistics;
+see the [product boundary](../product-boundary.md#update-distribution-request-statistics-user-ruling-2026-11-07).
+
 Shared vectors exercise producer and native signature/identity/compatibility parsing. Synthetic
 publication tests cover host-only/AMF-only preservation, retained versions, stale publication,
 corrupt objects/indexes/pages, same-version immutability, build receipts, destination ownership,

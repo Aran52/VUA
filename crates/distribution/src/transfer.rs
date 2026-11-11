@@ -39,6 +39,14 @@ impl Transfer {
         cancel: Arc<AtomicBool>,
         report: impl Fn(Progress) + Send + Sync + 'static,
     ) -> Result<Self> {
+        Self::with_versions(cancel, report, None)
+    }
+    pub fn with_versions(
+        cancel: Arc<AtomicBool>,
+        report: impl Fn(Progress) + Send + Sync + 'static,
+        versions: Option<(&str, &str)>,
+    ) -> Result<Self> {
+        let agent = distribution_user_agent(versions)?;
         let client = reqwest::Client::builder()
             .https_only(true)
             .connect_timeout(Duration::from_secs(8))
@@ -50,7 +58,7 @@ impl Transfer {
                     attempt.follow()
                 }
             }))
-            .user_agent("VUA-distribution/0.1")
+            .user_agent(agent)
             .build()?;
         Ok(Self {
             cancel,
@@ -351,6 +359,20 @@ impl Transfer {
         Ok(bytes)
     }
 }
+
+pub(crate) fn distribution_user_agent(versions: Option<(&str, &str)>) -> Result<String> {
+    let Some((host, amf)) = versions else {
+        return Ok("VUA-distribution/0.1".into());
+    };
+    if [host, amf]
+        .iter()
+        .any(|value| value.len() > 96 || semver::Version::parse(value).is_err())
+    {
+        return Err(Error("invalid_distribution_version".into()));
+    }
+    Ok(format!("VUA-distribution/0.2 host/{host} amf/{amf}"))
+}
+
 fn range_matches(response: &reqwest::Response, start: u64, end: u64, total: u64) -> bool {
     response.status() == reqwest::StatusCode::PARTIAL_CONTENT
         && response
@@ -363,4 +385,21 @@ pub fn verified_file(path: &Path, bytes: u64, sha256: &str) -> bool {
     fs::symlink_metadata(path)
         .is_ok_and(|meta| meta.is_file() && !meta.file_type().is_symlink() && meta.len() == bytes)
         && file_digest(path).is_ok_and(|value| value == sha256)
+}
+
+#[cfg(test)]
+mod user_agent_tests {
+    use super::distribution_user_agent;
+    #[test]
+    fn reports_only_verified_component_versions_without_a_client_identifier() {
+        assert_eq!(
+            distribution_user_agent(Some(("1.0.1", "0.3.0"))).unwrap(),
+            "VUA-distribution/0.2 host/1.0.1 amf/0.3.0"
+        );
+        assert_eq!(
+            distribution_user_agent(None).unwrap(),
+            "VUA-distribution/0.1"
+        );
+        assert!(distribution_user_agent(Some(("1.0.1\r\nX-Fake: value", "0.3.0"))).is_err());
+    }
 }

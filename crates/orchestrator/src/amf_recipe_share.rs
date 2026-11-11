@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs};
 
 pub const SHARE_PREFIX: &str = "vuar0.5.";
+pub const SHARE_PREFIX_V06: &str = "vuar0.6.";
 pub const MAX_SHARE_BYTES: usize = 256 * 1024;
 fn error(code: &str, detail: impl Into<String>) -> AppErrorV1 { production_error(code, detail) }
 fn io(error: impl std::fmt::Display) -> AppErrorV1 { production_error("recipe_store_failed", error.to_string()) }
@@ -34,7 +35,7 @@ pub struct SharedRecipe {
 impl SharedRecipe {
     pub fn validate(&self) -> Result<(), AppErrorV1> {
         self.recipe.validate()?;
-        if !matches!(self.format_version.as_str(), "0.4" | "0.5") || self.format_version != self.recipe.format_version || self.sources.len() != self.recipe.materials.len()
+        if !matches!(self.format_version.as_str(), "0.4" | "0.5" | "0.6") || self.format_version != self.recipe.format_version || self.sources.len() != self.recipe.materials.len()
             || self.recipe.materials.iter().any(|m| self.sources.get(&m.id).is_none_or(|id| !valid_booth_id(id.product_id()))) {
             return Err(error("recipe_share_invalid", "Every referenced material needs one BOOTH source statement."));
         }
@@ -42,7 +43,7 @@ impl SharedRecipe {
             let source = &self.sources[&material.id];
             match source {
                 RecipeSourceStatement::Legacy(_) if self.format_version == "0.4" => {},
-                RecipeSourceStatement::Booth(source) if self.format_version == "0.5" && source.shop_name.as_ref().is_none_or(|name| !name.trim().is_empty() && name.chars().count() <= 240 && !name.chars().any(char::is_control)) => {},
+                RecipeSourceStatement::Booth(source) if matches!(self.format_version.as_str(), "0.5" | "0.6") && source.shop_name.as_ref().is_none_or(|name| !name.trim().is_empty() && name.chars().count() <= 240 && !name.chars().any(char::is_control)) => {},
                 _ => return Err(error("recipe_share_invalid", "Unsupported source statement.")),
             }
             if material.booth_product_id.as_ref().is_some_and(|id| id != source.product_id()) {
@@ -60,7 +61,11 @@ impl SharedRecipe {
     pub fn decode(text: &str) -> Result<Self, AppErrorV1> {
         if text.len() > MAX_SHARE_BYTES * 4 / 3 + 32 { return Err(error("recipe_share_too_large", "Recipe exceeds the sharing size limit.")); }
         let text = text.trim();
-        let bytes = if let Some(payload) = text.strip_prefix(SHARE_PREFIX).or_else(|| text.strip_prefix("vuar0.4.")) {
+        let bytes = if let Some(payload) = text
+            .strip_prefix(SHARE_PREFIX_V06)
+            .or_else(|| text.strip_prefix(SHARE_PREFIX))
+            .or_else(|| text.strip_prefix("vuar0.4."))
+        {
             base64_url_decode(payload).ok_or_else(|| error("recipe_share_invalid", "The Recipe text is damaged or unsupported."))?
         } else { text.as_bytes().to_vec() };
         if bytes.len() > MAX_SHARE_BYTES { return Err(error("recipe_share_too_large", "Recipe exceeds the sharing size limit.")); }
@@ -194,7 +199,7 @@ impl AmfProductionEngine {
         let recipe: ProductionRecipe = serde_json::from_value(self.get_recipe(recipe_id)?.recipe).map_err(io)?;
         let origin = self.share_origin(&recipe)?;
         let sources = source_ids.into_iter().map(|(material,id)| {
-            let statement = if recipe.format_version == "0.5" {
+            let statement = if matches!(recipe.format_version.as_str(), "0.5" | "0.6") {
                 RecipeSourceStatement::Booth(BoothRecipeSource {shop_name:self.platform.recipe_shop_name(&id)?.or_else(|| origin.received_statements.get(&material).and_then(|statement| match statement {
                     RecipeSourceStatement::Booth(source) if source.booth_product_id == id => source.shop_name.clone(), _ => None,
                 })),booth_product_id:id})
@@ -202,7 +207,7 @@ impl AmfProductionEngine {
             Ok((material,statement))
         }).collect::<Result<BTreeMap<_,_>,AppErrorV1>>()?;
         let mut recipe = recipe;
-        if recipe.format_version == "0.5" { for material in &mut recipe.materials { material.booth_product_id = Some(sources[&material.id].product_id().into()); } }
+        if matches!(recipe.format_version.as_str(), "0.5" | "0.6") { for material in &mut recipe.materials { material.booth_product_id = Some(sources[&material.id].product_id().into()); } }
         let shared = SharedRecipe { format_version: recipe.format_version.clone(), recipe, sources };
         let share_code = shared.encode()?;
         let file_text = serde_json::to_string_pretty(&shared).map_err(io)?;

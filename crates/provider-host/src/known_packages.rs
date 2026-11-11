@@ -103,6 +103,9 @@ impl KnownPackage {
 }
 
 pub(crate) const MODULAR_AVATAR_FEED: &str = "https://vpm.nadena.dev/vpm.json";
+pub(crate) const AVATAR_OPTIMIZER_ID: &str = "com.anatawa12.avatar-optimizer";
+pub(crate) const AVATAR_OPTIMIZER_PINNED_VERSION: &str = "1.9.21";
+pub(crate) const AVATAR_OPTIMIZER_FEED: &str = "https://vpm.anatawa12.com/vpm.json";
 const LILTOON_FEED: &str = "https://lilxyzw.github.io/vpm-repos/vpm.json";
 const POIYOMI_FEED: &str = "https://poiyomi.github.io/vpm/index.json";
 const UNLITWF_FEED: &str = "https://whiteflare.github.io/vpm-repos/vpm.json";
@@ -278,7 +281,58 @@ pub(crate) static KNOWN_PACKAGES: &[KnownPackage] = &[
         legacy_folders: &[],
         legacy_files: &[],
     },
+    KnownPackage {
+        id: AVATAR_OPTIMIZER_ID,
+        display_name: "AAO: Avatar Optimizer",
+        feed_url: AVATAR_OPTIMIZER_FEED,
+        official_url: "https://vpm.anatawa12.com/avatar-optimizer/",
+        license: "MIT",
+        license_url: "https://github.com/anatawa12/AvatarOptimizer/blob/v1.9.21/LICENSE",
+        license_checked: "2026-11-11",
+        delivery: Delivery::Auto,
+        material_markers: &[],
+        shader_guids: &[],
+        version_lines: &[], releases: &[],
+        legacy_policy: LegacyPolicy::ReplaceWhenCovered,
+        legacy_folders: &[],
+        legacy_files: &[],
+    },
 ];
+
+pub(crate) fn find_known_package(id: &str) -> Option<&'static KnownPackage> {
+    KNOWN_PACKAGES.iter().find(|package| package.id == id)
+}
+
+/// Verifies that the project's installed VRChat Avatars SDK and NDMF versions satisfy
+/// `com.anatawa12.avatar-optimizer` 1.9.21's upstream `vpmDependencies` (`>= 3.7.0 < 3.11.0`
+/// and `>= 1.8.0 < 2.0.0`).
+pub(crate) fn avatar_optimizer_compatible(
+    sdk_version: Option<&str>,
+    ndmf_version: Option<&str>,
+) -> bool {
+    let Some(sdk) = sdk_version.and_then(parse_stable_semver) else {
+        return false;
+    };
+    let Some(ndmf) = ndmf_version.and_then(parse_stable_semver) else {
+        return false;
+    };
+    ((3, 7, 0)..(3, 11, 0)).contains(&sdk) && ((1, 8, 0)..(2, 0, 0)).contains(&ndmf)
+}
+
+fn parse_stable_semver(version: &str) -> Option<(u64, u64, u64)> {
+    let core = version.split('+').next()?;
+    if core.contains('-') {
+        return None;
+    }
+    let mut parts = core.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.parse().ok()?;
+    let patch = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((major, minor, patch))
+}
 
 /// The package a serialized `.mat` needs, and the shader GUID the material references.
 pub(crate) struct MaterialMatch {
@@ -431,14 +485,15 @@ pub(crate) fn package_action(
 
 /// The Recipe-pinned packages whose feeds project creation registers. Packages project
 /// creation already installs through its own path (the VRChat SDK, Modular Avatar and
-/// NDMF) keep that path; only material-driven `auto` packages need their feed here.
+/// NDMF) keep that path; material-driven `auto` packages and opt-in Avatar Optimizer
+/// register their feed when a Recipe pins them.
 pub(crate) fn pinned_auto_packages<'a>(
     table: &'a [KnownPackage],
     package_pins: &'a BTreeMap<String, String>,
 ) -> impl Iterator<Item = &'a KnownPackage> {
     table.iter().filter(move |package| {
         matches!(package.delivery, Delivery::Auto)
-            && package.detects_materials()
+            && (package.detects_materials() || package.id == AVATAR_OPTIMIZER_ID)
             && package_pins.contains_key(package.id)
     })
 }
@@ -1192,15 +1247,23 @@ mod tests {
         }
 
         // SDK and Modular Avatar pins keep their existing registration path during
-        // project creation; only material-driven auto packages register their feed.
+        // project creation; material-driven auto packages and pinned Avatar Optimizer
+        // register their feed.
         let pins = BTreeMap::from([
             ("com.vrchat.avatars".to_owned(), "3.10.5".to_owned()),
             ("nadena.dev.modular-avatar".to_owned(), "1.18.7".to_owned()),
             ("jp.lilxyzw.liltoon".to_owned(), "1.10.0".to_owned()),
             ("com.poiyomi.toon".to_owned(), "9.3.64".to_owned()),
+            (AVATAR_OPTIMIZER_ID.to_owned(), AVATAR_OPTIMIZER_PINNED_VERSION.to_owned()),
         ]);
         let ids: Vec<_> = pinned_auto_packages(KNOWN_PACKAGES, &pins).map(|package| package.id).collect();
-        assert_eq!(ids, ["jp.lilxyzw.liltoon", "com.poiyomi.toon"]);
+        assert_eq!(ids, ["jp.lilxyzw.liltoon", "com.poiyomi.toon", AVATAR_OPTIMIZER_ID]);
+        assert!(avatar_optimizer_compatible(Some("3.10.5"), Some("1.14.8")));
+        assert!(!avatar_optimizer_compatible(Some("3.6.9"), Some("1.14.8")));
+        assert!(!avatar_optimizer_compatible(Some("3.11.0"), Some("1.14.8")));
+        assert!(!avatar_optimizer_compatible(Some("3.10.5"), Some("1.7.9")));
+        assert!(!avatar_optimizer_compatible(Some("3.10.5"), Some("2.0.0")));
+        assert!(!avatar_optimizer_compatible(Some("3.10.5-beta.1"), Some("1.14.8")));
     }
 
     #[test]

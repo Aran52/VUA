@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 5,
+  "commandId": "n3-vector-optimizer",
+  "operation": "amf_optimizer",
+  "status": "succeeded",
+  "changedPaths": [
+    "Assets/VUA/Production.unity"
+  ],
+  "diagnostics": [],
+  "data": {
+    "editorVersion": "2022.3.22f1",
+    "projectFingerprint": "v2:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "avatarName": "Synthetic Avatar",
+    "avatarGlobalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+    "prefabs": [],
+    "instances": [
+      {
+        "sourceId": "source-outfit",
+        "prefabPath": "Assets/Synthetic/Outfit.prefab",
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-23456",
+        "binding": "merge_armature",
+        "bindingVerified": true,
+        "menuVerified": true,
+        "menuModified": true,
+        "exists": true,
+        "prefabMatches": true,
+        "bone": "",
+        "toggleName": "Synthetic Outfit",
+        "active": true
+      }
+    ],
+    "sdkDescriptorRecognized": true,
+    "officialSdkChecks": "not_run",
+    "visualReview": "pending",
+    "missingReferences": 0,
+    "hasMissingScripts": false,
+    "observedSelection": {
+      "avatarPrefab": "Assets/Synthetic/Avatar.prefab",
+      "outfits": [
+        {
+          "sourceId": "source-outfit",
+          "prefabPath": "Assets/Synthetic/Outfit.prefab",
+          "mode": "merge_armature",
+          "bone": "",
+          "toggleName": "Synthetic Outfit",
+          "active": true
+        }
+      ]
+    },
+    "usedSourceIds": [
+      "source-avatar",
+      "source-outfit"
+    ],
+    "avatars": [
+      {
+        "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-12345",
+        "name": "Synthetic Avatar",
+        "activeTarget": true,
+        "observedSelection": {
+          "avatarPrefab": "Assets/Synthetic/Avatar.prefab",
+          "outfits": [
+            {
+              "sourceId": "source-outfit",
+              "prefabPath": "Assets/Synthetic/Outfit.prefab",
+              "mode": "merge_armature",
+              "bone": "",
+              "toggleName": "Synthetic Outfit",
+              "active": true
+            }
+          ]
+        },
+        "instances": [
+          {
+            "sourceId": "source-outfit",
+            "prefabPath": "Assets/Synthetic/Outfit.prefab",
+            "globalObjectId": "GlobalObjectId_V1-0123456789abcdef0123456789abcdef-0-23456",
+            "binding": "merge_armature",
+            "bindingVerified": true,
+            "menuVerified": true,
+            "menuModified": true,
+            "exists": true,
+            "prefabMatches": true,
+            "bone": "",
+            "toggleName": "Synthetic Outfit",
+            "active": true
+          }
+        ],
+        "sdkDescriptorRecognized": true,
+        "missingReferences": 0
+      }
+    ],
+    "missingShaderMaterials": [],
+    "sdkSignedIn": "yes",
+    "previews": [
+      {
+        "view": "front",
+        "path": ".vua/previews/n3-vector-optimizer/front.png"
+      },
+      {
+        "view": "side",
+        "path": ".vua/previews/n3-vector-optimizer/side.png"
+      },
+      {
+        "view": "back",
+        "path": ".vua/previews/n3-vector-optimizer/back.png"
+      }
+    ],
+    "turntable": {
+      "folder": "",
+      "frames": 0,
+      "size": 0
+    },
+    "sdkReview": {
+      "state": "checked",
+      "platform": "pc",
+      "overall": "Good",
+      "issues": [],
+      "stats": [
+        {
+          "category": "PolyCount",
+          "rating": "Good",
+          "text": "This avatar is within the recommended polygon range."
+        }
+      ],
+      "detail": ""
+    },
+    "sdkFixesApplied": [],
+    "optimizerReport": {
+      "state": "measured",
+      "localMeasurementOnly": true,
+      "enabled": true,
+      "measuredAt": "2026-11-11T12:00:00.0000000Z",
+      "before": {
+        "platform": "pc",
+        "overall": "Medium",
+        "stats": [
+          {
+            "category": "PolyCount",
+            "rating": "Medium",
+            "text": "PolyCount before optimization."
+          }
+        ],
+        "triangles": 98000,
+        "materialSlots": 14,
+        "meshes": 9,
+        "skinnedMeshes": 8,
+        "textureBytes": 67108864,
+        "textureComplete": true,
+        "meshBytes": 6291456,
+        "meshComplete": true,
+        "physBones": 6,
+        "physBonesKnown": true
+      },
+      "after": {
+        "platform": "pc",
+        "overall": "Good",
+        "stats": [
+          {
+            "category": "PolyCount",
+            "rating": "Good",
+            "text": "PolyCount after optimization."
+          }
+        ],
+        "triangles": 64000,
+        "materialSlots": 7,
+        "meshes": 3,
+        "skinnedMeshes": 2,
+        "textureBytes": 50331648,
+        "textureComplete": true,
+        "meshBytes": 4194304,
+        "meshComplete": true,
+        "physBones": 6,
+        "physBonesKnown": true
+      },
+      "detail": ""
+    },
+    "optimizerWarnings": [
+      "osc_gimmick_possible"
+    ]
+  }
+}

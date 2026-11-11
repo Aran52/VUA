@@ -221,10 +221,13 @@ impl AmfProductionPlatform for TestPlatform {
         if state.starts_with("removed:") && self.removal_mode.load(Ordering::SeqCst) == 3 { assembled.outfits[0].active = !assembled.outfits[0].active; }
         let mut result = serde_json::json!({"synthetic":true,
             "facts":{"avatarName":"Synthetic Avatar", "avatarGlobalObjectId":"synthetic-avatar", "usedSourceIds":["avatar","outfit"],
-                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(state == "after" || state.starts_with("removed:")).then_some(assembled.clone()),
+                "previews":[{"view":"front","path":".vua/previews/cmd/front.png"}], "observedSelection":(state == "after" || state == "after-opt" || state.starts_with("removed:")).then_some(assembled.clone()),
                 "sdkReview":{"state":"checked","platform":"pc","overall":"Poor","detail":"","stats":[],"issues":[
                     {"level":"error","text":PIPELINE_FIX,"canFix":true},{"level":"warning","text":"This avatar is shorter than average.","canFix":false}]}},
             "packageVersions":{"com.vrchat.avatars":"3.10.5","nadena.dev.modular-avatar":"1.18.7"}});
+        if state == "after-opt" || run.package_pins.contains_key("com.anatawa12.avatar-optimizer") {
+            result["packageVersions"]["com.anatawa12.avatar-optimizer"] = serde_json::json!("1.9.21");
+        }
         if let Some(textures) = self.texture_facts.lock().unwrap().clone() { result["facts"]["textureMemory"] = textures; }
         if self.removal_mode.load(Ordering::SeqCst) > 0 {
             let outfits = if result["facts"]["observedSelection"].is_null() { &[][..] } else { assembled.outfits.as_slice() };
@@ -351,6 +354,59 @@ impl AmfProductionPlatform for TestPlatform {
         }
         let mut observed = self.inspect(run, watch)?;
         observed.result["facts"]["sdkFixesApplied"] = serde_json::json!(fixes);
+        Ok(observed)
+    }
+    fn set_optimizer(&self, run: &ProductionRun, enabled: bool, watch: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
+        assert!(run.snapshot_id.is_some());
+        if self.fail.swap(false, Ordering::SeqCst) {
+            fs::write(Path::new(&run.project_root).join("Assets/state"), "half-optimized").unwrap();
+            return Err(production_error("test_optimizer_failure", "Synthetic failure inside Avatar Optimizer."));
+        }
+        fs::write(
+            Path::new(&run.project_root).join("Assets/state"),
+            if enabled { "after-opt" } else { "after" },
+        ).unwrap();
+        let mut observed = self.inspect(run, watch)?;
+        observed.unity_fingerprint = if enabled { "scene-after-opt".into() } else { "scene-after".into() };
+        observed.result["packageVersions"]["com.anatawa12.avatar-optimizer"] = serde_json::json!("1.9.21");
+        observed.result["facts"]["optimizerReport"] = serde_json::json!({
+            "state": "measured",
+            "localMeasurementOnly": true,
+            "enabled": enabled,
+            "measuredAt": "2026-11-11T12:00:00.0000000Z",
+            "before": {
+                "platform": "pc",
+                "overall": "Medium",
+                "stats": [],
+                "triangles": 48000,
+                "materialSlots": 12,
+                "meshes": 7,
+                "skinnedMeshes": 6,
+                "textureBytes": 33554432,
+                "textureComplete": true,
+                "meshBytes": 2400000,
+                "meshComplete": true,
+                "physBones": 4,
+                "physBonesKnown": true
+            },
+            "after": {
+                "platform": "pc",
+                "overall": if enabled { "Good" } else { "Medium" },
+                "stats": [],
+                "triangles": if enabled { 39200 } else { 48000 },
+                "materialSlots": if enabled { 4 } else { 12 },
+                "meshes": if enabled { 2 } else { 7 },
+                "skinnedMeshes": if enabled { 2 } else { 6 },
+                "textureBytes": 33554432,
+                "textureComplete": true,
+                "meshBytes": if enabled { 1820000 } else { 2400000 },
+                "meshComplete": true,
+                "physBones": 4,
+                "physBonesKnown": true
+            },
+            "detail": ""
+        });
+        observed.result["facts"]["optimizerWarnings"] = serde_json::json!([]);
         Ok(observed)
     }
     fn snapshot(&self, run: &ProductionRun) -> Result<String, AppErrorV1> {
@@ -2590,3 +2646,91 @@ fn synthetic_removal(source: &str) -> OutfitRemoval {
 }
 #[path = "support/outfit_removal.rs"]
 mod outfit_removal_tests;
+
+#[test]
+fn avatar_optimizer_defaults_off_emits_v06_only_when_enabled_and_replays_in_recipe_and_revisions() {
+    let h = Harness::new();
+    assembled(&h);
+    let initial = h.engine.get("n3-test").unwrap();
+    assert!(!initial.optimizer.as_ref().is_some_and(|o| o.enabled));
+    let saved_v05 = h.engine.save_recipe("n3-test", "recipe-no-opt", "Without Optimizer").unwrap();
+    assert_eq!(saved_v05.recipe["formatVersion"], "0.5");
+    assert!(saved_v05.recipe["packages"].get("com.anatawa12.avatar-optimizer").is_none());
+
+    assert!(h.job(|e, c| e.set_optimizer("n3-test", true, c)));
+    let enabled = h.engine.get("n3-test").unwrap();
+    let opt = enabled.optimizer.as_ref().expect("optimizer state recorded");
+    assert!(opt.enabled);
+    assert_eq!(opt.package_version.as_deref(), Some("1.9.21"));
+    assert_eq!(enabled.revisions[0].before, RevisionKind::Optimizer);
+    assert_eq!(enabled.result["facts"]["optimizerReport"]["localMeasurementOnly"], true);
+    assert_eq!(enabled.result["facts"]["optimizerReport"]["state"], "measured");
+    assert_eq!(enabled.result["facts"]["optimizerReport"]["enabled"], true);
+    assert_eq!(enabled.result["facts"]["optimizerReport"]["after"]["triangles"], 39200);
+    let records: Vec<_> = fs::read_dir(h.root.join("production/records"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert!(records.iter().any(|name| name.starts_with("n3-test-optimizer-")), "{records:?}");
+
+    let saved_v06 = h.engine.save_recipe("n3-test", "recipe-with-opt", "With Optimizer").unwrap();
+    assert_eq!(saved_v06.recipe["formatVersion"], "0.6");
+    assert_eq!(saved_v06.recipe["packages"]["com.anatawa12.avatar-optimizer"], "1.9.21");
+    assert_eq!(saved_v06.recipe["adjustments"]["optimizer"], true);
+
+    let share_plan = h.engine.recipe_share_plan("recipe-with-opt").unwrap();
+    let sources: std::collections::BTreeMap<String, String> = share_plan
+        .materials
+        .iter()
+        .map(|m| (m.material_id.clone(), "1000001".to_owned()))
+        .collect();
+    let exported = h.engine.export_recipe("recipe-with-opt", &share_plan.plan_digest, &sources).unwrap();
+    assert!(exported.share_code.starts_with("vuar0.6."), "{}", exported.share_code);
+
+    let recipient = Harness::new();
+    let imported = recipient.engine.import_recipe(&exported.share_code).unwrap();
+    let imported_id = imported.recipe["recipeId"].as_str().unwrap();
+    recipient.engine.begin_recipe("n3-replayed", imported_id, "synthetic-editor").unwrap();
+    assert!(recipient.job(|e, c| e.prepare("n3-replayed", c)));
+    let replay_plan = recipient.engine.plan("n3-replayed", &selection()).unwrap();
+    assert_eq!(replay_plan["adjustments"]["optimizer"], true);
+    let replay_digest = replay_plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(recipient.job(move |e, c| e.assemble("n3-replayed", selection(), &replay_digest, c)));
+    let replayed = recipient.engine.get("n3-replayed").unwrap();
+    assert!(replayed.optimizer.as_ref().is_some_and(|o| o.enabled));
+    assert_eq!(replayed.result["facts"]["optimizerReport"]["localMeasurementOnly"], true);
+
+    // Revision restore back to the pre-optimizer state turns optimizer off and saves 0.5 again.
+    let pre_opt_rev = enabled.revisions[0].id.clone();
+    let rev_plan = h.engine.revision_plan("n3-test", &pre_opt_rev).unwrap();
+    assert!(rev_plan["steps"].as_array().unwrap().iter().any(|s| s["key"] == "optimizer" && s["enabled"] == false && s["skipped"] == false), "{rev_plan}");
+    let rev_digest = rev_plan["planDigest"].as_str().unwrap().to_owned();
+    assert!(h.job(move |e, c| e.restore_revision("n3-test", &pre_opt_rev, &rev_digest, c)));
+    let restored = h.engine.get("n3-test").unwrap();
+    assert!(!restored.optimizer.as_ref().is_some_and(|o| o.enabled));
+    let saved_again = h.engine.save_recipe("n3-test", "recipe-restored", "Restored Without Optimizer").unwrap();
+    assert_eq!(saved_again.recipe["formatVersion"], "0.5");
+}
+
+#[test]
+fn avatar_optimizer_failure_restores_snapshot_and_face_tracking_raises_osc_warning() {
+    let h = Harness::new();
+    let ft_vector: serde_json::Value = serde_json::from_slice(
+        include_bytes!("../../../schemas/unity-bridge/v5/examples/face-tracking.valid.result.json"),
+    ).unwrap();
+    *h.platform.ft_facts.lock().unwrap() = Some(ft_vector["data"]["faceTracking"].clone());
+    assembled(&h);
+
+    h.platform.fail.store(true, Ordering::SeqCst);
+    assert!(!h.job(|e, c| e.set_optimizer("n3-test", true, c)));
+    let failed = h.engine.get("n3-test").unwrap();
+    assert!(!failed.optimizer.as_ref().is_some_and(|o| o.enabled));
+    assert_eq!(failed.recovery.as_deref(), Some("restored"));
+    assert_eq!(fs::read_to_string(Path::new(&failed.project_root).join("Assets/state")).unwrap(), "after");
+
+    assert!(h.job(|e, c| e.reinspect("n3-test", c)));
+    assert!(h.job(|e, c| e.set_optimizer("n3-test", true, c)));
+    let warned = h.engine.get("n3-test").unwrap();
+    assert!(warned.optimizer.as_ref().is_some_and(|o| o.enabled));
+    assert_eq!(warned.result["facts"]["optimizerWarnings"], serde_json::json!(["osc_gimmick_possible"]));
+}

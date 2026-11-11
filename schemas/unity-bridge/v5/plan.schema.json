@@ -341,6 +341,18 @@
     },
     "outfitRemoval": {
       "$ref": "#/$defs/outfitRemoval"
+    },
+    "optimizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      }
     }
   },
   "$defs": {

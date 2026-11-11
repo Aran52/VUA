@@ -53,7 +53,8 @@
         "lighting",
         "open",
         "editor_close",
-        "outfit_removal"
+        "outfit_removal",
+        "optimizer"
       ]
     },
     "timestamp": {

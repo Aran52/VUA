@@ -1,8 +1,8 @@
 # AMF material-first production v0.1
 
-> Document version: 0.39.0
+> Document version: 0.40.0
 > Status: Candidate
-> Updated: 2026-11-01
+> Updated: 2026-11-11
 > Owner: AMF
 
 This face implements the first N3 production path. Users select local library inputs before a
@@ -64,6 +64,7 @@ All params have `schemaVersion: "0.1"`. Unknown keys are rejected.
 | `amf.production.applyTextureMemory` | Command | `runId`, `platform`, `targetRank`, `planDigest`, `textures` | Durable confirmed subset task; snapshot, version record, importer changes, independent reinspection and automatic restore on failure |
 | `amf.production.planLighting` | Query | `runId` | Digest-bound lilToon brightness alignment: the Avatar's reference limits, the outfit entries that differ and the shared materials left alone |
 | `amf.production.applyLighting` | Command | `runId`, `planDigest`, `materials` | Durable task acceptance; aligns the chosen reviewed materials behind a restore point and rechecks the project in Unity |
+| `amf.production.setOptimizer` | Command | `runId`, `enabled: boolean` | Durable task acceptance; installs pinned `com.anatawa12.avatar-optimizer` when needed, configures `TraceAndOptimize` on VUA's owned Avatar behind a restore point and version record, measures local NDMF before/after stats without saving temporary clones, and restores on failure |
 | `amf.production.listFits` | Query | none | Retained saved fits: name, times, object count and the garment/Avatar content identities each belongs to |
 | `amf.production.saveFit` | Command | `runId`, `sourceId`, `name`, `changesDigest` | The stored fit; binds the reviewed `fitChanges` entry, a stale review is refused as `plan_drift` |
 | `amf.production.renameFit` | Command | `fitId`, `name` | The renamed fit |
@@ -821,6 +822,33 @@ animation data, collider settings and SDK-added buffers that the import does not
 `uncompressedBytes: "within_25_percent"`. The SDK's measurement after the build remains the
 authoritative number.
 
+## Optional Avatar Optimizer
+
+Avatar Optimizer (`com.anatawa12.avatar-optimizer`, pinned to `1.9.21` in
+[known packages](../development/known-packages.md)) is off by default on new lines. Preparation does
+not install it until the player opts in via `amf.production.setOptimizer(runId, enabled: true)` on an
+assembled line, or prepares a [Recipe v0.6](amf-recipe-v0.6.md) that declares it.
+
+Enabling or disabling runs behind the line's full-copy restore point (`snapshot`), records an
+`optimizer` version entry in `revisions` and writes a Build Record (`{runId}-optimizer-{n}.json`).
+When enabled, the provider resolves and installs `com.anatawa12.avatar-optimizer` `1.9.21` from the
+cached or live `https://vpm.anatawa12.com/vpm.json` feed into the managed work project after
+verifying compatibility with the installed VRChat Avatars SDK and NDMF versions, then runs Bridge
+`amf_optimizer` to add `Anatawa12.AvatarOptimizer.TraceAndOptimize` (default component settings) on
+the active VUA-owned Avatar root. Disabling removes VUA's `TraceAndOptimize` component from that
+Avatar root while leaving package files in `Packages/` intact. If package installation, Bridge
+execution or fingerprint verification fails, the work project is restored from the snapshot.
+
+Bridge `amf_optimizer` measures local before/after statistics (`triangles`, `materialSlots`,
+`skinnedMeshRenderers`, `meshRenderers`, `bones`, `blendShapes`, `meshBytes`, `textureBytes`) by
+invoking NDMF `AvatarProcessor.ManualProcessAvatar` on disposable in-memory clones and cleaning
+temporary NDMF assets before saving the scene. The resulting `facts.optimizerReport` carries
+`localMeasurementOnly: true` and `officialSdkChecks: "not_run"` — it never claims an official VRChat
+SDK build pass. When the line carries Face Tracking parameters or creator patch markers while
+`TraceAndOptimize` is enabled, `facts.optimizerWarnings` includes `"osc_gimmick_possible"` so the UI
+can advise checking OSC expressions in VRChat. Saving a Recipe emits [v0.6](amf-recipe-v0.6.md) when
+`optimizer.enabled` is true and [v0.5](amf-recipe-v0.5.md) otherwise.
+
 ## Recipe image export and import
 
 [Recipe image sharing v0.1](recipe-image-share-v0.1.md) owns the two additive native methods,
@@ -828,6 +856,8 @@ controlled ECC200 carrier, bounded private artifacts, HTTPS declaration transpor
 withdrawal ownership. They retain the existing provider frame limit and import preview.
 
 ## Document changelog
+
+- 0.40.0 (2026-11-11): add optional `amf.production.setOptimizer` (`com.anatawa12.avatar-optimizer` `1.9.21` `TraceAndOptimize` on the owned Avatar), protected by snapshot, `optimizer` revision replay and Build Record, with local NDMF `ManualProcessAvatar` before/after measurement (`localMeasurementOnly: true`), Face Tracking `osc_gimmick_possible` warning, and conditional Recipe v0.6 capture.
 
 - 0.38.0 (2026-10-30): `amf.production.plan` carries `prediction`, the pre-assembly cost of the Avatar and each selected outfit (size, triangles, material slots, texture memory, PhysBones and parameter bits), reusing the texture-memory rules and the parameter estimate; candidates gain an optional `footprint`, and a plan from an older AMF build stays readable without one.
 

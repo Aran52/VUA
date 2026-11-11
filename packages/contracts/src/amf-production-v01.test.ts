@@ -116,8 +116,19 @@ describe("AMF material-first Candidate boundary", () => {
   });
 
   it("accepts every step the AMF engine records, including release steps", () => {
-    for (const key of ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload"])
+    for (const key of ["project", "materials", "inspect", "reinspect", "snapshot", "assembly", "protect_current", "restore", "turntable", "upload", "optimizer"])
       expect(isAmfStep({ key, name: key, state: "succeeded", detail: "", startedAt: "2026-10-17T15:00:00.000Z", endedAt: "2026-10-17T15:01:00.000Z" }), key).toBe(true);
+  });
+  it("registers setOptimizer as a command requiring a boolean flag", () => {
+    expect(DESKTOP_GATEWAY_METHOD_KINDS["amf.production.setOptimizer"]).toBe("command");
+    for (const enabled of [true, false]) {
+      const params = { schemaVersion: "0.1", runId: "n3-test", enabled };
+      expect(isDesktopGatewayRequestV1({ schemaVersion: 1, requestId: "opt", method: "amf.production.setOptimizer", params })).toBe(true);
+      expect(isApplicationRequestV01({ contractVersion: "0.1", requestId: "opt", correlationId: "opt", commandId: "cmd-opt", kind: "command", method: "amf.production.setOptimizer", params })).toBe(true);
+    }
+    for (const bad of [{ schemaVersion: "0.1", runId: "n3-test" }, { schemaVersion: "0.1", runId: "n3-test", enabled: "yes" }, { schemaVersion: "0.1", runId: "n3-test", enabled: true, extra: 1 }]) {
+      expect(isAmfProductionParams("amf.production.setOptimizer", bad)).toBe(false);
+    }
   });
 });
 

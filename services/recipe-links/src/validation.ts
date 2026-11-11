@@ -12,6 +12,7 @@ const ajv = new Ajv2020({ strict: true, strictRequired: false, allErrors: false,
 const schemas = new Map([
   ["recipe:0.4", "recipe-v04.json"],
   ["recipe:0.5", "recipe-v05.json"],
+  ["recipe:0.6", "recipe-v06.json"],
   ["selection:0.1", "selection-v01.json"],
 ].map(([version, filename]) => [version!, ajv.compile(JSON.parse(readFileSync(new URL(`../schemas/${filename}`, import.meta.url), "utf8")))]));
 

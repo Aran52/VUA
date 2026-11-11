@@ -112,6 +112,8 @@ fn real_wire_lists_facts_and_rejects_mutations_sent_as_queries() {
         read("examples/invalid-list-fits-kind.json"),
         read("examples/invalid-face-tracking-kind.json"),
         read("examples/invalid-face-tracking-confirmation.json"),
+        read("examples/invalid-set-optimizer-query.json"),
+        read("examples/invalid-set-optimizer-missing-enabled.json"),
     ];
     let mut lines = String::new();
     for (index, case) in cases.iter().enumerate() {

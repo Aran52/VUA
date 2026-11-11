@@ -418,3 +418,23 @@ describe("texture memory response boundary", () => {
     }
   });
 });
+
+describe("Avatar Optimizer response and export boundary", () => {
+  const optimizerReport = JSON.parse(readFileSync(new URL("../../../../../schemas/unity-bridge/v5/examples/optimizer.valid.result.json", import.meta.url), "utf8")).data.optimizerReport;
+  it("validates local-measurement-only optimizer reports, warnings, setOptimizer and vuar0.6 exports", async () => {
+    expect(isAmfProductionRun({ ...run, optimizer: { enabled: true, packageVersion: "1.9.21" }, result: { facts: { ...run.result.facts, optimizerReport, optimizerWarnings: ["osc_gimmick_possible"] } } })).toBe(true);
+    expect(isAmfProductionRun({ ...run, result: { facts: { ...run.result.facts, optimizerReport: { ...optimizerReport, localMeasurementOnly: false } } } })).toBe(false);
+    const shareV06 = readFileSync(new URL("../../../../../schemas/amf-recipe/v0.6/share-examples/share.valid.json", import.meta.url), "utf8");
+    const docV06 = JSON.parse(shareV06);
+    const codeV06 = `vuar0.6.${Buffer.from(shareV06, "utf8").toString("base64url")}`;
+    const requests: unknown[] = [];
+    let response: unknown = { schemaVersion: "0.1", runId: "n3-test", taskId: "task-opt" };
+    const client: GatewayClient = { async invoke(request) { requests.push(request); return { ok: true, value: response as DesktopGatewaySuccessValueV1 }; }, subscribe() { return () => {}; } };
+    const port = createAmfProductionPort(client);
+    expect(await port.setOptimizer("n3-test", true)).toEqual({ runId: "n3-test", taskId: "task-opt" });
+    expect(requests[0]).toMatchObject({ method: "amf.production.setOptimizer", params: { schemaVersion: "0.1", runId: "n3-test", enabled: true } });
+    response = { schemaVersion: "0.1", export: { shareCode: codeV06, fileText: shareV06, document: docV06 } };
+    const exported = await port.exportRecipe("recipe-optimizer", "a".repeat(64), { "material-1": "1000001", "material-2": "1000001" });
+    expect(exported.shareCode.startsWith("vuar0.6.")).toBe(true);
+  });
+});

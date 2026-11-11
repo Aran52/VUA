@@ -269,3 +269,19 @@ fn texture_inventory_is_optional_but_new_facts_and_writes_are_checked() {
     assert!(command.operation.is_mutating() && !command.dry_run);
     assert!(command.expected_project_fingerprint.is_some());
 }
+
+#[test]
+fn avatar_optimizer_facts_require_local_measurement_and_forbid_official_sdk_claims() {
+    use vua_orchestrator::amf_production::validate_optimizer_facts;
+    let mut old: UnityResult = serde_json::from_value(read("examples/assembly.valid.result.json")).unwrap();
+    validate_optimizer_facts(&mut old.data, false).unwrap();
+    let mut valid: UnityResult = serde_json::from_value(read("examples/optimizer.valid.result.json")).unwrap();
+    assert_eq!(valid.data["officialSdkChecks"], "not_run");
+    validate_optimizer_facts(&mut valid.data, true).unwrap();
+    assert_eq!(valid.data["optimizerReport"]["localMeasurementOnly"], true);
+    let mut invalid = read("examples/invalid-optimizer-official-claim.result.json");
+    assert!(validate_optimizer_facts(&mut invalid["data"], true).is_err());
+    let command: UnityCommand = serde_json::from_value(read("examples/optimizer.valid.command.json")).unwrap();
+    assert_eq!(command.operation, UnityOperation::AmfOptimizer);
+    assert!(command.operation.is_mutating() && !command.dry_run && command.expected_project_fingerprint.is_some());
+}

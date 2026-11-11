@@ -5,8 +5,8 @@ import { isDesktopGatewayRequestV1 } from "./desktop-gateway.js";
 import { isAmfProductionParams } from "./amf-production-v01.js";
 import { hasValidAmfRecipeReview, isAmfRecipeMaterials } from "./amf-recipe-materials.js";
 
-describe("Recipe v0.5 with retained v0.4 reads", () => {
-  for (const version of ["v0.4","v0.5"]) {
+describe("Recipe v0.5 and v0.6 with retained v0.4 reads", () => {
+  for (const version of ["v0.4","v0.5","v0.6"]) {
     for (const [folder,validate] of [["examples",isAmfRecipeDocument],["share-examples",isAmfSharedRecipe]] as const) {
       const root = new URL(`../../../schemas/amf-recipe/${version}/${folder}/`,import.meta.url);
       for (const name of readdirSync(root)) it(`${version}/${folder}/${name}`, () => {

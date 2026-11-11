@@ -383,8 +383,8 @@ impl Drop for FingerprintCheck<'_> {
 fn interrupted_change(run: &ProductionRun) -> bool {
     run.phase == "assembling"
         && run.snapshot_id.is_some()
-        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking" | "texture_memory" | "outfit_removal") && step.state == "running")
-            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| matches!(step.key.as_str(), "face_tracking" | "texture_memory" | "outfit_removal")))
+        && (run.steps.last().is_some_and(|step| matches!(step.key.as_str(), "assembly" | "sdk_fix" | "face_tracking" | "texture_memory" | "outfit_removal" | "optimizer") && step.state == "running")
+            || run.steps.iter().rev().take_while(|step| step.key != "snapshot").any(|step| matches!(step.key.as_str(), "face_tracking" | "texture_memory" | "outfit_removal" | "optimizer")))
 }
 
 /// Whether the run assembled successfully before and Unity now observes the same Avatar and
@@ -418,6 +418,174 @@ pub struct SourceSnapshot {
     pub sources: Vec<PreparedSource>,
 }
 
+/// The Avatar Optimizer state recorded on a production line.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OptimizerState {
+    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report: Option<serde_json::Value>,
+}
+
+/// Validates and normalizes `optimizerReport` and `optimizerWarnings` on a Bridge v5 `data` object.
+pub fn validate_optimizer_facts(
+    facts: &mut serde_json::Value,
+    is_optimizer_op: bool,
+) -> Result<(), AppErrorV1> {
+    let invalid = |detail: &str| production_error("receipt_invalid", detail);
+    if let Some(warnings) = facts.get("optimizerWarnings") {
+        let items = warnings
+            .as_array()
+            .ok_or_else(|| invalid("optimizerWarnings must be an array."))?;
+        if items.len() > 8 {
+            return Err(invalid("optimizerWarnings exceeds its bound."));
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for item in items {
+            let code = item
+                .as_str()
+                .ok_or_else(|| invalid("optimizerWarnings entries must be strings."))?;
+            if code != "osc_gimmick_possible" || !seen.insert(code) {
+                return Err(invalid("Unsupported or duplicate optimizer warning code."));
+            }
+        }
+        if items.is_empty() {
+            if let Some(obj) = facts.as_object_mut() {
+                obj.remove("optimizerWarnings");
+            }
+        }
+    }
+    let mut drop_not_run = false;
+    if let Some(report) = facts.get("optimizerReport") {
+        let obj = report
+            .as_object()
+            .ok_or_else(|| invalid("optimizerReport must be an object."))?;
+        if obj.get("localMeasurementOnly").and_then(|v| v.as_bool()) != Some(true) {
+            return Err(invalid(
+                "optimizerReport must declare localMeasurementOnly: true.",
+            ));
+        }
+        if obj.get("enabled").and_then(|v| v.as_bool()).is_none() {
+            return Err(invalid("optimizerReport.enabled must be a boolean."));
+        }
+        let measured_at = obj
+            .get("measuredAt")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| invalid("optimizerReport.measuredAt must be a string."))?;
+        let detail = obj
+            .get("detail")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| invalid("optimizerReport.detail must be a string."))?;
+        if measured_at.len() > 64 || measured_at.contains('\0') || detail.chars().count() > 600 || detail.contains('\0') {
+            return Err(invalid("optimizerReport text fields exceed bounds."));
+        }
+        let state = obj
+            .get("state")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| invalid("optimizerReport.state must be a string."))?;
+        let check_metrics = |metrics: Option<&serde_json::Value>, measured: bool| -> Result<(), AppErrorV1> {
+            let m = metrics
+                .and_then(|v| v.as_object())
+                .ok_or_else(|| invalid("optimizerReport metrics must be an object."))?;
+            let platform = m
+                .get("platform")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| invalid("optimizerReport platform must be a string."))?;
+            if measured {
+                if !matches!(platform, "pc" | "android") {
+                    return Err(invalid("Measured optimizerReport requires pc or android platform."));
+                }
+            } else if !matches!(platform, "" | "pc" | "android") {
+                return Err(invalid("Unsupported optimizerReport platform."));
+            }
+            let overall = m
+                .get("overall")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| invalid("optimizerReport overall must be a string."))?;
+            if !matches!(overall, "" | "None" | "Excellent" | "Good" | "Medium" | "Poor" | "VeryPoor") {
+                return Err(invalid("Unsupported optimizerReport overall rating."));
+            }
+            let stats = m
+                .get("stats")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| invalid("optimizerReport stats must be an array."))?;
+            if stats.len() > 64 {
+                return Err(invalid("optimizerReport stats exceed bound."));
+            }
+            for key in ["triangles", "materialSlots", "meshes", "skinnedMeshes", "textureBytes", "meshBytes", "physBones"] {
+                if m.get(key).and_then(|v| v.as_u64()).is_none() {
+                    return Err(invalid("optimizerReport numeric metric must be a non-negative integer."));
+                }
+            }
+            for key in ["textureComplete", "meshComplete", "physBonesKnown"] {
+                if m.get(key).and_then(|v| v.as_bool()).is_none() {
+                    return Err(invalid("optimizerReport completeness flag must be a boolean."));
+                }
+            }
+            Ok(())
+        };
+        match state {
+            "not_run" => {
+                if is_optimizer_op {
+                    return Err(invalid("amf_optimizer must report measured or failed."));
+                }
+                check_metrics(obj.get("before"), false)?;
+                check_metrics(obj.get("after"), false)?;
+                drop_not_run = true;
+            }
+            "measured" => {
+                if measured_at.is_empty() {
+                    return Err(invalid("Measured optimizerReport requires measuredAt."));
+                }
+                check_metrics(obj.get("before"), true)?;
+                check_metrics(obj.get("after"), true)?;
+            }
+            "failed" => {
+                check_metrics(obj.get("before"), false)?;
+                check_metrics(obj.get("after"), false)?;
+            }
+            _ => return Err(invalid("Unsupported optimizerReport.state.")),
+        }
+    } else if is_optimizer_op {
+        return Err(invalid("amf_optimizer receipt is missing optimizerReport."));
+    }
+    if drop_not_run {
+        if let Some(obj) = facts.as_object_mut() {
+            obj.remove("optimizerReport");
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn sync_optimizer_warnings(run: &mut ProductionRun) {
+    let enabled = run.optimizer.as_ref().is_some_and(|state| state.enabled);
+    let ft_active = {
+        let ft = &run.result["facts"]["faceTracking"];
+        ft["manualReplayRequired"].as_bool() == Some(true)
+            || ft["state"].as_str() == Some("parameters_found")
+            || ft["parameters"].as_array().is_some_and(|list| !list.is_empty())
+            || ft["components"].as_array().is_some_and(|list| {
+                list.iter().any(|entry| {
+                    entry.as_str().is_some_and(|name| {
+                        !name.is_empty() && !name.starts_with("nadena.dev.modular_avatar.")
+                    })
+                })
+            })
+    };
+    if let Some(facts) = run.result.get_mut("facts").and_then(|v| v.as_object_mut()) {
+        if enabled && ft_active {
+            facts.insert(
+                "optimizerWarnings".into(),
+                serde_json::json!(["osc_gimmick_possible"]),
+            );
+        } else {
+            facts.remove("optimizerWarnings");
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductionRun {
@@ -448,6 +616,9 @@ pub struct ProductionRun {
     /// The line's materials at the restore point, when that point was taken before they changed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot_sources: Option<SourceSnapshot>,
+    /// The line's Avatar Optimizer state at the restore point.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot_optimizer: Option<OptimizerState>,
     /// The full copy taken before the creator patch, kept while the line carries its manual-replay
     /// marker so later restore points cannot make the pre-patch state unreachable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -490,6 +661,9 @@ pub struct ProductionRun {
     pub recovery: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub editor_close: Option<EditorCloseResult>,
+    /// The line's explicit Avatar Optimizer setting and latest local NDMF measurement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub optimizer: Option<OptimizerState>,
 }
 
 #[derive(Debug, Clone)]
@@ -586,6 +760,15 @@ pub trait AmfProductionPlatform: Send + Sync {
     }
     fn face_tracking_patch(&self, _: &ProductionRun, _: &FaceTrackingPatch, _: &UnityWatch) -> Result<ObservedProject, AppErrorV1> {
         Err(production_error("face_tracking_unavailable", "Creator patch sessions are unavailable on this platform."))
+    }
+    /// Configures `Anatawa12.AvatarOptimizer.TraceAndOptimize` on the active owned Avatar and runs local NDMF before/after measurement.
+    fn set_optimizer(
+        &self,
+        _run: &ProductionRun,
+        _enabled: bool,
+        _watch: &UnityWatch,
+    ) -> Result<ObservedProject, AppErrorV1> {
+        Err(production_error("optimizer_unavailable", "Avatar Optimizer configuration is unavailable on this platform."))
     }
     fn restore(&self, run: &ProductionRun, snapshot: &str) -> Result<(), AppErrorV1>;
     /// The current content identity (`sha256:<hex>`) of a library source, or None when the
@@ -1019,6 +1202,7 @@ impl AmfProductionEngine {
             snapshot_id: None,
             snapshot_selection: None,
             snapshot_sources: None,
+            snapshot_optimizer: None,
             ft_pre_patch_snapshot: None,
             revisions: Vec::new(),
             sdk_fixes_applied: Vec::new(),
@@ -1034,6 +1218,7 @@ impl AmfProductionEngine {
             error: None,
             recovery: None,
             editor_close: None,
+            optimizer: None,
         })
     }
     fn step(
@@ -1217,6 +1402,7 @@ impl AmfProductionEngine {
         run.prefabs = observed.prefabs;
         run.unity_fingerprint = observed.unity_fingerprint;
         run.result = observed.result;
+        sync_optimizer_warnings(run);
         run.fit_changes = serde_json::from_value(run.result["facts"]["fitChanges"].clone()).unwrap_or_default();
         run.observed_at = Some(fit_now());
         self.refresh_recipe_mapping(run)?;
@@ -1279,6 +1465,7 @@ impl AmfProductionEngine {
         }
         self.ensure_project_matches(&mut run)?;
         let previous = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
+        let previous_optimizer = run.optimizer.clone();
         run.task_id = ctx.task_id().into();
         run.phase = "preparing".into();
         run.error = None;
@@ -1292,6 +1479,7 @@ impl AmfProductionEngine {
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = run.selection.clone();
             run.snapshot_sources = Some(previous.clone());
+            run.snapshot_optimizer = previous_optimizer.clone();
             revision_id = Some(self.record_revision(&mut run, RevisionKind::Materials, false));
             self.save(&run)?;
             self.step(&mut run, ctx, "materials", "Change the line's materials")?;
@@ -1314,8 +1502,10 @@ impl AmfProductionEngine {
             run.recipe_id = None;
             run.recipe_source_hashes.clear();
             run.recipe_materials.clear(); run.material_choices.clear(); run.recipe_material_sources.clear(); run.recipe_differences.clear();
-            // The fresh work scene holds no applied fits anymore.
+            // The fresh work scene holds no applied fits or optimizer component anymore.
             run.applied_fits.clear();
+            run.optimizer = None;
+            sync_optimizer_warnings(&mut run);
             run.completed_at = None;
             run.phase = "ready".into();
             Ok(())
@@ -1326,6 +1516,7 @@ impl AmfProductionEngine {
                     Ok(()) => {
                         run.choices = previous.choices.clone();
                         run.sources = previous.sources.clone();
+                        run.optimizer = previous_optimizer;
                         "restored".into()
                     }
                     Err(error) => format!("restore_failed: {}", error.code),
@@ -1433,6 +1624,7 @@ impl AmfProductionEngine {
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = run.selection.clone();
             run.snapshot_sources = None;
+            run.snapshot_optimizer = run.optimizer.clone();
             revision_id = Some(self.record_revision(&mut run, RevisionKind::SdkFix, false));
             self.save(&run)?;
             self.step(&mut run, ctx, "sdk_fix", "Run the VRChat SDK's Auto Fix")?;
@@ -1481,6 +1673,7 @@ impl AmfProductionEngine {
         run.prefabs = observed.prefabs;
         run.result = observed.result;
         run.unity_fingerprint = observed.unity_fingerprint;
+        sync_optimizer_warnings(run);
         for fix in applied {
             if !run.sdk_fixes_applied.contains(&fix) {
                 run.sdk_fixes_applied.push(fix);
@@ -1489,6 +1682,122 @@ impl AmfProductionEngine {
         let _check = FingerprintCheck::begin(self, run, ctx);
         run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
         run.revision = run.revision.checked_add(1)
+            .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
+        Ok(())
+    }
+    /// Enables or disables `Anatawa12.AvatarOptimizer.TraceAndOptimize` on the active assembled
+    /// Avatar behind a restore point and version record, runs local NDMF before/after measurement,
+    /// and writes a Build Record.
+    pub fn set_optimizer(&self, run_id: &str, enabled: bool, ctx: &TaskContext) -> Result<(), AppErrorV1> {
+        let mut run = self.get(run_id)?;
+        if !matches!(run.phase.as_str(), "ready" | "succeeded") {
+            return Err(production_error("inspect_required", "Check the work project again before configuring Avatar Optimizer."));
+        }
+        if run.result["facts"]["avatarGlobalObjectId"].as_str().is_none_or(|id| id.is_empty()) {
+            return Err(production_error("result_not_ready", "Assemble an Avatar before configuring Avatar Optimizer."));
+        }
+        self.ensure_project_matches(&mut run)?;
+        let phase = run.phase.clone();
+        let previous_optimizer = run.optimizer.clone();
+        run.task_id = ctx.task_id().into();
+        run.phase = "assembling".into();
+        run.error = None;
+        run.recovery = None;
+        let mut snapshot = None;
+        let mut revision_id = None;
+        let result = (|| {
+            self.step(&mut run, ctx, "snapshot", "Protect the work project")?;
+            snapshot = Some(self.platform.snapshot(&run)?);
+            run.snapshot_id = snapshot.clone();
+            run.snapshot_selection = run.selection.clone();
+            run.snapshot_sources = None;
+            run.snapshot_optimizer = previous_optimizer.clone();
+            revision_id = Some(self.record_revision(&mut run, RevisionKind::Optimizer, false));
+            self.save(&run)?;
+            self.step(
+                &mut run,
+                ctx,
+                "optimizer",
+                if enabled {
+                    "Enable Avatar Optimizer and measure local before/after"
+                } else {
+                    "Disable Avatar Optimizer and measure local before/after"
+                },
+            )?;
+            self.run_set_optimizer(&mut run, enabled, ctx)?;
+            run.phase = phase.clone();
+            run.confirmed_digest = None;
+            Self::close_step(&mut run, "succeeded");
+            let record = self
+                .root
+                .join("records")
+                .join(format!("{}-optimizer-{}.json", run.run_id, run.revision));
+            fs::create_dir_all(record.parent().expect("record parent")).map_err(io_error)?;
+            let pending = record.with_extension("pending");
+            fs::write(&pending, serde_json::to_vec_pretty(&run).map_err(io_error)?)
+                .map_err(io_error)?;
+            fs::rename(pending, record).map_err(io_error)?;
+            Ok(())
+        })();
+        if result.is_err() {
+            if let Some(snapshot) = snapshot {
+                run.recovery = Some(match self.platform.restore(&run, &snapshot) {
+                    Ok(()) => {
+                        run.optimizer = previous_optimizer;
+                        "restored".into()
+                    }
+                    Err(error) => format!("restore_failed: {}", error.code),
+                });
+            }
+            if !matches!(run.recovery.as_deref(), Some(recovery) if recovery.starts_with("restore_failed")) {
+                if let Some(id) = &revision_id {
+                    run.revisions.retain(|revision| revision.id != *id);
+                }
+            }
+        }
+        let outcome = self.finish(&mut run, result);
+        self.prune_snapshots(&run);
+        outcome
+    }
+    /// Applies an Avatar Optimizer state inside an already-protected step and records the observed
+    /// facts, pinned package version and local NDMF measurement.
+    pub(crate) fn run_set_optimizer(
+        &self,
+        run: &mut ProductionRun,
+        enabled: bool,
+        ctx: &TaskContext,
+    ) -> Result<(), AppErrorV1> {
+        let observed = self.platform.set_optimizer(run, enabled, &self.watch(run, ctx))?;
+        if let Some(error) = ctx.cancellation_error("amf-production") {
+            return Err(error);
+        }
+        if observed.editor_version != run.editor.version {
+            return Err(production_error("editor_drift", "The actual Editor version changed."));
+        }
+        let report = observed.result["facts"].get("optimizerReport").cloned();
+        let package_version = observed.result["packageVersions"]
+            .get("com.anatawa12.avatar-optimizer")
+            .and_then(|value| value.as_str())
+            .map(str::to_owned)
+            .or_else(|| {
+                run.optimizer
+                    .as_ref()
+                    .and_then(|state| state.package_version.clone())
+            });
+        run.prefabs = observed.prefabs;
+        run.result = observed.result;
+        run.unity_fingerprint = observed.unity_fingerprint;
+        run.optimizer = Some(OptimizerState {
+            enabled,
+            package_version,
+            report,
+        });
+        sync_optimizer_warnings(run);
+        let _check = FingerprintCheck::begin(self, run, ctx);
+        run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
+        run.revision = run
+            .revision
+            .checked_add(1)
             .ok_or_else(|| production_error("revision_invalid", "Run revision exhausted."))?;
         Ok(())
     }
@@ -1537,8 +1846,14 @@ impl AmfProductionEngine {
             serde_json::json!({"schemaVersion":"0.1", "runId":run.run_id, "planDigest":digest,"inputs":inputs,
             "selection":selection,"editor":run.editor,"projectRoot":run.project_root,
             "canAssemble":true,"rebuild":rebuilds_base(&run, selection),"preserveOriginals":true,"officialSdkChecks":"not_run",
-            "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| serde_json::json!({
-                "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes})),
+            "adjustments":run.recipe_adjustments.as_ref().map(|adjustments| {
+                let mut value = serde_json::json!({
+                    "lighting":adjustments.lighting,"sdkFixes":adjustments.sdk_fixes});
+                if adjustments.optimizer {
+                    value["optimizer"] = serde_json::Value::Bool(true);
+                }
+                value
+            }),
             "fits":fits.iter().map(|fit| serde_json::json!({"sourceId":fit.source_id,"fitId":fit.fit_id,"name":fit.name})).collect::<Vec<_>>(),
             "parameterBudget":plan_parameter_budget(&run, selection),"prediction":plan_prediction(&run, selection),"materials":run.recipe_materials,"materialChoices":run.material_choices,"recipeDifferences":run.recipe_differences}),
         )
@@ -1606,18 +1921,20 @@ impl AmfProductionEngine {
         run.error = None;
         run.recovery = None;
         let previous_selection = run.selection.clone();
+        let previous_optimizer = run.optimizer.clone();
         run.selection = Some(selection.clone());
         run.confirmed_digest = Some(digest.into());
         let mut snapshot = None;
         let mut revision_id = None;
         // A rebuild replaces the observed facts before assembly; a restore brings these back with the files.
-        let observed_before = rebuild.then(|| (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone()));
+        let observed_before = rebuild.then(|| (run.prefabs.clone(), run.result.clone(), run.unity_fingerprint.clone(), run.project_fingerprint.clone(), previous_optimizer.clone()));
         let result = (|| {
             self.step(&mut run, ctx, "snapshot", "Protect the prepared project")?;
             snapshot = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = snapshot.clone();
             run.snapshot_selection = previous_selection.clone();
             run.snapshot_sources = None;
+            run.snapshot_optimizer = previous_optimizer.clone();
             // The version records the line as it was before this assembly.
             run.selection = previous_selection.clone();
             revision_id = Some(self.record_revision(
@@ -1631,6 +1948,7 @@ impl AmfProductionEngine {
                 // Another base starts from a fresh work scene; the base and every chosen outfit are assembled on it.
                 self.step(&mut run, ctx, "inspect", "Start a fresh work scene for the new base")?;
                 self.platform.clear_work_scene(&run)?;
+                run.optimizer = None;
                 self.update_observations(&mut run, ctx)?;
             }
             self.step(
@@ -1671,13 +1989,14 @@ impl AmfProductionEngine {
             }
             run.result = observed.result;
             run.unity_fingerprint = observed.unity_fingerprint;
+            sync_optimizer_warnings(&mut run);
             let _check = FingerprintCheck::begin(self, &run, ctx);
             run.project_fingerprint = self.platform.fingerprint(Path::new(&run.project_root))?;
             run.phase = "succeeded".into();
             run.completed_at = Some(SystemClock.now_rfc3339());
             // A Recipe's recorded adjustments land on its first successful assembly: the
-            // lighting values are written and the SDK fixes run with the same replay
-            // functions a version-record restore uses, then Unity rechecks the project.
+            // lighting values are written, the SDK fixes run, and optional Avatar Optimizer is
+            // configured with the same replay functions a version-record restore uses.
             if let Some(adjustments) = &adjustments {
                 if !adjustments.lighting.is_empty() {
                     self.step(&mut run, ctx, "lighting", "Write the Recipe's recorded lighting values")?;
@@ -1687,7 +2006,10 @@ impl AmfProductionEngine {
                     self.step(&mut run, ctx, "sdk_fix", "Run the Recipe's recorded SDK fixes")?;
                     self.run_sdk_fixes(&mut run, &adjustments.sdk_fixes, ctx)?;
                 }
-                if !adjustments.lighting.is_empty() || !adjustments.sdk_fixes.is_empty() {
+                if adjustments.optimizer {
+                    self.step(&mut run, ctx, "optimizer", "Apply the Recipe's Avatar Optimizer setting")?;
+                    self.run_set_optimizer(&mut run, true, ctx)?;
+                } else if !adjustments.lighting.is_empty() || !adjustments.sdk_fixes.is_empty() {
                     self.step(&mut run, ctx, "inspect", "Recheck the assembled project in Unity")?;
                     self.update_observations(&mut run, ctx)?;
                 }
@@ -1721,8 +2043,10 @@ impl AmfProductionEngine {
             if let Some(snapshot) = snapshot {
                 run.recovery = Some(match self.platform.restore(&run, &snapshot) {
                     Ok(()) => {
-                        if let Some((prefabs, facts, unity, project)) = observed_before {
-                            (run.prefabs, run.result, run.unity_fingerprint, run.project_fingerprint) = (prefabs, facts, unity, project);
+                        if let Some((prefabs, facts, unity, project, opt)) = observed_before {
+                            (run.prefabs, run.result, run.unity_fingerprint, run.project_fingerprint, run.optimizer) = (prefabs, facts, unity, project, opt);
+                        } else {
+                            run.optimizer = previous_optimizer;
                         }
                         "restored".into()
                     }
@@ -1792,19 +2116,22 @@ impl AmfProductionEngine {
             }
         }
         let target_kind = target;
-        let (target, target_selection, target_sources) = match target {
+        let (target, target_selection, target_sources, target_optimizer) = match target {
             RollbackTarget::RestorePoint => (
                 run.snapshot_id.clone().expect("reviewed restore point"),
                 run.snapshot_selection.clone(),
                 run.snapshot_sources.clone(),
+                run.snapshot_optimizer.clone(),
             ),
             RollbackTarget::PreCreatorPatch => (
                 run.ft_pre_patch_snapshot.clone().expect("reviewed pre-patch copy"),
                 run.selection.clone(),
                 None,
+                run.optimizer.clone(),
             ),
         };
         let current_selection = run.selection.clone();
+        let current_optimizer = run.optimizer.clone();
         let current_sources = SourceSnapshot { choices: run.choices.clone(), sources: run.sources.clone() };
         run.task_id = ctx.task_id().into();
         run.phase = "restoring".into();
@@ -1824,6 +2151,7 @@ impl AmfProductionEngine {
             safety = Some(self.platform.snapshot(&run)?);
             run.snapshot_id = safety.clone();
             run.snapshot_selection = current_selection.clone();
+            run.snapshot_optimizer = current_optimizer.clone();
             // Restoring across a material change brings the earlier materials back with the files.
             run.snapshot_sources = target_sources.as_ref().map(|_| current_sources.clone());
             self.step(&mut run, ctx, "restore", "Restore the reviewed project state")?;
@@ -1836,6 +2164,7 @@ impl AmfProductionEngine {
                 run.choices = earlier.choices.clone();
                 run.sources = earlier.sources.clone();
             }
+            run.optimizer = target_optimizer;
             self.step(&mut run, ctx, "reinspect", "Verify the restored project in Unity")?;
             self.update_observations(&mut run, ctx)?;
             if let Some(error) = ctx.cancellation_error("amf-production") { return Err(error); }
@@ -1857,6 +2186,7 @@ impl AmfProductionEngine {
                 });
             }
             run.selection = current_selection;
+            run.optimizer = current_optimizer;
             // Neither the old result nor a partial restored inspection proves
             // the current state. Explicit reinspection must establish it again.
             run.result = serde_json::Value::Null;
@@ -1972,13 +2302,15 @@ pub(crate) fn current_adjustments(run: &ProductionRun) -> Option<crate::amf_reci
             })
         })
         .collect();
-    if lighting.is_empty() && run.sdk_fixes_applied.is_empty() && fits.is_empty() {
+    let optimizer = run.optimizer.as_ref().is_some_and(|state| state.enabled);
+    if lighting.is_empty() && run.sdk_fixes_applied.is_empty() && fits.is_empty() && !optimizer {
         return None;
     }
     Some(crate::amf_recipe::RecipeAdjustments {
         lighting:lighting.into_iter().map(Into::into).collect(),
         sdk_fixes: run.sdk_fixes_applied.clone(),
         fits,
+        optimizer,
     })
 }
 

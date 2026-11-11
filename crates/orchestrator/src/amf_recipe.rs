@@ -1,4 +1,4 @@
-//! Candidate Recipe v0.5 (with retained v0.4 reads): portable declarations for the actual MA production path.
+//! Candidate Recipe v0.6 (with retained v0.4 and v0.5 reads): portable declarations for the actual MA production path.
 //! Paid files and machine-local identities are never part of this document.
 use crate::amf_production::{production_error, valid_lighting_value, AssemblySelection, BindingMode, FitObject, OutfitSelection, ProductionRun};
 use crate::AppErrorV1;
@@ -82,6 +82,10 @@ pub struct RecipeAdjustments {
     pub sdk_fixes: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fits: Vec<RecipeFit>,
+    /// Whether `Anatawa12.AvatarOptimizer.TraceAndOptimize` is enabled on the assembled Avatar;
+    /// present and `true` in `formatVersion: "0.6"` Recipes only.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub optimizer: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -127,14 +131,21 @@ pub fn valid_material_id(id: &str) -> bool {
 }
 impl ProductionRecipe {
     fn valid_guid(&self, guid: &Option<String>) -> bool {
-        match guid { None => true, Some(guid) => self.format_version == "0.5" && guid.len() == 32 && guid.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) }
+        match guid { None => true, Some(guid) => matches!(self.format_version.as_str(), "0.5" | "0.6") && guid.len() == 32 && guid.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) }
     }
     pub fn validate(&self) -> Result<(), AppErrorV1> {
-        if !matches!(self.format_version.as_str(), "0.4" | "0.5") || self.recipe_id.is_empty() || self.recipe_id.len() > 100
+        if !matches!(self.format_version.as_str(), "0.4" | "0.5" | "0.6") || self.recipe_id.is_empty() || self.recipe_id.len() > 100
             || !self.recipe_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
             || !label(&self.title, 120) || !matches!(self.editor_version.as_str(), "2022.3.22f1" | "2022.3.22f1c1")
             || self.materials.is_empty() || self.materials.len() > 64 || self.outfits.is_empty() || self.outfits.len() > 64 {
             return Err(invalid("Unsupported or malformed Recipe header."));
+        }
+        let optimizer_enabled = self.adjustments.as_ref().is_some_and(|a| a.optimizer);
+        if (self.format_version == "0.6") != optimizer_enabled {
+            return Err(invalid("Recipe formatVersion 0.6 is reserved for lines with Avatar Optimizer enabled."));
+        }
+        if self.format_version == "0.6" && !self.packages.contains_key("com.anatawa12.avatar-optimizer") {
+            return Err(invalid("Recipe 0.6 requires a pinned com.anatawa12.avatar-optimizer dependency."));
         }
         let mut ids = BTreeSet::new();
         for material in &self.materials {
@@ -169,7 +180,7 @@ impl ProductionRecipe {
                 return Err(invalid("Recipe adjustments exceed their bounds."));
             }
             if adjustments.lighting.iter().any(|entry| !material_path(&entry.material)
-                || (self.format_version == "0.5" && entry.material_id.as_deref().is_none_or(|id| !ids.contains(id)))
+                || (matches!(self.format_version.as_str(), "0.5" | "0.6") && entry.material_id.as_deref().is_none_or(|id| !ids.contains(id)))
                 || (self.format_version == "0.4" && entry.material_id.is_some())
                 || !valid_lighting_value(&entry.min) || !valid_lighting_value(&entry.max)) {
                 return Err(invalid("Recipe lighting adjustments name bounded material paths and serialized values."));
@@ -223,10 +234,24 @@ impl ProductionRecipe {
                 entry.material_id = owners.first().map(|id| (*id).clone());
             }
         }
-        let recipe = Self { format_version: "0.5".into(), recipe_id: recipe_id.into(), title: title.trim().into(), editor_version: run.editor.version.clone(),
+        let optimizer_enabled = adjustments.as_ref().is_some_and(|a| a.optimizer);
+        let format_version = if optimizer_enabled { "0.6" } else { "0.5" };
+        let mut packages: BTreeMap<String, String> = serde_json::from_value(run.result["packageVersions"].clone())
+            .map_err(|_| invalid("No observed dependency versions."))?;
+        if optimizer_enabled && !packages.contains_key("com.anatawa12.avatar-optimizer") {
+            if let Some(version) = run
+                .optimizer
+                .as_ref()
+                .and_then(|opt| opt.package_version.clone())
+                .filter(|v| !v.is_empty())
+            {
+                packages.insert("com.anatawa12.avatar-optimizer".into(), version);
+            }
+        }
+        let recipe = Self { format_version: format_version.into(), recipe_id: recipe_id.into(), title: title.trim().into(), editor_version: run.editor.version.clone(),
             materials: materials.into_values().collect(), avatar: RecipePrefab { material_id: source_materials[&avatar_sources[0].source_id].clone(),
                 prefab_guid:run.prefabs.iter().find(|p| p.source_id == avatar_sources[0].source_id && p.path == selection.avatar_prefab).and_then(|p| p.prefab_guid.clone()), prefab_path: selection.avatar_prefab },
-            outfits, packages: serde_json::from_value(run.result["packageVersions"].clone()).map_err(|_| invalid("No observed dependency versions."))?, adjustments };
+            outfits, packages, adjustments };
         recipe.validate()?;
         Ok(recipe)
     }

@@ -11,6 +11,7 @@ import { publishComponentRelease } from "./publish-component-release.mjs";
 import { exportComponentPublisher } from "./export-component-publisher.mjs";
 import {prepareComponentIndex} from "./prepare-component-index.mjs";
 import {seedComponentRelease} from "./seed-component-release.mjs";
+import { downloadPage, projectPage } from "../distribution/official-pages.mjs";
 
 const privateKey = createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.alloc(32, 7)]), format: "der", type: "pkcs8" });
 const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).subarray(-32).toString("hex");
@@ -251,4 +252,24 @@ test("Unowned or locked destinations remain intact, and corrupt immutable object
   fs.unlinkSync(path.join(fresh, "updates/.publish-amf.lock")); fs.appendFileSync(path.join(fresh, "updates/objects", `${record.packSha256}.bin`), "bad");
   assert.throws(() => publishComponentRelease(f.options.output, fresh, publicKey), /published_object_conflict/);
   assert.deepEqual(readIndex(fresh, "amf"), before);
+});
+
+test("Official project and download pages disclose update request logs, 7-day retention and Asia/Shanghai aggregate counts", () => {
+  const release = {
+    version: "1.0.0",
+    amfVersion: "0.3.0",
+    build: "f".repeat(40),
+    assets: [
+      { name: "VUA-1.0.0-x64-setup.exe", bytes: 12_000_000, sha256: "a".repeat(64), url: "https://ph-r.com/vua/releases/v1.0.0/VUA-1.0.0-x64-setup.exe" },
+      { name: "VUA-1.0.0-x64-offline.exe", bytes: 180_000_000, sha256: "b".repeat(64), url: "https://ph-r.com/vua/releases/v1.0.0/VUA-1.0.0-x64-offline.exe" },
+    ],
+  };
+  for (const html of [projectPage(release), downloadPage(release)]) {
+    assert.match(html, /id="update-privacy"/);
+    assert.match(html, /ph-r\.com/);
+    assert.match(html, /7 天/);
+    assert.match(html, /Asia\/Shanghai/);
+    assert.match(html, /采集进程内存/);
+    assert.match(html, /不增加安装 ID/);
+  }
 });

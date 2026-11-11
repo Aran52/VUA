@@ -1,7 +1,7 @@
 {
   "first-use": "Shared setup that other smokes import; it checks nothing itself.",
   "f4-deliverables": "Runs download-port and the remote smokes together, for a release check.",
-  "download-port": "Stops at its retry check on Electron 44 (the file it looks for has already moved); needs its own fix before CI.",
-  "remote-permissions": "Permission requests time out in a hidden window on Electron 44; needs its own fix before CI.",
-  "m2-deliverables": "Ends every provider process on the machine by name, so it runs only with no VUA open."
+  "download-port": "Fixed and verified on Electron 44; move to .github/workflows/ts.yml with a workflow-scoped token.",
+  "remote-permissions": "Fixed and verified in hidden windows on Electron 44; move to .github/workflows/ts.yml with a workflow-scoped token.",
+  "m2-deliverables": "Scoped to its own spawned provider child PIDs without wmic or image-wide taskkill; ready for local or CI provider checks."
 }

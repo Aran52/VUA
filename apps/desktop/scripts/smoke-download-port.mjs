@@ -13,7 +13,7 @@
 // 每个事件都过 isDownloadEventV01 守卫(deny-unknown-fields 镜像)。
 // 证据写入 _local_m4/v<版本>/download-port-smoke.json(.gitignore 排除)。
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, mkdtempSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, mkdtempSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
@@ -60,7 +60,7 @@ function closeServer(server) {
 /** unknown-size 路由不回 content-length(unknown size 语义) */
 function createServer() {
   return http.createServer((request, response) => {
-    if (request.url === "/paced.bin") {
+    if (request.url === "/paced.bin" || request.url === "/abandon.bin" || request.url === "/retry.bin") {
       response.writeHead(200, { "content-type": "application/octet-stream", "content-length": String(32 * 65536) });
       let sent = 0;
       const timer = setInterval(() => { response.write(Buffer.alloc(65536, 9)); if (++sent === 32) { clearInterval(timer); response.end(); } }, 60);
@@ -192,11 +192,15 @@ async function run() {
     //     attempt 从 1(三值词汇裁定:abandon = terminal give-up)
     events.length = 0;
     downloadSession.downloadURL(`${allowedOrigin}/abandon.bin`);
-    await waitFor(() => events.some((event) => event.kind === "download.started"), "abandon download started");
+    await waitFor(() => events.some((event) => event.kind === "download.progress" && event.receivedBytes > 0), "abandon download partial bytes");
     const abandonStarted = events.find((event) => event.kind === "download.started");
-    assert.ok(existsSync(abandonStarted.storedPath));
+    assert.equal(port.hasActiveTransfers(), true);
     port.applyIntent(abandonStarted.downloadId, "abandon");
-    await waitFor(() => !existsSync(abandonStarted.storedPath), "partial file discarded");
+    await waitFor(
+      () => !existsSync(abandonStarted.storedPath)
+        && readdirSync(stagingRoot).every((name) => !name.includes(abandonStarted.downloadId)),
+      "partial file discarded",
+    );
     assert.equal(events.some((event) => event.kind === "download.cancelled"), false, "abandon is not terminal");
 
     events.length = 0;
@@ -205,21 +209,29 @@ async function run() {
     const fresh = events.find((event) => event.kind === "download.started");
     assert.notEqual(fresh.downloadId, abandonStarted.downloadId, "post-abandon restart is a fresh download");
     assert.equal(fresh.attempt, 1, "post-abandon restart starts at attempt 1");
+    port.applyIntent(fresh.downloadId, "abandon");
+    await waitFor(
+      () => !existsSync(fresh.storedPath)
+        && readdirSync(stagingRoot).every((name) => !name.includes(fresh.downloadId)),
+      "fresh abandon download discarded",
+    );
 
     // 4b. 弃件重试:retry 意图 = 弃件 + 端口经 downloadURL 重发起,新 item
     //     重绑原 downloadId 且 attempt 递增(冻结裁定:放弃部分文件从零重启
     //     才递增,重绑原 id)
     events.length = 0;
     downloadSession.downloadURL(`${allowedOrigin}/retry.bin`);
-    await waitFor(() => events.some((event) => event.kind === "download.started"), "retry download started");
+    await waitFor(() => events.some((event) => event.kind === "download.progress" && event.receivedBytes > 0), "retry download partial bytes");
     const retryStarted = events.find((event) => event.kind === "download.started");
-    assert.ok(existsSync(retryStarted.storedPath));
     port.applyIntent(retryStarted.downloadId, "retry");
     await waitFor(() => events.some((event) => event.kind === "download.started" && event.downloadId === retryStarted.downloadId && event.attempt === 2), "rebound download started");
     const rebound = events.find((event) => event.kind === "download.started" && event.attempt === 2);
     assert.equal(rebound.downloadId, retryStarted.downloadId, "downloadId stable across retry restart");
     assert.equal(rebound.attempt, 2, "retry restart increments attempt");
-    port.applyIntent(rebound.downloadId, "abandon");
+    assert.notEqual(rebound.storedPath, retryStarted.storedPath, "retry attempt reserves a fresh staging path");
+    await waitFor(() => events.some((event) => event.kind === "download.completed" && event.downloadId === retryStarted.downloadId && event.attempt === 2), "rebound download completed");
+    assert.equal(readFileSync(rebound.storedPath).length, 32 * 65536);
+    assert.equal(existsSync(retryStarted.storedPath), false);
     log("abandon.rebind.passed");
 
     evidence = {
@@ -241,6 +253,7 @@ async function run() {
     log("smoke.failed", { error: evidence.error });
   } finally {
     for (const server of servers) await closeServer(server);
+    rmSync(path.join(app.getPath("temp"), `vua-download-smoke-${process.pid}`), { recursive: true, force: true });
     await mkdir(evidenceDirectory, { recursive: true });
     await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
     await writeFile(rawLogPath, `${logLines.join("\n")}\n`, "utf8");

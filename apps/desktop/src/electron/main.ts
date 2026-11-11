@@ -2095,12 +2095,10 @@ app.whenReady().then(async () => {
     console.error("[vua] provider start failed; main window still opens:", error);
   });
   const windowReady = createWindow();
-  void Promise.allSettled([windowReady, hostStart]).then(() => {
-    if (startupWindow !== null && startupCompletion === null && startupFallback === null) {
-      startupFallback = setTimeout(() => { void completeStartup(false); }, 8_000);
-    }
-  });
-  await Promise.all([windowReady, ...(packagedSmoke ? [hostStart] : [])]);
+  await Promise.allSettled([windowReady, hostStart]);
+  if (startupWindow !== null && startupCompletion === null && startupFallback === null) {
+    startupFallback = setTimeout(() => { void completeStartup(false); }, 8_000);
+  }
   provider.startInitialAmf();
   if (!packagedSmoke && aiTools.initiallyEnabled) await aiTools.setEnabled(true);
   // 启动会话检查(尽力而为):VRChat 结束的会话在此被发现;记住的密码可续登

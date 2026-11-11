@@ -31,10 +31,11 @@ app.on("browser-window-created", (_event, created) => {
   created.webContents.on("console-message", event => { if (event.level === "error") errors.push(event.message); });
 });
 app.on("will-quit", () => { if (exitCode !== 0) app.exit(exitCode); });
-const deadline = setTimeout(() => { console.error("AMF UI smoke timed out"); app.quit(); }, 45_000);
+const deadline = setTimeout(() => { console.error("AMF UI smoke timed out"); app.quit(); }, 60_000);
 
-async function waitFor(check, label) {
-  for (let i = 0; i < 150; i += 1) { if (await check()) return; await delay(100); }
+async function waitFor(check, label, timeoutMs = 15_000) {
+  const attempts = Math.max(1, Math.ceil(timeoutMs / 100));
+  for (let i = 0; i < attempts; i += 1) { if (await check()) return; await delay(100); }
   throw new Error(`Timeout: ${label}`);
 }
 async function run() {
@@ -52,7 +53,7 @@ async function run() {
     const checks = [];
     const firstLoads = [];
     const assert = (condition, label) => { if (!condition) throw new Error(label); checks.push(label); };
-    await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="ready")'), "fresh default AMF startup");
+    await waitFor(() => js('window.vua.amfModule.snapshot().then(value=>value.state==="ready")'), "fresh default AMF startup", 30_000);
     assert(JSON.parse(fs.readFileSync(path.join(profile, "modules/amf.json"), "utf8")).enabled === true, "fresh AMF default is retained before host data is created");
     assert(fs.existsSync(path.join(profile, "modules/amf/data/bdl/bdl.db")), "AMF creates its own isolated data");
     await waitFor(() => js('!!document.querySelector("[data-nav-id=nav-warehouse]") && !!document.querySelector("[data-nav-id=home-warehouse]")'), "fresh editing navigation");

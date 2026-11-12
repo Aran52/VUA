@@ -73,8 +73,20 @@ fn main() {
                 "plan-restore",
             ]
             .contains(&args[0].as_str())
+                && code != "application_terminated"
                 && !args.iter().any(|a| a.starts_with("--vua-smoke-test="))
             {
+                let _running_guard = vua_distribution::commands::option(&args, "--root")
+                    .map(std::path::PathBuf::from)
+                    .or_else(|| {
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
+                    })
+                    .and_then(|root| {
+                        vua_distribution::layout::Installation::open(&root, false).ok()
+                    })
+                    .and_then(|inst| inst.lock("running.lock").ok());
                 gui::failure(&code, vua_distribution::commands::option(&args, "--lang"));
             }
             std::process::exit(1);

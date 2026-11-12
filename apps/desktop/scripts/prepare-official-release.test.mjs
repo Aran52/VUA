@@ -79,3 +79,9 @@ test("future signed packs include official and GitHub sources with fixed immutab
   assert.throws(() => componentSources("0.8.0-qa.1", "vua-amf-0.2.1-qa/../../private.bin"));
   assert.throws(() => officialReleaseUrl("00.8.0"));
 });
+
+test("nginx location snippets cover both v0.2 and v0.3 beta component feeds", () => {
+  const conf = fs.readFileSync(new URL("../distribution/ph-r-locations.conf", import.meta.url), "utf8");
+  assert.match(conf, /location \^~ \/vua\/updates\/beta\//);
+  assert.match(conf, /location \^~ \/vua\/updates\/v0\.3\/beta\//);
+});

@@ -314,6 +314,21 @@ test("v0.3 chained releases preserve previous compressedTransfer metadata and re
     assert.equal(fs.existsSync(path.join(badWeb, "updates/beta/amf.json")), false);
     assert.equal(fs.existsSync(path.join(badWeb, "updates/v0.3/beta/amf.json")), false);
   }
+
+  // Once v0.3 is live on the channel, a legacy v0.2-only record must be rejected
+  const legacyOut = path.join(f.root, "legacy-v02-only");
+  prepareComponentRelease({
+    ...f.options,
+    version: "0.1.3",
+    build: "d".repeat(40),
+    previous: fs.readFileSync(path.join(web, "updates/beta/amf.json")),
+    previousV03: fs.readFileSync(path.join(web, "updates/v0.3/beta/amf.json")),
+    output: legacyOut,
+  });
+  const strippedRecord = JSON.parse(fs.readFileSync(path.join(legacyOut, "publication.json"), "utf8"));
+  delete strippedRecord.v03;
+  fs.writeFileSync(path.join(legacyOut, "publication.json"), JSON.stringify(strippedRecord, null, 2));
+  assert.throws(() => publishComponentRelease(legacyOut, web, publicKey), /publication_v03_required/);
 });
 
 test("Official project and download pages disclose update request logs, 7-day retention and Asia/Shanghai aggregate counts", () => {

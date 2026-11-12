@@ -388,11 +388,11 @@ fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<(
     let mut child = Command::new(runtime_executable);
     child.current_dir(&installation.root);
     for (name, _) in std::env::vars_os() {
-        let name_text = name.to_string_lossy();
-        if name_text.starts_with("ELECTRON_")
-            || name_text == "NODE_OPTIONS"
-            || name_text == "NODE_PATH"
-            || name_text.starts_with("VUA_")
+        let upper = name.to_string_lossy().to_ascii_uppercase();
+        if upper.starts_with("ELECTRON_")
+            || upper == "NODE_OPTIONS"
+            || upper == "NODE_PATH"
+            || upper.starts_with("VUA_")
         {
             child.env_remove(name);
         }
@@ -449,6 +449,7 @@ fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<(
             return Err(error.into());
         }
     };
+    let session_started = std::time::Instant::now();
     if trial {
         let started = std::time::Instant::now();
         loop {
@@ -477,6 +478,9 @@ fn launch(installation: &Installation, args: &[String], trial: bool) -> Result<(
     let status = child.wait()?;
     drop(running);
     if !status.success() {
+        if session_started.elapsed() >= std::time::Duration::from_secs(30) {
+            return Err(Error("application_terminated".into()));
+        }
         return Err(Error("installed_application_failed".into()));
     }
     Ok(())

@@ -93,6 +93,7 @@ pub fn same_regular_file(left: &Path, right: &Path) -> bool {
                 && GetFileInformationByHandle(right_file.as_raw_handle(), &mut right_info) != 0
         };
         ok && left_info.nNumberOfLinks >= 2
+            && (left_info.nFileIndexHigh != 0 || left_info.nFileIndexLow != 0)
             && left_info.dwVolumeSerialNumber == right_info.dwVolumeSerialNumber
             && left_info.nFileIndexHigh == right_info.nFileIndexHigh
             && left_info.nFileIndexLow == right_info.nFileIndexLow

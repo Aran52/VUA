@@ -123,7 +123,7 @@ const ZH_TW: CopyTable = CopyTable {
     install_error_title: "安裝未能完成",
     install_error_sub: "原有版本與個人資料均未受影響",
     install_error_busy: "偵測到 VUA 正在執行。請先結束 VUA（含右下角系統匣圖示），再按「重試」。",
-    install_error_general: "請檢查網路連線後按「重試」，或改用離線安裝包進行安裝。",
+    install_error_general: "請檢查網路連線後按「重試」，或改用離線安裝程式進行安裝。",
     uninstall_confirm_title: "解除安裝 VUA",
     uninstall_confirm_sub: "要從這部電腦移除 VUA 程式檔案嗎？",
     uninstall_confirm_body: "僅移除程式與執行環境檔案。你的素材庫、改模配方、Unity 專案與帳號設定皆會完整保留，不受影響。",

@@ -118,18 +118,32 @@ Section "VUA"
     ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" ui-spawn --session "$PLUGINSDIR\vua-ui" --root "$INSTDIR" --input "$PLUGINSDIR\vua-input"' $2
     SetOutPath "$PLUGINSDIR\vua-input"
     ${If} $2 == 0
+      ClearErrors
       IfFileExists "$PLUGINSDIR\vua-ui\cancel" cancelUnpack
       File /oname=host.bin "${INPUT}\host.bin"
+      IfErrors unpackFailed
       IfFileExists "$PLUGINSDIR\vua-ui\cancel" cancelUnpack
       File /oname=amf.bin "${INPUT}\amf.bin"
+      IfErrors unpackFailed
       !ifdef OFFLINE
         IfFileExists "$PLUGINSDIR\vua-ui\cancel" cancelUnpack
         File /oname=runtime.zip "${INPUT}\runtime.zip"
+        IfErrors unpackFailed
       !endif
+      ClearErrors
       FileOpen $1 "$PLUGINSDIR\vua-ui\input-ready" w
+      IfErrors unpackFailed
       FileWrite $1 "1"
       FileClose $1
+      IfErrors unpackFailed
+      Goto waitWorker
+      unpackFailed:
+        ClearErrors
+        FileOpen $1 "$PLUGINSDIR\vua-ui\input-failed" w
+        FileWrite $1 "1"
+        FileClose $1
       cancelUnpack:
+      waitWorker:
       SetOutPath "$TEMP"
       ExecWait '"$PLUGINSDIR\vua-input\vua-distribution.exe" ui-wait --session "$PLUGINSDIR\vua-ui"' $0
     ${Else}
@@ -150,9 +164,12 @@ Section "VUA"
   ${EndIf}
 
   SetOutPath "$INSTDIR"
+  ClearErrors
   CopyFiles /SILENT "$PLUGINSDIR\vua-input\vua-distribution.exe" "$INSTDIR\VUA.exe"
   IfErrors copyFailed
+  ClearErrors
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  IfErrors copyFailed
   ${If} $Isolated == 1
     FileOpen $1 "$INSTDIR\nsis-isolated" w
     FileWrite $1 "VUA isolated installer test"
@@ -213,6 +230,17 @@ Section "Uninstall"
     Abort
   ${EndIf}
 
+  ClearErrors
+  Delete "$INSTDIR\VUA.exe"
+  IfFileExists "$INSTDIR\VUA.exe" 0 launcherRemoved
+    Sleep 150
+    ClearErrors
+    Delete "$INSTDIR\VUA.exe"
+    IfFileExists "$INSTDIR\VUA.exe" 0 launcherRemoved
+      SetErrorLevel 1
+      Abort
+  launcherRemoved:
+
   IfFileExists "$INSTDIR\nsis-isolated" skipRegistration
   SetShellVarContext current
   Delete "$SMPROGRAMS\VUA\VUA.lnk"
@@ -224,10 +252,16 @@ Section "Uninstall"
   Delete "$INSTDIR\active.json"
   Delete "$INSTDIR\pending.json"
   Delete "$INSTDIR\previous.json"
+  Delete "$INSTDIR\component-index-host.lock"
+  Delete "$INSTDIR\component-index-amf.lock"
+  Delete "$INSTDIR\component-check-host.lock"
+  Delete "$INSTDIR\component-check-amf.lock"
+  Delete "$INSTDIR\component-stage-host.lock"
+  Delete "$INSTDIR\component-stage-amf.lock"
+  Delete "$INSTDIR\pair-plan.lock"
   Delete "$INSTDIR\operation.lock"
   Delete "$INSTDIR\running.lock"
   Delete "$INSTDIR\vua-installation.json"
-  Delete "$INSTDIR\VUA.exe"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
 SectionEnd

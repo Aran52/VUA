@@ -165,14 +165,18 @@ impl Installation {
         kind: ComponentKind,
         transfer: &Transfer,
     ) -> Result<Vec<u8>> {
+        let has_cached_v03 = self
+            .cached_component_index_at(kind, &index_name_v03(kind), SCHEMA_V03)?
+            .is_some();
         match transfer.manifest(kind.feed_v03()).await {
-            Ok(raw) => Ok(raw),
-            Err(error)
-                if error.0 == "feed_unavailable"
-                    && self
-                        .cached_component_index_at(kind, &index_name_v03(kind), SCHEMA_V03)?
-                        .is_none() =>
+            Ok(raw)
+                if has_cached_v03
+                    || raw.iter().copied().find(|b| !b.is_ascii_whitespace()) == Some(b'{') =>
             {
+                Ok(raw)
+            }
+            Ok(_) => transfer.manifest(kind.feed()).await,
+            Err(error) if error.0 == "feed_unavailable" && !has_cached_v03 => {
                 transfer.manifest(kind.feed()).await
             }
             Err(error) => Err(error),

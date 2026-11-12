@@ -17,6 +17,10 @@ The author authorized official-site deployment and dual-source version discovery
 | `https://ph-r.com/vua/releases/v<VERSION>/` | Immutable versioned public artifacts and release download page |
 | `https://ph-r.com/vua/releases/latest/vua-release.json` | Original authenticated release envelope for installed clients |
 | `https://ph-r.com/vua/releases/latest/latest.json` | Small informational version record for legacy ZIP/development notifications |
+| `https://ph-r.com/vua/updates/v0.3/beta/{host,amf}.json` | Signed `v0.3` component update feeds with zstd frame transfer metadata (`v1.1.0+`) |
+| `https://ph-r.com/vua/updates/beta/{host,amf}.json` | Signed `v0.2` component update feeds preserved for `v1.0.0` compatibility |
+| `https://ph-r.com/vua/updates/objects/` | Content-addressed component manifests, uncompressed `.bin` packs and zstd `.pack` streams |
+| `https://ph-r.com/vua/updates/guides/` | Signed `guide-content v0.1` player SOP documents |
 
 The informational record contains `schemaVersion: 1`, `product: VUA`, `tag_name`, `html_url`,
 AMF version, public source commit, signed-envelope digest and public asset name/length/digest/URL

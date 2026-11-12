@@ -298,6 +298,7 @@ fn service(
     )
     .unwrap();
     let platform = crate::amf_production_adapter::NativeAmfProduction {
+        read_cache: Default::default(),
         bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
         root: root.join("amf"),
         editor_roots: Vec::new(),

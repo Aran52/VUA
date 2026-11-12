@@ -150,6 +150,7 @@ impl AmfProductionPlatform for TestPlatform {
                 name: format!("{id}.unitypackage"),
                 product_ids: Vec::new(),
                 path: self.root.join(id),
+                sha256: None,
                 archive_member: None,
             })
             .collect())
@@ -1201,7 +1202,7 @@ fn flow_schema(name: &str) -> jsonschema::Validator {
 
 #[test]
 fn progress_and_status_vectors_accept_stage_facts_and_refuse_log_text() {
-    for (schema, folder) in [("progress.schema.json", "progress-examples"), ("status.schema.json", "status-examples")] {
+    for (schema, folder) in [("progress.schema.json", "progress-examples"), ("status.schema.json", "status-examples"), ("source.schema.json", "source-examples")] {
         let validator = flow_schema(schema);
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/amf-production-flow/v0.1").join(folder);
         for entry in fs::read_dir(root).unwrap() {

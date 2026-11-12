@@ -696,7 +696,7 @@ mod tests {
         std::fs::create_dir_all(root.join("amf/runs")).unwrap();
         let platform = crate::amf_production_adapter::NativeAmfProduction {
             bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
-            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
+            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None, read_cache: Default::default(),
         };
         let service = Arc::new(AmfProductionServices::new(
             AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
@@ -730,7 +730,7 @@ mod tests {
         std::fs::create_dir_all(root.join("amf/runs")).unwrap();
         let platform = crate::amf_production_adapter::NativeAmfProduction {
             bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
-            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
+            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None, read_cache: Default::default(),
         };
         let service = AmfProductionServices::new(
             AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),
@@ -764,7 +764,7 @@ mod tests {
         std::fs::create_dir_all(root.join("amf/runs")).unwrap();
         let platform = crate::amf_production_adapter::NativeAmfProduction {
             bdl: Arc::new(vua_bdl_store::BdlStore::open(root.join("bdl.db")).unwrap()),
-            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None,
+            root: root.join("amf"), editor_roots: vec![], explicit_editor: None, unity_hub: None, read_cache: Default::default(),
         };
         Arc::new(AmfProductionServices::new(
             AmfProductionEngine::new(root.join("amf"), Arc::new(platform)),

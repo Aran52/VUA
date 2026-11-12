@@ -18,10 +18,13 @@ use crate::known_packages::{self, KnownPackage};
 
 mod release_handoff;
 mod editor_close;
+mod read_cache;
+pub use read_cache::ProductionReadCache;
 
 pub struct NativeAmfProduction {
     pub bdl: Arc<BdlStore>,
     pub root: PathBuf,
+    pub read_cache: ProductionReadCache,
     pub editor_roots: Vec<PathBuf>,
     pub explicit_editor: Option<PathBuf>,
     /// The environment's current `unity_hub` finding, read before each Unity run.
@@ -205,6 +208,15 @@ impl NativeAmfProduction {
             let _ = fs::remove_file(&pending);
         }
         result
+    }
+    fn with_recorded_hashes(&self, mut sources: Vec<ProductionSource>) -> Vec<ProductionSource> {
+        let hashes = self.read_cache.material_hashes(&self.root);
+        for source in &mut sources {
+            if let Some(hash) = hashes.known(&source.path, source.archive_member.as_deref()) {
+                source.sha256 = Some(hash);
+            }
+        }
+        sources
     }
     fn verify_assembly_sources(&self, run: &ProductionRun) -> Result<(), AppErrorV1> {
         let available = self
@@ -592,15 +604,19 @@ impl AmfProductionPlatform for NativeAmfProduction {
             }
         }
         let mut inventory = Vec::new();
+        let mut hashes = self.read_cache.material_hashes(&self.root);
         for source in available {
             let product_ids = source.product_ids.iter().filter_map(|id| id.strip_prefix("booth:")).map(str::to_owned).collect::<Vec<_>>();
             let by_hash = known.get(&source.source_id).is_some_and(|hash| recipe.materials.iter().any(|m| &m.sha256 == hash));
             let by_product = recipe.materials.iter().any(|m| m.booth_product_id.as_ref().is_some_and(|id| product_ids.contains(id)));
             // Retained hashes narrow plain files; archive members have their own content hashes.
             if !by_hash && !by_product && source.archive_member.is_none() { continue; }
-            let sha256 = vua_unity_bridge::material_exec::sha256_file(&self.package_path(&source)?).map_err(|e| err("source_unreadable",e))?;
+            let sha256 = hashes.digest(&source.path, source.archive_member.as_deref(), || {
+                vua_unity_bridge::material_exec::sha256_file(&self.package_path(&source)?).map_err(|e| err("source_unreadable", e))
+            })?;
             inventory.push(MaterialInventory {package:MaterialPackage {source_id:source.source_id,package_name:source.name.rsplit(['/', '\\']).next().unwrap_or(&source.name).into(),sha256:sha256.trim_start_matches("sha256:").into()},product_ids});
         }
+        self.read_cache.remember_hashes(&self.root, hashes);
         let mut purchased = BTreeMap::new();
         for material in &recipe.materials {
             if let Some(id) = &material.booth_product_id {
@@ -651,7 +667,9 @@ impl AmfProductionPlatform for NativeAmfProduction {
             .bdl
             .removed_local_entries()
             .map_err(|e| err("library_failed", e))?;
-        let mut result = Vec::new();
+        let mut files = Vec::new();
+        let mut identities = Vec::new();
+        let mut cacheable = true;
         for entry in entries {
             if removed.contains(&entry.warehouse_item_id) {
                 continue;
@@ -676,56 +694,49 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 {
                     continue;
                 }
-                if path
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("unitypackage"))
-                {
-                    result.push(ProductionSource {
-                        source_id: copy.copy_id,
-                        item_id: entry.warehouse_item_id.clone(),
-                        item_name: entry.display_name.clone(),
-                        name: copy.relative_path,
-                        product_ids: products.clone(),
-                        path,
-                        archive_member: None,
-                    });
-                } else if path
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
-                {
-                    let Ok(mut archive) = zip::ZipArchive::new(
-                        fs::File::open(&path).map_err(|e| err("source_unreadable", e))?,
-                    ) else {
-                        continue;
-                    };
-                    if archive.len() > 100_000 {
-                        return Err(err(
-                            "archive_too_large",
-                            "Archive has too many entries to inspect.",
-                        ));
-                    }
-                    for index in 0..archive.len() {
-                        let inner = archive
-                            .by_index_raw(index)
-                            .map_err(|e| err("source_invalid", e))?;
-                        let member = inner.name().map_err(|e| err("source_invalid", e))?;
-                        if inner.is_dir()
-                            || !member.to_ascii_lowercase().ends_with(".unitypackage")
-                            || !safe_zip_member(&member)
-                        {
-                            continue;
-                        }
-                        result.push(ProductionSource {
-                            source_id: format!("{}-{}", copy.copy_id, &hash_text(&member)[..24]),
-                            item_id: entry.warehouse_item_id.clone(),
-                            item_name: entry.display_name.clone(),
-                            name: member.replace('\\', "/"),
-                            product_ids: products.clone(),
-                            path: path.clone(),
-                            archive_member: Some(member.into()),
-                        });
-                    }
-                }
+                let plain = path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("unitypackage"));
+                if !plain && !path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("zip")) { continue; }
+                let stamp = read_cache::file_stamp(&path);
+                cacheable &= stamp.is_some();
+                identities.push(serde_json::json!([
+                    &copy.copy_id, &entry.warehouse_item_id, &entry.display_name, &copy.relative_path,
+                    &products, &path, &copy.artifact_sha256, &stamp,
+                ]));
+                files.push(ProductionSource {
+                    source_id: copy.copy_id, item_id: entry.warehouse_item_id.clone(),
+                    item_name: entry.display_name.clone(), name: copy.relative_path,
+                    product_ids: products.clone(), path, archive_member: None,
+                    sha256: plain.then(|| copy.artifact_sha256.trim_start_matches("sha256:").to_owned()),
+                });
+            }
+        }
+        // Re-read library membership and file metadata every time. Only the expensive archive
+        // directory work is reused, so imports, removals and external edits invalidate this view.
+        let key = cacheable.then(|| hash_text(&serde_json::to_string(&identities).expect("source identities serialize")));
+        if let Some(sources) = key.as_ref().and_then(|key| self.read_cache.sources(key)) {
+            return Ok(self.with_recorded_hashes(sources));
+        }
+        let mut result = Vec::new();
+        for source in files {
+            if source.path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("unitypackage")) {
+                result.push(source);
+                continue;
+            }
+            let Ok(mut archive) = zip::ZipArchive::new(
+                fs::File::open(&source.path).map_err(|e| err("source_unreadable", e))?,
+            ) else { continue; };
+            if archive.len() > 100_000 {
+                return Err(err("archive_too_large", "Archive has too many entries to inspect."));
+            }
+            for index in 0..archive.len() {
+                let inner = archive.by_index_raw(index).map_err(|e| err("source_invalid", e))?;
+                let member = inner.name().map_err(|e| err("source_invalid", e))?;
+                if inner.is_dir() || !member.to_ascii_lowercase().ends_with(".unitypackage") || !safe_zip_member(&member) { continue; }
+                result.push(ProductionSource {
+                    source_id: format!("{}-{}", source.source_id, &hash_text(&member)[..24]),
+                    name: member.replace('\\', "/"), archive_member: Some(member.into()),
+                    ..source.clone()
+                });
             }
         }
         let mut result = drop_expanded_duplicates(result);
@@ -738,7 +749,8 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 "Too many local package inputs; narrow the library before selecting.",
             ));
         }
-        Ok(result)
+        if let Some(key) = key { self.read_cache.remember_sources(key, &result); }
+        Ok(self.with_recorded_hashes(result))
     }
     fn editors(&self) -> Result<Vec<ProductionEditor>, AppErrorV1> {
         let mut candidates = Vec::new();
@@ -756,7 +768,7 @@ impl AmfProductionPlatform for NativeAmfProduction {
         }
         let mut results = Vec::new();
         for path in candidates {
-            if let Ok(editor) = self.verify_editor(&path.to_string_lossy()) {
+            if let Some(editor) = self.read_cache.editor(&path, || self.verify_editor(&path.to_string_lossy()).ok()) {
                 if !results
                     .iter()
                     .any(|previous: &ProductionEditor| previous.path == editor.path)
@@ -1604,6 +1616,172 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn source_cache_observes_import_removal_archive_edits_and_recorded_member_hashes() {
+        use vua_bdl_store::{ArtifactInspectionState, CopyRole, NewLocalArtifact, RemoveLocalEntries};
+        let (root, adapter) = preparation_fixture();
+        let now = "2026-11-10T00:00:00Z";
+        adapter.bdl.seed_product("booth:1000001", "1000001").unwrap();
+        let admit = |path: &Path| {
+            let hash = vua_unity_bridge::material_exec::sha256_file(path).unwrap();
+            let name = path.file_name().unwrap().to_str().unwrap();
+            adapter.bdl.record_untrusted_artifact(&NewLocalArtifact { artifact_sha256: hash.clone(),
+                size_bytes: fs::metadata(path).unwrap().len(), suggested_file_name: Some(name.into()),
+                download_id: None, first_seen_at: now.into() }).unwrap();
+            for state in [ArtifactInspectionState::Inspected, ArtifactInspectionState::Admitted] {
+                adapter.bdl.transition_artifact(&hash, state, now, None).unwrap();
+            }
+            adapter.bdl.record_artifact_mapping(&hash, "booth:1000001", None, None, now).unwrap();
+            let entry = adapter.bdl.create_warehouse_item(name, "imported_material", now).unwrap();
+            adapter.bdl.record_artifact_copy(&entry.warehouse_item_id, &hash, name, path.to_str().unwrap(), CopyRole::Original, now).unwrap();
+            (entry.warehouse_item_id, hash)
+        };
+        let archive_path = root.join("materials.zip");
+        let archive = |members: &[(&str, &[u8])]| {
+            let mut zip = zip::ZipWriter::new(fs::File::create(&archive_path).unwrap());
+            for (name, bytes) in members {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default()).unwrap();
+                zip.write_all(bytes).unwrap();
+            }
+            zip.finish().unwrap();
+        };
+        archive(&[("Avatar.unitypackage", b"synthetic avatar")]);
+        let (archive_id, _) = admit(&archive_path);
+        assert_eq!(adapter.sources().unwrap().len(), 1);
+        assert!(adapter.sources().unwrap()[0].sha256.is_none(), "listing does not hash archive members");
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(
+            include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json")).unwrap();
+        recipe.materials[0].booth_product_id = Some("1000001".into());
+        recipe.materials[0].package_name = "Avatar.unitypackage".into();
+        let expected: String = Sha256::digest(b"synthetic avatar").iter().map(|byte| format!("{byte:02x}")).collect();
+        recipe.materials[0].sha256 = expected.clone();
+        assert!(adapter.recipe_materials(&recipe, &Default::default()).unwrap()[0].resolved.is_some());
+        assert_eq!(adapter.sources().unwrap()[0].sha256, Some(expected));
+        archive(&[("Avatar.unitypackage", b"changed avatar"), ("Coat.unitypackage", b"new coat")]);
+        let changed = adapter.sources().unwrap();
+        assert_eq!(changed.len(), 2);
+        assert!(changed.iter().all(|source| source.sha256.is_none()), "editing the ZIP invalidates every member hash");
+        let plain = root.join("Fresh.unitypackage"); fs::write(&plain, b"new imported package").unwrap();
+        let (_, plain_hash) = admit(&plain);
+        let imported = adapter.sources().unwrap(); assert_eq!(imported.len(), 3);
+        let plain_source = imported.iter().find(|source| source.path == plain).unwrap();
+        assert_eq!(plain_source.sha256.as_deref(), plain_hash.strip_prefix("sha256:"));
+        let schema = serde_json::from_str(include_str!("../../../schemas/amf-production-flow/v0.1/source.schema.json")).unwrap();
+        assert!(jsonschema::validator_for(&schema).unwrap().is_valid(&serde_json::to_value(plain_source).unwrap()));
+        let mut hashes = adapter.read_cache.material_hashes(&adapter.root);
+        hashes.digest(&plain, None, || Ok(plain_hash.clone())).unwrap();
+        adapter.read_cache.remember_hashes(&adapter.root, hashes);
+        let modified = fs::metadata(&plain).unwrap().modified().unwrap();
+        fs::write(&plain, b"changed package data").unwrap();
+        fs::File::options().write(true).open(&plain).unwrap().set_modified(modified).unwrap();
+        assert_eq!(adapter.read_cache.material_hashes(&adapter.root).known(&plain, None).as_deref(), plain_hash.strip_prefix("sha256:"));
+        assert_ne!(adapter.source_content_hash(&plain_source.source_id).unwrap().unwrap(), plain_hash,
+            "execution verification hashes actual bytes even when metadata still matches the advisory cache");
+        adapter.bdl.remove_local_entries(&RemoveLocalEntries { schema_version: "0.1".into(), entry_ids: vec![archive_id] }, "remove-test-archive", now).unwrap();
+        assert_eq!(adapter.sources().unwrap().len(), 1, "removed library entries leave the cached view immediately");
+        fs::remove_file(&plain).unwrap(); assert!(adapter.sources().unwrap().is_empty());
+        drop(adapter); fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "Local synthetic read-speed benchmark: writes 288 MiB; no real materials or network"]
+    fn a_synthetic_library_measures_recipe_and_source_read_speed() {
+        use vua_bdl_store::{ArtifactInspectionState, CopyRole, NewLocalArtifact};
+        use vua_orchestrator::amf_recipe_materials::MaterialChoices;
+        use vua_orchestrator::{SqliteTaskStore, TaskRuntime, SystemClock, NanosTaskIdGenerator};
+
+        let (root, mut adapter) = preparation_fixture();
+        let now = "2026-11-09T00:00:00Z";
+        adapter.bdl.seed_product("booth:1000001", "1000001").unwrap();
+        let mut recipe: vua_orchestrator::amf_recipe::ProductionRecipe = serde_json::from_str(
+            include_str!("../../../schemas/amf-recipe/v0.5/examples/recipe.valid.json"),
+        ).unwrap();
+        for index in 0..36 {
+            let bytes = vec![index as u8; 8 * 1024 * 1024];
+            let package_name = format!("Material-{index:02}.unitypackage");
+            let name = if index % 2 == 0 { package_name.clone() } else { format!("Material-{index:02}.zip") };
+            let path = root.join(&name);
+            if index % 2 == 0 {
+                fs::write(&path, &bytes).unwrap();
+            } else {
+                let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+                let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+                archive.start_file(&package_name, options).unwrap();
+                archive.write_all(&bytes).unwrap();
+                for entry in 0..128 {
+                    archive.start_file(format!("Companions/{entry}.txt"), options).unwrap();
+                    archive.write_all(b"Synthetic companion").unwrap();
+                }
+                archive.finish().unwrap();
+            }
+            let hash = vua_unity_bridge::material_exec::sha256_file(&path).unwrap();
+            adapter.bdl.record_untrusted_artifact(&NewLocalArtifact {
+                artifact_sha256: hash.clone(), size_bytes: fs::metadata(&path).unwrap().len(),
+                suggested_file_name: Some(name.clone()), download_id: None, first_seen_at: now.into(),
+            }).unwrap();
+            for state in [ArtifactInspectionState::Inspected, ArtifactInspectionState::Admitted] {
+                adapter.bdl.transition_artifact(&hash, state, now, None).unwrap();
+            }
+            adapter.bdl.record_artifact_mapping(&hash, "booth:1000001", None, None, now).unwrap();
+            let entry = adapter.bdl.create_warehouse_item(&format!("Synthetic material {index}"), "downloaded_material", now).unwrap();
+            adapter.bdl.record_artifact_copy(&entry.warehouse_item_id, &hash, &name, path.to_str().unwrap(), CopyRole::Original, now).unwrap();
+            if index < recipe.materials.len() {
+                recipe.materials[index].package_name = package_name;
+                recipe.materials[index].sha256 = Sha256::digest(&bytes).iter().map(|byte| format!("{byte:02x}")).collect();
+            }
+        }
+        for pass in 0..3 {
+            let started = Instant::now();
+            assert_eq!(adapter.sources().unwrap().len(), 36);
+            let source_time = started.elapsed();
+            let started = Instant::now();
+            let plan = adapter.recipe_materials(&recipe, &MaterialChoices::new()).unwrap();
+            let plan_time = started.elapsed();
+            assert_eq!(plan.len(), recipe.materials.len());
+            for (row, material) in plan.iter().zip(&recipe.materials) {
+                assert_eq!(row.resolved.as_ref().unwrap().sha256, material.sha256);
+            }
+            eprintln!("read-speed pass={pass} sources_ms={} recipe_plan_ms={}", source_time.as_millis(), plan_time.as_millis());
+        }
+        let store = Arc::new(SqliteTaskStore::open(root.join("read-tasks.db")).unwrap());
+        let runtime = TaskRuntime::with_sqlite(store.clone(), Arc::new(SystemClock), Arc::new(NanosTaskIdGenerator::default())).unwrap();
+        let downloads = vua_acquisition::library_download::LibraryDownloadService::new(
+            store.clone(), adapter.bdl.clone(), runtime, root.clone(), root.join("staging")).unwrap();
+        // Make the worker's query cold again without changing the original library files.
+        fs::remove_file(adapter.root.join("material-hashes.json")).unwrap();
+        adapter.read_cache = ProductionReadCache::default();
+        let library_read = || {
+            let started = Instant::now();
+            vua_acquisition::library_view::list(&adapter.bdl, &root, ArtifactMode::UseOriginalUnitypackage,
+                &downloads, serde_json::json!({"schemaVersion":"0.3"})).unwrap();
+            started.elapsed()
+        };
+        library_read();
+        let mut baseline = (0..25).map(|_| library_read()).collect::<Vec<_>>();
+        baseline.sort_unstable();
+        let baseline = baseline[baseline.len() / 2];
+        let mut overlapping = Vec::new();
+        std::thread::scope(|scope| {
+            let worker = scope.spawn(|| adapter.recipe_materials(&recipe, &MaterialChoices::new()).unwrap());
+            while !worker.is_finished() {
+                overlapping.push(library_read());
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            worker.join().unwrap();
+        });
+        assert!(!overlapping.is_empty());
+        overlapping.sort_unstable();
+        let concurrent = overlapping[overlapping.len() / 2];
+        eprintln!("read-speed library_alone_us={} library_during_cold_plan_us={} samples={}",
+            baseline.as_micros(), concurrent.as_micros(), overlapping.len());
+        assert!(concurrent <= baseline * 2, "fast library reads exceed twice their isolated median");
+        drop(downloads); drop(store);
+        drop(adapter);
+        assert!(root.is_absolute() && root.parent() == Some(std::env::temp_dir().as_path())
+            && root.file_name().unwrap().to_string_lossy().starts_with("vua-amf-prepare-"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn recipe_attribution_reads_the_recorded_shop_outside_account_membership() {
         let (root, adapter) = preparation_fixture();
         let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../schemas/catalog-sync/v0.3/examples/page.request.json")).unwrap();
@@ -1808,6 +1986,7 @@ mod tests {
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,
@@ -1827,6 +2006,7 @@ mod tests {
                 name: "Meiyun.unitypackage".into(),
                 product_ids: Vec::new(),
                 path: package.to_owned(),
+                sha256: None,
                 archive_member: None,
             },
         )])
@@ -2174,7 +2354,7 @@ mod tests {
     fn extracted_copies_of_offered_zip_members_are_listed_once() {
         let source = |id: &str, item: &str, name: &str, member: Option<&str>| ProductionSource {
             source_id: id.into(), item_id: item.into(), item_name: "Meiyun.zip".into(), name: name.into(),
-            product_ids: Vec::new(), path: PathBuf::from("x"), archive_member: member.map(Into::into),
+            product_ids: Vec::new(), path: PathBuf::from("x"), archive_member: member.map(Into::into), sha256: None,
         };
         let kept = drop_expanded_duplicates(vec![
             source("cpy-whi-1-aaaaaaaaaaaaaaaaaaaaaaaa", "whi-1", "Meiyun/Meiyun.unitypackage", Some("Meiyun/Meiyun.unitypackage")),
@@ -2210,6 +2390,7 @@ mod tests {
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,
@@ -2221,6 +2402,7 @@ mod tests {
             name: "PC/衣装.unitypackage".into(),
             product_ids: Vec::new(),
             path: zip_path.clone(),
+            sha256: None,
             archive_member: Some("PC/衣装.unitypackage".into()),
         };
         let extracted = adapter.package_path(&source).unwrap();
@@ -2319,6 +2501,7 @@ mod tests {
         let adapter = NativeAmfProduction {
             bdl: Arc::new(BdlStore::open(root.join("bdl.db")).unwrap()),
             root: root.join("amf"),
+            read_cache: ProductionReadCache::default(),
             editor_roots: vec![],
             explicit_editor: None,
             unity_hub: None,

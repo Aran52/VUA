@@ -19,9 +19,14 @@ async function main() {
   let server, win;
   try {
     await app.whenReady();
-    server = await createServer({ root, configFile: path.join(root, "vite.config.mts"), logLevel: "error", server: { host: "127.0.0.1", port: 0 } });
+    server = await createServer({ root, configFile: path.join(root, "vite.config.mts"), logLevel: "error",
+      optimizeDeps: { entries: ["scripts/fixtures/shell-review.html"] },
+      server: { host: "127.0.0.1", port: 0 } });
     await server.listen();
     win = new BrowserWindow({ show: false, width: 1280, height: 800, webPreferences: { offscreen: true, backgroundThrottling: false, contextIsolation: true } });
+    win.webContents.on("console-message", event => { if (event.level === "error") console.error(event.message); });
+    win.webContents.on("render-process-gone", (_event, details) => console.error("Project fixture renderer exited", details.reason, details.exitCode));
+    win.webContents.on("did-fail-load", (_event, code, description) => console.error("Project fixture load failed", code, description));
     const page = `http://127.0.0.1:${server.httpServer.address().port}/scripts/fixtures/shell-review.html`;
     const evaluate = source => win.webContents.executeJavaScript(source, true);
     const until = async (source, label) => {
@@ -64,6 +69,13 @@ async function main() {
 
     console.log("Project gone smoke passed");
     clearTimeout(deadline); win.destroy(); await server.close(); app.exit(0);
-  } catch (error) { clearTimeout(deadline); console.error(error); win?.destroy(); await server?.close(); app.exit(1); }
+  } catch (error) {
+    clearTimeout(deadline); console.error(error);
+    if (win && !win.isDestroyed()) {
+      const state = await win.webContents.executeJavaScript('({hash:location.hash,readyState:document.readyState,rootChildren:document.getElementById("root")?.childElementCount,lines:document.querySelectorAll(".vua-workshop__line").length,nav:[...document.querySelectorAll("[data-nav-id]")].slice(0,30).map(e=>e.dataset.navId)})').catch(() => null);
+      console.error(JSON.stringify({ fixtureState: state }));
+    }
+    win?.destroy(); await server?.close(); app.exit(1);
+  }
 }
 void main();

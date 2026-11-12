@@ -1,4 +1,5 @@
 //! Transport adapter for the supervised Orchestrator Provider process.
+mod read_queries;
 
 static COMPONENT_BUILD_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 pub fn amf_build_identity(version: &str, build: Option<&str>) -> String {
@@ -782,7 +783,7 @@ pub fn run_provider_host_full(
 #[allow(clippy::too_many_arguments)]
 pub fn run_provider_host_with_legacy(
     input: impl BufRead + Send + 'static,
-    mut output: impl Write,
+    output: impl Write,
     database_path: impl AsRef<Path>,
     production: Option<ProductionConfig>,
     downloads: Option<DownloadConfig>,
@@ -970,6 +971,7 @@ pub fn run_provider_host_with_legacy(
     let amf_production = warehouse.as_ref().map(|warehouse| {
         let root = warehouse.warehouse_root.parent().unwrap_or(&warehouse.warehouse_root).join("amf-production");
         let platform = crate::amf_production_adapter::NativeAmfProduction {
+            read_cache: Default::default(),
             bdl: warehouse.bdl.clone(), root: root.clone(),
             editor_roots: project_ops.as_ref().map(|ops| ops.editor_roots.as_ref().clone()).unwrap_or_else(|| vec![PathBuf::from("C:/Program Files/Unity/Hub/Editor")]),
             explicit_editor: std::env::var_os("VUA_UNITY_EDITOR").map(PathBuf::from),
@@ -998,7 +1000,7 @@ pub fn run_provider_host_with_legacy(
         root: database_path.parent().unwrap_or_else(|| Path::new(".")).join("unity-license"),
         amf: amf_production.clone(), runner: Arc::new(vua_orchestrator::StdProcessRunner), clock: Arc::new(SystemClock),
     }));
-    let mut state = HostState {
+    let state = HostState {
         unity_license,
         amf_production,
         store,
@@ -1066,6 +1068,12 @@ pub fn run_provider_host_with_legacy(
         }
     }
 
+    serve_frames(input, output, state)
+}
+
+fn serve_frames(input: impl BufRead + Send + 'static, mut output: impl Write, mut state: HostState) -> Result<(), ProviderHostError> {
+    let mut read_queries = state.amf_production.as_ref().map(|_| read_queries::ReadQueries::new());
+
     // The reader runs on its own thread so the host can wake up between
     // frames: worker completion events reach an idle Gateway without it
     // having to send another request first.
@@ -1099,11 +1107,25 @@ pub fn run_provider_host_with_legacy(
 
     loop {
         write_pending_events(&mut state, &mut output)?;
+        if let Some(reads) = &mut read_queries {
+            while let Some((frame_id, payload)) = reads.receive(Duration::ZERO)? {
+                write_frame(&mut output, &frame_id, "response", payload)?;
+            }
+        }
         let mut line = match line_receiver.recv_timeout(Duration::from_millis(100)) {
             Ok(Ok(line)) => line,
             Ok(Err(error)) => return Err(ProviderHostError::Io(error)),
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                // EOF closes admission but does not discard already accepted queries.
+                if let Some(reads) = &mut read_queries {
+                    while reads.has_pending() {
+                        if let Some((frame_id, payload)) = reads.receive(Duration::from_millis(100))? {
+                            write_frame(&mut output, &frame_id, "response", payload)?;
+                        }
+                        write_pending_events(&mut state, &mut output)?;
+                    }
+                }
                 write_pending_events(&mut state, &mut output)?;
                 // Intents queued by the LAST frame still go out before the
                 // host exits — ordering never strands a port intent.
@@ -1185,6 +1207,14 @@ pub fn run_provider_host_with_legacy(
             continue;
         }
 
+        if read_queries::eligible(&frame) {
+            if let (Some(reads), Some(service)) = (&mut read_queries, &state.amf_production) {
+                if let Some(payload) = reads.submit(&frame, service.clone()) {
+                    write_frame(&mut output, &frame.frame_id, "response", payload)?;
+                }
+                continue;
+            }
+        }
         let outcome = handle_frame(&mut state, &frame)?;
         match outcome {
             FrameOutcome::Response(payload) => {
@@ -1198,6 +1228,11 @@ pub fn run_provider_host_with_legacy(
                 write_frame(&mut output, &event.0, "event", event.1)?;
             }
             FrameOutcome::Exit(payload) => {
+                if let Some(reads) = &mut read_queries {
+                    for (frame_id, response) in reads.cancel() {
+                        write_frame(&mut output, &frame_id, "response", response)?;
+                    }
+                }
                 state.store.checkpoint()?;
                 write_frame(&mut output, &frame.frame_id, "response", payload)?;
                 break;

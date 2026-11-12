@@ -217,10 +217,22 @@ async function run() {
     await js('document.querySelector("[data-nav-id=play-device-quest]").click()');
     await waitFor(() => js('!!document.getElementById("route-quest-details") && !!document.querySelector("[data-nav-id=play-official-quest-link]")'), "Meta Quest's steps");
     assert(await js('document.querySelectorAll(".vua-setup__connections input[type=radio]").length===5'), "Meta Quest offers its five connections, including no PC");
+    await js(`(() => {
+      window.__helpEscapeTrace = [];
+      const record = kind => {
+        const state = {kind, time:performance.now(), open:document.querySelector('.vua-play-drawer')?.dataset.open, phase:document.querySelector('.vua-play-current [data-phase]')?.dataset.phase, owners:[...document.querySelectorAll('[role="dialog"], [role="menu"], .vua-tour')].map(e=>({role:e.getAttribute('role'),className:e.className}))};
+        if (window.__helpEscapeTrace.length < 40) window.__helpEscapeTrace.push(state);
+      };
+      const observer = new MutationObserver(() => record('mutation'));
+      observer.observe(document.querySelector('.vua-play-page'), {subtree:true,attributes:true,attributeFilter:['data-open','data-phase']});
+      window.addEventListener('keydown', event => {if(event.key==='Escape') record('escape');}, {capture:true});
+      record('before-connection');
+    })()`);
     await js('document.querySelector("[data-nav-id=play-connection-virtual-desktop]").click()');
     await waitFor(() => js('!!document.querySelector("[data-nav-id=play-official-virtual-desktop]")'), "Choosing a connection changes the steps");
     await js('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
     await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="false"'), "Esc closes the choices");
+    fs.writeFileSync(path.join(output, "escape-trace.json"), JSON.stringify(await js('window.__helpEscapeTrace'), null, 2));
     await js('document.querySelector("[data-nav-id=route-quest]").click()');
     await waitFor(() => js('document.querySelector(".vua-play-drawer").dataset.open==="true"'), "The card's left half opens the choices");
     await js('document.querySelector("[data-nav-id=play-device-pc]").click()');
@@ -544,6 +556,7 @@ async function run() {
       const dom = await window.webContents.executeJavaScript('({hash:location.hash, heading:document.querySelector("main h1")?.textContent, wizard:document.querySelector(".vua-onboarding")?.dataset.wizardStep, amfSwitch:document.querySelector("[data-nav-id=toggle-amf]")?{checked:document.querySelector("[data-nav-id=toggle-amf]").checked,disabled:document.querySelector("[data-nav-id=toggle-amf]").disabled}:null, status:[...document.querySelectorAll("[data-amf-setup] [role=status]")].map(e=>e.textContent)})');
       fs.writeFileSync(path.join(output, "navigation.json"), JSON.stringify({ index: window.webContents.navigationHistory.getActiveIndex(), entries: window.webContents.navigationHistory.getAllEntries(), dom }, null, 2));
       console.error(JSON.stringify(dom));
+      console.error(JSON.stringify({ escapeTrace: await window.webContents.executeJavaScript('window.__helpEscapeTrace ?? null') }));
       console.error(JSON.stringify({ evidence: output, rendererErrors: errors }));
     }
   } finally { clearTimeout(deadline); app.quit(); }

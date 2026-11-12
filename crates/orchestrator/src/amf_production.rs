@@ -57,6 +57,9 @@ pub struct ProductionSource {
     /// The BOOTH products the library entry maps to, for terms checks; empty when none is known.
     #[serde(default)]
     pub product_ids: Vec<String>,
+    /// Previously recorded content digest, not a new integrity check of the local bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
     #[serde(skip)]
     pub path: PathBuf,
     #[serde(skip)]

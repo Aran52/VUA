@@ -14,7 +14,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/decisions/warehouse-layout.md | ADR | Accepted | Integration | 2026-09-06 |
 | docs/development/known-packages.md | — | Implementation baseline | AMF | 2026-10-23 |
 | docs/protocols/ai-tools-v0.1.md | 0.12.0 | Candidate | Integration | 2026-11-06 |
-| docs/protocols/amf-production-v0.1.md | 0.39.0 | Candidate | AMF | 2026-11-01 |
+| docs/protocols/amf-production-v0.1.md | 0.41.0 | Candidate | AMF | 2026-11-10 |
 | docs/protocols/amf-recipe-v0.4.md | 0.6.0 | Candidate | AMF | 2026-10-24 |
 | docs/protocols/amf-recipe-v0.5.md | 0.2.0 | Candidate | AMF | 2026-10-25 |
 | docs/protocols/application-contract-v0.1.md | 0.1 | Frozen | Core | 2026-09-06 |
@@ -74,7 +74,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | docs/protocols/production-use-case-v0.2.md | 0.2 | Frozen | Core | 2026-09-09 |
 | docs/protocols/project-inspection-v0.2.md | 0.2 | Frozen | Environment | 2026-09-09 |
 | docs/protocols/project-ops-v0.2.md | 0.2 | Frozen | Core | 2026-09-12 |
-| docs/protocols/provider-process-v0.1.md | 0.3 | Implementation baseline | Core | 2026-10-10 |
+| docs/protocols/provider-process-v0.1.md | 0.4 | Implementation baseline | Core | 2026-11-10 |
 | docs/protocols/recipe-image-share-v0.1.md | 0.1.0 | Candidate | AMF | 2026-10-29 |
 | docs/protocols/recipe-export-v0.1.md | 0.1.2 | Frozen | Core | 2026-09-22 |
 | docs/protocols/recipe-selection-draft-v0.1.md | 0.1 | Implementation baseline | AMF | 2026-10-08 |
@@ -107,7 +107,7 @@ Contracts, schema directories and decisions with their version, status, owner an
 | schemas/share-links/v0.1 | 0.1 | Candidate code vectors | AMF | 2026-10-29 |
 | schemas/amf-module/v0.1 | 0.1 | Candidate | Integration | 2026-10-09 |
 | schemas/amf-production/v0.2 | 0.2 | Frozen | Core | 2026-09-10 |
-| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-10-29 |
+| schemas/amf-production-flow/v0.1 | 0.1 | Candidate | AMF | 2026-11-10 |
 | schemas/amf-recipe/v0.4 | 0.4 | Candidate | AMF | 2026-10-20 |
 | schemas/amf-recipe/v0.5 | 0.5 | Candidate | AMF | 2026-10-24 |
 | schemas/application-contract/v0.1 | 0.1 | Frozen | Core | 2026-09-15 |

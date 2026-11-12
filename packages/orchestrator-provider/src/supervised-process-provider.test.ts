@@ -161,6 +161,28 @@ function getRequest(): ApplicationRequestV01 {
 }
 
 describe("supervised process Provider v0.1", () => {
+  it("matches overlapping queries by frame and request ID when replies arrive in reverse order", async () => {
+    const { provider, processes } = harness();
+    await provider.start();
+    const child = processes[0]!;
+    child.holdRequests = true;
+    let slowFinished = false;
+    const slow = provider.invoke({ ...getRequest(), requestId: "slow" }).then(value => { slowFinished = true; return value; });
+    const fast = provider.invoke({ ...getRequest(), requestId: "fast" });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(child.heldRequests).toHaveLength(2);
+    const respond = (id: string) => {
+      const frame = child.heldRequests.find(frame => (frame.payload as ApplicationRequestV01).requestId === id)!;
+      child.respond(frame.frameId as string, { contractVersion: "0.1", requestId: id, ok: true, value: { observed: id } });
+    };
+    respond("fast");
+    await expect(fast).resolves.toMatchObject({ requestId: "fast", value: { observed: "fast" } });
+    expect(slowFinished).toBe(false);
+    respond("slow");
+    await expect(slow).resolves.toMatchObject({ requestId: "slow", value: { observed: "slow" } });
+    await provider.prepareShutdown({ timeoutMs: 1000 });
+  });
+
   it("shares overlapping environment inspections across callers and refreshes after completion", async () => {
     const { provider, processes } = harness();
     await provider.start();

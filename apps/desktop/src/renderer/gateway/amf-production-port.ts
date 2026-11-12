@@ -92,7 +92,7 @@ export type AmfQueuedWork = AmfProductionWorkV01;
 export interface AmfProductionList extends AmfProductionLaneV01 {
   readonly sources: readonly AmfProductionSource[]; readonly editors: readonly AmfProductionEditor[];
   /** `projectGone`: the line's work project is no longer on this computer. */
-  readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[]; readonly projectGone?: boolean }[];
+  readonly runs: readonly { readonly runId: string; readonly phase: AmfRunPhase; readonly sourceNames: readonly string[]; readonly projectGone?: boolean; readonly recipeId?: string }[];
 }
 export interface AmfProductionPlan {
   readonly runId: string; readonly planDigest: string; readonly selection: AmfAssemblySelection;
@@ -136,7 +136,19 @@ export interface AmfPlanPrediction {
 }
 export interface AmfProductionAccepted { readonly runId: string; readonly taskId: string }
 export interface AmfSavedRecipe { readonly recipe: AmfRecipeDocument; readonly revision: number; readonly updatedAt: string }
-export interface AmfRecipeSummary { readonly recipeId: string; readonly title: string; readonly revision: number; readonly updatedAt: string }
+export interface AmfRecipeSummary {
+  readonly recipeId: string; readonly title: string; readonly revision: number; readonly updatedAt: string;
+  readonly avatarName?: string; readonly outfitCount?: number; readonly materialCount?: number;
+  readonly packageCount?: number; readonly boothProductIds?: readonly string[];
+}
+export interface AmfRecipeImage { readonly mediaType: "image/png"; readonly data: string }
+export function isAmfRecipeSummary(v: unknown): v is AmfRecipeSummary {
+  return record(v) && text(v.recipeId) && text(v.title) && text(v.updatedAt) && Number.isSafeInteger(v.revision) && Number(v.revision) > 0
+    && (v.avatarName === undefined || (text(v.avatarName) && [...v.avatarName].length <= 240))
+    && ["outfitCount", "materialCount", "packageCount"].every(key => v[key] === undefined || (Number.isSafeInteger(v[key]) && Number(v[key]) >= 0))
+    && (v.boothProductIds === undefined || (Array.isArray(v.boothProductIds) && v.boothProductIds.length <= 64
+      && v.boothProductIds.every(id => typeof id === "string" && /^[1-9][0-9]{0,19}$/u.test(id)) && new Set(v.boothProductIds).size === v.boothProductIds.length));
+}
 export interface AmfProductionRestorePlan {
   readonly runId: string; readonly planDigest: string; readonly snapshotId: string;
   readonly projectRoot: string; readonly currentChanged: boolean; readonly preserveCurrent: true;
@@ -215,10 +227,11 @@ export interface AmfProductionPort {
   importRecipe(text: string): Promise<AmfSavedRecipe>;
   listRecipes(): Promise<readonly AmfRecipeSummary[]>;
   getRecipe(recipeId: string): Promise<AmfSavedRecipe>;
-  /** Renames a saved Recipe; absent until the engine offers it, and the interface says so. */
+  /** Renames the exact saved revision. Optional for older or fixture ports. */
   renameRecipe?(recipeId: string, expectedRevision: number, title: string): Promise<AmfSavedRecipe>;
-  /** Deletes a saved Recipe; lines already made from it keep working. Absent until the engine offers it. */
+  /** Deletes an unreferenced Recipe; a retained line reference is recipe_in_use. */
   deleteRecipe?(recipeId: string, expectedRevision: number): Promise<void>;
+  recipeImage?(recipeId: string): Promise<AmfRecipeImage | null>;
   saveRecipe(runId: string, title: string): Promise<AmfSavedRecipe>;
   prepareRecipe(recipeId: string, editorPath: string, materialChoices?: AmfMaterialChoices): Promise<AmfProductionAccepted>;
   list(): Promise<AmfProductionList>;
@@ -469,7 +482,7 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
     },
     async listRecipes() {
       const v = await call({ method: "amf.production.listRecipes", params: { schemaVersion: "0.1" } });
-      if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.recipes) || !v.recipes.every(r => record(r) && text(r.recipeId) && text(r.title) && text(r.updatedAt) && Number.isSafeInteger(r.revision) && Number(r.revision) > 0)) throw new Error("amf_recipe_list_invalid");
+      if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.recipes) || !v.recipes.every(isAmfRecipeSummary)) throw new Error("amf_recipe_list_invalid");
       return v.recipes as unknown as readonly AmfRecipeSummary[];
     },
     async getRecipe(recipeId) {
@@ -482,11 +495,32 @@ export function createAmfProductionPort(client: GatewayClient): AmfProductionPor
       if (!record(v) || v.schemaVersion !== "0.1" || !savedRecipe(v.document)) throw new Error("amf_recipe_document_invalid");
       return v.document;
     },
+    async renameRecipe(recipeId, expectedRevision, title) {
+      const v = await call({ method: "amf.production.renameRecipe", params: { schemaVersion: "0.1", recipeId, expectedRevision, title } });
+      if (!record(v) || v.schemaVersion !== "0.1" || !savedRecipe(v.document) || v.document.recipe.recipeId !== recipeId
+        || v.document.revision !== expectedRevision + 1 || v.document.recipe.title !== title) throw new Error("amf_recipe_document_invalid");
+      return v.document;
+    },
+    async deleteRecipe(recipeId, expectedRevision) {
+      const v = await call({ method: "amf.production.deleteRecipe", params: { schemaVersion: "0.1", recipeId, expectedRevision } });
+      if (!record(v) || v.schemaVersion !== "0.1" || v.recipeId !== recipeId || v.deleted !== true) throw new Error("amf_recipe_delete_invalid");
+    },
+    async recipeImage(recipeId) {
+      const v = await call({ method: "amf.production.recipeImage", params: { schemaVersion: "0.1", recipeId } });
+      if (!record(v) || v.schemaVersion !== "0.1" || v.recipeId !== recipeId) throw new Error("amf_recipe_image_invalid");
+      if (v.image === null) return null;
+      const picture = v.image;
+      if (!record(picture) || picture.mediaType !== "image/png" || typeof picture.data !== "string" || picture.data.length > 873816
+        || !/^iVBORw0KGg[opqr][A-Za-z0-9+/]*(?:={1,2})?$/u.test(picture.data) || picture.data.length % 4 !== 0
+        || picture.data.length / 4 * 3 - (picture.data.endsWith("==") ? 2 : picture.data.endsWith("=") ? 1 : 0) > 655360) throw new Error("amf_recipe_image_invalid");
+      return { mediaType: "image/png", data: picture.data };
+    },
     async prepareRecipe(recipeId, editorPath, materialChoices) { return accepted(await call({ method: "amf.production.prepareRecipe", params: { schemaVersion: "0.1", recipeId, editorPath,...(materialChoices !== undefined ? {materialChoices} : {}) } }), strings.amfProduction.preparing); },
     async list() {
       const v = await call({ method: "amf.production.list", params: { schemaVersion: "0.1" } });
       if (!record(v) || v.schemaVersion !== "0.1" || !Array.isArray(v.sources) || !v.sources.every(source) || !Array.isArray(v.editors) || !v.editors.every(editor)
-        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames) && (r.projectGone === undefined || r.projectGone === true))
+        || typeof v.busy !== "boolean" || !Array.isArray(v.runs) || !v.runs.every(r => record(r) && text(r.runId) && typeof r.phase === "string" && phases.includes(r.phase) && texts(r.sourceNames) && (r.projectGone === undefined || r.projectGone === true)
+          && (r.recipeId === undefined || (typeof r.recipeId === "string" && /^[a-zA-Z0-9-]{1,100}$/u.test(r.recipeId))))
         || !isAmfProductionCapacity(v.capacity) || !Array.isArray(v.running) || v.running.length > v.capacity || !v.running.every(work)
         || v.busy !== (v.running.length > 0)
         || !Array.isArray(v.queue) || v.queue.length > 64 || !v.queue.every(work)) throw new Error("amf_production_list_invalid");

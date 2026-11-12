@@ -1872,6 +1872,9 @@ fn served_capabilities(state: &HostState) -> Value {
         {"operationId": "library.pendingRemovals", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.resolveRemoval", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "recipeDraft.selectionStatus", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "recipeDraft.materialsForLine", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "recipeDraft.legacyCensus", "availability": if state.warehouse.is_some() && state.use_cases.is_some() { "available" } else { "unavailable" }},
+        {"operationId": "recipeDraft.migrateLegacy", "availability": if state.warehouse.is_some() && state.use_cases.is_some() { "available" } else { "unavailable" }},
         {"operationId": "library.productFiles", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "recipeDraft.list", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
         {"operationId": "recipeDraft.get", "availability": if state.warehouse.is_some() { "available" } else { "unavailable" }},
@@ -5611,15 +5614,20 @@ fn handoff_editor_candidates(
 
 fn recipe_selection_draft_request(state: &HostState, method: &str, request: &Value, request_id: &str, correlation_id: &str) -> FrameOutcome {
     let Some(warehouse)=&state.warehouse else { return FrameOutcome::Response(application_error(request_id,correlation_id,"vua.recipe_draft.unavailable","errors.recipe.draftFailed","unavailable")); };
-    let expected_kind=if matches!(method,"recipeDraft.list"|"recipeDraft.get"|"recipeDraft.selectionStatus") { "query" } else { "command" };
+    let expected_kind=if matches!(method,"recipeDraft.list"|"recipeDraft.get"|"recipeDraft.selectionStatus"|"recipeDraft.materialsForLine"|"recipeDraft.legacyCensus") { "query" } else { "command" };
     if request["kind"]!=expected_kind { return FrameOutcome::Response(application_error(request_id,correlation_id,"vua.recipe_draft.invalid_params","errors.recipe.draftFailed","validation")); }
     let params = request.get("params").cloned().unwrap_or(Value::Null);
-    let result = if method == "recipeDraft.selectionStatus" {
-        vua_acquisition::library_maintenance::draft_selection_status(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,params).map_err(|error|vua_acquisition::recipe_selection_drafts::DraftError(error.0))
-    } else { warehouse.selection_drafts.apply(method,params) };
+    let legacy_recipes = state.use_cases.as_ref().map(|services| services.recipes.as_ref());
+    let result = match method {
+        "recipeDraft.selectionStatus" => vua_acquisition::library_maintenance::draft_selection_status(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,params).map_err(|error|vua_acquisition::recipe_selection_drafts::DraftError(error.0)),
+        "recipeDraft.materialsForLine" => vua_acquisition::library_maintenance::draft_materials_for_line(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,params),
+        "recipeDraft.legacyCensus" => vua_acquisition::library_maintenance::legacy_recipe_census(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,legacy_recipes,params),
+        "recipeDraft.migrateLegacy" => vua_acquisition::library_maintenance::migrate_legacy_recipes(&warehouse.bdl,&warehouse.warehouse_root,&warehouse.selection_drafts,legacy_recipes,params),
+        _ => warehouse.selection_drafts.apply(method,params),
+    };
     match result {
         Ok(value)=>FrameOutcome::Response(application_success(request_id,value)),
-        Err(error)=>FrameOutcome::Response(application_error(request_id,correlation_id,&format!("vua.recipe_draft.{}",error.0),"errors.recipe.draftFailed",if error.0=="store_failed" {"internal"} else {"validation"})),
+        Err(error)=>FrameOutcome::Response(application_error(request_id,correlation_id,&format!("vua.recipe_draft.{}",error.0),"errors.recipe.draftFailed",match error.0 { "store_failed"=>"internal", "unavailable"=>"unavailable", _=>"validation" })),
     }
 }
 
@@ -5669,7 +5677,22 @@ fn library_download_request(state: &HostState, method: &str, request: &Value, re
         if request["kind"] != if method == "library.removeFiles" || method == "library.resolveRemoval" {"command"} else {"query"} {
             return FrameOutcome::Response(application_error(request_id,correlation_id,"vua.library.invalid_params","errors.library.removalFailed","validation"));
         }
-        let result = warehouse.library_maintenance.apply(method,request.get("params").cloned().unwrap_or(Value::Null),&warehouse.selection_drafts,state.use_cases.as_ref().map(|services|services.recipes.as_ref()));
+        let production_recipes = state
+            .amf_production
+            .as_ref()
+            .map(|services| services.engine.recipe_store());
+        let result = warehouse
+            .library_maintenance
+            .apply_with_production_recipes(
+                method,
+                request.get("params").cloned().unwrap_or(Value::Null),
+                &warehouse.selection_drafts,
+                state
+                    .use_cases
+                    .as_ref()
+                    .map(|services| services.recipes.as_ref()),
+                production_recipes.as_ref(),
+            );
         return FrameOutcome::Response(match result {
             Ok(value) => application_success(request_id,value),
             Err(error) => application_error(request_id,correlation_id,&format!("vua.library.{}",error.0),"errors.library.removalFailed",match error.0 { "store_failed"|"reference_read_failed"=>"internal", "preview_changed"|"file_busy"|"removal_conflict"=>"conflict", _=>"validation" }),

@@ -16,6 +16,9 @@ use vua_orchestrator::{
 
 const PIPELINE_FIX: &str = "This avatar has no pipeline manager component.";
 
+#[path = "amf_production/recipe_management.rs"]
+mod recipe_management;
+
 struct TestPlatform {
     texture_facts: Mutex<Option<serde_json::Value>>,
     texture_before: Mutex<Option<serde_json::Value>>,

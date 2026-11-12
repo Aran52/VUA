@@ -28,4 +28,15 @@ describe("selection draft receipts", () => {
     expect(receipt.addedCount).toBe(0); expect(receipt.existingCount).toBe(2);
     await expect(port.add("recipe-draft-synthetic", [selections[0]!], 1)).rejects.toThrow("read_failed");
   });
+  it("reads line prefill sources for the requested draft and legacy migration summaries", async () => {
+    const materialsPort = createRecipeDraftPort(client(vector("materials.response")));
+    const materials = await materialsPort.materialsForLine("recipe-draft-synthetic");
+    expect(materials.sources[0]?.sourceId).toBe("copy-synthetic-1");
+    expect(materials.missing[0]?.reason).toBe("missing");
+    await expect(materialsPort.materialsForLine("recipe-draft-other")).rejects.toThrow("read_failed");
+    const census = await createRecipeDraftPort(client(vector("legacy-census.response"))).legacyCensus();
+    expect(census.totalDocuments).toBe(1);
+    const migrated = await createRecipeDraftPort(client(vector("migrate-legacy.response"))).migrateLegacy();
+    expect(migrated.migratedCount).toBe(1);
+  });
 });

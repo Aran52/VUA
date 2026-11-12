@@ -88,7 +88,11 @@
       ],
       "properties": {
         "method": {
-          "const": "recipeDraft.list"
+          "enum": [
+            "recipeDraft.list",
+            "recipeDraft.legacyCensus",
+            "recipeDraft.migrateLegacy"
+          ]
         },
         "params": {
           "type": "object",
@@ -115,7 +119,8 @@
         "method": {
           "enum": [
             "recipeDraft.get",
-            "recipeDraft.selectionStatus"
+            "recipeDraft.selectionStatus",
+            "recipeDraft.materialsForLine"
           ]
         },
         "params": {

@@ -668,3 +668,352 @@ fn changed_redownload_preserves_and_marks_old_vpm_but_equal_bytes_do_not() {
         .iter()
         .any(|f| f["superseded"] == true));
 }
+
+#[test]
+fn draft_materials_for_line_verifies_on_disk_hashes_and_expanded_zips_without_role_inference() {
+    let w = World::new();
+    // Store an expanded ZIP under booth:90 (item 901) and a standalone .unitypackage local copy + a .pdf copy.
+    let zip_payload = zip_bytes(&[
+        ("Avatar/Base.unitypackage", b"synthetic avatar package bytes"),
+        ("Avatar/Readme.txt", b"notes"),
+    ]);
+    w.begin("zip-dl", &[901]);
+    w.delivery(901, "dl-zip", &zip_payload, "bundle.zip");
+    w.observe("zip-dl", 901, "settled", Some("dl-zip")).unwrap();
+    w.wait("zip-dl");
+
+    let copies = w.bdl.library_copy_evidence().unwrap();
+    let zip_copy = copies
+        .iter()
+        .find(|c| c.copy.relative_path.ends_with("bundle.zip"))
+        .unwrap();
+    let exp_copy = copies
+        .iter()
+        .find(|c| c.copy.relative_path.ends_with("Base.unitypackage"))
+        .unwrap();
+
+    // Add a standalone .unitypackage and a .pdf entry to test tampered/missing/no_package cases.
+    let standalone_dir = w.base.join("warehouse").join(&zip_copy.copy.warehouse_item_id);
+    let coat_path = standalone_dir.join("Coat.unitypackage");
+    std::fs::write(&coat_path, b"synthetic coat package").unwrap();
+    let coat_sha = format!("sha256:{}", hex_lower(&sha256_file(&coat_path).unwrap()));
+    w.bdl
+        .record_untrusted_artifact(&vua_bdl_store::NewLocalArtifact {
+            artifact_sha256: coat_sha.clone(),
+            size_bytes: 22,
+            suggested_file_name: Some("Coat.unitypackage".into()),
+            download_id: None,
+            first_seen_at: "2026-11-11T00:00:00Z".into(),
+        })
+        .unwrap();
+    let coat_copy = w
+        .bdl
+        .record_artifact_copy(
+            &zip_copy.copy.warehouse_item_id,
+            &coat_sha,
+            "Coat.unitypackage",
+            coat_path.to_str().unwrap(),
+            CopyRole::Original,
+            "2026-11-11T00:00:00Z",
+        )
+        .unwrap();
+
+    let pdf_path = standalone_dir.join("Manual.pdf");
+    std::fs::write(&pdf_path, b"synthetic manual").unwrap();
+    let pdf_sha = format!("sha256:{}", hex_lower(&sha256_file(&pdf_path).unwrap()));
+    w.bdl
+        .record_untrusted_artifact(&vua_bdl_store::NewLocalArtifact {
+            artifact_sha256: pdf_sha.clone(),
+            size_bytes: 16,
+            suggested_file_name: Some("Manual.pdf".into()),
+            download_id: None,
+            first_seen_at: "2026-11-11T00:00:00Z".into(),
+        })
+        .unwrap();
+    w.bdl
+        .record_artifact_copy(
+            &zip_copy.copy.warehouse_item_id,
+            &pdf_sha,
+            "Manual.pdf",
+            pdf_path.to_str().unwrap(),
+            CopyRole::Original,
+            "2026-11-11T00:00:00Z",
+        )
+        .unwrap();
+
+    let drafts = RecipeSelectionDrafts::new(w.base.join("drafts"));
+    drafts
+        .apply(
+            "recipeDraft.save",
+            json!({
+                "schemaVersion": "0.1",
+                "draftId": "recipe-draft-line-check",
+                "title": "Synthetic line prefill",
+                "baseRevision": 0,
+                "selections": [
+                    // 0: local selection pinned to expanded unitypackage hash -> must resolve to parent ZIP member sourceId!
+                    {"identity": exp_copy.copy.artifact_sha256, "displayName": "Base Avatar", "source": "local", "warehouseItemId": exp_copy.copy.warehouse_item_id},
+                    // 1: standalone coat unitypackage
+                    {"identity": coat_sha, "displayName": "Coat", "source": "local", "warehouseItemId": coat_copy.warehouse_item_id},
+                    // 2: non-package PDF
+                    {"identity": pdf_sha, "displayName": "Manual", "source": "local", "warehouseItemId": zip_copy.copy.warehouse_item_id},
+                    // 3: unstored cloud product
+                    {"identity": "booth:999999", "displayName": "Unstored", "source": "cloud"}
+                ]
+            }),
+        )
+        .unwrap();
+
+    let root = w.base.join("warehouse");
+    let resolved = crate::library_maintenance::draft_materials_for_line(
+        &w.bdl,
+        &root,
+        &drafts,
+        json!({"schemaVersion": "0.1", "draftId": "recipe-draft-line-check"}),
+    )
+    .unwrap();
+    let schema: Value = serde_json::from_slice(
+        &std::fs::read(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../schemas/recipe-selection-draft/v0.1/response.schema.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        jsonschema::validator_for(&schema).unwrap().is_valid(&resolved),
+        "{resolved}"
+    );
+    let sources = resolved["sources"].as_array().unwrap();
+    assert_eq!(sources.len(), 2, "{resolved}");
+    // Neither source carries an inferred role; ZIP member uses <zip_copy_id>-<24hex>.
+    assert!(sources.iter().all(|s| s.get("role").is_none()));
+    assert!(sources.iter().any(|s| {
+        s["sourceId"]
+            .as_str()
+            .unwrap()
+            .starts_with(&format!("{}-", zip_copy.copy.copy_id))
+            && s["name"] == "Avatar/Base.unitypackage"
+            && s["selectionIndices"] == json!([0])
+    }));
+    assert!(sources.iter().any(|s| {
+        s["sourceId"] == coat_copy.copy_id && s["selectionIndices"] == json!([1])
+    }));
+    assert_eq!(
+        resolved["missing"],
+        json!([
+            {"index": 2, "reason": "no_package"},
+            {"index": 3, "reason": "not_stored"}
+        ])
+    );
+
+    // Same-size tampering of Coat.unitypackage on disk must NOT pass via DB digest: reports content_changed!
+    std::fs::write(&coat_path, b"TAMPERED coat package!").unwrap();
+    let after_tamper = crate::library_maintenance::draft_materials_for_line(
+        &w.bdl,
+        &root,
+        &drafts,
+        json!({"schemaVersion": "0.1", "draftId": "recipe-draft-line-check"}),
+    )
+    .unwrap();
+    assert!(
+        after_tamper["missing"]
+            .as_array()
+            .unwrap()
+            .contains(&json!({"index": 1, "reason": "content_changed"})),
+        "{after_tamper}"
+    );
+
+    // Removing the parent ZIP while keeping the expanded copy falls back to exp_copy.copy_id!
+    std::fs::remove_file(&zip_copy.copy.stored_path).unwrap();
+    std::fs::remove_file(&coat_path).unwrap();
+    let after_zip_removed = crate::library_maintenance::draft_materials_for_line(
+        &w.bdl,
+        &root,
+        &drafts,
+        json!({"schemaVersion": "0.1", "draftId": "recipe-draft-line-check"}),
+    )
+    .unwrap();
+    assert_eq!(
+        after_zip_removed["sources"][0]["sourceId"],
+        exp_copy.copy.copy_id
+    );
+    assert!(
+        after_zip_removed["missing"]
+            .as_array()
+            .unwrap()
+            .contains(&json!({"index": 1, "reason": "missing"}))
+    );
+}
+
+#[test]
+fn production_recipes_v05_are_protected_in_removal_preview_and_legacy_migration_is_idempotent() {
+    let w = World::new();
+    let zip_payload = zip_bytes(&[(
+        "SyntheticAvatar.unitypackage",
+        b"synthetic production package",
+    )]);
+    w.begin("prod-ref", &[901]);
+    w.delivery(901, "dl-prod", &zip_payload, "avatar.zip");
+    w.observe("prod-ref", 901, "settled", Some("dl-prod"))
+        .unwrap();
+    w.wait("prod-ref");
+
+    let copies = w.bdl.library_copy_evidence().unwrap();
+    let exp_copy = copies
+        .iter()
+        .find(|c| c.copy.relative_path.ends_with("SyntheticAvatar.unitypackage"))
+        .unwrap();
+    let pkg_hex = exp_copy
+        .copy
+        .artifact_sha256
+        .strip_prefix("sha256:")
+        .unwrap();
+
+    let s = service(&w);
+    let drafts = RecipeSelectionDrafts::new(w.base.join("drafts"));
+    let legacy_store = RecipeDocumentStore::new_with_system_clock(w.base.join("legacy-recipes"));
+    let prod_store = RecipeDocumentStore::new_with_system_clock(w.base.join("recipes-v04"));
+
+    // Save a valid ProductionRecipe v0.5 referencing pkg_hex.
+    prod_store
+        .save(
+            "recipe-prod-1",
+            &json!({
+                "formatVersion": "0.5",
+                "recipeId": "recipe-prod-1",
+                "title": "Modern Production Recipe",
+                "editorVersion": "2022.3.22f1",
+                "materials": [{
+                    "id": "material-1",
+                    "packageName": "SyntheticAvatar.unitypackage",
+                    "sha256": pkg_hex,
+                    "boothProductId": "90"
+                }],
+                "avatar": {
+                    "materialId": "material-1",
+                    "prefabPath": "Assets/SyntheticAvatar.prefab"
+                },
+                "outfits": [{
+                    "materialId": "material-1",
+                    "prefabPath": "Assets/SyntheticOutfit.prefab",
+                    "mode": "merge_armature",
+                    "bone": "",
+                    "toggleName": "Coat",
+                    "active": true
+                }],
+                "packages": {
+                    "com.vrchat.avatars": "3.7.0",
+                    "nadena.dev.modular-avatar": "1.10.0"
+                }
+            }),
+            0,
+        )
+        .unwrap();
+
+    let preview_val = s
+        .apply_with_production_recipes(
+            "library.removalPreview",
+            json!({"schemaVersion": "0.1", "target": {"kind": "product", "id": "booth:90"}}),
+            &drafts,
+            Some(&legacy_store),
+            Some(&prod_store),
+        )
+        .unwrap();
+    assert_eq!(preview_val["referenceCoverage"], "drafts_and_recipes");
+    assert_eq!(preview_val["references"].as_array().unwrap().len(), 1);
+    assert_eq!(preview_val["references"][0]["kind"], "recipe");
+    assert_eq!(preview_val["references"][0]["id"], "recipe-prod-1");
+    assert_eq!(preview_val["references"][0]["missingAfterRemoval"], true);
+
+    // Corrupting a production Recipe document fails closed with reference_read_failed instead of claiming zero references.
+    std::fs::write(w.base.join("recipes-v04").join("corrupt.json"), b"{bad").unwrap();
+    assert_eq!(
+        s.apply_with_production_recipes(
+            "library.removalPreview",
+            json!({"schemaVersion": "0.1", "target": {"kind": "product", "id": "booth:90"}}),
+            &drafts,
+            Some(&legacy_store),
+            Some(&prod_store),
+        )
+        .unwrap_err()
+        .0,
+        "reference_read_failed"
+    );
+    std::fs::remove_file(w.base.join("recipes-v04").join("corrupt.json")).unwrap();
+
+    // Save a legacy Recipe v0.3 document with one booth asset, one verified local asset, one entity-only asset, and graph settings.
+    let legacy_doc = json!({
+        "formatVersion": "0.3",
+        "recipeId": "01950000-0000-7000-8000-000000000099",
+        "revision": 1,
+        "title": "Legacy Graph Recipe",
+        "createdAt": "2026-09-10T00:00:00Z",
+        "updatedAt": "2026-09-10T00:00:00Z",
+        "environment": {"unityVersionConstraint": "2022.3.22f1"},
+        "target": {"platforms": ["windows"], "avatarInstanceId": "base"},
+        "assets": [
+            {"id": "base", "role": "avatar_base", "label": "Synthetic Cloud Base", "sourceRef": {"provider": "booth", "productId": "90"}},
+            {"id": "local_pkg", "role": "outfit", "label": "Synthetic LocalPkg", "sourceRef": {"warehouseItemId": exp_copy.copy.warehouse_item_id}},
+            {"id": "mystery", "role": "hair", "entityRef": {"entityId": "01950000-0000-7000-8000-000000000123"}}
+        ],
+        "instances": [{"id": "base", "assetId": "base", "entrypoint": "Assets/Base.prefab"}],
+        "relations": []
+    });
+    legacy_store
+        .save("01950000-0000-7000-8000-000000000099", &legacy_doc, 0)
+        .unwrap();
+
+    let root = w.base.join("warehouse");
+    let census = crate::library_maintenance::legacy_recipe_census(
+        &w.bdl,
+        &root,
+        &drafts,
+        Some(&legacy_store),
+        json!({"schemaVersion": "0.1"}),
+    )
+    .unwrap();
+    assert_eq!(census["totalDocuments"], 1);
+    assert_eq!(census["parseableDocuments"], 1);
+    assert_eq!(census["migratedDrafts"], 0);
+    assert_eq!(census["documents"][0]["verifiableSelections"], 2);
+    assert_eq!(
+        census["documents"][0]["unresolvedAssets"],
+        json!([{"assetId": "mystery", "reason": "entity_only"}])
+    );
+    assert_eq!(census["documents"][0]["hasGraphSettings"], true);
+
+    let first_mig = crate::library_maintenance::migrate_legacy_recipes(
+        &w.bdl,
+        &root,
+        &drafts,
+        Some(&legacy_store),
+        json!({"schemaVersion": "0.1"}),
+    )
+    .unwrap();
+    assert_eq!(first_mig["migratedCount"], 1);
+    assert_eq!(first_mig["items"][0]["status"], "created");
+    assert_eq!(first_mig["items"][0]["draftRevision"], 1);
+
+    // Repeating migration is strictly idempotent (unchanged, revision stays 1) and preserves original legacy Recipe v0.3 document!
+    let second_mig = crate::library_maintenance::migrate_legacy_recipes(
+        &w.bdl,
+        &root,
+        &drafts,
+        Some(&legacy_store),
+        json!({"schemaVersion": "0.1"}),
+    )
+    .unwrap();
+    assert_eq!(second_mig["migratedCount"], 0);
+    assert_eq!(second_mig["unchangedCount"], 1);
+    assert_eq!(second_mig["items"][0]["status"], "unchanged");
+    assert_eq!(second_mig["items"][0]["draftRevision"], 1);
+    assert_eq!(
+        legacy_store
+            .get("01950000-0000-7000-8000-000000000099")
+            .unwrap()
+            .unwrap()
+            .recipe,
+        legacy_doc
+    );
+}

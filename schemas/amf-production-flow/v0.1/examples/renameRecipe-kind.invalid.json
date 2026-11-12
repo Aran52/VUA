@@ -1,0 +1,10 @@
+{
+  "method": "amf.production.renameRecipe",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "recipeId": "recipe-example",
+    "expectedRevision": 1,
+    "title": "Renamed Avatar"
+  }
+}

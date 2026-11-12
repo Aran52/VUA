@@ -1,0 +1,8 @@
+{
+  "method": "amf.production.recipeImage",
+  "kind": "query",
+  "params": {
+    "schemaVersion": "0.1",
+    "recipeId": "../recipe-example"
+  }
+}

@@ -60,7 +60,9 @@ export type AmfProductionBodyV01 =
   | { readonly method: "amf.production.exportRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly planDigest: string; readonly sources: Readonly<Record<string,string>> } }
   | { readonly method: "amf.production.list"; readonly params: { readonly schemaVersion: "0.1" } }
   | { readonly method: "amf.production.listRecipes"; readonly params: { readonly schemaVersion: "0.1" } }
-  | { readonly method: "amf.production.getRecipe" | "amf.production.recipeSharePlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string } }
+  | { readonly method: "amf.production.getRecipe" | "amf.production.recipeImage" | "amf.production.recipeSharePlan"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string } }
+  | { readonly method: "amf.production.renameRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly expectedRevision: number; readonly title: string } }
+  | { readonly method: "amf.production.deleteRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly recipeId: string; readonly expectedRevision: number } }
   | { readonly method: "amf.production.saveRecipe"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly title: string } }
   | { readonly method: "amf.production.previewImage"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string; readonly path: string } }
   | { readonly method: "amf.production.releaseState" | "amf.production.bakeTurntable" | "amf.production.localTest"; readonly params: { readonly schemaVersion: "0.1"; readonly runId: string } }
@@ -222,7 +224,11 @@ export function isAmfProductionParams(method: unknown, value: unknown): boolean 
       && typeof value.planDigest === "string" && /^[a-f0-9]{64}$/u.test(value.planDigest) && record(value.sources) && Object.keys(value.sources).length <= 64
       && Object.entries(value.sources).every(([id,booth]) => /^[a-zA-Z0-9_-]{1,100}$/u.test(id) && typeof booth === "string" && /^[1-9][0-9]{0,19}$/u.test(booth));
     case "amf.production.list": case "amf.production.listRecipes": return exact(value, ["schemaVersion"]);
-    case "amf.production.getRecipe": case "amf.production.recipeSharePlan": return exact(value, ["schemaVersion", "recipeId"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId);
+    case "amf.production.getRecipe": case "amf.production.recipeImage": case "amf.production.recipeSharePlan": return exact(value, ["schemaVersion", "recipeId"]) && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId);
+    case "amf.production.renameRecipe": case "amf.production.deleteRecipe":
+      return exact(value, ["schemaVersion", "recipeId", "expectedRevision", ...(method === "amf.production.renameRecipe" ? ["title"] : [])])
+        && text(value.recipeId,100) && /^[a-zA-Z0-9-]+$/u.test(value.recipeId) && Number.isSafeInteger(value.expectedRevision) && Number(value.expectedRevision) > 0
+        && (method === "amf.production.deleteRecipe" || (typeof value.title === "string" && value.title.trim().length > 0 && [...value.title].length <= 120 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value.title)));
     case "amf.production.saveRecipe": return exact(value, ["schemaVersion", "runId", "title"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)
       && typeof value.title === "string" && value.title.trim().length > 0 && [...value.title].length <= 120 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value.title);
     case "amf.production.previewImage": return exact(value, ["schemaVersion", "runId", "path"]) && text(value.runId,100) && /^[a-zA-Z0-9-]+$/u.test(value.runId)

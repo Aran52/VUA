@@ -15,6 +15,12 @@ use vua_orchestrator::{
     TaskExit, TaskRecoveryDisposition, TaskRuntime, TaskState,
 };
 
+#[path = "draft_materials.rs"]
+mod draft_materials;
+pub use draft_materials::{
+    draft_materials_for_line, legacy_recipe_census, migrate_legacy_recipes,
+};
+
 const COMMAND: &str = "library.removeFiles";
 
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
@@ -174,6 +180,7 @@ fn reference_rows(
     selected: &[PlannedFile],
     drafts: &RecipeSelectionDrafts,
     recipes: Option<&RecipeDocumentStore>,
+    production_recipes: Option<&RecipeDocumentStore>,
 ) -> Result<(Vec<Value>, usize), LibraryDownloadError> {
     // All known aliases lose presence, including Windows casing and junctions.
     let affected: HashSet<_> = selected
@@ -280,6 +287,45 @@ fn reference_rows(
             }
         }
     }
+    if let Some(production_recipes) = production_recipes {
+        for entry in production_recipes
+            .list()
+            .map_err(|_| LibraryDownloadError("reference_read_failed"))?
+        {
+            let stored = production_recipes
+                .get(&entry.recipe_id)
+                .map_err(|_| LibraryDownloadError("reference_read_failed"))?
+                .ok_or(LibraryDownloadError("reference_read_failed"))?;
+            let recipe: vua_orchestrator::amf_recipe::ProductionRecipe =
+                serde_json::from_value(stored.recipe)
+                    .map_err(|_| LibraryDownloadError("reference_read_failed"))?;
+            if recipe.recipe_id != entry.recipe_id || recipe.validate().is_err() {
+                return Err(LibraryDownloadError("reference_read_failed"));
+            }
+            let mut affected = HashSet::new();
+            let mut missing = false;
+            for material in &recipe.materials {
+                let matching = draft_materials::production_material_matching_copies(
+                    root, copies, material,
+                );
+                if matching.iter().any(|copy| is_selected(copy)) {
+                    for copy in &matching {
+                        if is_selected(copy) {
+                            affected.insert(copy.copy.copy_id.clone());
+                        }
+                    }
+                    missing |= !matching
+                        .iter()
+                        .any(|copy| !is_selected(copy) && presence(root, copy) == "present");
+                }
+            }
+            if !affected.is_empty() {
+                let mut ids: Vec<_> = affected.into_iter().collect();
+                ids.sort();
+                rows.push(json!({"kind":"recipe","id":entry.recipe_id,"title":recipe.title,"revision":stored.revision,"copyIds":ids,"missingAfterRemoval":missing}));
+            }
+        }
+    }
     rows.sort_by(|a, b| {
         a["kind"]
             .as_str()
@@ -338,6 +384,8 @@ impl LibraryMaintenance {
         ids: Option<&[String]>,
         drafts: &RecipeSelectionDrafts,
         recipes: Option<&RecipeDocumentStore>,
+        production_recipes: Option<&RecipeDocumentStore>,
+        all_recipe_stores_wired: bool,
     ) -> Result<(Value, Vec<PlannedFile>), LibraryDownloadError> {
         if !target.valid() || ids.is_some_and(|ids| !validate_ids(ids)) {
             return Err(LibraryDownloadError("invalid_params"));
@@ -401,8 +449,15 @@ impl LibraryMaintenance {
         if ids.is_some_and(|ids| ids.len() != files.len()) {
             return Err(LibraryDownloadError("copy_not_found"));
         }
-        let (refs, unresolved) = reference_rows(&self.root, &copies, &files, drafts, recipes)?;
-        let coverage = if recipes.is_some() {
+        let (refs, unresolved) = reference_rows(
+            &self.root,
+            &copies,
+            &files,
+            drafts,
+            recipes,
+            production_recipes,
+        )?;
+        let coverage = if all_recipe_stores_wired {
             "drafts_and_recipes"
         } else {
             "drafts_only"
@@ -515,6 +570,34 @@ impl LibraryMaintenance {
         drafts: &RecipeSelectionDrafts,
         recipes: Option<&RecipeDocumentStore>,
     ) -> Result<Value, LibraryDownloadError> {
+        self.apply_inner(method, params, drafts, recipes, None, recipes.is_some())
+    }
+    pub fn apply_with_production_recipes(
+        &self,
+        method: &str,
+        params: Value,
+        drafts: &RecipeSelectionDrafts,
+        recipes: Option<&RecipeDocumentStore>,
+        production_recipes: Option<&RecipeDocumentStore>,
+    ) -> Result<Value, LibraryDownloadError> {
+        self.apply_inner(
+            method,
+            params,
+            drafts,
+            recipes,
+            production_recipes,
+            recipes.is_some() && production_recipes.is_some(),
+        )
+    }
+    fn apply_inner(
+        &self,
+        method: &str,
+        params: Value,
+        drafts: &RecipeSelectionDrafts,
+        recipes: Option<&RecipeDocumentStore>,
+        production_recipes: Option<&RecipeDocumentStore>,
+        all_recipe_stores_wired: bool,
+    ) -> Result<Value, LibraryDownloadError> {
         match method {
             "library.pendingRemovals" => {
                 #[derive(Deserialize)]
@@ -554,6 +637,8 @@ impl LibraryMaintenance {
                     request.copy_ids.as_deref(),
                     drafts,
                     recipes,
+                    production_recipes,
+                    all_recipe_stores_wired,
                 )
                 .map(|(v, _)| v)
             }
@@ -585,8 +670,14 @@ impl LibraryMaintenance {
                     }
                     return self.snapshot(&id, &plan);
                 }
-                let (preview, files) =
-                    self.preview(&request.target, Some(&request.copy_ids), drafts, recipes)?;
+                let (preview, files) = self.preview(
+                    &request.target,
+                    Some(&request.copy_ids),
+                    drafts,
+                    recipes,
+                    production_recipes,
+                    all_recipe_stores_wired,
+                )?;
                 if preview["previewHash"] != request.preview_hash {
                     return Err(LibraryDownloadError("preview_changed"));
                 }

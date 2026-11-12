@@ -74,12 +74,20 @@ impl SharedRecipe {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct RecipeOrigin {
     recipe_digest: String,
+    /// A title-only rename may be interrupted between the two local file replacements.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pending_rename_digest: Option<String>,
     /// Empty only for received declarations. Source IDs remain machine-local.
     inputs: BTreeMap<String, Vec<String>>,
     references_observed: bool,
     received_sources: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     received_statements: BTreeMap<String,RecipeSourceStatement>,
+}
+impl RecipeOrigin {
+    fn matches(&self, digest: &str) -> bool {
+        self.recipe_digest == digest || self.pending_rename_digest.as_deref() == Some(digest)
+    }
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,17 +124,43 @@ impl AmfProductionEngine {
         let inputs = recipe.materials.iter().map(|material| (material.id.clone(), run.sources.iter()
             .filter(|source| source.sha256.strip_prefix("sha256:").unwrap_or(&source.sha256) == material.sha256)
             .map(|source| source.source_id.clone()).collect())).collect();
-        self.save_origin(&recipe.recipe_id, &RecipeOrigin { recipe_digest: document_digest(recipe)?, inputs,
+        self.save_origin(&recipe.recipe_id, &RecipeOrigin { recipe_digest: document_digest(recipe)?, pending_rename_digest: None, inputs,
             references_observed: observed.is_some(), received_sources: BTreeMap::new(), received_statements:BTreeMap::new() })
     }
     fn share_origin(&self, recipe: &ProductionRecipe) -> Result<RecipeOrigin, AppErrorV1> {
         let path = self.origin_path(&recipe.recipe_id);
         if !path.is_file() { return Err(error("recipe_reinspect_for_share", "Reinspect the source project and save this Recipe again to establish its referenced materials.")); }
-        let origin: RecipeOrigin = serde_json::from_slice(&fs::read(path).map_err(io)?).map_err(io)?;
-        if origin.recipe_digest != document_digest(recipe)? || (!origin.references_observed && origin.received_sources.is_empty()) {
+        let mut origin: RecipeOrigin = serde_json::from_slice(&fs::read(path).map_err(io)?).map_err(io)?;
+        let digest = document_digest(recipe)?;
+        if !origin.matches(&digest) || (!origin.references_observed && origin.received_sources.is_empty()) {
             return Err(error("recipe_reinspect_for_share", "Reinspect the source project and save this Recipe again before sharing."));
         }
+        origin.recipe_digest = digest;
         Ok(origin)
+    }
+    /// Authorize only this validated title transition, retaining the old digest until save.
+    pub(crate) fn stage_recipe_rename_origin(&self, before: &ProductionRecipe, after: &ProductionRecipe) -> Result<(), AppErrorV1> {
+        let bytes = match fs::read(self.origin_path(&before.recipe_id)) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(io(error)),
+        };
+        let Ok(mut origin) = serde_json::from_slice::<RecipeOrigin>(&bytes) else { return Ok(()) };
+        let digest = document_digest(before)?;
+        if !origin.matches(&digest) { return Ok(()); }
+        origin.recipe_digest = digest;
+        origin.pending_rename_digest = Some(document_digest(after)?);
+        self.save_origin(&before.recipe_id, &origin)
+    }
+    /// Best-effort compaction only: the staged pair already admits the stored declaration.
+    pub(crate) fn finish_recipe_rename_origin(&self, recipe: &ProductionRecipe) {
+        let Ok(bytes) = fs::read(self.origin_path(&recipe.recipe_id)) else { return };
+        let Ok(mut origin) = serde_json::from_slice::<RecipeOrigin>(&bytes) else { return };
+        let Ok(digest) = document_digest(recipe) else { return };
+        if origin.pending_rename_digest.as_deref() != Some(&digest) { return; }
+        origin.recipe_digest = digest;
+        origin.pending_rename_digest = None;
+        let _ = self.save_origin(&recipe.recipe_id, &origin);
     }
     fn confirmed_sources(&self) -> Result<BTreeMap<String, String>, AppErrorV1> {
         let path = self.root.join("recipe-source-choices.json");
@@ -153,7 +187,7 @@ impl AmfProductionEngine {
         let path = self.origin_path(id);
         if path.is_file() {
             let origin: RecipeOrigin = serde_json::from_slice(&fs::read(path).map_err(io)?).map_err(io)?;
-            if origin.recipe_digest == document_digest(&recipe)? {
+            if origin.matches(&document_digest(&recipe)?) {
                 for material in &mut recipe.materials {
                     if material.booth_product_id.is_none() { material.booth_product_id = origin.received_sources.get(&material.id).cloned(); }
                 }
@@ -227,7 +261,7 @@ impl AmfProductionEngine {
             self.share_origin(&recipe)?;
             return Ok(existing);
         }
-        self.save_origin(&recipe_id, &RecipeOrigin { recipe_digest: document_digest(&recipe)?, inputs: BTreeMap::new(), references_observed: false, received_sources: shared.sources.iter().map(|(id,source)| (id.clone(),source.product_id().into())).collect(), received_statements:shared.sources })?;
+        self.save_origin(&recipe_id, &RecipeOrigin { recipe_digest: document_digest(&recipe)?, pending_rename_digest: None, inputs: BTreeMap::new(), references_observed: false, received_sources: shared.sources.iter().map(|(id,source)| (id.clone(),source.product_id().into())).collect(), received_statements:shared.sources })?;
         self.recipe_store().save(&recipe_id, &value, 0).map_err(io)
     }
 }

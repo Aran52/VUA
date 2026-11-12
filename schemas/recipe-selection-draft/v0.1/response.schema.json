@@ -117,6 +117,34 @@
           }
         }
       }
+    },
+    "unresolvedAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetId",
+        "reason"
+      ],
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "\\S"
+        },
+        "reason": {
+          "enum": [
+            "entity_only",
+            "unsupported_provider",
+            "invalid_product_id",
+            "entry_not_found",
+            "missing_local_copy",
+            "content_changed",
+            "unparseable_document",
+            "unsupported_version"
+          ]
+        }
+      }
     }
   },
   "oneOf": [
@@ -274,6 +302,318 @@
                   "missing",
                   "not_stored"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "draftId",
+        "revision",
+        "sources",
+        "missing"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "draftId": {
+          "type": "string",
+          "pattern": "^recipe-draft-[A-Za-z0-9_-]{1,100}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "sources": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sourceId",
+              "itemId",
+              "itemName",
+              "name",
+              "productIds",
+              "selectionIndices"
+            ],
+            "properties": {
+              "sourceId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]{1,160}$"
+              },
+              "itemId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+              },
+              "itemName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "\\S"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "\\S"
+              },
+              "productIds": {
+                "type": "array",
+                "maxItems": 128,
+                "items": {
+                  "type": "string",
+                  "pattern": "^booth:[0-9]+$"
+                }
+              },
+              "selectionIndices": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 512,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 511
+                }
+              }
+            }
+          }
+        },
+        "missing": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "index",
+              "reason"
+            ],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 511
+              },
+              "reason": {
+                "enum": [
+                  "not_stored",
+                  "missing",
+                  "content_changed",
+                  "no_package"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "totalDocuments",
+        "parseableDocuments",
+        "migratedDrafts",
+        "documents"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "totalDocuments": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "parseableDocuments": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "migratedDrafts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "recipeId",
+              "revision",
+              "formatVersion",
+              "parseable",
+              "targetDraftId",
+              "existingDraftRevision",
+              "verifiableSelections",
+              "unresolvedAssets",
+              "hasGraphSettings"
+            ],
+            "properties": {
+              "recipeId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "revision": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "formatVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 32,
+                "pattern": "\\S"
+              },
+              "parseable": {
+                "type": "boolean"
+              },
+              "targetDraftId": {
+                "type": "string",
+                "pattern": "^recipe-draft-[A-Za-z0-9_-]{1,100}$"
+              },
+              "existingDraftRevision": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "verifiableSelections": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 512
+              },
+              "unresolvedAssets": {
+                "type": "array",
+                "maxItems": 512,
+                "items": {
+                  "$ref": "#/$defs/unresolvedAsset"
+                }
+              },
+              "hasGraphSettings": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "totalDocuments",
+        "migratedCount",
+        "unchangedCount",
+        "unresolvedOnlyCount",
+        "failedCount",
+        "items"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1"
+        },
+        "totalDocuments": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "migratedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "unchangedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "unresolvedOnlyCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "failedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "recipeId",
+              "targetDraftId",
+              "status",
+              "draftRevision",
+              "migratedSelections",
+              "unresolvedAssets",
+              "hasGraphSettings"
+            ],
+            "properties": {
+              "recipeId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "targetDraftId": {
+                "type": "string",
+                "pattern": "^recipe-draft-[A-Za-z0-9_-]{1,100}$"
+              },
+              "status": {
+                "enum": [
+                  "created",
+                  "updated",
+                  "unchanged",
+                  "unresolved_only",
+                  "failed"
+                ]
+              },
+              "draftRevision": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "migratedSelections": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 512
+              },
+              "unresolvedAssets": {
+                "type": "array",
+                "maxItems": 512,
+                "items": {
+                  "$ref": "#/$defs/unresolvedAsset"
+                }
+              },
+              "hasGraphSettings": {
+                "type": "boolean"
               }
             }
           }

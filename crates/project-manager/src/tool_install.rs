@@ -99,26 +99,64 @@ fn registry_uninstall_keys(tool_id: &str) -> &'static [(RegistryHive, &'static s
     }
 }
 
+fn strip_trailing_icon_index(value: &str) -> &str {
+    let Some((head, tail)) = value.rsplit_once(',') else {
+        return value;
+    };
+    let tail = tail.trim();
+    let digits = tail.strip_prefix('-').unwrap_or(tail);
+    if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) {
+        head.trim()
+    } else {
+        value
+    }
+}
+
+fn strip_unquoted_exe_arguments(value: &str) -> &str {
+    let lower = value.to_ascii_lowercase();
+    let mut search_from = 0usize;
+    while let Some(rel) = lower[search_from..].find(".exe") {
+        let end = search_from + rel + 4;
+        if end == value.len() {
+            return value;
+        }
+        if matches!(value.as_bytes()[end], b' ' | b'\t' | b'/') {
+            return value[..end].trim_end();
+        }
+        search_from = end;
+    }
+    value
+}
+
 fn strip_icon_path(raw: &str) -> Option<PathBuf> {
-    let trimmed = raw.trim().trim_matches('"');
-    let without_index = trimmed
-        .split(',')
-        .next()
-        .unwrap_or(trimmed)
-        .trim()
-        .trim_matches('"');
-    if without_index.is_empty() {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
         return None;
     }
-    let path = PathBuf::from(without_index);
-    if path
+    let candidate = if let Some(rest) = trimmed.strip_prefix('"') {
+        let quoted = rest.split('"').next().unwrap_or(rest).trim();
+        strip_trailing_icon_index(quoted)
+    } else {
+        let without_index = strip_trailing_icon_index(trimmed);
+        strip_unquoted_exe_arguments(without_index)
+    };
+    if candidate.is_empty()
+        || candidate
+            .chars()
+            .any(|ch| matches!(ch, '"' | '<' | '>' | '|' | '?' | '*' | '\0'))
+    {
+        return None;
+    }
+    let path = PathBuf::from(candidate);
+    let resolved = if path
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
     {
         path.parent().map(Path::to_path_buf)
     } else {
         Some(path)
-    }
+    };
+    resolved.filter(|dir| !dir.as_os_str().is_empty())
 }
 
 fn valid_pe_executable(path: &Path) -> std::io::Result<bool> {
@@ -187,6 +225,13 @@ pub fn inspect_installer_tool(
                     incomplete_location = Some(dir.to_string_lossy().into_owned());
                 }
             }
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    std::io::ErrorKind::InvalidInput
+                        | std::io::ErrorKind::InvalidFilename
+                        | std::io::ErrorKind::NotADirectory
+                ) || matches!(err.raw_os_error(), Some(123 | 267)) => {}
             Err(_) => {
                 unreadable = true;
             }
@@ -795,6 +840,28 @@ mod tests {
                 &mut |_| Ok(())
             ),
             Err("vua.deployment.install_failed")
+        );
+    }
+
+    #[test]
+    fn strip_icon_path_handles_quoted_and_unquoted_uninstall_arguments() {
+        assert_eq!(
+            super::strip_icon_path(
+                r#""C:\Users\AR\AppData\Local\Programs\VRCX\Uninstall VRCX.exe" /currentuser"#
+            ),
+            Some(PathBuf::from(r"C:\Users\AR\AppData\Local\Programs\VRCX"))
+        );
+        assert_eq!(
+            super::strip_icon_path(r#"C:\Program Files\SlimeVR\uninstall.exe /S"#),
+            Some(PathBuf::from(r"C:\Program Files\SlimeVR"))
+        );
+        assert_eq!(
+            super::strip_icon_path(r#""C:\Program Files\VRCT\VRCT.exe",0"#),
+            Some(PathBuf::from(r"C:\Program Files\VRCT"))
+        );
+        assert_eq!(
+            super::strip_icon_path(r#"MsiExec.exe /X{00000000-0000-0000-0000-000000000000}"#),
+            None
         );
     }
 }

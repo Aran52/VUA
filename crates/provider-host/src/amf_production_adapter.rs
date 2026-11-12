@@ -1047,10 +1047,24 @@ impl AmfProductionPlatform for NativeAmfProduction {
                 .bdl
                 .entry_copies(&entry.warehouse_item_id)
                 .map_err(|e| err("library_failed", e))?;
-            let products = self
+            let mut products = self
                 .bdl
                 .product_ids_for_warehouse_item(&entry.warehouse_item_id)
                 .map_err(|e| err("library_failed", e))?;
+            if entry.kind == "imported_material" {
+                if let Some(product_id) = self
+                    .bdl
+                    .library_entry_metadata(&entry.warehouse_item_id)
+                    .map_err(|e| err("library_failed", e))?
+                    .product_id
+                    .filter(|id| !id.trim().is_empty())
+                {
+                    if !products.contains(&product_id) {
+                        products.push(product_id);
+                        products.sort();
+                    }
+                }
+            }
             for copy in copies {
                 let path = PathBuf::from(&copy.stored_path);
                 if copy.role.name() != "original" || !path.is_file() {

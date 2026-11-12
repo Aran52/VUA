@@ -24,6 +24,20 @@ pub(crate) struct AmfProductionServices {
     /// Unity work is admitted in request order with capacity and per-run exclusion.
     pub lane: TaskLane,
     entries: Mutex<Vec<LaneEntry>>,
+    admitting: Mutex<std::collections::HashSet<String>>,
+}
+
+struct AdmissionGuard<'a> {
+    service: &'a AmfProductionServices,
+    run_id: String,
+}
+
+impl Drop for AdmissionGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut set) = self.service.admitting.lock() {
+            set.remove(&self.run_id);
+        }
+    }
 }
 
 struct LaneView {
@@ -61,6 +75,18 @@ impl AmfProductionServices {
             runtime,
             lane,
             entries: Mutex::new(Vec::new()),
+            admitting: Mutex::new(std::collections::HashSet::new()),
+        }
+    }
+
+    fn begin_admission(&self, run_id: &str) -> AdmissionGuard<'_> {
+        self.admitting
+            .lock()
+            .expect("admission set poisoned")
+            .insert(run_id.to_owned());
+        AdmissionGuard {
+            service: self,
+            run_id: run_id.to_owned(),
         }
     }
 
@@ -87,6 +113,14 @@ impl AmfProductionServices {
 
     /// A job for this run runs or waits.
     pub(crate) fn run_busy(&self, run_id: &str) -> bool {
+        if self
+            .admitting
+            .lock()
+            .expect("admission set poisoned")
+            .contains(run_id)
+        {
+            return true;
+        }
         let view = self.lane_view();
         view.running
             .iter()
@@ -184,23 +218,38 @@ pub(crate) fn request(
         ),
     })
 }
+fn is_unfinished(run: &ProductionRun) -> bool {
+    ACTIVE_PHASES.contains(&run.phase.as_str())
+        || run.steps.last().is_some_and(|step| step.state == "running")
+}
+
 /// The run as the player sees it now. Work whose task no longer runs (VUA or its AMF process
 /// ended mid-step) needs inspection, and its unfinished step reads as interrupted.
 fn project_view(mut run: ProductionRun, service: &AmfProductionServices) -> ProductionRun {
-    if service.run_busy(&run.run_id) {
+    if !is_unfinished(&run) || service.run_busy(&run.run_id) {
         return run;
     }
-    let active = service
-        .runtime
-        .snapshot(&run.task_id)
-        .is_some_and(|task| !task.state.is_terminal());
-    if !active {
-        if ACTIVE_PHASES.contains(&run.phase.as_str()) {
-            run.phase = "inspect_required".into();
+    let is_active = |task_id: &str| {
+        !task_id.is_empty()
+            && service
+                .runtime
+                .snapshot(task_id)
+                .is_some_and(|task| !task.state.is_terminal())
+    };
+    if is_active(&run.task_id) {
+        return run;
+    }
+    if let Ok(fresh) = service.engine.get(&run.run_id) {
+        run = fresh;
+        if !is_unfinished(&run) || service.run_busy(&run.run_id) || is_active(&run.task_id) {
+            return run;
         }
-        if let Some(step) = run.steps.last_mut().filter(|step| step.state == "running") {
-            step.state = "interrupted".into();
-        }
+    }
+    if ACTIVE_PHASES.contains(&run.phase.as_str()) {
+        run.phase = "inspect_required".into();
+    }
+    if let Some(step) = run.steps.last_mut().filter(|step| step.state == "running") {
+        step.state = "interrupted".into();
     }
     run
 }
@@ -886,8 +935,10 @@ fn route(
             json!({"schemaVersion":"0.1", "document":service.engine.save_recipe(&string("runId")?, &id, &string("title")?)?}),
         );
     }
+    let mut _admission_guard: Option<AdmissionGuard<'_>> = None;
     let run_id = if method == "amf.production.prepareRecipe" {
         let id = format!("n3-{}", uuid_v7_identity());
+        _admission_guard = Some(service.begin_admission(&id));
         service.engine.begin_recipe_with_choices(
             &id,
             &string("recipeId")?,
@@ -899,6 +950,7 @@ fn route(
         let choices: Vec<SourceChoice> = serde_json::from_value(params["sources"].clone())
             .map_err(|e| production_error("sources_invalid", e.to_string()))?;
         let id = format!("n3-{}", uuid_v7_identity());
+        _admission_guard = Some(service.begin_admission(&id));
         service.engine.begin(&id, choices, &string("editorPath")?)?;
         id
     } else {
@@ -1863,5 +1915,17 @@ mod tests {
             drop(service);
             std::fs::remove_dir_all(root).unwrap();
         }
+    }
+
+    #[test]
+    fn admission_guard_prevents_concurrent_list_from_marking_new_prepare_as_interrupted() {
+        let root = std::env::temp_dir().join(format!("vua-amf-admission-{}", uuid_v7_identity()));
+        let service = services_at(&root);
+        let guard = service.begin_admission("n3-preparing");
+        assert!(service.run_busy("n3-preparing"));
+        drop(guard);
+        assert!(!service.run_busy("n3-preparing"));
+        drop(service);
+        let _ = std::fs::remove_dir_all(root);
     }
 }

@@ -182,17 +182,10 @@ namespace Vua.Editor.Bridge
                 return report;
             }
 
-            var hadGeneratedRoot = AssetDatabase.IsValidFolder(NdmfGeneratedAssetsRoot);
-            var existingSubfolders = hadGeneratedRoot
-                ? new HashSet<string>(AssetDatabase.GetSubFolders(NdmfGeneratedAssetsRoot), StringComparer.Ordinal)
-                : new HashSet<string>(StringComparer.Ordinal);
-            var existingAssetPaths = hadGeneratedRoot
-                ? new HashSet<string>(
-                    AssetDatabase.FindAssets("", new[] { NdmfGeneratedAssetsRoot })
-                        .Select(AssetDatabase.GUIDToAssetPath)
-                        .Where(path => !string.IsNullOrEmpty(path)),
-                    StringComparer.Ordinal)
-                : new HashSet<string>(StringComparer.Ordinal);
+            var hadGeneratedRoot = false;
+            var existingSubfolders = new HashSet<string>(StringComparer.Ordinal);
+            var existingAssetPaths = new HashSet<string>(StringComparer.Ordinal);
+            var snapshotCaptured = false;
 
             GameObject inputWithout = null;
             GameObject inputWith = null;
@@ -200,6 +193,20 @@ namespace Vua.Editor.Bridge
             GameObject processedWith = null;
             try
             {
+                hadGeneratedRoot = AssetDatabase.IsValidFolder(NdmfGeneratedAssetsRoot);
+                if (hadGeneratedRoot)
+                {
+                    existingSubfolders = new HashSet<string>(
+                        AssetDatabase.GetSubFolders(NdmfGeneratedAssetsRoot),
+                        StringComparer.Ordinal);
+                    existingAssetPaths = new HashSet<string>(
+                        AssetDatabase.FindAssets("", new[] { NdmfGeneratedAssetsRoot })
+                            .Select(AssetDatabase.GUIDToAssetPath)
+                            .Where(path => !string.IsNullOrEmpty(path)),
+                        StringComparer.Ordinal);
+                }
+                snapshotCaptured = true;
+
                 var suffix = Guid.NewGuid().ToString("N").Substring(0, 12);
                 inputWithout = UnityEngine.Object.Instantiate(avatar);
                 inputWithout.name = "__vua_ndmf_before_" + suffix;
@@ -234,19 +241,27 @@ namespace Vua.Editor.Bridge
             }
             finally
             {
-                if (processedWithout != null && processedWithout != inputWithout)
-                    UnityEngine.Object.DestroyImmediate(processedWithout);
-                if (processedWith != null && processedWith != inputWith)
-                    UnityEngine.Object.DestroyImmediate(processedWith);
-                if (inputWithout != null)
-                    UnityEngine.Object.DestroyImmediate(inputWithout);
-                if (inputWith != null)
-                    UnityEngine.Object.DestroyImmediate(inputWith);
+                try
+                {
+                    if (processedWithout != null && processedWithout != inputWithout)
+                        UnityEngine.Object.DestroyImmediate(processedWithout);
+                    if (processedWith != null && processedWith != inputWith)
+                        UnityEngine.Object.DestroyImmediate(processedWith);
+                    if (inputWithout != null)
+                        UnityEngine.Object.DestroyImmediate(inputWithout);
+                    if (inputWith != null)
+                        UnityEngine.Object.DestroyImmediate(inputWith);
+                }
+                catch (Exception) { }
 
                 try { cleanTemporary?.Invoke(null, null); }
                 catch (Exception) { }
 
-                CleanupGeneratedAssets(hadGeneratedRoot, existingSubfolders, existingAssetPaths);
+                if (snapshotCaptured)
+                {
+                    try { CleanupGeneratedAssets(hadGeneratedRoot, existingSubfolders, existingAssetPaths); }
+                    catch (Exception) { }
+                }
             }
 
             return report;

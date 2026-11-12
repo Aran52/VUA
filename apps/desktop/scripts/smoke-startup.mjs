@@ -130,7 +130,7 @@ async function run() {
     }
     await waitFor(firstUseNotice, "first-use notice");
     assert(!await js('!!document.querySelector(".vua-tour")'), "The notice waits for an explicit entry choice");
-    assert(await js('document.querySelectorAll("[data-first-use-part]").length===4 && document.querySelectorAll(".vua-onboarding button").length===2 && !document.querySelector(".vua-onboarding select, .vua-onboarding input")'), "Four notice parts and two choices replace the language question");
+    assert(await js('document.querySelectorAll("[data-first-use-part]").length===5 && document.querySelectorAll(".vua-onboarding button").length===2 && !document.querySelector(".vua-onboarding select, .vua-onboarding input")'), "Five notice parts including update disclosure and two choices replace the language question");
     assert(await js('document.querySelector("[data-first-use-part=source]").textContent.includes("Apache 2.0") && document.querySelector("[data-first-use-part=licenses] a").href.endsWith("/THIRD_PARTY_NOTICES.md")'), "The first-use notice links its free source and third-party licenses");
     await waitFor(() => splash.isDestroyed(), "startup window teardown");
     assert(shown.filter(item => item.window === main.id).length === 1 && shown.filter(item => item.window === main.id).every(item => !item.loading), "Main opens once after loading and the small splash is destroyed");

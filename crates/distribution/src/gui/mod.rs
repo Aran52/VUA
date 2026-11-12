@@ -1088,11 +1088,20 @@ unsafe extern "system" fn wndproc(hwnd: HWND, message: u32, w: WPARAM, l: LPARAM
                             .get(idx)
                             .and_then(|&(act, en, _)| en.then_some(act))
                     } else if vk == VK_RETURN {
-                        // Enter defaults to Retry or Close on static error/failure cards, never auto-confirms destructive Uninstall without focus
-                        state.layout.buttons.iter().find_map(|&(act, en, _)| {
-                            (en && matches!(act, ButtonAction::Retry | ButtonAction::Close))
-                                .then_some(act)
-                        })
+                        // Enter defaults to Retry (primary on error cards) or Close (primary on failure card),
+                        // and never auto-confirms destructive Uninstall without explicit focus.
+                        state
+                            .layout
+                            .buttons
+                            .iter()
+                            .find_map(|&(act, en, _)| {
+                                (en && act == ButtonAction::Retry).then_some(act)
+                            })
+                            .or_else(|| {
+                                state.layout.buttons.iter().find_map(|&(act, en, _)| {
+                                    (en && act == ButtonAction::Close).then_some(act)
+                                })
+                            })
                     } else {
                         None
                     };
